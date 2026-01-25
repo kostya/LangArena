@@ -6,7 +6,8 @@ FROM benchmarks:base
 
 ARG version
 
-RUN apt install -y --no-install-recommends openjdk-$version-jdk-headless
+RUN apt install -y --no-install-recommends openjdk-$version-jdk-headless \
+    && apt clean
 
 ENV JAVA_HOME="/usr/lib/jvm/java-$version-openjdk-amd64"
 ENV PATH="${JAVA_HOME}/bin:${PATH}"

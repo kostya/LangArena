@@ -11,7 +11,8 @@ RUN wget https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-p
     && dpkg -i packages-microsoft-prod.deb \
     && rm packages-microsoft-prod.deb
 
-RUN apt install -y --no-install-recommends dotnet-sdk-$version libbrotli-dev
+RUN apt install -y --no-install-recommends dotnet-sdk-$version libbrotli-dev \
+    && apt clean
 
 # Обновляем пакеты System.Text.Json (исправляем уязвимости)
 RUN dotnet new console -n temp && cd temp \

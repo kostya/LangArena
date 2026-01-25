@@ -11,7 +11,8 @@ RUN apt install -y --no-install-recommends \
     libsqlite3-dev \
     libstdc++-11-dev \
     libz3-dev \
-    libncurses6
+    libncurses6 \
+    && apt clean
 
 ARG version
 

@@ -9,7 +9,8 @@ RUN apt install -y --no-install-recommends \
     clang-20 \
     lld-20 \
     libclang-20-dev \
-    liblld-20-dev
+    liblld-20-dev \
+    && apt clean
 
 RUN ln -sf /usr/bin/llvm-config-20 /usr/local/bin/llvm-config
 RUN ln -sf /usr/bin/llvm-ar-20 /usr/local/bin/llvm-ar

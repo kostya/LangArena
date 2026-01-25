@@ -2,4 +2,5 @@ FROM benchmarks:base
 
 ARG version
 RUN curl -fsSL https://deb.nodesource.com/setup_$version | bash - \
-    && apt install -y --no-install-recommends nodejs
+    && apt install -y --no-install-recommends nodejs \
+    && apt clean
