@@ -1,4 +1,4 @@
 FROM benchmarks:base_clang
 
-RUN apt install -y libre2-dev
+RUN apt install -y --no-install-recommends libre2-dev
 # libstdc++-12-dev libgcc-12-dev

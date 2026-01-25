@@ -6,7 +6,7 @@ FROM benchmarks:base
 
 ARG version
 
-RUN apt install -y \
+RUN apt install -y --no-install-recommends \
     gcc-$version \
     g++-$version
 

@@ -23,6 +23,7 @@ RUN apt update && apt install -y --no-install-recommends \
     zlib1g-dev \
     libxml2-dev \
     libssl-dev \
+    libpcre2-dev \ 
     cmake \
     vim \
     mc \

@@ -3,7 +3,7 @@ FROM benchmarks:base
 # ============================================
 # Установка Crystal
 # ============================================
-RUN apt install -y \
+RUN apt install -y --no-install-recommends \
     libyaml-dev \
     libevent-dev \
     libpcre3-dev
