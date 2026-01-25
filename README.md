@@ -5,7 +5,7 @@
 
 ### Results Page
 
-	[Results](https://kostya.github.io/LangArena/)
+[Results](https://kostya.github.io/LangArena/)
 
 ### Origin & Methodology
 
