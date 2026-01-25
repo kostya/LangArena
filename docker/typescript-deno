@@ -1,5 +1,4 @@
 FROM benchmarks:base
 
-RUN apt-get install -y curl unzip \
-    && curl -fsSL https://deno.land/x/install/install.sh | sh \
+RUN curl -fsSL https://deno.land/x/install/install.sh | sh \
     && ln -s /root/.deno/bin/deno /usr/bin/deno

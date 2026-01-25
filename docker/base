@@ -4,10 +4,7 @@ WORKDIR /opt
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 
-# ============================================
-# Обновление системы и базовые пакеты
-# ============================================
-RUN apt-get update && apt-get install -y \
+RUN apt update && apt install -y --no-install-recommends \
     software-properties-common \
     wget \
     curl \
@@ -17,6 +14,16 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     iputils-ping \
     ca-certificates \
-    time
-
-RUN apt install -y vim mc # for debug
+    time \
+    tzdata \
+    pkg-config \
+    unzip \
+    libnuma-dev \
+    numactl \
+    zlib1g-dev \
+    libxml2-dev \
+    libssl-dev \
+    cmake \
+    vim \
+    mc \
+    && apt clean

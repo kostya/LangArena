@@ -1,0 +1,6 @@
+FROM benchmarks:base_clang
+
+RUN apt install -y \
+    uthash-dev \
+    libpcre2-dev
+    

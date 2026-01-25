@@ -152,7 +152,7 @@ class Run
   end
 
   def dcr
-    "docker compose run -w #{@dir} --rm -q --remove-orphans #{@container} "
+    "docker compose run --rm -q --remove-orphans #{@container} "
   end
 
   def rss_prefix

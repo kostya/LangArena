@@ -1,0 +1,3 @@
+FROM benchmarks:base_gcc
+
+RUN apt install -y uthash-dev libpcre2-dev

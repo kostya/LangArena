@@ -1,0 +1,3 @@
+FROM benchmarks:base_gcc
+
+RUN apt install -y libre2-dev

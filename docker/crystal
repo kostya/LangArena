@@ -3,15 +3,10 @@ FROM benchmarks:base
 # ============================================
 # Установка Crystal
 # ============================================
-RUN apt-get install -y \
-    libssl-dev \
-    libxml2-dev \
+RUN apt install -y \
     libyaml-dev \
-    libgmp-dev \
-    libz-dev \
     libevent-dev \
-    libpcre3-dev \
-    pkg-config
+    libpcre3-dev
 
 ARG version
 ARG arch

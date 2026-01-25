@@ -113,17 +113,35 @@ services:
     depends_on:
       - base
 
-  clang:
+  base_clang:
     <<: *shared-cpu  # Максимальная оптимизация CPU
-    image: benchmarks:clang
-    working_dir: /src/c
+    image: benchmarks:base_clang
+    working_dir: /src
     build: 
-      dockerfile: docker/clang
+      dockerfile: docker/base_clang
       args:
         # https://github.com/llvm/llvm-project/releases
         version: 21
     depends_on:
       - base
+
+  clang_c:
+    <<: *shared-cpu
+    image: benchmarks:clang_c
+    working_dir: /src/c
+    build: 
+      dockerfile: docker/clang_c
+    depends_on:
+      - base_clang
+
+  clang_cpp:
+    <<: *shared-cpu
+    image: benchmarks:clang_cpp
+    working_dir: /src/cpp
+    build: 
+      dockerfile: docker/clang_cpp
+    depends_on:
+      - base_clang
 
   dotnet:
     <<: *shared-cpu  # Максимальная оптимизация CPU
@@ -141,17 +159,35 @@ services:
     depends_on:
       - base
 
-  gcc:
+  base_gcc:
     <<: *shared-cpu  # Максимальная оптимизация CPU
-    image: benchmarks:gcc
-    working_dir: /src/c
+    image: benchmarks:base_gcc
+    working_dir: /src
     build: 
-      dockerfile: docker/gcc
+      dockerfile: docker/base_gcc
       args:
         # https://gcc.gnu.org/releases.html
         version: "14"
     depends_on:
       - base      
+
+  gcc_c:
+    <<: *shared-cpu
+    image: benchmarks:gcc_c
+    working_dir: /src/c
+    build: 
+      dockerfile: docker/gcc_c
+    depends_on:
+      - base_gcc 
+
+  gcc_cpp:
+    <<: *shared-cpu
+    image: benchmarks:gcc_cpp
+    working_dir: /src/cpp
+    build: 
+      dockerfile: docker/gcc_cpp
+    depends_on:
+      - base_gcc 
 
   gccgo:
     <<: *shared-cpu  # Максимальная оптимизация CPU
@@ -162,7 +198,7 @@ services:
       args:
         version: "14"
     depends_on:
-      - gcc
+      - base_gcc
 
   golang:
     <<: *shared-cpu  # Максимальная оптимизация CPU
