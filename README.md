@@ -3,6 +3,10 @@
 
 **LangArena** is a collection of **40 diverse benchmarks** designed for a **realistic, apples-to-apples comparison** of programming language performance. The goal is not to find the ultimate winner in micro-optimizations, but to evaluate how well each language's compiler or runtime optimizes clean, idiomatic, production-style code.
 
+### Results Page
+
+	[Results](https://kostya.github.io/LangArena/)
+
 ### Origin & Methodology
 
 The suite was initially authored in **Crystal** and then translated to other languages using AI-assisted tools (DeepSeek). This approach ensures functional and algorithmic parity, though the resulting code may not always be the absolute fastest version a language expert could write.
