@@ -1,0 +1,10 @@
+*.swp
+target/
+*.o
+*.out
+*.dwarf
+bin_*
+py/
+cache/
+*.png
+*.csv

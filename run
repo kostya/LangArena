@@ -1,0 +1,4 @@
+#!/bin/bash
+./all_run_local $@ | tee /tmp/all_run.txt
+ruby -e 'str = File.read("/tmp/all_run.txt"); res = str.split("\n").map { |l| s, _, a, b = l.split(","); [s.split(" ")[0], a.to_i, b.to_i] }; sum_a = 0; sum_b = 0; res.each { |n, a, b| sum_a += a; sum_b += b; }; puts "all: #{sum_a + sum_b}, ok: #{sum_a}, fail: #{sum_b}"'
+rm -f /tmp/all_run.txt

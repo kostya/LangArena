@@ -1,0 +1,4037 @@
+require "big"
+require "base64"
+require "json"
+require "complex"
+
+Helper.load_config
+Benchmark.run(ARGV[1]?)
+
+module Helper
+  IM   = 139968
+  IA   =   3877
+  IC   =  29573
+  INIT =     42
+
+  @[AlwaysInline]
+  def self.last
+    @@last ||= INIT
+  end
+
+  @[AlwaysInline]
+  def self.last=(x)
+    @@last = x
+  end
+
+  def self.reset
+    @@last = INIT
+  end
+
+  def self.next_int(max : Int)
+    Helper.last = (Helper.last * IA + IC) % IM
+    (Helper.last / IM.to_f64 * max).to_i32
+  end
+
+  def self.next_int(from : Int, to : Int)
+    next_int(to - from + 1) + from
+  end
+
+  def self.next_float(max : Float64 = 1.0)
+    Helper.last = (Helper.last * IA &+ IC) % IM
+    max * Helper.last / IM.to_f64
+  end
+
+  def self.debug(&)
+    {% unless flag?(:release) %}
+      if ENV["DEBUG"]? == "1"
+        puts yield
+      end
+    {% end %}
+  end
+
+  def self.checksum(v : String) : UInt32
+    # debug { "checksum: #{v}" }
+    hash = 5381_u32
+    v.each_byte do |byte|
+      hash = ((hash << 5) &+ hash) &+ byte
+    end
+    hash
+  end
+
+  def self.checksum(v : Bytes) : UInt32
+    # debug { "checksum: #{v.inspect}" }
+    hash = 5381_u32
+    v.each do |byte|
+      hash = ((hash << 5) &+ hash) &+ byte
+    end
+    hash
+  end
+
+  def self.checksum_f64(v : Float) : UInt32
+    Helper.checksum("%.7f" % {v})
+  end
+
+  # def self.custom_round(value : Float64, precision : Int32) : Float64
+  #   return value if value.nan? || value.infinite?
+
+  #   factor = 10.0 ** precision
+  #   scaled = value * factor
+
+  #   # Banker's rounding: round half to even
+  #   fraction = scaled - scaled.floor
+  #   if fraction.abs < 0.5
+  #     scaled.floor / factor
+  #   elsif fraction.abs > 0.5
+  #     scaled.ceil / factor
+  #   else
+  #     # Точная половина - округляем к ближайшему четному
+  #     (scaled / 2.0).round * 2.0 / factor
+  #   end
+  # end
+
+  # Config is simple file:
+  # bench(string)|arg1(string)|expected(i64)\n
+  # ...
+  INPUT  = Hash(String, String).new
+  EXPECT = Hash(String, Int64).new
+
+  def self.load_config
+    h = Hash(String, Tuple(Int32, Int64)).new
+    filename = ARGV[0]? || "../test.txt"
+    lines = File.read(filename).split("\n").reject &.empty?
+    lines.each { |l| a, b, c = l.split("|"); INPUT[a] = b; EXPECT[a] = c.to_i64 }
+    h
+  end
+end
+
+abstract class Benchmark
+  abstract def run # this is only method which time measured
+  abstract def result
+
+  def prepare
+  end
+
+  def iterations
+    Helper::INPUT[self.class.name.to_s].to_i32
+  end
+
+  def self.run(single_bench : String? = nil)
+    results = {} of String => Float64
+
+    summary_time = 0.0
+    ok = 0
+    fails = 0
+
+    {% for kl in @type.all_subclasses %}
+      if (!single_bench || (single_bench == {{kl.stringify}})) && ({{kl.stringify}} != "SortBenchmark") && ({{kl.stringify}} != "BufferHashBenchmark") && ({{kl.stringify}} != "GraphPathBenchmark")
+        print "{{kl}}: "
+
+        Helper.reset
+        
+        bench = {{kl.id}}.new
+        bench.prepare
+        
+        t = Time.monotonic
+        bench.run
+        time_delta = (Time.monotonic - t).to_f
+
+        results["{{kl.id}}"] = time_delta
+
+        GC.collect
+        sleep 0.seconds # context switch, may be needed or maybe not, to close some coroutines
+        GC.collect
+        
+        if bench.result == Helper::EXPECT[bench.class.name]
+          print "OK "
+          ok += 1
+        else
+          print "ERR[actual=#{bench.result.inspect}, expected=#{Helper::EXPECT[bench.class.name].inspect}] "
+          fails += 1
+        end
+
+        print "in %.3fs\n" % {time_delta}
+        summary_time += time_delta
+      end
+    {% end %}
+
+    File.open("/tmp/results.js", "w") { |f| results.to_json(f) }
+    puts "Summary: %.4fs, %d, %d, %d" % {summary_time, ok + fails, ok, fails}
+    exit 1 if fails > 0
+  end
+end
+
+class Pidigits < Benchmark
+  def initialize(@nn : Int32 = iterations)
+    @result = IO::Memory.new
+  end
+
+  def run
+    i = 0
+    k = 0
+    ns = 0.to_big_i
+    a = 0.to_big_i
+    t = 0
+    u = 0.to_big_i
+    k1 = 1
+    n = 1.to_big_i
+    d = 1.to_big_i
+
+    while true
+      k += 1
+      t = n << 1
+      n *= k
+      k1 += 2
+      a = (a + t) * k1
+      d *= k1
+      if a >= n
+        t, u = (n * 3 + a).divmod(d)
+        u += n
+        if d > u
+          ns = ns * 10 + t
+          i += 1
+          if i % 10 == 0
+            @result << "%010d\t:%d\n" % {ns.to_u64, i}
+            ns = 0
+          end
+          break if i >= @nn
+
+          a = (a - (d * t)) * 10
+          n *= 10
+        end
+      end
+    end
+  end
+
+  def result
+    Helper.checksum(@result.to_s)
+  end
+end
+
+class Binarytrees < Benchmark
+  getter result
+
+  class TreeNode
+    property left : TreeNode?
+    property right : TreeNode?
+    property item : Int32
+
+    def self.create(item, depth) : TreeNode
+      TreeNode.new item, depth - 1
+    end
+
+    def initialize(@item, depth = 0)
+      if depth > 0
+        self.left = TreeNode.new 2 * item - 1, depth - 1
+        self.right = TreeNode.new 2 * item, depth - 1
+      end
+    end
+
+    def check
+      return item if (lft = left).nil?
+      return item if (rgt = right).nil?
+      lft.check - rgt.check + item
+    end
+  end
+
+  def initialize(@n : Int32 = iterations)
+    @result = 0
+  end
+
+  def run
+    min_depth = 4
+    max_depth = Math.max min_depth + 2, @n
+    stretch_depth = max_depth + 1
+    @result += TreeNode.create(0, stretch_depth).check
+
+    min_depth.step(to: max_depth, by: 2) do |depth|
+      iterations = 1 << (max_depth - depth + min_depth)
+      1.upto(iterations) do |i|
+        @result += TreeNode.create(i, depth).check
+        @result += TreeNode.create(-i, depth).check
+      end
+    end
+  end
+end
+
+class BrainfuckHashMap < Benchmark
+  getter result
+
+  class Tape
+    def initialize
+      @tape = [0]
+      @pos = 0
+    end
+
+    @[AlwaysInline]
+    def get
+      @tape[@pos]
+    end
+
+    @[AlwaysInline]
+    def inc
+      @tape[@pos] += 1
+    end
+
+    @[AlwaysInline]
+    def dec
+      @tape[@pos] -= 1
+    end
+
+    @[AlwaysInline]
+    def advance
+      @pos += 1
+      @tape << 0 if @tape.size <= @pos
+    end
+
+    @[AlwaysInline]
+    def devance
+      @pos -= 1 if @pos > 0
+    end
+  end
+
+  class Program
+    def initialize(text)
+      @chars = [] of Char
+      @bracket_map = {} of Int32 => Int32
+      leftstack = [] of Int32
+      pc = 0
+      text.each_char do |char|
+        if "[]<>+-,.".includes?(char)
+          @chars << char
+          if char == '['
+            leftstack << pc
+          elsif char == ']' && !leftstack.empty?
+            left = leftstack.pop
+            right = pc
+            @bracket_map[left] = right
+            @bracket_map[right] = left
+          end
+          pc += 1
+        end
+      end
+    end
+
+    def run
+      result = 0_i64
+      tape = Tape.new
+      pc = 0
+      while pc < @chars.size
+        case @chars[pc]
+        when '+'; tape.inc
+        when '-'; tape.dec
+        when '>'; tape.advance
+        when '<'; tape.devance
+        when '['; pc = @bracket_map[pc] if tape.get == 0
+        when ']'; pc = @bracket_map[pc] if tape.get != 0
+        when '.'; result = (result << 2) &+ tape.get.chr.ord
+        else
+        end
+        pc += 1
+      end
+      result
+    end
+  end
+
+  @text : String
+
+  def initialize
+    @text = Helper::INPUT[self.class.name.to_s]
+    @result = 0_i64
+  end
+
+  def run
+    @result = Program.new(@text).run
+  end
+end
+
+class BrainfuckRecursion < Benchmark
+  getter result
+
+  module Op
+    record Inc, val : Int32
+    record Move, val : Int32
+    record Print
+    alias T = Inc | Move | Print | Array(Op::T)
+  end
+
+  class Tape
+    def initialize
+      @tape = [0_u8]
+      @pos = 0
+    end
+
+    @[AlwaysInline]
+    def get
+      @tape[@pos]
+    end
+
+    @[AlwaysInline]
+    def inc(x)
+      @tape[@pos] += x
+    end
+
+    @[AlwaysInline]
+    def move(x)
+      @pos += x
+      while @pos >= @tape.size
+        @tape << 0
+      end
+    end
+  end
+
+  class Program
+    property result
+    @ops : Array(Op::T)
+
+    def initialize(code : String)
+      @ops = parse(code.each_char)
+      @result = 0_i64
+    end
+
+    def run
+      tape = Tape.new
+      @ops.each { |op| _run(op, tape) }
+    end
+
+    def _run(op : Op::Inc, tape)
+      tape.inc(op.val)
+    end
+
+    def _run(op : Op::Move, tape)
+      tape.move(op.val)
+    end
+
+    def _run(ops : Array(Op::T), tape)
+      while tape.get != 0
+        ops.each { |op| _run(op, tape) }
+      end
+    end
+
+    def _run(op : Op::Print, tape)
+      @result = (@result << 2) &+ tape.get.chr.ord
+    end
+
+    private def parse(iterator)
+      res = [] of Op::T
+      iterator.each do |c|
+        op = case c
+             when '+'; Op::Inc.new(1)
+             when '-'; Op::Inc.new(-1)
+             when '>'; Op::Move.new(1)
+             when '<'; Op::Move.new(-1)
+             when '.'; Op::Print.new
+             when '['; parse(iterator)
+             when ']'; break
+             else
+             end
+        res << op if op
+      end
+      res
+    end
+  end
+
+  @text : String
+
+  def initialize
+    @text = Helper::INPUT[self.class.name.to_s]
+    @result = 0_i64
+  end
+
+  def run
+    program = Program.new(@text)
+    program.run
+    @result = program.result
+  end
+end
+
+class Fannkuchredux < Benchmark
+  getter result
+
+  def fannkuchredux(n)
+    perm1 = StaticArray(Int32, 32).new { |i| i }
+    perm = StaticArray(Int32, 32).new(0)
+    count = StaticArray(Int32, 32).new(0)
+    maxFlipsCount = permCount = checksum = 0
+    r = n
+
+    while true
+      while r > 1
+        count[r - 1] = r
+        r -= 1
+      end
+
+      n.times { |i| perm[i] = perm1[i] } # dup
+      flipsCount = 0
+
+      while !((k = perm[0]) == 0)
+        k2 = (k + 1) >> 1
+        (0...k2).each do |i|
+          j = k - i
+          perm[i], perm[j] = perm[j], perm[i] # swap
+        end
+        flipsCount += 1
+      end
+
+      maxFlipsCount = flipsCount if flipsCount > maxFlipsCount
+      checksum += (permCount % 2 == 0) ? flipsCount : -flipsCount
+
+      while true
+        return {checksum, maxFlipsCount} if r == n
+
+        perm0 = perm1[0]
+        (0...r).each do |i|
+          j = i + 1
+          perm1[i], perm1[j] = perm1[j], perm1[i] # swap
+        end
+
+        perm1[r] = perm0
+        cntr = count[r] -= 1
+        break if cntr > 0
+        r += 1
+      end
+      permCount += 1
+    end
+  end
+
+  def initialize(@n : Int32 = iterations)
+    @result = 0_i64
+  end
+
+  def run
+    a, b = fannkuchredux(@n)
+    @result = a.to_i64 * 100 &+ b
+  end
+end
+
+class Fasta < Benchmark
+  def select_random(genelist)
+    r = Helper.next_float
+    return genelist[0][0] if r < genelist[0][1]
+
+    lo = 0
+    hi = genelist.size - 1
+
+    while hi > lo + 1
+      i = (hi + lo) // 2
+      if r < genelist[i][1]
+        hi = i
+      else
+        lo = i
+      end
+    end
+    genelist[hi][0]
+  end
+
+  LINE_LENGTH = 60
+
+  def make_random_fasta(id, desc, genelist, n)
+    todo = n
+    @result << ">#{id} #{desc}"
+    @result << "\n"
+
+    while todo > 0
+      m = (todo < LINE_LENGTH) ? todo : LINE_LENGTH
+      pick = String.new(m) do |buffer|
+        m.times { |i| buffer[i] = select_random(genelist).ord.to_u8 }
+        {m, m}
+      end
+      @result << pick
+      @result << "\n"
+      todo -= LINE_LENGTH
+    end
+  end
+
+  def make_repeat_fasta(id, desc, s, n)
+    todo = n
+    k = 0
+    kn = s.size
+
+    @result << ">#{id} #{desc}"
+    @result << "\n"
+    while todo > 0
+      m = (todo < LINE_LENGTH) ? todo : LINE_LENGTH
+
+      while m >= kn - k
+        @result << s[k..-1]
+        m -= kn - k
+        k = 0
+      end
+
+      @result << s[k...k + m]
+      @result << "\n"
+      k += m
+
+      todo -= LINE_LENGTH
+    end
+  end
+
+  IUB = [{'a', 0.27}, {'c', 0.39}, {'g', 0.51}, {'t', 0.78}, {'B', 0.8}, {'D', 0.8200000000000001},
+         {'H', 0.8400000000000001}, {'K', 0.8600000000000001}, {'M', 0.8800000000000001},
+         {'N', 0.9000000000000001}, {'R', 0.9200000000000002}, {'S', 0.9400000000000002},
+         {'V', 0.9600000000000002}, {'W', 0.9800000000000002}, {'Y', 1.0000000000000002}]
+  HOMO = [{'a', 0.302954942668}, {'c', 0.5009432431601}, {'g', 0.6984905497992}, {'t', 1.0}]
+  ALU  = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"
+
+  def initialize(@n : Int32 = iterations)
+    @result = IO::Memory.new
+  end
+
+  def run
+    make_repeat_fasta("ONE", "Homo sapiens alu", ALU, @n * 2)
+    make_random_fasta("TWO", "IUB ambiguity codes", IUB, @n * 3)
+    make_random_fasta("THREE", "Homo sapiens frequency", HOMO, @n * 5)
+  end
+
+  def result
+    Helper.checksum(@result.to_s)
+  end
+end
+
+class Knuckeotide < Benchmark
+  def frecuency(seq, length)
+    n = seq.size - length + 1
+    table = Hash(String, Int32).new { 0 }
+    (0...n).each do |f|
+      table[seq.byte_slice(f, length)] += 1
+    end
+    {n, table}
+  end
+
+  def sort_by_freq(seq, length)
+    n, table = frecuency(seq, length)
+    table.to_a.sort { |a, b| b[1] <=> a[1] }.each do |v|
+      @result << "%s %.3f\n" % {v[0].upcase, ((v[1] * 100).to_f / n)}
+    end
+    @result << "\n"
+  end
+
+  def find_seq(seq, s)
+    n, table = frecuency(seq, s.size)
+    @result << "#{table[s].to_s}\t#{s.upcase}\n"
+  end
+
+  def initialize
+    @seq = ""
+    @result = IO::Memory.new
+  end
+
+  def prepare
+    f = Fasta.new(iterations)
+    f.run
+    res = f.@result.to_s
+
+    three = false
+    seqio = IO::Memory.new
+
+    res.each_line do |line|
+      if line.starts_with?(">THREE")
+        three = true
+        next
+      end
+      seqio << line.chomp if three
+    end
+    @seq = seqio.to_s
+  end
+
+  def run
+    (1..2).each { |i| sort_by_freq(@seq, i) }
+    %w(ggt ggta ggtatt ggtattttaatt ggtattttaatttatagt).each { |s| find_seq(@seq, s) }
+  end
+
+  def result
+    Helper.checksum(@result.to_s)
+  end
+end
+
+class Mandelbrot < Benchmark
+  ITER  =  50
+  LIMIT = 2.0
+
+  def initialize(@n : Int32 = iterations)
+    @result = IO::Memory.new
+  end
+
+  def run
+    w = h = @n
+    @result << "P4\n#{w} #{h}\n"
+
+    bit_num = 0
+    byte_acc = 0_u8
+
+    h.times do |y|
+      w.times do |x|
+        zr = zi = tr = ti = 0.0
+        cr = (2.0 * x / w - 1.5)
+        ci = (2.0 * y / h - 1.0)
+
+        i = 0
+        while (i < ITER) && (tr + ti <= LIMIT * LIMIT)
+          zi = 2.0 * zr * zi + ci
+          zr = tr - ti + cr
+          tr = zr * zr
+          ti = zi * zi
+          i += 1
+        end
+
+        byte_acc <<= 1
+        byte_acc |= 0x01 if tr + ti <= LIMIT * LIMIT
+        bit_num += 1
+
+        if bit_num == 8
+          @result.write_byte byte_acc
+          byte_acc = 0_u8
+          bit_num = 0
+        elsif x == w - 1
+          byte_acc <<= 8 - w % 8
+          @result.write_byte byte_acc
+          byte_acc = 0_u8
+          bit_num = 0
+        end
+      end
+    end
+  end
+
+  def result
+    Helper.checksum(@result.to_slice)
+  end
+end
+
+class Matmul < Benchmark
+  def matmul(a, b)
+    m = a.size
+    n = a[0].size
+    p = b[0].size
+    # transpose
+    b2 = Array.new(n) { Array.new(p, 0.0) }
+    (0...n).each do |i|
+      (0...p).each do |j|
+        b2[j][i] = b[i][j]
+      end
+    end
+    # multiplication
+    c = Array.new(m) { Array.new(p, 0.0) }
+    c.each_with_index do |ci, i|
+      ai = a[i]
+      b2.each_with_index do |b2j, j|
+        s = 0.0
+        b2j.each_with_index do |b2jv, k|
+          s += ai[k] * b2jv
+        end
+        ci[j] = s
+      end
+    end
+    c
+  end
+
+  def matgen(n)
+    tmp = 1.0 / n / n
+    a = Array.new(n) { Array.new(n, 0.0) }
+    (0...n).each do |i|
+      (0...n).each do |j|
+        a[i][j] = tmp * (i - j) * (i + j)
+      end
+    end
+    a
+  end
+
+  getter result
+
+  def initialize(@n : Int32 = iterations)
+    @result = 0_u32
+  end
+
+  def run
+    a = matgen(@n)
+    b = matgen(@n)
+    c = matmul(a, b)
+    @result = Helper.checksum_f64(c[@n >> 1][@n >> 1])
+  end
+end
+
+class Matmul4T < Benchmark
+  @n : Int32
+  @result : UInt32
+
+  def initialize(@n = iterations)
+    @result = 0_u32
+  end
+
+  def num_workers
+    4
+  end
+
+  def matgen(n : Int32) : Array(Array(Float64))
+    tmp = 1.0 / n / n
+    Array.new(n) do |i|
+      Array.new(n) do |j|
+        tmp * (i - j) * (i + j)
+      end
+    end
+  end
+
+  def matmul_parallel(a : Array(Array(Float64)), b : Array(Array(Float64))) : Array(Array(Float64))
+    size = a.size
+
+    # Транспонируем b
+    b_t = Array.new(size) { Array.new(size, 0.0) }
+    size.times do |i|
+      size.times do |j|
+        b_t[j][i] = b[i][j]
+      end
+    end
+
+    # Умножение матриц
+    c = Array.new(size) { Array.new(size, 0.0) }
+
+    # Используем spawn и Channel
+    channel = Channel(Nil).new
+    rows_per_worker = (size + num_workers - 1) // num_workers
+
+    num_workers.times do |worker_id|
+      spawn do
+        start_row = worker_id * rows_per_worker
+        end_row = Math.min(start_row + rows_per_worker, size)
+
+        (start_row...end_row).each do |i|
+          ai = a[i]
+          ci = c[i]
+
+          size.times do |j|
+            sum = 0.0
+            b_tj = b_t[j]
+
+            size.times do |k|
+              sum += ai[k] * b_tj[k]
+            end
+
+            ci[j] = sum
+          end
+        end
+
+        channel.send(nil)
+      end
+    end
+
+    # Ждем завершения всех workers
+    num_workers.times { channel.receive }
+
+    c
+  end
+
+  def run
+    a = matgen(@n)
+    b = matgen(@n)
+    c = matmul_parallel(a, b)
+
+    @result = Helper.checksum_f64(c[@n >> 1][@n >> 1])
+  end
+
+  getter result
+end
+
+class Matmul8T < Matmul4T
+  def num_workers
+    8
+  end
+end
+
+class Matmul16T < Matmul4T
+  def num_workers
+    16
+  end
+end
+
+class Nbody < Benchmark
+  # Copied with little modifications from: http://benchmarksgame.alioth.debian.org/u32/program.php?test=nbody&lang=yarv&id=2
+  SOLAR_MASS    = 4 * Math::PI**2
+  DAYS_PER_YEAR = 365.24
+
+  class Planet
+    def_clone
+
+    property x : Float64
+    property y : Float64
+    property z : Float64
+    property vx : Float64
+    property vy : Float64
+    property vz : Float64
+    property mass : Float64
+
+    def initialize(@x, @y, @z, vx, vy, vz, mass)
+      @vx, @vy, @vz = vx * DAYS_PER_YEAR, vy * DAYS_PER_YEAR, vz * DAYS_PER_YEAR
+      @mass = mass * SOLAR_MASS
+    end
+
+    def move_from_i(bodies, nbodies, dt, i)
+      while i < nbodies
+        b2 = bodies[i]
+        dx = @x - b2.x
+        dy = @y - b2.y
+        dz = @z - b2.z
+
+        distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+        mag = dt / (distance * distance * distance)
+        b_mass_mag, b2_mass_mag = @mass * mag, b2.mass * mag
+
+        @vx -= dx * b2_mass_mag
+        @vy -= dy * b2_mass_mag
+        @vz -= dz * b2_mass_mag
+        b2.vx += dx * b_mass_mag
+        b2.vy += dy * b_mass_mag
+        b2.vz += dz * b_mass_mag
+        i += 1
+      end
+
+      @x += dt * @vx
+      @y += dt * @vy
+      @z += dt * @vz
+    end
+  end
+
+  def energy(bodies)
+    e = 0.0
+    nbodies = bodies.size
+
+    0.upto(nbodies - 1) do |i|
+      b = bodies[i]
+      e += 0.5 * b.mass * (b.vx * b.vx + b.vy * b.vy + b.vz * b.vz)
+      (i + 1).upto(nbodies - 1) do |j|
+        b2 = bodies[j]
+        dx = b.x - b2.x
+        dy = b.y - b2.y
+        dz = b.z - b2.z
+        distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+        e -= (b.mass * b2.mass) / distance
+      end
+    end
+    e
+  end
+
+  def offset_momentum(bodies)
+    px, py, pz = 0.0, 0.0, 0.0
+
+    bodies.each do |b|
+      m = b.mass
+      px += b.vx * m
+      py += b.vy * m
+      pz += b.vz * m
+    end
+
+    b = bodies[0]
+    b.vx = -px / SOLAR_MASS
+    b.vy = -py / SOLAR_MASS
+    b.vz = -pz / SOLAR_MASS
+  end
+
+  BODIES = [
+    # sun
+    Planet.new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0),
+
+    # jupiter
+    Planet.new(
+      4.84143144246472090e+00,
+      -1.16032004402742839e+00,
+      -1.03622044471123109e-01,
+      1.66007664274403694e-03,
+      7.69901118419740425e-03,
+      -6.90460016972063023e-05,
+      9.54791938424326609e-04),
+
+    # saturn
+    Planet.new(
+      8.34336671824457987e+00,
+      4.12479856412430479e+00,
+      -4.03523417114321381e-01,
+      -2.76742510726862411e-03,
+      4.99852801234917238e-03,
+      2.30417297573763929e-05,
+      2.85885980666130812e-04),
+
+    # uranus
+    Planet.new(
+      1.28943695621391310e+01,
+      -1.51111514016986312e+01,
+      -2.23307578892655734e-01,
+      2.96460137564761618e-03,
+      2.37847173959480950e-03,
+      -2.96589568540237556e-05,
+      4.36624404335156298e-05),
+
+    # neptune
+    Planet.new(
+      1.53796971148509165e+01,
+      -2.59193146099879641e+01,
+      1.79258772950371181e-01,
+      2.68067772490389322e-03,
+      1.62824170038242295e-03,
+      -9.51592254519715870e-05,
+      5.15138902046611451e-05),
+  ]
+
+  def initialize(@n : Int32 = iterations)
+    @result = 0_u32
+    @body = BODIES
+  end
+
+  def run
+    offset_momentum(@body)
+
+    v1 = energy(@body)
+
+    nbodies = @body.size
+    dt = 0.01
+
+    @n.times do
+      i = 0
+      while i < nbodies
+        b = @body[i]
+        b.move_from_i(@body, nbodies, dt, i + 1)
+        i += 1
+      end
+    end
+
+    v2 = energy(@body)
+    @result = (Helper.checksum_f64(v1) << 5) & Helper.checksum_f64(v2)
+  end
+
+  getter result
+end
+
+class RegexDna < Benchmark
+  @seq : String
+  @ilen : Int32
+  @clen : Int32
+
+  def initialize
+    @result = IO::Memory.new
+    @ilen = 0
+    @clen = 0
+    @seq = ""
+  end
+
+  def prepare
+    f = Fasta.new(iterations)
+    f.run
+    res = f.@result.to_s
+
+    seq = IO::Memory.new
+
+    @ilen = 0
+    res.each_line do |line|
+      @ilen += line.bytesize + 1
+      seq << line.chomp unless line.starts_with? '>'
+    end
+
+    @seq = seq.to_s
+    @clen = seq.bytesize
+  end
+
+  def run
+    [
+      /agggtaaa|tttaccct/,
+      /[cgt]gggtaaa|tttaccc[acg]/,
+      /a[act]ggtaaa|tttacc[agt]t/,
+      /ag[act]gtaaa|tttac[agt]ct/,
+      /agg[act]taaa|ttta[agt]cct/,
+      /aggg[acg]aaa|ttt[cgt]ccct/,
+      /agggt[cgt]aa|tt[acg]accct/,
+      /agggta[cgt]a|t[acg]taccct/,
+      /agggtaa[cgt]|[acg]ttaccct/,
+    ].each { |f| @result << "#{f.source} #{@seq.scan(f).size}\n" }
+
+    hash = {
+      "B" => "(c|g|t)",
+      "D" => "(a|g|t)",
+      "H" => "(a|c|t)",
+      "K" => "(g|t)",
+      "M" => "(a|c)",
+      "N" => "(a|c|g|t)",
+      "R" => "(a|g)",
+      "S" => "(c|t)",
+      "V" => "(a|c|g)",
+      "W" => "(a|t)",
+      "Y" => "(c|t)",
+    }
+
+    @seq = @seq.gsub(/B|D|H|K|M|N|R|S|V|W|Y/, hash)
+
+    @result << "\n"
+    @result << "#{@ilen}\n"
+    @result << "#{@clen}\n"
+    @result << "#{@seq.size}\n"
+  end
+
+  def result
+    Helper.checksum(@result.to_s)
+  end
+end
+
+class Revcomp < Benchmark
+  @input : String
+
+  def revcomp(seq)
+    seq = seq.reverse.tr("wsatugcyrkmbdhvnATUGCYRKMBDHVN", "WSTAACGRYMKVHDBNTAACGRYMKVHDBN")
+    stringlen = seq.size - 1
+    0.step(to: stringlen, by: 60) { |x| @result << seq[x...x + 60]; @result << "\n" }
+  end
+
+  def initialize
+    @result = IO::Memory.new
+    @input = ""
+  end
+
+  def prepare
+    f = Fasta.new(iterations)
+    f.run
+    @input = f.@result.to_s
+  end
+
+  def run
+    seq = IO::Memory.new
+
+    @input.each_line do |line|
+      if line.starts_with? '>'
+        if !seq.empty?
+          revcomp(seq.to_s)
+          seq.clear
+        end
+        @result << line
+        @result << "\n"
+      else
+        seq << line.chomp
+      end
+    end
+    revcomp(seq.to_s)
+  end
+
+  def result
+    Helper.checksum(@result.to_s)
+  end
+end
+
+class Spectralnorm < Benchmark
+  def eval_A(i, j)
+    1.0_f64 / ((i + j) * (i + j + 1.0) / 2.0 + i + 1.0)
+  end
+
+  def eval_A_times_u(u)
+    (0...u.size).map do |i|
+      v = 0.0_f64
+      u.each_with_index do |uu, j|
+        v += eval_A(i, j) * uu
+      end
+      v
+    end
+  end
+
+  def eval_At_times_u(u)
+    (0...u.size).map do |i|
+      v = 0.0_f64
+      u.each_with_index do |uu, j|
+        v += eval_A(j, i) * uu
+      end
+      v
+    end
+  end
+
+  def eval_AtA_times_u(u)
+    eval_At_times_u(eval_A_times_u(u))
+  end
+
+  getter result
+
+  def initialize(@n : Int32 = iterations)
+    @result = 0_u32
+  end
+
+  def run
+    u = Array.new(@n, 1.0_f64)
+    v = Array.new(@n, 1.0_f64)
+    10.times do
+      v = eval_AtA_times_u(u)
+      u = eval_AtA_times_u(v)
+    end
+    vBv = vv = 0.0_f64
+    (0...@n).each do |i|
+      vBv += u[i] * v[i]
+      vv += v[i] * v[i]
+    end
+    @result = Helper.checksum_f64(Math.sqrt(vBv / vv))
+  end
+end
+
+class Base64Encode < Benchmark
+  TRIES = 8192
+
+  @str : String
+  @str2 : String
+
+  def initialize(@n : Int32 = iterations)
+    @str = ""
+    @str2 = ""
+    @result = 0_u32
+  end
+
+  def prepare
+    @str = "a" * @n
+    @str2 = Base64.strict_encode(@str)
+  end
+
+  def run
+    s_encoded = 0_i64
+
+    TRIES.times do |i|
+      s_encoded += Base64.strict_encode(@str).bytesize
+    end
+
+    @result = Helper.checksum("encode #{@str[0..3]}... to #{@str2[0..3]}...: #{s_encoded}\n")
+  end
+
+  getter result
+end
+
+class Base64Decode < Benchmark
+  TRIES = 8192
+
+  @str2 : String
+  @str3 : String
+
+  def initialize(@n : Int32 = iterations)
+    @str2 = ""
+    @str3 = ""
+    @result = 0_u32
+  end
+
+  def prepare
+    str = "a" * @n
+    @str2 = Base64.strict_encode(str)
+    @str3 = Base64.decode_string(@str2)
+  end
+
+  def run
+    s_decoded = 0_i64
+
+    TRIES.times do |i|
+      s_decoded += Base64.decode_string(@str2).bytesize
+    end
+
+    @result = Helper.checksum "decode #{@str2[0..3]}... to #{@str3[0..3]}...: #{s_decoded}\n"
+  end
+
+  getter result
+end
+
+class JsonGenerate < Benchmark
+  struct Coordinate
+    include JSON::Serializable
+
+    def initialize(@x : Float64, @y : Float64, @z : Float64, @name : String, @opts : Hash(String, Tuple(Int32, Bool)))
+    end
+  end
+
+  def initialize(@n : Int32 = iterations)
+    @text = IO::Memory.new
+    @data = Array(Coordinate).new
+    @n.times do
+      @data << Coordinate.new(
+        Helper.next_float.round(8),
+        Helper.next_float.round(8),
+        Helper.next_float.round(8),
+        "%.7f %d" % {Helper.next_float, Helper.next_int(10_000)},
+        {"1" => {1, true}},
+      )
+    end
+  end
+
+  def run
+    {"coordinates": @data,
+     "info":        "some info"}.to_json(@text)
+    true
+  end
+
+  getter text
+
+  def result
+    1 # always true, because there is can be artifacts of round, and generate actually checks when parse
+  end
+end
+
+class JsonParseDom < Benchmark
+  def calc(text)
+    jobj = JSON.parse(text)
+    coordinates = jobj["coordinates"].as_a
+    len = coordinates.size.to_f
+    x = y = z = 0.0
+
+    coordinates.each do |coord|
+      x += coord["x"].as_f
+      y += coord["y"].as_f
+      z += coord["z"].as_f
+    end
+
+    {x / len, y / len, z / len}
+  end
+
+  getter result
+  @text : String
+
+  def initialize
+    @text = ""
+    @result = 0_u32
+  end
+
+  def prepare
+    j = JsonGenerate.new(iterations)
+    j.run
+    @text = j.text.to_s
+  end
+
+  def run
+    x, y, z = calc(@text)
+    @result = Helper.checksum_f64(x) &+ Helper.checksum_f64(y) &+ Helper.checksum_f64(z)
+  end
+end
+
+class JsonParseMapping < Benchmark
+  struct Coordinate
+    include JSON::Serializable
+
+    property x : Float64
+    property y : Float64
+    property z : Float64
+
+    def initialize(@x, @y, @z)
+    end
+  end
+
+  class Coordinates
+    include JSON::Serializable
+    property coordinates : Array(Coordinate)
+  end
+
+  def calc(text)
+    coordinates = Coordinates.from_json(text).coordinates
+    len = coordinates.size.to_f
+    x = y = z = 0.0
+
+    coordinates.each do |e|
+      x += e.x
+      y += e.y
+      z += e.z
+    end
+
+    Coordinate.new(x / len, y / len, z / len)
+  end
+
+  getter result
+  @text : String
+
+  def initialize
+    @text = ""
+    @result = 0_u32
+  end
+
+  def prepare
+    j = JsonGenerate.new(iterations)
+    j.run
+    @text = j.text.to_s
+  end
+
+  def run
+    coord = calc(@text)
+    @result = Helper.checksum_f64(coord.x) &+ Helper.checksum_f64(coord.y) &+ Helper.checksum_f64(coord.z)
+  end
+end
+
+class Primes < Benchmark
+  PREFIX = 32_338
+
+  # Оптимизированная структура Node для Crystal
+  class Node
+    # Используем Array для детей вместо Hash - только 10 цифр
+    property children : Array(Node | Nil)
+    property terminal : Bool
+
+    def initialize
+      @children = Array(Node | Nil).new(10, nil)
+      @terminal = false
+    end
+
+    # Быстрый доступ к child по цифре
+    def [](digit : Int) : Node | Nil
+      @children[digit]
+    end
+
+    def []=(digit : Int, node : Node)
+      @children[digit] = node
+    end
+  end
+
+  # Оптимизированное решето Эратосфена (проще и быстрее чем Аткина)
+  class Sieve
+    @limit : Int32
+    @prime : Array(Bool)
+
+    def initialize(@limit : Int32)
+      @prime = Array.new(@limit + 1, true)
+      @prime[0] = @prime[1] = false if @limit >= 1
+    end
+
+    # Cache-friendly решето
+    def calculate : self
+      sqrt_limit = Math.sqrt(@limit).to_i
+
+      (2..sqrt_limit).each do |p|
+        if @prime[p]
+          start = p * p
+          (start..@limit).step(p) do |multiple|
+            @prime[multiple] = false
+          end
+        end
+      end
+      self
+    end
+
+    # Эффективное получение списка простых чисел
+    def to_list : Array(Int32)
+      # Предварительное выделение памяти
+      capacity = (@limit / Math.log(@limit)).to_i rescue @limit // 10
+      result = Array(Int32).new(capacity)
+
+      # Добавляем 2 отдельно
+      result << 2 if @limit >= 2
+
+      # Только нечетные числа
+      3.step(to: @limit, by: 2) do |p|
+        result << p if @prime[p]
+      end
+
+      result
+    end
+  end
+
+  # Быстрое построение trie
+  private def generate_trie(primes : Array(Int32)) : Node
+    root = Node.new
+
+    primes.each do |prime|
+      node = root
+
+      # Быстрая конвертация числа в цифры
+      temp = prime
+      digits = uninitialized Int8[12]
+      digit_count = 0
+
+      # Собираем цифры в обратном порядке
+      while temp > 0
+        digits[digit_count] = (temp % 10).to_i8
+        temp //= 10
+        digit_count += 1
+      end
+
+      # Вставляем цифры в правильном порядке
+      (digit_count - 1).downto(0) do |i|
+        digit = digits[i]
+        child = node[digit]
+
+        unless child
+          child = Node.new
+          node[digit] = child
+        end
+
+        node = child.as(Node)
+      end
+
+      node.terminal = true
+    end
+
+    root
+  end
+
+  # BFS поиск вместо DFS (быстрее и проще)
+  private def find_primes_with_prefix(trie : Node, prefix : Int32) : Array(Int32)
+    # Находим узел префикса
+    node = trie
+    prefix_value = 0
+    temp_prefix = prefix
+
+    # Собираем цифры префикса
+    prefix_digits = uninitialized Int8[12]
+    prefix_len = 0
+
+    while temp_prefix > 0
+      prefix_digits[prefix_len] = (temp_prefix % 10).to_i8
+      temp_prefix //= 10
+      prefix_len += 1
+    end
+
+    # Идем от старшей цифры к младшей
+    (prefix_len - 1).downto(0) do |i|
+      digit = prefix_digits[i]
+      prefix_value = prefix_value * 10 + digit
+
+      child = node[digit]
+      return [] of Int32 unless child
+      node = child.as(Node)
+    end
+
+    # BFS поиск
+    results = [] of Int32
+
+    # Используем Array как очередь с указателями
+    queue = Array(Tuple(Node, Int32)).new(10000)
+    queue.push({node, prefix_value})
+
+    index = 0
+    while index < queue.size
+      current_node, current_number = queue[index]
+      index += 1
+
+      results << current_number if current_node.terminal
+
+      # Проверяем все цифры 0-9
+      10.times do |digit|
+        child = current_node[digit]
+        if child
+          queue.push({child.as(Node), current_number * 10 + digit})
+        end
+      end
+    end
+
+    results.sort!
+    results
+  end
+
+  def initialize
+    @n = iterations
+    @result = 5432_u32
+  end
+
+  def run
+    # 1. Генерация простых чисел
+    primes = Sieve.new(@n).calculate.to_list
+
+    # 2. Построение trie
+    trie = generate_trie(primes)
+
+    # 3. Поиск по префиксу
+    results = find_primes_with_prefix(trie, PREFIX)
+
+    # 4. Вычисление результата (точно как в других версиях)
+    @result &+= results.size.to_u32
+    results.each do |prime|
+      @result &+= prime.to_u32
+    end
+  end
+
+  getter result, n : Int32
+end
+
+class Noise < Benchmark
+  # from https://github.com/crystal-lang/crystal/blob/master/samples/noise.cr
+
+  SIZE = 64
+  record Vec2, x : Float64, y : Float64
+
+  @[AlwaysInline]
+  def self.lerp(a, b, v)
+    a * (1.0 - v) + b * v
+  end
+
+  @[AlwaysInline]
+  def self.smooth(v)
+    v * v * (3.0 - 2.0 * v)
+  end
+
+  @[AlwaysInline]
+  def self.random_gradient
+    v = Helper.next_float * Math::PI * 2.0
+    Vec2.new(Math.cos(v), Math.sin(v))
+  end
+
+  @[AlwaysInline]
+  def self.gradient(orig, grad, p)
+    sp = Vec2.new(p.x - orig.x, p.y - orig.y)
+    grad.x * sp.x + grad.y * sp.y
+  end
+
+  struct Noise2DContext
+    def initialize
+      @rgradients = StaticArray(Vec2, SIZE).new { Noise.random_gradient }
+      @permutations = StaticArray(Int32, SIZE).new { |i| i }
+      SIZE.times do
+        a = Helper.next_int(SIZE)
+        b = Helper.next_int(SIZE)
+        @permutations.swap a, b
+      end
+    end
+
+    @[AlwaysInline]
+    def get_gradient(x, y)
+      idx = @permutations[x & (SIZE - 1)] + @permutations[y & (SIZE - 1)]
+      @rgradients[idx & (SIZE - 1)]
+    end
+
+    def get_gradients(x, y)
+      x0f = x.floor
+      y0f = y.floor
+      x0 = x0f.to_i
+      y0 = y0f.to_i
+      x1 = x0 + 1
+      y1 = y0 + 1
+
+      {
+        {
+          get_gradient(x0, y0),
+          get_gradient(x1, y0),
+          get_gradient(x0, y1),
+          get_gradient(x1, y1),
+        },
+        {
+          Vec2.new(x0f + 0.0, y0f + 0.0),
+          Vec2.new(x0f + 1.0, y0f + 0.0),
+          Vec2.new(x0f + 0.0, y0f + 1.0),
+          Vec2.new(x0f + 1.0, y0f + 1.0),
+        },
+      }
+    end
+
+    def get(x, y)
+      p = Vec2.new(x, y)
+      gradients, origins = get_gradients(x, y)
+      v0 = Noise.gradient(origins[0], gradients[0], p)
+      v1 = Noise.gradient(origins[1], gradients[1], p)
+      v2 = Noise.gradient(origins[2], gradients[2], p)
+      v3 = Noise.gradient(origins[3], gradients[3], p)
+      fx = Noise.smooth(x - origins[0].x)
+      vx0 = Noise.lerp(v0, v1, fx)
+      vx1 = Noise.lerp(v2, v3, fx)
+      fy = Noise.smooth(y - origins[0].y)
+      Noise.lerp(vx0, vx1, fy)
+    end
+  end
+
+  SYM = [' ', '░', '▒', '▓', '█', '█']
+
+  def noise
+    pixels = Array.new(SIZE) { Array.new(SIZE, 0.0) }
+
+    n2d = Noise2DContext.new
+
+    100.times do |i|
+      SIZE.times do |y|
+        SIZE.times do |x|
+          v = n2d.get(x * 0.1, (y + (i * 128)) * 0.1) * 0.5 + 0.5
+          pixels[y][x] = v
+        end
+      end
+    end
+
+    res = 0_u64
+
+    SIZE.times do |y|
+      SIZE.times do |x|
+        v = pixels[y][x]
+        res &+= SYM[(v / 0.2).to_i].ord
+      end
+    end
+    res
+  end
+
+  def initialize(@n : Int32 = iterations)
+    @result = 0_u64
+  end
+
+  def run
+    @n.times do
+      v = noise
+      @result &+= v
+    end
+  end
+
+  getter result
+end
+
+class TextRaytracer < Benchmark
+  # from https://github.com/crystal-lang/crystal/blob/master/samples/text_raytracer.cr
+
+  record Vector, x : Float64, y : Float64, z : Float64 do
+    @[AlwaysInline]
+    def scale(s)
+      Vector.new(x * s, y * s, z * s)
+    end
+
+    @[AlwaysInline]
+    def +(other)
+      Vector.new(x + other.x, y + other.y, z + other.z)
+    end
+
+    @[AlwaysInline]
+    def -(other)
+      Vector.new(x - other.x, y - other.y, z - other.z)
+    end
+
+    @[AlwaysInline]
+    def dot(other)
+      x*other.x + y*other.y + z*other.z
+    end
+
+    @[AlwaysInline]
+    def magnitude
+      Math.sqrt self.dot(self)
+    end
+
+    @[AlwaysInline]
+    def normalize
+      scale(1.0 / magnitude)
+    end
+  end
+
+  record Ray, orig : Vector, dir : Vector
+
+  record Color, r : Float64, g : Float64, b : Float64 do
+    @[AlwaysInline]
+    def scale(s)
+      Color.new(r * s, g * s, b * s)
+    end
+
+    @[AlwaysInline]
+    def +(other)
+      Color.new(r + other.r, g + other.g, b + other.b)
+    end
+  end
+
+  record Sphere, center : Vector, radius : Float64, color : Color do
+    @[AlwaysInline]
+    def get_normal(pt)
+      (pt - center).normalize
+    end
+  end
+
+  record Light, position : Vector, color : Color
+
+  record Hit, obj : Sphere, value : Float64
+
+  WHITE = Color.new(1.0, 1.0, 1.0)
+  RED   = Color.new(1.0, 0.0, 0.0)
+  GREEN = Color.new(0.0, 1.0, 0.0)
+  BLUE  = Color.new(0.0, 0.0, 1.0)
+
+  LIGHT1 = Light.new(Vector.new(0.7, -1.0, 1.7), WHITE)
+
+  def shade_pixel(ray, obj, tval)
+    pi = ray.orig + ray.dir.scale(tval)
+    color = diffuse_shading pi, obj, LIGHT1
+    col = (color.r + color.g + color.b) / 3.0
+    (col * 6.0).to_i
+  end
+
+  def intersect_sphere(ray, center, radius)
+    l = center - ray.orig
+    tca = l.dot(ray.dir)
+    if tca < 0.0
+      return nil
+    end
+
+    d2 = l.dot(l) - tca*tca
+    r2 = radius*radius
+    if d2 > r2
+      return nil
+    end
+
+    thc = Math.sqrt(r2 - d2)
+    t0 = tca - thc
+    # t1 = tca + thc
+    if t0 > 10_000
+      return nil
+    end
+
+    t0
+  end
+
+  def clamp(x, a, b)
+    return a if x < a
+    return b if x > b
+    x
+  end
+
+  def diffuse_shading(pi, obj, light)
+    n = obj.get_normal(pi)
+    lam1 = (light.position - pi).normalize.dot(n)
+    lam2 = clamp lam1, 0.0, 1.0
+    light.color.scale(lam2*0.5) + obj.color.scale(0.3)
+  end
+
+  LUT = ['.', '-', '+', '*', 'X', 'M']
+
+  SCENE = [
+    Sphere.new(Vector.new(-1.0, 0.0, 3.0), 0.3, RED),
+    Sphere.new(Vector.new(0.0, 0.0, 3.0), 0.8, GREEN),
+    Sphere.new(Vector.new(1.0, 0.0, 3.0), 0.4, BLUE),
+  ]
+
+  def initialize(@w : Int32 = iterations, @h : Int32 = iterations)
+    @res = 0_u64
+  end
+
+  def run
+    res = 0_u64
+    (0...@h).each do |j|
+      (0...@w).each do |i|
+        fw, fi, fj, fh = @w.to_f, i.to_f, j.to_f, @h.to_f
+
+        ray = Ray.new(
+          Vector.new(0.0, 0.0, 0.0),
+          Vector.new((fi - fw/2.0)/fw, (fj - fh/2.0)/fh, 1.0).normalize
+        )
+
+        hit = nil
+
+        SCENE.each do |obj|
+          ret = intersect_sphere(ray, obj.center, obj.radius)
+          if ret
+            hit = Hit.new obj, ret
+
+            break
+          end
+        end
+
+        if hit
+          pixel = LUT[shade_pixel(ray, hit.obj, hit.value)]
+        else
+          pixel = ' '
+        end
+
+        res &+= pixel.ord
+      end
+    end
+    @res = res
+  end
+
+  def result
+    @res
+  end
+end
+
+class NeuralNet < Benchmark
+  # from https://github.com/crystal-lang/crystal/blob/master/samples/neural_net.cr
+
+  class Synapse
+    property weight : Float64
+    property prev_weight : Float64
+    property :source_neuron
+    property :dest_neuron
+
+    def initialize(@source_neuron : Neuron, @dest_neuron : Neuron)
+      @prev_weight = @weight = Helper.next_float * 2 - 1
+    end
+  end
+
+  class Neuron
+    LEARNING_RATE = 1.0
+    MOMENTUM      = 0.3
+
+    property :synapses_in
+    property :synapses_out
+    property threshold : Float64
+    property prev_threshold : Float64
+    property :error
+    property :output
+
+    def initialize
+      @prev_threshold = @threshold = Helper.next_float * 2 - 1
+      @synapses_in = [] of Synapse
+      @synapses_out = [] of Synapse
+      @output = 0.0
+      @error = 0.0
+    end
+
+    def calculate_output
+      activation = synapses_in.reduce(0.0) do |sum, synapse|
+        sum + synapse.weight * synapse.source_neuron.output
+      end
+      activation -= threshold
+
+      @output = 1.0 / (1.0 + Math.exp(-activation))
+    end
+
+    def derivative
+      output * (1 - output)
+    end
+
+    def output_train(rate, target)
+      @error = (target - output) * derivative
+      update_weights(rate)
+    end
+
+    def hidden_train(rate)
+      @error = synapses_out.reduce(0.0) do |sum, synapse|
+        sum + synapse.prev_weight * synapse.dest_neuron.error
+      end * derivative
+      update_weights(rate)
+    end
+
+    def update_weights(rate)
+      synapses_in.each do |synapse|
+        temp_weight = synapse.weight
+        synapse.weight += (rate * LEARNING_RATE * error * synapse.source_neuron.output) + (MOMENTUM * (synapse.weight - synapse.prev_weight))
+        synapse.prev_weight = temp_weight
+      end
+      temp_threshold = threshold
+      @threshold += (rate * LEARNING_RATE * error * -1) + (MOMENTUM * (threshold - prev_threshold))
+      @prev_threshold = temp_threshold
+    end
+  end
+
+  class NeuralNetwork
+    @input_layer : Array(Neuron)
+    @hidden_layer : Array(Neuron)
+    @output_layer : Array(Neuron)
+
+    def initialize(inputs, hidden, outputs)
+      @input_layer = (1..inputs).map { Neuron.new }
+      @hidden_layer = (1..hidden).map { Neuron.new }
+      @output_layer = (1..outputs).map { Neuron.new }
+
+      @input_layer.each_cartesian(@hidden_layer) do |source, dest|
+        synapse = Synapse.new(source, dest)
+        source.synapses_out << synapse
+        dest.synapses_in << synapse
+      end
+      @hidden_layer.each_cartesian(@output_layer) do |source, dest|
+        synapse = Synapse.new(source, dest)
+        source.synapses_out << synapse
+        dest.synapses_in << synapse
+      end
+    end
+
+    def train(inputs, targets)
+      feed_forward(inputs)
+
+      @output_layer.zip(targets) do |neuron, target|
+        neuron.output_train(0.3, target)
+      end
+      @hidden_layer.each do |neuron|
+        neuron.hidden_train(0.3)
+      end
+    end
+
+    def feed_forward(inputs)
+      @input_layer.zip(inputs) do |neuron, input|
+        neuron.output = input.to_f64
+      end
+      @hidden_layer.each do |neuron|
+        neuron.calculate_output if neuron
+      end
+      @output_layer.each do |neuron|
+        neuron.calculate_output if neuron
+      end
+    end
+
+    def current_outputs : Array(Float64)
+      @output_layer.map do |neuron|
+        neuron.output
+      end
+    end
+  end
+
+  def initialize(@n : Int32 = iterations)
+    @res = [] of Float64
+  end
+
+  def run
+    xor = NeuralNetwork.new(2, 10, 1)
+
+    @n.times do
+      xor.train([0, 0], [0])
+      xor.train([1, 0], [1])
+      xor.train([0, 1], [1])
+      xor.train([1, 1], [0])
+    end
+
+    xor.feed_forward([0, 0])
+    @res += xor.current_outputs
+    xor.feed_forward([0, 1])
+    @res += xor.current_outputs
+    xor.feed_forward([1, 0])
+    @res += xor.current_outputs
+    xor.feed_forward([1, 1])
+    @res += xor.current_outputs
+  end
+
+  def result
+    Helper.checksum_f64(@res.sum)
+  end
+end
+
+class SortBenchmark < Benchmark
+  @data : Array(Int32)
+  @n : Int32
+
+  def test : Array(Int32)
+    Array(Int32).new # abstract method
+  end
+
+  ARR_SIZE = 100_000
+
+  def initialize(@n : Int32 = iterations)
+    @result = 0_u32
+    @data = Array(Int32).new
+  end
+
+  def prepare
+    ARR_SIZE.times { @data << Helper.next_int(1_000_000) }
+  end
+
+  def run
+    verify = check_n_elements(@data, 10)
+
+    (@n - 1).times do
+      t = test
+      @result &+= t[t.size // 2]
+    end
+    arr = test # call sort function
+
+    verify += check_n_elements(@data, 10) # check that not modified
+    verify += check_n_elements(arr, 10)
+
+    @result &+= Helper.checksum(verify)
+  end
+
+  def check_n_elements(arr, n) : String
+    step = arr.size // n
+    String.build do |io|
+      io << '['
+      0.step(to: arr.size - 1, by: step) do |index|
+        io << index
+        io << ':'
+        io << arr[index]
+        io << ','
+      end
+      io << ']'
+      io << "\n"
+    end
+  end
+
+  getter result
+end
+
+class SortQuick < SortBenchmark
+  def test : Array(Int32)
+    arr = @data.dup
+    quick_sort(arr, 0, arr.size - 1)
+    arr
+  end
+
+  private def quick_sort(arr, low, high)
+    return if low >= high
+
+    pivot = arr[(low + high) // 2]
+    i, j = low, high
+
+    while i <= j
+      while arr[i] < pivot
+        i += 1
+      end
+      while arr[j] > pivot
+        j -= 1
+      end
+      if i <= j
+        arr[i], arr[j] = arr[j], arr[i]
+        i += 1
+        j -= 1
+      end
+    end
+
+    quick_sort(arr, low, j)
+    quick_sort(arr, i, high)
+  end
+end
+
+class SortMerge < SortBenchmark
+  def test : Array(Int32)
+    arr = @data.dup
+    merge_sort_inplace(arr)
+    arr
+  end
+
+  private def merge_sort_inplace(arr : Array(Int32))
+    temp = Array(Int32).new(arr.size, 0) # ОДИН временный массив
+    merge_sort_helper(arr, temp, 0, arr.size - 1)
+  end
+
+  private def merge_sort_helper(arr, temp, left, right)
+    return if left >= right
+
+    mid = (left + right) // 2
+    merge_sort_helper(arr, temp, left, mid)
+    merge_sort_helper(arr, temp, mid + 1, right)
+    merge(arr, temp, left, mid, right)
+  end
+
+  private def merge(arr, temp, left, mid, right)
+    # Копируем обе половины во временный массив
+    (left..right).each do |i|
+      temp[i] = arr[i]
+    end
+
+    i = left    # Индекс левой половины
+    j = mid + 1 # Индекс правой половины
+    k = left    # Индекс в исходном массиве
+
+    while i <= mid && j <= right
+      if temp[i] <= temp[j]
+        arr[k] = temp[i]
+        i += 1
+      else
+        arr[k] = temp[j]
+        j += 1
+      end
+      k += 1
+    end
+
+    # Копируем оставшиеся элементы левой половины
+    while i <= mid
+      arr[k] = temp[i]
+      i += 1
+      k += 1
+    end
+
+    # Правая половина уже на месте (если что-то осталось)
+  end
+end
+
+class SortSelf < SortBenchmark
+  def test : Array(Int32)
+    arr = @data.dup
+    arr.sort!
+    arr
+  end
+end
+
+class GraphPathBenchmark < Benchmark
+  class Graph
+    property vertices : Int32
+    property adj : Array(Array(Int32))
+
+    def initialize(@vertices : Int32, @components : Int32 = 10)
+      @adj = Array.new(@vertices) { [] of Int32 }
+    end
+
+    def add_edge(u, v)
+      @adj[u] << v
+      @adj[v] << u
+    end
+
+    def generate_random
+      component_size = @vertices // @components
+
+      @components.times do |c|
+        start_idx = c * component_size
+        end_idx = (c + 1) * component_size
+        end_idx = @vertices if c == @components - 1
+
+        # Делаем компоненту связной
+        (start_idx + 1...end_idx).each do |i|
+          parent = start_idx + Helper.next_int(i - start_idx)
+          add_edge(i, parent)
+        end
+
+        # Добавляем случайные рёбра внутри компоненты
+        (component_size * 2).times do
+          u = start_idx + Helper.next_int(end_idx - start_idx)
+          v = start_idx + Helper.next_int(end_idx - start_idx)
+          add_edge(u, v) unless u == v
+        end
+      end
+
+      # НЕ добавляем рёбра между компонентами!
+    end
+
+    # Проверка: в одной ли компоненте две вершины?
+    def same_component?(u, v)
+      component_size = @vertices // @components
+      (u // component_size) == (v // component_size)
+    end
+  end
+
+  @graph : Graph
+  @pairs : Array({Int32, Int32})
+
+  def initialize(@n_pairs : Int32 = iterations)
+    vertices = @n_pairs * 10
+    @graph = Graph.new(vertices, Math.max(10, vertices // 10_000))
+    @pairs = Array({Int32, Int32}).new
+    @result = 0_i64
+  end
+
+  def generate_pairs(n)
+    pairs = Array({Int32, Int32}).new(n)
+    component_size = @graph.vertices // 10
+
+    n.times do |i|
+      # 70% пар в одной компоненте, 30% - в разных
+      if Helper.next_int(100) < 70
+        # В одной компоненте
+        component = Helper.next_int(10)
+        start = component * component_size + Helper.next_int(component_size)
+        # end в той же компоненте, но не та же самая вершина
+        loop do
+          _end = component * component_size + Helper.next_int(component_size)
+          if _end != start
+            pairs << {start, _end}
+            break
+          end
+        end
+      else
+        # В разных компонентах (пути не существует)
+        c1 = Helper.next_int(10)
+        c2 = Helper.next_int(10)
+        while c2 == c1
+          c2 = Helper.next_int(10)
+        end
+        start = c1 * component_size + Helper.next_int(component_size)
+        _end = c2 * component_size + Helper.next_int(component_size)
+        pairs << {start, _end}
+      end
+    end
+
+    pairs
+  end
+
+  def prepare
+    @graph.generate_random
+    @pairs = generate_pairs(@n_pairs)
+  end
+
+  def test : Int64
+    0_i64
+  end
+
+  def run
+    @result = test
+  end
+
+  getter result
+end
+
+# BFS: поиск кратчайшего пути (количество рёбер)
+class GraphPathBFS < GraphPathBenchmark
+  def test : Int64
+    total_length = 0_i64
+
+    @pairs.each do |start, _end|
+      length = bfs_shortest_path(start, _end)
+      total_length += length
+    end
+
+    total_length
+  end
+
+  private def bfs_shortest_path(start, target)
+    return 0 if start == target
+
+    visited = Bytes.new(@graph.vertices)
+    queue = Deque({Int32, Int32}).new # {vertex, distance}
+
+    visited[start] = 1
+    queue.push({start, 0})
+
+    while !queue.empty?
+      v, dist = queue.shift
+
+      @graph.adj[v].each do |neighbor|
+        return dist + 1 if neighbor == target
+
+        if visited[neighbor] == 0
+          visited[neighbor] = 1
+          queue.push({neighbor, dist + 1})
+        end
+      end
+    end
+
+    -1 # путь не найден
+  end
+end
+
+# DFS: поиск любого пути (может быть не оптимальным)
+class GraphPathDFS < GraphPathBenchmark
+  def test : Int64
+    total_length = 0_i64
+
+    @pairs.each do |start, _end|
+      length = dfs_find_path(start, _end)
+      total_length += length
+    end
+
+    total_length
+  end
+
+  private def dfs_find_path(start, target)
+    return 0 if start == target
+
+    visited = Bytes.new(@graph.vertices)
+    # Используем стек с расстояниями
+    stack = [{start, 0}]
+    best_path = Int32::MAX
+
+    while !stack.empty?
+      v, dist = stack.pop
+
+      next if visited[v] == 1 || dist >= best_path
+      visited[v] = 1
+
+      @graph.adj[v].each do |neighbor|
+        if neighbor == target
+          # Нашли путь, запоминаем если он короче
+          if dist + 1 < best_path
+            best_path = dist + 1
+          end
+        elsif visited[neighbor] == 0
+          stack << {neighbor, dist + 1}
+        end
+      end
+    end
+
+    best_path == Int32::MAX ? -1 : best_path
+  end
+end
+
+# Dijkstra: поиск кратчайшего пути с весами
+class GraphPathDijkstra < GraphPathBenchmark
+  def test : Int64
+    total_length = 0_i64
+
+    @pairs.each do |start, _end|
+      length = dijkstra_shortest_path(start, _end)
+      total_length += length
+    end
+
+    total_length
+  end
+
+  INF = Int32::MAX // 2
+
+  private def dijkstra_shortest_path(start, target)
+    return 0 if start == target
+
+    dist = Slice(Int32).new(@graph.vertices, INF)
+    visited = Bytes.new(@graph.vertices)
+
+    dist[start] = 0
+
+    iteration = 0
+    max_iterations = @graph.vertices # максимум V итераций!
+
+    max_iterations.times do
+      iteration += 1
+
+      # Находим непосещённую вершину с минимальным расстоянием
+      u = -1
+      min_dist = INF
+
+      @graph.vertices.times do |v|
+        if visited[v] == 0 && dist[v] < min_dist
+          min_dist = dist[v]
+          u = v
+        end
+      end
+
+      # ВЫХОД если нет вершин или нашли цель
+      if u == -1 || min_dist == INF || u == target
+        # Если нашли цель - возвращаем расстояние
+        result = (u == target) ? min_dist : -1
+        # puts "Dijkstra finished in #{iteration} iterations, result: #{result}"
+        return result
+      end
+
+      visited[u] = 1
+
+      # Обновляем расстояния до соседей
+      @graph.adj[u].each do |v|
+        if dist[u] + 1 < dist[v]
+          dist[v] = dist[u] + 1
+        end
+      end
+    end
+
+    # puts "Dijkstra reached max iterations (#{max_iterations})"
+    -1
+  end
+end
+
+class BufferHashBenchmark < Benchmark
+  def test : UInt32
+    0_u32 # abstract method
+  end
+
+  @data : Bytes
+  @n : Int32
+
+  def initialize(@n : Int32 = iterations)
+    @data = Bytes.new(1_000_000)
+    @result = 0_u32
+  end
+
+  def prepare
+    # Генерируем случайные данные для хэширования
+    @data.size.times { |i| @data[i] = Helper.next_int(256).to_u8 }
+  end
+
+  def run
+    @n.times do
+      @result &+= test
+    end
+  end
+
+  getter result
+end
+
+class BufferHashSHA256 < BufferHashBenchmark
+  struct SimpleSHA256
+    def self.digest(data : Bytes) : Bytes
+      result = Bytes.new(32)
+
+      # Используем 8 разных начальных хешей (как в SHA-256)
+      hashes = StaticArray[
+        0x6a09e667u32, 0xbb67ae85u32, 0x3c6ef372u32, 0xa54ff53au32,
+        0x510e527fu32, 0x9b05688cu32, 0x1f83d9abu32, 0x5be0cd19u32,
+      ]
+
+      data.each_with_index do |byte, i|
+        hash_idx = i % 8
+        hash = hashes[hash_idx]
+        hash = ((hash << 5) &+ hash) &+ byte
+        hash = (hash &+ (hash << 10)) ^ (hash >> 6)
+        hashes[hash_idx] = hash
+      end
+
+      # Записываем все 8 хешей по 4 байта каждый
+      8.times do |i|
+        hash = hashes[i]
+        result[i * 4] = (hash >> 24).to_u8!
+        result[i * 4 + 1] = (hash >> 16).to_u8!
+        result[i * 4 + 2] = (hash >> 8).to_u8!
+        result[i * 4 + 3] = hash.to_u8!
+      end
+
+      result
+    end
+  end
+
+  def test : UInt32
+    # Наш упрощенный SHA-256
+    bytes = SimpleSHA256.digest(@data)
+    ptr = bytes.to_unsafe.as(Pointer(UInt32))
+    ptr.value
+  end
+end
+
+class BufferHashCRC32 < BufferHashBenchmark
+  def test : UInt32
+    # Реализация CRC32
+    crc = 0xFFFFFFFFu32
+
+    @data.each do |byte|
+      crc = crc ^ byte
+      8.times do
+        if (crc & 1) != 0
+          crc = (crc >> 1) ^ 0xEDB88320u32
+        else
+          crc = crc >> 1
+        end
+      end
+    end
+
+    crc ^ 0xFFFFFFFFu32
+  end
+end
+
+class CacheSimulation < Benchmark
+  class LRUCache(K, V)
+    private class Node(K, V)
+      property key : K
+      property value : V
+      property prev : Node(K, V) | Nil
+      property next : Node(K, V) | Nil
+
+      def initialize(@key, @value, @prev = nil, @next = nil)
+      end
+    end
+
+    @capacity : Int32
+    @cache = {} of K => Node(K, V)
+    @head : Node(K, V) | Nil = nil
+    @tail : Node(K, V) | Nil = nil
+    @size = 0
+
+    def initialize(@capacity)
+    end
+
+    def get(key : K) : V?
+      node = @cache[key]?
+      return unless node
+
+      # Перемещаем узел в начало списка (самый свежий)
+      move_to_front(node)
+      node.value
+    end
+
+    def put(key : K, value : V)
+      if node = @cache[key]?
+        # Обновляем существующий узел
+        node.value = value
+        move_to_front(node)
+        return
+      end
+
+      # Удаляем самый старый если достигли capacity
+      if @size >= @capacity
+        remove_oldest
+      end
+
+      # Создаем новый узел
+      node = Node(K, V).new(key, value)
+
+      # Добавляем в хеш-таблицу
+      @cache[key] = node
+
+      # Добавляем в начало списка
+      add_to_front(node)
+
+      @size += 1
+    end
+
+    def size
+      @size
+    end
+
+    private def move_to_front(node : Node(K, V))
+      # Если уже в начале, ничего не делаем
+      return if node == @head
+
+      # Удаляем из текущей позиции
+      if node.prev
+        node.prev.try &.next = node.next
+      end
+      if node.next
+        node.next.try &.prev = node.prev
+      end
+
+      # Обновляем tail если нужно
+      if node == @tail
+        @tail = node.prev
+      end
+
+      # Вставляем в начало
+      node.prev = nil
+      node.next = @head
+      @head.try &.prev = node
+      @head = node
+
+      # Если список был пустой, обновляем tail
+      @tail = node unless @tail
+    end
+
+    private def add_to_front(node : Node(K, V))
+      node.next = @head
+      @head.try &.prev = node
+      @head = node
+      @tail = node unless @tail
+    end
+
+    private def remove_oldest
+      return unless @tail
+
+      oldest = @tail.as(Node(K, V))
+
+      # Удаляем из хеш-таблицы
+      @cache.delete(oldest.key)
+
+      # Удаляем из списка
+      if oldest.prev
+        oldest.prev.try &.next = nil
+      end
+      @tail = oldest.prev
+
+      # Обновляем head если нужно
+      @head = nil if @head == oldest
+
+      @size -= 1
+    end
+  end
+
+  def initialize(@operations : Int32 = iterations * 1000)
+    @result = 0_u32
+  end
+
+  def run
+    cache = LRUCache(String, String).new(1000)
+    hits = 0
+    misses = 0
+
+    @operations.times do |i|
+      key = "item_#{Helper.next_int(2000)}"
+      if cache.get(key)
+        hits += 1
+        cache.put(key, "updated_#{i}")
+      else
+        misses += 1
+        cache.put(key, "new_#{i}")
+      end
+    end
+
+    @result = Helper.checksum("hits:#{hits}|misses:#{misses}|size:#{cache.size}")
+  end
+
+  getter result
+end
+
+class CalculatorAst < Benchmark
+  # Простой язык калькулятора:
+  #   expr = term (('+' | '-') term)*
+  #   term = factor (('*' | '/') factor)*
+  #   factor = NUMBER | VAR | '(' expr ')' | VAR '=' expr
+  #   NUMBER = [0-9]+
+  #   VAR = [a-z]+
+
+  class Node
+  end
+
+  class Number < Node
+    getter value : Int64
+
+    def initialize(@value); end
+  end
+
+  class Variable < Node
+    getter name : String
+
+    def initialize(@name); end
+  end
+
+  class BinaryOp < Node
+    getter op : Char
+    getter left : Node
+    getter right : Node
+
+    def initialize(@op, @left, @right); end
+  end
+
+  class Assignment < Node
+    getter var : String
+    getter expr : Node
+
+    def initialize(@var, @expr); end
+  end
+
+  def initialize(@n : Int32 = iterations)
+    @result = 0
+    @text = ""
+    @expressions = Array(Node).new
+  end
+
+  getter expressions
+
+  def generate_random_program(n = 1000)
+    String.build do |io|
+      io << "v0 = 1\n"
+      10.times do |i|
+        v = i + 1
+        io << "v#{v} = v#{v - 1} + #{v}\n"
+      end
+      n.times do |i|
+        v = i + 10
+        io << "v#{v} = v#{v - 1} + "
+        case Helper.next_int(10)
+        when 0
+          io << "(v#{v - 1} / 3) * 4 - #{i} / (3 + (18 - v#{v - 2})) % v#{v - 3} + 2 * ((9 - v#{v - 6}) * (v#{v - 5} + 7))"
+        when 1
+          io << "v#{v - 1} + (v#{v - 2} + v#{v - 3}) * v#{v - 4} - (v#{v - 5} /  v#{v - 6})"
+        when 2
+          io << "(3789 - (((v#{v - 7})))) + 1"
+        when 3
+          io << "4/2 * (1-3) + v#{v - 9}/v#{v - 5}"
+        when 4
+          io << "1+2+3+4+5+6+v#{v - 1}"
+        when 5
+          io << "(99999 / v#{v - 3})"
+        when 6
+          io << "0 + 0 - v#{v - 8}"
+        when 7
+          io << "((((((((((v#{v - 6})))))))))) * 2"
+        when 8
+          io << "#{i} * (v#{v - 1}%6)%7"
+        when 9
+          io << "(1)/(0-v#{v - 5}) + (v#{v - 7})"
+        end
+        io << "\n"
+      end
+    end
+  end
+
+  def prepare
+    @text = generate_random_program(@n)
+  end
+
+  def run
+    # @n.times do
+    parser = Parser.new(@text)
+    parser.parse
+    @expressions = parser.expressions
+    @result &+= @expressions.size
+    # end
+  end
+
+  class Parser
+    @input : String
+    @pos : Int32
+    @len : Int32
+    getter current_char : Char
+    @chars : Array(Char)
+
+    getter expressions
+
+    def initialize(@input)
+      @pos = 0
+      @chars = @input.chars
+      @current_char = @chars.size > 0 ? @chars[0] : '\0'
+      @len = @input.size
+      @expressions = Array(Node).new
+    end
+
+    def parse
+      while @pos < @len
+        @expressions << parse_expression
+      end
+    end
+
+    def parse_expression : Node
+      node = parse_term
+
+      while @pos < @len
+        skip_whitespace
+        break if @pos >= @len
+
+        if current_char == '+' || current_char == '-'
+          op = current_char
+          advance
+          right = parse_term
+          node = BinaryOp.new(op, node, right)
+        else
+          break
+        end
+      end
+
+      node
+    end
+
+    def parse_term : Node
+      node = parse_factor
+
+      while @pos < @len
+        skip_whitespace
+        break if @pos >= @len
+
+        if current_char == '*' || current_char == '/' || current_char == '%'
+          op = current_char
+          advance
+          right = parse_factor
+          node = BinaryOp.new(op, node, right)
+        else
+          break
+        end
+      end
+
+      node
+    end
+
+    def parse_factor : Node
+      skip_whitespace
+      return Number.new(0) if @pos >= @len
+
+      case current_char
+      when '0'..'9'
+        parse_number
+      when 'a'..'z'
+        parse_variable
+      when '('
+        advance # '('
+        node = parse_expression
+        skip_whitespace
+        if current_char == ')'
+          advance # ')'
+        end
+        node
+      else
+        Number.new(0)
+      end
+    end
+
+    def parse_number : Node
+      start = @pos
+      v = 0_i64
+      while @pos < @len && current_char.ascii_number?
+        v = v &* 10 &+ @current_char.to_i64
+        advance
+      end
+      Number.new(v)
+    end
+
+    def parse_variable : Node
+      start = @pos
+      while @pos < @len && (current_char.ascii_letter? || current_char.ascii_number?)
+        advance
+      end
+      var_name = @input[start...@pos]
+
+      # Проверяем присвоение
+      skip_whitespace
+      if current_char == '='
+        advance # '='
+        expr = parse_expression
+        return Assignment.new(var_name, expr)
+      end
+
+      Variable.new(var_name)
+    end
+
+    def advance
+      @pos += 1
+      if @pos >= @len
+        @current_char = '\0'
+      else
+        @current_char = @chars[@pos]
+      end
+    end
+
+    def skip_whitespace
+      while @pos < @len && current_char.ascii_whitespace?
+        advance
+      end
+    end
+  end
+
+  def result
+    @result
+  end
+end
+
+class CalculatorInterpreter < Benchmark
+  class Interpreter
+    def initialize
+      @variables = Hash(String, Int64).new(0)
+    end
+
+    def simple_div(a : Int64, b : Int64) : Int64
+      return 0_i64 if b == 0
+      # Простое деление с округлением к нулю
+      if (a >= 0 && b > 0) || (a < 0 && b < 0)
+        a // b # одинаковые знаки
+      else
+        -(a.abs // b.abs) # разные знаки
+      end
+    end
+
+    def simple_mod(a : Int64, b : Int64) : Int64
+      return 0_i64 if b == 0
+      a - simple_div(a, b) * b
+    end
+
+    def evaluate(node : CalculatorAst::Node) : Int64
+      case node
+      when CalculatorAst::Number
+        node.value.to_i64
+      when CalculatorAst::Variable
+        @variables[node.name]? || 0_i64
+      when CalculatorAst::BinaryOp
+        left = evaluate(node.left)
+        right = evaluate(node.right)
+
+        res = case node.op
+              when '+' then left &+ right
+              when '-' then left &- right
+              when '*' then left &* right
+              when '/' then simple_div(left, right)
+              when '%' then simple_mod(left, right)
+              else
+                0_i64
+              end
+        res
+      when CalculatorAst::Assignment
+        value = evaluate(node.expr)
+        @variables[node.var] = value
+        value
+      else
+        0_i64
+      end
+    end
+
+    def run(expressions : Array(CalculatorAst::Node)) : Int64
+      result = 0_i64
+      expressions.each do |expr|
+        result = evaluate(expr)
+      end
+      result
+    end
+
+    def clear
+      @variables.clear
+    end
+  end
+
+  def initialize(@n : Int32 = iterations)
+    @ast = Array(CalculatorAst::Node).new
+    @result = 0_i64
+  end
+
+  getter expressions
+
+  def prepare
+    c = CalculatorAst.new(@n)
+    c.prepare
+    c.run
+    @ast = c.expressions
+  end
+
+  def run
+    v = 0_i64
+    100.times do
+      interpreter = Interpreter.new
+      result = interpreter.run(@ast)
+      v &+= result
+    end
+    @result = v
+  end
+
+  getter result
+end
+
+class GameOfLife < Benchmark
+  enum Cell1
+    Dead
+    Alive
+  end
+
+  class Grid
+    property width : Int32
+    property height : Int32
+    property cells : Array(Array(Cell1))
+
+    def initialize(@width, @height)
+      @cells = Array.new(@height) { Array.new(@width, Cell1::Dead) }
+    end
+
+    def get(x, y) : Cell1
+      @cells[y][x]
+    end
+
+    def set(x, y, cell : Cell1)
+      @cells[y][x] = cell
+    end
+
+    def count_neighbors(x, y) : Int32
+      count = 0
+
+      (-1..1).each do |dy|
+        (-1..1).each do |dx|
+          next if dx == 0 && dy == 0
+
+          # Тороидальные координаты
+          nx = (x.to_i64 + dx).modulo(@width).to_i32
+          ny = (y.to_i64 + dy).modulo(@height).to_i32
+
+          if @cells[ny][nx] == Cell1::Alive
+            count += 1
+          end
+        end
+      end
+
+      count
+    end
+
+    def next_generation : Grid
+      next_grid = Grid.new(@width, @height)
+
+      (0...@height).each do |y|
+        (0...@width).each do |x|
+          neighbors = count_neighbors(x, y)
+          current = @cells[y][x]
+
+          next_state = case {current, neighbors}
+                       when {Cell1::Alive, 2}, {Cell1::Alive, 3}
+                         Cell1::Alive
+                       when {Cell1::Alive, _}
+                         Cell1::Dead
+                       when {Cell1::Dead, 3}
+                         Cell1::Alive
+                       else
+                         Cell1::Dead
+                       end
+
+          next_grid.cells[y][x] = next_state
+        end
+      end
+
+      next_grid
+    end
+
+    def alive_count : Int32
+      count = 0
+      @cells.each do |row|
+        row.each do |cell|
+          if cell == Cell1::Alive
+            count += 1
+          end
+        end
+      end
+      count
+    end
+
+    def compute_hash : UInt64
+      hasher = 0_u64
+      @cells.each do |row|
+        row.each do |cell|
+          # Простой хэш - сдвиг и XOR
+          hasher = (hasher << 1) ^ (cell == Cell1::Alive ? 1_u64 : 0_u64)
+        end
+      end
+      hasher
+    end
+  end
+
+  property result : Int64
+
+  def initialize
+    @result = 0_i64
+    @width = 256
+    @height = 256
+    @grid = Grid.new(@width, @height)
+  end
+
+  def run
+    # Инициализация случайными клетками
+    (0...@height).each do |y|
+      (0...@width).each do |x|
+        if Helper.next_float(1.0) < 0.1
+          @grid.set(x, y, Cell1::Alive)
+        end
+      end
+    end
+
+    # Основной цикл симуляции
+    iterations.times do
+      @grid = @grid.next_generation
+    end
+
+    @result = @grid.alive_count.to_i64
+  end
+end
+
+class MazeGenerator < Benchmark
+  enum Cell
+    Wall
+    Path
+  end
+
+  class Maze
+    getter width : Int32
+    getter height : Int32
+    getter cells : Array(Array(Cell))
+
+    def initialize(@width : Int32, @height : Int32)
+      @width = @width > 5 ? @width : 5
+      @height = @height > 5 ? @height : 5
+      @cells = Array.new(@height) { Array.new(@width, Cell::Wall) }
+    end
+
+    def [](x, y) : Cell
+      @cells[y][x]
+    end
+
+    def []=(x, y, value : Cell)
+      @cells[y][x] = value
+    end
+
+    def generate
+      if @width < 5 || @height < 5
+        (0...@width).each do |x|
+          self[x, @height // 2] = Cell::Path
+        end
+        return
+      end
+
+      divide(0, 0, @width - 1, @height - 1)
+    end
+
+    private def divide(x1 : Int32, y1 : Int32, x2 : Int32, y2 : Int32)
+      width = x2 - x1
+      height = y2 - y1
+
+      return if width < 2 || height < 2
+
+      width_for_wall = {width - 2, 0}.max
+      height_for_wall = {height - 2, 0}.max
+      width_for_hole = {width - 1, 0}.max
+      height_for_hole = {height - 1, 0}.max
+
+      return if width_for_wall == 0 || height_for_wall == 0 ||
+                width_for_hole == 0 || height_for_hole == 0
+
+      if width > height
+        # Вертикальная стена
+        wall_range = {width_for_wall // 2, 1}.max
+        wall_offset = wall_range > 0 ? (Helper.next_int(wall_range)) * 2 : 0
+        wall_x = x1 + 2 + wall_offset
+
+        hole_range = {height_for_hole // 2, 1}.max
+        hole_offset = hole_range > 0 ? (Helper.next_int(hole_range)) * 2 : 0
+        hole_y = y1 + 1 + hole_offset
+
+        return if wall_x > x2 || hole_y > y2
+
+        (y1..y2).each do |y|
+          self[wall_x, y] = Cell::Wall if y != hole_y
+        end
+
+        divide(x1, y1, wall_x - 1, y2) if wall_x > x1 + 1
+        divide(wall_x + 1, y1, x2, y2) if wall_x + 1 < x2
+      else
+        # Горизонтальная стена
+        wall_range = {height_for_wall // 2, 1}.max
+        wall_offset = wall_range > 0 ? (Helper.next_int(wall_range)) * 2 : 0
+        wall_y = y1 + 2 + wall_offset
+
+        hole_range = {width_for_hole // 2, 1}.max
+        hole_offset = hole_range > 0 ? (Helper.next_int(hole_range)) * 2 : 0
+        hole_x = x1 + 1 + hole_offset
+
+        return if wall_y > y2 || hole_x > x2
+
+        (x1..x2).each do |x|
+          self[x, wall_y] = Cell::Wall if x != hole_x
+        end
+
+        divide(x1, y1, x2, wall_y - 1) if wall_y > y1 + 1
+        divide(x1, wall_y + 1, x2, y2) if wall_y + 1 < y2
+      end
+    end
+
+    def to_bool_grid : Array(Array(Bool))
+      @cells.map do |row|
+        row.map { |cell| cell == Cell::Path }
+      end
+    end
+
+    def is_connected(start : Tuple(Int32, Int32), goal : Tuple(Int32, Int32)) : Bool
+      return false if start[0] >= @width || start[1] >= @height ||
+                      goal[0] >= @width || goal[1] >= @height
+
+      visited = Array.new(@height) { Array.new(@width, false) }
+      queue = Deque(Tuple(Int32, Int32)).new
+
+      visited[start[1]][start[0]] = true
+      queue << start
+
+      while !queue.empty?
+        x, y = queue.shift
+
+        return true if {x, y} == goal
+
+        # Верх
+        if y > 0 && self[x, y - 1] == Cell::Path && !visited[y - 1][x]
+          visited[y - 1][x] = true
+          queue << {x, y - 1}
+        end
+
+        # Право
+        if x + 1 < @width && self[x + 1, y] == Cell::Path && !visited[y][x + 1]
+          visited[y][x + 1] = true
+          queue << {x + 1, y}
+        end
+
+        # Низ
+        if y + 1 < @height && self[x, y + 1] == Cell::Path && !visited[y + 1][x]
+          visited[y + 1][x] = true
+          queue << {x, y + 1}
+        end
+
+        # Лево
+        if x > 0 && self[x - 1, y] == Cell::Path && !visited[y][x - 1]
+          visited[y][x - 1] = true
+          queue << {x - 1, y}
+        end
+      end
+
+      false
+    end
+
+    def self.generate_walkable_maze(width : Int32, height : Int32) : Array(Array(Bool))
+      maze = Maze.new(width, height)
+      maze.generate
+
+      start = {1, 1}
+      goal = {width - 2, height - 2}
+
+      if !maze.is_connected(start, goal)
+        (0...width).each do |x|
+          (0...height).each do |y|
+            if x < maze.width && y < maze.height
+              if x == 1 || y == 1 || x == width - 2 || y == height - 2
+                maze[x, y] = Cell::Path
+              end
+            end
+          end
+        end
+      end
+
+      maze.to_bool_grid
+    end
+  end
+
+  getter result : Int64
+  getter width : Int32
+  getter height : Int32
+
+  def initialize
+    @result = 0_i64
+    @width = 1001
+    @height = 1001
+  end
+
+  # В MazeGenerator.run добавьте:
+  def run
+    checksum = 0_u64
+
+    iterations.times do |i|
+      bool_grid = Maze.generate_walkable_maze(@width, @height)
+
+      # Простая checksum для сравнения с Rust
+      bool_grid.each_with_index do |row, y|
+        row.each_with_index do |cell, x|
+          if !cell
+            checksum = checksum &+ (x * y)
+          end
+        end
+      end
+    end
+
+    @result = checksum.to_i64
+  end
+end
+
+class AStarPathfinder < Benchmark
+  getter result : Int64
+  getter start_x : Int32
+  getter start_y : Int32
+  getter goal_x : Int32
+  getter goal_y : Int32
+  getter width : Int32
+  getter height : Int32
+
+  @maze_grid : Array(Array(Bool))?
+
+  abstract struct Heuristic
+    abstract def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
+  end
+
+  struct ManhattanHeuristic < Heuristic
+    def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
+      (a_x - b_x).abs + (a_y - b_y).abs
+    end
+  end
+
+  struct EuclideanHeuristic < Heuristic
+    def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
+      dx = (a_x - b_x).abs.to_f64
+      dy = (a_y - b_y).abs.to_f64
+      # Используем hypot для лучшей точности
+      (Math.hypot(dx, dy) * 1000.0).round.to_i
+    end
+  end
+
+  struct ChebyshevHeuristic < Heuristic
+    def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
+      [(a_x - b_x).abs, (a_y - b_y).abs].max
+    end
+  end
+
+  # Оптимизированный узел с встроенными координатами вместо Tuple
+  record Node, x : Int32, y : Int32, f_score : Int32 do
+    include Comparable(Node)
+
+    def <=>(other : Node) : Int32
+      # Сортировка по f_score, затем по координатам для стабильности
+      cmp = f_score <=> other.f_score
+      return cmp unless cmp == 0
+
+      cmp = y <=> other.y
+      return cmp unless cmp == 0
+      x <=> other.x
+    end
+  end
+
+  abstract struct Heuristic
+    abstract def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
+  end
+
+  struct ManhattanHeuristic < Heuristic
+    def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
+      ((a_x - b_x).abs + (a_y - b_y).abs) * 1000
+    end
+  end
+
+  struct EuclideanHeuristic < Heuristic
+    def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
+      dx = (a_x - b_x).abs.to_f64
+      dy = (a_y - b_y).abs.to_f64
+      (Math.hypot(dx, dy) * 1000.0).to_i
+    end
+  end
+
+  struct ChebyshevHeuristic < Heuristic
+    def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
+      [(a_x - b_x).abs, (a_y - b_y).abs].max * 1000
+    end
+  end
+
+  # BinaryHeap (минимальная куча)
+  class BinaryHeap(T)
+    @data : Array(T)
+
+    def initialize
+      @data = [] of T
+    end
+
+    def push(item : T)
+      @data << item
+      sift_up(@data.size - 1)
+    end
+
+    def pop : T?
+      return @data.pop? if @data.size <= 1
+
+      result = @data[0]
+      @data[0] = @data.pop
+      sift_down(0)
+      result
+    end
+
+    def empty? : Bool
+      @data.empty?
+    end
+
+    private def sift_up(index : Int32)
+      while index > 0
+        parent = (index - 1) // 2
+        break if @data[index] >= @data[parent]
+        swap(index, parent)
+        index = parent
+      end
+    end
+
+    private def sift_down(index : Int32)
+      size = @data.size
+      loop do
+        left = index * 2 + 1
+        right = left + 1
+        smallest = index
+
+        if left < size && @data[left] < @data[smallest]
+          smallest = left
+        end
+
+        if right < size && @data[right] < @data[smallest]
+          smallest = right
+        end
+
+        break if smallest == index
+
+        swap(index, smallest)
+        index = smallest
+      end
+    end
+
+    private def swap(i : Int32, j : Int32)
+      @data[i], @data[j] = @data[j], @data[i]
+    end
+  end
+
+  def initialize
+    @result = 0_i64
+    @width = iterations
+    @height = iterations
+    @start_x = 1
+    @start_y = 1
+    @goal_x = @width - 2
+    @goal_y = @height - 2
+  end
+
+  private def ensure_maze_grid : Array(Array(Bool))
+    unless @maze_grid
+      @maze_grid = MazeGenerator::Maze.generate_walkable_maze(@width, @height)
+    end
+    @maze_grid.not_nil!
+  end
+
+  private def find_path(heuristic : Heuristic, allow_diagonal : Bool = false) : Array({Int32, Int32})?
+    grid = ensure_maze_grid
+
+    g_scores = Array.new(@height) { Array.new(@width, Int32::MAX) }
+    came_from = Array.new(@height) { Array.new(@width, {-1, -1}) }
+    open_set = BinaryHeap(Node).new
+
+    g_scores[@start_y][@start_x] = 0
+    open_set.push(Node.new(@start_x, @start_y, heuristic.distance(@start_x, @start_y, @goal_x, @goal_y)))
+
+    directions = if allow_diagonal
+                   {
+                     {0, -1}, {1, 0}, {0, 1}, {-1, 0},
+                     {-1, -1}, {1, -1}, {1, 1}, {-1, 1},
+                   }
+                 else
+                   { {0, -1}, {1, 0}, {0, 1}, {-1, 0} }
+                 end
+
+    diagonal_cost = allow_diagonal ? 1414 : 1000
+
+    until open_set.empty?
+      current = open_set.pop.not_nil!
+
+      if current.x == @goal_x && current.y == @goal_y
+        path = [] of {Int32, Int32}
+        x = current.x
+        y = current.y
+
+        while x != @start_x || y != @start_y
+          path << {x, y}
+          prev_x, prev_y = came_from[y][x]
+          x = prev_x
+          y = prev_y
+        end
+
+        path << {@start_x, @start_y}
+        return path.reverse
+      end
+
+      current_g = g_scores[current.y][current.x]
+
+      directions.each do |dx, dy|
+        nx = current.x + dx
+        ny = current.y + dy
+
+        next if nx < 0 || nx >= @width || ny < 0 || ny >= @height
+        next unless grid[ny][nx]
+
+        move_cost = (dx.abs == 1 && dy.abs == 1) ? diagonal_cost : 1000
+        tentative_g = current_g + move_cost
+
+        if tentative_g < g_scores[ny][nx]
+          came_from[ny][nx] = {current.x, current.y}
+          g_scores[ny][nx] = tentative_g
+
+          f_score = tentative_g + heuristic.distance(nx, ny, @goal_x, @goal_y)
+          open_set.push(Node.new(nx, ny, f_score))
+        end
+      end
+    end
+
+    nil
+  end
+
+  private def estimate_nodes_explored(heuristic : Heuristic, allow_diagonal : Bool = false) : Int32
+    grid = ensure_maze_grid
+
+    g_scores = Array.new(@height) { Array.new(@width, Int32::MAX) }
+    open_set = BinaryHeap(Node).new
+    closed = Array.new(@height) { Array.new(@width, false) }
+
+    g_scores[@start_y][@start_x] = 0
+    open_set.push(Node.new(@start_x, @start_y, heuristic.distance(@start_x, @start_y, @goal_x, @goal_y)))
+
+    directions = if allow_diagonal
+                   [
+                     {0, -1}, {1, 0}, {0, 1}, {-1, 0},
+                     {-1, -1}, {1, -1}, {1, 1}, {-1, 1},
+                   ]
+                 else
+                   [{0, -1}, {1, 0}, {0, 1}, {-1, 0}]
+                 end
+
+    nodes_explored = 0
+
+    until open_set.empty?
+      current = open_set.pop.not_nil!
+
+      if current.x == @goal_x && current.y == @goal_y
+        break
+      end
+
+      next if closed[current.y][current.x]
+
+      closed[current.y][current.x] = true
+      nodes_explored += 1
+
+      current_g = g_scores[current.y][current.x]
+
+      directions.each do |dx, dy|
+        nx = current.x + dx
+        ny = current.y + dy
+
+        next if nx < 0 || nx >= @width || ny < 0 || ny >= @height
+        next unless grid[ny][nx]
+
+        move_cost = (dx.abs == 1 && dy.abs == 1) ? 1414 : 1000
+        tentative_g = current_g + move_cost
+
+        if tentative_g < g_scores[ny][nx]
+          g_scores[ny][nx] = tentative_g
+
+          f_score = tentative_g + heuristic.distance(nx, ny, @goal_x, @goal_y)
+          open_set.push(Node.new(nx, ny, f_score))
+        end
+      end
+    end
+
+    nodes_explored
+  end
+
+  private def benchmark_different_approaches : Tuple(Int32, Int32, Int32)
+    heuristics = [
+      ManhattanHeuristic.new,
+      EuclideanHeuristic.new,
+      ChebyshevHeuristic.new,
+    ]
+
+    total_paths_found = 0
+    total_path_length = 0
+    total_nodes_explored = 0
+
+    heuristics.each do |heuristic|
+      if path = find_path(heuristic, false)
+        total_paths_found += 1
+        total_path_length += path.size
+        total_nodes_explored += estimate_nodes_explored(heuristic, false)
+      end
+    end
+
+    {total_paths_found, total_path_length, total_nodes_explored}
+  end
+
+  def prepare
+    ensure_maze_grid
+  end
+
+  def run
+    total_paths_found = 0
+    total_path_length = 0
+    total_nodes_explored = 0
+
+    iters = 10
+    iters.times do
+      paths_found, path_length, nodes_explored = benchmark_different_approaches
+
+      total_paths_found += paths_found
+      total_path_length += path_length
+      total_nodes_explored += nodes_explored
+    end
+
+    paths_checksum = Helper.checksum_f64(total_paths_found.to_f64)
+    length_checksum = Helper.checksum_f64(total_path_length.to_f64)
+    nodes_checksum = Helper.checksum_f64(total_nodes_explored.to_f64)
+
+    @result = (paths_checksum.to_i64) ^
+              ((length_checksum.to_i64) << 16) ^
+              ((nodes_checksum.to_i64) << 32)
+  end
+end
+
+class Compression < Benchmark
+  # ==================== BWT ====================
+  struct BWTResult
+    property transformed : Bytes
+    property original_idx : Int32
+
+    def initialize(@transformed : Bytes, @original_idx : Int32)
+    end
+  end
+
+  # BWT преобразование (алгоритм суффиксного массива)
+  private def bwt_transform(input : Bytes) : BWTResult
+    n = input.size
+    return BWTResult.new(Bytes.new(0), 0) if n == 0
+
+    # 1. Создаём суффиксный массив
+    sa = Array.new(n) { |i| i }
+
+    # 2. Фаза 0: сортировка по первому символу (Radix sort)
+    buckets = Array.new(256) { [] of Int32 }
+    sa.each do |idx|
+      first_char = input[idx]
+      buckets[first_char] << idx
+    end
+
+    pos = 0
+    buckets.each do |bucket|
+      bucket.each do |idx|
+        sa[pos] = idx
+        pos += 1
+      end
+    end
+
+    # 3. Фаза 1: сортировка по парам символов
+    if n > 1
+      # Присваиваем ранги по первому символу
+      rank = Array.new(n, 0)
+      current_rank = 0
+      prev_char = input[sa[0]]
+
+      sa.each_with_index do |idx, i|
+        if input[idx] != prev_char
+          current_rank += 1
+          prev_char = input[idx]
+        end
+        rank[idx] = current_rank
+      end
+
+      # Сортируем по парам (ранг[i], ранг[i+1])
+      k = 1
+      while k < n
+        # Создаём пары
+        pairs = Array.new(n) { |i| {rank[i], rank[(i + k) % n]} }
+
+        # Сортируем индексы по парам
+        sa.sort! do |a, b|
+          pair_a = pairs[a]
+          pair_b = pairs[b]
+          if pair_a[0] != pair_b[0]
+            pair_a[0] <=> pair_b[0]
+          else
+            pair_a[1] <=> pair_b[1]
+          end
+        end
+
+        # Обновляем ранги
+        new_rank = Array.new(n, 0)
+        new_rank[sa[0]] = 0
+        (1...n).each do |i|
+          prev_pair = pairs[sa[i - 1]]
+          curr_pair = pairs[sa[i]]
+          new_rank[sa[i]] = new_rank[sa[i - 1]] + (prev_pair != curr_pair ? 1 : 0)
+        end
+
+        rank = new_rank
+        k *= 2
+      end
+    end
+
+    # 4. Собираем BWT результат
+    transformed = Bytes.new(n)
+    original_idx = 0
+
+    sa.each_with_index do |suffix, i|
+      if suffix == 0
+        transformed[i] = input[n - 1]
+        original_idx = i
+      else
+        transformed[i] = input[suffix - 1]
+      end
+    end
+
+    BWTResult.new(transformed, original_idx)
+  end
+
+  # Обратное BWT преобразование
+  private def bwt_inverse(bwt_result : BWTResult) : Bytes
+    bwt = bwt_result.transformed
+    n = bwt.size
+    return Bytes.new(0) if n == 0
+
+    # 1. Подсчитываем частоты символов
+    counts = Array.new(256, 0)
+    bwt.each do |byte|
+      counts[byte] += 1
+    end
+
+    # 2. Вычисляем стартовые позиции для каждого символа
+    positions = Array.new(256, 0)
+    total = 0
+    counts.each_with_index do |count, i|
+      positions[i] = total
+      total += count
+    end
+
+    # 3. Строим массив next (LF-маппинг)
+    next_arr = Array.new(n, 0)
+    temp_counts = Array.new(256, 0)
+
+    bwt.each_with_index do |byte, i|
+      byte_idx = byte.to_i32
+      pos = positions[byte_idx] + temp_counts[byte_idx]
+      next_arr[pos] = i
+      temp_counts[byte_idx] += 1
+    end
+
+    # 4. Восстанавливаем исходную строку
+    result = Bytes.new(n)
+    idx = bwt_result.original_idx
+
+    n.times do |i|
+      idx = next_arr[idx]
+      result[i] = bwt[idx]
+    end
+
+    result
+  end
+
+  # ==================== Huffman ====================
+  class HuffmanNode
+    property frequency : Int32
+    property byte_val : UInt8?
+    property is_leaf : Bool
+    property left : HuffmanNode?
+    property right : HuffmanNode?
+    property index : Int32
+
+    def initialize(@frequency : Int32, @byte_val : UInt8? = nil, @is_leaf : Bool = true)
+      @index = 0
+    end
+  end
+
+  # PriorityQueue для Huffman
+  class PriorityQueue
+    # include Enumerable(HuffmanNode)
+
+    @heap : Array(HuffmanNode)
+
+    def initialize
+      @heap = [] of HuffmanNode
+    end
+
+    def push(node : HuffmanNode)
+      @heap << node
+      node.index = @heap.size - 1
+      sift_up(@heap.size - 1)
+    end
+
+    def pop : HuffmanNode
+      return @heap.pop if @heap.size <= 1
+
+      root = @heap[0]
+      @heap[0] = @heap.pop
+      @heap[0].index = 0
+      sift_down(0)
+      root
+    end
+
+    def size : Int32
+      @heap.size
+    end
+
+    def empty? : Bool
+      @heap.empty?
+    end
+
+    private def sift_up(index : Int32)
+      while index > 0
+        parent = (index - 1) // 2
+        break if @heap[parent].frequency <= @heap[index].frequency
+        swap(index, parent)
+        index = parent
+      end
+    end
+
+    private def sift_down(index : Int32)
+      size = @heap.size
+      while true
+        left = index * 2 + 1
+        right = index * 2 + 2
+        smallest = index
+
+        smallest = left if left < size && @heap[left].frequency < @heap[smallest].frequency
+        smallest = right if right < size && @heap[right].frequency < @heap[smallest].frequency
+
+        break if smallest == index
+
+        swap(index, smallest)
+        index = smallest
+      end
+    end
+
+    private def swap(i : Int32, j : Int32)
+      @heap[i], @heap[j] = @heap[j], @heap[i]
+      @heap[i].index = i
+      @heap[j].index = j
+    end
+  end
+
+  # Построение дерева Huffman
+  private def build_huffman_tree(frequencies : Array(Int32)) : HuffmanNode
+    heap = PriorityQueue.new
+
+    # Добавляем все символы с ненулевой частотой
+    frequencies.each_with_index do |freq, i|
+      if freq > 0
+        heap.push(HuffmanNode.new(freq, i.to_u8))
+      end
+    end
+
+    # Если только один символ, создаём искусственный узел
+    if heap.size == 1
+      node = heap.pop
+      root = HuffmanNode.new(node.frequency, nil, false)
+      root.left = node
+      root.right = HuffmanNode.new(0, 0_u8)
+      return root
+    end
+
+    # Строим дерево
+    while heap.size > 1
+      left = heap.pop
+      right = heap.pop
+
+      parent = HuffmanNode.new(
+        left.frequency + right.frequency,
+        nil,
+        false
+      )
+      parent.left = left
+      parent.right = right
+
+      heap.push(parent)
+    end
+
+    heap.pop
+  end
+
+  # Структура для хранения Huffman кодов
+  class HuffmanCodes
+    property code_lengths : Array(Int32)
+    property codes : Array(Int32)
+
+    def initialize
+      @code_lengths = Array.new(256, 0)
+      @codes = Array.new(256, 0)
+    end
+  end
+
+  # Построение кодов Huffman
+  private def build_huffman_codes(node : HuffmanNode, code : Int32, length : Int32, huffman_codes : HuffmanCodes)
+    if node.is_leaf
+      if length > 0 || node.byte_val != 0
+        idx = node.byte_val.not_nil!
+        huffman_codes.code_lengths[idx] = length
+        huffman_codes.codes[idx] = code
+      end
+    else
+      if left = node.left
+        build_huffman_codes(left, code << 1, length + 1, huffman_codes)
+      end
+      if right = node.right
+        build_huffman_codes(right, (code << 1) | 1, length + 1, huffman_codes)
+      end
+    end
+  end
+
+  # Результат кодирования
+  struct EncodedResult
+    property data : Bytes
+    property bit_count : Int32
+
+    def initialize(@data : Bytes, @bit_count : Int32)
+    end
+  end
+
+  # Кодирование Huffman
+  private def huffman_encode(data : Bytes, huffman_codes : HuffmanCodes) : EncodedResult
+    # Предварительное выделение с запасом
+    result = Bytes.new(data.size * 2)
+    current_byte = 0_u8
+    bit_pos = 0
+    byte_index = 0
+    total_bits = 0
+
+    data.each do |byte|
+      idx = byte.to_i32
+      code = huffman_codes.codes[idx]
+      length = huffman_codes.code_lengths[idx]
+
+      # Копируем биты из code
+      (length - 1).downto(0) do |i|
+        if (code & (1 << i)) != 0
+          current_byte |= 1 << (7 - bit_pos)
+        end
+        bit_pos += 1
+        total_bits += 1
+
+        if bit_pos == 8
+          result[byte_index] = current_byte
+          byte_index += 1
+          current_byte = 0_u8
+          bit_pos = 0
+        end
+      end
+    end
+
+    # Последний неполный байт
+    if bit_pos > 0
+      result[byte_index] = current_byte
+      byte_index += 1
+    end
+
+    EncodedResult.new(result[0, byte_index], total_bits)
+  end
+
+  # Декодирование Huffman
+  private def huffman_decode(encoded : Bytes, root : HuffmanNode, bit_count : Int32) : Bytes
+    result = Bytes.new(bit_count // 4 + 1)
+    result_idx = 0
+    current_node = root
+    bits_processed = 0
+    byte_index = 0
+
+    while bits_processed < bit_count && byte_index < encoded.size
+      byte_val = encoded[byte_index]
+      byte_index += 1
+
+      7.downto(0) do |bit_pos|
+        break if bits_processed >= bit_count
+
+        bit = ((byte_val >> bit_pos) & 1) == 1
+        bits_processed += 1
+
+        current_node = bit ? current_node.right.not_nil! : current_node.left.not_nil!
+
+        if current_node.is_leaf
+          if current_node.byte_val != 0
+            # Расширяем массив при необходимости
+            if result_idx >= result.size
+              new_size = result.size * 2
+              new_result = Bytes.new(new_size)
+              result.copy_to(new_result)
+              result = new_result
+            end
+            result[result_idx] = current_node.byte_val.not_nil!
+            result_idx += 1
+          end
+          current_node = root
+        end
+      end
+    end
+
+    result[0, result_idx]
+  end
+
+  # ==================== Компрессор ====================
+  struct CompressedData
+    property bwt_result : BWTResult
+    property frequencies : Array(Int32)
+    property encoded_bits : Bytes
+    property original_bit_count : Int32
+
+    def initialize(@bwt_result : BWTResult, @frequencies : Array(Int32),
+                   @encoded_bits : Bytes, @original_bit_count : Int32)
+    end
+  end
+
+  # Сжатие
+  private def compress(data : Bytes) : CompressedData
+    # 1. BWT преобразование
+    bwt_result = bwt_transform(data)
+
+    # 2. Подсчёт частот
+    frequencies = Array.new(256, 0)
+    bwt_result.transformed.each do |byte|
+      frequencies[byte] += 1
+    end
+
+    # 3. Построение дерева Huffman
+    huffman_tree = build_huffman_tree(frequencies)
+
+    # 4. Построение кодов
+    huffman_codes = HuffmanCodes.new
+    build_huffman_codes(huffman_tree, 0, 0, huffman_codes)
+
+    # 5. Кодирование
+    encoded = huffman_encode(bwt_result.transformed, huffman_codes)
+
+    CompressedData.new(
+      bwt_result,
+      frequencies,
+      encoded.data,
+      encoded.bit_count
+    )
+  end
+
+  # Распаковка
+  private def decompress(compressed : CompressedData) : Bytes
+    # 1. Восстанавливаем дерево Huffman
+    huffman_tree = build_huffman_tree(compressed.frequencies)
+
+    # 2. Декодирование Huffman
+    decoded = huffman_decode(
+      compressed.encoded_bits,
+      huffman_tree,
+      compressed.original_bit_count
+    )
+
+    # 3. Обратное BWT
+    bwt_result = BWTResult.new(
+      decoded,
+      compressed.bwt_result.original_idx
+    )
+
+    bwt_inverse(bwt_result)
+  end
+
+  # ==================== Бенчмарк ====================
+  property iterations : Int32
+  property result : UInt32
+  @test_data : Bytes?
+
+  def initialize
+    @iterations = Helper::INPUT["Compression"]?.try(&.to_i32) || 0
+    @result = 0_u32
+  end
+
+  # Генерация тестовых данных
+  private def generate_test_data(size : Int32) : Bytes
+    pattern = "ABRACADABRA"
+    data = Bytes.new(size)
+
+    size.times do |i|
+      data[i] = pattern[i % pattern.size].ord.to_u8
+    end
+
+    data
+  end
+
+  def prepare
+    @test_data = generate_test_data(@iterations)
+  end
+
+  def run
+    total_checksum = 0_u32
+
+    5.times do
+      # Компрессия
+      compressed = compress(@test_data.not_nil!)
+
+      # Декомпрессия
+      decompressed = decompress(compressed)
+
+      # Подсчёт checksum
+      checksum = Helper.checksum(decompressed)
+
+      total_checksum = total_checksum &+ compressed.encoded_bits.size.to_u32
+      total_checksum = total_checksum &+ checksum
+    end
+
+    @result = total_checksum
+  end
+
+  def result
+    @result
+  end
+end
+
+File.write("/tmp/recompile_marker", "RECOMPILE_MARKER_0")

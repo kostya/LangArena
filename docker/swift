@@ -1,0 +1,36 @@
+FROM benchmarks:base
+
+# ============================================
+# Установка Swift
+# ============================================
+RUN apt-get install -y \
+    binutils \
+    git \
+    libc6-dev \
+    libcurl4-openssl-dev \
+    libedit2 \
+    libgcc-11-dev \
+    libpython3-dev \
+    libsqlite3-dev \
+    libstdc++-11-dev \
+    libxml2-dev \
+    libz3-dev \
+    pkg-config \
+    tzdata \
+    unzip \
+    zlib1g-dev \
+    libncurses6
+
+ARG version
+
+RUN SWIFT_VERSION="swift-$version-RELEASE" \
+    && SWIFT_PLATFORM="ubuntu24.04" \
+    && SWIFT_BRANCH="swift-$version-release" \
+    && SWIFT_URL="https://download.swift.org/$SWIFT_BRANCH/$(echo $SWIFT_PLATFORM | tr -d .)/$SWIFT_VERSION/$SWIFT_VERSION-$SWIFT_PLATFORM.tar.gz" \
+    && wget $SWIFT_URL \
+    && tar xzf $SWIFT_VERSION-$SWIFT_PLATFORM.tar.gz \
+    && mv $SWIFT_VERSION-$SWIFT_PLATFORM /usr/share/swift \
+    && rm $SWIFT_VERSION-$SWIFT_PLATFORM.tar.gz
+
+ENV PATH="/usr/share/swift/usr/bin:${PATH}"
+

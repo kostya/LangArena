@@ -1,0 +1,19 @@
+FROM benchmarks:base
+
+# ============================================
+# Установка Go
+# ============================================
+
+ARG version
+
+RUN wget -O go.tar.gz "https://go.dev/dl/go${version}.linux-amd64.tar.gz" \
+    && tar -C /usr/local -xzf go.tar.gz \
+    && rm go.tar.gz
+
+ENV GOPATH="/go"
+ENV PATH="/usr/local/go/bin:${PATH}:${GOPATH}/bin"
+RUN mkdir -p ${GOPATH}/src ${GOPATH}/bin ${GOPATH}/pkg
+
+RUN go install golang.org/x/tools/cmd/goimports@latest \
+    && go install golang.org/x/tools/gopls@latest \
+    && go install honnef.co/go/tools/cmd/staticcheck@latest

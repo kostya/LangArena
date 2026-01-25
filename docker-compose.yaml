@@ -1,0 +1,324 @@
+# Оптимальные настройки ДЛЯ cgroups v2
+x-shared-optimized: &shared-optimized
+  tty: true
+  stdin_open: true
+  volumes:
+    - .:/src
+  working_dir: /src
+  build: 
+    context: .
+  # Ключевые оптимизации:
+  shm_size: '2gb'
+  ipc: host    # ↓ ЭТО ВАЖНЕЕ real-time!
+  pid: host    # ↓
+  uts: host    # ↓
+  # CPU (cgroups v2 style)
+  cpus: ${DOCKER_CPUS:-0}
+  cpu_count: ${DOCKER_CPU_COUNT:-0}
+  # Память
+  deploy:
+    resources:
+      limits:
+        memory: 8G
+        cpus: '4'
+      reservations:
+        memory: 4G
+        cpus: '2'  
+  # mem_reservation: 8g  
+  # Сеть
+  network_mode: ${DOCKER_NETWORK:-bridge}
+  # Безопасность (минимальная)
+  cap_add:
+    - SYS_NICE
+    - SYS_ADMIN
+    - IPC_LOCK
+  security_opt:
+    - seccomp=unconfined
+
+# Стандартный shared (обратная совместимость)
+x-shared: &shared
+  tty: true
+  volumes:
+    - .:/src
+  working_dir: /src
+  build: 
+    context: .
+
+# Для CPU-intensive бенчмарков
+x-shared-cpu: &shared-cpu
+  <<: *shared-optimized
+  # Дополнительные CPU оптимизации
+  deploy:
+    resources:
+      limits:
+        cpus: ${DOCKER_CPUS:-0}
+        memory: ${DOCKER_MEMORY:-4g}
+      reservations:
+        cpus: ${DOCKER_CPUS:-0}
+        memory: ${DOCKER_MEMORY:-4g}
+
+services:
+  base:
+    <<: *shared-optimized  # Используем оптимизированный
+    #<<: *shared
+    image: benchmarks:base
+    build: 
+      dockerfile: docker/base
+
+  crystal:
+    # <<: *shared
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:crystal
+    working_dir: /src/crystal
+    build: 
+      dockerfile: docker/crystal
+      args:
+        # https://github.com/crystal-lang/crystal/releases
+        version: 1.18.2
+    volumes:
+      - .:/src:delegated
+      # Кэш
+      - ./cache/crystal:/root/.cache/crystal
+    depends_on:
+      - base
+
+  rust:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:rust
+    working_dir: /src/rust
+    build: 
+      dockerfile: docker/rust
+      args:
+        # https://github.com/rust-lang/rust/releases/
+        version: 1.92.0
+    volumes:
+      - .:/src:delegated
+      - ./cache/rust-registry:/root/.cargo/registry      # Кэш crates.io
+      - ./cache/rust-git:/root/.cargo/git                # Git dependencies
+      - ./cache/rust-target:/src/rust/target             # Собранные артефакты
+    depends_on:
+      - base
+
+  zig:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:zig
+    working_dir: /src/zig
+    build: 
+      dockerfile: docker/zig
+      args:
+        # https://ziglang.org/download/
+        version: 0.15.2
+    volumes:
+      - .:/src:delegated
+    depends_on:
+      - base
+
+  clang:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:clang
+    working_dir: /src/c
+    build: 
+      dockerfile: docker/clang
+      args:
+        # https://github.com/llvm/llvm-project/releases
+        version: 21
+    depends_on:
+      - base
+
+  dotnet:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:dotnet
+    working_dir: /src/csharp
+    build: 
+      dockerfile: docker/dotnet
+      args:
+        # https://dotnet.microsoft.com/en-us/download/dotnet
+        version: "10.0"
+    volumes:
+      - .:/src:delegated
+      - ./cache/dotnet-nuget:/root/.nuget/packages          # NuGet packages
+      - ./cache/dotnet:/root/.dotnet/
+    depends_on:
+      - base
+
+  gcc:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:gcc
+    working_dir: /src/c
+    build: 
+      dockerfile: docker/gcc
+      args:
+        # https://gcc.gnu.org/releases.html
+        version: "14"
+    depends_on:
+      - base      
+
+  gccgo:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:gccgo
+    working_dir: /src/golang
+    build: 
+      dockerfile: docker/gccgo
+      args:
+        version: "14"
+    depends_on:
+      - gcc
+
+  golang:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:golang
+    working_dir: /src/golang
+    build: 
+      dockerfile: docker/golang
+      args:
+        # https://go.dev/dl/
+        version: "1.25.5"
+    depends_on:
+      - base     
+
+  swift:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:swift
+    working_dir: /src/swift
+    build: 
+      dockerfile: docker/swift
+      args:
+        # https://github.com/swiftlang/swift/releases
+        version: "6.2.3"
+    volumes:
+      - .:/src:delegated
+      - ./cache/swift-build:/root/.cache/swift         # Основной кеш сборки
+      - ./cache/swift-packages:/root/.swiftpm          # Кеш пакетов        
+    depends_on:
+      - base   
+
+  nodejs:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:nodejs
+    build: 
+      dockerfile: docker/nodejs
+      args:
+        # https://nodejs.org/en/about/previous-releases
+        version: "25.x"
+    depends_on:
+      - base   
+
+  java:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:java
+    working_dir: /src/java
+    build: 
+      dockerfile: docker/java
+      args:
+        # https://www.java.com/releases/
+        version: "25"
+        mavenversion: 3.9.12
+    volumes:
+      - .:/src:delegated
+      - ./cache/maven:/root/.m2          # Maven repository cache
+    depends_on:
+      - base   
+
+  kotlin:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:kotlin
+    working_dir: /src/kotlin
+    build: 
+      dockerfile: docker/kotlin
+      args:
+        # https://kotlinlang.org/docs/releases.html        
+        version: "2.3.0"
+        # https://gradle.org/releases/
+        gradleversion: 9.2.1
+    volumes:
+      - .:/src:delegated
+      - ./cache/kotlin-gradle:/root/.gradle/
+      - ./cache/kotlin:/root/.kotlin
+      - ./cache/kotlin-maven:/root/.m2
+    depends_on:
+      - java
+
+  graalvm:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:graalvm
+    working_dir: /src/java
+    build: 
+      dockerfile: docker/graalvm
+      args:
+        # https://www.graalvm.org/release-notes/
+        version: "25.0.1"
+        mavenversion: 3.9.12
+    volumes:
+      - .:/src:delegated
+      - ./cache/maven-graalvm:/root/.m2
+      # - ./cache/java-target:/src/java/target        
+    depends_on:
+      - base
+
+  kotlin-graalvm:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:kotlin-graalvm
+    working_dir: /src/kotlin
+    build: 
+      dockerfile: docker/kotlin-graalvm
+      args:
+        # https://kotlinlang.org/docs/releases.html
+        version: "2.3.0"
+        # https://gradle.org/releases/
+        gradleversion: 9.2.1
+    volumes:
+      - .:/src:delegated
+      - ./cache/kotlin-graalvm-gradle:/root/.gradle
+      - ./cache/kotlin-graalvm:/root/.kotlin
+      - ./cache/kotlin-graalvm-cache:/root/.cache/graalvm
+      - ./cache/kotlin-maven-graalvm:/root/.m2
+      - ./cache/kotlin-graalvm-javac:/root/.cache/javac            # Java компиляция
+    depends_on:
+      - graalvm
+
+  typescript:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:typescript
+    working_dir: /src/typescript
+    build: 
+      dockerfile: docker/typescript
+      args:
+        # https://www.npmjs.com/package/typescript
+        version: "5.9.3"
+    volumes:
+      - .:/src:delegated
+      - ./cache/npm-typescript:/root/.npm
+      - ./cache/typescript-node-modules:/src/typescript/node_modules
+      - ./cache/typescript-dist:/src/typescript/dist        
+    depends_on:
+      - nodejs
+
+  typescript-deno:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:typescript-deno
+    working_dir: /src/typescript
+    build: 
+      dockerfile: docker/typescript-deno
+    volumes:
+      - .:/src:delegated
+      - ./cache/deno:/root/.cache/deno
+      - ./cache/typescript-node-modules-bun:/src/typescript/node_modules
+      # - ./cache/typescript-dist-bun:/src/typescript/dist-bun      
+    depends_on:
+      - base
+
+  typescript-bun:
+    <<: *shared-cpu  # Максимальная оптимизация CPU
+    image: benchmarks:typescript-bun
+    working_dir: /src/typescript
+    build: 
+      dockerfile: docker/typescript-bun
+      args:
+        # https://bun.com/
+        version: "1.3.6"
+    volumes:
+      - .:/src:delegated
+      - ./cache/deno-typescript:/root/.cache/deno
+      - ./cache/typescript-deno-dist:/src/typescript/dist-deno        
+    depends_on:
+      - base

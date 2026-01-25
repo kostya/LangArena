@@ -1,0 +1,4 @@
+#!/bin/sh
+rm -f ./bin_crystal
+crystal build main.cr --release -o bin_crystal
+./bin_crystal ../run.txt "$@"

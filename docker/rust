@@ -1,0 +1,18 @@
+FROM benchmarks:base
+
+# ============================================
+# Установка Rust
+# ============================================
+
+ARG version
+
+RUN wget -q https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init \
+    && chmod +x rustup-init \
+    && ./rustup-init -y \
+        --default-toolchain ${version} \
+        --profile minimal \
+        --no-modify-path \
+    && rm rustup-init
+
+ENV PATH="/root/.cargo/bin:$PATH"
+RUN rustc --version

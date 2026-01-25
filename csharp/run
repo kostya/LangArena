@@ -1,0 +1,6 @@
+#!/bin/sh
+#dotnet publish -c Release -r linux-x64 --self-contained -v quiet -o ./official | grep -v ' MSBuild '
+#./official/Benchmark ../run.txt $@
+
+dotnet run -c Release -- ../run.txt $@
+

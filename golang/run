@@ -1,0 +1,4 @@
+#!/bin/sh
+rm -f ./bin_go
+`which go` build -ldflags="-s -w" -o bin_go main.go
+./bin_go ../run.txt "$@"

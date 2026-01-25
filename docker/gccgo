@@ -1,0 +1,12 @@
+FROM benchmarks:gcc
+
+# ============================================
+# Установка GCCGo
+# ============================================
+
+ARG version
+RUN apt-get install -y gccgo-$version
+
+run ln -sf /usr/bin/gccgo-$version /usr/bin/gccgo \
+    && ln -sf /usr/bin/go-$version /usr/bin/go
+    

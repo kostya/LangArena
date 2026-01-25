@@ -1,0 +1,19 @@
+FROM benchmarks:base
+
+# ============================================
+# Установка GCC
+# ============================================
+
+ARG version
+
+RUN apt-get install -y \
+    gcc \
+    g++ \
+    gcc-$version \
+    g++-$version
+
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$version $version \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-$version $version
+
+RUN apt install -y uthash-dev libpcre2-dev
+RUN apt install -y libre2-dev

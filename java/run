@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# 2. Java с оптимизациями
+mvn clean compile exec:java -Pjava-optimized -Dexec.args="../run.txt $@" -q
+
+# # 3. GraalVM JIT
+# mvn clean compile exec:java -Pgraalvm-jit -Dexec.args="../run.txt $@" -q
+
+# # 4. GraalVM Native
+# mvn clean package -Pgraalvm-native -q
+# ./target/benchmarks-native ../run.txt $@

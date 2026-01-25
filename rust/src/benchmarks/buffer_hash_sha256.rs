@@ -1,0 +1,86 @@
+use super::super::{Benchmark, INPUT};
+use crate::benchmarks::buffer_hash_benchmark::BufferHashBenchmark;
+
+struct SimpleSHA256;
+
+impl SimpleSHA256 {
+    fn digest(data: &[u8]) -> [u8; 32] {
+        let mut result = [0u8; 32];
+        
+        // Используем 8 разных начальных хешей (как в SHA-256)
+        let mut hashes = [
+            0x6a09e667u32,
+            0xbb67ae85u32,
+            0x3c6ef372u32,
+            0xa54ff53au32,
+            0x510e527fu32,
+            0x9b05688cu32,
+            0x1f83d9abu32,
+            0x5be0cd19u32,
+        ];
+        
+        for (i, &byte) in data.iter().enumerate() {
+            let hash_idx = i % 8;
+            let mut hash = hashes[hash_idx];
+            hash = hash.wrapping_shl(5).wrapping_add(hash).wrapping_add(byte as u32);
+            hash = hash.wrapping_add(hash.wrapping_shl(10)) ^ hash.wrapping_shr(6);
+            hashes[hash_idx] = hash;
+        }
+        
+        // Записываем все 8 хешей по 4 байта каждый
+        for i in 0..8 {
+            let hash = hashes[i];
+            result[i * 4] = (hash >> 24) as u8;
+            result[i * 4 + 1] = (hash >> 16) as u8;
+            result[i * 4 + 2] = (hash >> 8) as u8;
+            result[i * 4 + 3] = hash as u8;
+        }
+        
+        result
+    }
+}
+
+pub struct BufferHashSHA256 {
+    base: BufferHashBenchmark,
+}
+
+impl BufferHashSHA256 {
+    pub fn new() -> Self {
+        let name = "BufferHashSHA256".to_string();
+        let iterations: i32 = INPUT.get()
+            .unwrap()
+            .get(&name)
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
+        
+        Self {
+            base: BufferHashBenchmark::new_base(iterations),
+        }
+    }
+}
+
+impl Benchmark for BufferHashSHA256 {
+    fn name(&self) -> String {
+        "BufferHashSHA256".to_string()
+    }
+    
+    fn iterations(&self) -> i32 {
+        self.base.n
+    }
+    
+    fn prepare(&mut self) {
+        self.base.prepare_common();
+    }
+    
+    fn run(&mut self) {
+        self.base.run_common(|data| {
+            let digest = SimpleSHA256::digest(data);
+            // Возвращаем первое 32-битное слово из хэша
+            u32::from_le_bytes([digest[0], digest[1], digest[2], digest[3]])
+        });
+    }
+    
+    fn result(&self) -> i64 {
+        self.base.result as i64
+    }
+}

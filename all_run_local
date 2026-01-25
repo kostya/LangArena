@@ -1,0 +1,28 @@
+ARG="$1"
+
+run_test() {
+  local name="$1"
+  cd $name
+
+  if [ -n "$ARG" ]; then
+    result=$(./run "$ARG" 2>/dev/null | grep Summary)
+  else
+    # Аргумент не передан - запускаем без аргументов
+    result=$(./run 2>/dev/null | grep Summary)
+  fi  
+
+  echo "$name -- $result"
+  cd - >/dev/null
+}
+
+run_test "c"
+run_test "crystal"
+run_test "rust"
+run_test "golang"
+run_test "cpp"
+run_test "csharp"
+run_test "java"
+run_test "kotlin"
+run_test "typescript"
+run_test "swift"
+run_test "zig"

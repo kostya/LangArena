@@ -1,0 +1,6 @@
+#!/bin/sh
+
+sh deps.sh
+rm -f ./bin_c_test
+gcc -Ibase64/include -I/usr/include/ -IcJSON -L/opt/homebrew/lib -I/opt/homebrew/include/ main.c -o bin_c_test -lgmp cJSON/cJSON.o base64/lib/libbase64.o -lm -lpcre2-8 -lpthread
+./bin_c_test ../test.txt "$@"

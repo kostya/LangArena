@@ -1,0 +1,5 @@
+#!/bin/sh
+rm -f ./bin_go
+`which go` fmt main.go
+`which go` build -o bin_go main.go
+./bin_go ../test.txt "$@"
