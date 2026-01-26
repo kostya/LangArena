@@ -52,14 +52,10 @@ services:
     volumes:
       - .:/src
       # Dependencies cache - НЕ очищаем
-      - ./cache/deps/rust/registry:/usr/local/cargo/registry  # Исправлен путь
-      - ./cache/deps/rust/git:/usr/local/cargo/git  # Исправлен путь
+      - ./cache/deps/rust/registry:/root/.cargo/registry
+      - ./cache/deps/rust/git:/root/.cargo/git
       # Build cache - очищаем для cold compile
       - ./cache/build/rust/target:/src/rust/target
-      - ./cache/build/rust/deps:/usr/local/cargo/target  # Для глобальных билдов
-    environment:
-      - CARGO_HOME=/usr/local/cargo
-      - RUSTUP_HOME=/usr/local/rustup
     depends_on:
       - base
 

@@ -184,8 +184,8 @@ class Run
   def deps
     cmd = "sh -c '#{@deps_cmd}'"
     run(cmd)
-  rescue
-    p "Error"
+  rescue => ex
+    p "Error #{ex.inspect}"
   end
 
   def version
@@ -502,7 +502,7 @@ RUNS = [
     dir: "/src/golang",
     container: "golang",
     group: :prod,
-    deps_cmd: "mkdir -p target; go mod download",
+    deps_cmd: "mkdir -p target", # go mod download
   ),
   Run.new(
     name: "Go/Opt", 
@@ -513,7 +513,7 @@ RUNS = [
     dir: "/src/golang",
     container: "golang",
     group: :hack,
-    deps_cmd: "mkdir -p target; go mod download",
+    deps_cmd: "mkdir -p target",
   ),
   Run.new(
     name: "Go/GccGo", 
@@ -524,7 +524,7 @@ RUNS = [
     dir: "/src/golang",
     container: "gccgo",
     group: :hack,
-    deps_cmd: "mkdir -p target; go mod download",
+    deps_cmd: "mkdir -p target",
   ),
 
   Run.new(
@@ -536,7 +536,7 @@ RUNS = [
     dir: "/src/golang",
     container: "gccgo",
     group: :prod,
-    deps_cmd: "mkdir -p target; go mod download",
+    deps_cmd: "mkdir -p target",
   ),
 
   # ======================================= C# ======================================================
@@ -1221,6 +1221,25 @@ end
 puts "All tests count: #{TESTS.size} (#{TESTS.join(", ")})"
 puts
 
+RESULTS = {}
+RESULTS["date"] = Time.now.strftime("%Y-%m-%d")
+RESULTS["arch"] = RUBY_PLATFORM
+RESULTS["pc"] = PC
+RESULTS["uname-name"] = `uname -n`.strip
+RESULTS["langs"] = LANGS.sort
+RESULTS["runs"] = {}
+RUNS.each { |run| RESULTS["runs"][run.name] = run.group }
+RESULTS["tests"] = TESTS
+RESULTS["build-cmd"] = {}
+RESULTS["run-cmd"] = {}
+RESULTS["binary-size-kb"] = {}
+RESULTS["compile-mem-mb"] = {}
+RESULTS["compile-time-cold"] = {}
+RESULTS["compile-time-warm"] = {}
+RESULTS["version"] = {}
+
+check_source_files(IS_VERBOSE)
+
 # Show versions
 RUNS.group_by(&:container).each do |container, runs|
   runs.group_by(&:version_cmd).each do |_, vcmds|
@@ -1240,24 +1259,6 @@ end
 
 exit
 
-RESULTS = {}
-RESULTS["date"] = Time.now.strftime("%Y-%m-%d")
-RESULTS["arch"] = RUBY_PLATFORM
-RESULTS["pc"] = PC
-RESULTS["uname-name"] = `uname -n`.strip
-RESULTS["langs"] = LANGS.sort
-RESULTS["runs"] = {}
-RUNS.each { |run| RESULTS["runs"][run.name] = run.group }
-RESULTS["tests"] = TESTS
-RESULTS["build-cmd"] = {}
-RESULTS["run-cmd"] = {}
-RESULTS["binary-size-kb"] = {}
-RESULTS["compile-mem-mb"] = {}
-RESULTS["compile-time-cold"] = {}
-RESULTS["compile-time-warm"] = {}
-RESULTS["version"] = {}
-
-check_source_files(IS_VERBOSE)
 # exit
 
 CFG = IS_RUN_TEST ? "../test.txt" : "../run.txt"
