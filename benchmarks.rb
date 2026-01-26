@@ -1199,8 +1199,13 @@ RUNS = [
 ]
 
 if ARGV[0] == "versions"
-  RUNS.group_by(&:container).each do |container, run|
-    version = `#{run.dcr}#{run.version_cmd}`.strip
+  RUNS.group_by(&:container).each do |container, runs|
+    vcmds = runs.map(&:version_cmd)
+    if vcmds.size != 1
+      puts "Warning different versions in container???? #{container}: #{vcmds.inspect}"
+      next
+    end
+    version = `#{run.dcr}#{vcmds[0]}`.strip
     puts "Version #{container}: #{version}"
   end
   exit
