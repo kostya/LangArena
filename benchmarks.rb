@@ -1301,6 +1301,15 @@ def build(run, verbose = true)
   delta
 end
 
+def write_results
+  unless ARGV[0]
+    # write result on every step, because it can crash somewhere
+    File.write("./results/#{RESULTS["date"]}-#{RESULTS["uname-name"]}.js", JSON.pretty_generate(RESULTS))  
+  end
+end
+
+write_results
+
 # build
 RUNS.each do |run|
   build(run, IS_VERBOSE)
@@ -1326,13 +1335,6 @@ def run(run, index)
     end
 
     RESULTS[test_name+"-runtime"][run.name] = run_time
-  end
-end
-
-def write_results
-  unless ARGV[0]
-    # write result on every step, because it can crash somewhere
-    File.write("./results/#{RESULTS["date"]}-#{RESULTS["uname-name"]}.js", JSON.pretty_generate(RESULTS))  
   end
 end
 
