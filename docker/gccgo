@@ -1,4 +1,4 @@
-FROM benchmarks:gcc
+FROM benchmarks:base_gcc
 
 # ============================================
 # Установка GCCGo
