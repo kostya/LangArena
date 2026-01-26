@@ -1200,7 +1200,7 @@ RUNS = [
 
 if ARGV[0] == "versions"
   RUNS.group_by(&:container).each do |container, runs|
-    vcmds = runs.map(&:version_cmd)
+    vcmds = runs.map(&:version_cmd).uniq
     if vcmds.size != 1
       puts "Warning different versions in container???? #{container}: #{vcmds.inspect}"
       next
