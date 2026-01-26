@@ -253,10 +253,10 @@ services:
       - ./cache/build/java/maven-build:/root/.m2/build-cache  # Maven build cache
 
   kotlin:
-    <<: *shared  
+    <<: *shared
     image: benchmarks:kotlin
     working_dir: /src/kotlin
-    build: 
+    build:
       dockerfile: docker/kotlin
       args:
         # https://kotlinlang.org/docs/releases.html        
@@ -264,10 +264,20 @@ services:
         # https://gradle.org/releases/
         gradleversion: 9.2.1
     volumes:
-      - .:/src:delegated
-      - ./cache/kotlin-gradle:/root/.gradle/
-      - ./cache/kotlin:/root/.kotlin
-      - ./cache/kotlin-maven:/root/.m2
+      - .:/src
+      # Dependencies cache - НЕ очищаем
+      - ./cache/deps/kotlin/gradle-modules:/root/.gradle/caches/modules-2
+      - ./cache/deps/kotlin/gradle-wrapper:/root/.gradle/wrapper/dists
+      - ./cache/deps/kotlin/maven:/root/.m2/repository
+      # Build cache - очищаем для cold compile
+      - ./cache/build/kotlin/gradle-build:/root/.gradle/caches/build-cache-1  # Исправлено
+      - ./cache/build/kotlin/gradle-transforms:/root/.gradle/caches/transforms-3  # Добавил
+      - ./cache/build/kotlin/build:/src/kotlin/build
+      - ./cache/build/kotlin/daemon:/root/.gradle/daemon  # Daemon logs
+      - ./cache/build/kotlin/cache:/root/.kotlin  # Kotlin compiler cache
+    environment:
+      - GRADLE_USER_HOME=/root/.gradle
+      - GRADLE_OPTS=-Dorg.gradle.caching=true -Dorg.gradle.daemon=false
     depends_on:
       - java
 
@@ -293,10 +303,10 @@ services:
       - base
 
   kotlin-graalvm:
-    <<: *shared  
+    <<: *shared
     image: benchmarks:kotlin-graalvm
     working_dir: /src/kotlin
-    build: 
+    build:
       dockerfile: docker/kotlin-graalvm
       args:
         # https://kotlinlang.org/docs/releases.html
@@ -304,12 +314,21 @@ services:
         # https://gradle.org/releases/
         gradleversion: 9.2.1
     volumes:
-      - .:/src:delegated
-      - ./cache/kotlin-graalvm-gradle:/root/.gradle
-      - ./cache/kotlin-graalvm:/root/.kotlin
-      - ./cache/kotlin-graalvm-cache:/root/.cache/graalvm
-      - ./cache/kotlin-maven-graalvm:/root/.m2
-      - ./cache/kotlin-graalvm-javac:/root/.cache/javac            # Java компиляция
+      - .:/src
+      # Dependencies cache - НЕ очищаем
+      - ./cache/deps/kotlin-graalvm/gradle-modules:/root/.gradle/caches/modules-2
+      - ./cache/deps/kotlin-graalvm/gradle-wrapper:/root/.gradle/wrapper/dists
+      - ./cache/deps/kotlin-graalvm/maven:/root/.m2/repository
+      # Build cache - очищаем для cold compile
+      - ./cache/build/kotlin-graalvm/gradle-build:/root/.gradle/caches/build-cache-1
+      - ./cache/build/kotlin-graalvm/gradle-transforms:/root/.gradle/caches/transforms-3  # Добавил
+      - ./cache/build/kotlin-graalvm/build:/src/kotlin/build
+      - ./cache/build/kotlin-graalvm/native:/root/.cache/graalvm
+      - ./cache/build/kotlin-graalvm/daemon:/root/.gradle/daemon  # Daemon logs
+      - ./cache/build/kotlin-graalvm/cache:/root/.kotlin  # Kotlin compiler cache
+    environment:
+      - GRADLE_USER_HOME=/root/.gradle
+      - GRADLE_OPTS=-Dorg.gradle.caching=true -Dorg.gradle.daemon=false
     depends_on:
       - graalvm
 

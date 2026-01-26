@@ -903,6 +903,7 @@ RUNS = [
     dir: "/src/kotlin",
     container: "kotlin",
     group: :prod,
+    deps_cmd: "./gradlew dependencies",
   ),
 
   # Kotlin - агрессивные оптимизации
@@ -928,6 +929,7 @@ RUNS = [
     dir: "/src/kotlin",
     container: "kotlin",
     group: :hack,
+    deps_cmd: "./gradlew dependencies",
   ),
 
   # Kotlin - максимальные оптимизации
@@ -953,6 +955,7 @@ RUNS = [
     dir: "/src/kotlin",
     container: "kotlin",
     group: :hack,
+    deps_cmd: "./gradlew dependencies",
   ),
 
   # Kotlin + GraalVM JIT
@@ -975,6 +978,7 @@ RUNS = [
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :prod,
+    deps_cmd: "./gradlew dependencies",
   ),
 
   # =============== KOTLIN + GRAALVM NATIVE ===============
@@ -989,6 +993,7 @@ RUNS = [
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :prod,
+    deps_cmd: "./gradlew dependencies",
   ),
 
   Run.new(
@@ -1001,6 +1006,7 @@ RUNS = [
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :hack,
+    deps_cmd: "./gradlew dependencies",
   ),
 
   # Опционально: с разными уровнями оптимизаций
@@ -1014,6 +1020,7 @@ RUNS = [
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :hack,
+    deps_cmd: "./gradlew dependencies",
   ),
 
   # ======================================= TypeScript ======================================================
