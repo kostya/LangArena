@@ -382,8 +382,8 @@ services:
       # Dependencies cache - НЕ очищаем
       - ./cache/deps/typescript/npm-cache:/root/.npm
       - ./cache/deps/typescript/npm-packages-global:/usr/local/lib/node_modules  # Global packages
-      # Build cache - очищаем для cold compile
-      - ./cache/build/typescript/node-modules:/src/typescript/node_modules  # Local deps (часть build)
+      - ./cache/deps/typescript/node-modules:/src/typescript/node_modules
+      # Build cache - очищаем для cold compile      
       - ./cache/build/typescript/target:/src/typescript/target
       - ./cache/build/typescript/cache:/root/.cache/typescript  # TS compiler cache
     environment:
@@ -423,8 +423,8 @@ services:
       - .:/src
       # Dependencies cache - НЕ очищаем
       - ./cache/deps/bun/cache:/root/.bun/install/cache
-      # Build cache - очищаем для cold compile
-      - ./cache/build/bun/node-modules:/src/typescript/node_modules
+      - ./cache/deps/bun/node-modules:/src/typescript/node_modules
+      # Build cache - очищаем для cold compile      
       - ./cache/build/bun/target:/src/typescript/target
       - ./cache/build/bun/build-cache:/root/.bun/build-cache  # Bun's build cache
     environment:
