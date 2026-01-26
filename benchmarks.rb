@@ -1277,7 +1277,7 @@ def build(run, verbose = true)
   RESULTS["run-cmd"][run.name] = run.run_cmd
   RESULTS["compile-time-cold"][run.name] = delta.to_f  
   RESULTS["compile-memory-cold"][run.name] = stats[:rss] / 1024.0
-  print " cold in #{delta.to_f.round(2)}s, "
+  print " cold in #{delta.to_f.round(2)}s"
   
   if marker_file = RECOMPILE_MARKER_FILES[run.lang]    
     File.write(marker_file, File.read(marker_file).gsub(RECOMPILE_MARKER_0, RECOMPILE_MARKER_0 + "1"))
@@ -1286,7 +1286,7 @@ def build(run, verbose = true)
     end
     RESULTS["compile-time-incremental"][run.name] = delta.to_f  
     RESULTS["compile-memory-incremental"][run.name] = stats[:rss] / 1024.0
-    print " incremental in #{delta.round(2)}s"
+    print ", incremental in #{delta.round(2)}s"
   end
 
   RESULTS["version"][run.name] = run.version  

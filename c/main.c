@@ -8160,7 +8160,7 @@ int main(int argc, char* argv[]) {
 
     FILE *f = fopen("/tmp/recompile_marker", "w");
     if (f) {
-        fprintf(f, "RECOMPILE_MARKER_0");
+        fprintf(f, "RECOMPILE_MARKER_011111111");
         fclose(f);
     }    
     
