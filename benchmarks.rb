@@ -1257,26 +1257,14 @@ check_source_files(IS_VERBOSE)
 #   puts "in #{delta.round(2)}s"
 # end
 
-# build
-RUNS.each do |run|
-  print "Build for #{run.name}: "
-  delta = measure do
-    stats = run.run(run.build_cmd, IS_VERBOSE)
-  end
-  puts "in #{delta.round(2)}s"
-end
-
-exit
-
-# exit
-
 CFG = IS_RUN_TEST ? "../test.txt" : "../run.txt"
 
 def build(run, verbose = true)
-  print "building #{run.name} ..." if verbose
-  t = Time.now    
-  stats = run.run(run.build_cmd, verbose)
-  delta = Time.now - t
+  print "building #{run.name} ..."
+  stats = nil
+  delta = measure do
+    stats = run.run(run.build_cmd, verbose)
+  end
   fsize_stats = run.run("sh -c 'du -k #{run.binary_name} | cut -f1'", verbose)
   RESULTS["binary-size-kb"][run.name] = fsize_stats[:out].split("\n").last.to_i
   RESULTS["build-cmd"][run.name] = run.build_cmd
@@ -1284,9 +1272,19 @@ def build(run, verbose = true)
   RESULTS["compile-time-cold"][run.name] = delta.to_f  
   RESULTS["compile-mem-mb"][run.name] = stats[:rss] / 1024.0
   RESULTS["version"][run.name] = run.version
-  puts " in #{delta.to_f.round(2)}s" if verbose
+  puts " in #{delta.to_f.round(2)}s"
   delta
 end
+
+# build
+RUNS.each do |run|
+  build(run, IS_VERBOSE)
+end
+
+p RESULTS
+exit
+
+# exit
 
 def run(run, index)
   puts "Building #{run.name} (#{index} from #{RUNS.size})"
