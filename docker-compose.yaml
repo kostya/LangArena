@@ -56,6 +56,7 @@ services:
     build:
       dockerfile: docker/crystal
       args:
+        # https://github.com/crystal-lang/crystal/releases
         version: 1.18.2
     volumes:
       - .:/src
@@ -65,6 +66,8 @@ services:
       # Build cache - очищаем для cold compile
       - ./cache/build/crystal/target:/src/crystal/target
       - ./cache/build/crystal/cache:/root/.cache/crystal
+    depends_on:
+      - base
 
   rust:
     <<: *shared
@@ -73,6 +76,7 @@ services:
     build:
       dockerfile: docker/rust
       args:
+        # https://github.com/rust-lang/rust/releases/
         version: 1.92.0
     volumes:
       - .:/src
@@ -85,6 +89,8 @@ services:
     environment:
       - CARGO_HOME=/usr/local/cargo
       - RUSTUP_HOME=/usr/local/rustup
+    depends_on:
+      - base
 
   zig:
     <<: *shared  
@@ -166,6 +172,7 @@ services:
     build:
       dockerfile: docker/dotnet
       args:
+        # https://dotnet.microsoft.com/en-us/download/dotnet
         version: "10.0"
     volumes:
       - .:/src
@@ -180,6 +187,8 @@ services:
     environment:
       - DOTNET_CLI_TELEMETRY_OPTOUT=1
       - DOTNET_NOLOGO=1
+    depends_on:
+      - base
 
   base_gcc:
     <<: *shared  
@@ -231,6 +240,8 @@ services:
       - .:/src
       - ./cache/build/gccgo/build:/tmp/go-build  # GCCGO build cache
       - ./cache/build/gccgo/target:/src/golang/target
+    depends_on:
+      - base_gcc
 
   golang:
     <<: *shared
@@ -239,6 +250,7 @@ services:
     build:
       dockerfile: docker/golang
       args:
+        # https://go.dev/dl/
         version: "1.25.5"
     volumes:
       - .:/src
@@ -252,6 +264,8 @@ services:
     environment:
       - GOCACHE=/root/.cache/go-build
       - GOMODCACHE=/go/pkg/mod   
+    depends_on:
+      - base     
 
   swift:
     <<: *shared
@@ -260,6 +274,7 @@ services:
     build:
       dockerfile: docker/swift
       args:
+        # https://github.com/swiftlang/swift/releases
         version: "6.2.3"
     volumes:
       - .:/src
@@ -271,6 +286,8 @@ services:
       - ./cache/build/swift/build-dir:/src/swift/.build  # SPM build directory
     environment:
       - SWIFT_PACKAGE_CACHE_DIR=/root/.swiftpm/package-cache
+    depends_on:
+      - base     
 
   nodejs:
     <<: *shared  
@@ -290,6 +307,7 @@ services:
     build:
       dockerfile: docker/java
       args:
+        # https://www.java.com/releases/
         version: "25"
         mavenversion: 3.9.12
     volumes:
@@ -300,6 +318,8 @@ services:
       # Build cache - очищаем для cold compile
       - ./cache/build/java/target:/src/java/target
       - ./cache/build/java/maven-build:/root/.m2/build-cache  # Maven build cache
+    depends_on:
+      - base   
 
   kotlin:
     <<: *shared
