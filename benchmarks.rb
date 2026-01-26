@@ -541,6 +541,7 @@ RUNS = [
     dir: "/src/csharp",
     container: "dotnet",   
     group: :prod, 
+    deps_cmd: "dotnet restore",
   ),
 
   # AOT Native (максимальная скорость выполнения) - ИСПРАВЛЕННЫЙ
@@ -562,6 +563,7 @@ RUNS = [
     dir: "/src/csharp",
     container: "dotnet",
     group: :prod,        
+    deps_cmd: "dotnet restore",
   ),
 
   # Self-Contained JIT (портируемый) - ДОЛГО ЗАПУСКАЕТСЯ
@@ -575,6 +577,7 @@ RUNS = [
     dir: "/src/csharp",
     container: "dotnet",  
     group: :hack,  
+    deps_cmd: "dotnet restore",
   ),
 
   # Self-Contained AOT (максимум всего) - САМЫЙ МЕДЛЕННЫЙ СТАРТ, САМЫЙ БЫСТРЫЙ ВЫПОЛНЕНИЕ
@@ -598,7 +601,8 @@ RUNS = [
     cache_dir: "",
     dir: "/src/csharp",
     container: "dotnet", 
-    group: :hack,       
+    group: :hack, 
+    deps_cmd: "dotnet restore",      
   ),
 
   # ReadyToRun (компромисс) - ХОРОШИЙ БАЛАНС
@@ -611,7 +615,8 @@ RUNS = [
     cache_dir: "",
     dir: "/src/csharp",
     container: "dotnet",    
-    group: :hack,    
+    group: :hack,   
+    deps_cmd: "dotnet restore", 
   ),
 
   # Экстремальный AOT профиль
@@ -638,6 +643,7 @@ RUNS = [
     dir: "/src/csharp",
     container: "dotnet", 
     group: :hack,   
+    deps_cmd: "dotnet restore",
   ),  
 
   # ======================================= Swift ======================================================
