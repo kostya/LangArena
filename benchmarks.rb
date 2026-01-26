@@ -1266,7 +1266,7 @@ end
 
 CFG = IS_RUN_TEST ? "../test.txt" : "../run.txt"
 
-def build(run, verbose = true)
+def build(run, verbose = true, test_incremental = false)
   print "building #{run.name} ..."
   stats = nil
   delta = measure do
@@ -1280,7 +1280,7 @@ def build(run, verbose = true)
   RESULTS["compile-memory-cold"][run.name] = stats[:rss] / 1024.0
   print " cold in #{delta.to_f.round(2)}s"
   
-  if marker_file = RECOMPILE_MARKER_FILES[run.lang]
+  if test_incremental && (marker_file = RECOMPILE_MARKER_FILES[run.lang])
     begin
       File.write(marker_file, File.read(marker_file).gsub(RECOMPILE_MARKER_0, RECOMPILE_MARKER_1))
       delta = measure do
@@ -1311,11 +1311,16 @@ end
 write_results
 
 # build
-RUNS.each do |run|
-  build(run, IS_VERBOSE)
+delta = mearure do
+  RUNS.each do |run|
+    build(run, IS_VERBOSE, true)
+  end
 end
+puts "------------ Build all finished in #{delta.round(3)}s ----------------"
 
 def run(run, index)
+  build(run, IS_VERBOSE, false) # build still neded because swift, java, kotlin, typescript all use same binary
+
   puts "Running #{run.name} (#{index} from #{RUNS.size})"
   TESTS.each_with_index do |test_name, index|
     print "#{index}. #{test_name}"
