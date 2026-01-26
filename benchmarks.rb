@@ -463,7 +463,7 @@ RUNS = [
   # ======================================= crystal ======================================================
   Run.new(
     name: "Crystal", 
-    build_cmd: "sh -c 'mkdir -p target; crystal build main.cr --release -o ./target/bin_crystal'", 
+    build_cmd: "crystal build main.cr --release -o ./target/bin_crystal", 
     binary_name: "./target/bin_crystal", 
     run_cmd: "./target/bin_crystal", 
     version_cmd: "crystal --version | head -n 1",
@@ -471,6 +471,7 @@ RUNS = [
     dir: "/src/crystal",
     container: "crystal",
     group: :prod,
+    deps_cmd: "mkdir -p target",
   ),
 
   # ======================================= Go ======================================================
