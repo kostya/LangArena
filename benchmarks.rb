@@ -180,6 +180,15 @@ class Run
     rss = $1.to_i
     {out: stdout.sub(/MaxRSS\(([0-9]*?)\)KB\n/, ""), rss: rss}
   end
+
+  def deps
+    run.run("sh -c '#{run.deps_cmd}'")
+  end
+
+  def version
+    v = `#{dcr} #{@version_cmd}`.strip
+    v.gsub("\n", " | ")
+  end
 end
 
 C_FLAGS_PROD = " -O2 -march=native -flto=auto -DNDEBUG -fstack-protector-strong -fno-omit-frame-pointer -Wall -Wextra -Wpedantic -Werror=return-type -Werror=address"
@@ -1211,21 +1220,20 @@ puts
 
 # Show versions
 RUNS.group_by(&:container).each do |container, runs|
-  vcmds = runs.map(&:version_cmd).uniq
-  vcmds.each do |v|
-    version = `#{runs[0].dcr}#{v}`.strip
-    puts "Version #{container}: #{version}"
+  runs.group_by(&:version_cmd).each do |_, vcmds|
+    v = vcmds[0]
+    puts "Version #{container}: '#{v.version}'"
   end
 end
 
 # prepare cache deps
 RUNS.each do |run|
   print "Prepare deps for #{run}: "
-  delta = measure do
-    run.run(run.deps_cmd)
-  end
+  delta = measure { run.deps }
   puts "in #{delta.round(2)}s"
 end
+
+exit
 
 RESULTS = {}
 RESULTS["date"] = Time.now.strftime("%Y-%m-%d")

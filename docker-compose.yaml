@@ -2,43 +2,16 @@ x-shared: &shared
   tty: true
   stdin_open: true
   volumes:
-    - .:/src
+    - .:/src  # ← ЭТО ПРАВИЛЬНО для честных бенчмарков
   working_dir: /src
-  
-  # Оптимизация производительности
   shm_size: '4gb'
-  init: true  # Используем init как PID 1 для корректной обработки сигналов
-  
-  # Приоритет CPU
-  cpu_shares: 1024  # Максимальный приоритет (default 1024)
-  cpu_rt_runtime: 950000  # Время реального времени в микросекундах
-  cpu_rt_period: 1000000
-  
-  # ============ MEMORY OPTIMIZATION ============
   deploy:
     resources:
       limits:
-        memory: 16G  # Можно 32G если проекты большие
-
-  # ============ I/O OPTIMIZATION ============
-  # Для быстрого диска (NVMe)
-  blkio_config:
-    weight: 500  # Приоритет I/O (default 500)
-  
-  # ============ SECURITY/PERF TRADEOFF ============
-  privileged: true  # Для доступа к perf events
-  # или более тонко:
-  # cap_add:
-  #   - SYS_ADMIN
-  #   - SYS_NICE
-  #   - SYS_PTRACE  # для профилирования
-  #   - DAC_READ_SEARCH
-  #   - IPC_LOCK
-  #   - SYS_RESOURCE
-  
-  tmpfs:
-    - /tmp:rw,noexec,nosuid,size=4G
-    - /run:rw,noexec,nosuid,size=1G
+        memory: 16G
+  cap_add:
+    - SYS_NICE
+    - SYS_ADMIN
 
 services:
   base:
