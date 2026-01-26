@@ -135,10 +135,9 @@ def check_source_files(verbose = false)
 end
 
 class Run
-  attr_reader :name, :build_cmd, :binary_name, :run_cmd, :version_cmd, :container, :dir, :cache_dir, :group
-  def initialize(name:, build_cmd:, binary_name:, run_cmd:, version_cmd:, container:, dir:, cache_dir:, group:)
+  attr_reader :name, :build_cmd, :binary_name, :run_cmd, :version_cmd, :container, :dir, :group, :deps_cmd
+  def initialize(name:, build_cmd:, binary_name:, run_cmd:, version_cmd:, container:, dir:, group:)
     @name = name
-    @cache_dir = cache_dir
     @dir = dir
     @container = container
     @build_cmd = build_cmd
@@ -201,7 +200,6 @@ RUNS = [
     binary_name: "./bin_c_clang_def",
     run_cmd: "./bin_c_clang_def", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
     container: "clang_c",
     group: :hack,
@@ -214,7 +212,6 @@ RUNS = [
     binary_name: "./bin_c_gcc_def",
     run_cmd: "./bin_c_gcc_def", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
     container: "gcc_c",
     group: :hack,
@@ -227,7 +224,6 @@ RUNS = [
     binary_name: "./bin_c_clang",
     run_cmd: "./bin_c_clang", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
     container: "clang_c",
     group: :prod,
@@ -240,7 +236,6 @@ RUNS = [
     binary_name: "./bin_c_gcc",
     run_cmd: "./bin_c_gcc", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
     container: "gcc_c",
     group: :prod,
@@ -253,7 +248,6 @@ RUNS = [
     binary_name: "./bin_c_clang_enh",
     run_cmd: "./bin_c_clang_enh", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
     container: "clang_c",
     group: :hack,
@@ -266,7 +260,6 @@ RUNS = [
     binary_name: "./bin_c_gcc_enh",
     run_cmd: "./bin_c_gcc_enh", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
     container: "gcc_c",
     group: :hack,
@@ -279,7 +272,6 @@ RUNS = [
     binary_name: "./bin_c_clang_max",
     run_cmd: "./bin_c_clang_max", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
     container: "clang_c",
     group: :hack,
@@ -292,7 +284,6 @@ RUNS = [
     binary_name: "./bin_c_gcc_max",
     run_cmd: "./bin_c_gcc_max", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
     container: "gcc_c",
     group: :hack,
@@ -306,7 +297,6 @@ RUNS = [
     binary_name: "./bin_cpp_clang_def",
     run_cmd: "./bin_cpp_clang_def", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
     container: "clang_cpp",
     group: :hack,
@@ -319,7 +309,6 @@ RUNS = [
     binary_name: "./bin_cpp_gcc_def",
     run_cmd: "./bin_cpp_gcc_def", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
     container: "gcc_cpp",
     group: :hack,
@@ -332,7 +321,6 @@ RUNS = [
     binary_name: "./bin_cpp_clang",
     run_cmd: "./bin_cpp_clang", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
     container: "clang_cpp",
     group: :prod,
@@ -345,7 +333,6 @@ RUNS = [
     binary_name: "./bin_cpp_gcc",
     run_cmd: "./bin_cpp_gcc", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
     container: "gcc_cpp",
     group: :prod,
@@ -358,7 +345,6 @@ RUNS = [
     binary_name: "./bin_cpp_clang_enh",
     run_cmd: "./bin_cpp_clang_enh", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
     container: "clang_cpp",
     group: :hack,
@@ -371,7 +357,6 @@ RUNS = [
     binary_name: "./bin_cpp_gcc_enh",
     run_cmd: "./bin_cpp_gcc_enh", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
     container: "gcc_cpp",
     group: :hack,
@@ -384,7 +369,6 @@ RUNS = [
     binary_name: "./bin_cpp_clang_max",
     run_cmd: "./bin_cpp_clang_max", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
     container: "clang_cpp",
     group: :hack,
@@ -397,7 +381,6 @@ RUNS = [
     binary_name: "./bin_cpp_gcc_max",
     run_cmd: "./bin_cpp_gcc_max", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
     container: "gcc_cpp",
     group: :hack,
@@ -411,7 +394,6 @@ RUNS = [
     binary_name: "./target/release/benchmarks", 
     run_cmd: "./target/release/benchmarks", 
     version_cmd: "rustc --version  | head -n 1",
-    cache_dir: "",
     dir: "/src/rust",
     container: "rust",
     group: :prod,
@@ -423,7 +405,6 @@ RUNS = [
     binary_name: "./target/wmo/benchmarks", 
     run_cmd: "./target/wmo/benchmarks", 
     version_cmd: "rustc --version  | head -n 1",
-    cache_dir: "",
     dir: "/src/rust",
     container: "rust",
     group: :hack,
@@ -435,7 +416,6 @@ RUNS = [
     binary_name: "./target/no-checks/benchmarks", 
     run_cmd: "./target/no-checks/benchmarks", 
     version_cmd: "rustc --version  | head -n 1",
-    cache_dir: "",
     dir: "/src/rust",
     container: "rust",
     group: :hack,
@@ -447,7 +427,6 @@ RUNS = [
     binary_name: "./target/max-perf/benchmarks", 
     run_cmd: "./target/max-perf/benchmarks", 
     version_cmd: "rustc --version  | head -n 1",
-    cache_dir: "",
     dir: "/src/rust",
     container: "rust",
     group: :hack,
@@ -462,7 +441,6 @@ RUNS = [
     binary_name: "./zig-out/bin/zig",
     run_cmd: "./zig-out/bin/zig", 
     version_cmd: "zig version",
-    cache_dir: "",
     dir: "/src/zig",
     container: "zig",
     group: :prod,
@@ -474,7 +452,6 @@ RUNS = [
     binary_name: "./zig-out/bin/zig-unchecked",
     run_cmd: "./zig-out/bin/zig-unchecked", 
     version_cmd: "zig version",
-    cache_dir: "",
     dir: "/src/zig",
     container: "zig",
     group: :hack,
@@ -487,7 +464,6 @@ RUNS = [
     binary_name: "./target/bin_crystal", 
     run_cmd: "./target/bin_crystal", 
     version_cmd: "crystal --version | head -n 1",
-    cache_dir: "",
     dir: "/src/crystal",
     container: "crystal",
     group: :prod,
@@ -501,7 +477,6 @@ RUNS = [
     binary_name: "./target/bin_go", 
     run_cmd: "./target/bin_go", 
     version_cmd: "go version",
-    cache_dir: "",
     dir: "/src/golang",
     container: "golang",
     group: :prod,
@@ -513,7 +488,6 @@ RUNS = [
     binary_name: "./target/bin_go_opts", 
     run_cmd: "./target/bin_go_opts", 
     version_cmd: "go version",
-    cache_dir: "",
     dir: "/src/golang",
     container: "golang",
     group: :hack,
@@ -525,7 +499,6 @@ RUNS = [
     binary_name: "./target/bin_gccgo", 
     run_cmd: "./target/bin_gccgo", 
     version_cmd: "gccgo --version | head -n 1",
-    cache_dir: "",
     dir: "/src/golang",
     container: "gccgo",
     group: :hack,
@@ -538,7 +511,6 @@ RUNS = [
     binary_name: "./target/bin_gccgo_opt", 
     run_cmd: "./target/bin_gccgo_opt", 
     version_cmd: "gccgo --version | head -n 1",
-    cache_dir: "",
     dir: "/src/golang",
     container: "gccgo",
     group: :prod,
@@ -553,7 +525,6 @@ RUNS = [
     binary_name: "./bin/Release/net10.0/Benchmark.dll",
     run_cmd: "dotnet ./bin/Release/net10.0/Benchmark.dll", 
     version_cmd: "dotnet --version",
-    cache_dir: "",
     dir: "/src/csharp",
     container: "dotnet",   
     group: :prod, 
@@ -575,7 +546,6 @@ RUNS = [
     binary_name: "./bin/aot/Benchmark",
     run_cmd: "./bin/aot/Benchmark", 
     version_cmd: "dotnet --version",
-    cache_dir: "",
     dir: "/src/csharp",
     container: "dotnet",
     group: :prod,        
@@ -589,7 +559,6 @@ RUNS = [
     binary_name: "./bin/sc-jit/Benchmark",
     run_cmd: "./bin/sc-jit/Benchmark", 
     version_cmd: "dotnet --version",
-    cache_dir: "",
     dir: "/src/csharp",
     container: "dotnet",  
     group: :hack,  
@@ -614,7 +583,6 @@ RUNS = [
     binary_name: "./bin/sc-aot/Benchmark",
     run_cmd: "./bin/sc-aot/Benchmark", 
     version_cmd: "dotnet --version",
-    cache_dir: "",
     dir: "/src/csharp",
     container: "dotnet", 
     group: :hack, 
@@ -628,7 +596,6 @@ RUNS = [
     binary_name: "./bin/r2r/Benchmark",
     run_cmd: "./bin/r2r/Benchmark", 
     version_cmd: "dotnet --version",
-    cache_dir: "",
     dir: "/src/csharp",
     container: "dotnet",    
     group: :hack,   
@@ -655,7 +622,6 @@ RUNS = [
     binary_name: "./bin/aot-extreme/Benchmark",
     run_cmd: "./bin/aot-extreme/Benchmark",
     version_cmd: "dotnet --version",
-    cache_dir: "",
     dir: "/src/csharp",
     container: "dotnet", 
     group: :hack,   
@@ -670,7 +636,6 @@ RUNS = [
     binary_name: "./.build/release/Benchmarks",
     run_cmd: "./.build/release/Benchmarks", 
     version_cmd: "swift -version | head -n 1",
-    cache_dir: "",
     dir: "/src/swift",
     container: "swift",
     group: :prod,
@@ -684,7 +649,6 @@ RUNS = [
     binary_name: "./.build/release/Benchmarks",
     run_cmd: "./.build/release/Benchmarks", 
     version_cmd: "swift -version | head -n 1",
-    cache_dir: "",
     dir: "/src/swift",
     container: "swift",
     group: :hack,
@@ -698,7 +662,6 @@ RUNS = [
     binary_name: "./.build/release/Benchmarks", 
     run_cmd: "./.build/release/Benchmarks", 
     version_cmd: "swift -version | head -n 1",
-    cache_dir: "",
     dir: "/src/swift",
     container: "swift",
     group: :hack,
@@ -712,7 +675,6 @@ RUNS = [
     binary_name: "./.build/release/Benchmarks",
     run_cmd: "./.build/release/Benchmarks", 
     version_cmd: "swift -version | head -n 1",
-    cache_dir: "",
     dir: "/src/swift",
     container: "swift",
     group: :hack,
@@ -726,7 +688,6 @@ RUNS = [
     binary_name: "./.build/release/Benchmarks",
     run_cmd: "./.build/release/Benchmarks", 
     version_cmd: "swift -version | head -n 1",
-    cache_dir: "",
     dir: "/src/swift",
     container: "swift",
     group: :hack,
@@ -751,10 +712,6 @@ RUNS = [
         -jar ./target/java-benchmarks-1.0-SNAPSHOT.jar
     CMD
     version_cmd: "java --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.m2
-      /src/java/target
-    DIR
     dir: "/src/java",
     container: "java",
     group: :prod,
@@ -787,10 +744,6 @@ RUNS = [
         -jar ./target/java-benchmarks-1.0-SNAPSHOT.jar
     CMD
     version_cmd: "java --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.m2
-      /src/java/target
-    DIR
     dir: "/src/java",
     container: "java",
     group: :hack,
@@ -819,10 +772,6 @@ RUNS = [
         -jar ./target/java-benchmarks-1.0-SNAPSHOT.jar
     CMD
     version_cmd: "java --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.m2
-      /src/java/target
-    DIR
     dir: "/src/java",
     container: "graalvm",
     group: :prod,
@@ -843,10 +792,6 @@ RUNS = [
       ./target/benchmarks-native -Xmx12g
     CMD
     version_cmd: "native-image --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.m2
-      /src/java/target
-    DIR
     dir: "/src/java",
     container: "graalvm",
     group: :prod,
@@ -880,10 +825,6 @@ RUNS = [
         -Xmx12g
     CMD
     version_cmd: "native-image --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.m2
-      /src/java/target
-    DIR
     dir: "/src/java",
     container: "graalvm",
     group: :hack,
@@ -899,7 +840,6 @@ RUNS = [
     binary_name: "/src/kotlin/build/libs/benchmarks.jar",
     run_cmd: "java -Xmx8g -jar /src/kotlin/build/libs/benchmarks.jar",
     version_cmd: "kotlin -version",
-    cache_dir: "/root/.gradle\n/src/kotlin/.gradle\n/src/kotlin/build",
     dir: "/src/kotlin",
     container: "kotlin",
     group: :prod,
@@ -925,7 +865,6 @@ RUNS = [
         -jar /src/kotlin/build/libs/benchmarks.jar
     CMD
     version_cmd: "kotlin -version",
-    cache_dir: "/root/.gradle\n/src/kotlin/.gradle\n/src/kotlin/build",
     dir: "/src/kotlin",
     container: "kotlin",
     group: :hack,
@@ -951,7 +890,6 @@ RUNS = [
         -jar /src/kotlin/build/libs/benchmarks.jar
     CMD
     version_cmd: "kotlin -version",
-    cache_dir: "/root/.gradle\n/src/kotlin/.gradle\n/src/kotlin/build",
     dir: "/src/kotlin",
     container: "kotlin",
     group: :hack,
@@ -974,7 +912,6 @@ RUNS = [
         -jar /src/kotlin/build/libs/benchmarks.jar
     CMD
     version_cmd: "kotlin -version",
-    cache_dir: "/root/.gradle\n/src/kotlin/.gradle\n/src/kotlin/build",
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :prod,
@@ -989,7 +926,6 @@ RUNS = [
     binary_name: "/src/kotlin/build/native/benchmarks",
     run_cmd: "/src/kotlin/build/native/benchmarks -Xmx8g",
     version_cmd: "kotlin -version",
-    cache_dir: "/root/.gradle\n/src/kotlin/.gradle\n/src/kotlin/build",
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :prod,
@@ -1002,7 +938,6 @@ RUNS = [
     binary_name: "/src/kotlin/build/native/benchmarks-max",
     run_cmd: "/src/kotlin/build/native/benchmarks-max -Xmx8g",
     version_cmd: "kotlin -version",
-    cache_dir: "/root/.gradle\n/src/kotlin/.gradle\n/src/kotlin/build",
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :hack,
@@ -1016,7 +951,6 @@ RUNS = [
     binary_name: "/src/kotlin/build/native/benchmarks-fast",
     run_cmd: "/src/kotlin/build/native/benchmarks-fast -Xmx8g",
     version_cmd: "kotlin -version",
-    cache_dir: "/root/.gradle\n/src/kotlin/.gradle\n/src/kotlin/build",
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :hack,
@@ -1034,11 +968,6 @@ RUNS = [
     binary_name: "/src/typescript/dist/index.js",
     run_cmd: "node --max-old-space-size=4096 /src/typescript/dist/index.js",
     version_cmd: "/bin/bash -c 'echo \"TCS $(tsc --version), Node $(node --version)\"'",
-    cache_dir: <<~DIR.chomp,
-      /root/.npm
-      /src/typescript/node_modules
-      /src/typescript/dist
-    DIR
     dir: "/src/typescript",
     container: "typescript",
     group: :prod,
@@ -1057,7 +986,6 @@ RUNS = [
         /src/typescript/dist/index.js
     CMD
     version_cmd: "/bin/bash -c 'echo \"TCS $(tsc --version), Node $(node --version)\"'",
-    cache_dir: "/root/.npm\n/src/typescript/node_modules\n/src/typescript/dist",
     dir: "/src/typescript",
     container: "typescript",
     group: :hack,
@@ -1078,7 +1006,6 @@ RUNS = [
         /src/typescript/dist/index.js
     CMD
     version_cmd: "/bin/bash -c 'echo \"TCS $(tsc --version), Node $(node --version)\"'",
-    cache_dir: "/root/.npm\n/src/typescript/node_modules\n/src/typescript/dist",
     dir: "/src/typescript",
     container: "typescript",
     group: :hack,
@@ -1098,7 +1025,6 @@ RUNS = [
         /src/typescript/dist/index.js
     CMD
     version_cmd: "/bin/bash -c 'echo \"TCS $(tsc --version), Node $(node --version)\"'",
-    cache_dir: "/root/.npm\n/src/typescript/node_modules\n/src/typescript/dist",
     dir: "/src/typescript",
     container: "typescript",
     group: :hack,
@@ -1111,10 +1037,6 @@ RUNS = [
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: "bun run /src/typescript/src/index.ts",
     version_cmd: "bun --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.bun
-      /src/typescript/node_modules
-    DIR
     dir: "/src/typescript",
     container: "typescript-bun",
     group: :prod,
@@ -1129,7 +1051,6 @@ RUNS = [
     binary_name: "/src/typescript/dist-bun/index.js",
     run_cmd: "bun run /src/typescript/dist-bun/index.js",
     version_cmd: "bun --version",
-    cache_dir: "/root/.bun\n/src/typescript/node_modules\n/src/typescript/dist-bun",
     dir: "/src/typescript",
     container: "typescript-bun",
     group: :prod,
@@ -1147,10 +1068,6 @@ RUNS = [
         /src/typescript/src/index.ts
     CMD
     version_cmd: "deno --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.cache/deno
-      /src/typescript/node_modules
-    DIR
     dir: "/src/typescript",
     container: "typescript-deno",
     group: :prod,
@@ -1170,11 +1087,6 @@ RUNS = [
     binary_name: "/src/typescript/dist-deno/index",
     run_cmd: "/src/typescript/dist-deno/index",
     version_cmd: "deno --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.cache/deno
-      /src/typescript/node_modules
-      /src/typescript/dist-deno
-    DIR
     dir: "/src/typescript",
     container: "typescript-deno",
     group: :prod,
@@ -1192,10 +1104,6 @@ RUNS = [
         /src/typescript/src/index.ts
     CMD
     version_cmd: "deno --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.cache/deno
-      /src/typescript/node_modules
-    DIR
     dir: "/src/typescript",
     container: "typescript-deno",
     group: :hack,
@@ -1214,10 +1122,6 @@ RUNS = [
         /src/typescript/src/index.ts
     CMD
     version_cmd: "deno --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.cache/deno
-      /src/typescript/node_modules
-    DIR
     dir: "/src/typescript",
     container: "typescript-deno",
     group: :hack,
@@ -1236,10 +1140,6 @@ RUNS = [
         /src/typescript/src/index.ts
     CMD
     version_cmd: "deno --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.cache/deno
-      /src/typescript/node_modules
-    DIR
     dir: "/src/typescript",
     container: "typescript-deno",
     group: :hack,
