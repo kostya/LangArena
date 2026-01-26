@@ -6,8 +6,6 @@ cache/
 *.out
 *.dwarf
 bin_*
-py/
-cache/
-*.png
-*.csv
+
 todo.txt
+_temp/
