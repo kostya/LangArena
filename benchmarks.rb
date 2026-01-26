@@ -162,6 +162,10 @@ class Run
     end
   end
 
+  def lang
+    @dir.gsub("/src/", "")
+  end
+
   def dcr
     "docker compose run --rm -q --remove-orphans #{@container} "
   end
@@ -188,8 +192,6 @@ class Run
   def deps
     cmd = "sh -c '#{@deps_cmd}'"
     run(cmd, IS_VERBOSE)
-  rescue => ex
-    p "Error #{ex.inspect}"
   end
 
   def version
@@ -1205,8 +1207,7 @@ puts "Found runs: #{RUNS.size} #{RUNS.size < 10 ? RUNS.map(&:name).inspect : nil
 
 langs = {}
 RUNS.each do |run|
-  lang = run.dir.gsub("/src/", "")
-  langs[lang] = 1
+  langs[run.lang] = 1
 end
 LANGS = langs.keys
 puts "Unique languages: #{LANGS.size} #{LANGS.inspect}"
@@ -1237,9 +1238,10 @@ RESULTS["tests"] = TESTS
 RESULTS["build-cmd"] = {}
 RESULTS["run-cmd"] = {}
 RESULTS["binary-size-kb"] = {}
-RESULTS["compile-mem-mb"] = {}
+RESULTS["compile-memory-cold"] = {}
+RESULTS["compile-memory-incremental"] = {}
 RESULTS["compile-time-cold"] = {}
-RESULTS["compile-time-warm"] = {}
+RESULTS["compile-time-incremental"] = {}
 RESULTS["version"] = {}
 
 check_source_files(IS_VERBOSE)
@@ -1274,9 +1276,21 @@ def build(run, verbose = true)
   RESULTS["build-cmd"][run.name] = run.build_cmd
   RESULTS["run-cmd"][run.name] = run.run_cmd
   RESULTS["compile-time-cold"][run.name] = delta.to_f  
-  RESULTS["compile-mem-mb"][run.name] = stats[:rss] / 1024.0
-  RESULTS["version"][run.name] = run.version
-  puts " in #{delta.to_f.round(2)}s"
+  RESULTS["compile-memory-cold"][run.name] = stats[:rss] / 1024.0
+  print " cold in #{delta.to_f.round(2)}s, "
+  
+  if marker_file = RECOMPILE_MARKER_FILES[run.lang]    
+    File.write(marker_file, File.read(marker_file).gsub(RECOMPILE_MARKER_0, RECOMPILE_MARKER_0 + "1"))
+    delta = measure do
+      stats = run.run(run.build_cmd, verbose)
+    end
+    RESULTS["compile-time-incremental"][run.name] = delta.to_f  
+    RESULTS["compile-memory-incremental"][run.name] = stats[:rss] / 1024.0
+    print " incremental in #{delta.round(2)}s"
+  end
+
+  RESULTS["version"][run.name] = run.version  
+  puts
   delta
 end
 
@@ -1284,6 +1298,8 @@ end
 RUNS.each do |run|
   build(run, IS_VERBOSE)
 end
+
+exit
 
 def run(run, index)
   puts "Building #{run.name} (#{index} from #{RUNS.size})"
