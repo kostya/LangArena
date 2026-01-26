@@ -256,9 +256,6 @@ services:
       # Клонированные git репозитории
       - ./cache/deps/swift/repositories:/src/swift/.build/repositories
       
-      # Метаданные workspace
-      - ./cache/deps/swift/workspace-state.json:/src/swift/.build/workspace-state.json
-      
       # ============= BUILD (очищаем) =============
       # Скомпилированные артефакты
       - ./cache/build/swift/artifacts:/src/swift/.build/artifacts
