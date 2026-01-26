@@ -721,7 +721,7 @@ RUNS = [
   Run.new(
     name: "Java/OpenJDK",
     build_cmd: <<~CMD.chomp,
-      mvn clean compile package -Pjava-plain \
+      mvn compile package -Pjava-plain \
         -DskipTests \
         -Dmaven.test.skip=true \
         -q
@@ -744,7 +744,7 @@ RUNS = [
   Run.new(
     name: "Java/OpenJDK/Opt",
     build_cmd: <<~CMD.chomp,
-      mvn clean compile package -Pjava-optimized \
+      mvn compile package -Pjava-optimized \
         -DskipTests \
         -Dmaven.test.skip=true \
         -q
@@ -776,7 +776,7 @@ RUNS = [
   Run.new(
     name: "Java/GraalVM/JIT",
     build_cmd: <<~CMD.chomp,
-      mvn clean compile package -Pgraalvm-jit \
+      mvn compile package -Pgraalvm-jit \
         -DskipTests \
         -Dmaven.test.skip=true \
         -q
@@ -804,7 +804,7 @@ RUNS = [
   Run.new(
     name: "Java/GraalVM/Native",
     build_cmd: <<~CMD.chomp,
-      mvn clean package -Pgraalvm-native \
+      mvn package -Pgraalvm-native \
         -DskipTests \
         -Dmaven.test.skip=true \
         -Dnative.buildArgs="--no-fallback --gc=serial -O3"
@@ -824,7 +824,7 @@ RUNS = [
   Run.new(
     name: "Java/GraalVM/Native/Max",
     build_cmd: <<~CMD.chomp,
-      mvn clean package -Pgraalvm-native \
+      mvn package -Pgraalvm-native \
         -DskipTests \
         -Dmaven.test.skip=true \
         -Dnative.buildArgs="--gc=serial \
