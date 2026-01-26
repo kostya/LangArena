@@ -1198,6 +1198,14 @@ RUNS = [
   ),
 ]
 
+if ARGV[0] == "versions"
+  RUNS.group_by(&:container).each do |container, run|
+    version = `#{run.dcr}#{run.version_cmd}`.strip
+    puts "Version #{container}: #{version}"
+  end
+  exit
+end
+
 run_names = {}
 RUNS.each do |run|
   if run_names[run.name]
