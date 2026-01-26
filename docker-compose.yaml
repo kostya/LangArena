@@ -333,19 +333,25 @@ services:
       - graalvm
 
   typescript:
-    <<: *shared  
+    <<: *shared
     image: benchmarks:typescript
     working_dir: /src/typescript
-    build: 
+    build:
       dockerfile: docker/typescript
       args:
         # https://www.npmjs.com/package/typescript
         version: "5.9.3"
     volumes:
-      - .:/src:delegated
-      - ./cache/npm-typescript:/root/.npm
-      - ./cache/typescript-node-modules:/src/typescript/node_modules
-      - ./cache/typescript-dist:/src/typescript/dist        
+      - .:/src
+      # Dependencies cache - НЕ очищаем
+      - ./cache/deps/typescript/npm-cache:/root/.npm
+      - ./cache/deps/typescript/npm-packages-global:/usr/local/lib/node_modules  # Global packages
+      # Build cache - очищаем для cold compile
+      - ./cache/build/typescript/node-modules:/src/typescript/node_modules  # Local deps (часть build)
+      - ./cache/build/typescript/target:/src/typescript/target
+      - ./cache/build/typescript/cache:/root/.cache/typescript  # TS compiler cache
+    environment:
+      - npm_config_cache=/root/.npm
     depends_on:
       - nodejs
 

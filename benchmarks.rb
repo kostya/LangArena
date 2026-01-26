@@ -965,37 +965,39 @@ RUNS = [
     build_cmd: <<~CMD.chomp,
       sh -c 'npm install; npm run build:run --silent'
     CMD
-    binary_name: "/src/typescript/dist/index.js",
-    run_cmd: "node --max-old-space-size=4096 /src/typescript/dist/index.js",
+    binary_name: "/src/typescript/target/dist/index.js",
+    run_cmd: "node --max-old-space-size=4096 /src/typescript/target/dist/index.js",
     version_cmd: "/bin/bash -c 'echo \"TCS $(tsc --version), Node $(node --version)\"'",
     dir: "/src/typescript",
     container: "typescript",
     group: :prod,
+    deps_cmd: "npm ci",
   ),
 
   # TypeScript с оптимизациями Node.js (исправленный)
   Run.new(
     name: "TypeScript/Node/Opt",
     build_cmd: "sh -c 'npm ci --silent && npm run build:run --silent'",
-    binary_name: "/src/typescript/dist/index.js",
+    binary_name: "/src/typescript/target/dist/index.js",
     run_cmd: <<~CMD.chomp,
       node \
         --max-old-space-size=4096 \
         --max-semi-space-size=256 \
         --optimize-for-size \
-        /src/typescript/dist/index.js
+        /src/typescript/target/dist/index.js
     CMD
     version_cmd: "/bin/bash -c 'echo \"TCS $(tsc --version), Node $(node --version)\"'",
     dir: "/src/typescript",
     container: "typescript",
     group: :hack,
+    deps_cmd: "npm ci",
   ),
 
   # TypeScript с максимальными оптимизациями (проверенные флаги)
   Run.new(
     name: "TypeScript/Node/Max",
     build_cmd: "sh -c 'npm ci --silent && npm run build:run --silent'",
-    binary_name: "/src/typescript/dist/index.js",
+    binary_name: "/src/typescript/target/dist/index.js",
     run_cmd: <<~CMD.chomp,
       node \
         --max-old-space-size=8192 \
@@ -1003,31 +1005,33 @@ RUNS = [
         --optimize-for-size \
         --no-concurrent-sweeping \
         --single-threaded-gc \
-        /src/typescript/dist/index.js
+        /src/typescript/target/dist/index.js
     CMD
     version_cmd: "/bin/bash -c 'echo \"TCS $(tsc --version), Node $(node --version)\"'",
     dir: "/src/typescript",
     container: "typescript",
     group: :hack,
+    deps_cmd: "npm ci",
   ),
 
   # TypeScript с турбофан оптимизациями
   Run.new(
     name: "TypeScript/Node/Turbo",
     build_cmd: "sh -c 'npm ci --silent && npm run build:run --silent'",
-    binary_name: "/src/typescript/dist/index.js",
+    binary_name: "/src/typescript/target/dist/index.js",
     run_cmd: <<~CMD.chomp,
       node \
         --max-old-space-size=4096 \
         --max-semi-space-size=128 \
         --optimize-for-size \
         --concurrent-recompilation \
-        /src/typescript/dist/index.js
+        /src/typescript/target/dist/index.js
     CMD
     version_cmd: "/bin/bash -c 'echo \"TCS $(tsc --version), Node $(node --version)\"'",
     dir: "/src/typescript",
     container: "typescript",
     group: :hack,
+    deps_cmd: "npm ci",
   ),
 
   # TypeScript с Bun (компиляция на лету)
