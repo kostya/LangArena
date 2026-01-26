@@ -245,12 +245,27 @@ services:
         version: "6.2.3"
     volumes:
       - .:/src
-      # Dependencies (SPM packages) - НЕ очищаем
-      - ./cache/deps/swift/packages:/root/.swiftpm/package-cache
-      - ./cache/deps/swift/registry:/root/.swiftpm/configuration/registries
-      # Build cache - очищаем для cold compile
-      - ./cache/build/swift/build:/root/.cache/swift
-      - ./cache/build/swift/build-dir:/src/swift/.build  # SPM build directory
+      
+      # ============= DEPS (НЕ очищаем) =============
+      # Кэш пакетов SPM (metadata)
+      - ./cache/deps/swift/package-cache:/root/.swiftpm/package-cache
+      
+      # СКАЧАННЫЕ репозитории зависимостей
+      - ./cache/deps/swift/checkouts:/src/swift/.build/checkouts
+      
+      # Клонированные git репозитории
+      - ./cache/deps/swift/repositories:/src/swift/.build/repositories
+      
+      # Метаданные workspace
+      - ./cache/deps/swift/workspace-state.json:/src/swift/.build/workspace-state.json
+      
+      # ============= BUILD (очищаем) =============
+      # Скомпилированные артефакты
+      - ./cache/build/swift/artifacts:/src/swift/.build/artifacts
+      
+      # Swift compiler cache
+      - ./cache/build/swift/cache:/root/.cache/swift
+      
     environment:
       - SWIFT_PACKAGE_CACHE_DIR=/root/.swiftpm/package-cache
     depends_on:
