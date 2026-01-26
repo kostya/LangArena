@@ -184,6 +184,8 @@ class Run
   def deps
     cmd = "sh -c '#{@deps_cmd}'"
     run(cmd)
+  rescue
+    p "Error"
   end
 
   def version
@@ -1228,7 +1230,9 @@ RUNS.group_by(&:container).each do |container, runs|
 end
 
 # prepare cache deps
-RUNS.each do |run|
+RUNS.group_by { |r| [r.container, r.deps_cmd] }.each do |_, runs|
+  run = runs[0]
+
   print "Prepare deps for #{run.name}: "
   delta = measure { run.deps }
   puts "in #{delta.round(2)}s"
@@ -1269,7 +1273,7 @@ def build(run, verbose = true)
   RESULTS["run-cmd"][run.name] = run.run_cmd
   RESULTS["compile-time-cold"][run.name] = delta.to_f  
   RESULTS["compile-mem-mb"][run.name] = stats[:rss] / 1024.0
-  RESULTS["version"][run.name] = `#{run.dcr}#{run.version_cmd}`.strip
+  RESULTS["version"][run.name] = run.version
   puts " in #{delta.to_f.round(2)}s" if verbose
   delta
 end
