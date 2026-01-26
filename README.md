@@ -67,7 +67,7 @@ Require docker-compose-plugin v2, check if it installed: run `docker compose ver
 
 ## Run all benchmarks
 
-	docker compose build
+	sh build-docker.sh
 	ruby benchmarks.rb
 
 ## Generate Website
