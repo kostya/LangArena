@@ -742,6 +742,7 @@ RUNS = [
     dir: "/src/java",
     container: "java",
     group: :prod,
+    deps_cmd: "mvn dependency:resolve; mvn dependency:resolve-plugins",
   ),
 
   # Java с максимальными оптимизациями
@@ -777,6 +778,7 @@ RUNS = [
     dir: "/src/java",
     container: "java",
     group: :hack,
+    deps_cmd: "mvn dependency:resolve; mvn dependency:resolve-plugins",
   ),
 
   # GraalVM JIT с оптимизациями

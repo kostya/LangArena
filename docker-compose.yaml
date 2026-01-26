@@ -219,20 +219,22 @@ services:
       - base   
 
   java:
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared
     image: benchmarks:java
     working_dir: /src/java
-    build: 
+    build:
       dockerfile: docker/java
       args:
-        # https://www.java.com/releases/
         version: "25"
         mavenversion: 3.9.12
     volumes:
-      - .:/src:delegated
-      - ./cache/maven:/root/.m2          # Maven repository cache
-    depends_on:
-      - base   
+      - .:/src
+      # Dependencies cache - НЕ очищаем
+      - ./cache/deps/java/maven:/root/.m2/repository  # Только repository
+      - ./cache/deps/java/maven-wrapper:/root/.m2/wrapper  # Maven wrapper dist
+      # Build cache - очищаем для cold compile
+      - ./cache/build/java/target:/src/java/target
+      - ./cache/build/java/maven-build:/root/.m2/build-cache  # Maven build cache
 
   kotlin:
     <<: *shared-cpu  # Максимальная оптимизация CPU
