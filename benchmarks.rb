@@ -43,6 +43,9 @@ def measure
   ((t2 - t1) / 1e9)
 end
 
+RECOMPILE_MARKER_0 = "RECOMPILE_MARKER_0"
+RECOMPILE_MARKER_FILES = {}
+
 def check_source_files(verbose = false)
   #!/usr/bin/env ruby
   require 'find'
@@ -112,6 +115,7 @@ def check_source_files(verbose = false)
       full_path = File.join(path, file)
       begin
         data = File.read(full_path, mode: 'rb')
+        RECOMPILE_MARKER_FILES[lang] = full_path if data.include?(RECOMPILE_MARKER_0) && !RECOMPILE_MARKER_FILES[lang]
         total_bytes += data.bytesize
         content << data
       rescue => e
@@ -1240,22 +1244,22 @@ RESULTS["version"] = {}
 
 check_source_files(IS_VERBOSE)
 
-# # Show versions
-# RUNS.group_by(&:container).each do |container, runs|
-#   runs.group_by(&:version_cmd).each do |_, vcmds|
-#     v = vcmds[0]
-#     puts "Version #{container}: '#{v.version}'"
-#   end
-# end
+# Show versions
+RUNS.group_by(&:container).each do |container, runs|
+  runs.group_by(&:version_cmd).each do |_, vcmds|
+    v = vcmds[0]
+    puts "Version #{container}: '#{v.version}'"
+  end
+end
 
-# # prepare cache deps
-# RUNS.group_by { |r| [r.container, r.deps_cmd] }.each do |_, runs|
-#   run = runs[0]
+# prepare cache deps
+RUNS.group_by { |r| [r.container, r.deps_cmd] }.each do |_, runs|
+  run = runs[0]
 
-#   print "Prepare deps for #{run.name}: "
-#   delta = measure { run.deps }
-#   puts "in #{delta.round(2)}s"
-# end
+  print "Prepare deps for #{run.name}: "
+  delta = measure { run.deps }
+  puts "in #{delta.round(2)}s"
+end
 
 CFG = IS_RUN_TEST ? "../test.txt" : "../run.txt"
 
@@ -1280,11 +1284,6 @@ end
 RUNS.each do |run|
   build(run, IS_VERBOSE)
 end
-
-p RESULTS
-exit
-
-# exit
 
 def run(run, index)
   puts "Building #{run.name} (#{index} from #{RUNS.size})"

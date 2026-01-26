@@ -22,4 +22,11 @@ pub fn main() !void {
     const single_bench = args.next();
 
     try benchmark.runAllBenchmarks(allocator, &helper, single_bench);
+
+    const f = std.fs.cwd().createFile("/tmp/recompile_marker", .{}) catch return;
+    defer f.close();
+    var buffer: [0]u8 = undefined;
+    var writer = f.writer(&buffer);
+    const io_writer = &writer.interface;
+    io_writer.writeAll("RECOMPILE_MARKER_0") catch {};
 }
