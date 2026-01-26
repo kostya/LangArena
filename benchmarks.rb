@@ -444,6 +444,7 @@ RUNS = [
     dir: "/src/zig",
     container: "zig",
     group: :prod,
+    deps_cmd: "zig libc",
   ),
 
   Run.new(
@@ -455,6 +456,7 @@ RUNS = [
     dir: "/src/zig",
     container: "zig",
     group: :hack,
+    deps_cmd: "zig libc",
   ),
 
   # ======================================= crystal ======================================================

@@ -69,6 +69,27 @@ services:
         version: 0.15.2
     volumes:
       - .:/src:delegated
+      
+      # ============= ЗАВИСИМОСТИ =============
+      # Zig глобальный кэш (если будешь использовать zig fetch)
+      - ./cache/deps/zig/global:/root/.cache/zig
+      - ./cache/deps/zig/local:/root/.local/share/zig
+      
+      # ============= БИЛД КЭШ =============
+      # Основной кэш сборки Zig (ОЧИЩАЕМ для cold compile)
+      - ./cache/build/zig/build-cache:/src/zig/.zig-cache
+      - ./cache/build/zig/out:/src/zig/zig-out
+      - ./cache/build/zig/build:/src/zig/zig-build
+      
+      # Временные файлы компиляции
+      - ./cache/build/zig/tmp:/tmp/zig-cache
+      
+    environment:
+      # Настраиваем пути к кэшам
+      - ZIG_GLOBAL_CACHE_DIR=/root/.cache/zig
+      - ZIG_LOCAL_CACHE_DIR=/root/.local/share/zig
+      - ZIG_BUILD_CACHE_DIR=/src/zig/.zig-cache
+      
     depends_on:
       - base
 
