@@ -216,9 +216,9 @@ RUNS = [
   # ======================================= C ======================================================
   Run.new(
     name: "C/Clang/Default", 
-    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} -O2 main.c -o bin_c_clang_def #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_clang_def",
-    run_cmd: "./bin_c_clang_def", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} -O2 main.c -o target/bin_c_clang_def #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_clang_def",
+    run_cmd: "./target/bin_c_clang_def", 
     version_cmd: "gcc --version | head -n 1",
     dir: "/src/c",
     container: "clang_c",
@@ -228,9 +228,9 @@ RUNS = [
   
   Run.new(
     name: "C/Gcc/Default", 
-    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} -O2 main.c -o bin_c_gcc_def #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_gcc_def",
-    run_cmd: "./bin_c_gcc_def", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} -O2 main.c -o target/bin_c_gcc_def #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_gcc_def",
+    run_cmd: "./target/bin_c_gcc_def", 
     version_cmd: "gcc --version | head -n 1",
     dir: "/src/c",
     container: "gcc_c",
@@ -240,9 +240,9 @@ RUNS = [
   
   Run.new(
     name: "C/Clang", 
-    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_PROD} main.c -o bin_c_clang #{LD_FLAGS_PROD} #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_clang",
-    run_cmd: "./bin_c_clang", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_PROD} main.c -o target/bin_c_clang #{LD_FLAGS_PROD} #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_clang",
+    run_cmd: "./target/bin_c_clang", 
     version_cmd: "gcc --version | head -n 1",
     dir: "/src/c",
     container: "clang_c",
@@ -252,9 +252,9 @@ RUNS = [
   
   Run.new(
     name: "C/Gcc", 
-    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_PROD} main.c -o bin_c_gcc #{LD_FLAGS_PROD} #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_gcc",
-    run_cmd: "./bin_c_gcc", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_PROD} main.c -o target/bin_c_gcc #{LD_FLAGS_PROD} #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_gcc",
+    run_cmd: "./target/bin_c_gcc", 
     version_cmd: "gcc --version | head -n 1",
     dir: "/src/c",
     container: "gcc_c",
@@ -264,9 +264,9 @@ RUNS = [
   
   Run.new(
     name: "C/Clang/ENH", 
-    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_ENH} main.c -o bin_c_clang_enh #{LD_FLAGS_ENH} #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_clang_enh",
-    run_cmd: "./bin_c_clang_enh", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_ENH} main.c -o target/bin_c_clang_enh #{LD_FLAGS_ENH} #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_clang_enh",
+    run_cmd: "./target/bin_c_clang_enh", 
     version_cmd: "gcc --version | head -n 1",
     dir: "/src/c",
     container: "clang_c",
@@ -276,9 +276,9 @@ RUNS = [
   
   Run.new(
     name: "C/Gcc/ENH", 
-    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_ENH} main.c -o bin_c_gcc_enh #{LD_FLAGS_ENH.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_gcc_enh",
-    run_cmd: "./bin_c_gcc_enh", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_ENH} main.c -o target/bin_c_gcc_enh #{LD_FLAGS_ENH.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_gcc_enh",
+    run_cmd: "./target/bin_c_gcc_enh", 
     version_cmd: "gcc --version | head -n 1",
     dir: "/src/c",
     container: "gcc_c",
@@ -288,9 +288,9 @@ RUNS = [
   
   Run.new(
     name: "C/Clang/MaxPerf", 
-    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_MAX} main.c -o bin_c_clang_max #{LD_FLAGS_MAX} #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_clang_max",
-    run_cmd: "./bin_c_clang_max", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_MAX} main.c -o target/bin_c_clang_max #{LD_FLAGS_MAX} #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_clang_max",
+    run_cmd: "./target/bin_c_clang_max", 
     version_cmd: "gcc --version | head -n 1",
     dir: "/src/c",
     container: "clang_c",
@@ -300,9 +300,9 @@ RUNS = [
   
   Run.new(
     name: "C/Gcc/MaxPerf", 
-    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_MAX} main.c -o bin_c_gcc_max #{LD_FLAGS_MAX.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_gcc_max",
-    run_cmd: "./bin_c_gcc_max", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_MAX} main.c -o target/bin_c_gcc_max #{LD_FLAGS_MAX.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_gcc_max",
+    run_cmd: "./target/bin_c_gcc_max", 
     version_cmd: "gcc --version | head -n 1",
     dir: "/src/c",
     container: "gcc_c",
@@ -313,9 +313,9 @@ RUNS = [
   # ======================================= С++ ======================================================
   Run.new(
     name: "C++/Clang++/Default", 
-    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} -O2 -std=c++20 main.cpp -o bin_cpp_clang_def #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_clang_def",
-    run_cmd: "./bin_cpp_clang_def", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} -O2 -std=c++20 main.cpp -o target/bin_cpp_clang_def #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_clang_def",
+    run_cmd: "./target/bin_cpp_clang_def", 
     version_cmd: "g++ --version | head -n 1",
     dir: "/src/cpp",
     container: "clang_cpp",
@@ -325,9 +325,9 @@ RUNS = [
 
   Run.new(
     name: "C++/G++/Default", 
-    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} -O2 -std=c++20 main.cpp -o bin_cpp_gcc_def #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_gcc_def",
-    run_cmd: "./bin_cpp_gcc_def", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} -O2 -std=c++20 main.cpp -o target/bin_cpp_gcc_def #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_gcc_def",
+    run_cmd: "./target/bin_cpp_gcc_def", 
     version_cmd: "g++ --version | head -n 1",
     dir: "/src/cpp",
     container: "gcc_cpp",
@@ -337,9 +337,9 @@ RUNS = [
 
   Run.new(
     name: "C++/Clang++", 
-    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_PROD} main.cpp -o bin_cpp_clang #{LD_FLAGS_PROD} #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_clang",
-    run_cmd: "./bin_cpp_clang", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_PROD} main.cpp -o target/bin_cpp_clang #{LD_FLAGS_PROD} #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_clang",
+    run_cmd: "./target/bin_cpp_clang", 
     version_cmd: "g++ --version | head -n 1",
     dir: "/src/cpp",
     container: "clang_cpp",
@@ -349,9 +349,9 @@ RUNS = [
 
   Run.new(
     name: "C++/G++", 
-    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_PROD} main.cpp -o bin_cpp_gcc #{LD_FLAGS_PROD} #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_gcc",
-    run_cmd: "./bin_cpp_gcc", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_PROD} main.cpp -o target/bin_cpp_gcc #{LD_FLAGS_PROD} #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_gcc",
+    run_cmd: "./target/bin_cpp_gcc", 
     version_cmd: "g++ --version | head -n 1",
     dir: "/src/cpp",
     container: "gcc_cpp",
@@ -361,9 +361,9 @@ RUNS = [
 
   Run.new(
     name: "C++/Clang++/ENH", 
-    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_ENH} main.cpp -o bin_cpp_clang_enh #{LD_FLAGS_ENH} #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_clang_enh",
-    run_cmd: "./bin_cpp_clang_enh", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_ENH} main.cpp -o target/bin_cpp_clang_enh #{LD_FLAGS_ENH} #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_clang_enh",
+    run_cmd: "./target/bin_cpp_clang_enh", 
     version_cmd: "g++ --version | head -n 1",
     dir: "/src/cpp",
     container: "clang_cpp",
@@ -373,9 +373,9 @@ RUNS = [
 
   Run.new(
     name: "C++/G++/ENH", 
-    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_ENH} main.cpp -o bin_cpp_gcc_enh #{LD_FLAGS_ENH.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_gcc_enh",
-    run_cmd: "./bin_cpp_gcc_enh", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_ENH} main.cpp -o target/bin_cpp_gcc_enh #{LD_FLAGS_ENH.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_gcc_enh",
+    run_cmd: "./target/bin_cpp_gcc_enh", 
     version_cmd: "g++ --version | head -n 1",
     dir: "/src/cpp",
     container: "gcc_cpp",
@@ -385,9 +385,9 @@ RUNS = [
 
   Run.new(
     name: "C++/Clang++/MaxPerf", 
-    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_MAX} main.cpp -o bin_cpp_clang_max #{LD_FLAGS_MAX} #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_clang_max",
-    run_cmd: "./bin_cpp_clang_max", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_MAX} main.cpp -o target/bin_cpp_clang_max #{LD_FLAGS_MAX} #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_clang_max",
+    run_cmd: "./target/bin_cpp_clang_max", 
     version_cmd: "g++ --version | head -n 1",
     dir: "/src/cpp",
     container: "clang_cpp",
@@ -397,9 +397,9 @@ RUNS = [
 
   Run.new(
     name: "C++/G++/MaxPerf", 
-    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_MAX} main.cpp -o bin_cpp_gcc_max #{LD_FLAGS_MAX.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_gcc_max",
-    run_cmd: "./bin_cpp_gcc_max", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_MAX} main.cpp -o target/bin_cpp_gcc_max #{LD_FLAGS_MAX.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_gcc_max",
+    run_cmd: "./target/bin_cpp_gcc_max", 
     version_cmd: "g++ --version | head -n 1",
     dir: "/src/cpp",
     container: "gcc_cpp",
@@ -1240,20 +1240,29 @@ RESULTS["version"] = {}
 
 check_source_files(IS_VERBOSE)
 
-# Show versions
-RUNS.group_by(&:container).each do |container, runs|
-  runs.group_by(&:version_cmd).each do |_, vcmds|
-    v = vcmds[0]
-    puts "Version #{container}: '#{v.version}'"
+# # Show versions
+# RUNS.group_by(&:container).each do |container, runs|
+#   runs.group_by(&:version_cmd).each do |_, vcmds|
+#     v = vcmds[0]
+#     puts "Version #{container}: '#{v.version}'"
+#   end
+# end
+
+# # prepare cache deps
+# RUNS.group_by { |r| [r.container, r.deps_cmd] }.each do |_, runs|
+#   run = runs[0]
+
+#   print "Prepare deps for #{run.name}: "
+#   delta = measure { run.deps }
+#   puts "in #{delta.round(2)}s"
+# end
+
+# build
+RUNS.each do |run|
+  print "Build for #{run.name}: "
+  delta = measure do
+    stats = run.run(run.build_cmd, IS_VERBOSE)
   end
-end
-
-# prepare cache deps
-RUNS.group_by { |r| [r.container, r.deps_cmd] }.each do |_, runs|
-  run = runs[0]
-
-  print "Prepare deps for #{run.name}: "
-  delta = measure { run.deps }
   puts "in #{delta.round(2)}s"
 end
 
