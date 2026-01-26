@@ -594,7 +594,7 @@ RUNS = [
       dotnet publish -c Release \
       -p:PublishAOT=true \
       --self-contained true \
-      --runtime #{DOTNET_RUNTIME} \
+      --runtime linux-x64 \
       -p:IlcOptimizationPreference=Speed \
       -p:IlcInstructionSet=native \
       -p:EnableCppCli=true \
