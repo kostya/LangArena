@@ -256,19 +256,23 @@ services:
       - java
 
   graalvm:
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared
     image: benchmarks:graalvm
     working_dir: /src/java
-    build: 
+    build:
       dockerfile: docker/graalvm
       args:
         # https://www.graalvm.org/release-notes/
         version: "25.0.1"
         mavenversion: 3.9.12
     volumes:
-      - .:/src:delegated
-      - ./cache/maven-graalvm:/root/.m2
-      # - ./cache/java-target:/src/java/target        
+      - .:/src
+      # Dependencies cache - НЕ очищаем
+      - ./cache/deps/graalvm/maven-graalvm:/root/.m2/repository
+      # Build cache - очищаем для cold compile
+      - ./cache/build/graalvm/target:/src/java/target
+      - ./cache/build/graalvm/native:/root/.cache/graalvm
+      - ./cache/build/graalvm/jvmci:/root/.cache/jvmci  # JVMCI cache       
     depends_on:
       - base
 

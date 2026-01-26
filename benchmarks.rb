@@ -810,6 +810,7 @@ RUNS = [
     dir: "/src/java",
     container: "graalvm",
     group: :prod,
+    deps_cmd: "mvn dependency:resolve; mvn dependency:resolve-plugins",
   ),
 
   # GraalVM Native Image (AOT)
@@ -833,6 +834,7 @@ RUNS = [
     dir: "/src/java",
     container: "graalvm",
     group: :prod,
+    deps_cmd: "mvn dependency:resolve; mvn dependency:resolve-plugins",
   ),
 
   # Дополнительный вариант: GraalVM Native с максимальными оптимизациями
@@ -869,6 +871,7 @@ RUNS = [
     dir: "/src/java",
     container: "graalvm",
     group: :hack,
+    deps_cmd: "mvn dependency:resolve; mvn dependency:resolve-plugins",
   ),
 
   # ======================================= Kotlin ======================================================
