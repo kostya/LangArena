@@ -39,21 +39,24 @@ services:
       - ./cache/build/crystal/cache:/root/.cache/crystal
 
   rust:
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared
     image: benchmarks:rust
     working_dir: /src/rust
-    build: 
+    build:
       dockerfile: docker/rust
       args:
-        # https://github.com/rust-lang/rust/releases/
         version: 1.92.0
     volumes:
-      - .:/src:delegated
-      - ./cache/rust-registry:/root/.cargo/registry      # Кэш crates.io
-      - ./cache/rust-git:/root/.cargo/git                # Git dependencies
-      - ./cache/rust-target:/src/rust/target             # Собранные артефакты
-    depends_on:
-      - base
+      - .:/src
+      # Dependencies cache - НЕ очищаем
+      - ./cache/deps/rust/registry:/usr/local/cargo/registry  # Исправлен путь
+      - ./cache/deps/rust/git:/usr/local/cargo/git  # Исправлен путь
+      # Build cache - очищаем для cold compile
+      - ./cache/build/rust/target:/src/rust/target
+      - ./cache/build/rust/deps:/usr/local/cargo/target  # Для глобальных билдов
+    environment:
+      - CARGO_HOME=/usr/local/cargo
+      - RUSTUP_HOME=/usr/local/rustup
 
   zig:
     <<: *shared-cpu  # Максимальная оптимизация CPU

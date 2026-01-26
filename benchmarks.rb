@@ -399,6 +399,7 @@ RUNS = [
     dir: "/src/rust",
     container: "rust",
     group: :prod,
+    deps_cmd: "rust cargo fetch",
   ),
   Run.new(
     name: "Rust/WMO", 
@@ -410,6 +411,7 @@ RUNS = [
     dir: "/src/rust",
     container: "rust",
     group: :hack,
+    deps_cmd: "rust cargo fetch",
   ),
   Run.new(
     name: "Rust/WMO/Unchecked", 
@@ -421,6 +423,7 @@ RUNS = [
     dir: "/src/rust",
     container: "rust",
     group: :hack,
+    deps_cmd: "rust cargo fetch",
   ),
   Run.new(
     name: "Rust/MaxPerf/Unsafe", 
@@ -432,6 +435,7 @@ RUNS = [
     dir: "/src/rust",
     container: "rust",
     group: :hack,
+    deps_cmd: "rust cargo fetch",
   ),
 
   # ======================================= Zig ======================================================
