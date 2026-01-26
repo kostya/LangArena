@@ -10,7 +10,6 @@ RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor > /usr/
 # 2. Устанавливаем Clang
 RUN apt update && apt install -y --no-install-recommends \
     clang-$version \
-    clang++-$version \
     lld-$version \
     && apt clean
 
