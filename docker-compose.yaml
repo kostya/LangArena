@@ -73,14 +73,14 @@ services:
       
       # ============= ЗАВИСИМОСТИ =============
       # Zig глобальный кэш (если будешь использовать zig fetch)
-      - ./cache/deps/zig/global:/root/.cache/zig
-      - ./cache/deps/zig/local:/root/.local/share/zig
+      - ./cache/deps/zig/global:/root/.cache/zig      
       
       # ============= БИЛД КЭШ =============
       # Основной кэш сборки Zig (ОЧИЩАЕМ для cold compile)
       - ./cache/build/zig/build-cache:/src/zig/.zig-cache
       - ./cache/build/zig/out:/src/zig/zig-out
       - ./cache/build/zig/build:/src/zig/zig-build
+      - ./cache/build/zig/local:/root/.local/share/zig
       
       # Временные файлы компиляции
       - ./cache/build/zig/tmp:/tmp/zig-cache
