@@ -19,8 +19,6 @@ x-shared: &shared
     resources:
       limits:
         memory: 16G  # Можно 32G если проекты большие
-        # memory-swap: 0  # Полностью отключаем swap
-        memory_reservation: 12G  # Гарантированная память
 
   # ============ I/O OPTIMIZATION ============
   # Для быстрого диска (NVMe)

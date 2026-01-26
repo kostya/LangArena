@@ -36,6 +36,13 @@ puts "Dotnet runtime: #{DOTNET_RUNTIME}"
 PC = `docker compose run --rm -q base python3 pc_specs.py`.strip
 puts "PC: #{PC}"
 
+def measure
+  t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
+  yield
+  t2 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
+  ((t2 - t1) / 1e9)
+end
+
 def check_source_files(verbose = false)
   #!/usr/bin/env ruby
   require 'find'
@@ -1158,17 +1165,6 @@ RUNS = [
   ),
 ]
 
-if ARGV[0] == "versions"
-  RUNS.group_by(&:container).each do |container, runs|
-    vcmds = runs.map(&:version_cmd).uniq
-    vcmds.each do |v|
-      version = `#{runs[0].dcr}#{v}`.strip
-      puts "Version #{container}: #{version}"
-    end
-  end
-  exit
-end
-
 run_names = {}
 RUNS.each do |run|
   if run_names[run.name]
@@ -1211,6 +1207,24 @@ else
 end
 puts "All tests count: #{TESTS.size} (#{TESTS.join(", ")})"
 puts
+
+# Show versions
+RUNS.group_by(&:container).each do |container, runs|
+  vcmds = runs.map(&:version_cmd).uniq
+  vcmds.each do |v|
+    version = `#{runs[0].dcr}#{v}`.strip
+    puts "Version #{container}: #{version}"
+  end
+end
+
+# prepare cache deps
+RUNS.each do |run|
+  print "Prepare deps for #{run}: "
+  delta = measure do
+    run.run(run.deps_cmd)
+  end
+  puts "in #{delta.round(2)}s"
+end
 
 RESULTS = {}
 RESULTS["date"] = Time.now.strftime("%Y-%m-%d")
@@ -1285,10 +1299,10 @@ end
 
 puts "---------- Run ----------"
 RUNS.each_with_index do |run, index| 
-  t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
-  run(run, index)
-  t2 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
-  puts "Finished #{run.name} in #{((t2 - t1) / 1e9).round(3)}"
+  delta = measure do
+    run(run, index)
+  end
+  puts "Finished #{run.name} in #{delta.round(3)}"
   write_results
 end
 
