@@ -2,17 +2,52 @@ x-shared: &shared
   tty: true
   stdin_open: true
   volumes:
-    - .:/src
+    - .:/src:delegated  # delegated для Linux, cached для Mac
   working_dir: /src
-  shm_size: '2gb'
+  
+  # Оптимизация производительности
+  shm_size: '4gb'
+  init: true  # Используем init как PID 1 для корректной обработки сигналов
+  
+  # ============ CPU ISOLATION ============
+  # Резервируем ядра для бенчмарка
+  cpuset: "2-7"  # Изолируем ядра 2-7, оставляем 0-1 для системы
+  
+  # Или для всех 16 логических ядер:
+  # cpuset: "0-15"
+  
+  # Приоритет CPU
+  cpu_shares: 1024  # Максимальный приоритет (default 1024)
+  cpu_rt_runtime: 950000  # Время реального времени в микросекундах
+  cpu_rt_period: 1000000
+  
+  # ============ MEMORY OPTIMIZATION ============
   deploy:
     resources:
       limits:
-        memory: 8G
-        cpus: '8'
-  cap_add:
-    - SYS_NICE
-    - SYS_ADMIN
+        memory: 16G  # Можно 32G если проекты большие
+        # memory-swap: 0  # Полностью отключаем swap
+        memory_reservation: 12G  # Гарантированная память
+
+  # ============ I/O OPTIMIZATION ============
+  # Для быстрого диска (NVMe)
+  blkio_config:
+    weight: 500  # Приоритет I/O (default 500)
+  
+  # ============ SECURITY/PERF TRADEOFF ============
+  privileged: true  # Для доступа к perf events
+  # или более тонко:
+  # cap_add:
+  #   - SYS_ADMIN
+  #   - SYS_NICE
+  #   - SYS_PTRACE  # для профилирования
+  #   - DAC_READ_SEARCH
+  #   - IPC_LOCK
+  #   - SYS_RESOURCE
+  
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=4G
+    - /run:rw,noexec,nosuid,size=1G
 
 services:
   base:
@@ -387,7 +422,6 @@ services:
       # Dependencies cache - НЕ очищаем
       - ./cache/deps/deno/cache:/root/.cache/deno
       # Build cache - очищаем для cold compile
-      - ./cache/build/deno/node-modules:/src/typescript/node_modules # questionable
       - ./cache/build/deno/target:/src/typescript/target
       - ./cache/build/deno/gen:/src/typescript/.deno  # Generated files
     environment:
