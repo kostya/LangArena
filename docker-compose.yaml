@@ -2,7 +2,7 @@ x-shared: &shared
   tty: true
   stdin_open: true
   volumes:
-    - .:/src:delegated  # delegated для Linux, cached для Mac
+    - .:/src
   working_dir: /src
   
   # Оптимизация производительности
@@ -100,7 +100,7 @@ services:
         # https://ziglang.org/download/
         version: 0.15.2
     volumes:
-      - .:/src:delegated
+      - .:/src
       
       # ============= ЗАВИСИМОСТИ =============
       # Zig глобальный кэш (если будешь использовать zig fetch)
