@@ -29,35 +29,6 @@ const isNode = (() => {
     }
 })();
 
-async function writeFileUniversal(filePath: string, content: string): Promise<void> {
-    // 1. Для Deno
-    if (isDeno) {
-        await Deno.writeTextFile(filePath, content);
-        return;
-    }
-    // 2. Для Bun
-    if (isBun) {
-        await Bun.write(filePath, content);
-        return;
-    }
-    // 3. Для Node.js (версии 18+, где fs/promises стабилен)
-    if (isNode) {
-        const fs = await import('node:fs/promises');
-        await fs.writeFile(filePath, content);
-        return;
-    }
-    // 4. Резервный вариант для старого Node.js (не рекомендуется для продакшена)
-    if (typeof process !== 'undefined') {
-        const fs = require('fs').promises || require('fs');
-        const writeFn = fs.writeFile || fs.promises?.writeFile;
-        if (writeFn) {
-            await writeFn(filePath, content);
-            return;
-        }
-    }
-    throw new Error('Неизвестная среда выполнения. Не удалось найти API для записи файла.');
-}
-
 // Performance API - правильная инициализация
 const getPerformance = (): { now: () => number } => {
     try {
@@ -5045,12 +5016,7 @@ Benchmark.registerBenchmark(Compression);
 
 // =========== ЗАПУСК ===========
 
-(async () => {
-    try {
-        await writeFileUniversal('/tmp/recompile_marker', 'RECOMPILE_MARKER_0');
-    } catch (error) {
-    }
-})();
+const RECOMPILE_MARKER = 'RECOMPILE_MARKER_0';
 
 // Просто запускаем main
 try {

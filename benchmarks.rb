@@ -1318,6 +1318,8 @@ delta = measure do
 end
 puts "------------ Build all finished in #{delta.round(3)}s ----------------"
 
+write_results
+
 def run(run, index)
   build(run, IS_VERBOSE, false) # build still neded because swift, java, kotlin, typescript all use same binary
 
