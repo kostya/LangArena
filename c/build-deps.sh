@@ -1,22 +1,20 @@
 #!/bin/sh
 
-# brew install gmp
-# brew install uthash
+mkdir -p target
+sh fetch-deps.sh
 
-if [ ! -d "cJSON" ]; then
-  git clone https://github.com/DaveGamble/cJSON.git
-  cd cJSON
-  gcc -O2 -c cJSON.c
+if [ ! -f "target/cJSON.o" ]; then
+  cd deps/cJSON
+  gcc -O3 -march=native -c cJSON.c
   cd -
+  cp deps/cJSON/cJSON.o target/
 fi
 
-if [ ! -d "base64" ]; then
-  git clone https://github.com/aklomp/base64.git
-  cd base64
-  
+if [ ! -f "target/libbase64.o" ]; then
+  cd deps/base64
+  make clean
   ARCH=$(uname -m)
-  
-  if [ "$ARCH" = "x86_64" ]; then
+    if [ "$ARCH" = "x86_64" ]; then
     echo "Building for x86_64 with AVX2..."
     AVX2_CFLAGS=-mavx2 SSSE3_CFLAGS=-mssse3 SSE41_CFLAGS=-msse4.1 SSE42_CFLAGS=-msse4.2 AVX_CFLAGS=-mavx make lib/libbase64.o
   elif [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ]; then
@@ -26,6 +24,6 @@ if [ ! -d "base64" ]; then
     echo "Building generic for $ARCH..."
     make lib/libbase64.o
   fi
-  
   cd -
+  cp deps/base64/lib/libbase64.o target/
 fi

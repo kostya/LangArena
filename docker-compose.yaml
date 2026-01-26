@@ -59,7 +59,7 @@ services:
       - RUSTUP_HOME=/usr/local/rustup
 
   zig:
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared  
     image: benchmarks:zig
     working_dir: /src/zig
     build: 
@@ -73,7 +73,7 @@ services:
       - base
 
   base_clang:
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared  
     image: benchmarks:base_clang
     working_dir: /src
     build: 
@@ -85,20 +85,28 @@ services:
       - base
 
   clang_c:
-    <<: *shared-cpu
+    <<: *shared
     image: benchmarks:clang_c
     working_dir: /src/c
     build: 
       dockerfile: docker/clang_c
+    volumes:
+      - .:/src
+      - ./cache/deps/clang_c/deps:/src/c/deps
+      - ./cache/build/clang_c/target:/src/c/target
     depends_on:
       - base_clang
 
   clang_cpp:
-    <<: *shared-cpu
+    <<: *shared
     image: benchmarks:clang_cpp
     working_dir: /src/cpp
     build: 
       dockerfile: docker/clang_cpp
+    volumes:
+      - .:/src
+      - ./cache/deps/clang_cpp/deps:/src/cpp/deps
+      - ./cache/build/clang_cpp/target:/src/cpp/target
     depends_on:
       - base_clang
 
@@ -125,7 +133,7 @@ services:
       - DOTNET_NOLOGO=1
 
   base_gcc:
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared  
     image: benchmarks:base_gcc
     working_dir: /src
     build: 
@@ -137,20 +145,28 @@ services:
       - base      
 
   gcc_c:
-    <<: *shared-cpu
+    <<: *shared
     image: benchmarks:gcc_c
     working_dir: /src/c
     build: 
       dockerfile: docker/gcc_c
+    volumes:
+      - .:/src
+      - ./cache/deps/gcc_c/deps:/src/c/deps
+      - ./cache/build/gcc_c/target:/src/c/target
     depends_on:
       - base_gcc 
 
   gcc_cpp:
-    <<: *shared-cpu
+    <<: *shared
     image: benchmarks:gcc_cpp
     working_dir: /src/cpp
     build: 
       dockerfile: docker/gcc_cpp
+    volumes:
+      - .:/src
+      - ./cache/deps/gcc_cpp/deps:/src/cpp/deps
+      - ./cache/build/gcc_cpp/target:/src/cpp/target
     depends_on:
       - base_gcc 
 
@@ -208,7 +224,7 @@ services:
       - SWIFT_PACKAGE_CACHE_DIR=/root/.swiftpm/package-cache
 
   nodejs:
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared  
     image: benchmarks:nodejs
     build: 
       dockerfile: docker/nodejs
@@ -237,7 +253,7 @@ services:
       - ./cache/build/java/maven-build:/root/.m2/build-cache  # Maven build cache
 
   kotlin:
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared  
     image: benchmarks:kotlin
     working_dir: /src/kotlin
     build: 
@@ -277,7 +293,7 @@ services:
       - base
 
   kotlin-graalvm:
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared  
     image: benchmarks:kotlin-graalvm
     working_dir: /src/kotlin
     build: 
@@ -298,7 +314,7 @@ services:
       - graalvm
 
   typescript:
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared  
     image: benchmarks:typescript
     working_dir: /src/typescript
     build: 
@@ -315,7 +331,7 @@ services:
       - nodejs
 
   typescript-deno:
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared  
     image: benchmarks:typescript-deno
     working_dir: /src/typescript
     build: 
@@ -329,7 +345,7 @@ services:
       - base
 
   typescript-bun:
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared  
     image: benchmarks:typescript-bun
     working_dir: /src/typescript
     build: 
