@@ -1059,7 +1059,7 @@ RUNS = [
   # TypeScript с Bun (компиляция на лету)
   Run.new(
     name: "TypeScript/Bun/JIT",
-    build_cmd: "",
+    build_cmd: "true",
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: "bun run /src/typescript/src/index.ts",
     version_cmd: "bun --version",
@@ -1087,7 +1087,7 @@ RUNS = [
   # Deno - дефолтный запуск с кэшированием зависимостей
   Run.new(
     name: "TypeScript/Deno/Default",
-    build_cmd: "",
+    build_cmd: "true",
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: <<~CMD.chomp,
       deno run \
@@ -1124,7 +1124,7 @@ RUNS = [
   # Deno с оптимизациями V8
   Run.new(
     name: "TypeScript/Deno/Opt",
-    build_cmd: "",
+    build_cmd: "true",
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: <<~CMD.chomp,
       deno run \
@@ -1142,7 +1142,7 @@ RUNS = [
   # Deno с максимальными оптимизациями V8
   Run.new(
     name: "TypeScript/Deno/Max",
-    build_cmd: "",
+    build_cmd: "true",
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: <<~CMD.chomp,
       deno run \
@@ -1161,7 +1161,7 @@ RUNS = [
   # Deno с JIT-оптимизациями и кэшированием кода
   Run.new(
     name: "TypeScript/Deno/Turbo",
-    build_cmd: "",
+    build_cmd: "true",
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: <<~CMD.chomp,
       deno run \
