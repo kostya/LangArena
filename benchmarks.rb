@@ -463,9 +463,9 @@ RUNS = [
   # ======================================= crystal ======================================================
   Run.new(
     name: "Crystal", 
-    build_cmd: "crystal build main.cr --release -o ./bin_crystal", 
-    binary_name: "./bin_crystal", 
-    run_cmd: "./bin_crystal", 
+    build_cmd: "sh -c 'mkdir -p target; crystal build main.cr --release -o ./target/bin_crystal'", 
+    binary_name: "./target/bin_crystal", 
+    run_cmd: "./target/bin_crystal", 
     version_cmd: "crystal --version | head -n 1",
     cache_dir: "",
     dir: "/src/crystal",

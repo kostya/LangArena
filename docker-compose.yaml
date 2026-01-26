@@ -1,86 +1,42 @@
-# Оптимальные настройки ДЛЯ cgroups v2
-x-shared-optimized: &shared-optimized
+x-shared: &shared
   tty: true
   stdin_open: true
   volumes:
     - .:/src
   working_dir: /src
-  build: 
-    context: .
-  # Ключевые оптимизации:
   shm_size: '2gb'
-  ipc: host    # ↓ ЭТО ВАЖНЕЕ real-time!
-  pid: host    # ↓
-  uts: host    # ↓
-  # CPU (cgroups v2 style)
-  cpus: ${DOCKER_CPUS:-0}
-  cpu_count: ${DOCKER_CPU_COUNT:-0}
-  # Память
   deploy:
     resources:
       limits:
         memory: 8G
-        cpus: '4'
-      reservations:
-        memory: 4G
-        cpus: '2'  
-  # mem_reservation: 8g  
-  # Сеть
-  network_mode: ${DOCKER_NETWORK:-bridge}
-  # Безопасность (минимальная)
+        cpus: '8'
   cap_add:
     - SYS_NICE
     - SYS_ADMIN
-    - IPC_LOCK
-  security_opt:
-    - seccomp=unconfined
-
-# Стандартный shared (обратная совместимость)
-x-shared: &shared
-  tty: true
-  volumes:
-    - .:/src
-  working_dir: /src
-  build: 
-    context: .
-
-# Для CPU-intensive бенчмарков
-x-shared-cpu: &shared-cpu
-  <<: *shared-optimized
-  # Дополнительные CPU оптимизации
-  deploy:
-    resources:
-      limits:
-        cpus: ${DOCKER_CPUS:-0}
-        memory: ${DOCKER_MEMORY:-4g}
-      reservations:
-        cpus: ${DOCKER_CPUS:-0}
-        memory: ${DOCKER_MEMORY:-4g}
 
 services:
   base:
-    <<: *shared-optimized  # Используем оптимизированный
-    #<<: *shared
+    <<: *shared
     image: benchmarks:base
     build: 
       dockerfile: docker/base
 
   crystal:
-    # <<: *shared
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared
     image: benchmarks:crystal
     working_dir: /src/crystal
-    build: 
+    build:
       dockerfile: docker/crystal
       args:
-        # https://github.com/crystal-lang/crystal/releases
         version: 1.18.2
     volumes:
-      - .:/src:delegated
-      # Кэш
-      - ./cache/crystal:/root/.cache/crystal
-    depends_on:
-      - base
+      - .:/src
+      # Dependencies (shards) - НЕ очищаем
+      - ./cache/deps/crystal/lib:/usr/local/crystal/lib  # Установленные shards
+      - ./cache/deps/crystal/shards:/root/.cache/shards  # Кэш скачанных shards
+      # Build cache - очищаем для cold compile
+      - ./cache/build/crystal/target:/src/crystal/target
+      - ./cache/build/crystal/cache:/root/.cache/crystal
 
   rust:
     <<: *shared-cpu  # Максимальная оптимизация CPU
