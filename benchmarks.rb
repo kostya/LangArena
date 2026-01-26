@@ -51,7 +51,7 @@ def check_source_files(verbose = false)
     'csharp' => ['./csharp', ['.cs'], ['obj', 'bin']],
     'swift' => ['./swift', ['.swift'], ['.build']],
     'java' => ['./java', ['.java'], ['target']],
-    'kotlin' => ['./kotlin', ['.kt', '.kts'], ['build']],
+    'kotlin' => ['./kotlin', ['.kt'], ['build', '.gradle', 'gradle']],
     'typescript' => ['./typescript', ['.ts', '.tsx'], ['node_modules', 'dist']],
     'zig' => ['./zig', ['.zig'], ['.zig-cache']]
   }
@@ -903,7 +903,7 @@ RUNS = [
     dir: "/src/kotlin",
     container: "kotlin",
     group: :prod,
-    deps_cmd: "./gradlew dependencies",
+    deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
   # Kotlin - агрессивные оптимизации
@@ -929,7 +929,7 @@ RUNS = [
     dir: "/src/kotlin",
     container: "kotlin",
     group: :hack,
-    deps_cmd: "./gradlew dependencies",
+    deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
   # Kotlin - максимальные оптимизации
@@ -955,7 +955,7 @@ RUNS = [
     dir: "/src/kotlin",
     container: "kotlin",
     group: :hack,
-    deps_cmd: "./gradlew dependencies",
+    deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
   # Kotlin + GraalVM JIT
@@ -978,7 +978,7 @@ RUNS = [
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :prod,
-    deps_cmd: "./gradlew dependencies",
+    deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
   # =============== KOTLIN + GRAALVM NATIVE ===============
@@ -993,7 +993,7 @@ RUNS = [
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :prod,
-    deps_cmd: "./gradlew dependencies",
+    deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
   Run.new(
@@ -1006,7 +1006,7 @@ RUNS = [
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :hack,
-    deps_cmd: "./gradlew dependencies",
+    deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
   # Опционально: с разными уровнями оптимизаций
@@ -1020,7 +1020,7 @@ RUNS = [
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :hack,
-    deps_cmd: "./gradlew dependencies",
+    deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
   # ======================================= TypeScript ======================================================
