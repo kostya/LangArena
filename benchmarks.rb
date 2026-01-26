@@ -143,7 +143,7 @@ end
 
 class Run
   attr_reader :name, :build_cmd, :binary_name, :run_cmd, :version_cmd, :container, :dir, :group, :deps_cmd
-  def initialize(name:, build_cmd:, binary_name:, run_cmd:, version_cmd:, container:, dir:, group:)
+  def initialize(name:, build_cmd:, binary_name:, run_cmd:, version_cmd:, container:, dir:, group:, deps_cmd:)
     @name = name
     @dir = dir
     @container = container
@@ -152,6 +152,7 @@ class Run
     @run_cmd = run_cmd
     @version_cmd = version_cmd
     @group = group # :prod or :hack
+    @deps_cmd = deps_cmd
     if @group == :hack
       @name += "-Hack"
     end
