@@ -356,31 +356,44 @@ services:
       - nodejs
 
   typescript-deno:
-    <<: *shared  
+    <<: *shared
     image: benchmarks:typescript-deno
     working_dir: /src/typescript
-    build: 
+    build:
       dockerfile: docker/typescript-deno
     volumes:
-      - .:/src:delegated
-      - ./cache/deno:/root/.cache/deno
-      - ./cache/typescript-node-modules-bun:/src/typescript/node_modules
-      # - ./cache/typescript-dist-bun:/src/typescript/dist-bun      
+      - .:/src
+      # Dependencies cache - НЕ очищаем
+      - ./cache/deps/deno/cache:/root/.cache/deno
+      # Build cache - очищаем для cold compile
+      - ./cache/build/deno/node-modules:/src/typescript/node_modules # questionable
+      - ./cache/build/deno/target:/src/typescript/target
+      - ./cache/build/deno/gen:/src/typescript/.deno  # Generated files
+    environment:
+      - DENO_DIR=/root/.cache/deno
+      - DENO_NO_UPDATE_CHECK=1
     depends_on:
       - base
 
   typescript-bun:
-    <<: *shared  
+    <<: *shared
     image: benchmarks:typescript-bun
     working_dir: /src/typescript
-    build: 
+    build:
       dockerfile: docker/typescript-bun
       args:
         # https://bun.com/
         version: "1.3.6"
     volumes:
-      - .:/src:delegated
-      - ./cache/deno-typescript:/root/.cache/deno
-      - ./cache/typescript-deno-dist:/src/typescript/dist-deno        
+      - .:/src
+      # Dependencies cache - НЕ очищаем
+      - ./cache/deps/bun/cache:/root/.bun/install/cache
+      # Build cache - очищаем для cold compile
+      - ./cache/build/bun/node-modules:/src/typescript/node_modules
+      - ./cache/build/bun/target:/src/typescript/target
+      - ./cache/build/bun/build-cache:/root/.bun/build-cache  # Bun's build cache
+    environment:
+      - BUN_INSTALL_CACHE_DIR=/root/.bun/install/cache
     depends_on:
       - base
+

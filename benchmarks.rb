@@ -52,7 +52,7 @@ def check_source_files(verbose = false)
     'swift' => ['./swift', ['.swift'], ['.build']],
     'java' => ['./java', ['.java'], ['target']],
     'kotlin' => ['./kotlin', ['.kt'], ['build', '.gradle', 'gradle']],
-    'typescript' => ['./typescript', ['.ts', '.tsx'], ['node_modules', 'dist']],
+    'typescript' => ['./typescript', ['.ts', '.tsx'], ['node_modules', 'target']],
     'zig' => ['./zig', ['.zig'], ['.zig-cache']]
   }
 
@@ -1037,33 +1037,35 @@ RUNS = [
   # TypeScript с Bun (компиляция на лету)
   Run.new(
     name: "TypeScript/Bun/JIT",
-    build_cmd: "bun install --silent",
+    build_cmd: "",
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: "bun run /src/typescript/src/index.ts",
     version_cmd: "bun --version",
     dir: "/src/typescript",
     container: "typescript-bun",
     group: :prod,
+    deps_cmd: "bun install",
   ),
 
   # TypeScript с Bun (скомпилированный)
   Run.new(
     name: "TypeScript/Bun/Compiled",
     build_cmd: <<~CMD.chomp,
-      /bin/sh -c 'bun install --silent; bun build --target=bun --outdir=dist-bun src/index.ts'
+      bun build --target=bun --outdir=target/dist-bun src/index.ts
     CMD
-    binary_name: "/src/typescript/dist-bun/index.js",
-    run_cmd: "bun run /src/typescript/dist-bun/index.js",
+    binary_name: "/src/typescript/target/dist-bun/index.js",
+    run_cmd: "bun run /src/typescript/target/dist-bun/index.js",
     version_cmd: "bun --version",
     dir: "/src/typescript",
     container: "typescript-bun",
     group: :prod,
+    deps_cmd: "bun install",
   ),
 
   # Deno - дефолтный запуск с кэшированием зависимостей
   Run.new(
     name: "TypeScript/Deno/Default",
-    build_cmd: "deno cache --quiet src/index.ts",
+    build_cmd: "",
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: <<~CMD.chomp,
       deno run \
@@ -1075,31 +1077,32 @@ RUNS = [
     dir: "/src/typescript",
     container: "typescript-deno",
     group: :prod,
+    deps_cmd: "deno cache --quiet src/index.ts",
   ),
 
   # Deno с AOT компиляцией (оптимизированный)
   Run.new(
     name: "TypeScript/Deno/Compiled",
     build_cmd: <<~CMD.chomp,
-      sh -c 'deno cache --quiet src/index.ts && \
       deno compile \
         --allow-all \
         --no-check \
-        --output=dist-deno/index \
-        src/index.ts'
+        --output=target/dist-deno/index \
+        src/index.ts
     CMD
-    binary_name: "/src/typescript/dist-deno/index",
-    run_cmd: "/src/typescript/dist-deno/index",
+    binary_name: "/src/typescript/target/dist-deno/index",
+    run_cmd: "/src/typescript/target/dist-deno/index",
     version_cmd: "deno --version",
     dir: "/src/typescript",
     container: "typescript-deno",
     group: :prod,
+    deps_cmd: "deno cache --quiet src/index.ts",
   ),
 
   # Deno с оптимизациями V8
   Run.new(
     name: "TypeScript/Deno/Opt",
-    build_cmd: "deno cache --quiet src/index.ts",
+    build_cmd: "",
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: <<~CMD.chomp,
       deno run \
@@ -1111,12 +1114,13 @@ RUNS = [
     dir: "/src/typescript",
     container: "typescript-deno",
     group: :hack,
+    deps_cmd: "deno cache --quiet src/index.ts",
   ),
 
   # Deno с максимальными оптимизациями V8
   Run.new(
     name: "TypeScript/Deno/Max",
-    build_cmd: "deno cache --quiet src/index.ts",
+    build_cmd: "",
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: <<~CMD.chomp,
       deno run \
@@ -1129,12 +1133,13 @@ RUNS = [
     dir: "/src/typescript",
     container: "typescript-deno",
     group: :hack,
+    deps_cmd: "deno cache --quiet src/index.ts",
   ),
 
   # Deno с JIT-оптимизациями и кэшированием кода
   Run.new(
     name: "TypeScript/Deno/Turbo",
-    build_cmd: "deno cache --quiet src/index.ts",
+    build_cmd: "",
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: <<~CMD.chomp,
       deno run \
@@ -1147,6 +1152,7 @@ RUNS = [
     dir: "/src/typescript",
     container: "typescript-deno",
     group: :hack,
+    deps_cmd: "deno cache --quiet src/index.ts",
   ),
 ]
 
