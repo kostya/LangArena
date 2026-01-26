@@ -44,6 +44,7 @@ def measure
 end
 
 RECOMPILE_MARKER_0 = "RECOMPILE_MARKER_0"
+RECOMPILE_MARKER_1 = "RECOMPILE_MARKER_1"
 RECOMPILE_MARKER_FILES = {}
 
 def check_source_files(verbose = false)
@@ -1279,14 +1280,20 @@ def build(run, verbose = true)
   RESULTS["compile-memory-cold"][run.name] = stats[:rss] / 1024.0
   print " cold in #{delta.to_f.round(2)}s"
   
-  if marker_file = RECOMPILE_MARKER_FILES[run.lang]    
-    File.write(marker_file, File.read(marker_file).gsub(RECOMPILE_MARKER_0, RECOMPILE_MARKER_0 + "1"))
-    delta = measure do
-      stats = run.run(run.build_cmd, verbose)
+  if marker_file = RECOMPILE_MARKER_FILES[run.lang]
+    begin
+      File.write(marker_file, File.read(marker_file).gsub(RECOMPILE_MARKER_0, RECOMPILE_MARKER_1))
+      delta = measure do
+        stats = run.run(run.build_cmd, verbose)
+      end
+      RESULTS["compile-time-incremental"][run.name] = delta.to_f  
+      RESULTS["compile-memory-incremental"][run.name] = stats[:rss] / 1024.0
+      print ", incremental in #{delta.round(2)}s"
+    ensure
+      File.write(marker_file, File.read(marker_file).gsub(RECOMPILE_MARKER_1, RECOMPILE_MARKER_0))
     end
-    RESULTS["compile-time-incremental"][run.name] = delta.to_f  
-    RESULTS["compile-memory-incremental"][run.name] = stats[:rss] / 1024.0
-    print ", incremental in #{delta.round(2)}s"
+  else
+    print ", warning no marker for #{run}"
   end
 
   RESULTS["version"][run.name] = run.version  
@@ -1299,12 +1306,7 @@ RUNS.each do |run|
   build(run, IS_VERBOSE)
 end
 
-exit
-
 def run(run, index)
-  puts "Building #{run.name} (#{index} from #{RUNS.size})"
-  build(run, IS_VERBOSE)
-
   puts "Running #{run.name} (#{index} from #{RUNS.size})"
   TESTS.each_with_index do |test_name, index|
     print "#{index}. #{test_name}"
