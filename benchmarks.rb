@@ -658,6 +658,7 @@ RUNS = [
     dir: "/src/swift",
     container: "swift",
     group: :prod,
+    deps_cmd: "swift package resolve",
   ),
   
   # WMO (лучшая безопасная оптимизация)
@@ -671,6 +672,7 @@ RUNS = [
     dir: "/src/swift",
     container: "swift",
     group: :hack,
+    deps_cmd: "swift package resolve",
   ),
   
   # Unchecked (без проверок безопасности)
@@ -684,6 +686,7 @@ RUNS = [
     dir: "/src/swift",
     container: "swift",
     group: :hack,
+    deps_cmd: "swift package resolve",
   ),
   
   # WMO + Unchecked (максимум без LLVM оптимизаций)
@@ -697,6 +700,7 @@ RUNS = [
     dir: "/src/swift",
     container: "swift",
     group: :hack,
+    deps_cmd: "swift package resolve",
   ),
   
   # MaxPerf (исправленный)
@@ -710,6 +714,7 @@ RUNS = [
     dir: "/src/swift",
     container: "swift",
     group: :hack,
+    deps_cmd: "swift package resolve",
   ),
     
   # ======================================= Java ======================================================

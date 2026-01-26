@@ -189,20 +189,23 @@ services:
       - GOMODCACHE=/go/pkg/mod   
 
   swift:
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared
     image: benchmarks:swift
     working_dir: /src/swift
-    build: 
+    build:
       dockerfile: docker/swift
       args:
-        # https://github.com/swiftlang/swift/releases
         version: "6.2.3"
     volumes:
-      - .:/src:delegated
-      - ./cache/swift-build:/root/.cache/swift         # Основной кеш сборки
-      - ./cache/swift-packages:/root/.swiftpm          # Кеш пакетов        
-    depends_on:
-      - base   
+      - .:/src
+      # Dependencies (SPM packages) - НЕ очищаем
+      - ./cache/deps/swift/packages:/root/.swiftpm/package-cache
+      - ./cache/deps/swift/registry:/root/.swiftpm/configuration/registries
+      # Build cache - очищаем для cold compile
+      - ./cache/build/swift/build:/root/.cache/swift
+      - ./cache/build/swift/build-dir:/src/swift/.build  # SPM build directory
+    environment:
+      - SWIFT_PACKAGE_CACHE_DIR=/root/.swiftpm/package-cache
 
   nodejs:
     <<: *shared-cpu  # Максимальная оптимизация CPU
