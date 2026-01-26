@@ -1205,7 +1205,7 @@ if ARGV[0] == "versions"
       puts "Warning different versions in container???? #{container}: #{vcmds.inspect}"
       next
     end
-    version = `#{run.dcr}#{vcmds[0]}`.strip
+    version = `#{runs[0].dcr}#{vcmds[0]}`.strip
     puts "Version #{container}: #{version}"
   end
   exit
