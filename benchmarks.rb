@@ -182,7 +182,8 @@ class Run
   end
 
   def deps
-    run.run("sh -c '#{run.deps_cmd}'")
+    cmd = "sh -c '#{@deps_cmd}'"
+    run(cmd)
   end
 
   def version
@@ -1228,7 +1229,7 @@ end
 
 # prepare cache deps
 RUNS.each do |run|
-  print "Prepare deps for #{run}: "
+  print "Prepare deps for #{run.name}: "
   delta = measure { run.deps }
   puts "in #{delta.round(2)}s"
 end
