@@ -203,7 +203,7 @@ RUNS = [
     version_cmd: "gcc --version | head -n 1",
     cache_dir: "",
     dir: "/src/c",
-    container: "clang",
+    container: "clang_c",
     group: :hack,
   ),
   
@@ -215,7 +215,7 @@ RUNS = [
     version_cmd: "gcc --version | head -n 1",
     cache_dir: "",
     dir: "/src/c",
-    container: "gcc",
+    container: "gcc_c",
     group: :hack,
   ),
   
@@ -227,7 +227,7 @@ RUNS = [
     version_cmd: "gcc --version | head -n 1",
     cache_dir: "",
     dir: "/src/c",
-    container: "clang",
+    container: "clang_c",
     group: :prod,
   ),
   
@@ -239,7 +239,7 @@ RUNS = [
     version_cmd: "gcc --version | head -n 1",
     cache_dir: "",
     dir: "/src/c",
-    container: "gcc",
+    container: "gcc_c",
     group: :prod,
   ),
   
@@ -251,7 +251,7 @@ RUNS = [
     version_cmd: "gcc --version | head -n 1",
     cache_dir: "",
     dir: "/src/c",
-    container: "clang",
+    container: "clang_c",
     group: :hack,
   ),
   
@@ -263,7 +263,7 @@ RUNS = [
     version_cmd: "gcc --version | head -n 1",
     cache_dir: "",
     dir: "/src/c",
-    container: "gcc",
+    container: "gcc_c",
     group: :hack,
   ),
   
@@ -275,7 +275,7 @@ RUNS = [
     version_cmd: "gcc --version | head -n 1",
     cache_dir: "",
     dir: "/src/c",
-    container: "clang",
+    container: "clang_c",
     group: :hack,
   ),
   
@@ -287,7 +287,7 @@ RUNS = [
     version_cmd: "gcc --version | head -n 1",
     cache_dir: "",
     dir: "/src/c",
-    container: "gcc",
+    container: "gcc_c",
     group: :hack,
   ),
 
@@ -300,7 +300,7 @@ RUNS = [
     version_cmd: "g++ --version | head -n 1",
     cache_dir: "",
     dir: "/src/cpp",
-    container: "clang",
+    container: "clang_cpp",
     group: :hack,
   ),
 
@@ -312,7 +312,7 @@ RUNS = [
     version_cmd: "g++ --version | head -n 1",
     cache_dir: "",
     dir: "/src/cpp",
-    container: "gcc",
+    container: "gcc_cpp",
     group: :hack,
   ),
 
@@ -324,7 +324,7 @@ RUNS = [
     version_cmd: "g++ --version | head -n 1",
     cache_dir: "",
     dir: "/src/cpp",
-    container: "clang",
+    container: "clang_cpp",
     group: :prod,
   ),
 
@@ -336,7 +336,7 @@ RUNS = [
     version_cmd: "g++ --version | head -n 1",
     cache_dir: "",
     dir: "/src/cpp",
-    container: "gcc",
+    container: "gcc_cpp",
     group: :prod,
   ),
 
@@ -348,7 +348,7 @@ RUNS = [
     version_cmd: "g++ --version | head -n 1",
     cache_dir: "",
     dir: "/src/cpp",
-    container: "clang",
+    container: "clang_cpp",
     group: :hack,
   ),
 
@@ -360,7 +360,7 @@ RUNS = [
     version_cmd: "g++ --version | head -n 1",
     cache_dir: "",
     dir: "/src/cpp",
-    container: "gcc",
+    container: "gcc_cpp",
     group: :hack,
   ),
 
@@ -372,7 +372,7 @@ RUNS = [
     version_cmd: "g++ --version | head -n 1",
     cache_dir: "",
     dir: "/src/cpp",
-    container: "clang",
+    container: "clang_cpp",
     group: :hack,
   ),
 
@@ -384,7 +384,7 @@ RUNS = [
     version_cmd: "g++ --version | head -n 1",
     cache_dir: "",
     dir: "/src/cpp",
-    container: "gcc",
+    container: "gcc_cpp",
     group: :hack,
   ),
 
