@@ -1311,7 +1311,7 @@ end
 write_results
 
 # build
-delta = mearure do
+delta = measure do
   RUNS.each do |run|
     build(run, IS_VERBOSE, true)
   end
