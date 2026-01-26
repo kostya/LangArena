@@ -183,7 +183,7 @@ class Run
 
   def deps
     cmd = "sh -c '#{@deps_cmd}'"
-    run(cmd)
+    run(cmd, IS_VERBOSE)
   rescue => ex
     p "Error #{ex.inspect}"
   end
