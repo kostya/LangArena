@@ -1,5 +1,6 @@
 #!/bin/sh
-rm -f ./bin_go
+mkdir -p target
+rm -f ./target/bin_go_test
 `which go` fmt main.go
-`which go` build -o bin_go main.go
-./bin_go ../test.txt "$@"
+`which go` build -o ./target/bin_go_test main.go
+./target/bin_go_test ../test.txt "$@"

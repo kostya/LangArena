@@ -149,27 +149,38 @@ services:
       - base_gcc 
 
   gccgo:
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared
     image: benchmarks:gccgo
     working_dir: /src/golang
-    build: 
+    build:
       dockerfile: docker/gccgo
       args:
         version: "14"
-    depends_on:
-      - base_gcc
+    volumes:
+      - .:/src
+      - ./cache/build/gccgo/build:/tmp/go-build  # GCCGO build cache
+      - ./cache/build/gccgo/target:/src/golang/target
 
   golang:
-    <<: *shared-cpu  # Максимальная оптимизация CPU
+    <<: *shared
     image: benchmarks:golang
     working_dir: /src/golang
-    build: 
+    build:
       dockerfile: docker/golang
       args:
-        # https://go.dev/dl/
         version: "1.25.5"
-    depends_on:
-      - base     
+    volumes:
+      - .:/src
+      # Dependencies cache - НЕ очищаем
+      - ./cache/deps/go/mod-cache:/go/pkg/mod
+      - ./cache/deps/go/sumdb:/go/pkg/sumdb  # Добавил checksum DB
+      # Build cache - очищаем для cold compile
+      - ./cache/build/go/build-cache:/root/.cache/go-build
+      - ./cache/build/go/bin-cache:/go/bin  # Скомпилированные бинарники
+      - ./cache/build/go/target:/src/golang/target
+    environment:
+      - GOCACHE=/root/.cache/go-build
+      - GOMODCACHE=/go/pkg/mod   
 
   swift:
     <<: *shared-cpu  # Максимальная оптимизация CPU
