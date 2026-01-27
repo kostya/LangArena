@@ -1293,7 +1293,7 @@ def build(run, verbose = true, test_incremental = false)
       File.write(marker_file, File.read(marker_file).gsub(RECOMPILE_MARKER_1, RECOMPILE_MARKER_0))
     end
   else
-    print ", warning no marker for #{run}"
+    print ", warning no marker for #{run.name}"
   end
 
   RESULTS["version"][run.name] = run.version  
