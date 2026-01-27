@@ -2,4 +2,4 @@
 mkdir -p target
 rm -f ./target/bin_crystal_debug
 crystal build --error-trace main.cr -o target/bin_crystal_debug
-./target/bin_crystal_debug ../test.txt "$@"
+./target/bin_crystal_debug ../test.js "$@"

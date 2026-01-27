@@ -3,7 +3,7 @@ require "base64"
 require "json"
 require "complex"
 
-Helper.load_config
+puts "start: #{Time.local.to_unix_ms}"
 Benchmark.run(ARGV[1]?)
 
 module Helper
@@ -70,48 +70,71 @@ module Helper
     Helper.checksum("%.7f" % {v})
   end
 
-  # def self.custom_round(value : Float64, precision : Int32) : Float64
-  #   return value if value.nan? || value.infinite?
+  CONFIG = begin
+    Hash(String, Hash(String, String | Int64)).from_json(File.read(ARGV[0]? || "../test.js"))
+  end
 
-  #   factor = 10.0 ** precision
-  #   scaled = value * factor
+  def self.config_i64(class_name, field_name) : Int64
+    if cfg = CONFIG[class_name]?
+      case i = cfg[field_name]?
+      when Int64
+        i
+      else
+        raise "Config for #{class_name}, not found i64 field: #{field_name} in #{cfg.inspect}"
+      end
+    else
+      raise "Config not found class #{class_name}"
+    end
+  end
 
-  #   # Banker's rounding: round half to even
-  #   fraction = scaled - scaled.floor
-  #   if fraction.abs < 0.5
-  #     scaled.floor / factor
-  #   elsif fraction.abs > 0.5
-  #     scaled.ceil / factor
-  #   else
-  #     # Точная половина - округляем к ближайшему четному
-  #     (scaled / 2.0).round * 2.0 / factor
-  #   end
-  # end
-
-  # Config is simple file:
-  # bench(string)|arg1(string)|expected(i64)\n
-  # ...
-  INPUT  = Hash(String, String).new
-  EXPECT = Hash(String, Int64).new
-
-  def self.load_config
-    h = Hash(String, Tuple(Int32, Int64)).new
-    filename = ARGV[0]? || "../test.txt"
-    lines = File.read(filename).split("\n").reject &.empty?
-    lines.each { |l| a, b, c = l.split("|"); INPUT[a] = b; EXPECT[a] = c.to_i64 }
-    h
+  def self.config_s(class_name, field_name) : String
+    if cfg = CONFIG[class_name]?
+      case s = cfg[field_name]?
+      when String
+        s
+      else
+        raise "Config for #{class_name}, not found string field: #{field_name} in #{cfg.inspect}"
+      end
+    else
+      raise "Config not found class #{class_name}"
+    end
   end
 end
 
 abstract class Benchmark
-  abstract def run # this is only method which time measured
-  abstract def result
+  abstract def run(iteration_id) # this is only method which time measured
+  abstract def checksum : UInt32
 
   def prepare
   end
 
+  def warmup_iterations
+    case wi = Helper::CONFIG["warmup_iterations"]?
+    when Int64
+      wi.to_i32
+    else
+      {(iterations * 0.2).to_i, 1}.max
+    end
+  end
+
+  def warmup
+    warmup_iterations.times { |i| self.run(i) }
+  end
+
+  def run_all
+    iterations.times { |i| self.run(i) }
+  end
+
+  def config_val(field_name)
+    Helper.config_i64(self.class.name.to_s, field_name)
+  end
+
   def iterations
-    Helper::INPUT[self.class.name.to_s].to_i32
+    config_val("iterations")
+  end
+
+  def expected_checksum
+    config_val("checksum")
   end
 
   def self.run(single_bench : String? = nil)
@@ -120,18 +143,22 @@ abstract class Benchmark
     summary_time = 0.0
     ok = 0
     fails = 0
+    single_bench = single_bench.downcase if single_bench
 
     {% for kl in @type.all_subclasses %}
-      if (!single_bench || (single_bench == {{kl.stringify}})) && ({{kl.stringify}} != "SortBenchmark") && ({{kl.stringify}} != "BufferHashBenchmark") && ({{kl.stringify}} != "GraphPathBenchmark")
+      if (!single_bench || ({{kl.stringify}}.downcase.includes?(single_bench))) && ({{kl.stringify}} != "SortBenchmark") && ({{kl.stringify}} != "BufferHashBenchmark") && ({{kl.stringify}} != "GraphPathBenchmark")
         print "{{kl}}: "
 
         Helper.reset
         
         bench = {{kl.id}}.new
         bench.prepare
-        
+        bench.warmup
+
+        Helper.reset
+
         t = Time.monotonic
-        bench.run
+        bench.run_all
         time_delta = (Time.monotonic - t).to_f
 
         results["{{kl.id}}"] = time_delta
@@ -140,11 +167,12 @@ abstract class Benchmark
         sleep 0.seconds # context switch, may be needed or maybe not, to close some coroutines
         GC.collect
         
-        if bench.result == Helper::EXPECT[bench.class.name]
+        chks = bench.checksum
+        if chks.to_i64 == bench.expected_checksum.to_i64
           print "OK "
           ok += 1
         else
-          print "ERR[actual=#{bench.result.inspect}, expected=#{Helper::EXPECT[bench.class.name].inspect}] "
+          print "ERR[actual=#{chks.inspect}, expected=#{bench.expected_checksum.inspect}] "
           fails += 1
         end
 
@@ -160,11 +188,11 @@ abstract class Benchmark
 end
 
 class Pidigits < Benchmark
-  def initialize(@nn : Int32 = iterations)
+  def initialize(@nn : Int32 = config_val("amount").to_i32)
     @result = IO::Memory.new
   end
 
-  def run
+  def run(iteration_id)
     i = 0
     k = 0
     ns = 0.to_big_i
@@ -201,14 +229,12 @@ class Pidigits < Benchmark
     end
   end
 
-  def result
+  def checksum : UInt32
     Helper.checksum(@result.to_s)
   end
 end
 
 class Binarytrees < Benchmark
-  getter result
-
   class TreeNode
     property left : TreeNode?
     property right : TreeNode?
@@ -232,29 +258,31 @@ class Binarytrees < Benchmark
     end
   end
 
-  def initialize(@n : Int32 = iterations)
-    @result = 0
+  def initialize(@n : Int64 = config_val("depth"))
+    @result = 0_u32
   end
 
-  def run
+  def run(iteration_id)
     min_depth = 4
     max_depth = Math.max min_depth + 2, @n
     stretch_depth = max_depth + 1
-    @result += TreeNode.create(0, stretch_depth).check
+    @result &+= TreeNode.create(0, stretch_depth).check
 
     min_depth.step(to: max_depth, by: 2) do |depth|
       iterations = 1 << (max_depth - depth + min_depth)
       1.upto(iterations) do |i|
-        @result += TreeNode.create(i, depth).check
-        @result += TreeNode.create(-i, depth).check
+        @result &+= TreeNode.create(i, depth).check
+        @result &+= TreeNode.create(-i, depth).check
       end
     end
+  end
+
+  def checksum : UInt32
+    @result
   end
 end
 
 class BrainfuckHashMap < Benchmark
-  getter result
-
   class Tape
     def initialize
       @tape = [0]
@@ -334,18 +362,30 @@ class BrainfuckHashMap < Benchmark
   @text : String
 
   def initialize
-    @text = Helper::INPUT[self.class.name.to_s]
-    @result = 0_i64
+    @text = Helper.config_s(self.class.name.to_s, "program")
+    @result = 0_u32
   end
 
-  def run
-    @result = Program.new(@text).run
+  def warmup
+    warmup_iterations.times do
+      _run(Helper.config_s(self.class.name.to_s, "warmup_program"))
+    end
+  end
+
+  private def _run(text : String)
+    Program.new(text).run
+  end
+
+  def run(iteration_id)
+    @result &+= _run(@text)
+  end
+
+  def checksum : UInt32
+    @result
   end
 end
 
 class BrainfuckRecursion < Benchmark
-  getter result
-
   module Op
     record Inc, val : Int32
     record Move, val : Int32
@@ -432,21 +472,33 @@ class BrainfuckRecursion < Benchmark
   @text : String
 
   def initialize
-    @text = Helper::INPUT[self.class.name.to_s]
-    @result = 0_i64
+    @text = Helper.config_s(self.class.name.to_s, "program")
+    @result = 0_u32
   end
 
-  def run
-    program = Program.new(@text)
-    program.run
-    @result = program.result
+  def warmup
+    warmup_iterations.times do
+      _run(Helper.config_s(self.class.name.to_s, "warmup_program"))
+    end
+  end
+
+  private def _run(text : String)
+    prog = Program.new(text)
+    prog.run
+    prog.result
+  end
+
+  def run(iteration_id)
+    @result &+= _run(@text)
+  end
+
+  def checksum : UInt32
+    @result
   end
 end
 
 class Fannkuchredux < Benchmark
-  getter result
-
-  def fannkuchredux(n)
+  def fannkuchredux(n : Int32)
     perm1 = StaticArray(Int32, 32).new { |i| i }
     perm = StaticArray(Int32, 32).new(0)
     count = StaticArray(Int32, 32).new(0)
@@ -492,13 +544,17 @@ class Fannkuchredux < Benchmark
     end
   end
 
-  def initialize(@n : Int32 = iterations)
-    @result = 0_i64
+  def initialize(@n : Int64 = config_val("n"))
+    @result = 0_u32
   end
 
-  def run
-    a, b = fannkuchredux(@n)
-    @result = a.to_i64 * 100 &+ b
+  def run(iteration_id)
+    a, b = fannkuchredux(@n.to_i32)
+    @result &+= a.to_i64 * 100 &+ b
+  end
+
+  def checksum : UInt32
+    @result
   end
 end
 
@@ -571,17 +627,17 @@ class Fasta < Benchmark
   HOMO = [{'a', 0.302954942668}, {'c', 0.5009432431601}, {'g', 0.6984905497992}, {'t', 1.0}]
   ALU  = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"
 
-  def initialize(@n : Int32 = iterations)
+  def initialize(@n : Int64 = config_val("n"))
     @result = IO::Memory.new
   end
 
-  def run
+  def run(iteration_id)
     make_repeat_fasta("ONE", "Homo sapiens alu", ALU, @n * 2)
     make_random_fasta("TWO", "IUB ambiguity codes", IUB, @n * 3)
     make_random_fasta("THREE", "Homo sapiens frequency", HOMO, @n * 5)
   end
 
-  def result
+  def checksum : UInt32
     Helper.checksum(@result.to_s)
   end
 end
@@ -615,8 +671,8 @@ class Knuckeotide < Benchmark
   end
 
   def prepare
-    f = Fasta.new(iterations)
-    f.run
+    f = Fasta.new(config_val("n"))
+    f.run(0)
     res = f.@result.to_s
 
     three = false
@@ -632,12 +688,12 @@ class Knuckeotide < Benchmark
     @seq = seqio.to_s
   end
 
-  def run
+  def run(iteration_id)
     (1..2).each { |i| sort_by_freq(@seq, i) }
     %w(ggt ggta ggtatt ggtattttaatt ggtattttaatttatagt).each { |s| find_seq(@seq, s) }
   end
 
-  def result
+  def checksum : UInt32
     Helper.checksum(@result.to_s)
   end
 end
@@ -646,12 +702,13 @@ class Mandelbrot < Benchmark
   ITER  =  50
   LIMIT = 2.0
 
-  def initialize(@n : Int32 = iterations)
+  def initialize(@n : Int32 = iterations.to_i32)
     @result = IO::Memory.new
   end
 
-  def run
-    w = h = @n
+  def run(iteration_id)
+    w = config_val("w")
+    h = config_val("h")
     @result << "P4\n#{w} #{h}\n"
 
     bit_num = 0
@@ -690,7 +747,7 @@ class Mandelbrot < Benchmark
     end
   end
 
-  def result
+  def checksum : UInt32
     Helper.checksum(@result.to_slice)
   end
 end
@@ -733,25 +790,27 @@ class Matmul < Benchmark
     a
   end
 
-  getter result
-
-  def initialize(@n : Int32 = iterations)
+  def initialize(@n : Int64 = config_val("n"))
     @result = 0_u32
   end
 
-  def run
+  def run(iteration_id)
     a = matgen(@n)
     b = matgen(@n)
     c = matmul(a, b)
-    @result = Helper.checksum_f64(c[@n >> 1][@n >> 1])
+    @result &+= Helper.checksum_f64(c[@n >> 1][@n >> 1])
+  end
+
+  def checksum : UInt32
+    @result
   end
 end
 
 class Matmul4T < Benchmark
-  @n : Int32
+  @n : Int64
   @result : UInt32
 
-  def initialize(@n = iterations)
+  def initialize(@n = config_val("n"))
     @result = 0_u32
   end
 
@@ -759,7 +818,7 @@ class Matmul4T < Benchmark
     4
   end
 
-  def matgen(n : Int32) : Array(Array(Float64))
+  def matgen(n : Int64) : Array(Array(Float64))
     tmp = 1.0 / n / n
     Array.new(n) do |i|
       Array.new(n) do |j|
@@ -817,15 +876,17 @@ class Matmul4T < Benchmark
     c
   end
 
-  def run
+  def run(iteration_id)
     a = matgen(@n)
     b = matgen(@n)
     c = matmul_parallel(a, b)
 
-    @result = Helper.checksum_f64(c[@n >> 1][@n >> 1])
+    @result &+= Helper.checksum_f64(c[@n >> 1][@n >> 1])
   end
 
-  getter result
+  def checksum : UInt32
+    @result
+  end
 end
 
 class Matmul8T < Matmul4T
@@ -967,33 +1028,33 @@ class Nbody < Benchmark
       5.15138902046611451e-05),
   ]
 
-  def initialize(@n : Int32 = iterations)
+  def initialize
     @result = 0_u32
     @body = BODIES
+    @v1 = 0_f64
   end
 
-  def run
+  def prepare
     offset_momentum(@body)
+    @v1 = energy(@body)
+  end
 
-    v1 = energy(@body)
-
+  def run(iteration_id)
     nbodies = @body.size
     dt = 0.01
 
-    @n.times do
-      i = 0
-      while i < nbodies
-        b = @body[i]
-        b.move_from_i(@body, nbodies, dt, i + 1)
-        i += 1
-      end
+    i = 0
+    while i < nbodies
+      b = @body[i]
+      b.move_from_i(@body, nbodies, dt, i + 1)
+      i += 1
     end
-
-    v2 = energy(@body)
-    @result = (Helper.checksum_f64(v1) << 5) & Helper.checksum_f64(v2)
   end
 
-  getter result
+  def checksum : UInt32
+    v2 = energy(@body)
+    (Helper.checksum_f64(@v1) << 5) & Helper.checksum_f64(v2)
+  end
 end
 
 class RegexDna < Benchmark
@@ -1009,8 +1070,8 @@ class RegexDna < Benchmark
   end
 
   def prepare
-    f = Fasta.new(iterations)
-    f.run
+    f = Fasta.new(config_val("n"))
+    f.run(0)
     res = f.@result.to_s
 
     seq = IO::Memory.new
@@ -1025,7 +1086,7 @@ class RegexDna < Benchmark
     @clen = seq.bytesize
   end
 
-  def run
+  def run(iteration_id)
     [
       /agggtaaa|tttaccct/,
       /[cgt]gggtaaa|tttaccc[acg]/,
@@ -1060,7 +1121,7 @@ class RegexDna < Benchmark
     @result << "#{@seq.size}\n"
   end
 
-  def result
+  def checksum : UInt32
     Helper.checksum(@result.to_s)
   end
 end
@@ -1080,30 +1141,26 @@ class Revcomp < Benchmark
   end
 
   def prepare
-    f = Fasta.new(iterations)
-    f.run
-    @input = f.@result.to_s
-  end
-
-  def run
+    f = Fasta.new(config_val("n"))
+    f.run(0)
+    input = f.@result.to_s
     seq = IO::Memory.new
 
-    @input.each_line do |line|
+    input.each_line do |line|
       if line.starts_with? '>'
-        if !seq.empty?
-          revcomp(seq.to_s)
-          seq.clear
-        end
-        @result << line
-        @result << "\n"
+        seq << "\n---\n"
       else
         seq << line.chomp
       end
     end
-    revcomp(seq.to_s)
+    @input = seq.to_s
   end
 
-  def result
+  def run(iteration_id)
+    revcomp(@input)
+  end
+
+  def checksum : UInt32
     Helper.checksum(@result.to_s)
   end
 end
@@ -1137,35 +1194,32 @@ class Spectralnorm < Benchmark
     eval_At_times_u(eval_A_times_u(u))
   end
 
-  getter result
-
-  def initialize(@n : Int32 = iterations)
+  def initialize(@size : Int64 = config_val("size"))
     @result = 0_u32
+    @u = Array(Float64).new(@size, 1.0_f64)
+    @v = Array(Float64).new(@size, 1.0_f64)
   end
 
-  def run
-    u = Array.new(@n, 1.0_f64)
-    v = Array.new(@n, 1.0_f64)
-    10.times do
-      v = eval_AtA_times_u(u)
-      u = eval_AtA_times_u(v)
-    end
+  def run(iteration_id)
+    @v = eval_AtA_times_u(@u)
+    @u = eval_AtA_times_u(@v)
+  end
+
+  def checksum : UInt32
     vBv = vv = 0.0_f64
-    (0...@n).each do |i|
-      vBv += u[i] * v[i]
-      vv += v[i] * v[i]
+    (0...@size).each do |i|
+      vBv += @u[i] * @v[i]
+      vv += @v[i] * @v[i]
     end
-    @result = Helper.checksum_f64(Math.sqrt(vBv / vv))
+    Helper.checksum_f64(Math.sqrt(vBv / vv))
   end
 end
 
 class Base64Encode < Benchmark
-  TRIES = 8192
-
   @str : String
   @str2 : String
 
-  def initialize(@n : Int32 = iterations)
+  def initialize(@n : Int64 = config_val("size"))
     @str = ""
     @str2 = ""
     @result = 0_u32
@@ -1176,26 +1230,21 @@ class Base64Encode < Benchmark
     @str2 = Base64.strict_encode(@str)
   end
 
-  def run
-    s_encoded = 0_i64
-
-    TRIES.times do |i|
-      s_encoded += Base64.strict_encode(@str).bytesize
-    end
-
-    @result = Helper.checksum("encode #{@str[0..3]}... to #{@str2[0..3]}...: #{s_encoded}\n")
+  def run(iteration_id)
+    @str2 = Base64.strict_encode(@str)
+    @result &+= @str2.bytesize
   end
 
-  getter result
+  def checksum : UInt32
+    Helper.checksum("encode #{@str[0..3]}... to #{@str2[0..3]}...: #{@result}")
+  end
 end
 
 class Base64Decode < Benchmark
-  TRIES = 8192
-
   @str2 : String
   @str3 : String
 
-  def initialize(@n : Int32 = iterations)
+  def initialize(@n : Int64 = config_val("size"))
     @str2 = ""
     @str3 = ""
     @result = 0_u32
@@ -1207,17 +1256,14 @@ class Base64Decode < Benchmark
     @str3 = Base64.decode_string(@str2)
   end
 
-  def run
-    s_decoded = 0_i64
-
-    TRIES.times do |i|
-      s_decoded += Base64.decode_string(@str2).bytesize
-    end
-
-    @result = Helper.checksum "decode #{@str2[0..3]}... to #{@str3[0..3]}...: #{s_decoded}\n"
+  def run(iteration_id)
+    @str3 = Base64.decode_string(@str2)
+    @result &+= @str3.bytesize
   end
 
-  getter result
+  def checksum : UInt32
+    Helper.checksum "decode #{@str2[0..3]}... to #{@str3[0..3]}...: #{@result}"
+  end
 end
 
 class JsonGenerate < Benchmark
@@ -1228,7 +1274,7 @@ class JsonGenerate < Benchmark
     end
   end
 
-  def initialize(@n : Int32 = iterations)
+  def initialize(@n : Int64 = config_val("coords"))
     @text = IO::Memory.new
     @data = Array(Coordinate).new
     @n.times do
@@ -1242,7 +1288,7 @@ class JsonGenerate < Benchmark
     end
   end
 
-  def run
+  def run(iteration_id)
     {"coordinates": @data,
      "info":        "some info"}.to_json(@text)
     true
@@ -1250,8 +1296,9 @@ class JsonGenerate < Benchmark
 
   getter text
 
-  def result
-    1 # always true, because there is can be artifacts of round, and generate actually checks when parse
+  def checksum : UInt32
+    @text.rewind
+    Helper.checksum(@text.read_string({500, @text.bytesize}.min - 1))
   end
 end
 
@@ -1271,7 +1318,6 @@ class JsonParseDom < Benchmark
     {x / len, y / len, z / len}
   end
 
-  getter result
   @text : String
 
   def initialize
@@ -1280,14 +1326,18 @@ class JsonParseDom < Benchmark
   end
 
   def prepare
-    j = JsonGenerate.new(iterations)
-    j.run
+    j = JsonGenerate.new(config_val("coords"))
+    j.run(0)
     @text = j.text.to_s
   end
 
-  def run
+  def run(iteration_id)
     x, y, z = calc(@text)
-    @result = Helper.checksum_f64(x) &+ Helper.checksum_f64(y) &+ Helper.checksum_f64(z)
+    @result &+= Helper.checksum_f64(x) &+ Helper.checksum_f64(y) &+ Helper.checksum_f64(z)
+  end
+
+  def checksum : UInt32
+    @result
   end
 end
 
@@ -1322,7 +1372,6 @@ class JsonParseMapping < Benchmark
     Coordinate.new(x / len, y / len, z / len)
   end
 
-  getter result
   @text : String
 
   def initialize
@@ -1331,20 +1380,22 @@ class JsonParseMapping < Benchmark
   end
 
   def prepare
-    j = JsonGenerate.new(iterations)
-    j.run
+    j = JsonGenerate.new(config_val("coords"))
+    j.run(0)
     @text = j.text.to_s
   end
 
-  def run
+  def run(iteration_id)
     coord = calc(@text)
-    @result = Helper.checksum_f64(coord.x) &+ Helper.checksum_f64(coord.y) &+ Helper.checksum_f64(coord.z)
+    @result &+= Helper.checksum_f64(coord.x) &+ Helper.checksum_f64(coord.y) &+ Helper.checksum_f64(coord.z)
+  end
+
+  def checksum : UInt32
+    @result
   end
 end
 
 class Primes < Benchmark
-  PREFIX = 32_338
-
   # Оптимизированная структура Node для Crystal
   class Node
     # Используем Array для детей вместо Hash - только 10 цифр
@@ -1502,19 +1553,20 @@ class Primes < Benchmark
   end
 
   def initialize
-    @n = iterations
+    @n = config_val("limit")
     @result = 5432_u32
+    @prefix = config_val("prefix")
   end
 
-  def run
+  def run(iteration_id)
     # 1. Генерация простых чисел
-    primes = Sieve.new(@n).calculate.to_list
+    primes = Sieve.new(@n.to_i32).calculate.to_list
 
     # 2. Построение trie
     trie = generate_trie(primes)
 
     # 3. Поиск по префиксу
-    results = find_primes_with_prefix(trie, PREFIX)
+    results = find_primes_with_prefix(trie, @prefix.to_i32)
 
     # 4. Вычисление результата (точно как в других версиях)
     @result &+= results.size.to_u32
@@ -1523,13 +1575,16 @@ class Primes < Benchmark
     end
   end
 
-  getter result, n : Int32
+  getter n : Int64
+  getter prefix : Int64
+
+  def checksum : UInt32
+    @result
+  end
 end
 
 class Noise < Benchmark
   # from https://github.com/crystal-lang/crystal/blob/master/samples/noise.cr
-
-  SIZE = 64
   record Vec2, x : Float64, y : Float64
 
   @[AlwaysInline]
@@ -1555,20 +1610,20 @@ class Noise < Benchmark
   end
 
   struct Noise2DContext
-    def initialize
-      @rgradients = StaticArray(Vec2, SIZE).new { Noise.random_gradient }
-      @permutations = StaticArray(Int32, SIZE).new { |i| i }
-      SIZE.times do
-        a = Helper.next_int(SIZE)
-        b = Helper.next_int(SIZE)
+    def initialize(@size : Int32)
+      @rgradients = Array(Vec2).new(@size) { Noise.random_gradient }
+      @permutations = Array(Int32).new(@size) { |i| i }
+      @size.times do
+        a = Helper.next_int(@size)
+        b = Helper.next_int(@size)
         @permutations.swap a, b
       end
     end
 
     @[AlwaysInline]
     def get_gradient(x, y)
-      idx = @permutations[x & (SIZE - 1)] + @permutations[y & (SIZE - 1)]
-      @rgradients[idx & (SIZE - 1)]
+      idx = @permutations[x & (@size - 1)] + @permutations[y & (@size - 1)]
+      @rgradients[idx & (@size - 1)]
     end
 
     def get_gradients(x, y)
@@ -1612,43 +1667,26 @@ class Noise < Benchmark
 
   SYM = [' ', '░', '▒', '▓', '█', '█']
 
-  def noise
-    pixels = Array.new(SIZE) { Array.new(SIZE, 0.0) }
+  @size : Int64
 
-    n2d = Noise2DContext.new
+  def initialize
+    @result = 0_u32
+    @size = config_val("size")
+    @n2d = Noise2DContext.new(@size.to_i32)
+  end
 
-    100.times do |i|
-      SIZE.times do |y|
-        SIZE.times do |x|
-          v = n2d.get(x * 0.1, (y + (i * 128)) * 0.1) * 0.5 + 0.5
-          pixels[y][x] = v
-        end
+  def run(iteration_id)
+    @size.times do |y|
+      @size.times do |x|
+        v = @n2d.get(x * 0.1, (y + (iteration_id * 128)) * 0.1) * 0.5 + 0.5
+        @result &+= SYM[(v / 0.2).to_i].ord
       end
     end
-
-    res = 0_u64
-
-    SIZE.times do |y|
-      SIZE.times do |x|
-        v = pixels[y][x]
-        res &+= SYM[(v / 0.2).to_i].ord
-      end
-    end
-    res
   end
 
-  def initialize(@n : Int32 = iterations)
-    @result = 0_u64
+  def checksum : UInt32
+    @result
   end
-
-  def run
-    @n.times do
-      v = noise
-      @result &+= v
-    end
-  end
-
-  getter result
 end
 
 class TextRaytracer < Benchmark
@@ -1769,11 +1807,11 @@ class TextRaytracer < Benchmark
     Sphere.new(Vector.new(1.0, 0.0, 3.0), 0.4, BLUE),
   ]
 
-  def initialize(@w : Int32 = iterations, @h : Int32 = iterations)
-    @res = 0_u64
+  def initialize(@w : Int32 = config_val("w").to_i32, @h : Int32 = config_val("h").to_i32)
+    @res = 0_u32
   end
 
-  def run
+  def run(iteration_id)
     res = 0_u64
     (0...@h).each do |j|
       (0...@w).each do |i|
@@ -1804,10 +1842,10 @@ class TextRaytracer < Benchmark
         res &+= pixel.ord
       end
     end
-    @res = res
+    @res &+= res
   end
 
-  def result
+  def checksum : UInt32
     @res
   end
 end
@@ -1934,85 +1972,57 @@ class NeuralNet < Benchmark
     end
   end
 
-  def initialize(@n : Int32 = iterations)
+  def initialize
     @res = [] of Float64
+    @xor = NeuralNetwork.new(2, 10, 1)
   end
 
-  def run
-    xor = NeuralNetwork.new(2, 10, 1)
-
-    @n.times do
-      xor.train([0, 0], [0])
-      xor.train([1, 0], [1])
-      xor.train([0, 1], [1])
-      xor.train([1, 1], [0])
-    end
-
-    xor.feed_forward([0, 0])
-    @res += xor.current_outputs
-    xor.feed_forward([0, 1])
-    @res += xor.current_outputs
-    xor.feed_forward([1, 0])
-    @res += xor.current_outputs
-    xor.feed_forward([1, 1])
-    @res += xor.current_outputs
+  def run(iteration_id)
+    xor = @xor
+    xor.train([0, 0], [0])
+    xor.train([1, 0], [1])
+    xor.train([0, 1], [1])
+    xor.train([1, 1], [0])
   end
 
-  def result
+  def checksum : UInt32
+    @xor.feed_forward([0, 0])
+    @res += @xor.current_outputs
+    @xor.feed_forward([0, 1])
+    @res += @xor.current_outputs
+    @xor.feed_forward([1, 0])
+    @res += @xor.current_outputs
+    @xor.feed_forward([1, 1])
+    @res += @xor.current_outputs
     Helper.checksum_f64(@res.sum)
   end
 end
 
 class SortBenchmark < Benchmark
   @data : Array(Int32)
-  @n : Int32
 
   def test : Array(Int32)
     Array(Int32).new # abstract method
   end
 
-  ARR_SIZE = 100_000
-
-  def initialize(@n : Int32 = iterations)
+  def initialize(@size : Int64 = config_val("size"))
     @result = 0_u32
     @data = Array(Int32).new
   end
 
   def prepare
-    ARR_SIZE.times { @data << Helper.next_int(1_000_000) }
+    @size.times { @data << Helper.next_int(1_000_000) }
   end
 
-  def run
-    verify = check_n_elements(@data, 10)
-
-    (@n - 1).times do
-      t = test
-      @result &+= t[t.size // 2]
-    end
-    arr = test # call sort function
-
-    verify += check_n_elements(@data, 10) # check that not modified
-    verify += check_n_elements(arr, 10)
-
-    @result &+= Helper.checksum(verify)
+  def run(iteration_id)
+    @result &+= @data[Helper.next_int(@size)]
+    t = test
+    @result &+= t[Helper.next_int(@size)]
   end
 
-  def check_n_elements(arr, n) : String
-    step = arr.size // n
-    String.build do |io|
-      io << '['
-      0.step(to: arr.size - 1, by: step) do |index|
-        io << index
-        io << ':'
-        io << arr[index]
-        io << ','
-      end
-      io << ']'
-      io << "\n"
-    end
+  def checksum : UInt32
+    @result
   end
-
-  getter result
 end
 
 class SortQuick < SortBenchmark
@@ -2157,11 +2167,11 @@ class GraphPathBenchmark < Benchmark
   @graph : Graph
   @pairs : Array({Int32, Int32})
 
-  def initialize(@n_pairs : Int32 = iterations)
-    vertices = @n_pairs * 10
+  def initialize(@n_pairs : Int64 = config_val("pairs"))
+    vertices = config_val("vertices").to_i32
     @graph = Graph.new(vertices, Math.max(10, vertices // 10_000))
     @pairs = Array({Int32, Int32}).new
-    @result = 0_i64
+    @result = 0_u32
   end
 
   def generate_pairs(n)
@@ -2207,11 +2217,13 @@ class GraphPathBenchmark < Benchmark
     0_i64
   end
 
-  def run
-    @result = test
+  def run(iteration_id)
+    @result &+= test
   end
 
-  getter result
+  def checksum : UInt32
+    @result
+  end
 end
 
 # BFS: поиск кратчайшего пути (количество рёбер)
@@ -2365,10 +2377,9 @@ class BufferHashBenchmark < Benchmark
   end
 
   @data : Bytes
-  @n : Int32
 
-  def initialize(@n : Int32 = iterations)
-    @data = Bytes.new(1_000_000)
+  def initialize(@size : Int64 = config_val("size"))
+    @data = Bytes.new(@size)
     @result = 0_u32
   end
 
@@ -2377,13 +2388,13 @@ class BufferHashBenchmark < Benchmark
     @data.size.times { |i| @data[i] = Helper.next_int(256).to_u8 }
   end
 
-  def run
-    @n.times do
-      @result &+= test
-    end
+  def run(iteration_id)
+    @result &+= test
   end
 
-  getter result
+  def checksum : UInt32
+    @result
+  end
 end
 
 class BufferHashSHA256 < BufferHashBenchmark
@@ -2560,30 +2571,33 @@ class CacheSimulation < Benchmark
     end
   end
 
-  def initialize(@operations : Int32 = iterations * 1000)
-    @result = 0_u32
+  @values_size : Int32
+
+  def initialize
+    @result = 5432_u32
+    @values_size = config_val("values").to_i32
+    @cache = LRUCache(String, String).new(config_val("size").to_i32)
+    @hits = 0
+    @misses = 0
   end
 
-  def run
-    cache = LRUCache(String, String).new(1000)
-    hits = 0
-    misses = 0
-
-    @operations.times do |i|
-      key = "item_#{Helper.next_int(2000)}"
-      if cache.get(key)
-        hits += 1
-        cache.put(key, "updated_#{i}")
-      else
-        misses += 1
-        cache.put(key, "new_#{i}")
-      end
+  def run(iteration_id)
+    key = "item_#{Helper.next_int(@values_size)}"
+    if @cache.get(key)
+      @hits += 1
+      @cache.put(key, "updated_#{iteration_id}")
+    else
+      @misses += 1
+      @cache.put(key, "new_#{iteration_id}")
     end
-
-    @result = Helper.checksum("hits:#{hits}|misses:#{misses}|size:#{cache.size}")
   end
 
-  getter result
+  def checksum : UInt32
+    @result = (@result << 5) &+ @hits
+    @result = (@result << 5) &+ @misses
+    @result = (@result << 5) &+ @cache.size
+    @result
+  end
 end
 
 class CalculatorAst < Benchmark
@@ -2624,8 +2638,8 @@ class CalculatorAst < Benchmark
     def initialize(@var, @expr); end
   end
 
-  def initialize(@n : Int32 = iterations)
-    @result = 0
+  def initialize(@n : Int64 = config_val("operations"))
+    @result = 0_u32
     @text = ""
     @expressions = Array(Node).new
   end
@@ -2673,13 +2687,12 @@ class CalculatorAst < Benchmark
     @text = generate_random_program(@n)
   end
 
-  def run
-    # @n.times do
+  def run(iteration_id)
     parser = Parser.new(@text)
     parser.parse
     @expressions = parser.expressions
     @result &+= @expressions.size
-    # end
+    @result &+= Helper.checksum(@expressions[-1].as(Assignment).var)
   end
 
   class Parser
@@ -2811,7 +2824,7 @@ class CalculatorAst < Benchmark
     end
   end
 
-  def result
+  def checksum : UInt32
     @result
   end
 end
@@ -2879,9 +2892,9 @@ class CalculatorInterpreter < Benchmark
     end
   end
 
-  def initialize(@n : Int32 = iterations)
+  def initialize(@n : Int64 = config_val("operations"))
     @ast = Array(CalculatorAst::Node).new
-    @result = 0_i64
+    @result = 0_u32
   end
 
   getter expressions
@@ -2889,21 +2902,18 @@ class CalculatorInterpreter < Benchmark
   def prepare
     c = CalculatorAst.new(@n)
     c.prepare
-    c.run
+    c.run(0)
     @ast = c.expressions
   end
 
-  def run
-    v = 0_i64
-    100.times do
-      interpreter = Interpreter.new
-      result = interpreter.run(@ast)
-      v &+= result
-    end
-    @result = v
+  def run(iteration_id)
+    interpreter = Interpreter.new
+    @result &+= interpreter.run(@ast)
   end
 
-  getter result
+  def checksum : UInt32
+    @result
+  end
 end
 
 class GameOfLife < Benchmark
@@ -2975,40 +2985,30 @@ class GameOfLife < Benchmark
       next_grid
     end
 
-    def alive_count : Int32
-      count = 0
-      @cells.each do |row|
-        row.each do |cell|
-          if cell == Cell1::Alive
-            count += 1
-          end
-        end
-      end
-      count
-    end
+    def compute_hash : UInt32
+      hasher = 2166136261_u32 # FNV offset basis
+      prime = 16777619_u32    # FNV prime
 
-    def compute_hash : UInt64
-      hasher = 0_u64
       @cells.each do |row|
         row.each do |cell|
-          # Простой хэш - сдвиг и XOR
-          hasher = (hasher << 1) ^ (cell == Cell1::Alive ? 1_u64 : 0_u64)
+          alive = cell == Cell1::Alive ? 1_u32 : 0_u32
+          hasher = (hasher ^ alive) &* prime
         end
       end
       hasher
     end
   end
 
-  property result : Int64
+  @width : Int32
+  @height : Int32
 
   def initialize
-    @result = 0_i64
-    @width = 256
-    @height = 256
+    @width = config_val("w").to_i32
+    @height = config_val("h").to_i32
     @grid = Grid.new(@width, @height)
   end
 
-  def run
+  def prepare
     # Инициализация случайными клетками
     (0...@height).each do |y|
       (0...@width).each do |x|
@@ -3017,13 +3017,14 @@ class GameOfLife < Benchmark
         end
       end
     end
+  end
 
-    # Основной цикл симуляции
-    iterations.times do
-      @grid = @grid.next_generation
-    end
+  def run(iteration_id)
+    @grid = @grid.next_generation
+  end
 
-    @result = @grid.alive_count.to_i64
+  def checksum : UInt32
+    @grid.compute_hash
   end
 end
 
@@ -3061,6 +3062,23 @@ class MazeGenerator < Benchmark
       end
 
       divide(0, 0, @width - 1, @height - 1)
+      add_random_paths
+    end
+
+    private def add_random_paths
+      # Добавляем случайные проходы для увеличения связности
+      num_extra_paths = (@width * @height) // 20 # 5% клеток
+
+      num_extra_paths.times do
+        x = Helper.next_int(@width - 2) + 1 # Не на границах
+        y = Helper.next_int(@height - 2) + 1
+
+        # Превращаем стену в проход, если окружена стенами
+        if self[x, y] == Cell::Wall &&
+           [self[x - 1, y], self[x + 1, y], self[x, y - 1], self[x, y + 1]].all?(Cell::Wall)
+          self[x, y] = Cell::Path
+        end
+      end
     end
 
     private def divide(x1 : Int32, y1 : Int32, x2 : Int32, y2 : Int32)
@@ -3194,33 +3212,38 @@ class MazeGenerator < Benchmark
 
   def initialize
     @result = 0_i64
-    @width = 1001
-    @height = 1001
+    @width = config_val("w").to_i32
+    @height = config_val("h").to_i32
+    @bool_grid = Array(Array(Bool)).new
   end
 
-  # В MazeGenerator.run добавьте:
-  def run
-    checksum = 0_u64
+  def run(iteration_id)
+    @bool_grid = Maze.generate_walkable_maze(@width, @height)
+  end
 
-    iterations.times do |i|
-      bool_grid = Maze.generate_walkable_maze(@width, @height)
+  def grid_checksum(grid)
+    hasher = 2166136261_u32 # FNV offset basis
+    prime = 16777619_u32    # FNV prime
 
-      # Простая checksum для сравнения с Rust
-      bool_grid.each_with_index do |row, y|
-        row.each_with_index do |cell, x|
-          if !cell
-            checksum = checksum &+ (x * y)
-          end
+    @bool_grid.each_with_index do |row, i|
+      row.each_with_index do |cell, j|
+        if cell # только true клетки
+          j_squared = j.to_u32 &* j.to_u32
+          hasher = (hasher ^ j_squared) &* prime
         end
       end
     end
 
-    @result = checksum.to_i64
+    hasher
+  end
+
+  def checksum : UInt32
+    grid_checksum(@bool_grid)
   end
 end
 
 class AStarPathfinder < Benchmark
-  getter result : Int64
+  getter result : UInt32
   getter start_x : Int32
   getter start_y : Int32
   getter goal_x : Int32
@@ -3228,31 +3251,9 @@ class AStarPathfinder < Benchmark
   getter width : Int32
   getter height : Int32
 
-  @maze_grid : Array(Array(Bool))?
-
-  abstract struct Heuristic
-    abstract def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
-  end
-
-  struct ManhattanHeuristic < Heuristic
-    def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
-      (a_x - b_x).abs + (a_y - b_y).abs
-    end
-  end
-
-  struct EuclideanHeuristic < Heuristic
-    def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
-      dx = (a_x - b_x).abs.to_f64
-      dy = (a_y - b_y).abs.to_f64
-      # Используем hypot для лучшей точности
-      (Math.hypot(dx, dy) * 1000.0).round.to_i
-    end
-  end
-
-  struct ChebyshevHeuristic < Heuristic
-    def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
-      [(a_x - b_x).abs, (a_y - b_y).abs].max
-    end
+  # manhattan
+  def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
+    (a_x - b_x).abs + (a_y - b_y).abs
   end
 
   # Оптимизированный узел с встроенными координатами вместо Tuple
@@ -3267,30 +3268,6 @@ class AStarPathfinder < Benchmark
       cmp = y <=> other.y
       return cmp unless cmp == 0
       x <=> other.x
-    end
-  end
-
-  abstract struct Heuristic
-    abstract def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
-  end
-
-  struct ManhattanHeuristic < Heuristic
-    def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
-      ((a_x - b_x).abs + (a_y - b_y).abs) * 1000
-    end
-  end
-
-  struct EuclideanHeuristic < Heuristic
-    def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
-      dx = (a_x - b_x).abs.to_f64
-      dy = (a_y - b_y).abs.to_f64
-      (Math.hypot(dx, dy) * 1000.0).to_i
-    end
-  end
-
-  struct ChebyshevHeuristic < Heuristic
-    def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
-      [(a_x - b_x).abs, (a_y - b_y).abs].max * 1000
     end
   end
 
@@ -3357,45 +3334,32 @@ class AStarPathfinder < Benchmark
   end
 
   def initialize
-    @result = 0_i64
-    @width = iterations
-    @height = iterations
+    @result = 0_u32
+    @width = config_val("w").to_i32
+    @height = config_val("h").to_i32
     @start_x = 1
     @start_y = 1
     @goal_x = @width - 2
     @goal_y = @height - 2
+    @maze_grid = Array(Array(Bool)).new
   end
 
-  private def ensure_maze_grid : Array(Array(Bool))
-    unless @maze_grid
-      @maze_grid = MazeGenerator::Maze.generate_walkable_maze(@width, @height)
-    end
-    @maze_grid.not_nil!
-  end
-
-  private def find_path(heuristic : Heuristic, allow_diagonal : Bool = false) : Array({Int32, Int32})?
-    grid = ensure_maze_grid
+  private def find_path : Tuple(Array({Int32, Int32})?, Int32)?
+    grid = @maze_grid
 
     g_scores = Array.new(@height) { Array.new(@width, Int32::MAX) }
     came_from = Array.new(@height) { Array.new(@width, {-1, -1}) }
     open_set = BinaryHeap(Node).new
+    nodes_explored = 0 # Локальный счетчик
 
     g_scores[@start_y][@start_x] = 0
-    open_set.push(Node.new(@start_x, @start_y, heuristic.distance(@start_x, @start_y, @goal_x, @goal_y)))
+    open_set.push(Node.new(@start_x, @start_y, distance(@start_x, @start_y, @goal_x, @goal_y)))
 
-    directions = if allow_diagonal
-                   {
-                     {0, -1}, {1, 0}, {0, 1}, {-1, 0},
-                     {-1, -1}, {1, -1}, {1, 1}, {-1, 1},
-                   }
-                 else
-                   { {0, -1}, {1, 0}, {0, 1}, {-1, 0} }
-                 end
-
-    diagonal_cost = allow_diagonal ? 1414 : 1000
+    directions = { {0, -1}, {1, 0}, {0, 1}, {-1, 0} }
 
     until open_set.empty?
       current = open_set.pop.not_nil!
+      nodes_explored += 1 # Увеличиваем счетчик при извлечении узла
 
       if current.x == @goal_x && current.y == @goal_y
         path = [] of {Int32, Int32}
@@ -3410,7 +3374,7 @@ class AStarPathfinder < Benchmark
         end
 
         path << {@start_x, @start_y}
-        return path.reverse
+        return {path.reverse, nodes_explored} # Возвращаем tuple
       end
 
       current_g = g_scores[current.y][current.x]
@@ -3422,126 +3386,38 @@ class AStarPathfinder < Benchmark
         next if nx < 0 || nx >= @width || ny < 0 || ny >= @height
         next unless grid[ny][nx]
 
-        move_cost = (dx.abs == 1 && dy.abs == 1) ? diagonal_cost : 1000
+        move_cost = 1000
         tentative_g = current_g + move_cost
 
         if tentative_g < g_scores[ny][nx]
           came_from[ny][nx] = {current.x, current.y}
           g_scores[ny][nx] = tentative_g
 
-          f_score = tentative_g + heuristic.distance(nx, ny, @goal_x, @goal_y)
+          f_score = tentative_g + distance(nx, ny, @goal_x, @goal_y)
           open_set.push(Node.new(nx, ny, f_score))
         end
       end
     end
 
-    nil
-  end
-
-  private def estimate_nodes_explored(heuristic : Heuristic, allow_diagonal : Bool = false) : Int32
-    grid = ensure_maze_grid
-
-    g_scores = Array.new(@height) { Array.new(@width, Int32::MAX) }
-    open_set = BinaryHeap(Node).new
-    closed = Array.new(@height) { Array.new(@width, false) }
-
-    g_scores[@start_y][@start_x] = 0
-    open_set.push(Node.new(@start_x, @start_y, heuristic.distance(@start_x, @start_y, @goal_x, @goal_y)))
-
-    directions = if allow_diagonal
-                   [
-                     {0, -1}, {1, 0}, {0, 1}, {-1, 0},
-                     {-1, -1}, {1, -1}, {1, 1}, {-1, 1},
-                   ]
-                 else
-                   [{0, -1}, {1, 0}, {0, 1}, {-1, 0}]
-                 end
-
-    nodes_explored = 0
-
-    until open_set.empty?
-      current = open_set.pop.not_nil!
-
-      if current.x == @goal_x && current.y == @goal_y
-        break
-      end
-
-      next if closed[current.y][current.x]
-
-      closed[current.y][current.x] = true
-      nodes_explored += 1
-
-      current_g = g_scores[current.y][current.x]
-
-      directions.each do |dx, dy|
-        nx = current.x + dx
-        ny = current.y + dy
-
-        next if nx < 0 || nx >= @width || ny < 0 || ny >= @height
-        next unless grid[ny][nx]
-
-        move_cost = (dx.abs == 1 && dy.abs == 1) ? 1414 : 1000
-        tentative_g = current_g + move_cost
-
-        if tentative_g < g_scores[ny][nx]
-          g_scores[ny][nx] = tentative_g
-
-          f_score = tentative_g + heuristic.distance(nx, ny, @goal_x, @goal_y)
-          open_set.push(Node.new(nx, ny, f_score))
-        end
-      end
-    end
-
-    nodes_explored
-  end
-
-  private def benchmark_different_approaches : Tuple(Int32, Int32, Int32)
-    heuristics = [
-      ManhattanHeuristic.new,
-      EuclideanHeuristic.new,
-      ChebyshevHeuristic.new,
-    ]
-
-    total_paths_found = 0
-    total_path_length = 0
-    total_nodes_explored = 0
-
-    heuristics.each do |heuristic|
-      if path = find_path(heuristic, false)
-        total_paths_found += 1
-        total_path_length += path.size
-        total_nodes_explored += estimate_nodes_explored(heuristic, false)
-      end
-    end
-
-    {total_paths_found, total_path_length, total_nodes_explored}
+    {nil, nodes_explored} # Возвращаем даже если путь не найден
   end
 
   def prepare
-    ensure_maze_grid
+    @maze_grid = MazeGenerator::Maze.generate_walkable_maze(@width, @height)
   end
 
-  def run
-    total_paths_found = 0
-    total_path_length = 0
-    total_nodes_explored = 0
+  def run(iteration_id)
+    path, nodes_explored = find_path
 
-    iters = 10
-    iters.times do
-      paths_found, path_length, nodes_explored = benchmark_different_approaches
+    # Для checksum можно делать комбинацию
+    local_result = 0_i64
+    local_result = (local_result << 5) &+ (path.try(&.size) || 0)
+    local_result = (local_result << 5) &+ nodes_explored
+    @result &+= local_result
+  end
 
-      total_paths_found += paths_found
-      total_path_length += path_length
-      total_nodes_explored += nodes_explored
-    end
-
-    paths_checksum = Helper.checksum_f64(total_paths_found.to_f64)
-    length_checksum = Helper.checksum_f64(total_path_length.to_f64)
-    nodes_checksum = Helper.checksum_f64(total_nodes_explored.to_f64)
-
-    @result = (paths_checksum.to_i64) ^
-              ((length_checksum.to_i64) << 16) ^
-              ((nodes_checksum.to_i64) << 32)
+  def checksum : UInt32
+    @result
   end
 end
 
@@ -3647,13 +3523,13 @@ class Compression < Benchmark
     return Bytes.new(0) if n == 0
 
     # 1. Подсчитываем частоты символов
-    counts = Array.new(256, 0)
+    counts = StaticArray(Int32, 256).new(0)
     bwt.each do |byte|
       counts[byte] += 1
     end
 
     # 2. Вычисляем стартовые позиции для каждого символа
-    positions = Array.new(256, 0)
+    positions = StaticArray(Int32, 256).new(0)
     total = 0
     counts.each_with_index do |count, i|
       positions[i] = total
@@ -3662,7 +3538,7 @@ class Compression < Benchmark
 
     # 3. Строим массив next (LF-маппинг)
     next_arr = Array.new(n, 0)
-    temp_counts = Array.new(256, 0)
+    temp_counts = StaticArray(Int32, 256).new(0)
 
     bwt.each_with_index do |byte, i|
       byte_idx = byte.to_i32
@@ -3984,17 +3860,17 @@ class Compression < Benchmark
   end
 
   # ==================== Бенчмарк ====================
-  property iterations : Int32
+  property size : Int64
   property result : UInt32
   @test_data : Bytes?
 
   def initialize
-    @iterations = Helper::INPUT["Compression"]?.try(&.to_i32) || 0
+    @size = config_val("size")
     @result = 0_u32
   end
 
   # Генерация тестовых данных
-  private def generate_test_data(size : Int32) : Bytes
+  private def generate_test_data(size : Int64) : Bytes
     pattern = "ABRACADABRA"
     data = Bytes.new(size)
 
@@ -4006,31 +3882,39 @@ class Compression < Benchmark
   end
 
   def prepare
-    @test_data = generate_test_data(@iterations)
+    @test_data = generate_test_data(@size)
   end
 
-  def run
-    total_checksum = 0_u32
-
-    5.times do
-      # Компрессия
-      compressed = compress(@test_data.not_nil!)
-
-      # Декомпрессия
-      decompressed = decompress(compressed)
-
-      # Подсчёт checksum
-      checksum = Helper.checksum(decompressed)
-
-      total_checksum = total_checksum &+ compressed.encoded_bits.size.to_u32
-      total_checksum = total_checksum &+ checksum
-    end
-
-    @result = total_checksum
+  def run(iteration_id)
+    compressed = compress(@test_data.not_nil!)
+    @result &+= compressed.encoded_bits.size.to_u32
   end
 
-  def result
+  def checksum : UInt32
     @result
+  end
+end
+
+class Decompression < Compression
+  @compressed : CompressedData?
+  @decompressed : Bytes?
+
+  def prepare
+    @test_data = generate_test_data(@size)
+    @compressed = compress(@test_data.not_nil!)
+  end
+
+  def run(iteration_id)
+    @decompressed = decompressed = decompress(@compressed.not_nil!)
+    @result &+= decompressed.size.to_u32
+  end
+
+  def checksum : UInt32
+    res = @result
+    if @decompressed.not_nil! == @test_data.not_nil!
+      res &+= 1000000
+    end
+    res
   end
 end
 

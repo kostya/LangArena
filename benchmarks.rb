@@ -215,7 +215,7 @@ CXXFLAGS_MAX = C_FLAGS_MAX + " -std=c++20" # ⚠️ Опасные флаги! -
 C_INCLUDE_FLAGS = " -Ideps/base64/include/ -I/usr/include/ -Ideps/cJSON -L/opt/homebrew/lib -I/opt/homebrew/include/"
 C_LINK_FLAGS = " -lgmp target/cJSON.o target/libbase64.o -lm -lpcre2-8 -lpthread"
 
-CXX_INCLUDE_FLAGS = " -Ideps/base64/include -Wl,-rpath,/opt/homebrew/opt/llvm/lib/c++ -L/opt/homebrew/opt/llvm/lib/c++ -L/opt/homebrew/lib -I/opt/homebrew/include/ -Ideps/simdjson"
+CXX_INCLUDE_FLAGS = " -Ideps -Ideps/base64/include -Wl,-rpath,/opt/homebrew/opt/llvm/lib/c++ -L/opt/homebrew/opt/llvm/lib/c++ -L/opt/homebrew/lib -I/opt/homebrew/include/ -Ideps/simdjson"
 CXX_LINK_FLAGS = " target/libbase64.o target/simdjson.o -lgmp -lre2 -lpthread"
 
 RUNS = [

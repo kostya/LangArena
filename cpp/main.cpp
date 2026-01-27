@@ -35,39 +35,30 @@
 #include <list>
 #include <fstream>
 #include <ranges>
+#include "json.hpp"
 
 // SIMDJSON для быстрого парсинга JSON
 #include "simdjson.h"
 #include <re2/re2.h>
 
 namespace fs = std::filesystem;
+using json = nlohmann::json;
 
-// Конфигурация
-std::unordered_map<std::string, std::string> INPUT;
-std::unordered_map<std::string, int64_t> EXPECT;
+// Конфигурация - JSON вместо старого формата
+json CONFIG;
 
-void load_config(const std::string& filename = "../test.txt") {
+void load_config(const std::string& filename = "../test.js") {
     std::ifstream file(filename);
     if (!file.is_open()) {
         std::cerr << "Cannot open config file: " << filename << std::endl;
         return;
     }
-
-    std::string line;
-    while (std::getline(file, line)) {
-        if (line.empty()) continue;
-        
-        size_t pos1 = line.find('|');
-        size_t pos2 = line.find('|', pos1 + 1);
-        
-        if (pos1 != std::string::npos && pos2 != std::string::npos) {
-            std::string key = line.substr(0, pos1);
-            std::string value = line.substr(pos1 + 1, pos2 - pos1 - 1);
-            std::string exp_str = line.substr(pos2 + 1);
-            
-            INPUT[key] = value;
-            EXPECT[key] = std::stoll(exp_str);
-        }
+    
+    try {
+        file >> CONFIG;
+    } catch (const std::exception& e) {
+        std::cerr << "Error parsing JSON config: " << e.what() << std::endl;
+        CONFIG = json::object();
     }
 }
 
@@ -122,44 +113,90 @@ public:
         return Helper::checksum(oss.str());
     }
 
+    // Методы для доступа к конфигурации (как в Crystal)
+    static int64_t config_i64(const std::string& class_name, const std::string& field_name) {
+        try {
+            if (CONFIG.contains(class_name) && CONFIG[class_name].contains(field_name)) {
+                return CONFIG[class_name][field_name].get<int64_t>();
+            } else {
+                throw std::runtime_error("Config not found for " + class_name + ", field: " + field_name);
+            }
+        } catch (const std::exception& e) {
+            std::cerr << e.what() << std::endl;
+            return 0;
+        }
+    }
+
+    static std::string config_s(const std::string& class_name, const std::string& field_name) {
+        try {
+            if (CONFIG.contains(class_name) && CONFIG[class_name].contains(field_name)) {
+                return CONFIG[class_name][field_name].get<std::string>();
+            } else {
+                throw std::runtime_error("Config not found for " + class_name + ", field: " + field_name);
+            }
+        } catch (const std::exception& e) {
+            std::cerr << e.what() << std::endl;
+            return "";
+        }
+    }
+
 };
 
 thread_local int64_t Helper::last = 42;
 
 
-// Базовый класс для бенчмарков
+// ==================== Benchmark (базовый класс) ====================
+
 class Benchmark {
 protected:
     double time_delta = 0.0;
     
 public:
     virtual ~Benchmark() = default;
-    virtual void run() = 0;
-    virtual int64_t result() const = 0;
+    virtual void run(int iteration_id) = 0;
+    virtual uint32_t checksum() = 0;
     
     virtual void prepare() {}
     virtual std::string name() const = 0;
     
-    virtual int32_t iterations() const {
-        auto it = INPUT.find(name());
-        if (it != INPUT.end()) {
-            return std::stoi(it->second);
+    virtual int64_t warmup_iterations() {
+        if (CONFIG.contains(name()) && CONFIG[name()].contains("warmup_iterations")) {
+            return CONFIG[name()]["warmup_iterations"].get<int64_t>();
+        } else {
+            int64_t iters = iterations();
+            return std::max(static_cast<int64_t>(iters * 0.2), 1LL);
         }
-        return 0;
     }
-
-    // Вспомогательная функция для получения итераций по имени
-    static int32_t get_iterations_for_name(const std::string& name) {
-        auto it = INPUT.find(name);
-        if (it != INPUT.end()) {
-            return std::stoi(it->second);
+    
+    virtual void warmup() {
+        int64_t prepare_iters = warmup_iterations();
+        for (int64_t i = 0; i < prepare_iters; i++) {
+            this->run(i);
         }
-        return 0;
-    }    
+    }
+    
+    virtual void run_all() {
+        int64_t iters = iterations();
+        for (int64_t i = 0; i < iters; i++) {
+            this->run(i);
+        }
+    }
+    
+    virtual int64_t config_val(const std::string& field_name) const {
+        return Helper::config_i64(this->name(), field_name);
+    }
+    
+    virtual int64_t iterations() const {
+        return config_val("iterations");
+    }
+    
+    virtual int64_t expected_checksum() const {
+        return config_val("checksum");
+    }
     
     void set_time_delta(double delta) { time_delta = delta; }
     
-    static void run_all(const std::string& single_bench = "");
+    static void all(const std::string& single_bench = "");
 };
 
 // ==================== Вспомогательные функции ====================
@@ -191,18 +228,19 @@ double custom_round(double value, int32_t precision) {
 
 class Pidigits : public Benchmark {
 private:
-    int nn;
+    int32_t nn;
     std::ostringstream result_stream;
-    uint32_t result_val;
+    uint32_t checksum_val;
     
 public:
-    Pidigits() : nn(iterations()), result_val(0) {}
-    std::string name() const override { return "Pidigits"; }
-    
-    void run() override {
+    Pidigits() : nn(static_cast<int32_t>(config_val("amount"))), checksum_val(0) {
         result_stream.str("");
         result_stream.clear();
-        
+    }
+    
+    std::string name() const override { return "Pidigits"; }
+    
+    void run(int iteration_id) override {
         int i = 0;
         int k = 0;
         mpz_class ns = 0;
@@ -248,11 +286,11 @@ public:
             }
         }
         
-        result_val = Helper::checksum(result_stream.str());
+        checksum_val = Helper::checksum(result_stream.str());
     }
     
-    int64_t result() const override {
-        return result_val;
+    uint32_t checksum() override {
+        return checksum_val;
     }
 };
 
@@ -278,15 +316,17 @@ private:
         }
     };
     
-    int n;
-    int result_val;
+    int64_t n;
+    uint32_t result_val;
     
 public:
-    Binarytrees() : n(iterations()), result_val(0) {}
+    Binarytrees() : n(config_val("depth")), result_val(0) {}
+    
     std::string name() const override { return "Binarytrees"; }    
-    void run() override {
+    
+    void run(int iteration_id) override {
         int min_depth = 4;
-        int max_depth = std::max(min_depth + 2, n);
+        int max_depth = std::max(min_depth + 2, static_cast<int>(n));
         int stretch_depth = max_depth + 1;
         
         TreeNode stretch_tree(0, stretch_depth);
@@ -303,7 +343,7 @@ public:
         }
     }
     
-    int64_t result() const override {
+    uint32_t checksum() override {
         return result_val;
     }
 };
@@ -388,35 +428,41 @@ private:
     };
     
     std::string text;
-    int64_t result_val;
+    uint32_t result_val;
+    
+    int64_t _run(const std::string& text) {
+        Program program(text);
+        return program.run();
+    }
     
 public:
     BrainfuckHashMap() : result_val(0) {
-        std::string name = "BrainfuckHashMap";
-        auto it = INPUT.find(name);
-        if (it != INPUT.end()) {
-            text = it->second;
-        }
+        text = Helper::config_s(name(), "program");
     }
+    
     std::string name() const override { return "BrainfuckHashMap"; }    
     
-    void run() override {
-        Program program(text);
-        result_val = program.run();
+    void warmup() override {
+        int64_t prepare_iters = warmup_iterations();
+        std::string warmup_program = Helper::config_s(name(), "warmup_program");
+        for (int64_t i = 0; i < prepare_iters; i++) {
+            _run(warmup_program);
+        }
     }
     
-    int64_t result() const override {
+    void run(int iteration_id) override {
+        result_val += _run(text);  // &+= эквивалент
+    }
+    
+    uint32_t checksum() override {
         return result_val;
     }
 };
 
 // ==================== BrainfuckRecursion ====================
 
-// ==================== BrainfuckRecursion (C++20 IDIOMATIC) ====================
-
 class BrainfuckRecursion : public Benchmark {
 private:
-    // Типы операций
     struct OpInc { 
         int32_t val; 
         explicit OpInc(int32_t v) : val(v) {}
@@ -435,14 +481,12 @@ private:
     
     using Op = std::variant<OpInc, OpMove, OpPrint, OpLoop>;
     
-    // Вспомогательный шаблон для pattern matching
     template<class... Ts>
     struct overloaded : Ts... { using Ts::operator()...; };
     
     template<class... Ts>
     overloaded(Ts...) -> overloaded<Ts...>;
     
-    // Лента с оптимизированным управлением памятью
     class Tape {
     private:
         std::vector<uint8_t> tape;
@@ -455,28 +499,24 @@ private:
         const uint8_t& get() const { return tape[pos]; }
         
         void inc(int32_t x) { 
-            tape[pos] += x;  // Без проверки - move() гарантирует границы
+            tape[pos] += x;
         }
         
         void move(int32_t x) {
-            // Оптимизированное расширение как во второй версии
             if (x >= 0) {
                 pos += static_cast<size_t>(x);
                 if (pos >= tape.size()) {
-                    // Удваиваем размер, но не меньше чем нужно
                     size_t new_size = std::max(tape.size() * 2, pos + 1);
                     tape.resize(new_size, 0);
                 }
             } else {
-                // Движение влево
                 int32_t move_left = -x;
                 if (static_cast<size_t>(move_left) > pos) {
-                    // Расширяем в начале
                     size_t needed = static_cast<size_t>(move_left) - pos;
                     std::vector<uint8_t> new_tape(tape.size() + needed, 0);
                     std::copy(tape.begin(), tape.end(), new_tape.begin() + needed);
                     tape = std::move(new_tape);
-                    pos = needed;  // Теперь позиция 0 относительно старых данных
+                    pos = needed;
                 } else {
                     pos -= static_cast<size_t>(move_left);
                 }
@@ -489,11 +529,10 @@ private:
         std::vector<Op> ops;
         int64_t result_val = 0;
         
-        // Идиоматичный парсинг с предварительным выделением памяти
         std::vector<Op> parse(std::string::const_iterator& it, 
                              const std::string::const_iterator& end) {
             std::vector<Op> res;
-            res.reserve(128);  // Предварительное выделение
+            res.reserve(128);
             
             while (it != end) {
                 char c = *it++;
@@ -530,15 +569,12 @@ private:
         }
         
         void run_ops(const std::vector<Op>& program, Tape& tape) {
-            // Сначала объявляем visitor как std::function
             std::function<void(const Op&)> execute;
             
-            // Создаем визитор, но не можем использовать его в лямбде пока не определен
-            // Решение: создаем отдельную структуру визитора
             struct OpVisitor {
                 Tape& tape;
                 int64_t& result_val;
-                std::function<void(const Op&)>& execute_ref;  // Ссылка на execute
+                std::function<void(const Op&)>& execute_ref;
                 
                 void operator()(const OpInc& inc) const {
                     tape.inc(inc.val);
@@ -553,7 +589,6 @@ private:
                 }
                 
                 void operator()(const OpLoop& loop) const {
-                    // Выполняем цикл, пока текущая ячейка не ноль
                     while (tape.get() != 0) {
                         for (const Op& inner_op : loop.ops) {
                             std::visit(*this, inner_op);
@@ -562,15 +597,12 @@ private:
                 }
             };
             
-            // Создаем визитор
             OpVisitor visitor{tape, result_val, execute};
             
-            // Теперь определяем execute
             execute = [&visitor](const Op& op) {
                 std::visit(visitor, op);
             };
             
-            // Идиоматный C++20 способ итерации
             for (const Op& op : program) {
                 execute(op);
             }
@@ -592,24 +624,34 @@ private:
     };
     
     std::string text;
-    int64_t result_val;
+    uint32_t result_val;
+    
+    int64_t _run(const std::string& text) {
+        Program program(text);
+        program.run();
+        return program.run();  // В Crystal возвращаем prog.result
+    }
     
 public:
     BrainfuckRecursion() : result_val(0) {
-        std::string name = "BrainfuckRecursion";
-        auto it = INPUT.find(name);
-        if (it != INPUT.end()) {
-            text = it->second;
-        }
-    }
-    std::string name() const override { return "BrainfuckRecursion"; }    
-
-    void run() override {
-        Program program(text);
-        result_val = program.run();
+        text = Helper::config_s(name(), "program");
     }
     
-    int64_t result() const override {
+    std::string name() const override { return "BrainfuckRecursion"; }    
+
+    void warmup() override {
+        int64_t prepare_iters = warmup_iterations();
+        std::string warmup_program = Helper::config_s(name(), "warmup_program");
+        for (int64_t i = 0; i < prepare_iters; i++) {
+            _run(warmup_program);
+        }
+    }
+
+    void run(int iteration_id) override {
+        result_val += _run(text);  // &+= эквивалент
+    }
+    
+    uint32_t checksum() override {
         return result_val;
     }
 };
@@ -618,8 +660,8 @@ public:
 
 class Fannkuchredux : public Benchmark {
 private:
-    int n;
-    int64_t result_val;
+    int64_t n;
+    uint32_t result_val;
     
     std::pair<int, int> fannkuchredux(int n) {
         std::vector<int> perm1(n);
@@ -671,15 +713,16 @@ private:
     }
     
 public:
-    Fannkuchredux() : n(iterations()), result_val(0) {}
+    Fannkuchredux() : n(config_val("n")), result_val(0) {}
+    
     std::string name() const override { return "Fannkuchredux"; }        
 
-    void run() override {
-        auto [a, b] = fannkuchredux(n);
-        result_val = a * 100 + b;
+    void run(int iteration_id) override {
+        auto [a, b] = fannkuchredux(static_cast<int>(n));
+        result_val += a * 100 + b;  // &+= эквивалент
     }
     
-    int64_t result() const override {
+    uint32_t checksum() override {
         return result_val;
     }
 };
@@ -748,14 +791,13 @@ private:
     }
     
 public:
-    int n;
+    int64_t n;
 
-    Fasta() : n(iterations()) {}
+    Fasta() : n(config_val("n")) {}
+    
     std::string name() const override { return "Fasta"; }    
     
-    void run() override {
-        result_str.clear();
-        
+    void run(int iteration_id) override {
         std::vector<Gene> IUB = {
             {'a', 0.27}, {'c', 0.39}, {'g', 0.51}, {'t', 0.78}, {'B', 0.8}, {'D', 0.8200000000000001},
             {'H', 0.8400000000000001}, {'K', 0.8600000000000001}, {'M', 0.8800000000000001},
@@ -769,12 +811,12 @@ public:
         
         std::string ALU = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
         
-        make_repeat_fasta("ONE", "Homo sapiens alu", ALU, n * 2);
-        make_random_fasta("TWO", "IUB ambiguity codes", IUB, n * 3);
-        make_random_fasta("THREE", "Homo sapiens frequency", HOMO, n * 5);
+        make_repeat_fasta("ONE", "Homo sapiens alu", ALU, static_cast<int>(n * 2));
+        make_random_fasta("TWO", "IUB ambiguity codes", IUB, static_cast<int>(n * 3));
+        make_random_fasta("THREE", "Homo sapiens frequency", HOMO, static_cast<int>(n * 5));
     }
     
-    int64_t result() const override {
+    uint32_t checksum() override {
         return Helper::checksum(result_str);
     }
 
@@ -821,7 +863,7 @@ private:
     }
     
     void find_seq(const std::string& seq, const std::string& s) {
-        auto [n, table] = frequency(seq, s.size());
+        auto [n, table] = frequency(seq, static_cast<int>(s.size()));
         std::string s_lower = s;
         std::transform(s_lower.begin(), s_lower.end(), s_lower.begin(), ::tolower);
         int count = table[s_lower];
@@ -833,12 +875,13 @@ private:
     
 public:
     Knuckeotide() {}
+    
     std::string name() const override { return "Knuckeotide"; }    
     
     void prepare() override {
         Fasta fasta;
-        fasta.n = iterations();
-        fasta.run();
+        fasta.n = config_val("n");
+        fasta.run(0);
         std::string res = fasta.get_result();
         
         std::istringstream iss(res);
@@ -857,9 +900,7 @@ public:
         }
     }
     
-    void run() override {
-        result_str.clear();
-        
+    void run(int iteration_id) override {
         for (int i = 1; i <= 2; i++) {
             sort_by_freq(seq, i);
         }
@@ -870,7 +911,7 @@ public:
         }
     }
     
-    int64_t result() const override {
+    uint32_t checksum() override {
         return Helper::checksum(result_str);
     }
 };
@@ -882,19 +923,21 @@ private:
     static constexpr int ITER = 50;
     static constexpr double LIMIT = 2.0;
     
-    int n;
+    int64_t w, h;
     std::vector<uint8_t> result_bin;
     
 public:
-    Mandelbrot() : n(iterations()) {}
+    Mandelbrot() {
+        w = config_val("w");
+        h = config_val("h");
+    }
+    
     std::string name() const override { return "Mandelbrot"; }    
     
-    void run() override {
-        int w = n, h = n;
+    void run(int iteration_id) override {
         std::ostringstream header;
         header << "P4\n" << w << " " << h << "\n";
         std::string header_str = header.str();
-        result_bin.clear();
         result_bin.insert(result_bin.end(), header_str.begin(), header_str.end());
         
         int bit_num = 0;
@@ -942,7 +985,7 @@ public:
         }
     }
     
-    int64_t result() const override {
+    uint32_t checksum() override {
         return Helper::checksum(result_bin);
     }
 };
@@ -951,7 +994,7 @@ public:
 
 class Matmul : public Benchmark {
 private:
-    int n;
+    int64_t n;
     uint32_t result_val;
     
     std::vector<std::vector<double>> matgen(int n) {
@@ -968,11 +1011,10 @@ private:
     
     std::vector<std::vector<double>> matmul(const std::vector<std::vector<double>>& a, 
                                            const std::vector<std::vector<double>>& b) {
-        int m = a.size();
-        int n = a[0].size();
-        int p = b[0].size();
+        int m = static_cast<int>(a.size());
+        int n = static_cast<int>(a[0].size());
+        int p = static_cast<int>(b[0].size());
         
-        // Транспонирование b
         std::vector<std::vector<double>> b2(p, std::vector<double>(n));
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < p; j++) {
@@ -980,7 +1022,6 @@ private:
             }
         }
         
-        // Умножение
         std::vector<std::vector<double>> c(m, std::vector<double>(p));
         for (int i = 0; i < m; i++) {
             const auto& ai = a[i];
@@ -997,26 +1038,27 @@ private:
     }
     
 public:
-    Matmul() : n(iterations()), result_val(0) {}
+    Matmul() : n(config_val("n")), result_val(0) {}
+    
     std::string name() const override { return "Matmul"; }    
     
-    void run() override {
-        auto a = matgen(n);
-        auto b = matgen(n);
+    void run(int iteration_id) override {
+        auto a = matgen(static_cast<int>(n));
+        auto b = matgen(static_cast<int>(n));
         auto c = matmul(a, b);
-        result_val = Helper::checksum_f64(c[n >> 1][n >> 1]);
+        result_val += Helper::checksum_f64(c[n >> 1][n >> 1]);  // &+= эквивалент
     }
     
-    int64_t result() const override {
+    uint32_t checksum() override {
         return result_val;
     }
 };
 
 class Matmul4T : public Benchmark {
-protected:  // делаем protected для наследования
+protected:
+    int64_t n;
     uint32_t result_val;
     
-    // Метод для наследования
     virtual int get_num_threads() const { return 4; }
     
     std::vector<std::vector<double>> matgen(int n) {
@@ -1034,9 +1076,8 @@ protected:  // делаем protected для наследования
     std::vector<std::vector<double>> matmul_parallel(const std::vector<std::vector<double>>& a, 
                                                     const std::vector<std::vector<double>>& b) {
         int num_threads = get_num_threads();
-        int size = a.size();
+        int size = static_cast<int>(a.size());
         
-        // Транспонируем b
         std::vector<std::vector<double>> b_t(size, std::vector<double>(size));
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
@@ -1044,15 +1085,12 @@ protected:  // делаем protected для наследования
             }
         }
         
-        // Умножение матриц
         std::vector<std::vector<double>> c(size, std::vector<double>(size));
         std::vector<std::thread> threads;
         threads.reserve(num_threads);
         
-        // Безопасное распределение - каждый поток получает range
         for (int t = 0; t < num_threads; t++) {
             threads.emplace_back([&, t, num_threads, size]() {
-                // Распределяем равномерно: каждый поток обрабатывает каждую N-ю строку
                 for (int i = t; i < size; i += num_threads) {
                     const auto& ai = a[i];
                     auto& ci = c[i];
@@ -1079,186 +1117,40 @@ protected:  // делаем protected для наследования
     }    
 
 public:
-    Matmul4T() : result_val(0) {}
+    Matmul4T() : n(config_val("n")), result_val(0) {}
+    
     std::string name() const override { return "Matmul4T"; }    
     
-    void run() override {
-        auto n = iterations();
-        auto a = matgen(n);
-        auto b = matgen(n);
+    void run(int iteration_id) override {
+        auto a = matgen(static_cast<int>(n));
+        auto b = matgen(static_cast<int>(n));
         auto c = matmul_parallel(a, b);
-        result_val = Helper::checksum_f64(c[n >> 1][n >> 1]);
+        result_val += Helper::checksum_f64(c[n >> 1][n >> 1]);  // &+= эквивалент
     }
     
-    int64_t result() const override {
+    uint32_t checksum() override {
         return result_val;
     }
 };
 
-class Matmul8T : public Benchmark {
-protected:  // делаем protected для наследования
-    uint32_t result_val;
+class Matmul8T : public Matmul4T {
+protected:
+    int get_num_threads() const override { return 8; }
     
-    // Метод для наследования
-    virtual int get_num_threads() const { return 8; }
-    
-    std::vector<std::vector<double>> matgen(int n) {
-        double tmp = 1.0 / n / n;
-        std::vector<std::vector<double>> a(n, std::vector<double>(n));
-        
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                a[i][j] = tmp * (i - j) * (i + j);
-            }
-        }
-        return a;
-    }
-    
-    std::vector<std::vector<double>> matmul_parallel(const std::vector<std::vector<double>>& a, 
-                                                    const std::vector<std::vector<double>>& b) {
-        int num_threads = get_num_threads();
-        int size = a.size();
-        
-        // Транспонируем b
-        std::vector<std::vector<double>> b_t(size, std::vector<double>(size));
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size; j++) {
-                b_t[j][i] = b[i][j];
-            }
-        }
-        
-        // Умножение матриц
-        std::vector<std::vector<double>> c(size, std::vector<double>(size));
-        std::vector<std::thread> threads;
-        threads.reserve(num_threads);
-        
-        // Безопасное распределение - каждый поток получает range
-        for (int t = 0; t < num_threads; t++) {
-            threads.emplace_back([&, t, num_threads, size]() {
-                // Распределяем равномерно: каждый поток обрабатывает каждую N-ю строку
-                for (int i = t; i < size; i += num_threads) {
-                    const auto& ai = a[i];
-                    auto& ci = c[i];
-                    
-                    for (int j = 0; j < size; j++) {
-                        double sum = 0.0;
-                        const auto& b_tj = b_t[j];
-                        
-                        for (int k = 0; k < size; k++) {
-                            sum += ai[k] * b_tj[k];
-                        }
-                        
-                        ci[j] = sum;
-                    }
-                }
-            });
-        }
-        
-        for (auto& thread : threads) {
-            thread.join();
-        }
-        
-        return c;
-    }    
-
 public:
-    Matmul8T() : result_val(0) {}
-    std::string name() const override { return "Matmul8T"; }    
+    Matmul8T() { n = config_val("n"); }
     
-    void run() override {
-        auto n = iterations();
-        auto a = matgen(n);
-        auto b = matgen(n);
-        auto c = matmul_parallel(a, b);
-        result_val = Helper::checksum_f64(c[n >> 1][n >> 1]);
-    }
-    
-    int64_t result() const override {
-        return result_val;
-    }
+    std::string name() const override { return "Matmul8T"; }
 };
 
-class Matmul16T : public Benchmark {
-protected:  // делаем protected для наследования
-    uint32_t result_val;
+class Matmul16T : public Matmul4T {
+protected:
+    int get_num_threads() const override { return 16; }
     
-    // Метод для наследования
-    virtual int get_num_threads() const { return 16; }
-    
-    std::vector<std::vector<double>> matgen(int n) {
-        double tmp = 1.0 / n / n;
-        std::vector<std::vector<double>> a(n, std::vector<double>(n));
-        
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                a[i][j] = tmp * (i - j) * (i + j);
-            }
-        }
-        return a;
-    }
-    
-    std::vector<std::vector<double>> matmul_parallel(const std::vector<std::vector<double>>& a, 
-                                                    const std::vector<std::vector<double>>& b) {
-        int num_threads = get_num_threads();
-        int size = a.size();
-        
-        // Транспонируем b
-        std::vector<std::vector<double>> b_t(size, std::vector<double>(size));
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size; j++) {
-                b_t[j][i] = b[i][j];
-            }
-        }
-        
-        // Умножение матриц
-        std::vector<std::vector<double>> c(size, std::vector<double>(size));
-        std::vector<std::thread> threads;
-        threads.reserve(num_threads);
-        
-        // Безопасное распределение - каждый поток получает range
-        for (int t = 0; t < num_threads; t++) {
-            threads.emplace_back([&, t, num_threads, size]() {
-                // Распределяем равномерно: каждый поток обрабатывает каждую N-ю строку
-                for (int i = t; i < size; i += num_threads) {
-                    const auto& ai = a[i];
-                    auto& ci = c[i];
-                    
-                    for (int j = 0; j < size; j++) {
-                        double sum = 0.0;
-                        const auto& b_tj = b_t[j];
-                        
-                        for (int k = 0; k < size; k++) {
-                            sum += ai[k] * b_tj[k];
-                        }
-                        
-                        ci[j] = sum;
-                    }
-                }
-            });
-        }
-        
-        for (auto& thread : threads) {
-            thread.join();
-        }
-        
-        return c;
-    }    
-
 public:
-    Matmul16T() : result_val(0) {}
-    std::string name() const override { return "Matmul16T"; }    
+    Matmul16T() { n = config_val("n"); }
     
-    void run() override {
-        auto n = iterations();
-        auto a = matgen(n);
-        auto b = matgen(n);
-        auto c = matmul_parallel(a, b);
-        result_val = Helper::checksum_f64(c[n >> 1][n >> 1]);
-    }
-    
-    int64_t result() const override {
-        return result_val;
-    }
+    std::string name() const override { return "Matmul16T"; }
 };
 
 // ==================== Nbody ====================
@@ -1303,13 +1195,13 @@ private:
         }
     };
     
-    int n;
     uint32_t result_val;
     std::vector<Planet> bodies;
+    double v1;
     
     double energy() {
         double e = 0.0;
-        int nbodies = bodies.size();
+        int nbodies = static_cast<int>(bodies.size());
         
         for (int i = 0; i < nbodies; i++) {
             Planet& b = bodies[i];
@@ -1342,49 +1234,46 @@ private:
     }
     
 public:
-    Nbody() : n(iterations()), result_val(0) {
+    Nbody() : result_val(0), v1(0.0) {
         bodies = {
-            // sun
             Planet(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0),
-            // jupiter
             Planet(4.84143144246472090e+00, -1.16032004402742839e+00, -1.03622044471123109e-01,
                    1.66007664274403694e-03, 7.69901118419740425e-03, -6.90460016972063023e-05,
                    9.54791938424326609e-04),
-            // saturn
             Planet(8.34336671824457987e+00, 4.12479856412430479e+00, -4.03523417114321381e-01,
                    -2.76742510726862411e-03, 4.99852801234917238e-03, 2.30417297573763929e-05,
                    2.85885980666130812e-04),
-            // uranus
             Planet(1.28943695621391310e+01, -1.51111514016986312e+01, -2.23307578892655734e-01,
                    2.96460137564761618e-03, 2.37847173959480950e-03, -2.96589568540237556e-05,
                    4.36624404335156298e-05),
-            // neptune
             Planet(1.53796971148509165e+01, -2.59193146099879641e+01, 1.79258772950371181e-01,
                    2.68067772490389322e-03, 1.62824170038242295e-03, -9.51592254519715870e-05,
                    5.15138902046611451e-05)
         };
     }
+    
     std::string name() const override { return "Nbody"; }    
     
-    void run() override {
+    void prepare() override {
         offset_momentum();
-        double v1 = energy();
-        
-        int nbodies = bodies.size();
-        double dt = 0.01;
-        
-        for (int iter = 0; iter < n; iter++) {
-            for (int i = 0; i < nbodies; i++) {
-                bodies[i].move_from_i(bodies, nbodies, dt, i + 1);
-            }
-        }
-        
-        double v2 = energy();
-        result_val = (Helper::checksum_f64(v1) << 5) & Helper::checksum_f64(v2);
+        v1 = energy();
     }
     
-    int64_t result() const override {
-        return result_val;
+    void run(int iteration_id) override {
+        int nbodies = static_cast<int>(bodies.size());
+        double dt = 0.01;
+
+        int i = 0;
+        while (i < nbodies) {
+            Planet& b = bodies[i];
+            b.move_from_i(bodies, nbodies, dt, i + 1);
+            i++;
+        }
+    }
+    
+    uint32_t checksum() override {
+        double v2 = energy();
+        return (Helper::checksum_f64(v1) << 5) & Helper::checksum_f64(v2);
     }
 };
 
@@ -1396,7 +1285,6 @@ private:
     int ilen, clen;
     std::string result_str;
     
-    // Указатели вместо объектов - обходим проблему move-insertable
     std::vector<std::unique_ptr<re2::RE2>> compiled_patterns;
     
     static constexpr std::array<const char*, 9> PATTERNS = {
@@ -1437,7 +1325,6 @@ private:
         re2::StringPiece input(seq);
         size_t count = 0;
         
-        // Используем RE2::Consume
         re2::StringPiece match;
         const re2::RE2& pattern = *compiled_patterns[pattern_idx];
         
@@ -1453,12 +1340,13 @@ public:
     RegexDna() : ilen(0), clen(0) {
         result_str.reserve(4096);
     }
+    
     std::string name() const override { return "RegexDna"; }    
     
     void prepare() override {
         Fasta fasta;
-        fasta.n = iterations();
-        fasta.run();
+        fasta.n = config_val("n");
+        fasta.run(0);
         std::string res = fasta.get_result();
         
         std::istringstream iss(res);
@@ -1474,7 +1362,6 @@ public:
         }
         clen = static_cast<int>(seq.size());
         
-        // Компилируем паттерны
         compiled_patterns.clear();
         compiled_patterns.reserve(PATTERNS.size());
         
@@ -1487,8 +1374,7 @@ public:
         }
     }
     
-    void run() override {
-        result_str.clear();
+    void run(int iteration_id) override {
         
         for (size_t i = 0; i < PATTERNS.size(); ++i) {
             size_t count = count_pattern(i);
@@ -1525,15 +1411,10 @@ public:
         result_str += '\n';
     }
     
-    int64_t result() const override {
+    uint32_t checksum() override {
         return Helper::checksum(result_str);
     }
-    
-    static Benchmark* create() {
-        return new RegexDna();
-    }
 };
-
 
 // ==================== Revcomp ====================
 
@@ -1543,22 +1424,18 @@ private:
     std::string result_str;
     
     std::string revcomp(const std::string& seq) {
-        // 1. Reverse
         std::string reversed = seq;
         std::reverse(reversed.begin(), reversed.end());
         
-        // 2. Translation table
         static const std::string from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
         static const std::string to   = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
         
-        // 3. Translate using lookup table (fastest)
         static std::array<char, 256> lookup;
         static bool initialized = false;
         
         if (!initialized) {
-            // Initialize lookup table
             for (int i = 0; i < 256; i++) {
-                lookup[i] = static_cast<char>(i);  // default: same character
+                lookup[i] = static_cast<char>(i);
             }
             for (size_t i = 0; i < from.size(); i++) {
                 lookup[static_cast<unsigned char>(from[i])] = to[i];
@@ -1566,12 +1443,10 @@ private:
             initialized = true;
         }
         
-        // Apply translation
         for (char& c : reversed) {
             c = lookup[static_cast<unsigned char>(c)];
         }
         
-        // 4. Split into 60-character lines
         std::string result;
         for (size_t i = 0; i < reversed.size(); i += 60) {
             size_t end = std::min(i + 60, reversed.size());
@@ -1584,39 +1459,34 @@ private:
         
 public:
     Revcomp() {}
+    
     std::string name() const override { return "Revcomp"; }    
     
     void prepare() override {
         Fasta fasta;
-        fasta.n = iterations();
-        fasta.run();
-        input = fasta.get_result();
-    }
-    
-    void run() override {
-        result_str.clear();
+        fasta.n = config_val("n");
+        fasta.run(0);
+        std::string fasta_result = fasta.get_result();
         
-        std::istringstream iss(input);
+        std::istringstream iss(fasta_result);
         std::string line;
         std::string seq;
         
         while (std::getline(iss, line)) {
             if (line.starts_with('>')) {
-                if (!seq.empty()) {
-                    result_str += revcomp(seq);
-                    seq.clear();
-                }
-                result_str += line + "\n";
+                seq += "\n---\n";
             } else {
                 seq += line;
             }
         }
-        if (!seq.empty()) {
-            result_str += revcomp(seq);
-        }
+        input = seq;
     }
     
-    int64_t result() const override {
+    void run(int iteration_id) override {
+        result_str += revcomp(input);
+    }
+    
+    uint32_t checksum() override {
         return Helper::checksum(result_str);
     }
 };
@@ -1625,8 +1495,9 @@ public:
 
 class Spectralnorm : public Benchmark {
 private:
-    int n;
-    uint32_t result_val;
+    int64_t size_val;
+    std::vector<double> u;
+    std::vector<double> v;
     
     double eval_A(int i, int j) {
         return 1.0 / ((i + j) * (i + j + 1.0) / 2.0 + i + 1.0);
@@ -1637,7 +1508,7 @@ private:
         for (size_t i = 0; i < u.size(); i++) {
             double sum = 0.0;
             for (size_t j = 0; j < u.size(); j++) {
-                sum += eval_A(i, j) * u[j];
+                sum += eval_A(static_cast<int>(i), static_cast<int>(j)) * u[j];
             }
             v[i] = sum;
         }
@@ -1649,7 +1520,7 @@ private:
         for (size_t i = 0; i < u.size(); i++) {
             double sum = 0.0;
             for (size_t j = 0; j < u.size(); j++) {
-                sum += eval_A(j, i) * u[j];
+                sum += eval_A(static_cast<int>(j), static_cast<int>(i)) * u[j];
             }
             v[i] = sum;
         }
@@ -1661,29 +1532,26 @@ private:
     }
     
 public:
-    Spectralnorm() : n(iterations()), result_val(0) {}
+    Spectralnorm() {
+        size_val = config_val("size");
+        u = std::vector<double>(size_val, 1.0);
+        v = std::vector<double>(size_val, 1.0);
+    }
+    
     std::string name() const override { return "Spectralnorm"; }    
     
-    void run() override {
-        std::vector<double> u(n, 1.0);
-        std::vector<double> v(n, 1.0);
-        
-        for (int i = 0; i < 10; i++) {
-            v = eval_AtA_times_u(u);
-            u = eval_AtA_times_u(v);
-        }
-        
+    void run(int iteration_id) override {
+        v = eval_AtA_times_u(u);
+        u = eval_AtA_times_u(v);
+    }
+    
+    uint32_t checksum() override {
         double vBv = 0.0, vv = 0.0;
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < size_val; i++) {
             vBv += u[i] * v[i];
             vv += v[i] * v[i];
         }
-        
-        result_val = Helper::checksum_f64(std::sqrt(vBv / vv));
-    }
-    
-    int64_t result() const override {
-        return result_val;
+        return Helper::checksum_f64(sqrt(vBv / vv));
     }
 };
 
@@ -1695,7 +1563,6 @@ extern "C" {
 
 class Base64Encode : public Benchmark {
 private:
-    static constexpr int TRIES = 8192;
     std::string str;
     std::string str2;
     uint32_t result_val;
@@ -1712,10 +1579,10 @@ private:
     
 public:
     Base64Encode() : result_val(0) {
-        int n = iterations();
-        str = std::string(n, 'a');
+        int64_t n = config_val("size");
+        str = std::string(static_cast<size_t>(n), 'a');
         
-        // Предварительно вычисляем закодированную версию
+        // Подготовка str2 для checksum (как в оригинале)
         size_t encoded_len = encode_size(str.size());
         str2.resize(encoded_len);
         size_t actual_len = 0;
@@ -1725,33 +1592,36 @@ public:
     
     std::string name() const override { return "Base64Encode"; }    
     
-    void run() override {
-        int64_t s_encoded = 0;
-        
-        // Используем стек для избежания аллокаций
-        size_t encoded_buf_size = encode_size(str.size());
-        std::vector<char> encoded_buf(encoded_buf_size);
-        
-        for (int i = 0; i < TRIES; i++) {
-            size_t actual_len = 0;
-            base64_encode(str.data(), str.size(), encoded_buf.data(), &actual_len, 0);
-            s_encoded += actual_len;
-        }
-        
-        std::ostringstream ss;
-        ss << "encode " << str.substr(0, 4) << "... to " 
-           << str2.substr(0, 4) << "...: " << s_encoded << "\n";
-        result_val = Helper::checksum(ss.str());
+    void run(int iteration_id) override {
+        // В соответствии с диффом: просто кодируем один раз
+        str2 = base64_encode_simple(str);
+        result_val += str2.size();  // &+= эквивалент
     }
     
-    int64_t result() const override {
-        return result_val;
+    uint32_t checksum() override {
+        std::ostringstream ss;
+        ss << "encode " << (str.size() > 4 ? str.substr(0, 4) + "..." : str) 
+           << " to " << (str2.size() > 4 ? str2.substr(0, 4) + "..." : str2) 
+           << ": " << result_val;
+        return Helper::checksum(ss.str());
+    }
+    
+private:
+    std::string base64_encode_simple(const std::string& input) {
+        size_t encoded_len = encode_size(input.size());
+        std::string result;
+        result.resize(encoded_len);
+        size_t actual_len = 0;
+        base64_encode(input.data(), input.size(), &result[0], &actual_len, 0);
+        result.resize(actual_len);
+        return result;
     }
 };
 
+// ==================== Base64Decode ====================
+
 class Base64Decode : public Benchmark {
 private:
-    static constexpr int TRIES = 8192;
     std::string str2;
     std::string str3;
     uint32_t result_val;
@@ -1763,24 +1633,24 @@ private:
     static size_t b64_decode(char* dst, const char* src, size_t src_size) {
         size_t decoded_size;
         if (base64_decode(src, src_size, dst, &decoded_size, 0) != 1) {
-            return 0; // Ошибка декодирования
+            return 0;
         }
         return decoded_size;
     }
     
 public:
     Base64Decode() : result_val(0) {
-        int n = iterations();
-        std::string str = std::string(n, 'a');
+        int64_t n = config_val("size");
+        std::string str = std::string(static_cast<size_t>(n), 'a');
         
-        // Кодируем строку
-        size_t encoded_size = (size_t)(n * 4 / 3.0) + 6;
+        // Подготовка str2 (закодированная строка)
+        size_t encoded_size = encode_size(str.size());
         str2.resize(encoded_size);
         size_t actual_encoded = 0;
         base64_encode(str.data(), str.size(), &str2[0], &actual_encoded, 0);
         str2.resize(actual_encoded);
         
-        // Декодируем обратно для проверки
+        // Подготовка str3 для checksum
         size_t decoded_size = decode_size(str2.size());
         str3.resize(decoded_size);
         size_t actual_decoded = b64_decode(&str3[0], str2.data(), str2.size());
@@ -1789,185 +1659,32 @@ public:
     
     std::string name() const override { return "Base64Decode"; }    
     
-    void run() override {
-        int64_t s_decoded = 0;
-        
-        // Используем стек для избежания аллокаций
-        size_t decoded_buf_size = decode_size(str2.size());
-        std::vector<char> decoded_buf(decoded_buf_size);
-        
-        for (int i = 0; i < TRIES; i++) {
-            size_t actual_len = b64_decode(decoded_buf.data(), str2.data(), str2.size());
-            s_decoded += actual_len;
-        }
-        
+    void run(int iteration_id) override {
+        // В соответствии с диффом: просто декодируем один раз
+        str3 = base64_decode_simple(str2);
+        result_val += str3.size();  // &+= эквивалент
+    }
+    
+    uint32_t checksum() override {
         std::ostringstream ss;
-        ss << "decode " << str2.substr(0, 4) << "... to " 
-           << str3.substr(0, 4) << "...: " << s_decoded << "\n";
-        result_val = Helper::checksum(ss.str());
+        ss << "decode " << (str2.size() > 4 ? str2.substr(0, 4) + "..." : str2) 
+           << " to " << (str3.size() > 4 ? str3.substr(0, 4) + "..." : str3) 
+           << ": " << result_val;
+        return Helper::checksum(ss.str());
     }
     
-    int64_t result() const override {
-        return result_val;
-    }
-};
-
-class Primes : public Benchmark {
 private:
-    static constexpr int PREFIX = 32338;
-    
-    // Простая структура Node - идиоматично и работает
-    struct Node {
-        // Указатели на детей - владение через unique_ptr
-        std::array<std::unique_ptr<Node>, 10> children;
-        bool is_terminal;
-        
-        // Инициализируем в конструкторе
-        Node() : is_terminal(false) {
-            // children автоматически инициализируются nullptr
-        }
-        
-        // Удаляем копирование
-        Node(const Node&) = delete;
-        Node& operator=(const Node&) = delete;
-        
-        // Разрешаем перемещение
-        Node(Node&&) = default;
-        Node& operator=(Node&&) = default;
-        
-        ~Node() = default; // unique_ptr автоматически удаляет детей
-    };
-    
-    // Чистая функция генерации простых чисел
-    static std::vector<int> generate_primes(int limit) {
-        if (limit < 2) return {};
-        
-        std::vector<bool> is_prime(limit + 1, true);
-        is_prime[0] = is_prime[1] = false;
-        
-        const int sqrt_limit = static_cast<int>(std::sqrt(limit));
-        
-        // Классическое решето Эратосфена
-        for (int p = 2; p <= sqrt_limit; ++p) {
-            if (is_prime[p]) {
-                for (int multiple = p * p; multiple <= limit; multiple += p) {
-                    is_prime[multiple] = false;
-                }
-            }
-        }
-        
-        // Используем ranges для создания результата
-        std::vector<int> primes;
-        primes.reserve(static_cast<size_t>(limit / (std::log(limit) - 1.1)));
-        
-        using namespace std::views;
-        auto prime_numbers = iota(2, limit + 1) 
-                           | filter([&is_prime](int n) { return is_prime[n]; });
-        
-        std::ranges::copy(prime_numbers, std::back_inserter(primes));
-        
-        return primes;
+    std::string base64_decode_simple(const std::string& input) {
+        size_t decoded_size = decode_size(input.size());
+        std::string result;
+        result.resize(decoded_size);
+        size_t actual_len = b64_decode(&result[0], input.data(), input.size());
+        result.resize(actual_len);
+        return result;
     }
     
-    // Идиоматное построение префиксного дерева
-    static std::unique_ptr<Node> build_trie(const std::vector<int>& primes) {
-        auto root = std::make_unique<Node>();
-        
-        for (int prime : primes) {
-            Node* current = root.get();
-            std::string digits = std::to_string(prime);
-            
-            for (char digit_char : digits) {
-                int digit = digit_char - '0';
-                
-                // Создаем child если нужно
-                if (!current->children[digit]) {
-                    current->children[digit] = std::make_unique<Node>();
-                }
-                current = current->children[digit].get();
-            }
-            current->is_terminal = true;
-        }
-        
-        return root;
-    }
-    
-    // Поиск по префиксу с BFS
-    static std::vector<int> find_primes_with_prefix(const std::unique_ptr<Node>& trie_root, 
-                                                    int prefix) {
-        // Конвертируем префикс в строку
-        std::string prefix_str = std::to_string(prefix);
-        
-        // Находим узел префикса
-        const Node* current = trie_root.get();
-        for (char digit_char : prefix_str) {
-            int digit = digit_char - '0';
-            
-            if (!current->children[digit]) {
-                return {}; // Префикс не найден
-            }
-            current = current->children[digit].get();
-        }
-        
-        // BFS обход
-        std::vector<int> results;
-        
-        struct QueueItem {
-            const Node* node;
-            int number;
-        };
-        
-        std::queue<QueueItem> bfs_queue;
-        bfs_queue.push({current, prefix});
-        
-        while (!bfs_queue.empty()) {
-            auto [node, number] = bfs_queue.front();
-            bfs_queue.pop();
-            
-            if (node->is_terminal) {
-                results.push_back(number);
-            }
-            
-            // Итерируем по всем возможным цифрам
-            for (int digit = 0; digit < 10; ++digit) {
-                if (node->children[digit]) {
-                    bfs_queue.push({node->children[digit].get(), 
-                                   number * 10 + digit});
-                }
-            }
-        }
-        
-        // Сортируем результаты
-        std::ranges::sort(results);
-        return results;
-    }
-    
-    int n;
-    uint32_t result_val;
-    
-public:
-    Primes() : n(iterations()), result_val(5432) {}
-    std::string name() const override { return "Primes"; }    
-    
-    void run() override {
-        // 1. Генерация простых чисел
-        auto primes = generate_primes(n);
-        
-        // 2. Построение префиксного дерева
-        auto trie = build_trie(primes);
-        
-        // 3. Поиск по префиксу
-        auto results = find_primes_with_prefix(trie, PREFIX);
-        
-        // 4. Вычисление результата
-        result_val += static_cast<uint32_t>(results.size());
-        for (int prime : results) {
-            result_val += static_cast<uint32_t>(prime);
-        }
-    }
-    
-    int64_t result() const override {
-        return result_val;
+    static size_t encode_size(size_t size) { 
+        return (size_t)(size * 4 / 3.0) + 6; 
     }
 };
 
@@ -1990,16 +1707,16 @@ private:
     std::string _result;
     
 public:
-    int n;
+    int64_t n;
 
-    JsonGenerate() : n(iterations()) {
-        data.reserve(n);
+    JsonGenerate() : n(config_val("coords")) {
+        data.reserve(static_cast<size_t>(n));
     }
 
     std::string name() const override { return "JsonGenerate"; }    
 
     void prepare() override {
-        for (int i = 0; i < n; i++) {
+        for (int64_t i = 0; i < n; i++) {
             double x = custom_round(Helper::next_float(), 8);
             double y = custom_round(Helper::next_float(), 8);
             double z = custom_round(Helper::next_float(), 8);
@@ -2016,7 +1733,7 @@ public:
         }
     }
     
-    void run() override {
+    void run(int iteration_id) override {
         simdjson::builder::string_builder sb;
         
         sb.start_object();
@@ -2038,7 +1755,6 @@ public:
             sb.append_key_value<"name">(coord.name);
             sb.append_comma();
             
-            // opts
             sb.escape_and_append_with_quotes("opts");
             sb.append_colon();
             sb.start_object();
@@ -2051,21 +1767,21 @@ public:
                 sb.append(value.second);
                 sb.end_array();
             }
-            sb.end_object(); // opts
+            sb.end_object();
             
-            sb.end_object(); // coordinate
+            sb.end_object();
             
             if (i < data.size() - 1) {
                 sb.append_comma();
             }
         }
         
-        sb.end_array(); // coordinates
+        sb.end_array();
         
         sb.append_comma();
         sb.append_key_value<"info">("some info");
         
-        sb.end_object(); // root
+        sb.end_object();
         
         auto view = sb.view();
         if (view.error()) {
@@ -2074,8 +1790,12 @@ public:
         _result = std::string(view.value_unsafe());
     }
     
-    int64_t result() const override {
-        return 1; // Как в оригинале Crystal-бенчмарке
+    uint32_t checksum() override {
+        std::string truncated = _result;
+        if (truncated.size() >= 500) {
+            truncated.resize(499);
+        }
+        return Helper::checksum(truncated);
     }
     
     const std::string& get_result() const { 
@@ -2096,17 +1816,18 @@ private:
     
 public:
     JsonParseDom() : result_val(0) {}
+    
     std::string name() const override { return "JsonParseDom"; }    
     
     void prepare() override {
         JsonGenerate jg;
-        jg.n = iterations();
+        jg.n = config_val("coords");
         jg.prepare();
-        jg.run();
+        jg.run(0);
         text = jg.get_result();
     }
     
-    void run() override {
+    void run(int iteration_id) override {
         auto padded = simdjson::padded_string(text);
         simdjson::dom::parser parser;
         simdjson::dom::element doc = parser.parse(padded);
@@ -2126,10 +1847,10 @@ public:
         double y = y_sum / len;
         double z = z_sum / len;
 
-        result_val = Helper::checksum_f64(x) + Helper::checksum_f64(y) + Helper::checksum_f64(z);
+        result_val += Helper::checksum_f64(x) + Helper::checksum_f64(y) + Helper::checksum_f64(z);  // &+= эквивалент
     }
     
-    int64_t result() const override {
+    uint32_t checksum() override {
         return result_val;
     }
 };
@@ -2147,17 +1868,18 @@ private:
     
 public:
     JsonParseMapping() : result_val(0) {}
+    
     std::string name() const override { return "JsonParseMapping"; }    
     
     void prepare() override {
         JsonGenerate jg;
-        jg.n = iterations();
+        jg.n = config_val("coords");
         jg.prepare();
-        jg.run();
+        jg.run(0);
         text = jg.get_result();
     }
     
-    void run() override {
+    void run(int iteration_id) override {
         simdjson::ondemand::parser parser;
         auto padded = simdjson::padded_string(text);
         auto doc = parser.iterate(padded);
@@ -2175,10 +1897,151 @@ public:
         }
         
         Coordinate avg{x_sum / len, y_sum / len, z_sum / len};
-        result_val = Helper::checksum_f64(avg.x) + Helper::checksum_f64(avg.y) + Helper::checksum_f64(avg.z);
+        result_val += Helper::checksum_f64(avg.x) + Helper::checksum_f64(avg.y) + Helper::checksum_f64(avg.z);  // &+= эквивалент
     }
     
-    int64_t result() const override {
+    uint32_t checksum() override {
+        return result_val;
+    }
+};
+
+// ==================== Primes ====================
+
+class Primes : public Benchmark {
+private:
+    struct Node {
+        std::array<std::unique_ptr<Node>, 10> children;
+        bool is_terminal;
+        
+        Node() : is_terminal(false) {}
+        
+        Node(const Node&) = delete;
+        Node& operator=(const Node&) = delete;
+        
+        Node(Node&&) = default;
+        Node& operator=(Node&&) = default;
+        
+        ~Node() = default;
+    };
+    
+    static std::vector<int> generate_primes(int limit) {
+        if (limit < 2) return {};
+        
+        std::vector<bool> is_prime(limit + 1, true);
+        is_prime[0] = is_prime[1] = false;
+        
+        const int sqrt_limit = static_cast<int>(std::sqrt(limit));
+        
+        for (int p = 2; p <= sqrt_limit; ++p) {
+            if (is_prime[p]) {
+                for (int multiple = p * p; multiple <= limit; multiple += p) {
+                    is_prime[multiple] = false;
+                }
+            }
+        }
+        
+        std::vector<int> primes;
+        primes.reserve(static_cast<size_t>(limit / (std::log(limit) - 1.1)));
+        
+        using namespace std::views;
+        auto prime_numbers = iota(2, limit + 1) 
+                           | filter([&is_prime](int n) { return is_prime[n]; });
+        
+        std::ranges::copy(prime_numbers, std::back_inserter(primes));
+        
+        return primes;
+    }
+    
+    static std::unique_ptr<Node> build_trie(const std::vector<int>& primes) {
+        auto root = std::make_unique<Node>();
+        
+        for (int prime : primes) {
+            Node* current = root.get();
+            std::string digits = std::to_string(prime);
+            
+            for (char digit_char : digits) {
+                int digit = digit_char - '0';
+                
+                if (!current->children[digit]) {
+                    current->children[digit] = std::make_unique<Node>();
+                }
+                current = current->children[digit].get();
+            }
+            current->is_terminal = true;
+        }
+        
+        return root;
+    }
+    
+    static std::vector<int> find_primes_with_prefix(const std::unique_ptr<Node>& trie_root, 
+                                                    int prefix) {
+        std::string prefix_str = std::to_string(prefix);
+        
+        const Node* current = trie_root.get();
+        for (char digit_char : prefix_str) {
+            int digit = digit_char - '0';
+            
+            if (!current->children[digit]) {
+                return {};
+            }
+            current = current->children[digit].get();
+        }
+        
+        std::vector<int> results;
+        
+        struct QueueItem {
+            const Node* node;
+            int number;
+        };
+        
+        std::queue<QueueItem> bfs_queue;
+        bfs_queue.push({current, prefix});
+        
+        while (!bfs_queue.empty()) {
+            auto [node, number] = bfs_queue.front();
+            bfs_queue.pop();
+            
+            if (node->is_terminal) {
+                results.push_back(number);
+            }
+            
+            for (int digit = 0; digit < 10; ++digit) {
+                if (node->children[digit]) {
+                    bfs_queue.push({node->children[digit].get(), 
+                                   number * 10 + digit});
+                }
+            }
+        }
+        
+        std::ranges::sort(results);
+        return results;
+    }
+    
+    int64_t n;
+    int64_t prefix;
+    uint32_t result_val;
+    
+public:
+    Primes() : n(config_val("limit")), result_val(5432) {
+        prefix = config_val("prefix");
+    }
+    
+    std::string name() const override { return "Primes"; }    
+    
+    void run(int iteration_id) override {
+        auto primes = generate_primes(static_cast<int>(n));
+        
+        auto trie = build_trie(primes);
+        
+        auto results = find_primes_with_prefix(trie, static_cast<int>(prefix));
+        
+        result_val += static_cast<uint32_t>(results.size());
+        for (int prime : results) {
+            result_val += static_cast<uint32_t>(prime);
+        }
+    }
+    
+    uint32_t checksum() override {
         return result_val;
     }
 };
@@ -2187,16 +2050,15 @@ public:
 
 class Noise : public Benchmark {
 private:
-    static constexpr int SIZE = 64;
-    
     struct Vec2 {
         double x, y;
     };
     
     class Noise2DContext {
     private:
-        std::array<Vec2, SIZE> rgradients;
-        std::array<int, SIZE> permutations;
+        std::vector<Vec2> rgradients;
+        std::vector<int> permutations;
+        int size_val;
         
         static Vec2 random_gradient() {
             double v = Helper::next_float() * M_PI * 2.0;
@@ -2217,22 +2079,25 @@ private:
         }
         
     public:
-        Noise2DContext() {
-            for (int i = 0; i < SIZE; i++) {
+        Noise2DContext(int size) : size_val(size) {
+            rgradients.resize(size);
+            permutations.resize(size);
+            
+            for (int i = 0; i < size; i++) {
                 rgradients[i] = random_gradient();
                 permutations[i] = i;
             }
             
-            for (int i = 0; i < SIZE; i++) {
-                int a = Helper::next_int(SIZE);
-                int b = Helper::next_int(SIZE);
+            for (int i = 0; i < size; i++) {
+                int a = Helper::next_int(size);
+                int b = Helper::next_int(size);
                 std::swap(permutations[a], permutations[b]);
             }
         }
         
         Vec2 get_gradient(int x, int y) {
-            int idx = permutations[x & (SIZE - 1)] + permutations[y & (SIZE - 1)];
-            return rgradients[idx & (SIZE - 1)];
+            int idx = permutations[x & (size_val - 1)] + permutations[y & (size_val - 1)];
+            return rgradients[idx & (size_val - 1)];
         }
         
         std::pair<std::array<Vec2, 4>, std::array<Vec2, 4>> get_gradients(double x, double y) {
@@ -2280,48 +2145,31 @@ private:
     
     static constexpr char32_t SYM[6] = {U' ', U'░', U'▒', U'▓', U'█', U'█'};
     
-    int n_iter;
-    uint64_t res_val;
-    
-    uint64_t noise_func() {
-        std::array<std::array<double, SIZE>, SIZE> pixels;
-        
-        Noise2DContext n2d;
-        
-        for (int i = 0; i < 100; i++) {
-            for (int y = 0; y < SIZE; y++) {
-                for (int x = 0; x < SIZE; x++) {
-                    double v = n2d.get(x * 0.1, (y + (i * 128)) * 0.1) * 0.5 + 0.5;
-                    pixels[y][x] = v;
-                }
-            }
-        }
-        
-        uint64_t res = 0;
-        for (int y = 0; y < SIZE; y++) {
-            for (int x = 0; x < SIZE; x++) {
-                double v = pixels[y][x];
-                int idx = static_cast<int>(v / 0.2);
-                if (idx >= 6) idx = 5;
-                res += static_cast<uint64_t>(SYM[idx]);
-            }
-        }
-        return res;
-    }
+    int64_t size_val;
+    uint32_t result_val;
+    std::unique_ptr<Noise2DContext> n2d;
     
 public:
-    Noise() : n_iter(iterations()), res_val(0) {}
+    Noise() : result_val(0) {
+        size_val = config_val("size");
+        n2d = std::make_unique<Noise2DContext>(static_cast<int>(size_val));
+    }
+    
     std::string name() const override { return "Noise"; }    
     
-    void run() override {
-        for (int i = 0; i < n_iter; i++) {
-            auto v = noise_func();
-            res_val += v;
+    void run(int iteration_id) override {
+        for (int64_t y = 0; y < size_val; y++) {
+            for (int64_t x = 0; x < size_val; x++) {
+                double v = n2d->get(x * 0.1, (y + (iteration_id * 128)) * 0.1) * 0.5 + 0.5;
+                int idx = static_cast<int>(v / 0.2);
+                if (idx >= 6) idx = 5;
+                result_val += static_cast<uint32_t>(SYM[idx]);
+            }
         }
     }
     
-    int64_t result() const override {
-        return static_cast<int64_t>(res_val);
+    uint32_t checksum() override {
+        return result_val;
     }
 };
 
@@ -2384,8 +2232,8 @@ private:
         {{1.0, 0.0, 3.0}, 0.4, BLUE}
     };
     
-    int w, h;
-    uint64_t res;
+    int32_t w, h;
+    uint32_t result_val;
     
     int shade_pixel(const Ray& ray, const Sphere& obj, double tval) {
         Vector pi = ray.orig.add(ray.dir.scale(tval));
@@ -2428,11 +2276,14 @@ private:
     }
     
 public:
-    TextRaytracer() : w(iterations()), h(iterations()), res(0) {}
+    TextRaytracer() : result_val(0) {
+        w = static_cast<int32_t>(config_val("w"));
+        h = static_cast<int32_t>(config_val("h"));
+    }
+    
     std::string name() const override { return "TextRaytracer"; }    
     
-    void run() override {
-        res = 0;
+    void run(int iteration_id) override {
         for (int j = 0; j < h; j++) {
             for (int i = 0; i < w; i++) {
                 double fw = w, fi = i, fj = j, fh = h;
@@ -2458,13 +2309,13 @@ public:
                 if (hit_obj && tval) {
                     pixel = LUT[shade_pixel(ray, *hit_obj, *tval)];
                 }
-                res += static_cast<uint8_t>(pixel);
+                result_val += static_cast<uint8_t>(pixel);  // &+= эквивалент
             }
         }
     }
     
-    int64_t result() const override {
-        return static_cast<int64_t>(res);
+    uint32_t checksum() override {
+        return result_val;
     }
 };
 
@@ -2472,17 +2323,16 @@ public:
 
 class NeuralNet : public Benchmark {
 private:
-    // Forward declaration
     class Neuron;
     
     class Synapse {
     public:
         double weight;
         double prev_weight;
-        Neuron* source_neuron;  // Изменено с class Neuron* на просто Neuron*
-        Neuron* dest_neuron;    // Изменено с class Neuron* на просто Neuron*
+        Neuron* source_neuron;
+        Neuron* dest_neuron;
         
-        Synapse(Neuron* source, Neuron* dest)  // Убрано class из параметров
+        Synapse(Neuron* source, Neuron* dest)
             : source_neuron(source), dest_neuron(dest) {
             weight = prev_weight = Helper::next_float() * 2 - 1;
         }
@@ -2620,42 +2470,48 @@ private:
         }
     };
     
-    int n;
-    double sum_result;
+    std::vector<double> res;
+    std::unique_ptr<NeuralNetwork> xor_net;
     
 public:
-    NeuralNet() : n(iterations()), sum_result(0.0) {}
-    std::string name() const override { return "NeuralNet"; }    
-    
-    void run() override {
-        NeuralNetwork xor_net(2, 10, 1);
-        
-        for (int i = 0; i < n; i++) {
-            xor_net.train({0, 0}, {0});
-            xor_net.train({1, 0}, {1});
-            xor_net.train({0, 1}, {1});
-            xor_net.train({1, 1}, {0});
-        }
-        
-        xor_net.feed_forward({0, 0});
-        auto outputs1 = xor_net.current_outputs();
-        sum_result += outputs1[0];
-        
-        xor_net.feed_forward({0, 1});
-        auto outputs2 = xor_net.current_outputs();
-        sum_result += outputs2[0];
-        
-        xor_net.feed_forward({1, 0});
-        auto outputs3 = xor_net.current_outputs();
-        sum_result += outputs3[0];
-        
-        xor_net.feed_forward({1, 1});
-        auto outputs4 = xor_net.current_outputs();
-        sum_result += outputs4[0];
+    NeuralNet() {
+        xor_net = std::make_unique<NeuralNetwork>(2, 10, 1);
     }
     
-    int64_t result() const override {
-        return Helper::checksum_f64(sum_result);
+    std::string name() const override { return "NeuralNet"; }    
+    
+    void run(int iteration_id) override {
+        NeuralNetwork& xor_ref = *xor_net;
+        xor_ref.train({0, 0}, {0});
+        xor_ref.train({1, 0}, {1});
+        xor_ref.train({0, 1}, {1});
+        xor_ref.train({1, 1}, {0});
+    }
+    
+    uint32_t checksum() override {
+        xor_net->feed_forward({0, 0});
+        auto outputs1 = xor_net->current_outputs();
+        
+        xor_net->feed_forward({0, 1});
+        auto outputs2 = xor_net->current_outputs();
+        
+        xor_net->feed_forward({1, 0});
+        auto outputs3 = xor_net->current_outputs();
+        
+        xor_net->feed_forward({1, 1});
+        auto outputs4 = xor_net->current_outputs();
+        
+        std::vector<double> all_outputs;
+        all_outputs.insert(all_outputs.end(), outputs1.begin(), outputs1.end());
+        all_outputs.insert(all_outputs.end(), outputs2.begin(), outputs2.end());
+        all_outputs.insert(all_outputs.end(), outputs3.begin(), outputs3.end());
+        all_outputs.insert(all_outputs.end(), outputs4.begin(), outputs4.end());
+        
+        double sum = 0.0;
+        for (double v : all_outputs) {
+            sum += v;
+        }
+        return Helper::checksum_f64(sum);
     }
 };
 
@@ -2664,62 +2520,33 @@ public:
 class SortBenchmark : public Benchmark {
 protected:
     std::vector<int32_t> data;
-    int n;
+    int64_t size_val;
     uint32_t result_val;
     
-    static constexpr int ARR_SIZE = 100000;
-    
-    std::string check_n_elements(const std::vector<int32_t>& arr, int n_check) {
-        std::ostringstream oss;
-        oss << '[';
-        int step = arr.size() / n_check;
-        if (step == 0) step = 1;
-        
-        for (int index = 0; index < static_cast<int>(arr.size()); index += step) {
-            if (index >= static_cast<int>(arr.size())) break;
-            oss << index << ':' << arr[index] << ',';
-        }
-        oss << ']' << '\n';
-        return oss.str();
-    }
-    
-    // Защищенный конструктор, который принимает имя класса
-    SortBenchmark(const std::string& bench_name) : n(get_iterations_for_name(bench_name)), result_val(0) {
-        data.reserve(ARR_SIZE);
-        for (int i = 0; i < ARR_SIZE; i++) {
-            data.push_back(Helper::next_int(1'000'000));
-        }
+    SortBenchmark() : result_val(0), size_val(0) {
     }
 
 public:
-    // Делаем конструктор по умолчанию приватным или удаляем
-    SortBenchmark() = delete;
-    std::string name() const override { return "SortBenchmark"; }    
-
     virtual std::vector<int32_t> test() = 0;
     
-    void run() override {
-        std::string verify = check_n_elements(data, 10);
-        
-        // Выполняем сортировку (n-1) раз и суммируем средние элементы
-        for (int i = 0; i < n - 1; i++) {
-            std::vector<int32_t> arr = test();
-            result_val += arr[arr.size() / 2];  // Средний элемент
+    void prepare() override {
+        if (size_val == 0) {
+            size_val = config_val("size");
+            data.reserve(static_cast<size_t>(size_val));
+            for (int64_t i = 0; i < size_val; i++) {
+                data.push_back(Helper::next_int(1'000'000));
+            }
         }
-        
-        // Финальная сортировка
-        std::vector<int32_t> arr = test();
-        
-        // Проверяем что исходный массив не изменен
-        verify += check_n_elements(data, 10);
-        // Проверяем отсортированный массив
-        verify += check_n_elements(arr, 10);
-        
-        // Добавляем чексумму проверки к результату
-        result_val += Helper::checksum(verify);
+    }
+
+    void run(int iteration_id) override {
+        // Простой тест как в Crystal версии
+        result_val += data[Helper::next_int(static_cast<int32_t>(size_val))];  // &+= эквивалент
+        std::vector<int32_t> t = test();
+        result_val += t[Helper::next_int(static_cast<int32_t>(size_val))];  // &+= эквивалент
     }
     
-    int64_t result() const override {
+    uint32_t checksum() override {
         return result_val;
     }
 };
@@ -2749,12 +2576,13 @@ private:
     }
     
 public:    
-    SortQuick() : SortBenchmark("SortQuick") { }    
+    SortQuick() = default;
+    
     std::string name() const override { return "SortQuick"; }    
 
     std::vector<int32_t> test() override {
         std::vector<int32_t> arr = data;
-        quick_sort(arr, 0, arr.size() - 1);
+        quick_sort(arr, 0, static_cast<int>(arr.size() - 1));
         return arr;
     }
 };
@@ -2765,7 +2593,7 @@ class SortMerge : public SortBenchmark {
 private:
     void merge_sort_inplace(std::vector<int32_t>& arr) {
         std::vector<int32_t> temp(arr.size());
-        merge_sort_helper(arr, temp, 0, arr.size() - 1);
+        merge_sort_helper(arr, temp, 0, static_cast<int>(arr.size() - 1));
     }
     
     void merge_sort_helper(std::vector<int32_t>& arr, std::vector<int32_t>& temp, int left, int right) {
@@ -2805,7 +2633,8 @@ private:
     }
     
 public:
-    SortMerge() : SortBenchmark("SortMerge") { }    
+    SortMerge() = default;
+    
     std::string name() const override { return "SortMerge"; }    
 
     std::vector<int32_t> test() override {
@@ -2819,7 +2648,10 @@ public:
 
 class SortSelf : public SortBenchmark {
 public:
-    SortSelf() : SortBenchmark("SortSelf") { }    
+    SortSelf() = default;
+    
+    std::string name() const override { return "SortSelf"; }
+    
     std::vector<int32_t> test() override {
         std::vector<int32_t> arr = data;
         std::sort(arr.begin(), arr.end());
@@ -2852,13 +2684,11 @@ protected:
                 int start_idx = c * component_size;
                 int end_idx = (c == components - 1) ? vertices : (c + 1) * component_size;
                 
-                // Делаем компоненту связной
                 for (int i = start_idx + 1; i < end_idx; i++) {
                     int parent = start_idx + Helper::next_int(i - start_idx);
                     add_edge(i, parent);
                 }
                 
-                // Добавляем случайные рёбра внутри компоненты
                 int extra_edges = component_size * 2;
                 for (int e = 0; e < extra_edges; e++) {
                     int u = start_idx + Helper::next_int(end_idx - start_idx);
@@ -2876,17 +2706,16 @@ protected:
     
     std::unique_ptr<Graph> graph;
     std::vector<std::pair<int, int>> pairs;
-    int n_pairs;
-    int64_t result_val;
+    int64_t n_pairs;
+    uint32_t result_val;
     
     std::vector<std::pair<int, int>> generate_pairs(int n) {
         std::vector<std::pair<int, int>> result;
-        result.reserve(n);
+        result.reserve(static_cast<size_t>(n));
         int component_size = graph->vertices / 10;
         
         for (int i = 0; i < n; i++) {
             if (Helper::next_int(100) < 70) {
-                // В одной компоненте
                 int component = Helper::next_int(10);
                 int start = component * component_size + Helper::next_int(component_size);
                 int end;
@@ -2895,7 +2724,6 @@ protected:
                 } while (end == start);
                 result.emplace_back(start, end);
             } else {
-                // В разных компонентах
                 int c1 = Helper::next_int(10);
                 int c2;
                 do {
@@ -2909,28 +2737,29 @@ protected:
         return result;
     }
 
-    GraphPathBenchmark(const std::string& bench_name) : n_pairs(get_iterations_for_name(bench_name)), result_val(0) {
-        int vertices = n_pairs * 10;
-        int comps = std::max(10, vertices / 10000);
-        graph = std::make_unique<Graph>(vertices, comps);
+    GraphPathBenchmark() : result_val(0), n_pairs(0) {
+        // Пустой конструктор
     }
-    
+ 
 public:
-    // Делаем конструктор по умолчанию приватным или удаляем
-    GraphPathBenchmark() = delete;
-
     void prepare() override {
-        graph->generate_random();
-        pairs = generate_pairs(n_pairs);
+        if (n_pairs == 0) {
+            n_pairs = config_val("pairs");
+            int vertices = static_cast<int>(config_val("vertices"));
+            int comps = std::max(10, vertices / 10'000);
+            graph = std::make_unique<Graph>(vertices, comps);
+            graph->generate_random();
+            pairs = generate_pairs(static_cast<int>(n_pairs));
+        }
     }
     
     virtual int64_t test() = 0;
     
-    void run() override {
-        result_val = test();
+    void run(int iteration_id) override {
+        result_val += test();  // &+= эквивалент
     }
     
-    int64_t result() const override {
+    uint32_t checksum() override {
         return result_val;
     }
 };
@@ -2943,7 +2772,7 @@ private:
         if (start == target) return 0;
         
         std::vector<uint8_t> visited(graph->vertices, 0);
-        std::queue<std::pair<int, int>> queue; // {vertex, distance}
+        std::queue<std::pair<int, int>> queue;
         
         visited[start] = 1;
         queue.push({start, 0});
@@ -2966,8 +2795,10 @@ private:
     }
     
 public:
-    GraphPathBFS() : GraphPathBenchmark("GraphPathBFS") { }    
+    GraphPathBFS() = default;
+    
     std::string name() const override { return "GraphPathBFS"; }    
+    
     int64_t test() override {
         int64_t total_length = 0;
         
@@ -2987,7 +2818,7 @@ private:
         if (start == target) return 0;
         
         std::vector<uint8_t> visited(graph->vertices, 0);
-        std::stack<std::pair<int, int>> stack; // {vertex, distance}
+        std::stack<std::pair<int, int>> stack;
         int best_path = INT_MAX;
         
         stack.push({start, 0});
@@ -3014,8 +2845,10 @@ private:
     }
     
 public:
-    GraphPathDFS() : GraphPathBenchmark("GraphPathDFS") { }    
+    GraphPathDFS() = default;
+    
     std::string name() const override { return "GraphPathDFS"; }    
+    
     int64_t test() override {
         int64_t total_length = 0;
         
@@ -3069,8 +2902,10 @@ private:
     }
     
 public:
-    GraphPathDijkstra() : GraphPathBenchmark("GraphPathDijkstra") { }    
+    GraphPathDijkstra() = default;
+    
     std::string name() const override { return "GraphPathDijkstra"; }    
+    
     int64_t test() override {
         int64_t total_length = 0;
         
@@ -3087,31 +2922,31 @@ public:
 class BufferHashBenchmark : public Benchmark {
 protected:
     std::vector<uint8_t> data;
-    int n;
+    int64_t size_val;
     uint32_t result_val;
     
-    static constexpr size_t DATA_SIZE = 1'000'000;
-
-    BufferHashBenchmark(const std::string& bench_name) : n(get_iterations_for_name(bench_name)), result_val(0) {
-        data.resize(DATA_SIZE);
-        for (size_t i = 0; i < DATA_SIZE; i++) {
-            data[i] = static_cast<uint8_t>(Helper::next_int(256));
-        }
+    BufferHashBenchmark() : result_val(0), size_val(0) {
+        // Пустой конструктор
     }
     
 public:
-    BufferHashBenchmark() = delete;
-    
     virtual uint32_t test() = 0;
     
-    void run() override {
-        result_val = 0;
-        for (int i = 0; i < n; i++) {
-            result_val += test();
+    void prepare() override {
+        if (size_val == 0) {
+            size_val = config_val("size");
+            data.resize(static_cast<size_t>(size_val));
+            for (size_t i = 0; i < static_cast<size_t>(size_val); i++) {
+                data[i] = static_cast<uint8_t>(Helper::next_int(256));
+            }
         }
     }
+
+    void run(int iteration_id) override {
+        result_val += test();  // &+= эквивалент
+    }
     
-    int64_t result() const override {
+    uint32_t checksum() override {
         return result_val;
     }
 };
@@ -3124,7 +2959,6 @@ private:
         static std::vector<uint8_t> digest(const std::vector<uint8_t>& data) {
             std::vector<uint8_t> result(32);
             
-            // Упрощенный алгоритм хеширования
             uint32_t hashes[8] = {
                 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
                 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
@@ -3149,8 +2983,10 @@ private:
     };
     
 public:
-    BufferHashSHA256() : BufferHashBenchmark("BufferHashSHA256") {}
+    BufferHashSHA256() = default;
+    
     std::string name() const override { return "BufferHashSHA256"; }    
+    
     uint32_t test() override {
         auto bytes = SimpleSHA256::digest(data);
         return *reinterpret_cast<uint32_t*>(bytes.data());
@@ -3178,12 +3014,16 @@ private:
     }
     
 public:
-    BufferHashCRC32() : BufferHashBenchmark("BufferHashCRC32") {}
+    BufferHashCRC32() = default;
+    
     std::string name() const override { return "BufferHashCRC32"; }    
+    
     uint32_t test() override {
         return crc32(data);
     }
 };
+
+// ==================== CacheSimulation ====================
 
 class CacheSimulation : public Benchmark {
 private:
@@ -3201,7 +3041,6 @@ private:
         bool get(const std::string& key) {
             auto it = cache_.find(key);
             if (it != cache_.end()) {
-                // Move to front (most recent)
                 lru_list_.erase(it->second.second);
                 lru_list_.push_front(key);
                 it->second.second = lru_list_.begin();
@@ -3213,21 +3052,18 @@ private:
         void put(const std::string& key, const std::string& value) {
             auto it = cache_.find(key);
             if (it != cache_.end()) {
-                // Update existing
                 lru_list_.erase(it->second.second);
                 lru_list_.push_front(key);
                 cache_[key] = {value, lru_list_.begin()};
                 return;
             }
             
-            // Remove oldest if at capacity
             if (cache_.size() >= capacity_) {
                 std::string oldest_key = lru_list_.back();
                 lru_list_.pop_back();
                 cache_.erase(oldest_key);
             }
             
-            // Insert new
             lru_list_.push_front(key);
             cache_[key] = {value, lru_list_.begin()};
         }
@@ -3235,46 +3071,49 @@ private:
         size_t size() const { return cache_.size(); }
     };
     
-    int operations_;
-    uint32_t result_;
+    uint32_t result_val;
+    int values_size;
+    int cache_size;
+    FastLRUCache cache;
+    int hits = 0;
+    int misses = 0;
     
 public:
-    CacheSimulation() : operations_(iterations() * 1000), result_(0) {}
-    std::string name() const override { return "CacheSimulation"; }    
-    
-    void run() override {
-        FastLRUCache cache(1000);
-        int hits = 0;
-        int misses = 0;
-        
-        // Оптимизация: используем буферы для строк
-        char key_buf[32];
-        char val_buf[32];
-        
-        for (int i = 0; i < operations_; i++) {
-            // Формируем ключ как в C версии
-            snprintf(key_buf, sizeof(key_buf), "item_%d", Helper::next_int(2000));
-            std::string key(key_buf);
-            
-            if (cache.get(key)) {
-                hits++;
-                // Обновляем значение
-                snprintf(val_buf, sizeof(val_buf), "updated_%d", i);
-                cache.put(key, std::string(val_buf));
-            } else {
-                misses++;
-                snprintf(val_buf, sizeof(val_buf), "new_%d", i);
-                cache.put(key, std::string(val_buf));
-            }
-        }
-        
-        std::ostringstream ss;
-        ss << "hits:" << hits << "|misses:" << misses << "|size:" << cache.size();
-        result_ = Helper::checksum(ss.str());
+    CacheSimulation() : result_val(5432), cache(0) {
+        values_size = static_cast<int>(config_val("values"));
+        cache_size = static_cast<int>(config_val("size"));
     }
     
-    int64_t result() const override {
-        return result_;
+    std::string name() const override { return "CacheSimulation"; }    
+
+    void prepare() override {
+        cache = FastLRUCache(cache_size);
+    }
+    
+    void run(int iteration_id) override {
+        char key_buf[32];
+        snprintf(key_buf, sizeof(key_buf), "item_%d", Helper::next_int(values_size));
+        std::string key(key_buf);
+        
+        if (cache.get(key)) {
+            hits++;
+            char val_buf[32];
+            snprintf(val_buf, sizeof(val_buf), "updated_%d", iteration_id);
+            cache.put(key, std::string(val_buf));
+        } else {
+            misses++;
+            char val_buf[32];
+            snprintf(val_buf, sizeof(val_buf), "new_%d", iteration_id);
+            cache.put(key, std::string(val_buf));
+        }
+    }
+    
+    uint32_t checksum() override {
+        uint32_t final_result = result_val;
+        final_result = (final_result << 5) + hits;
+        final_result = (final_result << 5) + misses;
+        final_result = (final_result << 5) + static_cast<uint32_t>(cache.size());
+        return final_result;
     }
 };
 
@@ -3282,7 +3121,6 @@ public:
 
 class CalculatorAst : public Benchmark {
 public:
-    // AST структуры как variant
     struct Number {
         int64_t value;
         Number(int64_t v) : value(v) {}
@@ -3296,17 +3134,14 @@ public:
     struct BinaryOp;
     struct Assignment;
     
-    // Узел AST - вариант, содержащий любой из типов
     struct Node {
         std::variant<Number, Variable, std::unique_ptr<BinaryOp>, std::unique_ptr<Assignment>> data;
         
-        // Конструкторы для удобства
         Node(Number n) : data(std::move(n)) {}
         Node(Variable v) : data(std::move(v)) {}
         Node(std::unique_ptr<BinaryOp> b) : data(std::move(b)) {}
         Node(std::unique_ptr<Assignment> a) : data(std::move(a)) {}
         
-        // Правила копирования/перемещения
         Node(const Node&) = delete;
         Node& operator=(const Node&) = delete;
         Node(Node&&) = default;
@@ -3370,10 +3205,9 @@ private:
             }
             std::string var_name = input.substr(start, pos - start);
             
-            // Проверяем присвоение
             skip_whitespace();
             if (current_char == '=') {
-                advance(); // '='
+                advance();
                 auto expr = parse_expression();
                 return Node(std::make_unique<Assignment>(var_name, std::move(expr)));
             }
@@ -3396,11 +3230,11 @@ private:
             }
             
             if (current_char == '(') {
-                advance(); // '('
+                advance();
                 auto node = parse_expression();
                 skip_whitespace();
                 if (current_char == ')') {
-                    advance(); // ')'
+                    advance();
                 }
                 return node;
             }
@@ -3471,19 +3305,18 @@ private:
         }
     };
     
-    uint64_t result_val;
+    uint32_t result_val;
     std::string text;
-    std::vector<Node> expressions;
     
-    std::string generate_random_program(int n = 1000) {
+    std::string generate_random_program(int64_t n = 1000) {
         std::ostringstream os;
         os << "v0 = 1\n";
         for (int i = 0; i < 10; i++) {
             int v = i + 1;
             os << "v" << v << " = v" << (v - 1) << " + " << v << "\n";
         }
-        for (int i = 0; i < n; i++) {
-            int v = i + 10;
+        for (int64_t i = 0; i < n; i++) {
+            int v = static_cast<int>(i + 10);
             os << "v" << v << " = v" << (v - 1) << " + ";
             
             switch (Helper::next_int(10)) {
@@ -3524,25 +3357,29 @@ private:
     }
     
 public:
-    int n;
-    CalculatorAst() : n(iterations()), result_val(0) {}
-    std::string name() const override { return "CalculatorAst"; }    
+    int64_t n;
+    CalculatorAst() : result_val(0), n(config_val("operations")) {}
     
+    std::string name() const override { return "CalculatorAst"; }    
+    std::vector<Node> expressions;
+
     void prepare() override {
         text = generate_random_program(n);
     }
     
-    void run() override {
+    void run(int iteration_id) override {
         Parser parser(text);
         expressions = parser.parse();
-        result_val = expressions.size();
+        result_val += expressions.size();
+        if (!expressions.empty() && std::holds_alternative<std::unique_ptr<Assignment>>(expressions.back().data)) {
+            auto& assign = *std::get<std::unique_ptr<Assignment>>(expressions.back().data);
+            result_val += Helper::checksum(assign.var);
+        }
     }
     
-    int64_t result() const override {
-        return static_cast<int64_t>(result_val);
+    uint32_t checksum() override {
+        return result_val;
     }
-    
-    const std::vector<Node>& get_expressions() const { return expressions; }
 };
 
 // ==================== CalculatorInterpreter ====================
@@ -3567,7 +3404,6 @@ private:
             return a - simple_div(a, b) * b;
         }
         
-        // Визитор для обхода AST
         struct Evaluator {
             std::unordered_map<std::string, int64_t>& variables;
             
@@ -3619,33 +3455,33 @@ private:
         }
     };
     
-    int n;
-    int64_t result_val;
+    int64_t n;
+    uint32_t result_val;
     std::vector<CalculatorAst::Node> ast;
     
 public:
-    CalculatorInterpreter() : n(iterations()), result_val(0) {}
+    CalculatorInterpreter() : result_val(0) {
+        n = config_val("operations");
+    }
+    
     std::string name() const override { return "CalculatorInterpreter"; }    
 
     void prepare() override {
         CalculatorAst ca;
         ca.n = n;
         ca.prepare();
-        ca.run();
-        ast = std::move(const_cast<std::vector<CalculatorAst::Node>&>(ca.get_expressions()));
-    }
-    
-    void run() override {
-        int64_t total = 0;
-        for (int i = 0; i < 100; i++) {
-            Interpreter interpreter;
-            int64_t result = interpreter.run(ast);
-            total += result;
+        ca.run(0);
+        ast.swap(const_cast<std::vector<CalculatorAst::Node>&>(
+            reinterpret_cast<const CalculatorAst&>(ca).expressions));
         }
-        result_val = total;
+    
+    void run(int iteration_id) override {
+        Interpreter interpreter;
+        int64_t result = interpreter.run(ast);
+        result_val += result;  // &+= эквивалент
     }
     
-    int64_t result() const override {
+    uint32_t checksum() override {
         return result_val;
     }
 };
@@ -3685,7 +3521,6 @@ private:
                 for (int dx = -1; dx <= 1; dx++) {
                     if (dx == 0 && dy == 0) continue;
                     
-                    // Тороидальные координаты
                     int nx = (static_cast<int64_t>(x) + dx) % width_;
                     int ny = (static_cast<int64_t>(y) + dy) % height_;
                     if (nx < 0) nx += width_;
@@ -3726,45 +3561,40 @@ private:
             return next_grid;
         }
         
-        int alive_count() const {
-            int count = 0;
+        uint32_t compute_hash() const {
+            uint32_t hasher = 2166136261UL;      // FNV offset basis
+            uint32_t prime = 16777619UL;         // FNV prime
+            
             for (const auto& row : cells_) {
                 for (Cell cell : row) {
-                    if (cell == Cell::Alive) {
-                        count++;
-                    }
-                }
-            }
-            return count;
-        }
-        
-        uint64_t compute_hash() const {
-            uint64_t hasher = 0;
-            for (const auto& row : cells_) {
-                for (Cell cell : row) {
-                    // Простой хэш - сдвиг и XOR
-                    hasher = (hasher << 1) ^ (cell == Cell::Alive ? 1ULL : 0ULL);
+                    uint32_t alive = (cell == Cell::Alive) ? 1UL : 0UL;
+                    hasher = (hasher ^ alive) * prime;
                 }
             }
             return hasher;
-        }
-        
+        }    
+
         int width() const { return width_; }
         int height() const { return height_; }
         
         const std::vector<std::vector<Cell>>& cells() const { return cells_; }
     };
     
-    int64_t result_val;
-    int width_;
-    int height_;
+    uint32_t result_val;
+    int32_t width_;
+    int32_t height_;
     Grid grid_;
     
 public:
-    GameOfLife() : result_val(0), width_(256), height_(256), grid_(256, 256) {}
+    GameOfLife() : result_val(0), grid_(0, 0) {
+        width_ = static_cast<int32_t>(config_val("w"));
+        height_ = static_cast<int32_t>(config_val("h"));
+        grid_ = Grid(width_, height_);
+    }
+    
     std::string name() const override { return "GameOfLife"; }    
     
-    void run() override {
+    void prepare() override {
         // Инициализация случайными клетками
         for (int y = 0; y < height_; y++) {
             for (int x = 0; x < width_; x++) {
@@ -3773,18 +3603,15 @@ public:
                 }
             }
         }
-        
-        // Основной цикл симуляции
-        int iters = iterations();
-        for (int i = 0; i < iters; i++) {
-            grid_ = grid_.next_generation();
-        }
-        
-        result_val = grid_.alive_count();
     }
     
-    int64_t result() const override {
-        return result_val;
+    void run(int iteration_id) override {
+        // Только одна итерация
+        grid_ = grid_.next_generation();
+    }
+    
+    uint32_t checksum() override {
+        return grid_.compute_hash();
     }
 };
 
@@ -3797,19 +3624,35 @@ private:
         Path
     };
     
-    int64_t result_val;
-    int width_;
-    int height_;
+    uint32_t result_val;
+    int32_t width_;
+    int32_t height_;
+    std::vector<std::vector<bool>> bool_grid;
     
 public:
-    MazeGenerator() : result_val(0), width_(1001), height_(1001) {}
-    std::string name() const override { return "MazeGenerator"; }    
-
     class Maze {
     private:
         int width_;
         int height_;
         std::vector<std::vector<Cell>> cells_;
+        
+        void add_random_paths() {
+            int num_extra_paths = (width_ * height_) / 20; // 5% клеток
+
+            for (int i = 0; i < num_extra_paths; i++) {
+                int x = Helper::next_int(width_ - 2) + 1; // Не на границах
+                int y = Helper::next_int(height_ - 2) + 1;
+
+                // Превращаем стену в проход, если окружена стенами
+                if ((*this)(x, y) == Cell::Wall &&
+                    (*this)(x - 1, y) == Cell::Wall &&
+                    (*this)(x + 1, y) == Cell::Wall &&
+                    (*this)(x, y - 1) == Cell::Wall &&
+                    (*this)(x, y + 1) == Cell::Wall) {
+                    (*this)(x, y) = Cell::Path;
+                }
+            }
+        }
         
         void divide(int x1, int y1, int x2, int y2) {
             int width = x2 - x1;
@@ -3826,7 +3669,6 @@ public:
                 width_for_hole == 0 || height_for_hole == 0) return;
             
             if (width > height) {
-                // Вертикальная стена
                 int wall_range = std::max(width_for_wall / 2, 1);
                 int wall_offset = wall_range > 0 ? Helper::next_int(wall_range) * 2 : 0;
                 int wall_x = x1 + 2 + wall_offset;
@@ -3846,7 +3688,6 @@ public:
                 if (wall_x > x1 + 1) divide(x1, y1, wall_x - 1, y2);
                 if (wall_x + 1 < x2) divide(wall_x + 1, y1, x2, y2);
             } else {
-                // Горизонтальная стена
                 int wall_range = std::max(height_for_wall / 2, 1);
                 int wall_offset = wall_range > 0 ? Helper::next_int(wall_range) * 2 : 0;
                 int wall_y = y1 + 2 + wall_offset;
@@ -3886,25 +3727,21 @@ public:
                 
                 if (std::make_pair(x, y) == goal) return true;
                 
-                // Верх
                 if (y > 0 && (*this)(x, y - 1) == Cell::Path && !visited[y - 1][x]) {
                     visited[y - 1][x] = true;
                     queue.push_back({x, y - 1});
                 }
                 
-                // Право
                 if (x + 1 < width_ && (*this)(x + 1, y) == Cell::Path && !visited[y][x + 1]) {
                     visited[y][x + 1] = true;
                     queue.push_back({x + 1, y});
                 }
                 
-                // Низ
                 if (y + 1 < height_ && (*this)(x, y + 1) == Cell::Path && !visited[y + 1][x]) {
                     visited[y + 1][x] = true;
                     queue.push_back({x, y + 1});
                 }
                 
-                // Лево
                 if (x > 0 && (*this)(x - 1, y) == Cell::Path && !visited[y][x - 1]) {
                     visited[y][x - 1] = true;
                     queue.push_back({x - 1, y});
@@ -3937,6 +3774,7 @@ public:
             }
             
             divide(0, 0, width_ - 1, height_ - 1);
+            add_random_paths();
         }
         
         std::vector<std::vector<bool>> to_bool_grid() const {
@@ -3985,28 +3823,36 @@ public:
         int height() const { return height_; }
     };
     
-    void run() override {
-        uint64_t checksum = 0;
+    uint32_t grid_checksum(const std::vector<std::vector<bool>>& grid) const {
+        uint32_t hasher = 2166136261UL;      // FNV offset basis
+        uint32_t prime = 16777619UL;         // FNV prime
         
-        int iters = iterations();
-        for (int i = 0; i < iters; i++) {
-            auto bool_grid = Maze::generate_walkable_maze(width_, height_);
-            
-            // Простая checksum для сравнения с Rust
-            for (size_t y = 0; y < bool_grid.size(); y++) {
-                for (size_t x = 0; x < bool_grid[y].size(); x++) {
-                    if (!bool_grid[y][x]) {
-                        checksum = checksum + (x * y);
-                    }
+        for (size_t i = 0; i < grid.size(); i++) {
+            const auto& row = grid[i];
+            for (size_t j = 0; j < row.size(); j++) {
+                if (row[j]) {  // только true клетки
+                    uint32_t j_squared = static_cast<uint32_t>(j * j);
+                    hasher = (hasher ^ j_squared) * prime;
                 }
             }
         }
-        
-        result_val = static_cast<int64_t>(checksum);
+        return hasher;
     }
     
-    int64_t result() const override {
-        return result_val;
+public:
+    MazeGenerator() : result_val(0) {
+        width_ = static_cast<int32_t>(config_val("w"));
+        height_ = static_cast<int32_t>(config_val("h"));
+    }
+    
+    std::string name() const override { return "MazeGenerator"; }    
+
+    void run(int iteration_id) override {
+        bool_grid = Maze::generate_walkable_maze(width_, height_);
+    }
+    
+    uint32_t checksum() override {
+        return grid_checksum(bool_grid);
     }
 };
 
@@ -4014,31 +3860,6 @@ public:
 
 class AStarPathfinder : public Benchmark {
 private:
-    struct Heuristic {
-        virtual ~Heuristic() = default;
-        virtual int distance(int a_x, int a_y, int b_x, int b_y) const = 0;
-    };
-    
-    struct ManhattanHeuristic : Heuristic {
-        int distance(int a_x, int a_y, int b_x, int b_y) const override {
-            return (std::abs(a_x - b_x) + std::abs(a_y - b_y)) * 1000;
-        }
-    };
-    
-    struct EuclideanHeuristic : Heuristic {
-        int distance(int a_x, int a_y, int b_x, int b_y) const override {
-            double dx = std::abs(a_x - b_x);
-            double dy = std::abs(a_y - b_y);
-            return static_cast<int>(std::hypot(dx, dy) * 1000.0);
-        }
-    };
-    
-    struct ChebyshevHeuristic : Heuristic {
-        int distance(int a_x, int a_y, int b_x, int b_y) const override {
-            return std::max(std::abs(a_x - b_x), std::abs(a_y - b_y)) * 1000;
-        }
-    };
-    
     struct Node {
         int x;
         int y;
@@ -4047,7 +3868,6 @@ private:
         Node(int x, int y, int f_score) : x(x), y(y), f_score(f_score) {}
         
         bool operator<(const Node& other) const {
-            // Сортировка по f_score, затем по координатам для стабильности
             if (f_score != other.f_score) {
                 return f_score < other.f_score;
             }
@@ -4133,52 +3953,41 @@ private:
         }
     };
     
-    int64_t result_val;
+    uint32_t result_val;
     int start_x_;
     int start_y_;
     int goal_x_;
     int goal_y_;
     int width_;
     int height_;
-    std::optional<std::vector<std::vector<bool>>> maze_grid_;
+    std::vector<std::vector<bool>> maze_grid;
     
-    std::vector<std::vector<bool>> ensure_maze_grid() {
-        if (!maze_grid_) {
-            maze_grid_ = MazeGenerator::Maze::generate_walkable_maze(width_, height_);
-        }
-        return *maze_grid_;
+    int distance(int a_x, int a_y, int b_x, int b_y) {
+        return (std::abs(a_x - b_x) + std::abs(a_y - b_y));
     }
     
-    std::optional<std::vector<std::pair<int, int>>> find_path(const Heuristic& heuristic, bool allow_diagonal = false) {
-        auto grid = ensure_maze_grid();
-        
+    std::pair<std::optional<std::vector<std::pair<int, int>>>, int> find_path() {
+        std::vector<std::vector<bool>>& grid = maze_grid;
+
         std::vector<std::vector<int>> g_scores(height_, std::vector<int>(width_, std::numeric_limits<int>::max()));
         std::vector<std::vector<std::pair<int, int>>> came_from(height_, 
             std::vector<std::pair<int, int>>(width_, {-1, -1}));
         BinaryHeap<Node> open_set;
-        
+        int nodes_explored = 0;
+
         g_scores[start_y_][start_x_] = 0;
         open_set.push(Node(start_x_, start_y_, 
-                          heuristic.distance(start_x_, start_y_, goal_x_, goal_y_)));
-        
-        std::vector<std::pair<int, int>> directions;
-        if (allow_diagonal) {
-            directions = {
-                {0, -1}, {1, 0}, {0, 1}, {-1, 0},
-                {-1, -1}, {1, -1}, {1, 1}, {-1, 1}
-            };
-        } else {
-            directions = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
-        }
-        
-        int diagonal_cost = allow_diagonal ? 1414 : 1000;
-        
+                          distance(start_x_, start_y_, goal_x_, goal_y_)));
+
+        std::vector<std::pair<int, int>> directions = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
+
         while (!open_set.empty()) {
             auto current_opt = open_set.pop();
             if (!current_opt) break;
             
             Node current = *current_opt;
-            
+            nodes_explored++;
+
             if (current.x == goal_x_ && current.y == goal_y_) {
                 std::vector<std::pair<int, int>> path;
                 int x = current.x;
@@ -4193,164 +4002,67 @@ private:
                 
                 path.emplace_back(start_x_, start_y_);
                 std::reverse(path.begin(), path.end());
-                return path;
+                return {path, nodes_explored};
             }
-            
+
             int current_g = g_scores[current.y][current.x];
-            
+
             for (const auto& [dx, dy] : directions) {
                 int nx = current.x + dx;
                 int ny = current.y + dy;
-                
+
                 if (nx < 0 || nx >= width_ || ny < 0 || ny >= height_) continue;
                 if (!grid[ny][nx]) continue;
-                
-                int move_cost = (std::abs(dx) == 1 && std::abs(dy) == 1) ? diagonal_cost : 1000;
-                int tentative_g = current_g + move_cost;
-                
+
+                int tentative_g = current_g + 1000;
+
                 if (tentative_g < g_scores[ny][nx]) {
                     came_from[ny][nx] = {current.x, current.y};
                     g_scores[ny][nx] = tentative_g;
-                    
-                    int f_score = tentative_g + heuristic.distance(nx, ny, goal_x_, goal_y_);
+
+                    int f_score = tentative_g + distance(nx, ny, goal_x_, goal_y_);
                     open_set.push(Node(nx, ny, f_score));
                 }
             }
         }
-        
-        return std::nullopt;
-    }
-    
-    int estimate_nodes_explored(const Heuristic& heuristic, bool allow_diagonal = false) {
-        auto grid = ensure_maze_grid();
-        
-        std::vector<std::vector<int>> g_scores(height_, std::vector<int>(width_, std::numeric_limits<int>::max()));
-        BinaryHeap<Node> open_set;
-        std::vector<std::vector<bool>> closed(height_, std::vector<bool>(width_, false));
-        
-        g_scores[start_y_][start_x_] = 0;
-        open_set.push(Node(start_x_, start_y_, 
-                          heuristic.distance(start_x_, start_y_, goal_x_, goal_y_)));
-        
-        std::vector<std::pair<int, int>> directions;
-        if (allow_diagonal) {
-            directions = {
-                {0, -1}, {1, 0}, {0, 1}, {-1, 0},
-                {-1, -1}, {1, -1}, {1, 1}, {-1, 1}
-            };
-        } else {
-            directions = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
-        }
-        
-        int nodes_explored = 0;
-        
-        while (!open_set.empty()) {
-            auto current_opt = open_set.pop();
-            if (!current_opt) break;
-            
-            Node current = *current_opt;
-            
-            if (current.x == goal_x_ && current.y == goal_y_) {
-                break;
-            }
-            
-            if (closed[current.y][current.x]) continue;
-            
-            closed[current.y][current.x] = true;
-            nodes_explored++;
-            
-            int current_g = g_scores[current.y][current.x];
-            
-            for (const auto& [dx, dy] : directions) {
-                int nx = current.x + dx;
-                int ny = current.y + dy;
-                
-                if (nx < 0 || nx >= width_ || ny < 0 || ny >= height_) continue;
-                if (!grid[ny][nx]) continue;
-                
-                int move_cost = (std::abs(dx) == 1 && std::abs(dy) == 1) ? 1414 : 1000;
-                int tentative_g = current_g + move_cost;
-                
-                if (tentative_g < g_scores[ny][nx]) {
-                    g_scores[ny][nx] = tentative_g;
-                    
-                    int f_score = tentative_g + heuristic.distance(nx, ny, goal_x_, goal_y_);
-                    open_set.push(Node(nx, ny, f_score));
-                }
-            }
-        }
-        
-        return nodes_explored;
-    }
-    
-    std::tuple<int, int, int> benchmark_different_approaches() {
-        std::vector<std::unique_ptr<Heuristic>> heuristics;
-        heuristics.emplace_back(std::make_unique<ManhattanHeuristic>());
-        heuristics.emplace_back(std::make_unique<EuclideanHeuristic>());
-        heuristics.emplace_back(std::make_unique<ChebyshevHeuristic>());
-        
-        int total_paths_found = 0;
-        int total_path_length = 0;
-        int total_nodes_explored = 0;
-        
-        for (const auto& heuristic : heuristics) {
-            auto path = find_path(*heuristic, false);
-            if (path) {
-                total_paths_found++;
-                total_path_length += static_cast<int>(path->size());
-                total_nodes_explored += estimate_nodes_explored(*heuristic, false);
-            }
-        }
-        
-        return {total_paths_found, total_path_length, total_nodes_explored};
+
+        return {std::nullopt, nodes_explored};
     }
     
 public:
-    AStarPathfinder() : result_val(0), width_(iterations()), height_(iterations()),
-                        start_x_(1), start_y_(1) {
+    AStarPathfinder() : result_val(0) {
+        width_ = static_cast<int>(config_val("w"));
+        height_ = static_cast<int>(config_val("h"));
+        start_x_ = 1;
+        start_y_ = 1;
         goal_x_ = width_ - 2;
         goal_y_ = height_ - 2;
     }
+    
     std::string name() const override { return "AStarPathfinder"; }    
     
     void prepare() override {
-        ensure_maze_grid();
+        maze_grid = MazeGenerator::Maze::generate_walkable_maze(width_, height_);
     }
     
-    void run() override {
-        int total_paths_found = 0;
-        int total_path_length = 0;
-        int total_nodes_explored = 0;
-        
-        int iters = 10;
-        for (int i = 0; i < iters; i++) {
-            auto [paths_found, path_length, nodes_explored] = benchmark_different_approaches();
-            
-            total_paths_found += paths_found;
-            total_path_length += path_length;
-            total_nodes_explored += nodes_explored;
-        }
-        
-        int64_t paths_checksum = Helper::checksum_f64(total_paths_found);
-        int64_t length_checksum = Helper::checksum_f64(total_path_length);
-        int64_t nodes_checksum = Helper::checksum_f64(total_nodes_explored);
+    void run(int iteration_id) override {
+        auto [path, nodes_explored] = find_path();
 
-        result_val = (paths_checksum) ^
-                    ((length_checksum) << 16) ^
-                    ((nodes_checksum) << 32);
-
-        // printf("%d, %d, %d, %d, %d, %d, %d \n", total_paths_found, total_path_length, total_nodes_explored, paths_checksum, length_checksum, nodes_checksum, result_val);
-
+        int64_t local_result = 0;
+        local_result = (local_result << 5) + (path ? path->size() : 0);
+        local_result = (local_result << 5) + nodes_explored;
+        result_val += local_result;  // &+= эквивалент
     }
     
-    int64_t result() const override {
+    uint32_t checksum() override {
         return result_val;
     }
 };
 
+// ==================== Compression ====================
+
 class Compression : public Benchmark {
 private:
-    // ==================== BWT ====================
     struct BWTResult {
         std::vector<uint8_t> transformed;
         size_t original_idx;
@@ -4365,18 +4077,15 @@ private:
             return BWTResult({}, 0);
         }
         
-        // 1. Создаём удвоенную строку
         std::vector<uint8_t> doubled(n * 2);
         std::copy(input.begin(), input.end(), doubled.begin());
         std::copy(input.begin(), input.end(), doubled.begin() + n);
         
-        // 2. Создаём и сортируем суффиксный массив
         std::vector<size_t> sa(n);
         for (size_t i = 0; i < n; i++) {
             sa[i] = i;
         }
         
-        // 3. Фаза 0: сортировка по первому символу (Radix sort)
         std::vector<std::vector<size_t>> buckets(256);
         for (size_t idx : sa) {
             uint8_t first_char = input[idx];
@@ -4390,9 +4099,7 @@ private:
             }
         }
         
-        // 4. Фаза 1: сортировка по парам символов
         if (n > 1) {
-            // Присваиваем ранги по первому символу
             std::vector<int> rank(n, 0);
             int current_rank = 0;
             uint8_t prev_char = input[sa[0]];
@@ -4407,16 +4114,13 @@ private:
                 rank[idx] = current_rank;
             }
             
-            // Сортируем по парам (ранг[i], ранг[i+1])
             size_t k = 1;
             while (k < n) {
-                // Создаём пары
                 std::vector<std::pair<int, int>> pairs(n);
                 for (size_t i = 0; i < n; i++) {
                     pairs[i] = {rank[i], rank[(i + k) % n]};
                 }
                 
-                // Сортируем индексы по парам
                 std::sort(sa.begin(), sa.end(), [&pairs](size_t a, size_t b) {
                     auto pair_a = pairs[a];
                     auto pair_b = pairs[b];
@@ -4426,7 +4130,6 @@ private:
                     return pair_a.second < pair_b.second;
                 });
                 
-                // Обновляем ранги
                 std::vector<int> new_rank(n, 0);
                 new_rank[sa[0]] = 0;
                 for (size_t i = 1; i < n; i++) {
@@ -4441,7 +4144,6 @@ private:
             }
         }
         
-        // 5. Собираем BWT результат
         std::vector<uint8_t> transformed(n);
         size_t original_idx = 0;
         
@@ -4465,13 +4167,11 @@ private:
             return {};
         }
         
-        // 1. Подсчитываем частоты символов
         std::vector<int> counts(256, 0);
         for (uint8_t byte : bwt) {
             counts[byte]++;
         }
         
-        // 2. Вычисляем стартовые позиции для каждого символа
         std::vector<int> positions(256, 0);
         int total = 0;
         for (int i = 0; i < 256; i++) {
@@ -4479,7 +4179,6 @@ private:
             total += counts[i];
         }
         
-        // 3. Строим массив next (LF-маппинг)
         std::vector<size_t> next(n, 0);
         std::vector<int> temp_counts(256, 0);
         
@@ -4490,7 +4189,6 @@ private:
             temp_counts[byte_idx]++;
         }
         
-        // 4. Восстанавливаем исходную строку
         std::vector<uint8_t> result(n);
         size_t idx = bwt_result.original_idx;
         
@@ -4502,7 +4200,6 @@ private:
         return result;
     }
     
-    // ==================== Huffman ====================
     struct HuffmanNode {
         int frequency;
         uint8_t byte_val;
@@ -4527,14 +4224,12 @@ private:
             std::vector<std::shared_ptr<HuffmanNode>>,
             HuffmanNodeCompare> heap;
         
-        // Добавляем все символы с ненулевой частотой
         for (int i = 0; i < 256; i++) {
             if (frequencies[i] > 0) {
-                heap.push(std::make_shared<HuffmanNode>(frequencies[i], static_cast<uint8_t>(i)));
+                heap.push(std::make_unique<HuffmanNode>(frequencies[i], static_cast<uint8_t>(i)));
             }
         }
         
-        // Если только один символ, создаём искусственный узел
         if (heap.size() == 1) {
             auto node = heap.top();
             heap.pop();
@@ -4545,7 +4240,6 @@ private:
             return root;
         }
         
-        // Строим дерево
         while (heap.size() > 1) {
             auto left = heap.top();
             heap.pop();
@@ -4597,7 +4291,6 @@ private:
     };
     
     EncodedResult huffman_encode(const std::vector<uint8_t>& data, const HuffmanCodes& huffman_codes) {
-        // Предварительное выделение с запасом
         std::vector<uint8_t> result(data.size() * 2);
         uint8_t current_byte = 0;
         int bit_pos = 0;
@@ -4609,7 +4302,6 @@ private:
             int code = huffman_codes.codes[idx];
             int length = huffman_codes.code_lengths[idx];
             
-            // Копируем биты из code
             for (int i = length - 1; i >= 0; i--) {
                 if ((code & (1 << i)) != 0) {
                     current_byte |= 1 << (7 - bit_pos);
@@ -4625,7 +4317,6 @@ private:
             }
         }
         
-        // Последний неполный байт
         if (bit_pos > 0) {
             result[byte_index++] = current_byte;
         }
@@ -4664,7 +4355,7 @@ private:
         return result;
     }
     
-    // ==================== Компрессор ====================
+public:
     struct CompressedData {
         BWTResult bwt_result;
         std::vector<int> frequencies;
@@ -4678,23 +4369,18 @@ private:
     };
     
     CompressedData compress(const std::vector<uint8_t>& data) {
-        // 1. BWT преобразование
         BWTResult bwt_result = bwt_transform(data);
         
-        // 2. Подсчёт частот
         std::vector<int> frequencies(256, 0);
         for (uint8_t byte : bwt_result.transformed) {
             frequencies[byte]++;
         }
         
-        // 3. Построение дерева Huffman
         std::shared_ptr<HuffmanNode> huffman_tree = build_huffman_tree(frequencies);
         
-        // 4. Построение кодов
         HuffmanCodes huffman_codes;
         build_huffman_codes(huffman_tree, 0, 0, huffman_codes);
         
-        // 5. Кодирование
         EncodedResult encoded = huffman_encode(bwt_result.transformed, huffman_codes);
         
         return CompressedData(
@@ -4706,92 +4392,102 @@ private:
     }
     
     std::vector<uint8_t> decompress(const CompressedData& compressed) {
-        // 1. Восстанавливаем дерево Huffman
         std::shared_ptr<HuffmanNode> huffman_tree = build_huffman_tree(compressed.frequencies);
         
-        // 2. Декодирование Huffman
         std::vector<uint8_t> decoded = huffman_decode(
             compressed.encoded_bits,
             huffman_tree,
             compressed.original_bit_count
         );
         
-        // 3. Обратное BWT
         BWTResult bwt_result(std::move(decoded), compressed.bwt_result.original_idx);
         
         return bwt_inverse(bwt_result);
     }
-    
-    // ==================== Бенчмарк ====================
-    int iterations_count;
-    std::vector<uint8_t> test_data;
-    uint64_t benchmark_result;
-    
-    std::vector<uint8_t> generate_test_data(size_t size) {
-        std::string pattern = "ABRACADABRA";
-        std::vector<uint8_t> data(size);
         
-        for (size_t i = 0; i < size; i++) {
-            data[i] = pattern[i % pattern.size()];
+    std::vector<uint8_t> generate_test_data(int64_t data_size) {
+        std::string pattern = "ABRACADABRA";
+        std::vector<uint8_t> data(static_cast<size_t>(data_size));
+        for (int64_t i = 0; i < data_size; i++) {
+            data[static_cast<size_t>(i)] = pattern[i % pattern.size()];
         }
         
         return data;
     }
     
 public:
-    Compression() {
-        std::string name = "Compression";
-        auto it = INPUT.find(name);
-        if (it != INPUT.end()) {
-            iterations_count = std::stoi(it->second);
-        } else {
-            iterations_count = 0;
-        }
+    int64_t size_val;
+    std::vector<uint8_t> test_data;
+    uint32_t result_val;
+
+    Compression() : result_val(0) {
+        size_val = config_val("size");
     }
+    
     std::string name() const override { return "Compression"; }    
     
     void prepare() override {
-        test_data = generate_test_data(iterations_count);
+        test_data = generate_test_data(size_val);
     }
     
-    int32_t iterations() const override {
-        return iterations_count;
+    void run(int iteration_id) override {
+        CompressedData compressed = compress(test_data);
+        result_val += compressed.encoded_bits.size();  // &+= эквивалент
     }
     
-    void run() override {
-        uint32_t total_checksum = 0;
-        
-        for (int i = 0; i < 5; i++) {
-            // Компрессия
-            CompressedData compressed = compress(test_data);
-            
-            // Декомпрессия
-            std::vector<uint8_t> decompressed = decompress(compressed);
-            
-            // Подсчёт checksum
-            uint32_t checksum = Helper::checksum(decompressed);
-            
-            total_checksum = (total_checksum + compressed.encoded_bits.size()) & 0xFFFFFFFFu;
-            total_checksum = (total_checksum + checksum) & 0xFFFFFFFFu;
-        }
-        
-        benchmark_result = total_checksum;
-    }
-    
-    int64_t result() const override {
-        return benchmark_result;
+    uint32_t checksum() override {
+        return result_val;
     }
 };
 
-// ==================== Реализация статического метода run_all ====================
+// ==================== Decompression ====================
 
-void Benchmark::run_all(const std::string& single_bench) {
+class Decompression : public Compression {
+private:
+    std::optional<CompressedData> compressed_data;
+    std::vector<uint8_t> decompressed;
+    
+public:
+    Decompression() {
+        size_val = config_val("size");
+    }
+    
+    std::string name() const override { return "Decompression"; }    
+    
+    void prepare() override {
+        test_data = generate_test_data(size_val);
+        compressed_data = compress(test_data);
+    }
+    
+    void run(int iteration_id) override {
+        decompressed = decompress(*compressed_data);
+        result_val += decompressed.size();  // &+= эквивалент
+    }
+
+    uint32_t checksum() override {
+        uint32_t res = result_val;
+        if (test_data == decompressed) {
+            res += 1000000;
+        }
+        return res;
+    }
+};
+
+// ==================== Реализация статического метода all ====================
+
+std::string to_lower(const std::string& str) {
+    std::string result = str;
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    return result;
+}
+
+void Benchmark::all(const std::string& single_bench) {
     std::unordered_map<std::string, double> results;
     double summary_time = 0.0;
     int ok = 0;
     int fails = 0;
     
-    // Список всех бенчмарков
     std::vector<std::pair<std::string, std::function<std::unique_ptr<Benchmark>()>>> benchmarks = {
         {"Pidigits", []() { return std::make_unique<Pidigits>(); }},
         {"Binarytrees", []() { return std::make_unique<Binarytrees>(); }},
@@ -4833,38 +4529,40 @@ void Benchmark::run_all(const std::string& single_bench) {
         {"GameOfLife", []() { return std::make_unique<GameOfLife>(); }},
         {"AStarPathfinder", []() { return std::make_unique<AStarPathfinder>(); }},        
         {"Compression", []() { return std::make_unique<Compression>(); }},        
+        {"Decompression", []() { return std::make_unique<Decompression>(); }},        
     };
     
     for (auto& [name, create_benchmark] : benchmarks) {
-        if (!single_bench.empty() && single_bench != name) {
+        if (!single_bench.empty() && to_lower(name).find(to_lower(single_bench)) == std::string::npos) {
             continue;
         }
         
         std::cout << name << ": ";
         std::cout.flush();
         
-        // Сброс генератора случайных чисел
         Helper::reset();
         
         auto bench = create_benchmark();
         bench->prepare();
         
+        bench->warmup();
+
+        Helper::reset();
+        
         auto start = std::chrono::steady_clock::now();
-        bench->run();
+        bench->run_all();  // Используем run_all() вместо run()
         auto end = std::chrono::steady_clock::now();
 
         std::chrono::duration<double> duration = end - start;
         bench->set_time_delta(duration.count());
         results[name] = duration.count();
         
-        // Проверка результата
-        auto exp_it = EXPECT.find(name);
-        if (exp_it != EXPECT.end() && bench->result() == exp_it->second) {
+        if (bench->checksum() == bench->expected_checksum()) {
             std::cout << "OK ";
             ok++;
         } else {
-            std::cout << "ERR[actual=" << bench->result() 
-                      << ", expected=" << (exp_it != EXPECT.end() ? exp_it->second : -1) << "] ";
+            std::cout << "ERR[actual=" << bench->checksum() 
+                      << ", expected=" << bench->expected_checksum() << "] ";
             fails++;
         }
         
@@ -4873,12 +4571,10 @@ void Benchmark::run_all(const std::string& single_bench) {
         
         summary_time += duration.count();
         
-        // Освобождаем память
         bench.reset();
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
     
-    // Запись результатов
     std::ofstream results_file("/tmp/results.js");
     results_file << "{";
     bool first = true;
@@ -4902,18 +4598,21 @@ void Benchmark::run_all(const std::string& single_bench) {
 }
 
 int main(int argc, char* argv[]) {
-    // Загрузка конфигурации
+    auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()
+    ).count();
+    std::cout << "start: " << now << std::endl;
+
     if (argc > 1) {
         load_config(argv[1]);
     } else {
         load_config();
     }
     
-    // Запуск бенчмарков
     if (argc > 2) {
-        Benchmark::run_all(argv[2]);
+        Benchmark::all(argv[2]);
     } else {
-        Benchmark::run_all();
+        Benchmark::all();
     }
 
     std::ofstream file("/tmp/recompile_marker");

@@ -14,8 +14,8 @@
     "clean": "rm -rf target/dist",
     "build:dev": "tsc -p tsconfig.json",
     "build:run": "tsc -p tsconfig.run.json",
-    "bench:dev": "npm run build:dev && node --expose-gc target/dist/index.js ../test.txt $@",
-    "bench:run": "npm run build:run && node --expose-gc target/dist/index.js ../run.txt $@"
+    "bench:dev": "npm run build:dev && node --expose-gc target/dist/index.js ../test.js",
+    "bench:run": "npm run build:run && node --expose-gc target/dist/index.js ../run.js"
   },
   "devDependencies": {
     "@types/node": "^20.19.29",

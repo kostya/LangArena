@@ -2,4 +2,4 @@
 mkdir -p target
 rm -f ./target/bin_crystal
 crystal build main.cr --release -o target/bin_crystal
-./target/bin_crystal ../run.txt "$@"
+./target/bin_crystal ../run.js "$@"

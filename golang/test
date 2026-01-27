@@ -3,4 +3,4 @@ mkdir -p target
 rm -f ./target/bin_go_test
 `which go` fmt main.go
 `which go` build -o ./target/bin_go_test main.go
-./target/bin_go_test ../test.txt "$@"
+./target/bin_go_test ../test.js "$@"
