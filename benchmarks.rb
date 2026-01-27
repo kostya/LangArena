@@ -1321,7 +1321,7 @@ puts "------------ Build all finished in #{delta.round(3)}s ----------------"
 write_results
 
 def run(run, index)
-  build(run, IS_VERBOSE, false) # build still neded because swift, java, kotlin, typescript all use same binary
+  run.run(run.build_cmd, false) # build still neded because swift, java, kotlin, typescript all use same binary
 
   puts "Running #{run.name} (#{index} from #{RUNS.size})"
   TESTS.each_with_index do |test_name, index|
