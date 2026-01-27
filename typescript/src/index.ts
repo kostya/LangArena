@@ -5016,6 +5016,8 @@ Benchmark.registerBenchmark(Compression);
 
 // =========== ЗАПУСК ===========
 
+const RECOMPILE_MARKER = 'RECOMPILE_MARKER_0';
+
 // Просто запускаем main
 try {
   main().catch(console.error);

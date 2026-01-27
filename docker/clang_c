@@ -1,0 +1,5 @@
+FROM benchmarks:base_clang
+
+RUN apt install -y --no-install-recommends \
+    uthash-dev \
+    && apt clean

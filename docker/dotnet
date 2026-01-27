@@ -11,24 +11,5 @@ RUN wget https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-p
     && dpkg -i packages-microsoft-prod.deb \
     && rm packages-microsoft-prod.deb
 
-RUN apt-get install -y dotnet-sdk-$version
-
-# 2. Устанавливаем НУЖНЫЕ библиотеки для Native AOT
-RUN apt-get install -y \
-    binutils \
-    binutils-dev \
-    binutils-common \
-    gcc \
-    g++ \
-    make \
-    cmake \
-    libssl-dev \
-    zlib1g-dev \
-    libbrotli-dev \
-    libc6-dev
-
-# 3. Обновляем пакеты System.Text.Json (исправляем уязвимости)
-RUN dotnet new console -n temp && cd temp \
-    && dotnet add package System.Text.Json --version 9.0.0 \
-    && cd .. && rm -rf temp
-
+RUN apt install -y --no-install-recommends dotnet-sdk-$version libbrotli-dev \
+    && apt clean

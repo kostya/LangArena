@@ -4,13 +4,13 @@ FROM benchmarks:base
 # Установка Zig
 # ============================================
 
-RUN apt install -y \
+RUN apt install -y --no-install-recommends \
     llvm-20-dev \
     clang-20 \
     lld-20 \
     libclang-20-dev \
     liblld-20-dev \
-    cmake
+    && apt clean
 
 RUN ln -sf /usr/bin/llvm-config-20 /usr/local/bin/llvm-config
 RUN ln -sf /usr/bin/llvm-ar-20 /usr/local/bin/llvm-ar
@@ -29,5 +29,3 @@ RUN git clone --progress https://codeberg.org/ziglang/zig.git zig-src \
     && mv stage3 /opt/zig \
     && ln -sf /opt/zig/bin/zig /usr/local/bin/zig \
     && cd /opt && rm -rf zig-src
-
-RUN apt install -y libpcre2-dev

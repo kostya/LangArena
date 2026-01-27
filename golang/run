@@ -1,4 +1,5 @@
 #!/bin/sh
-rm -f ./bin_go
-`which go` build -ldflags="-s -w" -o bin_go main.go
-./bin_go ../run.txt "$@"
+mkdir -p target
+rm -f ./target/bin_go
+`which go` build -ldflags="-s -w" -o target/bin_go main.go
+./target/bin_go ../run.txt "$@"

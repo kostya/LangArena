@@ -5,7 +5,7 @@ let package = Package(
     name: "Benchmarks",
     platforms: [.macOS(.v10_15)],
     dependencies: [
-        .package(url: "https://github.com/attaswift/BigInt.git", from: "5.3.0")
+        .package(url: "https://github.com/attaswift/BigInt.git", from: "5.7.0")
     ],
     targets: [
         .executableTarget(

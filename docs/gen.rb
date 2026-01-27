@@ -183,7 +183,12 @@ This table compares how concisely different programming languages express the sa
   def compile(runs = @runs_prod)
     m = []
     runs.each do |run|
-      m << [run, format_float(@j['compile-time-cold'][run]), format_float(@j['compile-mem-mb'][run]), format_float(@j['binary-size-kb'][run] / 1024.0)]
+      m << [run, 
+        format_float(@j['compile-time-cold'][run]), 
+        format_float(@j['compile-memory-cold'][run]), 
+        format_float(@j['compile-time-incremental'][run]), 
+        format_float(@j['compile-memory-incremental'][run]), 
+        format_float(@j['binary-size-kb'][run] / 1024.0)]
     end
 
     m.sort_by! do |line|
@@ -198,10 +203,9 @@ This table compares how concisely different programming languages express the sa
     end
 
     desc = <<-DESC
-      The timing measurement for compilation isn't quite accurate right now and may show incorrect results — I'll fix it soon.
     DESC
 
-    {map: m2, left_header: left_header, up_header: ["Time, s", "Memory Peak, Mb", "Binary size, Mb"], lang: :left, first_row: "Run", description: desc}
+    {map: m2, left_header: left_header, up_header: ["Time Cold, s", "Memory Peak Cold, Mb", "Time Incremental, s", "Memory Peak Incremental, Mb", "Binary size, Mb"], lang: :left, first_row: "Run", description: desc}
   end
 
   def format_float(v)
@@ -237,7 +241,7 @@ This table compares how concisely different programming languages express the sa
     wins = _vert(b[:map], b[:up_header].index("Wins Count")).map { |s| s =~ /([0-9\.]+)/; $1.to_i }
     wins = b[:left_header].zip(wins).sort_by { |lang, win| -win }.map { |a, v| [a, "#{v}"] }
 
-    ct = _vert(b[:map], b[:up_header].index("Compile Time, s")).map { |s| s =~ /([0-9\.]+)/; $1.to_f.round(1) }
+    ct = _vert(b[:map], b[:up_header].index("Compile Time Inc, s")).map { |s| s =~ /([0-9\.]+)/; $1.to_f.round(1) }
     ct = b[:left_header].zip(ct).sort_by { |lang, v| v }.map { |a, v| [a, "#{v}s"] }
 
     exp = _vert(b[:map], b[:up_header].index("Expressiveness")).map { |s| s =~ /([\-0-9\.]+)/; $1.to_f.round(1) }
@@ -507,28 +511,28 @@ Legend: <span class="value_badge gold">1st</span> <span class="value_badge silve
     # compile time
     h = Hash.new(0.0)
     runs.each do |run|
-      h[run] = @j['compile-time-cold'][run]
+      h[run] = @j['compile-time-incremental'][run]
     end
     min = h.min_by { |k, v| v }[1]
 
-    up_header << "Compile Time, s"
+    up_header << "Compile Time Inc, s"
     # up_header << "Compile Time vs Fastest"
     runs.each do |run|
-      result[_lang_for run] << format_float(@j['compile-time-cold'][run])
+      result[_lang_for run] << format_float(@j['compile-time-incremental'][run])
       # result[_lang_for run] << format_float(@j['compile-time-cold'][run] / min)
     end
 
     # compile memory 
     h = Hash.new(0.0)
     runs.each do |run|
-      h[run] = @j['compile-mem-mb'][run]
+      h[run] = @j['compile-memory-incremental'][run]
     end
     min = h.min_by { |k, v| v }[1]
 
-    up_header << "Compile Memory, Mb"    
+    up_header << "Compile Memory Inc, Mb"    
     # up_header << "Compile Memory vs Fastest"
     runs.each do |run|
-      result[_lang_for run] << format_float(@j['compile-mem-mb'][run])
+      result[_lang_for run] << format_float(@j['compile-memory-incremental'][run])
       # result[_lang_for run] << format_float(@j['compile-mem-mb'][run] / min)
     end
 

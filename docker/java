@@ -6,13 +6,11 @@ FROM benchmarks:base
 
 ARG version
 
-RUN apt install -y \
-    openjdk-$version-jdk \
-    openjdk-$version-jre
+RUN apt install -y --no-install-recommends openjdk-$version-jdk-headless \
+    && apt clean
 
 ENV JAVA_HOME="/usr/lib/jvm/java-$version-openjdk-amd64"
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
-
 
 # устанавливаем Maven вручную (лучший вариант)
 ARG mavenversion
@@ -22,8 +20,3 @@ RUN wget https://dlcdn.apache.org/maven/maven-3/$mavenversion/binaries/apache-ma
     ln -s /opt/apache-maven-$mavenversion /opt/maven
 
 ENV PATH="/opt/maven/bin:$PATH"
-
-# Устанавливаем libnuma для всех JVM
-RUN apt-get install -y \
-    libnuma-dev \
-    numactl

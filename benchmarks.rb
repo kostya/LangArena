@@ -36,6 +36,17 @@ puts "Dotnet runtime: #{DOTNET_RUNTIME}"
 PC = `docker compose run --rm -q base python3 pc_specs.py`.strip
 puts "PC: #{PC}"
 
+def measure
+  t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
+  yield
+  t2 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
+  ((t2 - t1) / 1e9)
+end
+
+RECOMPILE_MARKER_0 = "RECOMPILE_MARKER_0"
+RECOMPILE_MARKER_1 = "RECOMPILE_MARKER_1"
+RECOMPILE_MARKER_FILES = {}
+
 def check_source_files(verbose = false)
   #!/usr/bin/env ruby
   require 'find'
@@ -43,16 +54,16 @@ def check_source_files(verbose = false)
   require 'json'
 
   lang_masks = {
-    'c' => ['./c', ['.c', '.h'], ['cJSON', 'base64']],
-    'cpp' => ['./cpp', ['.cpp', '.hpp', '.h', '.cc', '.cxx'], ['simdjson', 'base64']],
-    'golang' => ['./golang', ['.go'], []],
-    'crystal' => ['./crystal', ['.cr'], []],
+    'c' => ['./c', ['.c', '.h'], ['target', 'deps']],
+    'cpp' => ['./cpp', ['.cpp', '.hpp', '.h', '.cc', '.cxx'], ['target', 'deps']],
+    'golang' => ['./golang', ['.go'], ['target']],
+    'crystal' => ['./crystal', ['.cr'], ['target']],
     'rust' => ['./rust', ['.rs'], ['target']],
     'csharp' => ['./csharp', ['.cs'], ['obj', 'bin']],
     'swift' => ['./swift', ['.swift'], ['.build']],
     'java' => ['./java', ['.java'], ['target']],
-    'kotlin' => ['./kotlin', ['.kt', '.kts'], ['build']],
-    'typescript' => ['./typescript', ['.ts', '.tsx'], ['node_modules', 'dist']],
+    'kotlin' => ['./kotlin', ['.kt'], ['build', '.gradle', 'gradle']],
+    'typescript' => ['./typescript', ['.ts', '.tsx'], ['node_modules', 'target']],
     'zig' => ['./zig', ['.zig'], ['.zig-cache']]
   }
 
@@ -105,6 +116,7 @@ def check_source_files(verbose = false)
       full_path = File.join(path, file)
       begin
         data = File.read(full_path, mode: 'rb')
+        RECOMPILE_MARKER_FILES[lang] = full_path if data.include?(RECOMPILE_MARKER_0) && !RECOMPILE_MARKER_FILES[lang]
         total_bytes += data.bytesize
         content << data
       rescue => e
@@ -135,10 +147,9 @@ def check_source_files(verbose = false)
 end
 
 class Run
-  attr_reader :name, :build_cmd, :binary_name, :run_cmd, :version_cmd, :container, :dir, :cache_dir, :group
-  def initialize(name:, build_cmd:, binary_name:, run_cmd:, version_cmd:, container:, dir:, cache_dir:, group:)
+  attr_reader :name, :build_cmd, :binary_name, :run_cmd, :version_cmd, :container, :dir, :group, :deps_cmd
+  def initialize(name:, build_cmd:, binary_name:, run_cmd:, version_cmd:, container:, dir:, group:, deps_cmd:)
     @name = name
-    @cache_dir = cache_dir
     @dir = dir
     @container = container
     @build_cmd = build_cmd
@@ -146,13 +157,18 @@ class Run
     @run_cmd = run_cmd
     @version_cmd = version_cmd
     @group = group # :prod or :hack
+    @deps_cmd = deps_cmd
     if @group == :hack
       @name += "-Hack"
     end
   end
 
+  def lang
+    @dir.gsub("/src/", "")
+  end
+
   def dcr
-    "docker compose run -w #{@dir} --rm -q --remove-orphans #{@container} "
+    "docker compose run --rm -q --remove-orphans #{@container} "
   end
 
   def rss_prefix
@@ -173,6 +189,16 @@ class Run
     rss = $1.to_i
     {out: stdout.sub(/MaxRSS\(([0-9]*?)\)KB\n/, ""), rss: rss}
   end
+
+  def deps
+    cmd = "sh -c '#{@deps_cmd}'"
+    run(cmd, IS_VERBOSE)
+  end
+
+  def version
+    v = `#{dcr} #{@version_cmd}`.strip
+    v.gsub("\n", " | ")
+  end
 end
 
 C_FLAGS_PROD = " -O2 -march=native -flto=auto -DNDEBUG -fstack-protector-strong -fno-omit-frame-pointer -Wall -Wextra -Wpedantic -Werror=return-type -Werror=address"
@@ -186,206 +212,206 @@ CXXFLAGS_PROD = C_FLAGS_PROD + " -std=c++20 -Wold-style-cast -Woverloaded-virtua
 CXXFLAGS_ENH = C_FLAGS_ENH + " -std=c++20 -Wsuggest-override -Wduplicated-cond"
 CXXFLAGS_MAX = C_FLAGS_MAX + " -std=c++20" # ⚠️ Опасные флаги! -fno-rtti -fno-exception
 
-C_INCLUDE_FLAGS = " -Ibase64/include/ -I/usr/include/ -IcJSON -L/opt/homebrew/lib -I/opt/homebrew/include/"
-C_LINK_FLAGS = " -lgmp cJSON/cJSON.o base64/lib/libbase64.o -lm -lpcre2-8 -lpthread"
+C_INCLUDE_FLAGS = " -Ideps/base64/include/ -I/usr/include/ -Ideps/cJSON -L/opt/homebrew/lib -I/opt/homebrew/include/"
+C_LINK_FLAGS = " -lgmp target/cJSON.o target/libbase64.o -lm -lpcre2-8 -lpthread"
 
-CXX_INCLUDE_FLAGS = " -Ibase64/include -Wl,-rpath,/opt/homebrew/opt/llvm/lib/c++ -L/opt/homebrew/opt/llvm/lib/c++ -L/opt/homebrew/lib -I/opt/homebrew/include/ -Isimdjson"
-CXX_LINK_FLAGS = " base64/lib/libbase64.o -lgmp -lre2 -lpthread"
+CXX_INCLUDE_FLAGS = " -Ideps/base64/include -Wl,-rpath,/opt/homebrew/opt/llvm/lib/c++ -L/opt/homebrew/opt/llvm/lib/c++ -L/opt/homebrew/lib -I/opt/homebrew/include/ -Ideps/simdjson"
+CXX_LINK_FLAGS = " target/libbase64.o target/simdjson.o -lgmp -lre2 -lpthread"
 
 RUNS = [
 
   # ======================================= C ======================================================
   Run.new(
     name: "C/Clang/Default", 
-    build_cmd: "sh -c 'sh deps.sh; gcc #{C_INCLUDE_FLAGS} -O2 main.c -o bin_c_clang_def #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_clang_def",
-    run_cmd: "./bin_c_clang_def", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} -O2 main.c -o target/bin_c_clang_def #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_clang_def",
+    run_cmd: "./target/bin_c_clang_def", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
-    container: "clang",
+    container: "clang_c",
     group: :hack,
+    deps_cmd: "sh fetch-deps.sh",
   ),
   
   Run.new(
     name: "C/Gcc/Default", 
-    build_cmd: "sh -c 'sh deps.sh; gcc #{C_INCLUDE_FLAGS} -O2 main.c -o bin_c_gcc_def #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_gcc_def",
-    run_cmd: "./bin_c_gcc_def", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} -O2 main.c -o target/bin_c_gcc_def #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_gcc_def",
+    run_cmd: "./target/bin_c_gcc_def", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
-    container: "gcc",
+    container: "gcc_c",
     group: :hack,
+    deps_cmd: "sh fetch-deps.sh",
   ),
   
   Run.new(
     name: "C/Clang", 
-    build_cmd: "sh -c 'sh deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_PROD} main.c -o bin_c_clang #{LD_FLAGS_PROD} #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_clang",
-    run_cmd: "./bin_c_clang", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_PROD} main.c -o target/bin_c_clang #{LD_FLAGS_PROD} #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_clang",
+    run_cmd: "./target/bin_c_clang", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
-    container: "clang",
+    container: "clang_c",
     group: :prod,
+    deps_cmd: "sh fetch-deps.sh",
   ),
   
   Run.new(
     name: "C/Gcc", 
-    build_cmd: "sh -c 'sh deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_PROD} main.c -o bin_c_gcc #{LD_FLAGS_PROD} #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_gcc",
-    run_cmd: "./bin_c_gcc", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_PROD} main.c -o target/bin_c_gcc #{LD_FLAGS_PROD} #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_gcc",
+    run_cmd: "./target/bin_c_gcc", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
-    container: "gcc",
+    container: "gcc_c",
     group: :prod,
+    deps_cmd: "sh fetch-deps.sh",
   ),
   
   Run.new(
     name: "C/Clang/ENH", 
-    build_cmd: "sh -c 'sh deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_ENH} main.c -o bin_c_clang_enh #{LD_FLAGS_ENH} #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_clang_enh",
-    run_cmd: "./bin_c_clang_enh", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_ENH} main.c -o target/bin_c_clang_enh #{LD_FLAGS_ENH} #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_clang_enh",
+    run_cmd: "./target/bin_c_clang_enh", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
-    container: "clang",
+    container: "clang_c",
     group: :hack,
+    deps_cmd: "sh fetch-deps.sh",
   ),
   
   Run.new(
     name: "C/Gcc/ENH", 
-    build_cmd: "sh -c 'sh deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_ENH} main.c -o bin_c_gcc_enh #{LD_FLAGS_ENH.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_gcc_enh",
-    run_cmd: "./bin_c_gcc_enh", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_ENH} main.c -o target/bin_c_gcc_enh #{LD_FLAGS_ENH.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_gcc_enh",
+    run_cmd: "./target/bin_c_gcc_enh", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
-    container: "gcc",
+    container: "gcc_c",
     group: :hack,
+    deps_cmd: "sh fetch-deps.sh",
   ),
   
   Run.new(
     name: "C/Clang/MaxPerf", 
-    build_cmd: "sh -c 'sh deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_MAX} main.c -o bin_c_clang_max #{LD_FLAGS_MAX} #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_clang_max",
-    run_cmd: "./bin_c_clang_max", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_MAX} main.c -o target/bin_c_clang_max #{LD_FLAGS_MAX} #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_clang_max",
+    run_cmd: "./target/bin_c_clang_max", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
-    container: "clang",
+    container: "clang_c",
     group: :hack,
+    deps_cmd: "sh fetch-deps.sh",
   ),
   
   Run.new(
     name: "C/Gcc/MaxPerf", 
-    build_cmd: "sh -c 'sh deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_MAX} main.c -o bin_c_gcc_max #{LD_FLAGS_MAX.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{C_LINK_FLAGS}'",
-    binary_name: "./bin_c_gcc_max",
-    run_cmd: "./bin_c_gcc_max", 
+    build_cmd: "sh -c 'sh build-deps.sh; gcc #{C_INCLUDE_FLAGS} #{C_FLAGS_MAX} main.c -o target/bin_c_gcc_max #{LD_FLAGS_MAX.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{C_LINK_FLAGS}'",
+    binary_name: "./target/bin_c_gcc_max",
+    run_cmd: "./target/bin_c_gcc_max", 
     version_cmd: "gcc --version | head -n 1",
-    cache_dir: "",
     dir: "/src/c",
-    container: "gcc",
+    container: "gcc_c",
     group: :hack,
+    deps_cmd: "sh fetch-deps.sh",
   ),
 
   # ======================================= С++ ======================================================
   Run.new(
     name: "C++/Clang++/Default", 
-    build_cmd: "sh -c 'sh deps.sh; g++ #{CXX_INCLUDE_FLAGS} -O2 -std=c++20 simdjson/simdjson.o main.cpp -o bin_cpp_clang_def #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_clang_def",
-    run_cmd: "./bin_cpp_clang_def", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} -O2 -std=c++20 main.cpp -o target/bin_cpp_clang_def #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_clang_def",
+    run_cmd: "./target/bin_cpp_clang_def", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
-    container: "clang",
+    container: "clang_cpp",
     group: :hack,
+    deps_cmd: "sh fetch-deps.sh",
   ),
 
   Run.new(
     name: "C++/G++/Default", 
-    build_cmd: "sh -c 'sh deps.sh; g++ #{CXX_INCLUDE_FLAGS} -O2 -std=c++20 simdjson/simdjson.o main.cpp -o bin_cpp_gcc_def #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_gcc_def",
-    run_cmd: "./bin_cpp_gcc_def", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} -O2 -std=c++20 main.cpp -o target/bin_cpp_gcc_def #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_gcc_def",
+    run_cmd: "./target/bin_cpp_gcc_def", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
-    container: "gcc",
+    container: "gcc_cpp",
     group: :hack,
+    deps_cmd: "sh fetch-deps.sh",
   ),
 
   Run.new(
     name: "C++/Clang++", 
-    build_cmd: "sh -c 'sh deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_PROD} simdjson/simdjson.o main.cpp -o bin_cpp_clang #{LD_FLAGS_PROD} #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_clang",
-    run_cmd: "./bin_cpp_clang", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_PROD} main.cpp -o target/bin_cpp_clang #{LD_FLAGS_PROD} #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_clang",
+    run_cmd: "./target/bin_cpp_clang", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
-    container: "clang",
+    container: "clang_cpp",
     group: :prod,
+    deps_cmd: "sh fetch-deps.sh",
   ),
 
   Run.new(
     name: "C++/G++", 
-    build_cmd: "sh -c 'sh deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_PROD} simdjson/simdjson.o main.cpp -o bin_cpp_gcc #{LD_FLAGS_PROD} #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_gcc",
-    run_cmd: "./bin_cpp_gcc", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_PROD} main.cpp -o target/bin_cpp_gcc #{LD_FLAGS_PROD} #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_gcc",
+    run_cmd: "./target/bin_cpp_gcc", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
-    container: "gcc",
+    container: "gcc_cpp",
     group: :prod,
+    deps_cmd: "sh fetch-deps.sh",
   ),
 
   Run.new(
     name: "C++/Clang++/ENH", 
-    build_cmd: "sh -c 'sh deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_ENH} simdjson/simdjson.o main.cpp -o bin_cpp_clang_enh #{LD_FLAGS_ENH} #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_clang_enh",
-    run_cmd: "./bin_cpp_clang_enh", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_ENH} main.cpp -o target/bin_cpp_clang_enh #{LD_FLAGS_ENH} #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_clang_enh",
+    run_cmd: "./target/bin_cpp_clang_enh", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
-    container: "clang",
+    container: "clang_cpp",
     group: :hack,
+    deps_cmd: "sh fetch-deps.sh",
   ),
 
   Run.new(
     name: "C++/G++/ENH", 
-    build_cmd: "sh -c 'sh deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_ENH} simdjson/simdjson.o main.cpp -o bin_cpp_gcc_enh #{LD_FLAGS_ENH.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_gcc_enh",
-    run_cmd: "./bin_cpp_gcc_enh", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_ENH} main.cpp -o target/bin_cpp_gcc_enh #{LD_FLAGS_ENH.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_gcc_enh",
+    run_cmd: "./target/bin_cpp_gcc_enh", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
-    container: "gcc",
+    container: "gcc_cpp",
     group: :hack,
+    deps_cmd: "sh fetch-deps.sh",
   ),
 
   Run.new(
     name: "C++/Clang++/MaxPerf", 
-    build_cmd: "sh -c 'sh deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_MAX} simdjson/simdjson.o main.cpp -o bin_cpp_clang_max #{LD_FLAGS_MAX} #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_clang_max",
-    run_cmd: "./bin_cpp_clang_max", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_MAX} main.cpp -o target/bin_cpp_clang_max #{LD_FLAGS_MAX} #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_clang_max",
+    run_cmd: "./target/bin_cpp_clang_max", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
-    container: "clang",
+    container: "clang_cpp",
     group: :hack,
+    deps_cmd: "sh fetch-deps.sh",
   ),
 
   Run.new(
     name: "C++/G++/MaxPerf", 
-    build_cmd: "sh -c 'sh deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_MAX} simdjson/simdjson.o main.cpp -o bin_cpp_gcc_max #{LD_FLAGS_MAX.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{CXX_LINK_FLAGS}'",
-    binary_name: "./bin_cpp_gcc_max",
-    run_cmd: "./bin_cpp_gcc_max", 
+    build_cmd: "sh -c 'sh build-deps.sh; g++ #{CXX_INCLUDE_FLAGS} #{CXXFLAGS_MAX} main.cpp -o target/bin_cpp_gcc_max #{LD_FLAGS_MAX.gsub("-flto=thin", "-flto").gsub("-flto=full", "-flto")} #{CXX_LINK_FLAGS}'",
+    binary_name: "./target/bin_cpp_gcc_max",
+    run_cmd: "./target/bin_cpp_gcc_max", 
     version_cmd: "g++ --version | head -n 1",
-    cache_dir: "",
     dir: "/src/cpp",
-    container: "gcc",
+    container: "gcc_cpp",
     group: :hack,
+    deps_cmd: "sh fetch-deps.sh",
   ),
 
   # ======================================= Rust ======================================================
@@ -395,10 +421,10 @@ RUNS = [
     binary_name: "./target/release/benchmarks", 
     run_cmd: "./target/release/benchmarks", 
     version_cmd: "rustc --version  | head -n 1",
-    cache_dir: "",
     dir: "/src/rust",
     container: "rust",
     group: :prod,
+    deps_cmd: "cargo fetch",
   ),
   Run.new(
     name: "Rust/WMO", 
@@ -406,10 +432,10 @@ RUNS = [
     binary_name: "./target/wmo/benchmarks", 
     run_cmd: "./target/wmo/benchmarks", 
     version_cmd: "rustc --version  | head -n 1",
-    cache_dir: "",
     dir: "/src/rust",
     container: "rust",
     group: :hack,
+    deps_cmd: "cargo fetch",
   ),
   Run.new(
     name: "Rust/WMO/Unchecked", 
@@ -417,10 +443,10 @@ RUNS = [
     binary_name: "./target/no-checks/benchmarks", 
     run_cmd: "./target/no-checks/benchmarks", 
     version_cmd: "rustc --version  | head -n 1",
-    cache_dir: "",
     dir: "/src/rust",
     container: "rust",
     group: :hack,
+    deps_cmd: "cargo fetch",
   ),
   Run.new(
     name: "Rust/MaxPerf/Unsafe", 
@@ -428,10 +454,10 @@ RUNS = [
     binary_name: "./target/max-perf/benchmarks", 
     run_cmd: "./target/max-perf/benchmarks", 
     version_cmd: "rustc --version  | head -n 1",
-    cache_dir: "",
     dir: "/src/rust",
     container: "rust",
     group: :hack,
+    deps_cmd: "cargo fetch",
   ),
 
   # ======================================= Zig ======================================================
@@ -442,10 +468,10 @@ RUNS = [
     binary_name: "./zig-out/bin/zig",
     run_cmd: "./zig-out/bin/zig", 
     version_cmd: "zig version",
-    cache_dir: "",
     dir: "/src/zig",
     container: "zig",
     group: :prod,
+    deps_cmd: "zig libc",
   ),
 
   Run.new(
@@ -454,70 +480,70 @@ RUNS = [
     binary_name: "./zig-out/bin/zig-unchecked",
     run_cmd: "./zig-out/bin/zig-unchecked", 
     version_cmd: "zig version",
-    cache_dir: "",
     dir: "/src/zig",
     container: "zig",
     group: :hack,
+    deps_cmd: "zig libc",
   ),
 
   # ======================================= crystal ======================================================
   Run.new(
     name: "Crystal", 
-    build_cmd: "crystal build main.cr --release -o ./bin_crystal", 
-    binary_name: "./bin_crystal", 
-    run_cmd: "./bin_crystal", 
+    build_cmd: "crystal build main.cr --release -o ./target/bin_crystal", 
+    binary_name: "./target/bin_crystal", 
+    run_cmd: "./target/bin_crystal", 
     version_cmd: "crystal --version | head -n 1",
-    cache_dir: "",
     dir: "/src/crystal",
     container: "crystal",
     group: :prod,
+    deps_cmd: "mkdir -p target",
   ),
 
   # ======================================= Go ======================================================
   Run.new(
     name: "Go", 
-    build_cmd: "go build -o bin_go main.go", 
-    binary_name: "./bin_go", 
-    run_cmd: "./bin_go", 
+    build_cmd: "go build -o target/bin_go main.go", 
+    binary_name: "./target/bin_go", 
+    run_cmd: "./target/bin_go", 
     version_cmd: "go version",
-    cache_dir: "",
     dir: "/src/golang",
     container: "golang",
     group: :prod,
+    deps_cmd: "mkdir -p target", # go mod download
   ),
   Run.new(
     name: "Go/Opt", 
-    build_cmd: "go build -a -trimpath -ldflags=\"-s -w -extldflags '-static'\" -tags=\"osusergo,netgo\" -o bin_go_opts main.go", 
-    binary_name: "./bin_go_opts", 
-    run_cmd: "./bin_go_opts", 
+    build_cmd: "go build -a -trimpath -ldflags=\"-s -w -extldflags '-static'\" -tags=\"osusergo,netgo\" -o target/bin_go_opts main.go", 
+    binary_name: "./target/bin_go_opts", 
+    run_cmd: "./target/bin_go_opts", 
     version_cmd: "go version",
-    cache_dir: "",
     dir: "/src/golang",
     container: "golang",
     group: :hack,
+    deps_cmd: "mkdir -p target",
   ),
   Run.new(
     name: "Go/GccGo", 
-    build_cmd: "gccgo -O2 main.go -o ./bin_gccgo", 
-    binary_name: "./bin_gccgo", 
-    run_cmd: "./bin_gccgo", 
+    build_cmd: "gccgo -O2 main.go -o ./target/bin_gccgo", 
+    binary_name: "./target/bin_gccgo", 
+    run_cmd: "./target/bin_gccgo", 
     version_cmd: "gccgo --version | head -n 1",
-    cache_dir: "",
     dir: "/src/golang",
     container: "gccgo",
     group: :hack,
+    deps_cmd: "mkdir -p target",
   ),
 
   Run.new(
     name: "Go/GccGo/Opt", 
-    build_cmd: "gccgo -O3 -march=native -flto -fuse-linker-plugin -funroll-loops -fgo-optimize-allocs -static-libgo -s -w -fomit-frame-pointer -fno-semantic-interposition -fno-common -Bstatic main.go -o ./bin_gccgo_opt", 
-    binary_name: "./bin_gccgo_opt", 
-    run_cmd: "./bin_gccgo_opt", 
+    build_cmd: "gccgo -O3 -march=native -flto -fuse-linker-plugin -funroll-loops -fgo-optimize-allocs -static-libgo -s -w -fomit-frame-pointer -fno-semantic-interposition -fno-common -Bstatic main.go -o ./target/bin_gccgo_opt", 
+    binary_name: "./target/bin_gccgo_opt", 
+    run_cmd: "./target/bin_gccgo_opt", 
     version_cmd: "gccgo --version | head -n 1",
-    cache_dir: "",
     dir: "/src/golang",
     container: "gccgo",
     group: :prod,
+    deps_cmd: "mkdir -p target",
   ),
 
   # ======================================= C# ======================================================
@@ -528,10 +554,10 @@ RUNS = [
     binary_name: "./bin/Release/net10.0/Benchmark.dll",
     run_cmd: "dotnet ./bin/Release/net10.0/Benchmark.dll", 
     version_cmd: "dotnet --version",
-    cache_dir: "",
     dir: "/src/csharp",
     container: "dotnet",   
     group: :prod, 
+    deps_cmd: "dotnet restore",
   ),
 
   # AOT Native (максимальная скорость выполнения) - ИСПРАВЛЕННЫЙ
@@ -549,10 +575,10 @@ RUNS = [
     binary_name: "./bin/aot/Benchmark",
     run_cmd: "./bin/aot/Benchmark", 
     version_cmd: "dotnet --version",
-    cache_dir: "",
     dir: "/src/csharp",
     container: "dotnet",
     group: :prod,        
+    deps_cmd: "dotnet restore",
   ),
 
   # Self-Contained JIT (портируемый) - ДОЛГО ЗАПУСКАЕТСЯ
@@ -562,10 +588,10 @@ RUNS = [
     binary_name: "./bin/sc-jit/Benchmark",
     run_cmd: "./bin/sc-jit/Benchmark", 
     version_cmd: "dotnet --version",
-    cache_dir: "",
     dir: "/src/csharp",
     container: "dotnet",  
     group: :hack,  
+    deps_cmd: "dotnet restore",
   ),
 
   # Self-Contained AOT (максимум всего) - САМЫЙ МЕДЛЕННЫЙ СТАРТ, САМЫЙ БЫСТРЫЙ ВЫПОЛНЕНИЕ
@@ -575,7 +601,7 @@ RUNS = [
       dotnet publish -c Release \
       -p:PublishAOT=true \
       --self-contained true \
-      --runtime #{DOTNET_RUNTIME} \
+      --runtime linux-x64 \
       -p:IlcOptimizationPreference=Speed \
       -p:IlcInstructionSet=native \
       -p:EnableCppCli=true \
@@ -586,10 +612,10 @@ RUNS = [
     binary_name: "./bin/sc-aot/Benchmark",
     run_cmd: "./bin/sc-aot/Benchmark", 
     version_cmd: "dotnet --version",
-    cache_dir: "",
     dir: "/src/csharp",
     container: "dotnet", 
-    group: :hack,       
+    group: :hack, 
+    deps_cmd: "dotnet restore",      
   ),
 
   # ReadyToRun (компромисс) - ХОРОШИЙ БАЛАНС
@@ -599,10 +625,10 @@ RUNS = [
     binary_name: "./bin/r2r/Benchmark",
     run_cmd: "./bin/r2r/Benchmark", 
     version_cmd: "dotnet --version",
-    cache_dir: "",
     dir: "/src/csharp",
     container: "dotnet",    
-    group: :hack,    
+    group: :hack,   
+    deps_cmd: "dotnet restore", 
   ),
 
   # Экстремальный AOT профиль
@@ -625,10 +651,10 @@ RUNS = [
     binary_name: "./bin/aot-extreme/Benchmark",
     run_cmd: "./bin/aot-extreme/Benchmark",
     version_cmd: "dotnet --version",
-    cache_dir: "",
     dir: "/src/csharp",
     container: "dotnet", 
     group: :hack,   
+    deps_cmd: "dotnet restore",
   ),  
 
   # ======================================= Swift ======================================================
@@ -639,10 +665,10 @@ RUNS = [
     binary_name: "./.build/release/Benchmarks",
     run_cmd: "./.build/release/Benchmarks", 
     version_cmd: "swift -version | head -n 1",
-    cache_dir: "",
     dir: "/src/swift",
     container: "swift",
     group: :prod,
+    deps_cmd: "swift package resolve",
   ),
   
   # WMO (лучшая безопасная оптимизация)
@@ -652,10 +678,10 @@ RUNS = [
     binary_name: "./.build/release/Benchmarks",
     run_cmd: "./.build/release/Benchmarks", 
     version_cmd: "swift -version | head -n 1",
-    cache_dir: "",
     dir: "/src/swift",
     container: "swift",
     group: :hack,
+    deps_cmd: "swift package resolve",
   ),
   
   # Unchecked (без проверок безопасности)
@@ -665,10 +691,10 @@ RUNS = [
     binary_name: "./.build/release/Benchmarks", 
     run_cmd: "./.build/release/Benchmarks", 
     version_cmd: "swift -version | head -n 1",
-    cache_dir: "",
     dir: "/src/swift",
     container: "swift",
     group: :hack,
+    deps_cmd: "swift package resolve",
   ),
   
   # WMO + Unchecked (максимум без LLVM оптимизаций)
@@ -678,10 +704,10 @@ RUNS = [
     binary_name: "./.build/release/Benchmarks",
     run_cmd: "./.build/release/Benchmarks", 
     version_cmd: "swift -version | head -n 1",
-    cache_dir: "",
     dir: "/src/swift",
     container: "swift",
     group: :hack,
+    deps_cmd: "swift package resolve",
   ),
   
   # MaxPerf (исправленный)
@@ -691,10 +717,10 @@ RUNS = [
     binary_name: "./.build/release/Benchmarks",
     run_cmd: "./.build/release/Benchmarks", 
     version_cmd: "swift -version | head -n 1",
-    cache_dir: "",
     dir: "/src/swift",
     container: "swift",
     group: :hack,
+    deps_cmd: "swift package resolve",
   ),
     
   # ======================================= Java ======================================================
@@ -702,7 +728,7 @@ RUNS = [
   Run.new(
     name: "Java/OpenJDK",
     build_cmd: <<~CMD.chomp,
-      mvn clean compile package -Pjava-plain \
+      mvn compile package -Pjava-plain \
         -DskipTests \
         -Dmaven.test.skip=true \
         -q
@@ -715,20 +741,17 @@ RUNS = [
         -jar ./target/java-benchmarks-1.0-SNAPSHOT.jar
     CMD
     version_cmd: "java --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.m2
-      /src/java/target
-    DIR
     dir: "/src/java",
     container: "java",
     group: :prod,
+    deps_cmd: "mvn dependency:resolve; mvn dependency:resolve-plugins",
   ),
 
   # Java с максимальными оптимизациями
   Run.new(
     name: "Java/OpenJDK/Opt",
     build_cmd: <<~CMD.chomp,
-      mvn clean compile package -Pjava-optimized \
+      mvn compile package -Pjava-optimized \
         -DskipTests \
         -Dmaven.test.skip=true \
         -q
@@ -750,20 +773,17 @@ RUNS = [
         -jar ./target/java-benchmarks-1.0-SNAPSHOT.jar
     CMD
     version_cmd: "java --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.m2
-      /src/java/target
-    DIR
     dir: "/src/java",
     container: "java",
     group: :hack,
+    deps_cmd: "mvn dependency:resolve; mvn dependency:resolve-plugins",
   ),
 
   # GraalVM JIT с оптимизациями
   Run.new(
     name: "Java/GraalVM/JIT",
     build_cmd: <<~CMD.chomp,
-      mvn clean compile package -Pgraalvm-jit \
+      mvn compile package -Pgraalvm-jit \
         -DskipTests \
         -Dmaven.test.skip=true \
         -q
@@ -781,20 +801,17 @@ RUNS = [
         -jar ./target/java-benchmarks-1.0-SNAPSHOT.jar
     CMD
     version_cmd: "java --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.m2
-      /src/java/target
-    DIR
     dir: "/src/java",
     container: "graalvm",
     group: :prod,
+    deps_cmd: "mvn dependency:resolve; mvn dependency:resolve-plugins",
   ),
 
   # GraalVM Native Image (AOT)
   Run.new(
     name: "Java/GraalVM/Native",
     build_cmd: <<~CMD.chomp,
-      mvn clean package -Pgraalvm-native \
+      mvn package -Pgraalvm-native \
         -DskipTests \
         -Dmaven.test.skip=true \
         -Dnative.buildArgs="--no-fallback --gc=serial -O3"
@@ -804,20 +821,17 @@ RUNS = [
       ./target/benchmarks-native -Xmx12g
     CMD
     version_cmd: "native-image --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.m2
-      /src/java/target
-    DIR
     dir: "/src/java",
     container: "graalvm",
     group: :prod,
+    deps_cmd: "mvn dependency:resolve; mvn dependency:resolve-plugins",
   ),
 
   # Дополнительный вариант: GraalVM Native с максимальными оптимизациями
   Run.new(
     name: "Java/GraalVM/Native/Max",
     build_cmd: <<~CMD.chomp,
-      mvn clean package -Pgraalvm-native \
+      mvn package -Pgraalvm-native \
         -DskipTests \
         -Dmaven.test.skip=true \
         -Dnative.buildArgs="--gc=serial \
@@ -840,13 +854,10 @@ RUNS = [
         -Xmx12g
     CMD
     version_cmd: "native-image --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.m2
-      /src/java/target
-    DIR
     dir: "/src/java",
     container: "graalvm",
     group: :hack,
+    deps_cmd: "mvn dependency:resolve; mvn dependency:resolve-plugins",
   ),
 
   # ======================================= Kotlin ======================================================
@@ -858,10 +869,10 @@ RUNS = [
     binary_name: "/src/kotlin/build/libs/benchmarks.jar",
     run_cmd: "java -Xmx8g -jar /src/kotlin/build/libs/benchmarks.jar",
     version_cmd: "kotlin -version",
-    cache_dir: "/root/.gradle\n/src/kotlin/.gradle\n/src/kotlin/build",
     dir: "/src/kotlin",
     container: "kotlin",
     group: :prod,
+    deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
   # Kotlin - агрессивные оптимизации
@@ -883,10 +894,10 @@ RUNS = [
         -jar /src/kotlin/build/libs/benchmarks.jar
     CMD
     version_cmd: "kotlin -version",
-    cache_dir: "/root/.gradle\n/src/kotlin/.gradle\n/src/kotlin/build",
     dir: "/src/kotlin",
     container: "kotlin",
     group: :hack,
+    deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
   # Kotlin - максимальные оптимизации
@@ -908,10 +919,10 @@ RUNS = [
         -jar /src/kotlin/build/libs/benchmarks.jar
     CMD
     version_cmd: "kotlin -version",
-    cache_dir: "/root/.gradle\n/src/kotlin/.gradle\n/src/kotlin/build",
     dir: "/src/kotlin",
     container: "kotlin",
     group: :hack,
+    deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
   # Kotlin + GraalVM JIT
@@ -930,10 +941,10 @@ RUNS = [
         -jar /src/kotlin/build/libs/benchmarks.jar
     CMD
     version_cmd: "kotlin -version",
-    cache_dir: "/root/.gradle\n/src/kotlin/.gradle\n/src/kotlin/build",
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :prod,
+    deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
   # =============== KOTLIN + GRAALVM NATIVE ===============
@@ -944,10 +955,10 @@ RUNS = [
     binary_name: "/src/kotlin/build/native/benchmarks",
     run_cmd: "/src/kotlin/build/native/benchmarks -Xmx8g",
     version_cmd: "kotlin -version",
-    cache_dir: "/root/.gradle\n/src/kotlin/.gradle\n/src/kotlin/build",
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :prod,
+    deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
   Run.new(
@@ -956,10 +967,10 @@ RUNS = [
     binary_name: "/src/kotlin/build/native/benchmarks-max",
     run_cmd: "/src/kotlin/build/native/benchmarks-max -Xmx8g",
     version_cmd: "kotlin -version",
-    cache_dir: "/root/.gradle\n/src/kotlin/.gradle\n/src/kotlin/build",
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :hack,
+    deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
   # Опционально: с разными уровнями оптимизаций
@@ -969,10 +980,10 @@ RUNS = [
     binary_name: "/src/kotlin/build/native/benchmarks-fast",
     run_cmd: "/src/kotlin/build/native/benchmarks-fast -Xmx8g",
     version_cmd: "kotlin -version",
-    cache_dir: "/root/.gradle\n/src/kotlin/.gradle\n/src/kotlin/build",
     dir: "/src/kotlin",
     container: "kotlin-graalvm",
     group: :hack,
+    deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
   # ======================================= TypeScript ======================================================
@@ -983,43 +994,39 @@ RUNS = [
     build_cmd: <<~CMD.chomp,
       sh -c 'npm install; npm run build:run --silent'
     CMD
-    binary_name: "/src/typescript/dist/index.js",
-    run_cmd: "node --max-old-space-size=4096 /src/typescript/dist/index.js",
+    binary_name: "/src/typescript/target/dist/index.js",
+    run_cmd: "node --max-old-space-size=4096 /src/typescript/target/dist/index.js",
     version_cmd: "/bin/bash -c 'echo \"TCS $(tsc --version), Node $(node --version)\"'",
-    cache_dir: <<~DIR.chomp,
-      /root/.npm
-      /src/typescript/node_modules
-      /src/typescript/dist
-    DIR
     dir: "/src/typescript",
     container: "typescript",
     group: :prod,
+    deps_cmd: "npm ci",
   ),
 
   # TypeScript с оптимизациями Node.js (исправленный)
   Run.new(
     name: "TypeScript/Node/Opt",
     build_cmd: "sh -c 'npm ci --silent && npm run build:run --silent'",
-    binary_name: "/src/typescript/dist/index.js",
+    binary_name: "/src/typescript/target/dist/index.js",
     run_cmd: <<~CMD.chomp,
       node \
         --max-old-space-size=4096 \
         --max-semi-space-size=256 \
         --optimize-for-size \
-        /src/typescript/dist/index.js
+        /src/typescript/target/dist/index.js
     CMD
     version_cmd: "/bin/bash -c 'echo \"TCS $(tsc --version), Node $(node --version)\"'",
-    cache_dir: "/root/.npm\n/src/typescript/node_modules\n/src/typescript/dist",
     dir: "/src/typescript",
     container: "typescript",
     group: :hack,
+    deps_cmd: "npm ci",
   ),
 
   # TypeScript с максимальными оптимизациями (проверенные флаги)
   Run.new(
     name: "TypeScript/Node/Max",
     build_cmd: "sh -c 'npm ci --silent && npm run build:run --silent'",
-    binary_name: "/src/typescript/dist/index.js",
+    binary_name: "/src/typescript/target/dist/index.js",
     run_cmd: <<~CMD.chomp,
       node \
         --max-old-space-size=8192 \
@@ -1027,70 +1034,67 @@ RUNS = [
         --optimize-for-size \
         --no-concurrent-sweeping \
         --single-threaded-gc \
-        /src/typescript/dist/index.js
+        /src/typescript/target/dist/index.js
     CMD
     version_cmd: "/bin/bash -c 'echo \"TCS $(tsc --version), Node $(node --version)\"'",
-    cache_dir: "/root/.npm\n/src/typescript/node_modules\n/src/typescript/dist",
     dir: "/src/typescript",
     container: "typescript",
     group: :hack,
+    deps_cmd: "npm ci",
   ),
 
   # TypeScript с турбофан оптимизациями
   Run.new(
     name: "TypeScript/Node/Turbo",
     build_cmd: "sh -c 'npm ci --silent && npm run build:run --silent'",
-    binary_name: "/src/typescript/dist/index.js",
+    binary_name: "/src/typescript/target/dist/index.js",
     run_cmd: <<~CMD.chomp,
       node \
         --max-old-space-size=4096 \
         --max-semi-space-size=128 \
         --optimize-for-size \
         --concurrent-recompilation \
-        /src/typescript/dist/index.js
+        /src/typescript/target/dist/index.js
     CMD
     version_cmd: "/bin/bash -c 'echo \"TCS $(tsc --version), Node $(node --version)\"'",
-    cache_dir: "/root/.npm\n/src/typescript/node_modules\n/src/typescript/dist",
     dir: "/src/typescript",
     container: "typescript",
     group: :hack,
+    deps_cmd: "npm ci",
   ),
 
   # TypeScript с Bun (компиляция на лету)
   Run.new(
     name: "TypeScript/Bun/JIT",
-    build_cmd: "bun install --silent",
+    build_cmd: "true",
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: "bun run /src/typescript/src/index.ts",
     version_cmd: "bun --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.bun
-      /src/typescript/node_modules
-    DIR
     dir: "/src/typescript",
     container: "typescript-bun",
     group: :prod,
+    deps_cmd: "bun install",
   ),
 
   # TypeScript с Bun (скомпилированный)
   Run.new(
     name: "TypeScript/Bun/Compiled",
     build_cmd: <<~CMD.chomp,
-      /bin/sh -c 'bun install --silent; bun build --target=bun --outdir=dist-bun src/index.ts'
+      bun build --target=bun --outdir=target/dist-bun src/index.ts
     CMD
-    binary_name: "/src/typescript/dist-bun/index.js",
-    run_cmd: "bun run /src/typescript/dist-bun/index.js",
+    binary_name: "/src/typescript/target/dist-bun/index.js",
+    run_cmd: "bun run /src/typescript/target/dist-bun/index.js",
     version_cmd: "bun --version",
-    cache_dir: "/root/.bun\n/src/typescript/node_modules\n/src/typescript/dist-bun",
     dir: "/src/typescript",
     container: "typescript-bun",
     group: :prod,
+    deps_cmd: "bun install",
   ),
 
   # Deno - дефолтный запуск с кэшированием зависимостей
   Run.new(
     name: "TypeScript/Deno/Default",
-    build_cmd: "deno cache --quiet src/index.ts",
+    build_cmd: "true",
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: <<~CMD.chomp,
       deno run \
@@ -1099,43 +1103,35 @@ RUNS = [
         /src/typescript/src/index.ts
     CMD
     version_cmd: "deno --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.cache/deno
-      /src/typescript/node_modules
-    DIR
     dir: "/src/typescript",
     container: "typescript-deno",
     group: :prod,
+    deps_cmd: "deno cache --quiet src/index.ts",
   ),
 
   # Deno с AOT компиляцией (оптимизированный)
   Run.new(
     name: "TypeScript/Deno/Compiled",
     build_cmd: <<~CMD.chomp,
-      sh -c 'deno cache --quiet src/index.ts && \
       deno compile \
         --allow-all \
         --no-check \
-        --output=dist-deno/index \
-        src/index.ts'
+        --output=target/dist-deno/index \
+        src/index.ts
     CMD
-    binary_name: "/src/typescript/dist-deno/index",
-    run_cmd: "/src/typescript/dist-deno/index",
+    binary_name: "/src/typescript/target/dist-deno/index",
+    run_cmd: "/src/typescript/target/dist-deno/index",
     version_cmd: "deno --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.cache/deno
-      /src/typescript/node_modules
-      /src/typescript/dist-deno
-    DIR
     dir: "/src/typescript",
     container: "typescript-deno",
     group: :prod,
+    deps_cmd: "deno cache --quiet src/index.ts",
   ),
 
   # Deno с оптимизациями V8
   Run.new(
     name: "TypeScript/Deno/Opt",
-    build_cmd: "deno cache --quiet src/index.ts",
+    build_cmd: "true",
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: <<~CMD.chomp,
       deno run \
@@ -1144,19 +1140,16 @@ RUNS = [
         /src/typescript/src/index.ts
     CMD
     version_cmd: "deno --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.cache/deno
-      /src/typescript/node_modules
-    DIR
     dir: "/src/typescript",
     container: "typescript-deno",
     group: :hack,
+    deps_cmd: "deno cache --quiet src/index.ts",
   ),
 
   # Deno с максимальными оптимизациями V8
   Run.new(
     name: "TypeScript/Deno/Max",
-    build_cmd: "deno cache --quiet src/index.ts",
+    build_cmd: "true",
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: <<~CMD.chomp,
       deno run \
@@ -1166,19 +1159,16 @@ RUNS = [
         /src/typescript/src/index.ts
     CMD
     version_cmd: "deno --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.cache/deno
-      /src/typescript/node_modules
-    DIR
     dir: "/src/typescript",
     container: "typescript-deno",
     group: :hack,
+    deps_cmd: "deno cache --quiet src/index.ts",
   ),
 
   # Deno с JIT-оптимизациями и кэшированием кода
   Run.new(
     name: "TypeScript/Deno/Turbo",
-    build_cmd: "deno cache --quiet src/index.ts",
+    build_cmd: "true",
     binary_name: "/src/typescript/src/index.ts",
     run_cmd: <<~CMD.chomp,
       deno run \
@@ -1188,13 +1178,10 @@ RUNS = [
         /src/typescript/src/index.ts
     CMD
     version_cmd: "deno --version",
-    cache_dir: <<~DIR.chomp,
-      /root/.cache/deno
-      /src/typescript/node_modules
-    DIR
     dir: "/src/typescript",
     container: "typescript-deno",
     group: :hack,
+    deps_cmd: "deno cache --quiet src/index.ts",
   ),
 ]
 
@@ -1221,8 +1208,7 @@ puts "Found runs: #{RUNS.size} #{RUNS.size < 10 ? RUNS.map(&:name).inspect : nil
 
 langs = {}
 RUNS.each do |run|
-  lang = run.dir.gsub("/src/", "")
-  langs[lang] = 1
+  langs[run.lang] = 1
 end
 LANGS = langs.keys
 puts "Unique languages: #{LANGS.size} #{LANGS.inspect}"
@@ -1253,35 +1239,89 @@ RESULTS["tests"] = TESTS
 RESULTS["build-cmd"] = {}
 RESULTS["run-cmd"] = {}
 RESULTS["binary-size-kb"] = {}
-RESULTS["compile-mem-mb"] = {}
+RESULTS["compile-memory-cold"] = {}
+RESULTS["compile-memory-incremental"] = {}
 RESULTS["compile-time-cold"] = {}
-RESULTS["compile-time-warm"] = {}
+RESULTS["compile-time-incremental"] = {}
 RESULTS["version"] = {}
 
 check_source_files(IS_VERBOSE)
-# exit
+
+# Show versions
+RUNS.group_by(&:container).each do |container, runs|
+  runs.group_by(&:version_cmd).each do |_, vcmds|
+    v = vcmds[0]
+    puts "Version #{container}: '#{v.version}'"
+  end
+end
+
+# prepare cache deps
+RUNS.group_by { |r| [r.container, r.deps_cmd] }.each do |_, runs|
+  run = runs[0]
+
+  print "Prepare deps for #{run.name}: "
+  delta = measure { run.deps }
+  puts "in #{delta.round(2)}s"
+end
 
 CFG = IS_RUN_TEST ? "../test.txt" : "../run.txt"
 
-def build(run, verbose = true)
-  print "building #{run.name} ..." if verbose
-  t = Time.now    
-  stats = run.run(run.build_cmd, verbose)
-  delta = Time.now - t
+def build(run, verbose = true, test_incremental = false)
+  print "building #{run.name} ..."
+  stats = nil
+  delta = measure do
+    stats = run.run(run.build_cmd, verbose)
+  end
   fsize_stats = run.run("sh -c 'du -k #{run.binary_name} | cut -f1'", verbose)
   RESULTS["binary-size-kb"][run.name] = fsize_stats[:out].split("\n").last.to_i
   RESULTS["build-cmd"][run.name] = run.build_cmd
   RESULTS["run-cmd"][run.name] = run.run_cmd
   RESULTS["compile-time-cold"][run.name] = delta.to_f  
-  RESULTS["compile-mem-mb"][run.name] = stats[:rss] / 1024.0
-  RESULTS["version"][run.name] = `#{run.dcr}#{run.version_cmd}`.strip
-  puts " in #{delta.to_f.round(2)}s" if verbose
+  RESULTS["compile-memory-cold"][run.name] = stats[:rss] / 1024.0
+  print " cold in #{delta.to_f.round(2)}s"
+  
+  if test_incremental && (marker_file = RECOMPILE_MARKER_FILES[run.lang])
+    begin
+      File.write(marker_file, File.read(marker_file).gsub(RECOMPILE_MARKER_0, RECOMPILE_MARKER_1))
+      delta = measure do
+        stats = run.run(run.build_cmd, verbose)
+      end
+      RESULTS["compile-time-incremental"][run.name] = delta.to_f  
+      RESULTS["compile-memory-incremental"][run.name] = stats[:rss] / 1024.0
+      print ", incremental in #{delta.round(2)}s"
+    ensure
+      File.write(marker_file, File.read(marker_file).gsub(RECOMPILE_MARKER_1, RECOMPILE_MARKER_0))
+    end
+  else
+    print ", warning no marker for #{run.name}"
+  end
+
+  RESULTS["version"][run.name] = run.version  
+  puts
   delta
 end
 
+def write_results
+  unless ARGV[0]
+    # write result on every step, because it can crash somewhere
+    File.write("./results/#{RESULTS["date"]}-#{RESULTS["uname-name"]}.js", JSON.pretty_generate(RESULTS))  
+  end
+end
+
+write_results
+
+# build
+delta = measure do
+  RUNS.each do |run|
+    build(run, IS_VERBOSE, true)
+  end
+end
+puts "------------ Build all finished in #{delta.round(3)}s ----------------"
+
+write_results
+
 def run(run, index)
-  puts "Building #{run.name} (#{index} from #{RUNS.size})"
-  build(run, IS_VERBOSE)
+  run.run(run.build_cmd, false) # build still neded because swift, java, kotlin, typescript all use same binary
 
   puts "Running #{run.name} (#{index} from #{RUNS.size})"
   TESTS.each_with_index do |test_name, index|
@@ -1305,19 +1345,12 @@ def run(run, index)
   end
 end
 
-def write_results
-  unless ARGV[0]
-    # write result on every step, because it can crash somewhere
-    File.write("./results/#{RESULTS["date"]}-#{RESULTS["uname-name"]}.js", JSON.pretty_generate(RESULTS))  
-  end
-end
-
 puts "---------- Run ----------"
 RUNS.each_with_index do |run, index| 
-  t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
-  run(run, index)
-  t2 = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
-  puts "Finished #{run.name} in #{((t2 - t1) / 1e9).round(3)}"
+  delta = measure do
+    run(run, index)
+  end
+  puts "Finished #{run.name} in #{delta.round(3)}"
   write_results
 end
 

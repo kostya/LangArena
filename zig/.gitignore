@@ -1,9 +1,2 @@
-zig-cache/
 zig-out/
 .zig-cache/
-*.o
-*.obj
-*.exe
-*.so
-*.dylib
-*.dll
