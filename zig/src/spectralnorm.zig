@@ -42,7 +42,7 @@ pub const Spectralnorm = struct {
     }
 
     pub fn asBenchmark(self: *Spectralnorm) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "Spectralnorm");
     }
 
     fn eval_A(i: usize, j: usize) f64 {

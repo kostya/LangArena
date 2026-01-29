@@ -8,6 +8,7 @@ pub const Noise = struct {
     helper: *Helper,
     size_val: i64,
     result_val: u32,
+    n2d: ?Noise2DContext, // Добавлено поле для хранения контекста
 
     const Vec2 = struct {
         x: f64,
@@ -15,8 +16,8 @@ pub const Noise = struct {
     };
 
     const Noise2DContext = struct {
-        rgradients: std.ArrayListUnmanaged(Vec2),
-        permutations: std.ArrayListUnmanaged(i32),
+        rgradients: std.ArrayList(Vec2),
+        permutations: std.ArrayList(i32),
 
         fn init(allocator: std.mem.Allocator, helper: *Helper, size: i64) !Noise2DContext {
             const size_int = @as(usize, @intCast(size));
@@ -25,10 +26,15 @@ pub const Noise = struct {
                 .permutations = .{},
             };
 
-            try self.rgradients.ensureTotalCapacity(allocator, size_int);
-            try self.permutations.ensureTotalCapacity(allocator, size_int);
+            // Проверяем что size степень двойки
+            if (size_int & (size_int - 1) != 0) {
+                return error.InvalidSize;
+            }
 
-            // Инициализируем случайные градиенты
+            // Заполняем градиенты и permutations
+            self.rgradients.ensureTotalCapacity(allocator, size_int) catch return error.OutOfMemory;
+            self.permutations.ensureTotalCapacity(allocator, size_int) catch return error.OutOfMemory;
+
             for (0..size_int) |i| {
                 const v = helper.nextFloat(math.pi * 2.0);
                 self.rgradients.appendAssumeCapacity(Vec2{
@@ -39,8 +45,7 @@ pub const Noise = struct {
             }
 
             // Перемешиваем permutations
-            for (0..size_int) |i| {
-                _ = i;
+            for (0..size_int) |_| {
                 const a = @as(usize, @intCast(helper.nextInt(@as(i32, @intCast(size_int)))));
                 const b = @as(usize, @intCast(helper.nextInt(@as(i32, @intCast(size_int)))));
                 std.mem.swap(i32, &self.permutations.items[a], &self.permutations.items[b]);
@@ -90,7 +95,7 @@ pub const Noise = struct {
             const sy = smooth(dy0);
 
             const nx0 = lerp(n00, n10, sx);
-            const nx1 = lerp(n01, n11, sy);
+            const nx1 = lerp(n01, n11, sx);
 
             return lerp(nx0, nx1, sy);
         }
@@ -99,6 +104,7 @@ pub const Noise = struct {
     const SYM = [6]u32{ ' ', 0x2591, 0x2592, 0x2593, 0x2588, 0x2588 }; // ░▒▓█
 
     const vtable = Benchmark.VTable{
+        .prepare = prepareImpl,
         .run = runImpl,
         .checksum = checksumImpl,
         .deinit = deinitImpl,
@@ -106,7 +112,7 @@ pub const Noise = struct {
 
     // Вспомогательные функции
     fn lerp(a: f64, b: f64, v: f64) f64 {
-        return a * (1.0 - v) + b * v;
+        return a + (b - a) * v;
     }
 
     fn smooth(v: f64) f64 {
@@ -114,50 +120,74 @@ pub const Noise = struct {
     }
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Noise {
-        const size_val = helper.config_i64("Noise", "size");
-
         const self = try allocator.create(Noise);
         errdefer allocator.destroy(self);
 
         self.* = Noise{
             .allocator = allocator,
             .helper = helper,
-            .size_val = size_val,
+            .size_val = 0,
             .result_val = 0,
+            .n2d = null,
         };
 
         return self;
     }
 
     pub fn deinit(self: *Noise) void {
+        if (self.n2d) |*n2d| {
+            n2d.deinit(self.allocator);
+        }
         self.allocator.destroy(self);
     }
 
     pub fn asBenchmark(self: *Noise) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "Noise");
+    }
+
+    fn prepareImpl(ptr: *anyopaque) void {
+        const self: *Noise = @ptrCast(@alignCast(ptr));
+        const allocator = self.allocator;
+
+        // Очищаем предыдущие данные
+        self.result_val = 0;
+        if (self.n2d) |*n2d| {
+            n2d.deinit(allocator);
+            self.n2d = null;
+        }
+
+        // Получаем размер
+        self.size_val = self.helper.config_i64("Noise", "size");
+
+        // Создаем контекст шума как в C++ версии
+        const n2d = Noise2DContext.init(allocator, self.helper, self.size_val) catch return;
+        self.n2d = n2d;
     }
 
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
         const self: *Noise = @ptrCast(@alignCast(ptr));
+
+        if (self.n2d == null) {
+            return;
+        }
+
+        const n2d = self.n2d.?;
         const size = @as(usize, @intCast(self.size_val));
 
         if (size == 0) {
             return;
         }
 
-        // Создаем контекст шума
-        var n2d = Noise2DContext.init(self.allocator, self.helper, self.size_val) catch return;
-        defer n2d.deinit(self.allocator);
-
         // Вычисляем значения для текущей итерации
         const y_offset: f64 = @as(f64, @floatFromInt(iteration_id * 128));
 
         for (0..size) |y| {
             for (0..size) |x| {
-                const v = n2d.get(@as(f64, @floatFromInt(x)) * 0.1, (@as(f64, @floatFromInt(y)) + y_offset) * 0.1) * 0.5 + 0.5;
-                var idx = @as(usize, @intFromFloat(v / 0.2));
+                const v = n2d.get(@as(f64, @floatFromInt(x)) * 0.1, (@as(f64, @floatFromInt(y)) + y_offset) * 0.1);
+                const normalized = v * 0.5 + 0.5;
+                var idx = @as(usize, @intFromFloat(normalized / 0.2));
                 if (idx >= SYM.len) idx = SYM.len - 1;
-                self.result_val += SYM[idx];
+                self.result_val +%= SYM[idx];
             }
         }
     }

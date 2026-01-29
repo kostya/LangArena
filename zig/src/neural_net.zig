@@ -7,13 +7,15 @@ pub const NeuralNet = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
     result_val: u32,
-    res: std.ArrayListUnmanaged(f64),
+    res: std.ArrayList(f64),
+    xor_net: ?NeuralNetwork = null,
 
     const LEARNING_RATE: f64 = 1.0;
     const MOMENTUM: f64 = 0.3;
     const TRAIN_RATE: f64 = 0.3;
 
     const vtable = Benchmark.VTable{
+        .prepare = prepareImpl,
         .run = runImpl,
         .checksum = checksumImpl,
         .deinit = deinitImpl,
@@ -31,8 +33,8 @@ pub const NeuralNet = struct {
         prev_threshold: f64,
         output: f64,
         neuron_error: f64,
-        synapses_in: std.ArrayListUnmanaged(usize),
-        synapses_out: std.ArrayListUnmanaged(usize),
+        synapses_in: std.ArrayList(usize),
+        synapses_out: std.ArrayList(usize),
 
         fn init(helper: *Helper) Neuron {
             const t = helper.nextFloat(1.0);
@@ -58,11 +60,11 @@ pub const NeuralNet = struct {
     };
 
     const NeuralNetwork = struct {
-        input_layer: std.ArrayListUnmanaged(usize),
-        hidden_layer: std.ArrayListUnmanaged(usize),
-        output_layer: std.ArrayListUnmanaged(usize),
-        neurons: std.ArrayListUnmanaged(Neuron),
-        synapses: std.ArrayListUnmanaged(Synapse),
+        input_layer: std.ArrayList(usize),
+        hidden_layer: std.ArrayList(usize),
+        output_layer: std.ArrayList(usize),
+        neurons: std.ArrayList(Neuron),
+        synapses: std.ArrayList(Synapse),
         allocator: std.mem.Allocator,
 
         fn init(allocator: std.mem.Allocator, helper: *Helper, inputs: usize, hidden: usize, outputs: usize) !NeuralNetwork {
@@ -79,7 +81,7 @@ pub const NeuralNet = struct {
             try self.neurons.ensureTotalCapacity(allocator, total_neurons);
 
             for (0..total_neurons) |_| {
-                self.neurons.appendAssumeCapacity(Neuron.init(helper));
+                try self.neurons.append(allocator, Neuron.init(helper));
             }
 
             try self.input_layer.ensureTotalCapacity(allocator, inputs);
@@ -87,15 +89,15 @@ pub const NeuralNet = struct {
             try self.output_layer.ensureTotalCapacity(allocator, outputs);
 
             for (0..inputs) |i| {
-                self.input_layer.appendAssumeCapacity(i);
+                try self.input_layer.append(allocator, i);
             }
 
             for (inputs..inputs + hidden) |i| {
-                self.hidden_layer.appendAssumeCapacity(i);
+                try self.hidden_layer.append(allocator, i);
             }
 
             for (inputs + hidden..inputs + hidden + outputs) |i| {
-                self.output_layer.appendAssumeCapacity(i);
+                try self.output_layer.append(allocator, i);
             }
 
             // input -> hidden
@@ -238,10 +240,11 @@ pub const NeuralNet = struct {
             }
         }
 
-        fn currentOutputs(self: *const NeuralNetwork) [1]f64 {
-            var outputs: [1]f64 = undefined;
-            for (self.output_layer.items, 0..) |neuron_idx, i| {
-                outputs[i] = self.neurons.items[neuron_idx].output;
+        fn currentOutputs(self: *NeuralNetwork) std.ArrayList(f64) {
+            var outputs = std.ArrayList(f64){};
+            outputs.ensureTotalCapacity(self.allocator, self.output_layer.items.len) catch return outputs;
+            for (self.output_layer.items) |neuron_idx| {
+                outputs.appendAssumeCapacity(self.neurons.items[neuron_idx].output);
             }
             return outputs;
         }
@@ -256,68 +259,81 @@ pub const NeuralNet = struct {
             .helper = helper,
             .result_val = 0,
             .res = .{},
+            .xor_net = null,
         };
 
         return self;
     }
 
     pub fn deinit(self: *NeuralNet) void {
+        if (self.xor_net) |*net| {
+            net.deinit();
+        }
         self.res.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
     pub fn asBenchmark(self: *NeuralNet) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "NeuralNet");
     }
 
-    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
+    fn prepareImpl(ptr: *anyopaque) void {
         const self: *NeuralNet = @ptrCast(@alignCast(ptr));
         const allocator = self.allocator;
         const helper = self.helper;
 
-        var arena = std.heap.ArenaAllocator.init(allocator);
-        defer arena.deinit();
-        const arena_allocator = arena.allocator();
+        if (self.xor_net) |*net| {
+            net.deinit();
+        }
 
-        var xor_net = NeuralNetwork.init(arena_allocator, helper, 2, 10, 1) catch return;
-        defer xor_net.deinit();
+        self.xor_net = NeuralNetwork.init(allocator, helper, 2, 10, 1) catch return;
+    }
 
-        // Одна итерация обучения как в C++ версии
-        xor_net.train(&[_]f64{ 0.0, 0.0 }, &[_]f64{0.0});
-        xor_net.train(&[_]f64{ 1.0, 0.0 }, &[_]f64{1.0});
-        xor_net.train(&[_]f64{ 0.0, 1.0 }, &[_]f64{1.0});
-        xor_net.train(&[_]f64{ 1.0, 1.0 }, &[_]f64{0.0});
-
-        // Сохраняем результаты для checksum
-        xor_net.feedForward(&[_]f64{ 0.0, 0.0 });
-        const outputs1 = xor_net.currentOutputs();
-
-        xor_net.feedForward(&[_]f64{ 0.0, 1.0 });
-        const outputs2 = xor_net.currentOutputs();
-
-        xor_net.feedForward(&[_]f64{ 1.0, 0.0 });
-        const outputs3 = xor_net.currentOutputs();
-
-        xor_net.feedForward(&[_]f64{ 1.0, 1.0 });
-        const outputs4 = xor_net.currentOutputs();
-
-        // Сохраняем все результаты
-        self.res.clearAndFree(allocator);
-        self.res.appendSlice(allocator, &outputs1) catch return;
-        self.res.appendSlice(allocator, &outputs2) catch return;
-        self.res.appendSlice(allocator, &outputs3) catch return;
-        self.res.appendSlice(allocator, &outputs4) catch return;
+    fn runImpl(ptr: *anyopaque, _: i64) void {
+        const self: *NeuralNet = @ptrCast(@alignCast(ptr));
+        
+        if (self.xor_net) |*xor_net| {
+            xor_net.train(&[_]f64{ 0.0, 0.0 }, &[_]f64{0.0});
+            xor_net.train(&[_]f64{ 1.0, 0.0 }, &[_]f64{1.0});
+            xor_net.train(&[_]f64{ 0.0, 1.0 }, &[_]f64{1.0});
+            xor_net.train(&[_]f64{ 1.0, 1.0 }, &[_]f64{0.0});
+            
+            self.res.clearAndFree(self.allocator);
+        }
     }
 
     fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *NeuralNet = @ptrCast(@alignCast(ptr));
+        const allocator = self.allocator;
 
-        var sum: f64 = 0.0;
-        for (self.res.items) |v| {
-            sum += v;
+        if (self.xor_net) |*xor_net| {
+            self.res.clearAndFree(allocator);
+            
+            const test_cases = [_][2]f64{
+                .{ 0.0, 0.0 },
+                .{ 0.0, 1.0 },
+                .{ 1.0, 0.0 },
+                .{ 1.0, 1.0 },
+            };
+
+            for (test_cases) |inputs| {
+                xor_net.feedForward(&inputs);
+                var outputs = xor_net.currentOutputs();
+                defer outputs.deinit(allocator);
+                for (outputs.items) |output| {
+                    self.res.append(allocator, output) catch continue;
+                }
+            }
+
+            var sum: f64 = 0.0;
+            for (self.res.items) |v| {
+                sum += v;
+            }
+
+            return self.helper.checksumFloat(sum);
         }
 
-        return self.helper.checksumFloat(sum);
+        return 0;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

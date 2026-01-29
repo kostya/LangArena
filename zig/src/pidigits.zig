@@ -40,7 +40,7 @@ pub const Pidigits = struct {
     }
 
     pub fn asBenchmark(self: *Pidigits) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "Pidigits");
     }
 
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
@@ -87,8 +87,6 @@ pub const Pidigits = struct {
         c.mpz_set_ui(&a, 0);
         c.mpz_set_ui(&n_val, 1);
         c.mpz_set_ui(&d, 1);
-
-        self.result_str.clearRetainingCapacity();
 
         var i: i32 = 0;
         var k: i32 = 0;

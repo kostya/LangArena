@@ -34,7 +34,7 @@ pub const Fannkuchredux = struct {
     }
 
     pub fn asBenchmark(self: *Fannkuchredux) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "Fannkuchredux");
     }
 
     inline fn fannkuchredux(n: i32) struct { checksum: i32, max_flips: i32 } {

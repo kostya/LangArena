@@ -6,14 +6,14 @@ const Fasta = @import("fasta.zig").Fasta;
 pub const Revcomp = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    input: std.ArrayListUnmanaged(u8),
-    result_val: u32, // Изменено с u64 на u32
+    input: std.ArrayList(u8),
+    result_str: std.ArrayList(u8),
     n: i32,
 
     const vtable = Benchmark.VTable{
+        .prepare = prepareImpl,
         .run = runImpl,
         .checksum = checksumImpl,
-        .prepare = prepareImpl,
         .deinit = deinitImpl,
     };
 
@@ -43,7 +43,7 @@ pub const Revcomp = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Revcomp {
-        const n = helper.getInputInt("Revcomp");
+        const n = @as(i32, @intCast(helper.config_i64("Revcomp", "n")));
 
         const self = try allocator.create(Revcomp);
         errdefer allocator.destroy(self);
@@ -52,7 +52,7 @@ pub const Revcomp = struct {
             .allocator = allocator,
             .helper = helper,
             .input = .{},
-            .result_val = 0,
+            .result_str = .{},
             .n = n,
         };
 
@@ -60,60 +60,58 @@ pub const Revcomp = struct {
     }
 
     pub fn deinit(self: *Revcomp) void {
-        self.input.deinit(self.allocator);
-        self.allocator.destroy(self);
+        const allocator = self.allocator;
+        self.input.deinit(allocator);
+        self.result_str.deinit(allocator);
+        allocator.destroy(self);
     }
 
     pub fn asBenchmark(self: *Revcomp) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "Revcomp");
     }
 
-    // Метод config_val как в C++
-    fn config_val(self: *Revcomp, field_name: []const u8) i64 {
-        return self.helper.config_i64("Revcomp", field_name);
-    }
+    // Функция обратной комплементарности - точная копия C++ версии
+    fn revcomp(seq: []const u8, allocator: std.mem.Allocator) ![]u8 {
+        // 1. Реверсируем последовательность
+        var reversed = std.ArrayList(u8){};
+        defer reversed.deinit(allocator);
 
-    // Функция обратной комплементарности
-    fn revcomp(self: *Revcomp, seq: []const u8) ![]u8 {
-        // Создаем реверсированную копию с заменой
-        var reversed = std.ArrayList(u8).init(self.allocator);
-        defer reversed.deinit();
-
-        try reversed.ensureTotalCapacity(seq.len);
-
-        // Реверсируем и заменяем в одном проходе
+        try reversed.ensureTotalCapacity(allocator, seq.len);
+        
         var i: usize = seq.len;
-        while (i > 0) {
-            i -= 1;
-            const c = seq[i];
+        while (i > 0) : (i -= 1) {
+            const c = seq[i - 1];
             const replaced = complement_table[@as(usize, @intCast(c))];
-            reversed.appendAssumeCapacity(replaced);
+            try reversed.append(allocator, replaced);
         }
 
-        // Разбиваем на строки по 60 символов
+        // 2. Разбиваем на строки по 60 символов с \n
         const LINE_LENGTH: usize = 60;
-        var result = std.ArrayList(u8).init(self.allocator);
-        defer result.deinit();
+        var result = std.ArrayList(u8){};
+        defer result.deinit(allocator);
 
         var pos: usize = 0;
-        while (pos < reversed.items.len) {
-            const end = @min(pos + LINE_LENGTH, reversed.items.len);
-            try result.appendSlice(reversed.items[pos..end]);
-            try result.append('\n');
+        const rev_items = reversed.items;
+        while (pos < rev_items.len) {
+            const end = @min(pos + LINE_LENGTH, rev_items.len);
+            try result.appendSlice(allocator, rev_items[pos..end]);
+            try result.append(allocator, '\n');
             pos += LINE_LENGTH;
         }
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(allocator);
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *Revcomp = @ptrCast(@alignCast(ptr));
+        const allocator = self.allocator;
 
-        // Очищаем последовательность
-        self.input.clearAndFree(self.allocator);
+        // Очищаем данные
+        self.input.clearAndFree(allocator);
+        self.result_str.clearAndFree(allocator);
 
-        // Копируем подход из C++: берем всю FASTA последовательность
-        var fasta = Fasta.init(self.allocator, self.helper) catch return;
+        // Получаем FASTA данные как в C++ версии
+        var fasta = Fasta.init(allocator, self.helper) catch return;
         defer fasta.deinit();
 
         fasta.n = self.n;
@@ -123,40 +121,41 @@ pub const Revcomp = struct {
 
         const fasta_result = fasta.getResult();
 
-        // В Revcomp нужно всю FASTA последовательность
-        // В C++ версии: берем всю последовательность с разделителем "---"
+        // Парсим ТОЧНО как в C++ версии
         var lines = std.mem.splitSequence(u8, fasta_result, "\n");
-        var first_line = true;
-
+        
         while (lines.next()) |line| {
             if (line.len > 0) {
-                if (!first_line) {
-                    self.input.append(self.allocator, '\n') catch return;
+                if (line[0] == '>') {
+                    // Заголовок - добавляем разделитель (даже для первого!)
+                    self.input.appendSlice(allocator, "\n---\n") catch return;
+                } else {
+                    // Последовательность - добавляем как есть
+                    self.input.appendSlice(allocator, line) catch return;
                 }
-                self.input.appendSlice(self.allocator, line) catch return;
-                first_line = false;
             }
         }
 
-        // Добавляем разделитель как в C++ версии
-        self.input.appendSlice(self.allocator, "\n---\n") catch return;
+        // input теперь начинается с "\n---\n", как в C++ версии
+        // Например: "\n---\nACGT\n---\nTGCA"
     }
 
-    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
+    fn runImpl(ptr: *anyopaque, _: i64) void {
         const self: *Revcomp = @ptrCast(@alignCast(ptr));
-        _ = iteration_id;
+        const allocator = self.allocator;
 
-        // Просто вычисляем revcomp для input как в C++ версии
-        const revcomp_result = self.revcomp(self.input.items) catch return;
-        defer self.allocator.free(revcomp_result);
+        // Вычисляем revcomp для всего input (включая разделители!)
+        const revcomp_result = revcomp(self.input.items, allocator) catch return;
+        defer allocator.free(revcomp_result);
 
-        // Вычисляем checksum
-        self.result_val = self.helper.checksumString(revcomp_result);
+        // Добавляем к результату как в C++: result_str += revcomp_result
+        self.result_str.appendSlice(allocator, revcomp_result) catch return;
     }
 
     fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *Revcomp = @ptrCast(@alignCast(ptr));
-        return self.result_val;
+        // Checksum от всей накопленной строки
+        return self.helper.checksumString(self.result_str.items);
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

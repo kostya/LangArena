@@ -191,7 +191,7 @@ pub const BrainfuckRecursion = struct {
     }
 
     pub fn asBenchmark(self: *BrainfuckRecursion) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "BrainfuckRecursion");
     }
 
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {

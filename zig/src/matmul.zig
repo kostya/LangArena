@@ -34,7 +34,7 @@ pub const Matmul = struct {
     }
 
     pub fn asBenchmark(self: *Matmul) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "Matmul");
     }
 
     fn matGen(n: i32, allocator: std.mem.Allocator) ![][]f64 {
@@ -119,8 +119,7 @@ pub const Matmul = struct {
         allocator.free(mat);
     }
 
-    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
-        _ = iteration_id;
+    fn runImpl(ptr: *anyopaque, _: i64) void {
         const self: *Matmul = @ptrCast(@alignCast(ptr));
 
         const n = @as(i32, @intCast(self.n));

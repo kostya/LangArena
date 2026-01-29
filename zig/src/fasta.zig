@@ -71,7 +71,7 @@ pub const Fasta = struct {
     }
 
     pub fn asBenchmark(self: *Fasta) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "Fasta");
     }
 
     pub fn getResult(self: *const Fasta) []const u8 {
@@ -157,19 +157,15 @@ pub const Fasta = struct {
         _ = iteration_id;
         const self: *Fasta = @ptrCast(@alignCast(ptr));
 
-        self.result_str.clearAndFree(self.allocator);
-
         const n = @as(i32, @intCast(self.n));
         self.makeRepeatFasta("ONE", "Homo sapiens alu", ALU, n * 2);
         self.makeRandomFasta("TWO", "IUB ambiguity codes", &IUB, n * 3);
         self.makeRandomFasta("THREE", "Homo sapiens frequency", &HOMO, n * 5);
-
-        self.result_val = self.helper.checksumString(self.result_str.items);
     }
 
     fn resultImpl(ptr: *anyopaque) u32 {
         const self: *Fasta = @ptrCast(@alignCast(ptr));
-        return self.result_val;
+        return self.helper.checksumString(self.result_str.items);
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

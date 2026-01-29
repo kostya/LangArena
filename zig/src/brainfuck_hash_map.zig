@@ -154,7 +154,7 @@ pub const BrainfuckHashMap = struct {
     }
 
     pub fn asBenchmark(self: *BrainfuckHashMap) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "BrainfuckHashMap");
     }
 
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {

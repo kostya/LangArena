@@ -157,7 +157,7 @@ pub const TextRaytracer = struct {
     }
 
     pub fn asBenchmark(self: *TextRaytracer) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "TextRaytracer");
     }
 
     fn shadePixel(ray: Ray, obj: Sphere, tval: f64) usize {

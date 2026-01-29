@@ -11,27 +11,27 @@ pub const CalculatorAst = struct {
     expressions: std.ArrayListUnmanaged(*Node),
 
     // AST структуры
-    const Number = struct {
+    pub const Number = struct {
         value: i64,
     };
 
-    const Variable = struct {
+    pub const Variable = struct {
         name: []const u8,
     };
 
-    const BinaryOp = struct {
+    pub const BinaryOp = struct {
         op: u8,
         left: *Node,
         right: *Node,
     };
 
-    const Assignment = struct {
+    pub const Assignment = struct {
         var_name: []const u8,
         expr: *Node,
     };
 
     // Узел AST
-    const Node = union(enum) {
+    pub const Node = union(enum) {
         number: Number,
         variable: Variable,
         binary_op: *BinaryOp,
@@ -39,12 +39,11 @@ pub const CalculatorAst = struct {
     };
 
     // Парсер
-    const Parser = struct {
+    pub const Parser = struct {
         allocator: std.mem.Allocator,
         input: []const u8,
         pos: usize = 0,
         current_char: u8 = 0,
-        expressions: std.ArrayListUnmanaged(*Node),
 
         fn init(allocator: std.mem.Allocator, input: []const u8) Parser {
             return Parser{
@@ -52,7 +51,6 @@ pub const CalculatorAst = struct {
                 .input = input,
                 .pos = 0,
                 .current_char = if (input.len > 0) input[0] else 0,
-                .expressions = .{},
             };
         }
 
@@ -84,7 +82,9 @@ pub const CalculatorAst = struct {
 
         fn parseVariable(self: *Parser) !*Node {
             const start = self.pos;
-            while (self.current_char != 0 and std.ascii.isAlphanumeric(self.current_char)) {
+            while (self.current_char != 0 and 
+                   (std.ascii.isAlphabetic(self.current_char) or 
+                    std.ascii.isDigit(self.current_char))) {
                 self.advance();
             }
 
@@ -197,23 +197,45 @@ pub const CalculatorAst = struct {
             return node;
         }
 
-        fn parse(self: *Parser) !std.ArrayListUnmanaged(*Node) {
-            self.expressions.clearRetainingCapacity();
+        fn parse(self: *Parser, out_expressions: *std.ArrayListUnmanaged(*Node)) !void {
+            // Очищаем выходной список
+            for (out_expressions.items) |expr| {
+                freeNode(self.allocator, expr);
+            }
+            out_expressions.clearRetainingCapacity();
 
+            // Парсим все выражения
             while (self.current_char != 0) {
                 self.skipWhitespace();
                 if (self.current_char == 0) break;
 
-                const expr = try self.parseExpression();
-                try self.expressions.append(self.allocator, expr);
+                const expr = self.parseExpression() catch |err| {
+                    // При ошибке освобождаем уже созданные узлы
+                    for (out_expressions.items) |expr_item| {
+                        freeNode(self.allocator, expr_item);
+                    }
+                    out_expressions.clearRetainingCapacity();
+                    return err;
+                };
+                
+                out_expressions.append(self.allocator, expr) catch |err| {
+                    // Если не удалось добавить в список, освобождаем узел
+                    freeNode(self.allocator, expr);
+                    for (out_expressions.items) |expr_item| {
+                        freeNode(self.allocator, expr_item);
+                    }
+                    out_expressions.clearRetainingCapacity();
+                    return err;
+                };
 
-                // Пропускаем перевод строки
+                // Пропускаем перевод строки или точку с запятой
+                self.skipWhitespace();
                 if (self.current_char == '\n') {
+                    self.advance();
+                } else if (self.current_char == ';') {
                     self.advance();
                 }
             }
-
-            return self.expressions;
         }
     };
 
@@ -259,14 +281,14 @@ pub const CalculatorAst = struct {
     }
 
     pub fn asBenchmark(self: *CalculatorAst) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "CalculatorAst");
     }
 
     fn generateRandomProgram(self: *CalculatorAst) ![]const u8 {
-        var buffer = std.ArrayList(u8).init(self.allocator);
-        defer buffer.deinit();
+        var buffer = std.ArrayList(u8).initCapacity(self.allocator, 100000) catch return "";
+        defer buffer.deinit(self.allocator);
 
-        const writer = buffer.writer();
+        const writer = buffer.writer(self.allocator);
 
         try writer.writeAll("v0 = 1\n");
         for (0..10) |i| {
@@ -275,7 +297,7 @@ pub const CalculatorAst = struct {
         }
 
         for (0..@as(usize, @intCast(self.operations))) |i| {
-            const v = i + 10;
+            const v = @as(i32, @intCast(i + 10));
             try writer.print("v{} = v{} + ", .{ v, v - 1 });
 
             const choice = self.helper.nextInt(10);
@@ -295,7 +317,7 @@ pub const CalculatorAst = struct {
             try writer.writeAll("\n");
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(self.allocator);
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
@@ -307,32 +329,35 @@ pub const CalculatorAst = struct {
         }
 
         // Генерируем новый текст программы
-        self.text = self.generateRandomProgram() catch "";
+        if (self.generateRandomProgram()) |text| {
+            self.text = text;
+        } else |_| {
+            self.text = "";
+        }
     }
 
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
         const self: *CalculatorAst = @ptrCast(@alignCast(ptr));
         _ = iteration_id;
 
-        // Очищаем старые выражения
-        for (self.expressions.items) |expr| {
-            freeNode(self.allocator, expr);
-        }
-        self.expressions.clearAndFree(self.allocator);
-
-        // Парсим программу
+        // Парсим программу, результаты сохраняются в self.expressions
         var parser = Parser.init(self.allocator, self.text);
-        self.expressions = parser.parse() catch return;
+        
+        // Правильная обработка ошибки
+        parser.parse(&self.expressions) catch {
+            // В случае ошибки просто выходим, выражения уже очищены парсером
+            return;
+        };
 
-        // Обновляем результат
-        self.result_val += @as(u32, @intCast(self.expressions.items.len));
+        // Обновляем результат как в C++ версии
+        self.result_val +%= @as(u32, @intCast(self.expressions.items.len));
 
         // Добавляем checksum последнего имени переменной если это assignment
         if (self.expressions.items.len > 0) {
             const last_expr = self.expressions.items[self.expressions.items.len - 1];
             if (last_expr.* == .assignment) {
                 const assignment = last_expr.assignment;
-                self.result_val += self.helper.checksumString(assignment.var_name);
+                self.result_val +%= self.helper.checksumString(assignment.var_name);
             }
         }
     }

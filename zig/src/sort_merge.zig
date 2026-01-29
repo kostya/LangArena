@@ -5,15 +5,14 @@ const Helper = @import("helper.zig").Helper;
 pub const SortMerge = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    data: std.ArrayListUnmanaged(i32),
-    size_val: i64,
+    data: std.ArrayList(i32), // Изменено на ArrayList
     result_val: u32,
 
     const vtable = Benchmark.VTable{
+        .prepare = prepareImpl,
         .run = runImpl,
         .checksum = checksumImpl,
         .deinit = deinitImpl,
-        .prepare = prepareImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*SortMerge {
@@ -23,8 +22,7 @@ pub const SortMerge = struct {
         self.* = SortMerge{
             .allocator = allocator,
             .helper = helper,
-            .data = .{},
-            .size_val = 0,
+            .data = .{}, // Инициализация для Zig 0.15+
             .result_val = 0,
         };
 
@@ -37,22 +35,27 @@ pub const SortMerge = struct {
     }
 
     pub fn asBenchmark(self: *SortMerge) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "SortMerge");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *SortMerge = @ptrCast(@alignCast(ptr));
+        const allocator = self.allocator;
 
-        if (self.size_val == 0) {
-            self.size_val = self.helper.config_i64("SortMerge", "size");
-            const size = @as(usize, @intCast(self.size_val));
+        // Очищаем данные
+        self.data.clearAndFree(allocator);
+        self.result_val = 0;
 
-            self.data.clearAndFree(self.allocator);
-            self.data.ensureTotalCapacity(self.allocator, size) catch return;
+        const size_val = self.helper.config_i64("SortMerge", "size");
+        const size = @as(usize, @intCast(size_val));
 
-            for (0..size) |_| {
-                self.data.appendAssumeCapacity(self.helper.nextInt(1_000_000));
-            }
+        // Заполняем данными
+        self.data.ensureTotalCapacity(allocator, size) catch return;
+        self.helper.reset();
+
+        for (0..size) |_| {
+            const val = self.helper.nextInt(1_000_000);
+            self.data.append(allocator, val) catch return;
         }
     }
 
@@ -60,7 +63,7 @@ pub const SortMerge = struct {
     fn mergeSortHelper(arr: []i32, temp: []i32, left: usize, right: usize) void {
         if (left >= right) return;
 
-        const mid = (left + right) / 2;
+        const mid = @divTrunc(left + right, 2); // Исправлено деление
         mergeSortHelper(arr, temp, left, mid);
         mergeSortHelper(arr, temp, mid + 1, right);
         merge(arr, temp, left, mid, right);
@@ -91,28 +94,44 @@ pub const SortMerge = struct {
         }
     }
 
-    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
-        const self: *SortMerge = @ptrCast(@alignCast(ptr));
-        _ = iteration_id;
-
-        const size = self.data.items.len;
-        if (size == 0) return;
-
-        // Создаем копию данных и сортируем
-        var arr = self.allocator.alloc(i32, size) catch return;
-        defer self.allocator.free(arr);
-
-        var temp = self.allocator.alloc(i32, size) catch return;
-        defer self.allocator.free(temp);
+    // Функция сортировки как в C++ версии
+    fn testSort(self: *SortMerge, allocator: std.mem.Allocator) ![]i32 {
+        // Копируем данные
+        const arr = try allocator.alloc(i32, self.data.items.len);
+        const temp = try allocator.alloc(i32, self.data.items.len);
+        defer allocator.free(temp);
 
         @memcpy(arr, self.data.items);
 
+        // Сортируем
         if (arr.len > 0) {
             mergeSortHelper(arr, temp, 0, arr.len - 1);
+        }
 
-            // Добавляем случайный элемент как в C++ версии
-            const random_idx = @as(usize, @intCast(self.helper.nextInt(@as(i32, @intCast(size)))));
-            self.result_val +%= @as(u32, @intCast(arr[random_idx]));
+        return arr;
+    }
+
+    fn runImpl(ptr: *anyopaque, _: i64) void {
+        const self: *SortMerge = @ptrCast(@alignCast(ptr));
+        const allocator = self.allocator;
+        const data = self.data.items;
+
+        // Используем arena для временных аллокаций
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        defer arena.deinit();
+        const arena_allocator = arena.allocator();
+
+        // 1. Добавляем случайный элемент из исходных данных
+        if (data.len > 0) {
+            const idx1 = @as(usize, @intCast(self.helper.nextInt(@as(i32, @intCast(data.len)))));
+            self.result_val +%= @as(u32, @intCast(data[idx1]));
+        }
+
+        // 2. Сортируем и добавляем случайный элемент из отсортированных данных
+        const sorted = self.testSort(arena_allocator) catch return;
+        if (sorted.len > 0) {
+            const idx2 = @as(usize, @intCast(self.helper.nextInt(@as(i32, @intCast(sorted.len)))));
+            self.result_val +%= @as(u32, @intCast(sorted[idx2]));
         }
     }
 

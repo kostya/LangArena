@@ -14,18 +14,24 @@ pub const Helper = struct {
     };
 
     last: i32,
-    config: std.json.Value,
+    config: json.Value,
+    config_parsed: ?json.Parsed(json.Value) = null,
+    allocator: Allocator,
 
     pub fn init(allocator: Allocator) !Helper {
         return Helper{
             .last = INIT,
-            .config = std.json.Value{ .object = std.json.ObjectMap.init(allocator) },
+            .config = json.Value{ .null = {} },
+            .config_parsed = null,
+            .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *Helper) void {
-        // JSON объект сам очистит память через аллокатор
-        _ = self;
+        // Освобождаем память JSON парсера
+        if (self.config_parsed) |*parsed| {
+            parsed.deinit();
+        }
     }
 
     pub fn reset(self: *Helper) void {
@@ -78,32 +84,49 @@ pub const Helper = struct {
         return self.checksumString(formatted);
     }
 
-    pub fn loadConfig(self: *Helper, allocator: Allocator, filename: ?[]const u8) !void {
+    pub fn loadConfig(self: *Helper, filename: ?[]const u8) !void {
         const default_filename = "test.js";
         const actual_filename = filename orelse default_filename;
 
         const file = try std.fs.cwd().openFile(actual_filename, .{});
         defer file.close();
 
-        const content = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
-        defer allocator.free(content);
+        // Читаем весь файл
+        const content = try file.readToEndAlloc(self.allocator, std.math.maxInt(usize));
+        defer self.allocator.free(content);
 
-        var parser = std.json.Parser.init(allocator, .{});
-        defer parser.deinit();
+        // Освобождаем предыдущий конфиг если был
+        if (self.config_parsed) |*parsed| {
+            parsed.deinit();
+        }
 
-        self.config = try parser.parse(content);
+        // Используем новый API для парсинга JSON
+        const parsed = try std.json.parseFromSlice(
+            std.json.Value,
+            self.allocator,
+            content,
+            .{ .ignore_unknown_fields = true }
+        );
+        
+        // Сохраняем парсер, чтобы он управлял памятью
+        self.config_parsed = parsed;
+        self.config = parsed.value;
     }
 
     // Методы для доступа к конфигурации (как в Crystal)
     pub fn config_i64(self: *Helper, class_name: []const u8, field_name: []const u8) i64 {
-        if (self.config.object.get(class_name)) |class_config| {
-            if (class_config.object.get(field_name)) |field_value| {
-                if (field_value == .integer) {
-                    return field_value.integer;
-                } else if (field_value == .float) {
-                    return @as(i64, @intFromFloat(field_value.float));
-                } else if (field_value == .string) {
-                    return std.fmt.parseInt(i64, field_value.string, 10) catch 0;
+        if (self.config == .object) {
+            if (self.config.object.get(class_name)) |class_config| {
+                if (class_config == .object) {
+                    if (class_config.object.get(field_name)) |field_value| {
+                        if (field_value == .integer) {
+                            return field_value.integer;
+                        } else if (field_value == .float) {
+                            return @as(i64, @intFromFloat(field_value.float));
+                        } else if (field_value == .string) {
+                            return std.fmt.parseInt(i64, field_value.string, 10) catch 0;
+                        }
+                    }
                 }
             }
         }
@@ -112,10 +135,14 @@ pub const Helper = struct {
     }
 
     pub fn config_s(self: *Helper, class_name: []const u8, field_name: []const u8) []const u8 {
-        if (self.config.object.get(class_name)) |class_config| {
-            if (class_config.object.get(field_name)) |field_value| {
-                if (field_value == .string) {
-                    return field_value.string;
+        if (self.config == .object) {
+            if (self.config.object.get(class_name)) |class_config| {
+                if (class_config == .object) {
+                    if (class_config.object.get(field_name)) |field_value| {
+                        if (field_value == .string) {
+                            return field_value.string;
+                        }
+                    }
                 }
             }
         }
@@ -123,20 +150,20 @@ pub const Helper = struct {
         return "";
     }
 
-    pub fn getInput(self: *Helper, bench_name: []const u8) ?[]const u8 {
-        return self.config_s(bench_name, "input");
-    }
+    // pub fn getInput(self: *Helper, bench_name: []const u8) ?[]const u8 {
+    //     return self.config_s(bench_name, "input");
+    // }
 
-    pub fn getExpect(self: *Helper, bench_name: []const u8) ?i64 {
-        return self.config_i64(bench_name, "checksum");
-    }
+    // pub fn getExpect(self: *Helper, bench_name: []const u8) ?i64 {
+    //     return self.config_i64(bench_name, "checksum");
+    // }
 
-    pub fn getInputInt(self: *Helper, bench_name: []const u8) i32 {
-        if (self.getInput(bench_name)) |input_str| {
-            return std.fmt.parseInt(i32, input_str, 10) catch 0;
-        }
-        return 0;
-    }
+    // pub fn getInputInt(self: *Helper, bench_name: []const u8) i32 {
+    //     if (self.getInput(bench_name)) |input_str| {
+    //         return std.fmt.parseInt(i32, input_str, 10) catch 0;
+    //     }
+    //     return 0;
+    // }
 
     // Дополнительные методы для совместимости с C++ версией
     pub fn next_int(self: *Helper, max: i32) i32 {

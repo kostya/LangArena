@@ -7,14 +7,15 @@ pub const Mandelbrot = struct {
     helper: *Helper,
     w: i64,
     h: i64,
-    result_val: u32,
+    result_bin: std.ArrayList(u8),  // Для накопления результатов как в C++
 
     const ITER: i32 = 50;
     const LIMIT: f64 = 2.0;
 
     const vtable = Benchmark.VTable{
+        .prepare = prepareImpl,
         .run = runImpl,
-        .checksum = resultImpl,
+        .checksum = checksumImpl,
         .deinit = deinitImpl,
     };
 
@@ -30,44 +31,40 @@ pub const Mandelbrot = struct {
             .helper = helper,
             .w = w,
             .h = h,
-            .result_val = 0,
+            .result_bin = std.ArrayList(u8){},  // Инициализируем пустым
         };
 
         return self;
     }
 
     pub fn deinit(self: *Mandelbrot) void {
+        self.result_bin.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
     pub fn asBenchmark(self: *Mandelbrot) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "Mandelbrot");
     }
 
-    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
-        _ = iteration_id;
+    fn prepareImpl(ptr: *anyopaque) void {
+        const self: *Mandelbrot = @ptrCast(@alignCast(ptr));
+        // Очищаем результат при подготовке
+        self.result_bin.clearAndFree(self.allocator);
+    }
+
+    fn runImpl(ptr: *anyopaque, _: i64) void {
         const self: *Mandelbrot = @ptrCast(@alignCast(ptr));
         const w = @as(i32, @intCast(self.w));
         const h = @as(i32, @intCast(self.h));
 
         if (w <= 0 or h <= 0) {
-            const checksum = self.helper.checksumBytes(&.{});
-            self.result_val = checksum;
             return;
         }
 
+        // Добавляем заголовок в каждом run как в C++
         var header_buf: [64]u8 = undefined;
-        const header_len = (std.fmt.bufPrint(&header_buf, "P4\n{d} {d}\n", .{ w, h }) catch return).len;
-
-        const w_usize = @as(usize, @intCast(w));
-        const h_usize = @as(usize, @intCast(h));
-        const bytes_per_row = @divFloor(w_usize + 7, 8);
-        const total_bytes = header_len + bytes_per_row * h_usize;
-
-        var result = std.ArrayList(u8).initCapacity(self.allocator, total_bytes) catch return;
-        defer result.deinit(self.allocator);
-
-        result.appendSliceAssumeCapacity(header_buf[0..header_len]);
+        const header_str = std.fmt.bufPrint(&header_buf, "P4\n{d} {d}\n", .{ w, h }) catch return;
+        self.result_bin.appendSlice(self.allocator, header_str) catch return;
 
         var byte_acc: u8 = 0;
         var bit_num: i32 = 0;
@@ -103,7 +100,7 @@ pub const Mandelbrot = struct {
                 bit_num += 1;
 
                 if (bit_num == 8) {
-                    result.appendAssumeCapacity(byte_acc);
+                    self.result_bin.append(self.allocator, byte_acc) catch return;
                     byte_acc = 0;
                     bit_num = 0;
                 } else if (x == w - 1) {
@@ -111,7 +108,7 @@ pub const Mandelbrot = struct {
                     if (remaining_bits < 8) {
                         byte_acc <<= @as(u3, @intCast(remaining_bits));
                     }
-                    result.appendAssumeCapacity(byte_acc);
+                    self.result_bin.append(self.allocator, byte_acc) catch return;
                     byte_acc = 0;
                     bit_num = 0;
                 }
@@ -120,15 +117,14 @@ pub const Mandelbrot = struct {
 
         if (bit_num > 0) {
             byte_acc <<= @as(u3, @intCast(8 - bit_num));
-            result.appendAssumeCapacity(byte_acc);
+            self.result_bin.append(self.allocator, byte_acc) catch return;
         }
-
-        self.result_val = self.helper.checksumBytes(result.items);
     }
 
-    fn resultImpl(ptr: *anyopaque) u32 {
+    fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *Mandelbrot = @ptrCast(@alignCast(ptr));
-        return self.result_val;
+        // Возвращаем checksum всех накопленных данных как в C++
+        return self.helper.checksumBytes(self.result_bin.items);
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

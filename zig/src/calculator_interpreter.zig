@@ -113,7 +113,7 @@ pub const CalculatorInterpreter = struct {
     }
 
     pub fn asBenchmark(self: *CalculatorInterpreter) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "CalculatorInterpreter");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
@@ -129,15 +129,20 @@ pub const CalculatorInterpreter = struct {
         var ast_calculator = CalculatorAst.init(self.allocator, self.helper) catch return;
         defer ast_calculator.deinit();
 
+        // Устанавливаем operations как в C++ версии
         ast_calculator.operations = self.operations;
 
+        // Подготавливаем и запускаем парсинг
         var benchmark = ast_calculator.asBenchmark();
         benchmark.prepare();
         benchmark.run(0);
 
-        // Забираем владение AST (move семантика как в C++)
+        // В C++: ast.swap(const_cast<std::vector<CalculatorAst::Node>&>(ca.expressions));
+        // В Zig: просто перемещаем владение списком
         self.ast_expressions = ast_calculator.expressions;
-        ast_calculator.expressions = .{}; // Обнуляем, чтобы не освобождалось дважды
+        
+        // Очищаем expressions в ast_calculator чтобы избежать двойного освобождения
+        ast_calculator.expressions = .{};
     }
 
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
@@ -151,7 +156,7 @@ pub const CalculatorInterpreter = struct {
         defer interpreter.deinit();
 
         const result = interpreter.run(expressions);
-        self.result_val +%= @as(u32, @intCast(result));
+        self.result_val +%= @as(u32, @intCast(result & 0xFFFFFFFF));
     }
 
     fn checksumImpl(ptr: *anyopaque) u32 {
@@ -165,7 +170,7 @@ pub const CalculatorInterpreter = struct {
     }
 };
 
-// Локальная функция для освобождения узла AST
+// Функция для освобождения узла AST
 fn freeNode(allocator: std.mem.Allocator, node: *CalculatorAst.Node) void {
     switch (node.*) {
         .number => {},

@@ -95,7 +95,7 @@ pub const Binarytrees = struct {
     }
 
     pub fn asBenchmark(self: *Binarytrees) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "Binarytrees");
     }
 
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
@@ -114,7 +114,7 @@ pub const Binarytrees = struct {
         // 2. Stretch tree (используем пул, потом сбрасываем)
         {
             const stretch_tree = TreeNode.create(&main_pool, 0, stretch_depth);
-            self.result_val += @as(u32, @bitCast(stretch_tree.check()));
+            self.result_val +%= @as(u32, @bitCast(stretch_tree.check()));
             main_pool.reset(); // Сброс пула = "удаление" дерева
         }
 
@@ -127,14 +127,14 @@ pub const Binarytrees = struct {
                 // 3. Tree1
                 {
                     const tree1 = TreeNode.create(&main_pool, i, depth);
-                    self.result_val += @as(u32, @bitCast(tree1.check()));
+                    self.result_val +%= @as(u32, @bitCast(tree1.check()));
                     main_pool.reset();
                 }
 
                 // 4. Tree2
                 {
                     const tree2 = TreeNode.create(&main_pool, -i, depth);
-                    self.result_val += @as(u32, @bitCast(tree2.check()));
+                    self.result_val +%= @as(u32, @bitCast(tree2.check()));
                     main_pool.reset();
                 }
             }

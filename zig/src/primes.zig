@@ -53,7 +53,7 @@ pub const Primes = struct {
     }
 
     pub fn asBenchmark(self: *Primes) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "Primes");
     }
 
     // Оптимизированное решето Эратосфена

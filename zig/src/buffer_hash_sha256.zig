@@ -37,7 +37,7 @@ pub const BufferHashSHA256 = struct {
     }
 
     pub fn asBenchmark(self: *BufferHashSHA256) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "BufferHashSHA256");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {

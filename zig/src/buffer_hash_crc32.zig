@@ -37,7 +37,7 @@ pub const BufferHashCRC32 = struct {
     }
 
     pub fn asBenchmark(self: *BufferHashCRC32) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "BufferHashCRC32");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {

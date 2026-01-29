@@ -5,16 +5,72 @@ const Helper = @import("helper.zig").Helper;
 pub const GraphPathBFS = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    graph: std.ArrayListUnmanaged(std.ArrayListUnmanaged(usize)),
-    pairs: std.ArrayListUnmanaged(struct { usize, usize }),
-    pairs_val: i64,
-    vertices_val: i64,
-    result_val: u32,
+    graph: Graph,
+    pairs: std.ArrayList([2]usize),
+    result_val: u32, // Изменено на u32 как в C++
+    prepared: bool,
+
+    const Graph = struct {
+        adj: std.ArrayList(std.ArrayList(usize)),
+        vertices: usize,
+        components: usize,
+        
+        fn init(allocator: std.mem.Allocator, vertices: usize, components: usize) !Graph {
+            var adj = std.ArrayList(std.ArrayList(usize)){};
+            try adj.ensureTotalCapacity(allocator, vertices);
+            
+            for (0..vertices) |_| {
+                adj.appendAssumeCapacity(.{});
+            }
+            
+            return Graph{
+                .adj = adj,
+                .vertices = vertices,
+                .components = components,
+            };
+        }
+        
+        fn deinit(self: *Graph, allocator: std.mem.Allocator) void {
+            for (self.adj.items) |*neighbors| {
+                neighbors.deinit(allocator);
+            }
+            self.adj.deinit(allocator);
+        }
+        
+        fn addEdge(self: *Graph, allocator: std.mem.Allocator, u: usize, v: usize) !void {
+            try self.adj.items[u].append(allocator, v);
+            try self.adj.items[v].append(allocator, u);
+        }
+        
+        fn generateRandom(self: *Graph, allocator: std.mem.Allocator, helper: *Helper) !void {
+            const component_size = self.vertices / self.components;
+            
+            for (0..self.components) |c| {
+                const start_idx = c * component_size;
+                const end_idx = if (c == self.components - 1) self.vertices else (c + 1) * component_size;
+                
+                var i = start_idx + 1;
+                while (i < end_idx) : (i += 1) {
+                    const parent = start_idx + @as(usize, @intCast(helper.nextInt(@as(i32, @intCast(i - start_idx)))));
+                    try self.addEdge(allocator, i, parent);
+                }
+                
+                const extra_edges = component_size * 2;
+                for (0..extra_edges) |_| {
+                    const u = start_idx + @as(usize, @intCast(helper.nextInt(@as(i32, @intCast(end_idx - start_idx)))));
+                    const v = start_idx + @as(usize, @intCast(helper.nextInt(@as(i32, @intCast(end_idx - start_idx)))));
+                    if (u != v) {
+                        try self.addEdge(allocator, u, v);
+                    }
+                }
+            }
+        }
+    };
 
     const vtable = Benchmark.VTable{
+        .prepare = prepareImpl,
         .run = runImpl,
         .checksum = checksumImpl,
-        .prepare = prepareImpl,
         .deinit = deinitImpl,
     };
 
@@ -25,85 +81,46 @@ pub const GraphPathBFS = struct {
         self.* = GraphPathBFS{
             .allocator = allocator,
             .helper = helper,
-            .graph = .{},
+            .graph = undefined,
             .pairs = .{},
-            .pairs_val = 0,
-            .vertices_val = 0,
             .result_val = 0,
+            .prepared = false,
         };
 
         return self;
     }
 
     pub fn deinit(self: *GraphPathBFS) void {
-        for (self.graph.items) |*neighbors| {
-            neighbors.deinit(self.allocator);
+        const allocator = self.allocator;
+        if (self.prepared) {
+            self.graph.deinit(allocator);
+            self.pairs.deinit(allocator);
         }
-        self.graph.deinit(self.allocator);
-        self.pairs.deinit(self.allocator);
-        self.allocator.destroy(self);
+        allocator.destroy(self);
     }
 
     pub fn asBenchmark(self: *GraphPathBFS) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "GraphPathBFS");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *GraphPathBFS = @ptrCast(@alignCast(ptr));
+        const allocator = self.allocator;
 
-        if (self.pairs_val == 0) {
-            self.pairs_val = self.helper.config_i64("GraphPathBFS", "pairs");
-            self.vertices_val = self.helper.config_i64("GraphPathBFS", "vertices");
+        if (!self.prepared) {
+            const pairs_val = self.helper.config_i64("GraphPathBFS", "pairs");
+            const vertices_val = self.helper.config_i64("GraphPathBFS", "vertices");
+            const comps = @max(@as(usize, 10), @as(usize, @intCast(vertices_val)) / 10000);
 
-            const vertices = @as(usize, @intCast(self.vertices_val));
-            const comps = @max(10, vertices / 10000);
-
-            // Очищаем старый граф
-            for (self.graph.items) |*neighbors| {
-                neighbors.deinit(self.allocator);
-            }
-            self.graph.clearAndFree(self.allocator);
-            self.pairs.clearAndFree(self.allocator);
-
-            // Инициализируем списки смежности
-            self.graph.ensureTotalCapacity(self.allocator, vertices) catch return;
-            for (0..vertices) |_| {
-                self.graph.appendAssumeCapacity(.{});
-            }
-
-            const component_size = vertices / comps;
-
-            // Генерируем граф
-            for (0..comps) |c| {
-                const start_idx = c * component_size;
-                const end_idx = if (c == comps - 1) vertices else (c + 1) * component_size;
-
-                // Делаем компоненту связной
-                var i = start_idx + 1;
-                while (i < end_idx) : (i += 1) {
-                    const parent = start_idx + @as(usize, @intCast(self.helper.nextInt(@as(i32, @intCast(i - start_idx)))));
-                    // Добавляем ребро в обе стороны
-                    self.graph.items[i].append(self.allocator, parent) catch return;
-                    self.graph.items[parent].append(self.allocator, i) catch return;
-                }
-
-                // Добавляем случайные рёбра внутри компоненты
-                const extra_edges = component_size * 2;
-                for (0..extra_edges) |_| {
-                    const u = start_idx + @as(usize, @intCast(self.helper.nextInt(@as(i32, @intCast(end_idx - start_idx)))));
-                    const v = start_idx + @as(usize, @intCast(self.helper.nextInt(@as(i32, @intCast(end_idx - start_idx)))));
-                    if (u != v) {
-                        self.graph.items[u].append(self.allocator, v) catch return;
-                        self.graph.items[v].append(self.allocator, u) catch return;
-                    }
-                }
-            }
+            // Создаем граф
+            self.graph = Graph.init(allocator, @as(usize, @intCast(vertices_val)), comps) catch return;
+            self.graph.generateRandom(allocator, self.helper) catch return;
 
             // Генерируем пары
-            const pairs_count = @as(usize, @intCast(self.pairs_val));
-            self.pairs.ensureTotalCapacity(self.allocator, pairs_count) catch return;
+            const pairs_count = @as(usize, @intCast(pairs_val));
+            self.pairs.ensureTotalCapacity(allocator, pairs_count) catch return;
 
-            const component_size_for_pairs = vertices / 10;
+            const component_size_for_pairs = @as(usize, @intCast(vertices_val)) / 10;
 
             for (0..pairs_count) |_| {
                 if (self.helper.nextInt(100) < 70) {
@@ -129,36 +146,31 @@ pub const GraphPathBFS = struct {
                     self.pairs.appendAssumeCapacity(.{ start, end });
                 }
             }
+
+            self.prepared = true;
         }
     }
 
-    // BFS для поиска кратчайшего пути
-    fn bfsShortestPath(self: *GraphPathBFS, start: usize, target: usize) i32 {
+    fn bfsShortestPathOpt(self: *const GraphPathBFS, start: usize, target: usize, visited: []u8, queue: *std.ArrayList([2]i32), allocator: std.mem.Allocator) i32 {
         if (start == target) return 0;
 
-        const vertices = self.graph.items.len;
-        var visited = std.ArrayList(bool).init(self.allocator);
-        defer visited.deinit();
+        @memset(visited, 0);
+        queue.clearRetainingCapacity();
 
-        visited.resize(vertices, false) catch return -1;
-
-        var queue = std.ArrayList(struct { usize, i32 }).init(self.allocator);
-        defer queue.deinit();
-
-        visited.items[start] = true;
-        queue.append(.{ start, 0 }) catch return -1;
+        visited[start] = 1;
+        queue.append(allocator, .{ @as(i32, @intCast(start)), 0 }) catch return -1;
 
         var front: usize = 0;
         while (front < queue.items.len) {
             const current = queue.items[front];
             front += 1;
 
-            for (self.graph.items[current[0]].items) |neighbor| {
+            for (self.graph.adj.items[@as(usize, @intCast(current[0]))].items) |neighbor| {
                 if (neighbor == target) return current[1] + 1;
 
-                if (!visited.items[neighbor]) {
-                    visited.items[neighbor] = true;
-                    queue.append(.{ neighbor, current[1] + 1 }) catch return -1;
+                if (visited[neighbor] == 0) {
+                    visited[neighbor] = 1;
+                    queue.append(allocator, .{ @as(i32, @intCast(neighbor)), current[1] + 1 }) catch return -1;
                 }
             }
         }
@@ -166,19 +178,29 @@ pub const GraphPathBFS = struct {
         return -1;
     }
 
-    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
+    fn runImpl(ptr: *anyopaque, _: i64) void {
         const self: *GraphPathBFS = @ptrCast(@alignCast(ptr));
-        _ = iteration_id;
+        const allocator = self.allocator;
 
-        var total_length: i64 = 0;
+        var total_length: i32 = 0;
+
+        // Используем arena для временных аллокаций
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        defer arena.deinit();
+        const arena_allocator = arena.allocator();
+
+        // Предварительно аллоцировать visited и queue
+        const visited = arena_allocator.alloc(u8, self.graph.vertices) catch return;
+        var queue = std.ArrayList([2]i32){};
+        defer queue.deinit(arena_allocator);
+        queue.ensureTotalCapacity(arena_allocator, self.graph.vertices) catch return;
 
         for (self.pairs.items) |pair| {
-            const length = self.bfsShortestPath(pair[0], pair[1]);
-            if (length >= 0) {
-                total_length += length;
-            }
+            const length = self.bfsShortestPathOpt(pair[0], pair[1], visited, &queue, arena_allocator);
+            total_length += length;
         }
 
+        // Сложение с переполнением как в C++ (&+=)
         self.result_val +%= @as(u32, @intCast(total_length));
     }
 

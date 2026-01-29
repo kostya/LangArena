@@ -7,17 +7,13 @@ pub const RegexDna = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
     seq: std.ArrayList(u8),
-    result_val: u32, // Изменено с u64 на u32 как в C++: uint32_t checksum_val
-    n: i32,
+    result_str: std.ArrayList(u8),
     ilen: i32,
     clen: i32,
 
-    const vtable = Benchmark.VTable{
-        .run = runImpl,
-        .checksum = checksumImpl,
-        .prepare = prepareImpl,
-        .deinit = deinitImpl,
-    };
+    // PCRE2 структуры
+    compiled_patterns: [9]?*anyopaque, // pcre2_code_8*
+    match_data: [9]?*anyopaque, // pcre2_match_data_8*
 
     const PATTERNS = [_][]const u8{
         "agggtaaa|tttaccct",
@@ -31,34 +27,46 @@ pub const RegexDna = struct {
         "agggtaa[cgt]|[acg]ttaccct",
     };
 
-    const REPLACEMENTS = [_]struct { from: u8, to: []const u8, len: usize }{
-        .{ .from = 'B', .to = "(c|g|t)", .len = 7 },
-        .{ .from = 'D', .to = "(a|g|t)", .len = 7 },
-        .{ .from = 'H', .to = "(a|c|t)", .len = 7 },
-        .{ .from = 'K', .to = "(g|t)", .len = 5 },
-        .{ .from = 'M', .to = "(a|c)", .len = 5 },
-        .{ .from = 'N', .to = "(a|c|g|t)", .len = 9 },
-        .{ .from = 'R', .to = "(a|g)", .len = 5 },
-        .{ .from = 'S', .to = "(c|t)", .len = 5 },
-        .{ .from = 'V', .to = "(a|c|g)", .len = 7 },
-        .{ .from = 'W', .to = "(a|t)", .len = 5 },
-        .{ .from = 'Y', .to = "(c|t)", .len = 5 },
+    const REPLACEMENTS = [_]struct { from: u8, to: []const u8 }{
+        .{ .from = 'B', .to = "(c|g|t)" },
+        .{ .from = 'D', .to = "(a|g|t)" },
+        .{ .from = 'H', .to = "(a|c|t)" },
+        .{ .from = 'K', .to = "(g|t)" },
+        .{ .from = 'M', .to = "(a|c)" },
+        .{ .from = 'N', .to = "(a|c|g|t)" },
+        .{ .from = 'R', .to = "(a|g)" },
+        .{ .from = 'S', .to = "(c|t)" },
+        .{ .from = 'V', .to = "(a|c|g)" },
+        .{ .from = 'W', .to = "(a|t)" },
+        .{ .from = 'Y', .to = "(c|t)" },
+    };
+
+    const vtable = Benchmark.VTable{
+        .prepare = prepareImpl,
+        .run = runImpl,
+        .checksum = checksumImpl,
+        .deinit = deinitImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*RegexDna {
-        const n = helper.getInputInt("RegexDna");
-
         const self = try allocator.create(RegexDna);
         errdefer allocator.destroy(self);
+
+        // Инициализируем массивы как null
+        var compiled_patterns: [9]?*anyopaque = undefined;
+        var match_data: [9]?*anyopaque = undefined;
+        @memset(&compiled_patterns, null);
+        @memset(&match_data, null);
 
         self.* = RegexDna{
             .allocator = allocator,
             .helper = helper,
-            .seq = .empty,
-            .result_val = 0,
-            .n = n,
+            .seq = .{},
+            .result_str = .{},
             .ilen = 0,
             .clen = 0,
+            .compiled_patterns = compiled_patterns,
+            .match_data = match_data,
         };
 
         return self;
@@ -66,17 +74,24 @@ pub const RegexDna = struct {
 
     pub fn deinit(self: *RegexDna) void {
         const allocator = self.allocator;
+
+        // Освобождаем PCRE2 ресурсы
+        for (0..9) |i| {
+            if (self.match_data[i]) |md| {
+                pcre2_match_data_free_8(@ptrCast(md));
+            }
+            if (self.compiled_patterns[i]) |cp| {
+                pcre2_code_free_8(@ptrCast(cp));
+            }
+        }
+
         self.seq.deinit(allocator);
+        self.result_str.deinit(allocator);
         allocator.destroy(self);
     }
 
     pub fn asBenchmark(self: *RegexDna) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
-    }
-
-    // Метод config_val как в C++
-    fn config_val(self: *RegexDna, field_name: []const u8) i64 {
-        return self.helper.config_i64("RegexDna", field_name);
+        return Benchmark.init(self, &vtable, self.helper, "RegexDna");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
@@ -84,25 +99,31 @@ pub const RegexDna = struct {
         const allocator = self.allocator;
 
         // Очищаем предыдущие данные
-        self.seq.clearRetainingCapacity();
+        self.seq.clearAndFree(allocator);
+        self.result_str.clearAndFree(allocator);
 
-        // Создаем Fasta
+        // Создаем Fasta как в C++ версии
         var fasta = Fasta.init(allocator, self.helper) catch return;
         defer fasta.deinit();
 
-        fasta.n = self.n;
+        // Устанавливаем n из конфига
+        const n_val = self.helper.config_i64("RegexDna", "n");
+        fasta.n = n_val;
+        
+        // Получаем benchmark и запускаем prepare + run
         var fasta_bench = fasta.asBenchmark();
         fasta_bench.prepare();
-        fasta_bench.run(0); // Запускаем одну итерацию как в C++
+        fasta_bench.run(0); // Запускаем одну итерацию
 
         const fasta_result = fasta.getResult();
 
-        // Копируем подход из C++: each_line удаляет \n, потом добавляет +1
+        // Парсим результат Fasta как в C++ версии
         var lines = std.mem.splitSequence(u8, fasta_result, "\n");
         self.ilen = 0;
+        self.seq.clearRetainingCapacity();
 
         while (lines.next()) |line| {
-            // Если это последняя строка и она пустая (из-за trailing \n), пропускаем
+            // Пропускаем пустую строку в конце
             if (line.len == 0 and lines.peek() == null) {
                 break;
             }
@@ -115,61 +136,124 @@ pub const RegexDna = struct {
         }
 
         self.clen = @as(i32, @intCast(self.seq.items.len));
+
+        // Компилируем PCRE2 паттерны
+        for (PATTERNS, 0..) |pattern, i| {
+            // Освобождаем предыдущие ресурсы
+            if (self.match_data[i]) |md| {
+                pcre2_match_data_free_8(@ptrCast(md));
+                self.match_data[i] = null;
+            }
+            if (self.compiled_patterns[i]) |cp| {
+                pcre2_code_free_8(@ptrCast(cp));
+                self.compiled_patterns[i] = null;
+            }
+
+            var error_number: c_int = 0;
+            var error_offset: usize = 0;
+
+            // Компилируем паттерн
+            const re = pcre2_compile_8(
+                @ptrCast(pattern.ptr),
+                pattern.len,
+                PCRE2_UTF | PCRE2_NO_UTF_CHECK,
+                &error_number,
+                &error_offset,
+                null,
+            );
+
+            if (re == null) {
+                continue;
+            }
+
+            // JIT компиляция
+            _ = pcre2_jit_compile_8(@ptrCast(re), PCRE2_JIT_COMPLETE);
+
+            // Создаем match data
+            const md = pcre2_match_data_create_from_pattern_8(@ptrCast(re), null);
+            if (md == null) {
+                pcre2_code_free_8(@ptrCast(re));
+                continue;
+            }
+
+            self.compiled_patterns[i] = @ptrCast(re);
+            self.match_data[i] = @ptrCast(md);
+        }
     }
 
-    // Простая функция подсчета вхождений (как в C++ версии)
-    fn countPattern(self: *RegexDna, pattern: []const u8) usize {
-        var count: usize = 0;
-        var pos: usize = 0;
-        const seq = self.seq.items;
+    // Подсчет вхождений с PCRE2
+    fn countPattern(self: *RegexDna, pattern_idx: usize) usize {
+        const re_ptr = self.compiled_patterns[pattern_idx] orelse return 0;
+        const md_ptr = self.match_data[pattern_idx] orelse return 0;
 
-        while (pos < seq.len) {
-            if (std.mem.startsWith(u8, seq[pos..], pattern)) {
-                count += 1;
-                pos += pattern.len;
-            } else {
-                pos += 1;
+        const re: *PCRE2_CODE = @ptrCast(re_ptr);
+        const md: *PCRE2_MATCH_DATA = @ptrCast(md_ptr);
+
+        var count: usize = 0;
+        var start_offset: usize = 0;
+        const subject = self.seq.items.ptr;
+        const subject_length = self.seq.items.len;
+
+        while (true) {
+            const rc = pcre2_match_8(
+                re,
+                @ptrCast(subject),
+                subject_length,
+                start_offset,
+                0,
+                md,
+                null,
+            );
+
+            if (rc < 0) {
+                if (rc == PCRE2_ERROR_NOMATCH) break;
+                break;
             }
+
+            count += 1;
+
+            const ovector = pcre2_get_ovector_pointer_8(md);
+            start_offset = ovector[1];
+
+            if (ovector[0] == ovector[1]) {
+                start_offset += 1;
+            }
+
+            if (start_offset > subject_length) break;
         }
 
         return count;
     }
 
-    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
+    fn runImpl(ptr: *anyopaque, _: i64) void {
         const self: *RegexDna = @ptrCast(@alignCast(ptr));
-        _ = iteration_id; // Не используется
-
         const allocator = self.allocator;
-        const seq = self.seq.items;
 
-        // Используем arena для временных аллокаций
+        // Подсчет паттернов с PCRE2
+        for (PATTERNS, 0..) |pattern, i| {
+            const count = self.countPattern(i);
+            
+            // Формируем строку
+            var buf: [128]u8 = undefined;
+            const line = std.fmt.bufPrint(&buf, "{s} {d}\n", .{pattern, count}) catch continue;
+            self.result_str.appendSlice(allocator, line) catch continue;
+        }
+
+        // Замена символов
+        const seq = self.seq.items;
+        var seq2 = std.ArrayList(u8){};
+        
+        // Используем arena для seq2
         var arena = std.heap.ArenaAllocator.init(allocator);
         defer arena.deinit();
         const arena_allocator = arena.allocator();
-
-        // Создаем буфер для результата
-        var result: std.ArrayList(u8) = .empty;
-        defer result.deinit(arena_allocator);
-
-        const writer = result.writer(arena_allocator);
-
-        // Подсчет паттернов
-        for (PATTERNS) |pattern| {
-            const count = self.countPattern(pattern);
-            _ = writer.print("{s} {d}\n", .{ pattern, count }) catch return;
-        }
-
-        // Оптимизированная замена через lookup table (как в C коде)
-        var seq2: std.ArrayList(u8) = .empty;
+        
+        seq2.ensureTotalCapacity(arena_allocator, seq.len * 9) catch return;
         defer seq2.deinit(arena_allocator);
-
-        // Предварительно выделяем память (максимальный возможный размер)
-        const max_seq2_len = seq.len * 9;
-        seq2.ensureTotalCapacity(arena_allocator, max_seq2_len) catch return;
 
         for (seq) |ch| {
             var replaced = false;
-            inline for (REPLACEMENTS) |repl| {
+            for (REPLACEMENTS) |repl| {
                 if (ch == repl.from) {
                     seq2.appendSliceAssumeCapacity(repl.to);
                     replaced = true;
@@ -182,19 +266,19 @@ pub const RegexDna = struct {
         }
 
         // Добавляем статистику
-        _ = writer.print("\n{d}\n{d}\n{d}\n", .{
+        var buf2: [64]u8 = undefined;
+        const stats = std.fmt.bufPrint(&buf2, "\n{d}\n{d}\n{d}\n", .{
             self.ilen,
             self.clen,
             seq2.items.len,
         }) catch return;
-
-        // Вычисляем checksum
-        self.result_val = self.helper.checksumString(result.items);
+        
+        self.result_str.appendSlice(allocator, stats) catch return;
     }
 
     fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *RegexDna = @ptrCast(@alignCast(ptr));
-        return self.result_val;
+        return self.helper.checksumString(self.result_str.items);
     }
 
     fn deinitImpl(ptr: *anyopaque) void {
@@ -202,3 +286,62 @@ pub const RegexDna = struct {
         self.deinit();
     }
 };
+
+// ============ PCRE2 Константы ============
+const PCRE2_UTF = 0x00080000;
+const PCRE2_NO_UTF_CHECK = 0x40000000;
+const PCRE2_JIT_COMPLETE = 0x00000001;
+const PCRE2_ERROR_NOMATCH = -1;
+
+// ============ PCRE2 Типы ============
+const PCRE2_CODE = opaque {};
+const PCRE2_MATCH_DATA = opaque {};
+
+// ============ PCRE2 Функции ============
+extern "c" fn pcre2_compile_8(
+    pattern: [*c]const u8,
+    length: usize,
+    options: u32,
+    errorcode: [*c]c_int,
+    erroroffset: [*c]usize,
+    ccontext: ?*anyopaque,
+) ?*PCRE2_CODE;
+
+extern "c" fn pcre2_code_free_8(code: ?*PCRE2_CODE) void;
+
+extern "c" fn pcre2_jit_compile_8(
+    code: ?*PCRE2_CODE,
+    options: u32,
+) c_int;
+
+extern "c" fn pcre2_match_data_create_from_pattern_8(
+    code: ?*const PCRE2_CODE,
+    gcontext: ?*anyopaque,
+) ?*PCRE2_MATCH_DATA;
+
+extern "c" fn pcre2_match_data_free_8(match_data: ?*PCRE2_MATCH_DATA) void;
+
+extern "c" fn pcre2_match_8(
+    code: *const PCRE2_CODE,
+    subject: [*c]const u8,
+    length: usize,
+    startoffset: usize,
+    options: u32,
+    match_data: ?*PCRE2_MATCH_DATA,
+    mcontext: ?*anyopaque,
+) c_int;
+
+extern "c" fn pcre2_get_ovector_pointer_8(
+    match_data: ?*PCRE2_MATCH_DATA,
+) [*c]usize;
+
+// JIT match функция (если доступна)
+extern "c" fn pcre2_jit_match_8(
+    code: *const PCRE2_CODE,
+    subject: [*c]const u8,
+    length: usize,
+    startoffset: usize,
+    options: u32,
+    match_data: ?*PCRE2_MATCH_DATA,
+    mcontext: ?*anyopaque,
+) c_int;

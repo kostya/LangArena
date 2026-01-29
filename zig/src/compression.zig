@@ -1,144 +1,133 @@
-// src/compression.zig
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
-const mem = std.mem;
-const sort = std.sort;
 
 pub const Compression = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    iterations: u32,
+    size_val: i64,
     test_data: []u8,
-    result_val: u64,
+    result_val: u32,
 
-    // ==================== BWT ====================
-    const BWTResult = struct {
+    pub const BWTResult = struct {
         transformed: []u8,
         original_idx: usize,
 
-        pub fn deinit(self: *BWTResult, allocator: std.mem.Allocator) void {
-            allocator.free(self.transformed);
+        fn deinit(self: *BWTResult, allocator: std.mem.Allocator) void {
+            if (self.transformed.len > 0) {
+                allocator.free(self.transformed);
+            }
         }
     };
 
-    // Точная копия C++ алгоритма построения суффиксного массива
+    const EncodedResult = struct {
+        data: []u8,
+        bit_count: u32,
+
+        fn deinit(self: *EncodedResult, allocator: std.mem.Allocator) void {
+            if (self.data.len > 0) {
+                allocator.free(self.data);
+            }
+        }
+    };
+
     fn buildSuffixArray(data: []const u8, allocator: std.mem.Allocator) ![]usize {
         const n = data.len;
         if (n == 0) return &.{};
-
-        // 1. Создаём удвоенную строку как в C++
-        var doubled = try allocator.alloc(u8, n * 2);
-        defer allocator.free(doubled);
-
-        @memcpy(doubled[0..n], data);
-        @memcpy(doubled[n..], data);
-
-        // 2. Создаём суффиксный массив для первых n позиций
+        
         var sa = try allocator.alloc(usize, n);
         errdefer allocator.free(sa);
-
+        
+        // Инициализация суффиксного массива
         for (0..n) |i| {
             sa[i] = i;
         }
-
-        // 3. Фаза 0: сортировка по первому символу (Radix sort) - как в C++
-        var buckets: [256]std.ArrayList(usize) = undefined;
-        for (&buckets) |*bucket| {
-            bucket.* = std.ArrayList(usize).empty;
-        }
-        defer for (&buckets) |*bucket| {
-            bucket.deinit(allocator);
-        };
-
-        for (sa) |idx| {
-            try buckets[data[idx]].append(allocator, idx);
-        }
-
-        var pos: usize = 0;
-        for (&buckets) |*bucket| {
-            for (bucket.items) |idx| {
-                sa[pos] = idx;
-                pos += 1;
+        
+        // Сортировка по первому символу
+        std.sort.block(usize, sa, data, struct {
+            fn lessThan(data_ptr: []const u8, a: usize, b: usize) bool {
+                return data_ptr[a] < data_ptr[b];
             }
-        }
-
-        // 4. Фаза 1: сортировка по парам символов - как в C++
+        }.lessThan);
+        
+        // Если больше одного элемента, сортируем дальше
         if (n > 1) {
-            // Присваиваем ранги по первому символу
-            var rank = try allocator.alloc(i32, n);
+            var rank = try allocator.alloc(i32, n * 2);
             defer allocator.free(rank);
-
+            @memset(rank[n..], -1);
+            
+            // Инициализация рангов
             var current_rank: i32 = 0;
-            var prev_char = data[sa[0]];
-
-            for (0..n) |i| {
-                const idx = sa[i];
-                const curr_char = data[idx];
-                if (curr_char != prev_char) {
+            rank[sa[0]] = current_rank;
+            for (1..n) |i| {
+                if (data[sa[i]] != data[sa[i - 1]]) {
                     current_rank += 1;
-                    prev_char = curr_char;
                 }
-                rank[idx] = current_rank;
+                rank[sa[i]] = current_rank;
             }
-
-            // Сортируем по парам (ранг[i], ранг[i+1])
+            
             var k: usize = 1;
             while (k < n) {
-                // Создаём пары для сортировки
-                var pairs = try allocator.alloc(struct { i32, i32 }, n);
-                defer allocator.free(pairs);
-
-                for (0..n) |i| {
-                    pairs[i] = .{ rank[i], rank[(i + k) % n] };
-                }
-
-                // Сортируем индексы по парам
-                sort.block(usize, sa, pairs, struct {
-                    fn lessThan(pairs_ptr: []const struct { i32, i32 }, a: usize, b: usize) bool {
-                        const pair_a = pairs_ptr[a];
-                        const pair_b = pairs_ptr[b];
-
-                        if (pair_a[0] != pair_b[0]) {
-                            return pair_a[0] < pair_b[0];
-                        }
-                        return pair_a[1] < pair_b[1];
+                // Создаем структуру для захвата k
+                const SortContext = struct {
+                    rank_ptr: []i32,
+                    k: usize,
+                    
+                    fn lessThan(ctx: @This(), a: usize, b: usize) bool {
+                        if (ctx.rank_ptr[a] != ctx.rank_ptr[b]) return ctx.rank_ptr[a] < ctx.rank_ptr[b];
+                        
+                        const n_half = ctx.rank_ptr.len / 2;
+                        const rank_a_k = if (a + ctx.k < n_half) ctx.rank_ptr[a + ctx.k] else -1;
+                        const rank_b_k = if (b + ctx.k < n_half) ctx.rank_ptr[b + ctx.k] else -1;
+                        
+                        return rank_a_k < rank_b_k;
                     }
-                }.lessThan);
-
-                // Обновляем ранги
+                };
+                
+                const context = SortContext{ .rank_ptr = rank, .k = k };
+                std.sort.block(usize, sa, context, SortContext.lessThan);
+                
+                // Пересчет рангов
                 var new_rank = try allocator.alloc(i32, n);
                 defer allocator.free(new_rank);
-
-                new_rank[sa[0]] = 0;
+                
+                current_rank = 0;
+                new_rank[sa[0]] = current_rank;
+                
                 for (1..n) |i| {
-                    const prev_pair = pairs[sa[i - 1]];
-                    const curr_pair = pairs[sa[i]];
-
-                    new_rank[sa[i]] = new_rank[sa[i - 1]] +
-                        @intFromBool(!std.mem.eql(i32, &prev_pair, &curr_pair));
+                    const prev = sa[i - 1];
+                    const curr = sa[i];
+                    
+                    const rank_prev1 = rank[prev];
+                    const rank_curr1 = rank[curr];
+                    const rank_prev2 = if (prev + k < n) rank[prev + k] else -1;
+                    const rank_curr2 = if (curr + k < n) rank[curr + k] else -1;
+                    
+                    if (rank_prev1 != rank_curr1 or rank_prev2 != rank_curr2) {
+                        current_rank += 1;
+                    }
+                    new_rank[curr] = current_rank;
                 }
-
-                @memcpy(rank, new_rank);
+                
+                // Копируем новые ранги в первую половину
+                @memcpy(rank[0..n], new_rank[0..n]);
                 k *= 2;
             }
         }
-
+        
         return sa;
     }
 
     fn bwtTransform(data: []const u8, allocator: std.mem.Allocator) !BWTResult {
         const n = data.len;
-        if (n == 0) {
-            return BWTResult{ .transformed = &.{}, .original_idx = 0 };
-        }
-
+        if (n == 0) return BWTResult{ .transformed = &.{}, .original_idx = 0 };
+        
         const sa = try buildSuffixArray(data, allocator);
         defer allocator.free(sa);
-
+        
         var transformed = try allocator.alloc(u8, n);
         var original_idx: usize = 0;
-
+        
         for (0..n) |i| {
             const suffix_idx = sa[i];
             if (suffix_idx == 0) {
@@ -148,154 +137,106 @@ pub const Compression = struct {
                 transformed[i] = data[suffix_idx - 1];
             }
         }
-
+        
         return BWTResult{ .transformed = transformed, .original_idx = original_idx };
     }
 
-    fn bwtInverse(bwt_result: BWTResult, allocator: std.mem.Allocator) ![]u8 {
-        const bwt = bwt_result.transformed;
-        const n = bwt.len;
-        if (n == 0) {
-            return &.{};
-        }
-
-        // 1. Подсчитываем частоты символов - как в C++
-        var counts: [256]usize = [_]usize{0} ** 256;
-        for (bwt) |byte| {
-            counts[byte] += 1;
-        }
-
-        // 2. Вычисляем стартовые позиции в первом столбце - как в C++
-        var positions: [256]usize = [_]usize{0} ** 256;
-        var total: usize = 0;
-        for (0..256) |i| {
-            positions[i] = total;
-            total += counts[i];
-        }
-
-        // 3. Строим массив next (LF-маппинг) - ТОЧНО как в C++
-        var next = try allocator.alloc(usize, n);
-        defer allocator.free(next);
-        @memset(next, 0);
-
-        var temp_counts: [256]usize = [_]usize{0} ** 256;
-
-        for (0..n) |i| {
-            const byte = bwt[i];
-            const pos = positions[byte] + temp_counts[byte];
-            next[pos] = i; // ТОЧНО как в C++: next[pos] = i
-            temp_counts[byte] += 1;
-        }
-
-        // 4. Восстанавливаем исходную строку - как в C++
-        var result = try allocator.alloc(u8, n);
-        var idx = bwt_result.original_idx;
-
-        for (0..n) |i| {
-            idx = next[idx];
-            result[i] = bwt[idx];
-        }
-
-        return result;
-    }
-
-    // ==================== Huffman ====================
-    const HuffmanNode = struct {
+    pub const HuffmanNode = struct {
         frequency: u32,
         byte_val: u8,
         is_leaf: bool,
         left: ?*HuffmanNode,
         right: ?*HuffmanNode,
+    };
 
-        pub fn initLeaf(frequency: u32, byte_val: u8) HuffmanNode {
-            return HuffmanNode{
-                .frequency = frequency,
-                .byte_val = byte_val,
+    pub const HuffmanCodes = struct {
+        code_lengths: [256]u8,
+        codes: [256]u32,
+    };
+
+    pub fn buildHuffmanTree(frequencies: []const u32, allocator: std.mem.Allocator) !*HuffmanNode {
+        // Используем ArenaAllocator для дерева, как в старой рабочей версии
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        const arena_allocator = arena.allocator();
+        
+        // Не defer arena.deinit() - память будет освобождена когда дерево перестанет использоваться
+        
+        var heap = std.ArrayList(*HuffmanNode).empty;
+        defer heap.deinit(arena_allocator);
+        
+        // Создаем листья через arena_allocator
+        for (0..256) |i| {
+            if (frequencies[i] > 0) {
+                const node = try arena_allocator.create(HuffmanNode);
+                node.* = HuffmanNode{
+                    .frequency = frequencies[i],
+                    .byte_val = @as(u8, @intCast(i)),
+                    .is_leaf = true,
+                    .left = null,
+                    .right = null,
+                };
+                try heap.append(arena_allocator, node);
+            }
+        }
+        
+        // Если только один символ - добавляем фиктивный узел как в C++ версии
+        if (heap.items.len == 1) {
+            const leaf = heap.orderedRemove(0);
+            const dummy = try arena_allocator.create(HuffmanNode);
+            dummy.* = HuffmanNode{
+                .frequency = 0,
+                .byte_val = 0,
                 .is_leaf = true,
                 .left = null,
                 .right = null,
             };
+            
+            const root = try arena_allocator.create(HuffmanNode);
+            root.* = HuffmanNode{
+                .frequency = leaf.frequency,
+                .byte_val = 0,
+                .is_leaf = false,
+                .left = leaf,
+                .right = dummy,
+            };
+            
+            // Возвращаем arena вместе с корнем (arena будет жить пока дерево используется)
+            // В вызывающем коде нужно будет освободить arena когда дерево больше не нужно
+            return root;
         }
-
-        pub fn initInternal(frequency: u32, left: *HuffmanNode, right: *HuffmanNode) HuffmanNode {
-            return HuffmanNode{
-                .frequency = frequency,
+        
+        // Сортируем по частоте
+        std.sort.block(*HuffmanNode, heap.items, {}, struct {
+            fn lessThan(context: void, a: *HuffmanNode, b: *HuffmanNode) bool {
+                _ = context;
+                return a.frequency < b.frequency;
+            }
+        }.lessThan);
+        
+        // Строим дерево
+        while (heap.items.len > 1) {
+            const left = heap.orderedRemove(0);
+            const right = heap.orderedRemove(0);
+            
+            const parent = try arena_allocator.create(HuffmanNode);
+            parent.* = HuffmanNode{
+                .frequency = left.frequency + right.frequency,
                 .byte_val = 0,
                 .is_leaf = false,
                 .left = left,
                 .right = right,
             };
-        }
-    };
-
-    const HuffmanCodes = struct {
-        code_lengths: [256]u8,
-        codes: [256]u32,
-
-        pub fn init() HuffmanCodes {
-            return .{
-                .code_lengths = [_]u8{0} ** 256,
-                .codes = [_]u32{0} ** 256,
-            };
-        }
-    };
-
-    // ТОЧНО как в C++: build_huffman_tree
-    fn buildHuffmanTree(frequencies: []const u32, allocator: std.mem.Allocator) !*HuffmanNode {
-        var heap = std.PriorityQueue(*HuffmanNode, void, struct {
-            fn lessThan(context: void, a: *HuffmanNode, b: *HuffmanNode) std.math.Order {
-                _ = context;
-                // ТОЧНО как в C++: min-heap по частоте
-                return std.math.order(a.frequency, b.frequency);
+            
+            var insert_idx: usize = 0;
+            while (insert_idx < heap.items.len and heap.items[insert_idx].frequency < parent.frequency) {
+                insert_idx += 1;
             }
-        }.lessThan).init(allocator, {});
-        defer heap.deinit();
-
-        // Создаем arena для узлов дерева (аналог shared_ptr в C++)
-        var arena = std.heap.ArenaAllocator.init(allocator);
-        const arena_allocator = arena.allocator();
-
-        // Добавляем все символы с ненулевой частотой - как в C++
-        for (0..256) |i| {
-            if (frequencies[i] > 0) {
-                const node = try arena_allocator.create(HuffmanNode);
-                node.* = HuffmanNode.initLeaf(frequencies[i], @as(u8, @intCast(i)));
-                try heap.add(node);
-            }
+            try heap.insert(arena_allocator, insert_idx, parent);
         }
-
-        // Если только один символ - ТОЧНО как в C++
-        if (heap.count() == 1) {
-            const leaf = heap.remove();
-            const dummy = try arena_allocator.create(HuffmanNode);
-            dummy.* = HuffmanNode.initLeaf(0, 0);
-
-            const root = try arena_allocator.create(HuffmanNode);
-            root.* = HuffmanNode.initInternal(leaf.frequency, leaf, dummy);
-
-            // arena продолжает жить (аналог shared_ptr)
-            // _ = arena;
-            return root;
-        }
-
-        // Строим дерево - ТОЧНО как в C++
-        while (heap.count() > 1) {
-            const left = heap.remove();
-            const right = heap.remove();
-
-            const parent = try arena_allocator.create(HuffmanNode);
-            parent.* = HuffmanNode.initInternal(left.frequency + right.frequency, left, right);
-
-            try heap.add(parent);
-        }
-
-        const root = heap.remove();
-        // arena продолжает жить (аналог shared_ptr)
-        // _ = arena;
-        return root;
+        
+        return heap.items[0];
     }
 
-    // ТОЧНО как в C++: build_huffman_codes
     fn buildHuffmanCodes(node: *HuffmanNode, code: u32, length: u8, codes: *HuffmanCodes) void {
         if (node.is_leaf) {
             // Игнорируем фиктивный символ (byte_val == 0) - как в C++
@@ -313,44 +254,42 @@ pub const Compression = struct {
         }
     }
 
-    const EncodedResult = struct {
-        data: []u8,
-        bit_count: u32,
-
-        pub fn deinit(self: *EncodedResult, allocator: std.mem.Allocator) void {
-            allocator.free(self.data);
-        }
-    };
-
-    // ТОЧНО как в C++: huffman_encode
     fn huffmanEncode(data: []const u8, codes: *const HuffmanCodes, allocator: std.mem.Allocator) !EncodedResult {
+        // Вычисляем общее количество бит
         var total_bits: u32 = 0;
         for (data) |byte| {
             total_bits += codes.code_lengths[byte];
         }
-
+        
         const byte_count = (total_bits + 7) / 8;
         var encoded = try allocator.alloc(u8, byte_count);
         @memset(encoded, 0);
-
+        
         var current_byte: u8 = 0;
         var bit_pos: u8 = 0;
         var byte_idx: usize = 0;
-
+        
         for (data) |byte| {
             const code = codes.codes[byte];
             const length = codes.code_lengths[byte];
-
-            if (length == 0) continue;
-
-            // Копируем биты из code - как в C++
-            for (0..length) |i| {
-                const shift = @as(u5, @intCast(length - 1 - i)); // Старший бит first
-                const bit = (code >> shift) & 1;
-
-                current_byte |= @as(u8, @truncate(bit)) << @as(u3, @intCast(7 - bit_pos));
-                bit_pos += 1;
-
+            
+            var remaining_bits = length;
+            var code_remaining = code;
+            
+            while (remaining_bits > 0) {
+                const bits_to_write_u8 = @min(remaining_bits, 8 - bit_pos);
+                const bits_to_write = @as(u5, @intCast(bits_to_write_u8));
+                const shift_u8 = remaining_bits - bits_to_write_u8;
+                const shift = @as(u5, @intCast(shift_u8)); // Приводим shift к u5
+                
+                const mask = (@as(u32, 1) << bits_to_write) - 1;
+                const bits = (code_remaining >> shift) & mask;
+                
+                current_byte |= @as(u8, @truncate(bits)) << @as(u3, @intCast(8 - bit_pos - bits_to_write_u8));
+                bit_pos += bits_to_write_u8;
+                remaining_bits -= bits_to_write_u8;
+                code_remaining &= (@as(u32, 1) << shift) - 1;
+                
                 if (bit_pos == 8) {
                     encoded[byte_idx] = current_byte;
                     byte_idx += 1;
@@ -359,57 +298,15 @@ pub const Compression = struct {
                 }
             }
         }
-
+        
         if (bit_pos > 0) {
             encoded[byte_idx] = current_byte;
         }
-
+        
         return EncodedResult{ .data = encoded, .bit_count = total_bits };
     }
 
-    // ТОЧНО как в C++: huffman_decode
-    fn huffmanDecode(encoded: []const u8, root: *HuffmanNode, bit_count: u32, allocator: std.mem.Allocator) ![]u8 {
-        var result: std.ArrayList(u8) = .empty;
-        defer result.deinit(allocator);
-
-        var current_node = root;
-        var bits_processed: u32 = 0;
-        var byte_idx: usize = 0;
-
-        while (bits_processed < bit_count and byte_idx < encoded.len) {
-            const byte_val = encoded[byte_idx];
-            byte_idx += 1;
-
-            // Читаем биты слева направо (старший бит first) - как в C++
-            var bit_pos: u32 = 8;
-            while (bit_pos > 0 and bits_processed < bit_count) {
-                bit_pos -= 1;
-                bits_processed += 1;
-
-                const bit = (byte_val >> @as(u3, @intCast(bit_pos))) & 1;
-
-                // Переходим по дереву - как в C++
-                current_node = if (bit == 1)
-                    current_node.right.?
-                else
-                    current_node.left.?;
-
-                // Если достигли листа - как в C++
-                if (current_node.is_leaf) {
-                    // Игнорируем фиктивный символ (byte_val == 0) - как в C++
-                    if (current_node.byte_val != 0) {
-                        try result.append(allocator, current_node.byte_val);
-                    }
-                    current_node = root;
-                }
-            }
-        }
-
-        return result.toOwnedSlice(allocator);
-    }
-
-    // ==================== Основная структура ====================
-    const CompressedData = struct {
+    pub const CompressedData = struct {
         bwt_result: BWTResult,
         frequencies: [256]u32,
         encoded_bits: []u8,
@@ -417,47 +314,45 @@ pub const Compression = struct {
 
         pub fn deinit(self: *CompressedData, allocator: std.mem.Allocator) void {
             self.bwt_result.deinit(allocator);
-            allocator.free(self.encoded_bits);
+            if (self.encoded_bits.len > 0) {
+                allocator.free(self.encoded_bits);
+            }
         }
     };
 
-    // ТОЧНО как в C++: compress
-    fn compress(data: []const u8, allocator: std.mem.Allocator) !CompressedData {
-        // Используем arena для временных данных
-        var compress_arena = std.heap.ArenaAllocator.init(allocator);
-        defer compress_arena.deinit();
-        const compress_allocator = compress_arena.allocator();
-
-        // 1. BWT преобразование - как в C++
-        const bwt_result = try bwtTransform(data, compress_allocator);
-        var bwt_result_var = bwt_result;
-        defer bwt_result_var.deinit(compress_allocator);
-
-        // 2. Подсчёт частот - как в C++
+    pub fn compress(data: []const u8, allocator: std.mem.Allocator) !CompressedData {
+        // Шаг 1: BWT преобразование
+        var bwt_result = try bwtTransform(data, allocator);
+        defer bwt_result.deinit(allocator); // Всегда освобождаем после использования
+        
+        // Шаг 2: Вычисление частот
         var frequencies: [256]u32 = [_]u32{0} ** 256;
         for (bwt_result.transformed) |byte| {
             frequencies[byte] += 1;
         }
-
-        // 3. Построение дерева Huffman - как в C++
+        
+        // Шаг 3: Построение дерева Хаффмана с ArenaAllocator
         var tree_arena = std.heap.ArenaAllocator.init(allocator);
-        defer tree_arena.deinit();
+        defer tree_arena.deinit(); // Всегда освобождаем arena
         const tree_allocator = tree_arena.allocator();
-
+        
         const huffman_tree = try buildHuffmanTree(&frequencies, tree_allocator);
-
-        // 4. Построение кодов - как в C++
-        var huffman_codes = HuffmanCodes.init();
+        
+        // Шаг 4: Построение кодов Хаффмана
+        var huffman_codes = HuffmanCodes{
+            .code_lengths = [_]u8{0} ** 256,
+            .codes = [_]u32{0} ** 256,
+        };
         buildHuffmanCodes(huffman_tree, 0, 0, &huffman_codes);
-
-        // 5. Кодирование Huffman - как в C++
-        var encoded = try huffmanEncode(bwt_result.transformed, &huffman_codes, compress_allocator);
-        defer encoded.deinit(compress_allocator);
-
-        // 6. Копируем данные для возврата
+        
+        // Шаг 5: Кодирование Хаффманом
+        var encoded = try huffmanEncode(bwt_result.transformed, &huffman_codes, allocator);
+        defer encoded.deinit(allocator); // Всегда освобождаем после использования
+        
+        // Шаг 6: Копируем данные для возврата (берем владение)
         const bwt_copy = try allocator.dupe(u8, bwt_result.transformed);
         const encoded_copy = try allocator.dupe(u8, encoded.data);
-
+        
         return CompressedData{
             .bwt_result = .{ .transformed = bwt_copy, .original_idx = bwt_result.original_idx },
             .frequencies = frequencies,
@@ -466,108 +361,67 @@ pub const Compression = struct {
         };
     }
 
-    // ТОЧНО как в C++: decompress
-    fn decompress(compressed: *const CompressedData, allocator: std.mem.Allocator) ![]u8 {
-        // Создаем arena для дерева Huffman
-        var tree_arena = std.heap.ArenaAllocator.init(allocator);
-        defer tree_arena.deinit();
-        const tree_allocator = tree_arena.allocator();
-
-        // 1. Восстанавливаем дерево Huffman - как в C++
-        const huffman_tree = try buildHuffmanTree(&compressed.frequencies, tree_allocator);
-
-        // 2. Декодирование Huffman - как в C++
-        var decode_arena = std.heap.ArenaAllocator.init(allocator);
-        defer decode_arena.deinit();
-        const decode_allocator = decode_arena.allocator();
-
-        const decoded = try huffmanDecode(compressed.encoded_bits, huffman_tree, compressed.original_bit_count, decode_allocator);
-
-        // 3. Обратное BWT преобразование - как в C++
-        const bwt_result = BWTResult{ .transformed = decoded, .original_idx = compressed.bwt_result.original_idx };
-        const result = try bwtInverse(bwt_result, allocator);
-
-        // 4. Освобождаем временные данные
-        decode_allocator.free(decoded);
-
-        return result;
+    pub fn generateTestData(size: i64, allocator: std.mem.Allocator) ![]u8 {
+        const pattern = "ABRACADABRA";
+        var data = try allocator.alloc(u8, @as(usize, @intCast(size)));
+        for (0..@as(usize, @intCast(size))) |i| {
+            data[i] = pattern[i % pattern.len];
+        }
+        return data;
     }
 
-    // ==================== Бенчмарк ====================
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = resultImpl,
         .prepare = prepareImpl,
         .deinit = deinitImpl,
     };
 
-    fn generateTestData(size: usize, allocator: std.mem.Allocator) ![]u8 {
-        const pattern = "ABRACADABRA";
-        var data = try allocator.alloc(u8, size);
-
-        for (0..size) |i| {
-            data[i] = pattern[i % pattern.len];
-        }
-
-        return data;
-    }
-
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Compression {
-        const data_size = helper.getInputInt("Compression");
-        const size: u32 = @intCast(if (data_size > 0) data_size else 10000);
-
+        const size = helper.config_i64("Compression", "size");
         const self = try allocator.create(Compression);
         self.* = Compression{
             .allocator = allocator,
             .helper = helper,
-            .iterations = size,
+            .size_val = size,
             .test_data = &.{},
             .result_val = 0,
         };
-
         return self;
     }
 
     pub fn deinit(self: *Compression) void {
-        self.allocator.free(self.test_data);
+        if (self.test_data.len > 0) {
+            self.allocator.free(self.test_data);
+        }
         self.allocator.destroy(self);
     }
 
     pub fn asBenchmark(self: *Compression) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "Compression");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *Compression = @ptrCast(@alignCast(ptr));
-        self.test_data = generateTestData(self.iterations, self.allocator) catch return;
+        if (self.test_data.len > 0) {
+            self.allocator.free(self.test_data);
+        }
+        self.test_data = generateTestData(self.size_val, self.allocator) catch &.{};
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, _: i64) void {
         const self: *Compression = @ptrCast(@alignCast(ptr));
-        var total_checksum: u32 = 0;
-
-        for (0..5) |_| {
-            var compressed = compress(self.test_data, self.allocator) catch return;
-            defer compressed.deinit(self.allocator);
-
-            const decompressed = decompress(&compressed, self.allocator) catch return;
-            defer self.allocator.free(decompressed);
-
-            if (!mem.eql(u8, self.test_data, decompressed)) {
-                return;
-            }
-
-            const checksum = self.helper.checksumBytes(decompressed);
-            total_checksum = (total_checksum +% @as(u32, @truncate(compressed.encoded_bits.len))) & 0xFFFFFFFF;
-            total_checksum = (total_checksum +% checksum) & 0xFFFFFFFF;
-        }
-
-        self.result_val = total_checksum;
+        
+        var compressed = compress(self.test_data, self.allocator) catch return;
+        defer compressed.deinit(self.allocator);
+        
+        // Добавляем размер сжатых данных как в C++ версии
+        self.result_val +%= @as(u32, @intCast(compressed.encoded_bits.len));
     }
 
     fn resultImpl(ptr: *anyopaque) u32 {
         const self: *Compression = @ptrCast(@alignCast(ptr));
-        return @as(u32, @truncate(self.result_val));
+        return self.result_val;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

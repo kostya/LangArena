@@ -17,7 +17,7 @@ pub fn main() !void {
     _ = args.next(); // Пропускаем имя программы
 
     const config_path = args.next() orelse "test.js";
-    try helper.loadConfig(allocator, config_path);
+    try helper.loadConfig(config_path);
 
     const single_bench = args.next();
 

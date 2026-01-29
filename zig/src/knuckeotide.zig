@@ -43,7 +43,7 @@ pub const Knuckeotide = struct {
     }
 
     pub fn asBenchmark(self: *Knuckeotide) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "Knuckeotide");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
@@ -189,8 +189,6 @@ pub const Knuckeotide = struct {
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
         _ = iteration_id;
         const self: *Knuckeotide = @ptrCast(@alignCast(ptr));
-
-        self.result_str.clearAndFree(self.allocator);
 
         for (1..3) |length| {
             self.sortByFreq(length);

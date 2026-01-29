@@ -21,6 +21,7 @@ pub const Benchmark = struct {
         warmup_iterations: ?*const fn (self: *anyopaque) i64 = null,
     };
 
+    name: []const u8,
     vtable: *const VTable,
     ptr: *anyopaque,
     helper: *Helper,
@@ -29,11 +30,13 @@ pub const Benchmark = struct {
         self: anytype,
         vtable: *const VTable,
         helper: *Helper,
+        name: []const u8,
     ) Benchmark {
         return .{
             .vtable = vtable,
             .ptr = @ptrCast(self),
             .helper = helper,
+            .name = name,
         };
     }
 
@@ -85,13 +88,7 @@ pub const Benchmark = struct {
         if (self.vtable.config_val) |config_val_fn| {
             return config_val_fn(self.ptr, field_name);
         }
-        // Дефолтная реализация - получение из конфигурации через helper
-        if (self.vtable.checksum) |_| {
-            // Нам нужно имя бенчмарка, но у нас его нет здесь
-            // В реальной реализации нужно добавить поле name в Benchmark
-            return 0;
-        }
-        return 0;
+        return self.helper.config_i64(self.name, field_name);
     }
 
     pub fn iterations(self: Benchmark) i64 {
@@ -199,10 +196,8 @@ pub fn registerBenchmark(
     comptime name: []const u8,
     comptime BenchType: type,
 ) void {
-    // Функция для регистрации (можно использовать если нужно динамическое добавление)
     _ = name;
     _ = BenchType;
-    // В текущей реализации просто добавляйте в all_benchmarks_list выше
 }
 
 pub fn runAllBenchmarks(
@@ -221,22 +216,18 @@ pub fn runAllBenchmarks(
         const bench_name = bench_info.name;
 
         if (single_bench) |name| {
-            // Сравнение без учета регистра, как в C++ версии
             var name_lower_buf: [256]u8 = undefined;
             var bench_lower_buf: [256]u8 = undefined;
 
             const name_lower = toLower(name, &name_lower_buf);
             const bench_lower = toLower(bench_name, &bench_lower_buf);
 
-            // Проверяем, содержит ли имя бенчмарка искомую строку
             if (std.mem.indexOf(u8, bench_lower, name_lower) == null) {
                 continue;
             }
         }
 
         std.debug.print("{s}: ", .{bench_name});
-
-        helper.reset();
 
         const bench_instance = try bench_info.init_fn(allocator, helper);
         defer {
@@ -246,20 +237,21 @@ pub fn runAllBenchmarks(
 
         const benchmark = bench_info.as_benchmark_fn(bench_instance);
 
+        helper.reset();
         benchmark.prepare();
         benchmark.warmup();
 
         helper.reset();
 
         var timer = try std.time.Timer.start();
-        benchmark.run_all(); // Используем run_all() вместо отдельного run()
+        benchmark.run_all();
         const time_delta_ns = @as(f64, @floatFromInt(timer.read()));
         const time_delta = time_delta_ns / 1_000_000_000.0;
 
         try results.put(bench_name, time_delta);
 
         const actual_checksum = benchmark.checksum();
-        const expected_checksum = @as(u32, @intCast(benchmark.expected_checksum()));
+        const expected_checksum = @as(u32, @intCast(helper.config_i64(bench_name, "checksum")));
 
         if (actual_checksum == expected_checksum) {
             std.debug.print("OK ", .{});
@@ -280,12 +272,16 @@ pub fn runAllBenchmarks(
         fails,
     });
 
-    // Запись результатов в файл
+    // Запись результатов в файл (исправлено для Zig 0.15)
     const results_file = try std.fs.cwd().createFile("/tmp/results.js", .{});
     defer results_file.close();
 
-    var writer = results_file.writer();
-    try writer.writeAll("{");
+    // Правильное создание Writer в Zig 0.15
+    var buffer: [8192]u8 = undefined;
+    var fba = std.io.fixedBufferStream(&buffer);
+    var writer = fba.writer();
+
+    try writer.print("{{", .{});
 
     var first = true;
     var iter = results.iterator();
@@ -294,12 +290,14 @@ pub fn runAllBenchmarks(
             try writer.writeAll(",");
         }
         first = false;
-
         try writer.print("\"{s}\":{d:.3}", .{ entry.key_ptr.*, entry.value_ptr.* });
     }
 
     try writer.writeAll("}");
     try writer.writeAll("\n");
+
+    // Записываем буфер в файл
+    try results_file.writeAll(fba.getWritten());
 
     if (fails > 0) {
         std.process.exit(1);

@@ -1,4 +1,3 @@
-// src/base64encode.zig
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
@@ -8,45 +7,49 @@ pub const Base64Encode = struct {
     helper: *Helper,
     input: []const u8,
     encoded: []const u8,
+    encoded_from_run: []const u8,  // Добавляем поле для результатов из run
     result_val: u32,
 
-    const TRIES: i32 = 8192;
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = checksumImpl,
         .deinit = deinitImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Base64Encode {
-        const n = helper.getInputInt("Base64Encode");
-
+        const size = helper.config_i64("Base64Encode", "size");
         const self = try allocator.create(Base64Encode);
         errdefer allocator.destroy(self);
-
-        // Создаем входную строку из 'a' * n
-        const input_str = try allocator.alloc(u8, @as(usize, @intCast(n)));
+        
+        const input_str = try allocator.alloc(u8, @as(usize, @intCast(size)));
         @memset(input_str, 'a');
-
-        // Вычисляем размер закодированной строки
-        const encoded_len = std.base64.standard.Encoder.calcSize(input_str.len);
+        
+        const encoder = std.base64.standard.Encoder;
+        const encoded_len = encoder.calcSize(input_str.len);
         const encoded_buf = try allocator.alloc(u8, encoded_len);
-
-        // Кодируем для проверки (encode возвращает slice)
-        const encoded_result = std.base64.standard.Encoder.encode(encoded_buf, input_str);
-
+        const encoded_result = encoder.encode(encoded_buf, input_str);
+        
         self.* = Base64Encode{
             .allocator = allocator,
             .helper = helper,
             .input = input_str,
             .encoded = encoded_result,
+            .encoded_from_run = &.{},  // Инициализируем пустым срезом
             .result_val = 0,
         };
         return self;
     }
 
     pub fn deinit(self: *Base64Encode) void {
+        // Освобождаем память, выделенную для encoded_from_run
+        if (self.encoded_from_run.len > 0) {
+            const buf_len = std.base64.standard.Encoder.calcSize(self.input.len);
+            const buf = self.encoded_from_run.ptr[0..buf_len];
+            self.allocator.free(buf);
+        }
+        
+        // Освобождаем оригинальные буферы
         self.allocator.free(self.input);
-        // encoded это slice, освобождаем оригинальный буфер
         const encoded_buf_len = std.base64.standard.Encoder.calcSize(self.input.len);
         const encoded_buf = self.encoded.ptr[0..encoded_buf_len];
         self.allocator.free(encoded_buf);
@@ -54,39 +57,62 @@ pub const Base64Encode = struct {
     }
 
     pub fn asBenchmark(self: *Base64Encode) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "Base64Encode");
     }
 
-    // src/base64encode.zig - финальная версия runImpl
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, _: i64) void {
         const self: *Base64Encode = @ptrCast(@alignCast(ptr));
-
-        var total_encoded: i64 = 0;
         const encoder = std.base64.standard.Encoder;
-
-        // Буфер для кодирования
+        
         const encode_buf_size = encoder.calcSize(self.input.len);
-        const encode_buf = self.allocator.alloc(u8, encode_buf_size) catch return;
-        defer self.allocator.free(encode_buf);
-
-        for (0..TRIES) |_| {
-            const encoded_result = encoder.encode(encode_buf, self.input);
-            total_encoded += @as(i64, @intCast(encoded_result.len));
+        
+        // Освобождаем предыдущий результат, если он есть
+        if (self.encoded_from_run.len > 0) {
+            const prev_buf_len = std.base64.standard.Encoder.calcSize(self.input.len);
+            const prev_buf = self.encoded_from_run.ptr[0..prev_buf_len];
+            self.allocator.free(prev_buf);
         }
-
-        // Формируем строку результата с bufPrint
-        const first_four_input = if (self.input.len >= 4) self.input[0..4] else self.input;
-        const first_four_encoded = if (self.encoded.len >= 4) self.encoded[0..4] else self.encoded;
-
-        var result_buf: [256]u8 = undefined;
-        const result_str = std.fmt.bufPrint(&result_buf, "encode {s}... to {s}...: {}\n", .{ first_four_input, first_four_encoded, total_encoded }) catch "encode error\n";
-
-        self.result_val = self.helper.checksumString(result_str);
+        
+        // Выделяем память и кодируем
+        const encode_buf = self.allocator.alloc(u8, encode_buf_size) catch {
+            self.result_val = 0;
+            self.encoded_from_run = &.{};
+            return;
+        };
+        
+        const encoded_result = encoder.encode(encode_buf, self.input);
+        
+        // Сохраняем результат кодирования
+        self.encoded_from_run = encoded_result;
+        
+        // Увеличиваем result_val как в C++ версии
+        self.result_val +%= @as(u32, @intCast(encoded_result.len));
     }
 
-    fn resultImpl(ptr: *anyopaque) u32 {
+    fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *Base64Encode = @ptrCast(@alignCast(ptr));
-        return self.result_val;
+        var result_buf: [256]u8 = undefined;
+        
+        // Берем первые 4 символа из input строки
+        const first_four_input = if (self.input.len >= 4) self.input[0..4] else self.input;
+        
+        // В C++ версии checksum использует str2, которая создается в run()
+        // В Zig нам нужно использовать encoded_from_run (аналог str2)
+        const actual_encoded = if (self.encoded_from_run.len > 0) self.encoded_from_run else self.encoded;
+        const first_four_encoded = if (actual_encoded.len >= 4) actual_encoded[0..4] else actual_encoded;
+        
+        // Формируем строку как в C++ версии
+        const result_str = std.fmt.bufPrint(
+            &result_buf,
+            "encode {s}... to {s}...: {}",
+            .{ 
+                if (self.input.len > 4) first_four_input else first_four_input,
+                if (actual_encoded.len > 4) first_four_encoded else first_four_encoded,
+                self.result_val 
+            }
+        ) catch "encode error";
+        
+        return self.helper.checksumString(result_str);
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

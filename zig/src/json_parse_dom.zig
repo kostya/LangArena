@@ -38,7 +38,7 @@ pub const JsonParseDom = struct {
     }
 
     pub fn asBenchmark(self: *JsonParseDom) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper);
+        return Benchmark.init(self, &vtable, self.helper, "JsonParseDom");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
@@ -47,21 +47,26 @@ pub const JsonParseDom = struct {
         // Освобождаем старый текст
         if (self.text.len > 0) {
             self.allocator.free(self.text);
+            self.text = "";
         }
 
-        // Используем JsonGenerate для генерации JSON
+        // Создаем JsonGenerate как в C++ версии
         var jg = JsonGenerate.init(self.allocator, self.helper) catch return;
         defer jg.deinit();
 
+        // Устанавливаем количество координат
         jg.n = self.helper.config_i64("JsonParseDom", "coords");
 
+        // Вызываем prepare и run как в C++
         var benchmark = jg.asBenchmark();
         benchmark.prepare();
         benchmark.run(0);
 
-        // Копируем результат
-        const json_text = jg.get_result();
-        self.text = self.allocator.dupe(u8, json_text) catch "";
+        // Получаем результат и копируем его
+        const result = jg.get_result();
+        if (result.len > 0) {
+            self.text = self.allocator.dupe(u8, result) catch "";
+        }
     }
 
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
@@ -73,38 +78,44 @@ pub const JsonParseDom = struct {
             return;
         }
 
-        // Парсим JSON с помощью std.json
-        var parser = std.json.Parser.init(self.allocator, .{});
-        defer parser.deinit();
+        // Парсим JSON с помощью std.json.parseFromSlice
+        var parsed = std.json.parseFromSlice(
+            std.json.Value,
+            self.allocator,
+            json_text,
+            .{}
+        ) catch return;
+        defer parsed.deinit();
 
-        const value = parser.parse(json_text) catch return;
-        defer value.deinit();
+        const root = parsed.value;
 
-        // Ищем поле "coordinates" в DOM
-        if (value != .object) {
+        // Ищем координаты
+        if (root != .object) {
             return;
         }
 
-        const coordinates_field = value.object.get("coordinates") orelse return;
-        if (coordinates_field != .array) {
+        const coordinates = root.object.get("coordinates") orelse return;
+        if (coordinates != .array) {
             return;
         }
 
-        const coordinates = coordinates_field.array.items;
+        const coords_array = coordinates.array.items;
+        if (coords_array.len == 0) {
+            return;
+        }
 
         var x_sum: f64 = 0.0;
         var y_sum: f64 = 0.0;
         var z_sum: f64 = 0.0;
-        var len: usize = 0;
 
-        for (coordinates) |coord_item| {
-            if (coord_item != .object) continue;
+        for (coords_array) |item| {
+            if (item != .object) continue;
 
-            const coord_obj = coord_item.object;
+            const obj = item.object;
 
-            const x_val = coord_obj.get("x") orelse continue;
-            const y_val = coord_obj.get("y") orelse continue;
-            const z_val = coord_obj.get("z") orelse continue;
+            const x_val = obj.get("x") orelse continue;
+            const y_val = obj.get("y") orelse continue;
+            const z_val = obj.get("z") orelse continue;
 
             const x: f64 = switch (x_val) {
                 .integer => |val| @floatFromInt(val),
@@ -127,22 +138,17 @@ pub const JsonParseDom = struct {
             x_sum += x;
             y_sum += y;
             z_sum += z;
-            len += 1;
         }
 
-        if (len == 0) {
-            return;
-        }
+        const len = @as(f64, @floatFromInt(coords_array.len));
+        const avg_x = x_sum / len;
+        const avg_y = y_sum / len;
+        const avg_z = z_sum / len;
 
-        const avg_len = @as(f64, @floatFromInt(len));
-        const avg_x = x_sum / avg_len;
-        const avg_y = y_sum / avg_len;
-        const avg_z = z_sum / avg_len;
-
-        // Вычисляем checksum как в C++ версии
-        self.result_val += self.helper.checksumFloat(avg_x);
-        self.result_val += self.helper.checksumFloat(avg_y);
-        self.result_val += self.helper.checksumFloat(avg_z);
+        // Вычисляем контрольную сумму как в C++
+        self.result_val +%= self.helper.checksumFloat(avg_x);
+        self.result_val +%= self.helper.checksumFloat(avg_y);
+        self.result_val +%= self.helper.checksumFloat(avg_z);
     }
 
     fn checksumImpl(ptr: *anyopaque) u32 {
