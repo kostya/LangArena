@@ -1,2 +1,2 @@
 #!/bin/bash
-swift run Benchmarks ../test.txt $@
+swift run Benchmarks ../test.js $@

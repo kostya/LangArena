@@ -1,30 +1,26 @@
-use super::super::{Benchmark, INPUT, helper};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 use std::io::Write;
 use crate::benchmarks::fasta::Fasta;
 
 pub struct Revcomp {
-    input_lines: Vec<String>,
-    result: Vec<u8>,
-    n: i32,
+    input: String,
+    result_str: String,
+    n: i64,
 }
 
 impl Revcomp {
     pub fn new() -> Self {
-        let name = "Revcomp".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
+        let n = config_i64("Revcomp", "n");
         
         Self {
-            n: iterations,
-            input_lines: Vec::new(),
-            result: Vec::new(),
+            n,
+            input: String::new(),
+            result_str: String::new(),
         }
     }
 
-    fn revcomp(result: &mut Vec<u8>, seq: &str) {
+    fn revcomp(result: &mut String, seq: &str) {
         // Таблица трансляции как в Crystal: 
         // from: "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
         // to:   "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
@@ -46,8 +42,8 @@ impl Revcomp {
         
         // Разбиваем на строки по 60 символов
         for chunk in transformed.as_bytes().chunks(60) {
-            result.extend_from_slice(chunk);
-            result.push(b'\n');
+            result.push_str(std::str::from_utf8(chunk).unwrap());
+            result.push('\n');
         }
     }
 }
@@ -60,38 +56,27 @@ impl Benchmark for Revcomp {
     fn prepare(&mut self) {
         let mut fasta = Fasta::new();
         fasta.n = self.n;
-        fasta.run();
-        let input_str = fasta.result_string();
+        fasta.run(0);
+        let fasta_result = fasta.get_result();
         
-        // Сохраняем строки в вектор
-        self.input_lines = input_str.lines().map(String::from).collect();
-    }
-    
-    fn run(&mut self) {
-        let mut seq_buf = String::new();
+        let mut seq = String::new();
         
-        // Используем итератор, чтобы избежать заимствования self
-        let mut lines_iter = self.input_lines.iter();
-        
-        while let Some(line) = lines_iter.next() {
+        for line in fasta_result.lines() {
             if line.starts_with('>') {
-                if !seq_buf.is_empty() {
-                    Self::revcomp(&mut self.result, &seq_buf);
-                    seq_buf.clear();
-                }
-                writeln!(&mut self.result, "{}", line).unwrap();
+                seq.push_str("\n---\n");
             } else {
-                seq_buf.push_str(line.trim());
+                seq.push_str(line.trim());
             }
         }
         
-        if !seq_buf.is_empty() {
-            Self::revcomp(&mut self.result, &seq_buf);
-        }
+        self.input = seq;
     }
     
-    fn result(&self) -> i64 {
-        let result_str = String::from_utf8_lossy(&self.result);
-        helper::checksum_str(&result_str) as i64
+    fn run(&mut self, _iteration_id: i64) {
+        Self::revcomp(&mut self.result_str, &self.input);
+    }
+    
+    fn checksum(&self) -> u32 {
+        helper::checksum_str(&self.result_str)
     }
 }

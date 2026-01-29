@@ -1,24 +1,31 @@
-use super::super::{Benchmark, INPUT, helper};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 use lru::LruCache;
 use std::num::NonZeroUsize;
 
 pub struct CacheSimulation {
     operations: i32,
-    result: u32,
+    result_val: u32,
+    values_size: i32,
+    cache_size: i32,
+    cache: LruCache<String, String>,
+    hits: i32,
+    misses: i32,
 }
 
 impl CacheSimulation {
     pub fn new() -> Self {
-        let name = "CacheSimulation".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(100);
+        let values_size = config_i64("CacheSimulation", "values") as i32;
+        let cache_size = config_i64("CacheSimulation", "size") as i32;
         
         Self {
-            operations: iterations * 1000,
-            result: 0,
+            operations: 0,
+            result_val: 5432,
+            values_size,
+            cache_size,
+            cache: LruCache::new(NonZeroUsize::new(1).unwrap()), // временный
+            hits: 0,
+            misses: 0,
         }
     }
 }
@@ -28,54 +35,32 @@ impl Benchmark for CacheSimulation {
         "CacheSimulation".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.operations / 1000
+    fn prepare(&mut self) {
+        let capacity = NonZeroUsize::new(self.cache_size as usize).unwrap();
+        self.cache = LruCache::new(capacity);
+        self.hits = 0;
+        self.misses = 0;
     }
     
-    fn run(&mut self) {
-        // Создаем LRU кэш с capacity 1000
-        let capacity = NonZeroUsize::new(1000).unwrap();
-        let mut cache = LruCache::new(capacity);
+    fn run(&mut self, iteration_id: i64) {
+        let key = format!("item_{}", helper::next_int(self.values_size));
         
-        let mut hits = 0;
-        let mut misses = 0;
-
-        // Оптимизация: используем буферы для уменьшения аллокаций
-        let mut key_buf = String::with_capacity(32);
-        let mut val_buf = String::with_capacity(32);
-        
-        for i in 0..self.operations {
-            // Формируем ключ
-            key_buf.clear();
-            key_buf.push_str("item_");
-            key_buf.push_str(&helper::next_int(2000).to_string());
-            
-            // Проверяем наличие в кэше
-            if cache.contains(&key_buf) {
-                hits += 1;
-                // Обновляем значение
-                val_buf.clear();
-                val_buf.push_str("updated_");
-                val_buf.push_str(&i.to_string());
-                
-                // Вставляем обратно (обновит порядок)
-                cache.put(key_buf.clone(), val_buf.clone());
-            } else {
-                misses += 1;
-                // Добавляем новое значение
-                val_buf.clear();
-                val_buf.push_str("new_");
-                val_buf.push_str(&i.to_string());
-                
-                cache.put(key_buf.clone(), val_buf.clone());
-            }
+        if self.cache.contains(&key) {
+            self.hits += 1;
+            let val = format!("updated_{}", iteration_id);
+            self.cache.put(key, val);
+        } else {
+            self.misses += 1;
+            let val = format!("new_{}", iteration_id);
+            self.cache.put(key, val);
         }
-        
-        let message = format!("hits:{}|misses:{}|size:{}", hits, misses, cache.len());
-        self.result = helper::checksum_str(&message);
     }
     
-    fn result(&self) -> i64 {
-        self.result as i64
+    fn checksum(&self) -> u32 {
+        let mut final_result = self.result_val;
+        final_result = (final_result << 5) + self.hits as u32;
+        final_result = (final_result << 5) + self.misses as u32;
+        final_result = (final_result << 5) + self.cache.len() as u32;
+        final_result
     }
 }

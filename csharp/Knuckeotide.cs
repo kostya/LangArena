@@ -4,8 +4,9 @@ public class Knuckeotide : Benchmark
 {
     private string _seq = "";
     private StringBuilder _resultBuilder;
+    private uint _result;
     
-    public override long Result => Helper.Checksum(_resultBuilder.ToString());
+    public override uint Checksum => _result;
     
     public Knuckeotide()
     {
@@ -14,16 +15,14 @@ public class Knuckeotide : Benchmark
     
     public override void Prepare()
     {
-        // Создаем Fasta и получаем последовательность
         var fasta = new Fasta();
-        fasta._n = Iterations;
+        fasta._n = ConfigVal("n");
         fasta.Prepare();
-        fasta.Run();
+        fasta.Run(0);
         string result = fasta.GetResult();
         
-        // Извлекаем часть после ">THREE"
-        bool three = false;
         var seqBuilder = new StringBuilder();
+        bool three = false;
         
         using (var reader = new StringReader(result))
         {
@@ -35,10 +34,7 @@ public class Knuckeotide : Benchmark
                     three = true;
                     continue;
                 }
-                if (three)
-                {
-                    seqBuilder.Append(line.Trim());
-                }
+                if (three) seqBuilder.Append(line.Trim());
             }
         }
         
@@ -80,17 +76,13 @@ public class Knuckeotide : Benchmark
         _resultBuilder.AppendFormat("{0}\t{1}\n", count, s.ToUpperInvariant());
     }
     
-    public override void Run()
+    public override void Run(long IterationId)
     {
-        for (int i = 1; i <= 2; i++)
-        {
-            SortByFreq(_seq, i);
-        }
+        for (int i = 1; i <= 2; i++) SortByFreq(_seq, i);
         
         string[] patterns = { "ggt", "ggta", "ggtatt", "ggtattttaatt", "ggtattttaatttatagt" };
-        foreach (var pattern in patterns)
-        {
-            FindSeq(_seq, pattern);
-        }
+        foreach (var pattern in patterns) FindSeq(_seq, pattern);
+        
+        _result = Helper.Checksum(_resultBuilder.ToString());
     }
 }

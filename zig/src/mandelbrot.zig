@@ -1,27 +1,26 @@
-// src/mandelbrot.zig
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
-const math = std.math;
 
 pub const Mandelbrot = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    n: i32,
-    result_val: u64,
+    w: i64,
+    h: i64,
+    result_val: u32,
 
     const ITER: i32 = 50;
     const LIMIT: f64 = 2.0;
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = resultImpl,
         .deinit = deinitImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Mandelbrot {
-        const n_int = helper.getInputInt("Mandelbrot");
-        const n: i32 = if (n_int > 0) n_int else 0;
+        const w = helper.config_i64("Mandelbrot", "w");
+        const h = helper.config_i64("Mandelbrot", "h");
 
         const self = try allocator.create(Mandelbrot);
         errdefer allocator.destroy(self);
@@ -29,7 +28,8 @@ pub const Mandelbrot = struct {
         self.* = Mandelbrot{
             .allocator = allocator,
             .helper = helper,
-            .n = n,
+            .w = w,
+            .h = h,
             .result_val = 0,
         };
 
@@ -44,12 +44,11 @@ pub const Mandelbrot = struct {
         return Benchmark.init(self, &vtable, self.helper);
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
+        _ = iteration_id;
         const self: *Mandelbrot = @ptrCast(@alignCast(ptr));
-        const allocator = self.allocator;
-        const n = self.n;
-        const w = n;
-        const h = n;
+        const w = @as(i32, @intCast(self.w));
+        const h = @as(i32, @intCast(self.h));
 
         if (w <= 0 or h <= 0) {
             const checksum = self.helper.checksumBytes(&.{});
@@ -57,20 +56,16 @@ pub const Mandelbrot = struct {
             return;
         }
 
-        // Header PBM (P4 format)
         var header_buf: [64]u8 = undefined;
         const header_len = (std.fmt.bufPrint(&header_buf, "P4\n{d} {d}\n", .{ w, h }) catch return).len;
 
-        // Выделяем память для результата (header + pixels)
-        // Количество байт на строку: ceil(w / 8)
         const w_usize = @as(usize, @intCast(w));
         const h_usize = @as(usize, @intCast(h));
         const bytes_per_row = @divFloor(w_usize + 7, 8);
         const total_bytes = header_len + bytes_per_row * h_usize;
 
-        // Инициализируем ArrayList с предварительно выделенной capacity
-        var result = std.ArrayList(u8).initCapacity(allocator, total_bytes) catch return;
-        defer result.deinit(allocator);
+        var result = std.ArrayList(u8).initCapacity(self.allocator, total_bytes) catch return;
+        defer result.deinit(self.allocator);
 
         result.appendSliceAssumeCapacity(header_buf[0..header_len]);
 
@@ -123,19 +118,17 @@ pub const Mandelbrot = struct {
             }
         }
 
-        // Добавляем последний байт если нужно
         if (bit_num > 0) {
             byte_acc <<= @as(u3, @intCast(8 - bit_num));
             result.appendAssumeCapacity(byte_acc);
         }
 
-        const checksum = self.helper.checksumBytes(result.items);
-        self.result_val = checksum;
+        self.result_val = self.helper.checksumBytes(result.items);
     }
 
     fn resultImpl(ptr: *anyopaque) u32 {
         const self: *Mandelbrot = @ptrCast(@alignCast(ptr));
-        return @as(u32, @truncate(self.result_val));
+        return self.result_val;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

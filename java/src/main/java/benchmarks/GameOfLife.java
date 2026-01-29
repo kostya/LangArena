@@ -77,16 +77,18 @@ public class GameOfLife extends Benchmark {
             return nextGrid;
         }
         
-        public int aliveCount() {
-            int count = 0;
+        public long computeHash() {
+            final long FNV_OFFSET_BASIS = 2166136261L;
+            final long FNV_PRIME = 16777619L;
+            
+            long hasher = FNV_OFFSET_BASIS;
             for (Cell[] row : cells) {
                 for (Cell cell : row) {
-                    if (cell == Cell.ALIVE) {
-                        count++;
-                    }
+                    long alive = (cell == Cell.ALIVE) ? 1L : 0L;
+                    hasher = (hasher ^ alive) * FNV_PRIME;
                 }
             }
-            return count;
+            return hasher;
         }
     }
     
@@ -96,9 +98,15 @@ public class GameOfLife extends Benchmark {
     private Grid grid;
     
     public GameOfLife() {
-        this.width = 256;
-        this.height = 256;
+        this.width = (int) configVal("w");
+        this.height = (int) configVal("h");
         this.grid = new Grid(width, height);
+        resultVal = 0L;
+    }
+    
+    @Override
+    public String name() {
+        return "GameOfLife";
     }
     
     @Override
@@ -114,18 +122,13 @@ public class GameOfLife extends Benchmark {
     }
     
     @Override
-    public void run() {
-        // Основной цикл симуляции
-        int iters = getIterations();
-        for (int i = 0; i < iters; i++) {
-            grid = grid.nextGeneration();
-        }
-        
-        resultVal = grid.aliveCount();
+    public void run(int iterationId) {
+        // Только одна итерация
+        grid = grid.nextGeneration();
     }
     
     @Override
-    public long getResult() {
-        return resultVal;
+    public long checksum() {
+        return grid.computeHash();
     }
 }

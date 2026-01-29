@@ -2,6 +2,7 @@ import benchmarks.*
 import kotlin.system.exitProcess
 import java.util.Locale
 import java.io.File
+import java.time.Instant
 
 fun main(args: Array<String>) {
     Locale.setDefault(Locale.US)
@@ -45,34 +46,37 @@ fun main(args: Array<String>) {
     Benchmark.registerBenchmark { GameOfLife() }        
     Benchmark.registerBenchmark { MazeGenerator() }    
     Benchmark.registerBenchmark { AStarPathfinder() }    
-    Benchmark.registerBenchmark { Compression() }  
-    
+    Benchmark.registerBenchmark { Compression() }
+    Benchmark.registerBenchmark { Decompression() }  // Добавлен новый бенчмарк
+
+    val now = Instant.now().toEpochMilli()
+    println("start: $now")
 
     // Обработка аргументов: первый аргумент - файл конфигурации, второй - имя бенчмарка
     val configFile = when {
-        args.isNotEmpty() && args[0].endsWith(".txt") -> args[0]
-        args.size > 1 && args[1].endsWith(".txt") -> args[1]
+        args.isNotEmpty() && args[0].endsWith(".js") -> args[0]
+        args.size > 1 && args[1].endsWith(".js") -> args[1]
         else -> null
     }
     
-    val singleBench = args.firstOrNull { !it.endsWith(".txt") }
+    val singleBench = args.firstOrNull { !it.endsWith(".js") }
     
     try {
         Helper.loadConfig(configFile)
         
-        if (Helper.INPUT.isEmpty()) {
+        if (Helper.CONFIG.isEmpty()) {
             System.err.println("Warning: No test cases loaded from config file")
-            System.err.println("Usage: ./gradlew run --args=\"test.txt BrainfuckRecursion\"")
-            System.err.println("Or: ./gradlew run --args=\"../run.txt\"")
+            System.err.println("Usage: ./gradlew run --args=\"test.js BrainfuckRecursion\"")
+            System.err.println("Or: ./gradlew run --args=\"../run.js\"")
             exitProcess(1)
         }
     } catch (e: Exception) {
-        System.err.println("Error loading config file '${configFile ?: "test.txt"}': ${e.message}")
+        System.err.println("Error loading config file '${configFile ?: "test.js"}': ${e.message}")
         e.printStackTrace()
         exitProcess(1)
     }
 
     File("/tmp/recompile_marker").writeText("RECOMPILE_MARKER_0")
     
-    Benchmark.run(singleBench)
+    Benchmark.all(singleBench)
 }

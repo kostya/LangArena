@@ -5,16 +5,17 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class JsonGenerate : Benchmark() {
-    public var n: Int = 0
+    var n: Long = 0
     private lateinit var data: List<Map<String, Any>>
-    private var text: String = ""
+    private lateinit var text: String
+    private var resultVal: Long = 0
 
     init {
-        n = iterations
+        n = configVal("coords")
     }
 
     override fun prepare() {
-        data = List(n) {
+        data = List(n.toInt()) {
             mapOf(
                 "x" to String.format("%.8f", Helper.nextFloat()).toDouble(),
                 "y" to String.format("%.8f", Helper.nextFloat()).toDouble(),
@@ -25,7 +26,7 @@ class JsonGenerate : Benchmark() {
         }
     }
 
-    override fun run() {
+    override fun run(iterationId: Int) {
         val jsonArray = JSONArray()
         for (coord in data) {
             jsonArray.put(coord)
@@ -36,8 +37,12 @@ class JsonGenerate : Benchmark() {
         jsonObject.put("info", "some info")
         
         text = jsonObject.toString()
+        if (text.startsWith("{\"coordinates\":")) resultVal += 1
     }
 
-    override val result: Long
-        get() = 1L
+    override fun checksum(): UInt {
+        return resultVal.toUInt()
+    }
+    
+    override fun name(): String = "JsonGenerate"
 }

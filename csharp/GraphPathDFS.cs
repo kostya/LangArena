@@ -27,8 +27,7 @@ public class GraphPathDFS : GraphPathBenchmark
         {
             var (v, dist) = stack.Pop();
             
-            if (visited[v] == 1 || dist >= bestPath)
-                continue;
+            if (visited[v] == 1 || dist >= bestPath) continue;
                 
             visited[v] = 1;
             
@@ -36,8 +35,7 @@ public class GraphPathDFS : GraphPathBenchmark
             {
                 if (neighbor == target)
                 {
-                    if (dist + 1 < bestPath)
-                        bestPath = dist + 1;
+                    if (dist + 1 < bestPath) bestPath = dist + 1;
                 }
                 else if (visited[neighbor] == 0)
                 {

@@ -1,27 +1,18 @@
 public class Spectralnorm : Benchmark
 {
-    private int _n;
+    private long _size;
+    private double[] _u;
+    private double[] _v;
     private uint _result;
-    
-    public override long Result => _result;
     
     public Spectralnorm()
     {
-        _result = 0;
-    }
-    
-    public override void Prepare()
-    {
-        var className = nameof(Spectralnorm);
-        if (Helper.Input.TryGetValue(className, out var value))
-        {
-            if (int.TryParse(value, out var iter))
-            {
-                _n = iter;
-                return;
-            }
-        }
-        _n = 1;
+        _size = ConfigVal("size");
+        _u = new double[_size];
+        _v = new double[_size];
+        
+        Array.Fill(_u, 1.0);
+        Array.Fill(_v, 1.0);
     }
     
     private double EvalA(int i, int j)
@@ -36,10 +27,7 @@ public class Spectralnorm : Benchmark
         for (int i = 0; i < u.Length; i++)
         {
             double sum = 0.0;
-            for (int j = 0; j < u.Length; j++)
-            {
-                sum += EvalA(i, j) * u[j];
-            }
+            for (int j = 0; j < u.Length; j++) sum += EvalA(i, j) * u[j];
             result[i] = sum;
         }
         
@@ -53,51 +41,35 @@ public class Spectralnorm : Benchmark
         for (int i = 0; i < u.Length; i++)
         {
             double sum = 0.0;
-            for (int j = 0; j < u.Length; j++)
-            {
-                sum += EvalA(j, i) * u[j];
-            }
+            for (int j = 0; j < u.Length; j++) sum += EvalA(j, i) * u[j];
             result[i] = sum;
         }
         
         return result;
     }
     
-    private double[] EvalAtATimesU(double[] u)
+    private double[] EvalAtATimesU(double[] u) => EvalAtTimesU(EvalATimesU(u));
+    
+    public override void Run(long IterationId)
     {
-        return EvalAtTimesU(EvalATimesU(u));
+        _v = EvalAtATimesU(_u);
+        _u = EvalAtATimesU(_v);
     }
     
-    public override void Run()
+    public override uint Checksum
     {
-        double[] u = new double[_n];
-        double[] v = new double[_n];
-        
-        // Инициализация
-        for (int i = 0; i < _n; i++)
+        get
         {
-            u[i] = 1.0;
-            v[i] = 1.0;
+            double vBv = 0.0;
+            double vv = 0.0;
+            
+            for (int i = 0; i < _size; i++)
+            {
+                vBv += _u[i] * _v[i];
+                vv += _v[i] * _v[i];
+            }
+            
+            return Helper.Checksum(Math.Sqrt(vBv / vv));
         }
-        
-        // 10 итераций
-        for (int iter = 0; iter < 10; iter++)
-        {
-            v = EvalAtATimesU(u);
-            u = EvalAtATimesU(v);
-        }
-        
-        // Вычисление vBv и vv
-        double vBv = 0.0;
-        double vv = 0.0;
-        
-        for (int i = 0; i < _n; i++)
-        {
-            vBv += u[i] * v[i];
-            vv += v[i] * v[i];
-        }
-        
-        double value = Math.Sqrt(vBv / vv);
-        _result = Helper.Checksum(value);
     }
 }

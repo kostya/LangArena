@@ -1,27 +1,12 @@
 public class Fannkuchredux : Benchmark
 {
-    private int _n;
-    private long _result;
-    
-    public override long Result => _result;
+    private long _n;
+    private uint _result;
     
     public Fannkuchredux()
     {
         _result = 0;
-    }
-    
-    public override void Prepare()
-    {
-        var className = nameof(Fannkuchredux);
-        if (Helper.Input.TryGetValue(className, out var value))
-        {
-            if (int.TryParse(value, out var iter))
-            {
-                _n = iter;
-                return;
-            }
-        }
-        _n = 1;
+        _n = ConfigVal("n");
     }
     
     private (int checksum, int maxFlipsCount) FannkuchreduxAlgo(int n)
@@ -48,7 +33,6 @@ public class Fannkuchredux : Benchmark
             perm1[..n].CopyTo(perm);
             int flipsCount = 0;
             
-            // Первый элемент массива
             while (perm[0] != 0)
             {
                 int k = perm[0];
@@ -57,34 +41,31 @@ public class Fannkuchredux : Benchmark
                 for (int i = 0; i < k2; i++)
                 {
                     int j = k - i;
-                    (perm[i], perm[j]) = (perm[j], perm[i]); // swap
+                    (perm[i], perm[j]) = (perm[j], perm[i]);
                 }
                 
                 flipsCount++;
             }
             
-            if (flipsCount > maxFlipsCount)
-                maxFlipsCount = flipsCount;
+            if (flipsCount > maxFlipsCount) maxFlipsCount = flipsCount;
             
             checksum += (permCount % 2 == 0) ? flipsCount : -flipsCount;
             
             while (true)
             {
-                if (r == n)
-                    return (checksum, maxFlipsCount);
+                if (r == n) return (checksum, maxFlipsCount);
                 
                 int perm0 = perm1[0];
                 for (int i = 0; i < r; i++)
                 {
                     int j = i + 1;
-                    (perm1[i], perm1[j]) = (perm1[j], perm1[i]); // swap
+                    (perm1[i], perm1[j]) = (perm1[j], perm1[i]);
                 }
                 
                 perm1[r] = perm0;
                 int cntr = --count[r];
                 
-                if (cntr > 0)
-                    break;
+                if (cntr > 0) break;
                     
                 r++;
             }
@@ -93,12 +74,11 @@ public class Fannkuchredux : Benchmark
         }
     }
     
-    public override void Run()
+    public override void Run(long IterationId)
     {
-        var (checksum, maxFlipsCount) = FannkuchreduxAlgo(_n);
-        unchecked
-        {
-            _result = (long)checksum * 100 + maxFlipsCount;
-        }
+        var (checksum, maxFlipsCount) = FannkuchreduxAlgo((int)_n);
+        _result += (uint)(checksum * 100 + maxFlipsCount);
     }
+    
+    public override uint Checksum => _result;
 }

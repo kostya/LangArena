@@ -1,22 +1,22 @@
-use super::super::{Benchmark, INPUT, helper};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 
 pub struct Spectralnorm {
-    n: i32,
-    result: u32,
+    size_val: i64,
+    u: Vec<f64>,
+    v: Vec<f64>,
+    result_val: u32,
 }
 
 impl Spectralnorm {
     pub fn new() -> Self {
-        let name = "Spectralnorm".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
+        let size_val = config_i64("Spectralnorm", "size");
         
         Self {
-            n: iterations,
-            result: 0,
+            size_val,
+            u: vec![1.0; size_val as usize],
+            v: vec![1.0; size_val as usize],
+            result_val: 0,
         }
     }
 
@@ -74,36 +74,23 @@ impl Benchmark for Spectralnorm {
         "Spectralnorm".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.n
+    fn run(&mut self, _iteration_id: i64) {
+        self.v = self.eval_ata_times_u(&self.u);
+        self.u = self.eval_ata_times_u(&self.v);
     }
     
-    fn run(&mut self) {
-        let n = self.n as usize;
-        let mut u = vec![1.0; n];
-        let mut v = vec![1.0; n];
-        
-        // ТОЧНО 10 итераций как в C++
-        for _ in 0..10 {
-            v = self.eval_ata_times_u(&u);
-            u = self.eval_ata_times_u(&v);
-        }
-        
+    fn checksum(&self) -> u32 {
         let mut vbv = 0.0;
         let mut vv = 0.0;
         
         // Ручное объединение циклов как в C++
-        for i in 0..n {
-            let vi = v[i];
-            vbv += u[i] * vi;
+        for i in 0..(self.size_val as usize) {
+            let vi = self.v[i];
+            vbv += self.u[i] * vi;
             vv += vi * vi;
         }
         
         let result_value = (vbv / vv).sqrt();
-        self.result = helper::checksum_f64(result_value);
-    }
-    
-    fn result(&self) -> i64 {
-        self.result as i64
+        helper::checksum_f64(result_value)
     }
 }

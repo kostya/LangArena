@@ -4,12 +4,18 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.stream.IntStream;
 
 public class Matmul4T extends Benchmark {
-    private int n;
-    private long result;
-    private static final ForkJoinPool POOL = new ForkJoinPool(4);
+    public int n;
+    public long resultVal;
+    public static ForkJoinPool POOL = new ForkJoinPool(4);
     
     public Matmul4T() {
-        n = getIterations();
+        n = (int) configVal("n");
+        resultVal = 0L;
+    }
+    
+    @Override
+    public String name() {
+        return "Matmul4T";
     }
     
     private double[][] matgen(int n) {
@@ -60,16 +66,16 @@ public class Matmul4T extends Benchmark {
     }
     
     @Override
-    public void run() {
+    public void run(int iterationId) {
         double[][] a = matgen(n);
         double[][] b = matgen(n);
         double[][] c = matmulParallel(a, b);
         
-        result = Helper.checksumF64(c[n >> 1][n >> 1]);
+        resultVal += Helper.checksumF64(c[n >> 1][n >> 1]);
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

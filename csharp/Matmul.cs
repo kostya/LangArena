@@ -3,26 +3,23 @@ public class Matmul : Benchmark
     private int _n;
     private uint _result;
     
-    public override long Result => _result;
-    
     public Matmul()
     {
         _result = 0;
+        _n = (int)ConfigVal("n");
     }
     
-    public override void Prepare()
+    public override void Run(long IterationId)
     {
-        var className = nameof(Matmul);
-        if (Helper.Input.TryGetValue(className, out var value))
-        {
-            if (int.TryParse(value, out var iter))
-            {
-                _n = iter;
-                return;
-            }
-        }
-        _n = 1;
+        double[][] a = MatGen(_n);
+        double[][] b = MatGen(_n);
+        double[][] c = MatMul(a, b);
+        
+        double value = c[_n >> 1][_n >> 1];
+        _result += Helper.Checksum(value);
     }
+    
+    public override uint Checksum => _result;
     
     private double[][] MatMul(double[][] a, double[][] b)
     {
@@ -30,18 +27,13 @@ public class Matmul : Benchmark
         int n = a[0].Length;
         int p = b[0].Length;
         
-        // transpose
         double[][] b2 = new double[n][];
         for (int i = 0; i < n; i++)
         {
             b2[i] = new double[p];
-            for (int j = 0; j < p; j++)
-            {
-                b2[i][j] = b[j][i];
-            }
+            for (int j = 0; j < p; j++) b2[i][j] = b[j][i];
         }
         
-        // multiplication
         double[][] c = new double[m][];
         for (int i = 0; i < m; i++)
         {
@@ -54,10 +46,7 @@ public class Matmul : Benchmark
                 double[] b2j = b2[j];
                 double s = 0.0;
                 
-                for (int k = 0; k < n; k++)
-                {
-                    s += ai[k] * b2j[k];
-                }
+                for (int k = 0; k < n; k++) s += ai[k] * b2j[k];
                 
                 ci[j] = s;
             }
@@ -74,22 +63,9 @@ public class Matmul : Benchmark
         for (int i = 0; i < n; i++)
         {
             a[i] = new double[n];
-            for (int j = 0; j < n; j++)
-            {
-                a[i][j] = tmp * (i - j) * (i + j);
-            }
+            for (int j = 0; j < n; j++) a[i][j] = tmp * (i - j) * (i + j);
         }
         
         return a;
-    }
-    
-    public override void Run()
-    {
-        double[][] a = MatGen(_n);
-        double[][] b = MatGen(_n);
-        double[][] c = MatMul(a, b);
-        
-        double value = c[_n >> 1][_n >> 1];
-        _result = Helper.Checksum(value);
     }
 }

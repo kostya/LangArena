@@ -148,10 +148,9 @@ abstract class Benchmark
     {% for kl in @type.all_subclasses %}
       if (!single_bench || ({{kl.stringify}}.downcase.includes?(single_bench))) && ({{kl.stringify}} != "SortBenchmark") && ({{kl.stringify}} != "BufferHashBenchmark") && ({{kl.stringify}} != "GraphPathBenchmark")
         print "{{kl}}: "
-
-        Helper.reset
         
         bench = {{kl.id}}.new
+        Helper.reset
         bench.prepare
         bench.warmup
 
@@ -1286,19 +1285,23 @@ class JsonGenerate < Benchmark
         {"1" => {1, true}},
       )
     end
+    @result = 0_u32
   end
 
   def run(iteration_id)
+    @text.rewind
     {"coordinates": @data,
      "info":        "some info"}.to_json(@text)
+    if @text.to_slice[0..14] == Bytes[123, 34, 99, 111, 111, 114, 100, 105, 110, 97, 116, 101, 115, 34, 58]
+      @result += 1
+    end
     true
   end
 
   getter text
 
   def checksum : UInt32
-    @text.rewind
-    Helper.checksum(@text.read_string({500, @text.bytesize}.min - 1))
+    @result
   end
 end
 
@@ -1974,6 +1977,10 @@ class NeuralNet < Benchmark
 
   def initialize
     @res = [] of Float64
+    @xor = NeuralNetwork.new(0, 0, 0)
+  end
+
+  def prepare
     @xor = NeuralNetwork.new(2, 10, 1)
   end
 

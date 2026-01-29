@@ -1,17 +1,6 @@
 package benchmarks
 
 class GraphPathDFS : GraphPathBenchmark() {
-    override fun test(): Long {
-        var totalLength = 0L
-
-        for ((start, end) in pairs) {
-            val length = dfsFindPath(start, end)
-            totalLength += length
-        }
-
-        return totalLength
-    }
-
     private fun dfsFindPath(start: Int, target: Int): Int {
         if (start == target) return 0
 
@@ -40,4 +29,17 @@ class GraphPathDFS : GraphPathBenchmark() {
 
         return if (bestPath == Int.MAX_VALUE) -1 else bestPath
     }
+
+    override fun test(): Long {
+        var totalLength = 0L
+
+        for ((start, end) in pairs) {
+            val length = dfsFindPath(start, end)
+            totalLength += length
+        }
+
+        return totalLength
+    }
+    
+    override fun name(): String = "GraphPathDFS"
 }

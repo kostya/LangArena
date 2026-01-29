@@ -4,13 +4,11 @@ final class Revcomp: BenchmarkProtocol {
     private var input: String = ""
     private var output: String = ""
     
-    // Статическая таблица перевода (как в C++)
     private static var lookupTable: [UInt8] = {
         var table = [UInt8](repeating: 0, count: 256)
         
-        // Инициализируем таблицу
         for i in 0..<256 {
-            table[i] = UInt8(i) // по умолчанию тот же символ
+            table[i] = UInt8(i)
         }
         
         let from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
@@ -31,31 +29,36 @@ final class Revcomp: BenchmarkProtocol {
     
     func prepare() {
         output = ""
-        // Используем Fasta для генерации данных
         let fasta = Fasta()
-        fasta.n = iterations
+        fasta.n = configValue("n") ?? 0
         fasta.prepare()
-        fasta.run()
-        // Получаем вывод из Fasta
-        input = fasta.getOutput()
+        fasta.run(iterationId: 0)
+        let fastaResult = fasta.getOutput()
+        
+        let lines = fastaResult.split(separator: "\n")
+        var seq = ""
+        for line in lines {
+            let lineStr = String(line)
+            if !lineStr.starts(with: ">") {
+                seq += lineStr
+            } else {
+                seq += "\n---\n"
+            }
+        }
+        input = seq
     }
     
     private func revcomp(_ seq: String) -> String {
-        // Конвертируем в UTF8 байты для быстрой работы
         let bytes = Array(seq.utf8)
         let count = bytes.count
-        
-        // Создаем массив для результата
         var resultBytes = [UInt8](repeating: 0, count: count)
         let lookup = Self.lookupTable
         
-        // Реверсируем и переводим за один проход
         for i in 0..<count {
-            let sourceByte = bytes[count - 1 - i] // реверс
+            let sourceByte = bytes[count - 1 - i]
             resultBytes[i] = lookup[Int(sourceByte)]
         }
         
-        // Форматируем по 60 символов в строку
         var result = ""
         var lineStart = 0
         
@@ -63,7 +66,6 @@ final class Revcomp: BenchmarkProtocol {
             let lineEnd = min(lineStart + 60, count)
             let lineBytes = resultBytes[lineStart..<lineEnd]
             
-            // Быстрое создание строки из байтов
             if let line = String(bytes: lineBytes, encoding: .utf8) {
                 result.append(line)
             }
@@ -75,36 +77,11 @@ final class Revcomp: BenchmarkProtocol {
         return result
     }
     
-    func run() {
-        var result = ""
-        var currentSeq = ""
-        
-        // Быстрый парсинг строк
-        input.enumerateLines { [self] line, _ in  // Явный захват self
-            if line.hasPrefix(">") {
-                // Обрабатываем предыдущую последовательность если есть
-                if !currentSeq.isEmpty {
-                    result.append(self.revcomp(currentSeq))  // Явный self
-                    currentSeq = ""
-                }
-                result.append(line)
-                result.append("\n")
-            } else {
-                // Добавляем к текущей последовательности
-                currentSeq.append(line)
-            }
-        }
-        
-        // Обрабатываем последнюю последовательность
-        if !currentSeq.isEmpty {
-            result.append(self.revcomp(currentSeq))  // Явный self
-        }
-        
-        output = result
+    func run(iterationId: Int) {
+        output.append(revcomp(input))
     }
     
-    var result: Int64 {
-        let checksum = Helper.checksum(output)
-        return Int64(bitPattern: UInt64(checksum))
+    var checksum: UInt32 {
+        return Helper.checksum(output)
     }
 }

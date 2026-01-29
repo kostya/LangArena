@@ -5,17 +5,17 @@ const Helper = @import("helper.zig").Helper;
 pub const Matmul = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    n: i32,
+    n: i64,
     result_val: u32,
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = resultImpl,
         .deinit = deinitImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Matmul {
-        const n = helper.getInputInt("Matmul");
+        const n = helper.config_i64("Matmul", "n");
 
         const self = try allocator.create(Matmul);
         errdefer allocator.destroy(self);
@@ -41,7 +41,6 @@ pub const Matmul = struct {
         const tmp = 1.0 / @as(f64, @floatFromInt(n)) / @as(f64, @floatFromInt(n));
         const size = @as(usize, @intCast(n));
 
-        // Создаем матрицу n x n
         var mat = try allocator.alloc([]f64, size);
         errdefer allocator.free(mat);
 
@@ -53,7 +52,6 @@ pub const Matmul = struct {
             }
         }
 
-        // Заполняем как в C++ версии
         for (0..size) |i| {
             const i_f64 = @as(f64, @floatFromInt(@as(i32, @intCast(i))));
             for (0..size) |j| {
@@ -70,7 +68,6 @@ pub const Matmul = struct {
         const n = a[0].len;
         const p = b[0].len;
 
-        // Транспонируем b
         var b2 = try allocator.alloc([]f64, p);
         errdefer allocator.free(b2);
 
@@ -82,14 +79,12 @@ pub const Matmul = struct {
             }
         }
 
-        // Заполняем транспонированную матрицу
         for (0..n) |i| {
             for (0..p) |j| {
                 b2[j][i] = b[i][j];
             }
         }
 
-        // Создаем результирующую матрицу c
         var c = try allocator.alloc([]f64, m);
         errdefer allocator.free(c);
 
@@ -101,7 +96,6 @@ pub const Matmul = struct {
             }
         }
 
-        // Умножаем
         for (0..m) |i| {
             const ai = a[i];
             for (0..p) |j| {
@@ -114,7 +108,6 @@ pub const Matmul = struct {
             }
         }
 
-        // Освобождаем временную матрицу
         for (b2) |row| allocator.free(row);
         allocator.free(b2);
 
@@ -126,34 +119,28 @@ pub const Matmul = struct {
         allocator.free(mat);
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
+        _ = iteration_id;
         const self: *Matmul = @ptrCast(@alignCast(ptr));
 
-        const n = self.n;
+        const n = @as(i32, @intCast(self.n));
         if (n <= 0) return;
 
-        // В C++ версии используется один и тот же seed для обеих матриц?
-        // matgen вызывается дважды без параметров
-
-        // Создаем матрицы как в C++ версии
         const a = matGen(n, self.allocator) catch return;
         defer deinitMat(a, self.allocator);
 
         const b = matGen(n, self.allocator) catch return;
         defer deinitMat(b, self.allocator);
 
-        // Умножаем
         const x = matMul(a, b, self.allocator) catch return;
         defer deinitMat(x, self.allocator);
 
-        // Берем элемент посередине
         const i = n >> 1;
         const idx = @as(usize, @intCast(i));
 
         const result_f64 = x[idx][idx];
 
-        // Используем checksum_f64
-        self.result_val = self.helper.checksum_f64(result_f64);
+        self.result_val +%= self.helper.checksum_f64(result_f64);
     }
 
     fn resultImpl(ptr: *anyopaque) u32 {

@@ -3,14 +3,17 @@ package benchmarks
 import java.util.*
 import Benchmark
 
-class Compression : Benchmark() {
-    private lateinit var testData: ByteArray
+open class Compression : Benchmark() {
+    protected lateinit var testData: ByteArray
+    protected var resultVal: UInt = 0u
+    protected var sizeVal: Long = 0
     
     init {
+        sizeVal = configVal("size")
     }
     
     // ==================== BWT ====================
-    private data class BWTResult(
+    public data class BWTResult(
         val transformed: ByteArray,
         val originalIdx: Int
     ) {
@@ -33,7 +36,7 @@ class Compression : Benchmark() {
         }
     }
     
-    private fun bwtTransform(input: ByteArray): BWTResult {
+    protected fun bwtTransform(input: ByteArray): BWTResult {
         val n = input.size
         if (n == 0) {
             return BWTResult(ByteArray(0), 0)
@@ -122,7 +125,7 @@ class Compression : Benchmark() {
         return BWTResult(transformed, originalIdx)
     }
 
-    private fun bwtInverse(bwtResult: BWTResult): ByteArray {
+    protected fun bwtInverse(bwtResult: BWTResult): ByteArray {
         val bwt = bwtResult.transformed
         val n = bwt.size
         if (n == 0) {
@@ -167,7 +170,7 @@ class Compression : Benchmark() {
     }
     
     // ==================== Huffman ====================
-    private data class HuffmanNode(
+    protected data class HuffmanNode(
         val frequency: Int,
         val byteVal: Byte? = null,
         val isLeaf: Boolean = true,
@@ -179,7 +182,7 @@ class Compression : Benchmark() {
         }
     }
     
-    private fun buildHuffmanTree(frequencies: IntArray): HuffmanNode {
+    protected fun buildHuffmanTree(frequencies: IntArray): HuffmanNode {
         val heap = PriorityQueue<HuffmanNode>()
         
         // Добавляем все символы с ненулевой частотой
@@ -220,12 +223,12 @@ class Compression : Benchmark() {
         return heap.poll()
     }
     
-    private data class HuffmanCodes(
+    protected data class HuffmanCodes(
         val codeLengths: IntArray = IntArray(256),
         val codes: IntArray = IntArray(256)
     )
     
-    private fun buildHuffmanCodes(
+    protected fun buildHuffmanCodes(
         node: HuffmanNode,
         code: Int = 0,
         length: Int = 0,
@@ -248,7 +251,7 @@ class Compression : Benchmark() {
         return huffmanCodes
     }
     
-    private data class EncodedResult(
+    protected data class EncodedResult(
         val data: ByteArray,
         val bitCount: Int
     ) {
@@ -271,7 +274,7 @@ class Compression : Benchmark() {
         }
     }
     
-    private fun huffmanEncode(data: ByteArray, huffmanCodes: HuffmanCodes): EncodedResult {
+    protected fun huffmanEncode(data: ByteArray, huffmanCodes: HuffmanCodes): EncodedResult {
         // Предварительное выделение с запасом
         val result = ByteArray(data.size * 2)
         var currentByte = 0
@@ -308,7 +311,7 @@ class Compression : Benchmark() {
         return EncodedResult(result.copyOf(byteIndex), totalBits)
     }
     
-    private fun huffmanDecode(encoded: ByteArray, root: HuffmanNode, bitCount: Int): ByteArray {
+    protected fun huffmanDecode(encoded: ByteArray, root: HuffmanNode, bitCount: Int): ByteArray {
         val result = mutableListOf<Byte>()
         var currentNode = root
         var bitsProcessed = 0
@@ -338,7 +341,7 @@ class Compression : Benchmark() {
     }
     
     // ==================== Компрессор ====================
-    private data class CompressedData(
+    public data class CompressedData(
         val bwtResult: BWTResult,
         val frequencies: IntArray,
         val encodedBits: ByteArray,
@@ -367,7 +370,7 @@ class Compression : Benchmark() {
         }
     }
     
-    private fun compress(data: ByteArray): CompressedData {
+    protected fun compress(data: ByteArray): CompressedData {
         // 1. BWT преобразование
         val bwtResult = bwtTransform(data)
         
@@ -394,7 +397,7 @@ class Compression : Benchmark() {
         )
     }
     
-    private fun decompress(compressed: CompressedData): ByteArray {
+    protected fun decompress(compressed: CompressedData): ByteArray {
         // 1. Восстанавливаем дерево Huffman
         val huffmanTree = buildHuffmanTree(compressed.frequencies)
         
@@ -414,44 +417,27 @@ class Compression : Benchmark() {
         return bwtInverse(bwtResult)
     }
     
-    // ==================== Benchmark ====================
-    override fun prepare() {
-        testData = generateTestData(iterations)
-    }
-    
-    private fun generateTestData(size: Int): ByteArray {
+    protected fun generateTestData(dataSize: Long): ByteArray {
         val pattern = "ABRACADABRA".toByteArray()
-        val data = ByteArray(size)
+        val data = ByteArray(dataSize.toInt())
         
-        for (i in 0 until size) {
+        for (i in 0 until dataSize.toInt()) {
             data[i] = pattern[i % pattern.size]
         }
         
         return data
     }
-
-    private var resultVal: Long = 0L
     
-    override fun run() {
-        var totalChecksum = 0L
-        
-        repeat(5) {
-            // Компрессия
-            val compressed = compress(testData)
-            
-            // Декомпрессия
-            val decompressed = decompress(compressed)
-            
-            // Подсчёт checksum
-            val checksum = Helper.checksum(decompressed).toLong()
-            
-            totalChecksum = (totalChecksum + compressed.encodedBits.size) and 0xFFFFFFFFL
-            totalChecksum = (totalChecksum + checksum) and 0xFFFFFFFFL
-        }
-        
-        resultVal = totalChecksum
+    override fun prepare() {
+        testData = generateTestData(sizeVal)
+    }
+
+    override fun run(iterationId: Int) {
+        val compressed = compress(testData)
+        resultVal += compressed.encodedBits.size.toUInt()  // &+= эквивалент
     }
     
-    override val result: Long
-        get() = resultVal
+    override fun checksum(): UInt = resultVal
+    
+    override fun name(): String = "Compression"
 }

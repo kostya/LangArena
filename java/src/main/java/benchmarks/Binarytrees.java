@@ -2,7 +2,7 @@ package benchmarks;
 
 public class Binarytrees extends Benchmark {
     private int n;
-    private long checkResult;
+    private long resultVal;
     
     static class TreeNode {
         final int item;
@@ -34,33 +34,37 @@ public class Binarytrees extends Benchmark {
     }
     
     public Binarytrees() {
-        n = getIterations();
+        n = (int) configVal("depth");
+        resultVal = 0L;
     }
     
     @Override
-    public void run() {
-        checkResult = 0L;
-        
+    public String name() {
+        return "Binarytrees";
+    }
+    
+    @Override
+    public void run(int iterationId) {
         int minDepth = 4;
         int maxDepth = Math.max(minDepth + 2, n);
         int stretchDepth = maxDepth + 1;
         
         // 1. Stretch tree
-        checkResult += TreeNode.create(0, stretchDepth).check();
+        resultVal += TreeNode.create(0, stretchDepth).check();
         
         // 2. Деревья разных глубин
         for (int depth = minDepth; depth <= maxDepth; depth += 2) {
             int iterations = 1 << (maxDepth - depth + minDepth);
             
             for (int i = 1; i <= iterations; i++) {
-                checkResult += TreeNode.create(i, depth).check();
-                checkResult += TreeNode.create(-i, depth).check();
+                resultVal += TreeNode.create(i, depth).check();
+                resultVal += TreeNode.create(-i, depth).check();
             }
         }
     }
     
     @Override
-    public long getResult() {
-        return checkResult;
+    public long checksum() {
+        return resultVal & 0xFFFFFFFFL;
     }
 }

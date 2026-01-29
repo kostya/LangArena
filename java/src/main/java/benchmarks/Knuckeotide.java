@@ -14,12 +14,17 @@ public class Knuckeotide extends Benchmark {
     }
     
     @Override
+    public String name() {
+        return "Knuckeotide";
+    }
+    
+    @Override
     public void prepare() {
         Fasta fasta = new Fasta();
-        fasta.n = getIterations();
-        fasta.run();
+        fasta.n = (int) configVal("n");
+        fasta.run(0);
         
-        String fastaOutput = fasta.result.toString();
+        String fastaOutput = fasta.getResultString();
         
         StringBuilder seqBuilder = new StringBuilder();
         boolean afterThree = false;
@@ -109,9 +114,10 @@ public class Knuckeotide extends Benchmark {
     }
     
     @Override
-    public void run() {
-        sortByFreq(seq, 1);
-        sortByFreq(seq, 2);
+    public void run(int iterationId) {
+        for (int i = 1; i <= 2; i++) {
+            sortByFreq(seq, i);
+        }
         
         String[] patterns = {"ggt", "ggta", "ggtatt", "ggtattttaatt", "ggtattttaatttatagt"};
         for (String pattern : patterns) {
@@ -120,8 +126,12 @@ public class Knuckeotide extends Benchmark {
     }
     
     @Override
-    public long getResult() {
+    public long checksum() {
         String output = result.toString(StandardCharsets.UTF_8);
         return Helper.checksum(output);
+    }
+    
+    public String getResultString() {
+        return result.toString(StandardCharsets.UTF_8);
     }
 }

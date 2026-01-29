@@ -34,6 +34,11 @@ public class BufferHashSHA256 extends BufferHashBenchmark {
     }
     
     @Override
+    public String name() {
+        return "BufferHashSHA256";
+    }
+    
+    @Override
     long test() {
         byte[] bytes = SimpleSHA256.digest(data);
         
@@ -45,8 +50,5 @@ public class BufferHashSHA256 extends BufferHashBenchmark {
                ((bytes[2] & 0xFFL) << 16) |
                ((bytes[1] & 0xFFL) << 8) |
                (bytes[0] & 0xFFL);             // старший байт становится младшим
-        
-        // Или проще: используем ByteBuffer
-        // java.nio.ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getInt()
     }
 }

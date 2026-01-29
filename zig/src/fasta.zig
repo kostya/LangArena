@@ -1,4 +1,3 @@
-// src/fasta.zig
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
@@ -6,9 +5,9 @@ const Helper = @import("helper.zig").Helper;
 pub const Fasta = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    n: i32,
+    n: i64,
     result_str: std.ArrayListUnmanaged(u8),
-    result_val: u64,
+    result_val: u32,
 
     const Gene = struct {
         c: u8,
@@ -45,12 +44,12 @@ pub const Fasta = struct {
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = resultImpl,
         .deinit = deinitImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Fasta {
-        const n = helper.getInputInt("Fasta");
+        const n = helper.config_i64("Fasta", "n");
 
         const self = try allocator.create(Fasta);
         errdefer allocator.destroy(self);
@@ -75,7 +74,6 @@ pub const Fasta = struct {
         return Benchmark.init(self, &vtable, self.helper);
     }
 
-    // Публичный метод для получения результата (как get_result в C++)
     pub fn getResult(self: *const Fasta) []const u8 {
         return self.result_str.items;
     }
@@ -101,7 +99,6 @@ pub const Fasta = struct {
     }
 
     fn makeRandomFasta(self: *Fasta, id: []const u8, desc: []const u8, genelist: []const Gene, n_iter: i32) void {
-        // Заголовок FASTA
         self.result_str.appendSlice(self.allocator, ">") catch return;
         self.result_str.appendSlice(self.allocator, id) catch return;
         self.result_str.appendSlice(self.allocator, " ") catch return;
@@ -114,7 +111,6 @@ pub const Fasta = struct {
             const m_val = if (todo < LINE_LENGTH) todo else @as(i32, @intCast(LINE_LENGTH));
             const m = @as(usize, @intCast(m_val));
 
-            // Создаем буфер для строки
             var buffer: [LINE_LENGTH]u8 = undefined;
 
             for (0..m) |i| {
@@ -129,7 +125,6 @@ pub const Fasta = struct {
     }
 
     fn makeRepeatFasta(self: *Fasta, id: []const u8, desc: []const u8, s: []const u8, n_iter: i32) void {
-        // Заголовок FASTA
         self.result_str.appendSlice(self.allocator, ">") catch return;
         self.result_str.appendSlice(self.allocator, id) catch return;
         self.result_str.appendSlice(self.allocator, " ") catch return;
@@ -158,34 +153,27 @@ pub const Fasta = struct {
         }
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
+        _ = iteration_id;
         const self: *Fasta = @ptrCast(@alignCast(ptr));
 
-        // Очищаем предыдущий результат
         self.result_str.clearAndFree(self.allocator);
 
-        // Генерируем FASTA последовательности
-        self.makeRepeatFasta("ONE", "Homo sapiens alu", ALU, self.n * 2);
-        self.makeRandomFasta("TWO", "IUB ambiguity codes", &IUB, self.n * 3);
-        self.makeRandomFasta("THREE", "Homo sapiens frequency", &HOMO, self.n * 5);
+        const n = @as(i32, @intCast(self.n));
+        self.makeRepeatFasta("ONE", "Homo sapiens alu", ALU, n * 2);
+        self.makeRandomFasta("TWO", "IUB ambiguity codes", &IUB, n * 3);
+        self.makeRandomFasta("THREE", "Homo sapiens frequency", &HOMO, n * 5);
 
-        // Вычисляем checksum результата
         self.result_val = self.helper.checksumString(self.result_str.items);
     }
 
     fn resultImpl(ptr: *anyopaque) u32 {
         const self: *Fasta = @ptrCast(@alignCast(ptr));
-        return @as(u32, @intCast(self.result_val));
+        return self.result_val;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {
         const self: *Fasta = @ptrCast(@alignCast(ptr));
         self.deinit();
-    }
-
-    // В конец структуры Fasta добавьте:
-    pub fn run(self: *Fasta) void {
-        var benchmark = self.asBenchmark();
-        benchmark.run();
     }
 };

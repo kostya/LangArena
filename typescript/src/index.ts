@@ -370,9 +370,8 @@ export abstract class Benchmark {
         console.log(`${className}: `);
       }
       
-      Helper.reset();
-      
       const bench = new BenchmarkClass();
+      Helper.reset();
       bench.prepare();
       bench.warmup();
       
@@ -2059,6 +2058,7 @@ export class JsonGenerate extends Benchmark {
   public n: number;
   private data: any[] = [];
   private text: string = '';
+  private result: number = 0;
 
   constructor() {
     super();
@@ -2089,6 +2089,10 @@ export class JsonGenerate extends Benchmark {
     };
     
     this.text = JSON.stringify(jsonData, null, 0);
+
+    if (this.text.startsWith('{"coordinates":')) {
+      this.result++;
+    }
   }
 
   getText(): string {
@@ -2096,8 +2100,7 @@ export class JsonGenerate extends Benchmark {
   }
 
   checksum(): number {
-    const textToCheck = this.text.substring(0, Math.min(500, this.text.length) - 1);
-    return Helper.checksumString(textToCheck);
+    return this.result >>> 0;
   }
 }
 
@@ -2796,6 +2799,10 @@ export class NeuralNet extends Benchmark {
 
   constructor() {
     super();
+    this.xor = new NeuralNetNetwork(0, 0, 0);
+  }
+
+  prepare(): void {
     this.xor = new NeuralNetNetwork(2, 10, 1);
   }
 

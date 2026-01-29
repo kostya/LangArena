@@ -1,25 +1,35 @@
 import Foundation
+
 class BufferHashBenchmark: BenchmarkProtocol {
     var data: [UInt8] = []
-    private var _result: UInt32 = 0
-    private var n: Int = 0
+    private var sizeVal: Int64 = 0
+    private var resultVal: UInt32 = 0
+    
     init() {
-        n = iterations
+        // Пустой конструктор
     }
+    
     func prepare() {
-        data = (0..<1_000_000).map { _ in 
-            UInt8(Helper.nextInt(max: 256))
+        if sizeVal == 0 {
+            sizeVal = configValue("size") ?? 0
+            data.reserveCapacity(Int(sizeVal))
+            for _ in 0..<Int(sizeVal) {
+                data.append(UInt8(Helper.nextInt(max: 256)))
+            }
         }
     }
+    
     func test() -> UInt32 {
-        return 0 // Override in subclasses
+        return 0
     }
-    func run() {
-        for _ in 0..<n {
-            _result = (_result &+ test()) & 0xFFFFFFFF
-        }
+    
+    func run(iterationId: Int) {
+        resultVal &+= test()
     }
-    var result: Int64 {
-        return Int64(_result)
+    
+    var checksum: UInt32 {
+        return resultVal
     }
+    
+    var name: String { return "BufferHashBenchmark" }
 }

@@ -1,30 +1,6 @@
 import Foundation
 
 final class AStarPathfinder: BenchmarkProtocol {
-    private protocol Heuristic {
-        func distance(ax: Int, ay: Int, bx: Int, by: Int) -> Int
-    }
-    
-    private struct ManhattanHeuristic: Heuristic {
-        func distance(ax: Int, ay: Int, bx: Int, by: Int) -> Int {
-            return (abs(ax - bx) + abs(ay - by)) * 1000
-        }
-    }
-    
-    private struct EuclideanHeuristic: Heuristic {
-        func distance(ax: Int, ay: Int, bx: Int, by: Int) -> Int {
-            let dx = Double(abs(ax - bx))
-            let dy = Double(abs(ay - by))
-            return Int(hypot(dx, dy) * 1000.0)
-        }
-    }
-    
-    private struct ChebyshevHeuristic: Heuristic {
-        func distance(ax: Int, ay: Int, bx: Int, by: Int) -> Int {
-            return max(abs(ax - bx), abs(ay - by)) * 1000
-        }
-    }
-    
     private struct Node: Comparable {
         let x: Int
         let y: Int
@@ -100,56 +76,27 @@ final class AStarPathfinder: BenchmarkProtocol {
         }
     }
     
-    private let startX: Int
-    private let startY: Int
-    private let goalX: Int
-    private let goalY: Int
-    private let width: Int
-    private let height: Int
-    private var mazeGrid: [[Bool]]?
-    private var resultVal: Int64 = 0
-    private let iterations: Int
-    
-    init() {
-        let input = Helper.getInput("AStarPathfinder")
-        let n = Int(input ?? "") ?? 5
-        self.width = n
-        self.height = n
-        self.startX = 1
-        self.startY = 1
-        self.goalX = width - 2
-        self.goalY = height - 2
-        self.iterations = 10
+    private func distance(ax: Int, ay: Int, bx: Int, by: Int) -> Int {
+        return abs(ax - bx) + abs(ay - by)
     }
     
-    func prepare() {
-        ensureMazeGrid()
-    }
-    
-    private func ensureMazeGrid() {
-        if mazeGrid == nil {
-            mazeGrid = MazeGenerator.Maze.generateWalkableMaze(width: width, height: height)
-        }
-    }
-    
-    private func findPath(heuristic: Heuristic, allowDiagonal: Bool = false) -> [(x: Int, y: Int)]? {
-        guard let grid = mazeGrid else { return nil }
+    private func findPath() -> (path: [(x: Int, y: Int)]?, nodesExplored: Int) {
+        var grid = mazeGrid
         
         var gScores = Array(repeating: Array(repeating: Int.max, count: width), count: height)
         var cameFrom = Array(repeating: Array(repeating: (-1, -1), count: width), count: height)
         var openSet = BinaryHeap<Node>()
+        var nodesExplored = 0
         
         gScores[startY][startX] = 0
         openSet.push(Node(x: startX, y: startY, 
-                         fScore: heuristic.distance(ax: startX, ay: startY, bx: goalX, by: goalY)))
+                         fScore: distance(ax: startX, ay: startY, bx: goalX, by: goalY)))
         
-        let directions: [(dx: Int, dy: Int)] = allowDiagonal ? 
-            [(0, -1), (1, 0), (0, 1), (-1, 0), (-1, -1), (1, -1), (1, 1), (-1, 1)] :
-            [(0, -1), (1, 0), (0, 1), (-1, 0)]
-        
-        let diagonalCost = allowDiagonal ? 1414 : 1000
+        let directions = [(0, -1), (1, 0), (0, 1), (-1, 0)]
         
         while let current = openSet.pop() {
+            nodesExplored += 1
+            
             if current.x == goalX && current.y == goalY {
                 var path: [(x: Int, y: Int)] = []
                 var x = current.x
@@ -163,7 +110,8 @@ final class AStarPathfinder: BenchmarkProtocol {
                 }
                 
                 path.append((startX, startY))
-                return path.reversed()
+                path.reverse()
+                return (path, nodesExplored)
             }
             
             let currentG = gScores[current.y][current.x]
@@ -175,118 +123,61 @@ final class AStarPathfinder: BenchmarkProtocol {
                 if nx < 0 || nx >= width || ny < 0 || ny >= height { continue }
                 if !grid[ny][nx] { continue }
                 
-                let moveCost = (abs(dx) == 1 && abs(dy) == 1) ? diagonalCost : 1000
-                let tentativeG = currentG + moveCost
+                let tentativeG = currentG + 1000
                 
                 if tentativeG < gScores[ny][nx] {
                     cameFrom[ny][nx] = (current.x, current.y)
                     gScores[ny][nx] = tentativeG
                     
-                    let fScore = tentativeG + heuristic.distance(ax: nx, ay: ny, bx: goalX, by: goalY)
+                    let fScore = tentativeG + distance(ax: nx, ay: ny, bx: goalX, by: goalY)
                     openSet.push(Node(x: nx, y: ny, fScore: fScore))
                 }
             }
         }
         
-        return nil
+        return (nil, nodesExplored)
     }
     
-    private func estimateNodesExplored(heuristic: Heuristic, allowDiagonal: Bool = false) -> Int {
-        guard let grid = mazeGrid else { return 0 }
-        
-        var gScores = Array(repeating: Array(repeating: Int.max, count: width), count: height)
-        var openSet = BinaryHeap<Node>()
-        var closed = Array(repeating: Array(repeating: false, count: width), count: height)
-        
-        gScores[startY][startX] = 0
-        openSet.push(Node(x: startX, y: startY, 
-                         fScore: heuristic.distance(ax: startX, ay: startY, bx: goalX, by: goalY)))
-        
-        let directions: [(dx: Int, dy: Int)] = allowDiagonal ? 
-            [(0, -1), (1, 0), (0, 1), (-1, 0), (-1, -1), (1, -1), (1, 1), (-1, 1)] :
-            [(0, -1), (1, 0), (0, 1), (-1, 0)]
-        
-        var nodesExplored = 0
-        
-        while let current = openSet.pop() {
-            if current.x == goalX && current.y == goalY {
-                break
-            }
-            
-            if closed[current.y][current.x] { continue }
-            
-            closed[current.y][current.x] = true
-            nodesExplored += 1
-            
-            let currentG = gScores[current.y][current.x]
-            
-            for (dx, dy) in directions {
-                let nx = current.x + dx
-                let ny = current.y + dy
-                
-                if nx < 0 || nx >= width || ny < 0 || ny >= height { continue }
-                if !grid[ny][nx] { continue }
-                
-                let moveCost = (abs(dx) == 1 && abs(dy) == 1) ? 1414 : 1000
-                let tentativeG = currentG + moveCost
-                
-                if tentativeG < gScores[ny][nx] {
-                    gScores[ny][nx] = tentativeG
-                    
-                    let fScore = tentativeG + heuristic.distance(ax: nx, ay: ny, bx: goalX, by: goalY)
-                    openSet.push(Node(x: nx, y: ny, fScore: fScore))
-                }
-            }
-        }
-        
-        return nodesExplored
+    private var resultVal: UInt32 = 0
+    private var startX: Int = 1
+    private var startY: Int = 1
+    private var goalX: Int = 0
+    private var goalY: Int = 0
+    private var width: Int = 0
+    private var height: Int = 0
+    private var mazeGrid: [[Bool]] = []
+    
+    init() {
+        // Инициализация по умолчанию
     }
     
-    private func benchmarkDifferentApproaches() -> (pathsFound: Int, pathLength: Int, nodesExplored: Int) {
-        let heuristics: [Heuristic] = [
-            ManhattanHeuristic(),
-            EuclideanHeuristic(),
-            ChebyshevHeuristic()
-        ]
+    func prepare() {
+        // Получаем значения из конфига
+        width = Int(configValue("w") ?? 50)
+        height = Int(configValue("h") ?? 50)
         
-        var totalPathsFound = 0
-        var totalPathLength = 0
-        var totalNodesExplored = 0
+        // Обновляем goalX/goalY на основе width/height
+        goalX = width - 2
+        goalY = height - 2
         
-        for heuristic in heuristics {
-            if let path = findPath(heuristic: heuristic, allowDiagonal: false) {
-                totalPathsFound += 1
-                totalPathLength += path.count
-                totalNodesExplored += estimateNodesExplored(heuristic: heuristic, allowDiagonal: false)
-            }
-        }
-        
-        return (totalPathsFound, totalPathLength, totalNodesExplored)
+        // Генерируем лабиринт
+        mazeGrid = MazeGenerator.Maze.generateWalkableMaze(width: width, height: height)
     }
     
-    func run() {
-        var totalPathsFound = 0
-        var totalPathLength = 0
-        var totalNodesExplored = 0
+    func run(iterationId: Int) {
+        let (path, nodesExplored) = findPath()
         
-        for _ in 0..<iterations {
-            let (pathsFound, pathLength, nodesExplored) = benchmarkDifferentApproaches()
-            
-            totalPathsFound += pathsFound
-            totalPathLength += pathLength
-            totalNodesExplored += nodesExplored
-        }
+        var localResult: UInt32 = 0
         
-        let pathsChecksum = Helper.checksumF64(Double(totalPathsFound))
-        let lengthChecksum = Helper.checksumF64(Double(totalPathLength))
-        let nodesChecksum = Helper.checksumF64(Double(totalNodesExplored))
+        // КАК В C++: path.count БЕЗ деления на 2 (храним пары координат)
+        let pathLength = UInt32(path?.count ?? 0)
+        localResult = (localResult << 5) &+ pathLength
+        localResult = (localResult << 5) &+ UInt32(nodesExplored)
         
-        resultVal = Int64(pathsChecksum) ^
-                   (Int64(lengthChecksum) << 16) ^
-                   (Int64(nodesChecksum) << 32)
+        resultVal &+= localResult
     }
     
-    var result: Int64 {
+    var checksum: UInt32 {
         return resultVal
     }
 }

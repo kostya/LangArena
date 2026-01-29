@@ -5,43 +5,39 @@ public class Matmul16T : Benchmark
     private int _n;
     private uint _result;
     
-    public override long Result => _result;
-    
     public Matmul16T()
     {
         _result = 0;
+        _n = (int)ConfigVal("n");
     }
     
-    public override void Prepare()
+    public override void Run(long IterationId)
     {
-        _n = Iterations;
+        double[][] a = MatGen(_n);
+        double[][] b = MatGen(_n);
+        double[][] c = MatMulParallel(a, b);
+        
+        double value = c[_n >> 1][_n >> 1];
+        _result += Helper.Checksum(value);
     }
+    
+    public override uint Checksum => _result;
     
     private double[][] MatMulParallel(double[][] a, double[][] b)
     {
         int size = a.Length;
         
-        // Транспонируем b (последовательно)
         double[][] bT = new double[size][];
         for (int i = 0; i < size; i++)
         {
             bT[i] = new double[size];
-            for (int j = 0; j < size; j++)
-            {
-                bT[i][j] = b[j][i];
-            }
+            for (int j = 0; j < size; j++) bT[i][j] = b[j][i];
         }
         
-        // Умножение матриц (параллельно)
         double[][] c = new double[size][];
         
-        // Инициализируем все строки
-        for (int i = 0; i < size; i++)
-        {
-            c[i] = new double[size];
-        }
+        for (int i = 0; i < size; i++) c[i] = new double[size];
         
-        // Используем Parallel.For для параллельного выполнения
         Parallel.For(0, size, new ParallelOptions { MaxDegreeOfParallelism = 16 }, i =>
         {
             double[] ai = a[i];
@@ -52,10 +48,7 @@ public class Matmul16T : Benchmark
                 double sum = 0.0;
                 double[] bTj = bT[j];
                 
-                for (int k = 0; k < size; k++)
-                {
-                    sum += ai[k] * bTj[k];
-                }
+                for (int k = 0; k < size; k++) sum += ai[k] * bTj[k];
                 
                 ci[j] = sum;
             }
@@ -72,22 +65,9 @@ public class Matmul16T : Benchmark
         for (int i = 0; i < n; i++)
         {
             a[i] = new double[n];
-            for (int j = 0; j < n; j++)
-            {
-                a[i][j] = tmp * (i - j) * (i + j);
-            }
+            for (int j = 0; j < n; j++) a[i][j] = tmp * (i - j) * (i + j);
         }
         
         return a;
-    }
-    
-    public override void Run()
-    {
-        double[][] a = MatGen(_n);
-        double[][] b = MatGen(_n);
-        double[][] c = MatMulParallel(a, b);
-        
-        double value = c[_n >> 1][_n >> 1];
-        _result = Helper.Checksum(value);
     }
 }

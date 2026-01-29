@@ -1,4 +1,5 @@
-use super::super::{Benchmark, INPUT, helper};
+use super::super::{Benchmark, helper};
+use super::super::config_i64;
 use num_bigint::BigInt;
 use num_traits::{Zero, One, FromPrimitive};
 use std::io::Write;
@@ -10,15 +11,10 @@ pub struct Pidigits {
 
 impl Pidigits {
     pub fn new() -> Self {
-        let name = "Pidigits".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
+        let nn = config_i64("Pidigits", "amount") as i32;
         
         Self {
-            nn: iterations,
+            nn,
             result: Vec::new(),
         }
     }
@@ -29,11 +25,7 @@ impl Benchmark for Pidigits {
         "Pidigits".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.nn
-    }
-    
-    fn run(&mut self) {
+    fn run(&mut self, _iteration_id: i64) {
         let mut i = 0;
         let mut k = 0;
         let mut ns = BigInt::zero();
@@ -94,8 +86,8 @@ impl Benchmark for Pidigits {
         }
     }
     
-    fn result(&self) -> i64 {
+    fn checksum(&self) -> u32 {
         let result_str = String::from_utf8_lossy(&self.result);
-        helper::checksum_str(&result_str) as i64
+        return helper::checksum_str(&result_str);
     }
 }

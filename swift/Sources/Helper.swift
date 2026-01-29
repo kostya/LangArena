@@ -33,7 +33,6 @@ struct Helper {
     }
     
     static func checksum(_ v: String) -> UInt32 {
-        // debug { "checksum: \(v.inspect())" }
         var hash: UInt32 = 5381
         for char in v.unicodeScalars {
             hash = ((hash &<< 5) &+ hash) &+ UInt32(char.value)
@@ -42,7 +41,6 @@ struct Helper {
     }
     
     static func checksum(_ v: [UInt8]) -> UInt32 {
-        // debug { "checksum: \(v)" }
         var hash: UInt32 = 5381
         for byte in v {
             hash = ((hash &<< 5) &+ hash) &+ UInt32(byte)
@@ -54,12 +52,11 @@ struct Helper {
         return checksum(String(format: "%.7f", v))
     }
     
-    // Конфигурация - ТОЧНО как в Kotlin: все значения как String
-    static var input: [String: String] = [:]
-    static var expect: [String: Int64] = [:]
+    // Конфигурация в формате JSON (как в C++)
+    static var config: [String: Any] = [:]
     
     static func loadConfig(filename: String? = nil) throws {
-        let file = filename ?? "test.txt"
+        let file = filename ?? "test.js"
         
         // Определяем путь к файлу
         let fileManager = FileManager.default
@@ -67,47 +64,65 @@ struct Helper {
         
         // Сначала проверяем текущую директорию
         if fileManager.fileExists(atPath: filePath) {
-            //print("Loading config from: \(filePath)")
+            // Файл существует в текущей директории
         } else {
             // Пробуем родительскую директорию
-            let parentFile = "../test.txt"
+            let parentFile = "../test.js"
             if fileManager.fileExists(atPath: parentFile) {
                 filePath = parentFile
-                // print("Loading config from: \(parentFile)")
             } else {
-                // Создаем тестовый файл если нет
-                print("No config file: ../test.txt")
-                filePath = "test.txt"
+                print("No config file found: test.js or test.txt")
+                config = [:]
+                return
             }
         }
         
-        let contents = try String(contentsOfFile: filePath, encoding: .utf8)
+        do {
+            let contents = try Data(contentsOf: URL(fileURLWithPath: filePath))
+            
+            // Пробуем распарсить как JSON
+            if let json = try? JSONSerialization.jsonObject(with: contents, options: []) as? [String: Any] {
+                config = json
+            } else {
+                // Если не JSON, пробуем старый формат
+                let oldContents = try String(contentsOfFile: filePath, encoding: .utf8)
+                config = convertOldFormat(oldContents)
+            }
+        } catch {
+            print("Error loading config file '\(filePath)': \(error)")
+            config = [:]
+        }
+    }
+    
+    // Конвертация из старого формата в новый JSON формат
+    private static func convertOldFormat(_ contents: String) -> [String: Any] {
+        var jsonConfig: [String: Any] = [:]
         let lines = contents.split(separator: "\n").map { String($0) }
         
-        var loaded = 0
         for line in lines where !line.isEmpty {
             let parts = line.split(separator: "|", omittingEmptySubsequences: false)
             if parts.count == 3 {
                 let name = String(parts[0])
                 let value = String(parts[1])
-                let expected = Int64(parts[2]) ?? 0
+                let checksum = Int64(parts[2]) ?? 0
                 
-                input[name] = value
-                expect[name] = expected
-                loaded += 1
+                // Преобразуем значение в Int если возможно
+                if let iterations = Int(value) {
+                    jsonConfig[name] = [
+                        "iterations": iterations,
+                        "checksum": checksum
+                    ]
+                } else {
+                    // Для строковых значений
+                    jsonConfig[name] = [
+                        "input": value,
+                        "checksum": checksum
+                    ]
+                }
             }
         }
         
-        // print("Loaded \(loaded) benchmarks from config")
-    }
-        
-    // Метод для получения значения как в Kotlin
-    static func getInput(_ className: String) -> String {
-        return input[className] ?? ""
-    }
-    
-    static func getExpect(_ className: String) -> Int64 {
-        return expect[className] ?? 0
+        return jsonConfig
     }
 }
 

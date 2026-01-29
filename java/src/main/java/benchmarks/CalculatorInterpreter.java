@@ -64,12 +64,18 @@ public class CalculatorInterpreter extends Benchmark {
         }
     }
     
-    private int n;
-    private long result;
+    private long resultVal;
     private List<CalculatorAst.Node> ast;
+    private long n;
     
     public CalculatorInterpreter() {
-        n = getIterations();
+        n = configVal("operations");
+        resultVal = 0L;
+    }
+    
+    @Override
+    public String name() {
+        return "CalculatorInterpreter";
     }
     
     @Override
@@ -81,13 +87,13 @@ public class CalculatorInterpreter extends Benchmark {
             // Устанавливаем n через рефлексию
             Field nField = CalculatorAst.class.getDeclaredField("n");
             nField.setAccessible(true);
-            nField.setInt(calculator, n);
+            nField.setLong(calculator, n);
             
             // Вызываем prepare
             calculator.prepare();
             
             // Вызываем run
-            calculator.run();
+            calculator.run(0);
             
             // Получаем expressions через рефлексию
             Field expressionsField = CalculatorAst.class.getDeclaredField("expressions");
@@ -102,21 +108,15 @@ public class CalculatorInterpreter extends Benchmark {
     }
     
     @Override
-    public void run() {
-        long total = 0L;
-        
-        for (int i = 0; i < 100; i++) {
-            Interpreter interpreter = new Interpreter();
-            long res = interpreter.run(ast);
-            total = (total + res);
-            interpreter.clear();
-        }
-        
-        result = total;
+    public void run(int iterationId) {
+        Interpreter interpreter = new Interpreter();
+        long res = interpreter.run(ast);
+        resultVal += res;
+        interpreter.clear();
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

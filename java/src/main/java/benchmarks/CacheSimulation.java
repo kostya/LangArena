@@ -132,37 +132,47 @@ public class CacheSimulation extends Benchmark {
         }
     }
     
-    private int operations;
-    private long result;
+    private long resultVal;
+    private final int valuesSize;
+    private final int cacheSize;
+    private LRUCache<String, String> cache;
+    private int hits = 0;
+    private int misses = 0;
     
     public CacheSimulation() {
-        operations = getIterations() * 1000;
+        this.resultVal = 5432L;
+        this.valuesSize = (int) configVal("values");
+        this.cacheSize = (int) configVal("size");
     }
     
     @Override
-    public void run() {
-        LRUCache<String, String> cache = new LRUCache<>(1000);
-        int hits = 0;
-        int misses = 0;
-        
-        for (int i = 0; i < operations; i++) {
-            String key = "item_" + Helper.nextInt(2000);
-            if (cache.get(key) != null) {
-                hits++;
-                cache.put(key, "updated_" + i);
-            } else {
-                misses++;
-                cache.put(key, "new_" + i);
-            }
+    public String name() {
+        return "CacheSimulation";
+    }
+    
+    @Override
+    public void prepare() {
+        cache = new LRUCache<>(cacheSize);
+    }
+    
+    @Override
+    public void run(int iterationId) {
+        String key = "item_" + Helper.nextInt(valuesSize);
+        if (cache.get(key) != null) {
+            hits++;
+            cache.put(key, "updated_" + iterationId);
+        } else {
+            misses++;
+            cache.put(key, "new_" + iterationId);
         }
-        
-        String message = String.format("hits:%d|misses:%d|size:%d", 
-            hits, misses, cache.size());
-        result = Helper.checksum(message);
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        long finalResult = resultVal;
+        finalResult = (finalResult << 5) + hits;
+        finalResult = (finalResult << 5) + misses;
+        finalResult = (finalResult << 5) + cache.size();
+        return finalResult;
     }
 }

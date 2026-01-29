@@ -1,6 +1,5 @@
 import Foundation
 
-// Для mixed array [1, true]
 enum MixedValue: Codable {
     case int(Int)
     case bool(Bool)
@@ -31,7 +30,6 @@ enum MixedValue: Codable {
     }
 }
 
-// Модель данных, соответствующая оригинальной структуре
 struct JsonGenerateCoordinate: Codable {
     let x: Double
     let y: Double
@@ -39,7 +37,6 @@ struct JsonGenerateCoordinate: Codable {
     let name: String
     let opts: [String: [MixedValue]]
     
-    // Инициализатор для удобства
     init(x: Float, y: Float, z: Float, name: String) {
         self.x = Double(x)
         self.y = Double(y)
@@ -55,48 +52,56 @@ struct JsonGenerateData: Codable {
 }
 
 final class JsonGenerate: BenchmarkProtocol {
-    var n: Int = 0
+    public var n: Int64 = 0
     private var data: [[String: Any]] = []
     private var text: String = ""
+    private var resultVal: UInt32 = 0
     
     init() {
-        n = iterations
+        n = configValue("coords") ?? 0
+        data.reserveCapacity(Int(n))
+    }
+    
+    private func customRound(_ value: Double, _ decimals: Int) -> Double {
+        let factor = pow(10.0, Double(decimals))
+        return round(value * factor) / factor
     }
     
     func prepare() {
-        data = (0..<n).map { _ in
-            // ТОЧНО как в оригинале, даже если медленно
-            let xStr = String(format: "%.8f", Helper.nextFloat())
-            let yStr = String(format: "%.8f", Helper.nextFloat())
-            let zStr = String(format: "%.8f", Helper.nextFloat())
-            let nameStr = String(format: "%.7f", Helper.nextFloat())
-            let randomInt = Helper.nextInt(max: 10000)
+        data.removeAll()
+        for _ in 0..<Int(n) {
+            let x = customRound(Double(Helper.nextFloat()), 8)
+            let y = customRound(Double(Helper.nextFloat()), 8)
+            let z = customRound(Double(Helper.nextFloat()), 8)
+            let name = String(format: "%.7f", Helper.nextFloat()) + " " + String(Helper.nextInt(max: 10000))
             
-            return [
-                "x": Double(xStr)!,  // String -> Double
-                "y": Double(yStr)!,
-                "z": Double(zStr)!,
-                "name": "\(nameStr) \(randomInt)",  // ТОЧНО как в оригинале
-                "opts": ["1": [1, true]] as [String: Any]
-            ] as [String: Any]
+            data.append([
+                "x": x,
+                "y": y,
+                "z": z,
+                "name": name,
+                "opts": ["1": [1, true]]
+            ])
         }
     }
     
-    func run() {
-        // ТОЧНО как в оригинале
-        let jsonArray = data.map { $0 }  // Лишний map, но так в оригинале
+    func run(iterationId: Int) {
+        let jsonArray = data.map { $0 }
         let jsonObject: [String: Any] = [
-            "coordinates": jsonArray,
-            "info": "some info"
+            "info": "some info",
+            "coordinates": jsonArray
         ]
         
         if let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: []),
            let jsonString = String(data: jsonData, encoding: .utf8) {
             text = jsonString
+            if text.hasPrefix("{\"") {
+                resultVal += 1
+            }
         }
     }
     
-    var result: Int64 {
-        return 1
+    var checksum: UInt32 {
+        return resultVal
     }
 }

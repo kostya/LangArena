@@ -1,67 +1,29 @@
 use super::super::helper; // Benchmark не используется в этом файле
-
-const ARR_SIZE: usize = 100_000;
+use crate::config_i64;
 
 // Абстрактный бенчмарк сортировки - не должен вызываться напрямую
 pub struct SortBenchmark {
-    pub n: i32,
+    pub size_val: i64,
     pub data: Vec<i32>,
-    pub result: u32,
+    pub result_val: u32,
 }
 
 impl SortBenchmark {
-    pub fn new_base(iterations: i32) -> Self {
+    pub fn new_base() -> Self {
         Self {
-            n: iterations,
+            size_val: 0,
             data: Vec::new(),
-            result: 0,
+            result_val: 0,
         }
     }
     
-    pub fn check_n_elements(&self, arr: &[i32], n: usize) -> String {
-        if arr.is_empty() {
-            return "[empty]\n".to_string();
+    pub fn prepare(&mut self, class_name: &str) {
+        if self.size_val == 0 {  // как в C++: if (size_val == 0)
+            self.size_val = config_i64(class_name, "size");
+            self.data.reserve(self.size_val as usize);
+            for _ in 0..self.size_val {
+                self.data.push(helper::next_int(1_000_000));
+            }
         }
-        
-        let step = arr.len() / n;
-        let mut result = String::new();
-        result.push('[');
-        
-        for i in (0..arr.len()).step_by(step.max(1)) {
-            result.push_str(&format!("{}:{},", i, arr[i]));
-        }
-        
-        result.push(']');
-        result.push('\n');
-        result
-    }
-    
-    pub fn prepare_common(&mut self) {
-        self.data.clear();
-        for _ in 0..ARR_SIZE {
-            self.data.push(helper::next_int(1_000_000));
-        }
-    }
-    
-    pub fn run_common(&mut self, test_fn: impl FnMut() -> Vec<i32>) {
-        let verify = self.check_n_elements(&self.data, 10);
-        
-        let mut verify_sum = verify.clone();
-        
-        // Выполняем сортировку n-1 раз
-        let mut test_fn = test_fn;
-        for _ in 0..(self.n - 1) {
-            let arr = test_fn();
-            self.result += arr[arr.len() / 2] as u32;
-        }
-        
-        // Последняя сортировка - сохраняем результат
-        let arr = test_fn();
-        
-        // Проверяем, что исходный массив не изменился
-        verify_sum.push_str(&self.check_n_elements(&self.data, 10));
-        verify_sum.push_str(&self.check_n_elements(&arr, 10));
-        
-        self.result += helper::checksum_str(&verify_sum);
     }
 }

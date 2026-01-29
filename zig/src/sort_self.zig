@@ -1,17 +1,19 @@
-// src/sort_self.zig
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
-const SortBenchmark = @import("sort_benchmark.zig").SortBenchmark;
 
 pub const SortSelf = struct {
-    base: SortBenchmark,
     allocator: std.mem.Allocator,
+    helper: *Helper,
+    data: std.ArrayListUnmanaged(i32),
+    size_val: i64,
+    result_val: u32,
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = checksumImpl,
         .deinit = deinitImpl,
+        .prepare = prepareImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*SortSelf {
@@ -19,78 +21,67 @@ pub const SortSelf = struct {
         errdefer allocator.destroy(self);
 
         self.* = SortSelf{
-            .base = try SortBenchmark.init(allocator, helper, "SortSelf"),
             .allocator = allocator,
+            .helper = helper,
+            .data = .{},
+            .size_val = 0,
+            .result_val = 0,
         };
 
         return self;
     }
 
     pub fn deinit(self: *SortSelf) void {
-        self.base.deinit();
+        self.data.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
     pub fn asBenchmark(self: *SortSelf) Benchmark {
-        return Benchmark.init(self, &vtable, self.base.helper);
+        return Benchmark.init(self, &vtable, self.helper);
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn prepareImpl(ptr: *anyopaque) void {
         const self: *SortSelf = @ptrCast(@alignCast(ptr));
-        const allocator = self.base.allocator;
 
-        const data_len = self.base.data.items.len;
-        
-        // ОДИН временный буфер на все итерации
-        const arr_buffer = allocator.alloc(i32, data_len) catch return;
-        defer allocator.free(arr_buffer);
+        if (self.size_val == 0) {
+            self.size_val = self.helper.config_i64("SortSelf", "size");
+            const size = @as(usize, @intCast(self.size_val));
 
-        // Проверяем исходный массив
-        const verify1 = self.base.checkNElements(self.base.data.items, 10) catch return;
-        defer allocator.free(verify1);
+            self.data.clearAndFree(self.allocator);
+            self.data.ensureTotalCapacity(self.allocator, size) catch return;
 
-        // Выполняем сортировку (n-1) раз
-        const n_int = @as(usize, @intCast(@max(self.base.n, 0)));
-        if (n_int > 0) {
-            for (0..n_int - 1) |_| {
-                // Копируем в тот же буфер
-                @memcpy(arr_buffer, self.base.data.items);
-
-                // Используем std.sort.blockQuickSort (аналог std::sort в C++)
-                std.sort.pdq(i32, arr_buffer, {}, comptime std.sort.asc(i32));
-                self.base.result_val +%= @as(u64, @intCast(arr_buffer[data_len / 2]));
+            for (0..size) |_| {
+                self.data.appendAssumeCapacity(self.helper.nextInt(1_000_000));
             }
         }
-
-        // Финальная сортировка
-        @memcpy(arr_buffer, self.base.data.items);        
-        std.sort.pdq(i32, arr_buffer, {}, comptime std.sort.asc(i32));
-        const final_arr = arr_buffer;
-
-        // Проверяем что исходный массив не изменен
-        const verify2 = self.base.checkNElements(self.base.data.items, 10) catch return;
-        defer allocator.free(verify2);
-
-        // Проверяем отсортированный массив
-        const verify3 = self.base.checkNElements(final_arr, 10) catch return;
-        defer allocator.free(verify3);
-
-        // Объединяем все проверки
-        var combined = std.ArrayList(u8){};
-        defer combined.deinit(allocator);
-
-        combined.appendSlice(allocator, verify1) catch return;
-        combined.appendSlice(allocator, verify2) catch return;
-        combined.appendSlice(allocator, verify3) catch return;
-
-        // Добавляем checksum к результату
-        const checksum = self.base.helper.checksumString(combined.items);
-        self.base.result_val +%= @as(u64, checksum);
     }
 
-    fn resultImpl(ptr: *anyopaque) u32 {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
         const self: *SortSelf = @ptrCast(@alignCast(ptr));
-        return @as(u32, @intCast(self.base.result_val));
+        _ = iteration_id;
+
+        const size = self.data.items.len;
+        if (size == 0) return;
+
+        // Создаем копию данных и сортируем
+        var arr = self.allocator.alloc(i32, size) catch return;
+        defer self.allocator.free(arr);
+
+        @memcpy(arr, self.data.items);
+
+        if (arr.len > 0) {
+            // Используем std.sort.pdq как аналог std::sort в C++
+            std.sort.pdq(i32, arr, {}, comptime std.sort.asc(i32));
+
+            // Добавляем случайный элемент как в C++ версии
+            const random_idx = @as(usize, @intCast(self.helper.nextInt(@as(i32, @intCast(size)))));
+            self.result_val +%= @as(u32, @intCast(arr[random_idx]));
+        }
+    }
+
+    fn checksumImpl(ptr: *anyopaque) u32 {
+        const self: *SortSelf = @ptrCast(@alignCast(ptr));
+        return self.result_val;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

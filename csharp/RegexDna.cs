@@ -7,8 +7,10 @@ public class RegexDna : Benchmark
     private int _ilen;
     private int _clen;
     private StringBuilder _resultBuilder;
+    private Regex[] _compiledPatterns;
+    private uint _result;
     
-    public override long Result => Helper.Checksum(_resultBuilder.ToString());
+    public override uint Checksum => _result;
     
     public RegexDna()
     {
@@ -18,9 +20,9 @@ public class RegexDna : Benchmark
     public override void Prepare()
     {
         var fasta = new Fasta();
-        fasta._n = Iterations;
+        fasta._n = ConfigVal("n");
         fasta.Prepare();
-        fasta.Run();
+        fasta.Run(0);
         string fastaResult = fasta.GetResult();
         
         var seqBuilder = new StringBuilder();
@@ -31,33 +33,14 @@ public class RegexDna : Benchmark
             string? line;
             while ((line = reader.ReadLine()) != null)
             {
-                _ilen += line.Length + 1; // +1 для newline
-                if (!line.StartsWith('>'))
-                {
-                    seqBuilder.Append(line);
-                }
+                _ilen += line.Length + 1;
+                if (!line.StartsWith('>')) seqBuilder.Append(line);
             }
         }
         
         _seq = seqBuilder.ToString();
         _clen = seqBuilder.Length;
-    }
-    
-    private string GetFastaResultString(Fasta fasta)
-    {
-        // Нужен доступ к результату Fasta
-        // Временно используем рефлексию
-        var resultField = typeof(Fasta).GetField("_resultBuilder", 
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        if (resultField?.GetValue(fasta) is StringBuilder sb)
-        {
-            return sb.ToString();
-        }
-        return "";
-    }
-    
-    public override void Run()
-    {
+        
         string[] patterns = {
             "agggtaaa|tttaccct",
             "[cgt]gggtaaa|tttaccc[acg]",
@@ -70,11 +53,19 @@ public class RegexDna : Benchmark
             "agggtaa[cgt]|[acg]ttaccct"
         };
         
-        foreach (var pattern in patterns)
+        _compiledPatterns = new Regex[patterns.Length];
+        for (int i = 0; i < patterns.Length; i++)
         {
-            var regex = new Regex(pattern, RegexOptions.Compiled);
-            int count = regex.Matches(_seq).Count;
-            _resultBuilder.AppendFormat("{0} {1}\n", pattern, count);
+            _compiledPatterns[i] = new Regex(patterns[i], RegexOptions.Compiled);
+        }
+    }
+    
+    public override void Run(long IterationId)
+    {
+        for (int i = 0; i < _compiledPatterns.Length; i++)
+        {
+            int count = _compiledPatterns[i].Matches(_seq).Count;
+            _resultBuilder.AppendFormat("{0} {1}\n", _compiledPatterns[i].ToString(), count);
         }
         
         var replacements = new Dictionary<string, string>
@@ -92,11 +83,11 @@ public class RegexDna : Benchmark
             ["Y"] = "(c|t)"
         };
         
-        foreach (var kv in replacements)
-        {
-            _seq = Regex.Replace(_seq, kv.Key, kv.Value);
-        }
+        string newSeq = _seq;
+        foreach (var kv in replacements) newSeq = Regex.Replace(newSeq, kv.Key, kv.Value);
         
-        _resultBuilder.AppendFormat("\n{0}\n{1}\n{2}\n", _ilen, _clen, _seq.Length);
+        _resultBuilder.AppendFormat("\n{0}\n{1}\n{2}\n", _ilen, _clen, newSeq.Length);
+        
+        _result = Helper.Checksum(_resultBuilder.ToString());
     }
 }

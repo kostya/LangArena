@@ -1,22 +1,69 @@
 import Foundation
 import CoreFoundation
+import CryptoKit
 
 // Протокол для всех бенчмарков - ТОЧНО как в Kotlin
 protocol BenchmarkProtocol: AnyObject {
-    func run()  // this is only method which time measured
-    var result: Int64 { get }
+    func run(iterationId: Int)  // изменено: принимает iterationId
+    var checksum: UInt32 { get }  // изменено: возвращает checksum вместо result
     func prepare()
+    func warmup()  // новый метод
+    func runAll()  // новый метод
 }
 
 extension BenchmarkProtocol {
     var iterations: Int {
-        let className = String(describing: type(of: self))
-        // ТОЧНО как в Kotlin: пробуем преобразовать в Int, иначе 0
-        return Int(Helper.getInput(className)) ?? 0
+        // Используем конфиг в формате JSON
+        if let config = Helper.config[name] as? [String: Any],
+           let iterations = config["iterations"] as? Int {
+            return iterations
+        }
+        return 0
+    }
+    
+    var warmupIterations: Int {
+        if let config = Helper.config[name] as? [String: Any],
+           let warmup = config["warmup_iterations"] as? Int {
+            return warmup
+        } else {
+            return max(Int(Double(iterations) * 0.2), 1)
+        }
+    }
+    
+    var expectedChecksum: Int64 {
+        if let config = Helper.config[name] as? [String: Any],
+           let checksum = config["checksum"] as? Int64 {
+            return checksum
+        }
+        return 0
+    }
+    
+    // Получение значения конфига
+    func configValue<T>(_ field: String) -> T? {
+        if let config = Helper.config[name] as? [String: Any] {
+            return config[field] as? T
+        }
+        return nil
+    }
+    
+    var name: String {
+        return String(describing: type(of: self))
     }
     
     func prepare() {
         // optional override - как в Kotlin
+    }
+    
+    func warmup() {
+        for i in 0..<warmupIterations {
+            run(iterationId: i)
+        }
+    }
+    
+    func runAll() {
+        for i in 0..<iterations {
+            run(iterationId: i)
+        }
     }
 }
 
@@ -33,10 +80,14 @@ class BenchmarkManager {
         var summaryTime: Double = 0
         var ok = 0
         var fails = 0
-                
+        
+        // Выводим время начала
+        let now = Date().timeIntervalSince1970 * 1000
+        print("start: \(Int64(now))")
+        
         for factory in benchmarks {
             let bench = factory()
-            let className = String(describing: type(of: bench))
+            let className = bench.name
             
             // Пропускаем абстрактные классы как в Kotlin
             if className == "SortBenchmark" || 
@@ -45,13 +96,17 @@ class BenchmarkManager {
                 continue
             }
             
-            let shouldRun = singleBench == nil || singleBench == className
+            // Проверяем, нужно ли запускать этот бенчмарк
+            let shouldRun: Bool
+            if let singleBench = singleBench {
+                // Частичное совпадение (case-insensitive) как в C++
+                shouldRun = className.lowercased().contains(singleBench.lowercased())
+            } else {
+                shouldRun = true
+            }
             
-            // В Kotlin проверяется iterations > 0
-            // Но для BrainfuckHashMap iterations будет 0 (т.к. input - текст, не число)
-            // Поэтому будем запускать если есть запись в конфиге
-            
-            let hasConfig = Helper.input[className] != nil
+            // Проверяем наличие конфигурации
+            let hasConfig = Helper.config[className] != nil
             
             if shouldRun && hasConfig {
                 print("\(className): ", terminator: "")
@@ -59,9 +114,12 @@ class BenchmarkManager {
                 Helper.reset()
                 
                 bench.prepare()
+                bench.warmup()
+                
+                Helper.reset()
                 
                 let startTime = DispatchTime.now()
-                bench.run()
+                bench.runAll()  // используем runAll вместо run
                 let endTime = DispatchTime.now()
 
                 let nanoTime = endTime.uptimeNanoseconds - startTime.uptimeNanoseconds
@@ -69,20 +127,23 @@ class BenchmarkManager {
 
                 results[className] = timeDelta
                 
-                // Небольшая пауза как в Kotlin
-                usleep(1000)
+                // Проверяем checksum вместо result
+                let expected = UInt32(truncatingIfNeeded: Int64(bench.expectedChecksum))
+                let actual = bench.checksum
                 
-                let expected = Helper.expect[className] ?? 0
-                if bench.result == expected {
+                if actual == expected {
                     print("OK ", terminator: "")
                     ok += 1
                 } else {
-                    print("ERR[actual=\(bench.result), expected=\(expected)] ", terminator: "")
+                    print("ERR[actual=\(actual), expected=\(expected)] ", terminator: "")
                     fails += 1
                 }
                 
                 print(String(format: "in %.3fs", timeDelta))
                 summaryTime += timeDelta
+                
+                // Небольшая пауза как в Kotlin
+                usleep(1000)
             } else if shouldRun {
                 print("\n[\(className)]: SKIP - no config entry", terminator: "")
             }

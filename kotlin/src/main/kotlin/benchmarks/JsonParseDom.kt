@@ -6,13 +6,13 @@ import org.json.JSONObject
 
 class JsonParseDom : Benchmark() {
     private lateinit var text: String
-    private var _result: UInt = 0u
+    private var resultVal: UInt = 0u
 
     override fun prepare() {
         val generator = JsonGenerate()
-        generator.n = iterations
+        generator.n = configVal("coords")
         generator.prepare()
-        generator.run()
+        generator.run(0)
         
         // Получаем текст через рефлексию
         val field = generator::class.java.getDeclaredField("text")
@@ -39,13 +39,14 @@ class JsonParseDom : Benchmark() {
         return Triple(x / len, y / len, z / len)
     }
 
-    override fun run() {
+    override fun run(iterationId: Int) {
         val (x, y, z) = calc(text)
-        _result = Helper.checksum("%.7f".format(x)) +
-                 Helper.checksum("%.7f".format(y)) +
-                 Helper.checksum("%.7f".format(z))
+        resultVal += Helper.checksum("%.7f".format(x)) +
+                    Helper.checksum("%.7f".format(y)) +
+                    Helper.checksum("%.7f".format(z))  // &+= эквивалент
     }
 
-    override val result: Long
-        get() = _result.toLong()
+    override fun checksum(): UInt = resultVal
+    
+    override fun name(): String = "JsonParseDom"
 }

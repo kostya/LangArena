@@ -1087,7 +1087,7 @@ RUNS = [
     version_cmd: "bun --version",
     dir: "/src/typescript",
     container: "typescript-bun",
-    group: :prod,
+    group: :hack,
     deps_cmd: "bun install",
   ),
 
@@ -1124,7 +1124,7 @@ RUNS = [
     version_cmd: "deno --version",
     dir: "/src/typescript",
     container: "typescript-deno",
-    group: :prod,
+    group: :hack,
     deps_cmd: "deno cache --quiet src/index.ts",
   ),
 
@@ -1213,8 +1213,8 @@ end
 LANGS = langs.keys
 puts "Unique languages: #{LANGS.size} #{LANGS.inspect}"
 
-test_txt = File.read("test.txt")
-tests = test_txt.split("\n").map { |l| l.split("|").first }
+test_txt = File.read("test.js")
+tests = JSON.parse(test_txt).keys
 TESTS = case ARGV[1]
 when nil, ""
   tests
@@ -1264,7 +1264,7 @@ RUNS.group_by { |r| [r.container, r.deps_cmd] }.each do |_, runs|
   puts "in #{delta.round(2)}s"
 end
 
-CFG = IS_RUN_TEST ? "../test.txt" : "../run.txt"
+CFG = IS_RUN_TEST ? "../test.js" : "../run.js"
 
 def build(run, verbose = true, test_incremental = false)
   print "building #{run.name} ..."

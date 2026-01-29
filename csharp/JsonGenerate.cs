@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-// Выносим Coordinate в отдельную запись
 public record Coordinate(
     [property: JsonPropertyName("x")] double X,
     [property: JsonPropertyName("y")] double Y,
@@ -10,40 +9,34 @@ public record Coordinate(
     [property: JsonPropertyName("opts")] Dictionary<string, Tuple<int, bool>> Opts
 );
 
-// Класс-обертка для сериализации
 public class CoordinatesWrapper
 {
-    public List<Coordinate> coordinates { get; set; }
-    public string info { get; set; }
+    public List<Coordinate> coordinates { get; set; } = new();
+    public string info { get; set; } = "some info";
 }
 
-// Контекст source generation - используем уникальное имя
 [JsonSerializable(typeof(CoordinatesWrapper))]
 [JsonSerializable(typeof(List<Coordinate>))]
 [JsonSerializable(typeof(Coordinate))]
 [JsonSerializable(typeof(Dictionary<string, Tuple<int, bool>>))]
 [JsonSerializable(typeof(Tuple<int, bool>))]
-internal partial class JsonGenerateContext : JsonSerializerContext
-{
-}
+internal partial class JsonGenerateContext : JsonSerializerContext { }
 
-// Основной класс бенчмарка
 public class JsonGenerate : Benchmark
 {
-    public int _n;
+    public long _n;
     private List<Coordinate> _data = new();
     private string _json = "";
-    
-    public override long Result => 1; // Всегда true, как в оригинале
+    private uint _result;
     
     public JsonGenerate()
     {
-        _n = Iterations;
+        _n = ConfigVal("coords");
     }
     
     public override void Prepare()
     {        
-        // Генерация тестовых данных
+        _data.Clear();
         for (int i = 0; i < _n; i++)
         {
             double x = Math.Round(Helper.NextFloat(), 8);
@@ -51,28 +44,24 @@ public class JsonGenerate : Benchmark
             double z = Math.Round(Helper.NextFloat(), 8);
             string name = $"{Helper.NextFloat():F7} {Helper.NextInt(10000)}";
             
-            var opts = new Dictionary<string, Tuple<int, bool>>
-            {
-                ["1"] = Tuple.Create(1, true)
-            };
-            
+            var opts = new Dictionary<string, Tuple<int, bool>> { ["1"] = Tuple.Create(1, true) };
             _data.Add(new Coordinate(x, y, z, name, opts));
         }
     }
     
-    public override void Run()
+    public override void Run(long IterationId)
     {
-        var obj = new CoordinatesWrapper
-        {
-            coordinates = _data,
-            info = "some info"
-        };
+        var obj = new CoordinatesWrapper { coordinates = _data, info = "some info" };
+        _json = JsonSerializer.Serialize(obj, JsonGenerateContext.Default.CoordinatesWrapper);
+
+        if (_json.StartsWith("{\"coordinates\":")) {
+            _result++;
+        }
+    }
         
-        // Используем source generation для максимальной скорости
-        _json = JsonSerializer.Serialize(
-            obj, 
-            JsonGenerateContext.Default.CoordinatesWrapper
-        );
+    public override uint Checksum
+    {
+        get { return _result; }
     }
     
     public string GetJson() => _json;

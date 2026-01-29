@@ -21,11 +21,28 @@ public class Revcomp extends Benchmark {
     }
     
     @Override
+    public String name() {
+        return "Revcomp";
+    }
+    
+    @Override
     public void prepare() {
         Fasta fasta = new Fasta();
-        fasta.n = getIterations();
-        fasta.run();
-        input = fasta.result.toString(); // Нужно добавить метод getOutput() в Fasta
+        fasta.n = (int) configVal("n");
+        fasta.run(0);
+        
+        String fastaResult = fasta.getResultString();
+        
+        StringBuilder seq = new StringBuilder();
+        for (String line : fastaResult.split("\n")) {
+            if (line.startsWith(">")) {
+                seq.append("\n---\n");
+            } else {
+                seq.append(line);
+            }
+        }
+        
+        input = seq.toString();
     }
     
     private void revcomp(String seq) {
@@ -43,29 +60,28 @@ public class Revcomp extends Benchmark {
     }
     
     @Override
-    public void run() {
-        result.setLength(0);
-        StringBuilder seq = new StringBuilder();
-        
-        for (String line : input.split("\n")) {
-            if (line.startsWith(">")) {
-                if (seq.length() > 0) {
-                    revcomp(seq.toString());
-                    seq.setLength(0);
-                }
-                result.append(line).append("\n");
-            } else {
-                seq.append(line.trim());
-            }
+    public void run(int iterationId) {
+        result.append(revcompString(input));
+    }
+    
+    private String revcompString(String seq) {
+        StringBuilder reversed = new StringBuilder(seq).reverse();
+        for (int i = 0; i < reversed.length(); i++) {
+            char c = reversed.charAt(i);
+            reversed.setCharAt(i, COMPLEMENT.getOrDefault(c, c));
         }
         
-        if (seq.length() > 0) {
-            revcomp(seq.toString());
+        StringBuilder resultStr = new StringBuilder();
+        int stringLen = reversed.length();
+        for (int i = 0; i < stringLen; i += 60) {
+            int end = Math.min(i + 60, stringLen);
+            resultStr.append(reversed.substring(i, end)).append("\n");
         }
+        return resultStr.toString();
     }
     
     @Override
-    public long getResult() {
+    public long checksum() {
         return Helper.checksum(result.toString());
     }
 }

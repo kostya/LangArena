@@ -1,4 +1,3 @@
-// src/spectralnorm.zig
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
@@ -6,18 +5,20 @@ const Helper = @import("helper.zig").Helper;
 pub const Spectralnorm = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    n: usize,
-    result_val: u64,
+    size_val: i64,
+    result_val: u32,
+    u: std.ArrayListUnmanaged(f64),
+    v: std.ArrayListUnmanaged(f64),
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = checksumImpl,
         .deinit = deinitImpl,
+        .prepare = prepareImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Spectralnorm {
-        const n_int = helper.getInputInt("Spectralnorm");
-        const n = @as(usize, @intCast(if (n_int > 0) n_int else 0));
+        const size_val = helper.config_i64("Spectralnorm", "size");
 
         const self = try allocator.create(Spectralnorm);
         errdefer allocator.destroy(self);
@@ -25,14 +26,18 @@ pub const Spectralnorm = struct {
         self.* = Spectralnorm{
             .allocator = allocator,
             .helper = helper,
-            .n = n,
+            .size_val = size_val,
             .result_val = 0,
+            .u = .{},
+            .v = .{},
         };
 
         return self;
     }
 
     pub fn deinit(self: *Spectralnorm) void {
+        self.u.deinit(self.allocator);
+        self.v.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -83,12 +88,32 @@ pub const Spectralnorm = struct {
         return Spectralnorm.eval_At_times_u(allocator, a_times_u);
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn prepareImpl(ptr: *anyopaque) void {
         const self: *Spectralnorm = @ptrCast(@alignCast(ptr));
-        const allocator = self.allocator;
-        const n = self.n;
+        const size = @as(usize, @intCast(self.size_val));
 
-        if (n == 0) {
+        // Очищаем старые данные
+        self.u.clearAndFree(self.allocator);
+        self.v.clearAndFree(self.allocator);
+
+        // Инициализируем как в C++ версии
+        self.u.ensureTotalCapacity(self.allocator, size) catch return;
+        self.v.ensureTotalCapacity(self.allocator, size) catch return;
+
+        for (0..size) |_| {
+            self.u.appendAssumeCapacity(1.0);
+            self.v.appendAssumeCapacity(1.0);
+        }
+    }
+
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
+        const self: *Spectralnorm = @ptrCast(@alignCast(ptr));
+        _ = iteration_id;
+
+        const allocator = self.allocator;
+        const size = @as(usize, @intCast(self.size_val));
+
+        if (size == 0) {
             self.result_val = self.helper.checksumFloat(0.0);
             return;
         }
@@ -97,40 +122,41 @@ pub const Spectralnorm = struct {
         defer arena.deinit();
         const arena_allocator = arena.allocator();
 
-        var u = arena_allocator.alloc(f64, n) catch return;
-        var v = arena_allocator.alloc(f64, n) catch return;
+        // Как в C++ версии: одна итерация power-метода
+        const v_new = Spectralnorm.eval_AtA_times_u(arena_allocator, self.u.items) catch return;
+        defer arena_allocator.free(v_new);
 
-        for (0..n) |i| {
-            u[i] = 1.0;
-            v[i] = 1.0;
+        const u_new = Spectralnorm.eval_AtA_times_u(arena_allocator, v_new) catch return;
+        defer arena_allocator.free(u_new);
+
+        // Обновляем векторы как в C++ версии
+        self.u.clearRetainingCapacity();
+        self.v.clearRetainingCapacity();
+
+        for (0..size) |i| {
+            self.u.appendAssumeCapacity(u_new[i]);
+            self.v.appendAssumeCapacity(v_new[i]);
         }
+    }
 
-        for (0..10) |_| {
-            const v_new = Spectralnorm.eval_AtA_times_u(arena_allocator, u) catch return;
-            defer arena_allocator.free(v_new);
+    fn checksumImpl(ptr: *anyopaque) u32 {
+        const self: *Spectralnorm = @ptrCast(@alignCast(ptr));
 
-            const u_new = Spectralnorm.eval_AtA_times_u(arena_allocator, v_new) catch return;
-            defer arena_allocator.free(u_new);
-
-            @memcpy(v[0..n], v_new[0..n]);
-            @memcpy(u[0..n], u_new[0..n]);
+        const size = @as(usize, @intCast(self.size_val));
+        if (size == 0) {
+            return self.helper.checksumFloat(0.0);
         }
 
         var vBv: f64 = 0.0;
         var vv: f64 = 0.0;
 
-        for (0..n) |i| {
-            vBv += u[i] * v[i];
-            vv += v[i] * v[i];
+        for (0..size) |i| {
+            vBv += self.u.items[i] * self.v.items[i];
+            vv += self.v.items[i] * self.v.items[i];
         }
 
         const result = std.math.sqrt(vBv / vv);
-        self.result_val = self.helper.checksumFloat(result);
-    }
-
-    fn resultImpl(ptr: *anyopaque) u32 {
-        const self: *Spectralnorm = @ptrCast(@alignCast(ptr));
-        return @as(u32, @intCast(self.result_val));
+        return self.helper.checksumFloat(result);
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

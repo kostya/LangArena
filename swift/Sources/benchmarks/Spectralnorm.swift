@@ -1,13 +1,20 @@
 import Foundation
+
 final class Spectralnorm: BenchmarkProtocol {
-    private var n: Int = 0
-    private var resultValue: Int64 = 0
+    private var sizeVal: Int64 = 0
+    private var u: [Double] = []
+    private var v: [Double] = []
+    
     init() {
-        n = iterations
+        sizeVal = configValue("size") ?? 0
+        u = [Double](repeating: 1.0, count: Int(sizeVal))
+        v = [Double](repeating: 1.0, count: Int(sizeVal))
     }
+    
     private func evalA(_ i: Int, _ j: Int) -> Double {
         return 1.0 / ((Double(i + j) * Double(i + j + 1)) / 2.0 + Double(i) + 1.0)
     }
+    
     private func evalATimesU(_ u: [Double]) -> [Double] {
         return (0..<u.count).map { i in
             var v = 0.0
@@ -17,6 +24,7 @@ final class Spectralnorm: BenchmarkProtocol {
             return v
         }
     }
+    
     private func evalAtTimesU(_ u: [Double]) -> [Double] {
         return (0..<u.count).map { i in
             var v = 0.0
@@ -26,27 +34,25 @@ final class Spectralnorm: BenchmarkProtocol {
             return v
         }
     }
+    
     private func evalAtATimesU(_ u: [Double]) -> [Double] {
         return evalAtTimesU(evalATimesU(u))
     }
-    func run() {
-        var u = [Double](repeating: 1.0, count: n)
-        var v = [Double](repeating: 1.0, count: n)
-        for _ in 0..<10 {
-            v = evalAtATimesU(u)
-            u = evalAtATimesU(v)
-        }
+    
+    func run(iterationId: Int) {
+        v = evalAtATimesU(u)
+        u = evalAtATimesU(v)
+    }
+    
+    var checksum: UInt32 {
         var vBv = 0.0
         var vv = 0.0
-        for i in 0..<n {
+        for i in 0..<Int(sizeVal) {
             vBv += u[i] * v[i]
             vv += v[i] * v[i]
         }
-        let resultDouble = sqrt(vBv / vv)
-        resultValue = Int64(Helper.checksumF64(resultDouble))
+        return Helper.checksumF64(sqrt(vBv / vv))
     }
-    var result: Int64 {
-        return resultValue
-    }
+    
     func prepare() {}
 }

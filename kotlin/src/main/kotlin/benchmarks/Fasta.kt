@@ -3,11 +3,11 @@ package benchmarks
 import Benchmark
 
 class Fasta : Benchmark() {
-    var n: Int = 0  // internal вместо private
+    var n: Long = 0  // internal вместо private
     private lateinit var output: StringBuilder
     
     init {
-        n = iterations
+        n = configVal("n")
     }
     
     override fun prepare() {
@@ -90,14 +90,15 @@ class Fasta : Benchmark() {
         }
     }
     
-    override fun run() {
-        makeRepeatFasta("ONE", "Homo sapiens alu", ALU, n * 2)
-        makeRandomFasta("TWO", "IUB ambiguity codes", IUB, n * 3)
-        makeRandomFasta("THREE", "Homo sapiens frequency", HOMO, n * 5)
+    override fun run(iterationId: Int) {
+        makeRepeatFasta("ONE", "Homo sapiens alu", ALU, (n * 2).toInt())
+        makeRandomFasta("TWO", "IUB ambiguity codes", IUB, (n * 3).toInt())
+        makeRandomFasta("THREE", "Homo sapiens frequency", HOMO, (n * 5).toInt())
     }
     
-    override val result: Long
-        get() = Helper.checksum(output.toString()).toLong()
+    override fun checksum(): UInt = Helper.checksum(output.toString())
+    
+    override fun name(): String = "Fasta"
     
     // Геттер для доступа из других бенчмарков
     fun getOutput(): String = output.toString()

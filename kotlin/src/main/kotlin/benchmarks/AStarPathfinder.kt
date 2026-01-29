@@ -5,33 +5,8 @@ import java.util.*
 import kotlin.math.*
 
 class AStarPathfinder : Benchmark() {
-    private interface Heuristic {
-        fun distance(aX: Int, aY: Int, bX: Int, bY: Int): Int
-    }
-    
-    private class ManhattanHeuristic : Heuristic {
-        override fun distance(aX: Int, aY: Int, bX: Int, bY: Int): Int {
-            return (abs(aX - bX) + abs(aY - bY)) * 1000
-        }
-    }
-    
-    private class EuclideanHeuristic : Heuristic {
-        override fun distance(aX: Int, aY: Int, bX: Int, bY: Int): Int {
-            val dx = abs(aX - bX).toDouble()
-            val dy = abs(aY - bY).toDouble()
-            return (sqrt(dx * dx + dy * dy) * 1000.0).toInt()
-        }
-    }
-    
-    private class ChebyshevHeuristic : Heuristic {
-        override fun distance(aX: Int, aY: Int, bX: Int, bY: Int): Int {
-            return maxOf(abs(aX - bX), abs(aY - bY)) * 1000
-        }
-    }
-    
     private data class Node(val x: Int, val y: Int, val fScore: Int) : Comparable<Node> {
         override fun compareTo(other: Node): Int {
-            // Сортировка по fScore, затем по координатам для стабильности
             if (fScore != other.fScore) {
                 return fScore.compareTo(other.fScore)
             }
@@ -102,59 +77,45 @@ class AStarPathfinder : Benchmark() {
         }
     }
     
-    private var resultVal: Long = 0L
+    private var resultVal: UInt = 0u
     private val startX: Int
     private val startY: Int
     private val goalX: Int
     private val goalY: Int
     private val width: Int
     private val height: Int
-    private var mazeGrid: Array<BooleanArray>? = null
+    private lateinit var mazeGrid: Array<BooleanArray>
     
     init {
-        width = iterations
-        height = iterations
+        width = configVal("w").toInt()
+        height = configVal("h").toInt()
         startX = 1
         startY = 1
         goalX = width - 2
         goalY = height - 2
     }
     
-    private fun generateWalkableMaze(width: Int, height: Int): Array<BooleanArray> {
-        return MazeGenerator.Maze.generateWalkableMaze(width, height)
+    private fun distance(aX: Int, aY: Int, bX: Int, bY: Int): Int {
+        return (abs(aX - bX) + abs(aY - bY))
     }
     
-    private fun ensureMazeGrid(): Array<BooleanArray> {
-        if (mazeGrid == null) {
-            mazeGrid = generateWalkableMaze(width, height)
-        }
-        return mazeGrid!!
-    }
-    
-    private fun findPath(heuristic: Heuristic, allowDiagonal: Boolean = false): List<Pair<Int, Int>>? {
-        val grid = ensureMazeGrid()
+    private fun findPath(): Pair<kotlin.collections.List<Pair<Int, Int>>?, Int> {
+        val grid = mazeGrid
         
         val gScores = Array(height) { IntArray(width) { Int.MAX_VALUE } }
         val cameFrom = Array(height) { Array<Pair<Int, Int>?>(width) { null } }
         val openSet = BinaryHeap()
+        var nodesExplored = 0
         
         gScores[startY][startX] = 0
         openSet.push(Node(startX, startY, 
-                         heuristic.distance(startX, startY, goalX, goalY)))
+                         distance(startX, startY, goalX, goalY)))
         
-        val directions = if (allowDiagonal) {
-            listOf(
-                0 to -1, 1 to 0, 0 to 1, -1 to 0,
-                -1 to -1, 1 to -1, 1 to 1, -1 to 1
-            )
-        } else {
-            listOf(0 to -1, 1 to 0, 0 to 1, -1 to 0)
-        }
-        
-        val diagonalCost = if (allowDiagonal) 1414 else 1000
+        val directions = listOf(0 to -1, 1 to 0, 0 to 1, -1 to 0)
         
         while (!openSet.isEmpty()) {
             val current = openSet.pop() ?: break
+            nodesExplored++
             
             if (current.x == goalX && current.y == goalY) {
                 val path = mutableListOf<Pair<Int, Int>>()
@@ -170,7 +131,7 @@ class AStarPathfinder : Benchmark() {
                 
                 path.add(startX to startY)
                 path.reverse()
-                return path
+                return path to nodesExplored
             }
             
             val currentG = gScores[current.y][current.x]
@@ -182,130 +143,35 @@ class AStarPathfinder : Benchmark() {
                 if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue
                 if (!grid[ny][nx]) continue
                 
-                val moveCost = if (abs(dx) == 1 && abs(dy) == 1) diagonalCost else 1000
-                val tentativeG = currentG + moveCost
+                val tentativeG = currentG + 1000
                 
                 if (tentativeG < gScores[ny][nx]) {
                     cameFrom[ny][nx] = current.x to current.y
                     gScores[ny][nx] = tentativeG
                     
-                    val fScore = tentativeG + heuristic.distance(nx, ny, goalX, goalY)
+                    val fScore = tentativeG + distance(nx, ny, goalX, goalY)
                     openSet.push(Node(nx, ny, fScore))
                 }
             }
         }
         
-        return null
-    }
-    
-    private fun estimateNodesExplored(heuristic: Heuristic, allowDiagonal: Boolean = false): Int {
-        val grid = ensureMazeGrid()
-        
-        val gScores = Array(height) { IntArray(width) { Int.MAX_VALUE } }
-        val openSet = BinaryHeap()
-        val closed = Array(height) { BooleanArray(width) }
-        
-        gScores[startY][startX] = 0
-        openSet.push(Node(startX, startY, 
-                         heuristic.distance(startX, startY, goalX, goalY)))
-        
-        val directions = if (allowDiagonal) {
-            listOf(
-                0 to -1, 1 to 0, 0 to 1, -1 to 0,
-                -1 to -1, 1 to -1, 1 to 1, -1 to 1
-            )
-        } else {
-            listOf(0 to -1, 1 to 0, 0 to 1, -1 to 0)
-        }
-        
-        var nodesExplored = 0
-        
-        while (!openSet.isEmpty()) {
-            val current = openSet.pop() ?: break
-            
-            if (current.x == goalX && current.y == goalY) {
-                break
-            }
-            
-            if (closed[current.y][current.x]) continue
-            
-            closed[current.y][current.x] = true
-            nodesExplored++
-            
-            val currentG = gScores[current.y][current.x]
-            
-            for ((dx, dy) in directions) {
-                val nx = current.x + dx
-                val ny = current.y + dy
-                
-                if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue
-                if (!grid[ny][nx]) continue
-                
-                val moveCost = if (abs(dx) == 1 && abs(dy) == 1) 1414 else 1000
-                val tentativeG = currentG + moveCost
-                
-                if (tentativeG < gScores[ny][nx]) {
-                    gScores[ny][nx] = tentativeG
-                    
-                    val fScore = tentativeG + heuristic.distance(nx, ny, goalX, goalY)
-                    openSet.push(Node(nx, ny, fScore))
-                }
-            }
-        }
-        
-        return nodesExplored
-    }
-    
-    private fun benchmarkDifferentApproaches(): Triple<Int, Int, Int> {
-        val heuristics = listOf(
-            ManhattanHeuristic(),
-            EuclideanHeuristic(),
-            ChebyshevHeuristic()
-        )
-        
-        var totalPathsFound = 0
-        var totalPathLength = 0
-        var totalNodesExplored = 0
-        
-        for (heuristic in heuristics) {
-            val path = findPath(heuristic, false)
-            if (path != null) {
-                totalPathsFound++
-                totalPathLength += path.size
-                totalNodesExplored += estimateNodesExplored(heuristic, false)
-            }
-        }
-        
-        return Triple(totalPathsFound, totalPathLength, totalNodesExplored)
+        return null to nodesExplored
     }
     
     override fun prepare() {
-        ensureMazeGrid()
+        mazeGrid = MazeGenerator.Maze.generateWalkableMaze(width, height)
     }
     
-    override fun run() {
-        var totalPathsFound = 0
-        var totalPathLength = 0
-        var totalNodesExplored = 0
+    override fun run(iterationId: Int) {
+        val (path, nodesExplored) = findPath()
         
-        val iters = 10
-        for (i in 0 until iters) {
-            val (pathsFound, pathLength, nodesExplored) = benchmarkDifferentApproaches()
-            
-            totalPathsFound += pathsFound
-            totalPathLength += pathLength
-            totalNodesExplored += nodesExplored
-        }
-        
-        val pathsChecksum = Helper.checksumF64(totalPathsFound.toDouble())
-        val lengthChecksum = Helper.checksumF64(totalPathLength.toDouble())
-        val nodesChecksum = Helper.checksumF64(totalNodesExplored.toDouble())
-
-        resultVal = (pathsChecksum).toLong() xor
-                   ((lengthChecksum).toLong() shl 16) xor
-                   ((nodesChecksum).toLong() shl 32)
+        var localResult = 0L
+        localResult = (localResult shl 5) + (path?.size ?: 0)
+        localResult = (localResult shl 5) + nodesExplored
+        resultVal += localResult.toUInt()  // &+= эквивалент
     }
     
-    override val result: Long
-        get() = resultVal
+    override fun checksum(): UInt = resultVal
+    
+    override fun name(): String = "AStarPathfinder"
 }

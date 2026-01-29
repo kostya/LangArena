@@ -5,7 +5,6 @@ import kotlin.math.*
 
 class Noise : Benchmark() {
     companion object {
-        private const val SIZE = 64
         private val SYM = listOf(' ', '░', '▒', '▓', '█', '█')
         
         private data class Vec2(val x: Double, val y: Double)
@@ -29,14 +28,14 @@ class Noise : Benchmark() {
         }
     }
     
-    private class Noise2DContext {
-        private val rgradients = Array(SIZE) { randomGradient() }
-        private val permutations = IntArray(SIZE) { it }
+    private class Noise2DContext(private val sizeVal: Int) {
+        private val rgradients = Array(sizeVal) { randomGradient() }
+        private val permutations = IntArray(sizeVal) { it }
         
         init {
-            repeat(SIZE) {
-                val a = Helper.nextInt(SIZE)
-                val b = Helper.nextInt(SIZE)
+            repeat(sizeVal) {
+                val a = Helper.nextInt(sizeVal)
+                val b = Helper.nextInt(sizeVal)
                 val temp = permutations[a]
                 permutations[a] = permutations[b]
                 permutations[b] = temp
@@ -44,8 +43,8 @@ class Noise : Benchmark() {
         }
         
         private fun getGradient(x: Int, y: Int): Vec2 {
-            val idx = permutations[x and (SIZE - 1)] + permutations[y and (SIZE - 1)]
-            return rgradients[idx and (SIZE - 1)]  // КАК В C++!
+            val idx = permutations[x and (sizeVal - 1)] + permutations[y and (sizeVal - 1)]
+            return rgradients[idx and (sizeVal - 1)]  // КАК В C++!
         }
         
         private fun getGradients(x: Double, y: Double): Pair<List<Vec2>, List<Vec2>> {
@@ -89,47 +88,27 @@ class Noise : Benchmark() {
         }
     }
     
-    private var n: Int = 0
-    private var _result: ULong = 0uL
+    private var sizeVal: Long = 0
+    private var resultVal: UInt = 0u
+    private lateinit var n2d: Noise2DContext
     
     init {
-        n = iterations
+        sizeVal = configVal("size")
+        n2d = Noise2DContext(sizeVal.toInt())
     }
     
-    private fun noise(): ULong {
-        val pixels = Array(SIZE) { DoubleArray(SIZE) }
-        val n2d = Noise2DContext()
-        
-        repeat(100) { i ->
-            for (y in 0 until SIZE) {
-                for (x in 0 until SIZE) {
-                    val v = n2d.get(x * 0.1, (y + (i * 128)) * 0.1) * 0.5 + 0.5
-                    pixels[y][x] = v
-                }
-            }
-        }
-        
-        var res: ULong = 0uL
-        
-        for (y in 0 until SIZE) {
-            for (x in 0 until SIZE) {
-                val v = pixels[y][x]
+    override fun run(iterationId: Int) {
+        for (y in 0 until sizeVal.toInt()) {
+            for (x in 0 until sizeVal.toInt()) {
+                val v = n2d.get(x * 0.1, (y + (iterationId * 128)) * 0.1) * 0.5 + 0.5
                 val idx = (v / 0.2).toInt()
                 val clampedIdx = if (idx >= 6) 5 else idx
-                res += SYM[clampedIdx].code.toULong()
+                resultVal += SYM[clampedIdx].code.toUInt()  // &+= эквивалент
             }
         }
-        
-        return res
     }
     
-    override fun run() {
-        repeat(n) {
-            val v = noise()
-            _result += v
-        }
-    }
+    override fun checksum(): UInt = resultVal
     
-    override val result: Long
-        get() = _result.toLong()
+    override fun name(): String = "Noise"
 }

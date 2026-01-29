@@ -54,20 +54,24 @@ public abstract class GraphPathBenchmark extends Benchmark {
     
     protected Graph graph;
     protected List<int[]> pairs;
-    private long result;
-    private int nPairs;
+    private long resultVal;
+    private long nPairs;
     
     public GraphPathBenchmark() {
-        nPairs = getIterations();
+        resultVal = 0L;
+        nPairs = 0L;
     }
     
     @Override
     public void prepare() {
-        int vertices = nPairs * 10;
-        int components = Math.max(10, vertices / 10_000);
-        graph = new Graph(vertices, components);
-        graph.generateRandom();
-        pairs = generatePairs(nPairs);
+        if (nPairs == 0) {
+            nPairs = configVal("pairs");
+            int vertices = (int) configVal("vertices");
+            int components = Math.max(10, vertices / 10_000);
+            graph = new Graph(vertices, components);
+            graph.generateRandom();
+            pairs = generatePairs((int) nPairs);
+        }
     }
     
     private List<int[]> generatePairs(int n) {
@@ -105,12 +109,12 @@ public abstract class GraphPathBenchmark extends Benchmark {
     abstract long test();
     
     @Override
-    public void run() {
-        result = test();
+    public void run(int iterationId) {
+        resultVal += test();
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

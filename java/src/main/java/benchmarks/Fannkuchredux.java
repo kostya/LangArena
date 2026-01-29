@@ -2,10 +2,16 @@ package benchmarks;
 
 public class Fannkuchredux extends Benchmark {
     private int n;
-    private long result;
+    private long resultVal;
     
     public Fannkuchredux() {
-        n = getIterations();
+        n = (int) configVal("n");
+        resultVal = 0L;
+    }
+    
+    @Override
+    public String name() {
+        return "Fannkuchredux";
     }
     
     private static class Result {
@@ -88,13 +94,13 @@ public class Fannkuchredux extends Benchmark {
     }
     
     @Override
-    public void run() {
+    public void run(int iterationId) {
         Result res = fannkuchredux(n);
-        result = (res.checksum * 100L + res.maxFlips) & 0xFFFFFFFFL;
+        resultVal += (res.checksum * 100L + res.maxFlips) & 0xFFFFFFFFL;
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

@@ -5,34 +5,21 @@ public class Pidigits : Benchmark
 {
     private int _nn;
     private StringBuilder _resultBuilder;
+    private uint _checksumVal;
     
-    public override long Result => Helper.Checksum(_resultBuilder.ToString());
+    public override uint Checksum => _checksumVal;
     
     public Pidigits()
     {
         _resultBuilder = new StringBuilder();
+        _nn = (int)ConfigVal("amount");
     }
     
-    public override void Prepare()
-    {
-        var className = nameof(Pidigits);
-        if (Helper.Input.TryGetValue(className, out var value))
-        {
-            if (int.TryParse(value, out var iter))
-            {
-                _nn = iter;
-                return;
-            }
-        }
-        _nn = 1;
-        Console.WriteLine($"Warning: Using default iterations for {className}");
-    }
-    
-    public override void Run()
+    public override void Run(long IterationId)
     {
         int i = 0;
         int k = 0;
-        ulong ns = 0; // Изменено на ulong для 10 цифр
+        ulong ns = 0;
         BigInteger a = 0;
         BigInteger t;
         BigInteger u;
@@ -43,7 +30,7 @@ public class Pidigits : Benchmark
         while (true)
         {
             k += 1;
-            t = n << 1; // BigInteger shift
+            t = n << 1;
             n *= k;
             k1 += 2;
             a = (a + t) * k1;
@@ -53,13 +40,13 @@ public class Pidigits : Benchmark
             {
                 var temp = n * 3 + a;
                 var quotient = temp / d;
-                t = quotient; // BigInteger
+                t = quotient;
                 u = temp % d;
                 u += n;
                 
                 if (d > u)
                 {
-                    ns = ns * 10 + (ulong)t; // Приведение к ulong
+                    ns = ns * 10 + (ulong)t;
                     i += 1;
                     
                     if (i % 10 == 0)
@@ -77,10 +64,11 @@ public class Pidigits : Benchmark
             }
         }
         
-        // Добавляем оставшиеся цифры
         if (ns != 0)
         {
             _resultBuilder.AppendFormat("{0:D10}\t:{1}\n", ns, i);
         }
+        
+        _checksumVal = Helper.Checksum(_resultBuilder.ToString());
     }
 }

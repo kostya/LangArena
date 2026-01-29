@@ -1,32 +1,39 @@
-// src/primes.zig
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
-const math = std.math; // Для удобства
+const math = std.math;
 
 pub const Primes = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    n: i32,
-    result_val: u32,
+    n: i64,
+    prefix: i64,
+    result_val: u32, // Изменено на u32 как в C++
 
-    // Константа префикса
-    const PREFIX: i32 = 32338;
+    const vtable = Benchmark.VTable{
+        .run = runImpl,
+        .checksum = checksumImpl,
+        .deinit = deinitImpl,
+    };
 
     // Узел префиксного дерева
     const Node = struct {
         children: [10]?*Node = [_]?*Node{null} ** 10,
         is_terminal: bool = false,
-    };
 
-    const vtable = Benchmark.VTable{
-        .run = runImpl,
-        .result = resultImpl,
-        .deinit = deinitImpl,
+        pub fn deinit(self: *Node, allocator: std.mem.Allocator) void {
+            for (self.children) |child_opt| {
+                if (child_opt) |child| {
+                    child.deinit(allocator);
+                    allocator.destroy(child);
+                }
+            }
+        }
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Primes {
-        const n = helper.getInputInt("Primes");
+        const n = helper.config_i64("Primes", "limit");
+        const prefix = helper.config_i64("Primes", "prefix");
 
         const self = try allocator.create(Primes);
         errdefer allocator.destroy(self);
@@ -35,6 +42,7 @@ pub const Primes = struct {
             .allocator = allocator,
             .helper = helper,
             .n = n,
+            .prefix = prefix,
             .result_val = 5432, // Начальное значение как в C++ версии
         };
         return self;
@@ -48,26 +56,22 @@ pub const Primes = struct {
         return Benchmark.init(self, &vtable, self.helper);
     }
 
-    // Оптимизированное решето Эратосфена с использованием ArrayListUnmanaged
+    // Оптимизированное решето Эратосфена
     fn generatePrimes(self: *Primes) !std.ArrayListUnmanaged(i32) {
-        const limit = self.n;
+        const limit = @as(i32, @intCast(self.n));
 
-        // Если limit < 2, возвращаем пустой список
         if (limit < 2) {
             return std.ArrayListUnmanaged(i32){};
         }
 
-        // Используем простой массив bool для решета
         const size = @as(usize, @intCast(limit + 1));
         var is_prime = try self.allocator.alloc(bool, size);
         defer self.allocator.free(is_prime);
 
-        // Инициализируем все числа как простые (кроме 0 и 1)
         @memset(is_prime, true);
         if (size > 0) is_prime[0] = false;
         if (size > 1) is_prime[1] = false;
 
-        // Классическое решето
         const sqrt_limit_float = @sqrt(@as(f64, @floatFromInt(limit)));
         const sqrt_limit: i32 = @intFromFloat(sqrt_limit_float);
 
@@ -81,10 +85,7 @@ pub const Primes = struct {
             }
         }
 
-        // Собираем простые числа
         var primes = std.ArrayListUnmanaged(i32){};
-
-        // Предварительное резервирование памяти - упрощенная формула
         const estimated_count = @as(usize, @intCast(@divFloor(limit, 2) + 100));
 
         try primes.ensureTotalCapacity(self.allocator, estimated_count);
@@ -104,8 +105,7 @@ pub const Primes = struct {
         const root = try self.allocator.create(Node);
         root.* = Node{};
 
-        // Предварительно форматируем числа в строки
-        var buffer: [16]u8 = undefined; // Максимум 10 цифр для i32
+        var buffer: [16]u8 = undefined;
 
         for (primes) |prime| {
             const digits = std.fmt.bufPrint(&buffer, "{d}", .{prime}) catch unreachable;
@@ -127,22 +127,11 @@ pub const Primes = struct {
         return root;
     }
 
-    // Освобождение памяти дерева (рекурсивно)
-    fn freeTrie(self: *Primes, node: *Node) void {
-        for (node.children) |child_opt| {
-            if (child_opt) |child| {
-                self.freeTrie(child);
-            }
-        }
-        self.allocator.destroy(node);
-    }
-
     // Поиск по префиксу с BFS
-    fn findPrimesWithPrefix(self: *Primes, root: *Node, prefix: i32) !std.ArrayListUnmanaged(i32) {
+    fn findPrimesWithPrefix(self: *Primes, root: *Node, prefix: i64) !std.ArrayListUnmanaged(i32) {
         var buffer: [12]u8 = undefined;
         const prefix_str = try std.fmt.bufPrint(&buffer, "{d}", .{prefix});
 
-        // Находим узел префикса
         var current: *Node = root;
         for (prefix_str) |digit_char| {
             const digit = digit_char - '0';
@@ -150,18 +139,16 @@ pub const Primes = struct {
             if (current.children[digit]) |child| {
                 current = child;
             } else {
-                // Префикс не найден - возвращаем пустой список
                 return std.ArrayListUnmanaged(i32){};
             }
         }
 
-        // BFS обход
         var results = std.ArrayListUnmanaged(i32){};
 
         var bfs_queue = std.ArrayListUnmanaged(struct { node: *Node, number: i32 }){};
         defer bfs_queue.deinit(self.allocator);
 
-        try bfs_queue.append(self.allocator, .{ .node = current, .number = prefix });
+        try bfs_queue.append(self.allocator, .{ .node = current, .number = @as(i32, @intCast(prefix)) });
 
         while (bfs_queue.items.len > 0) {
             const item = bfs_queue.pop().?;
@@ -172,23 +159,21 @@ pub const Primes = struct {
                 try results.append(self.allocator, number);
             }
 
-            // Итерируем по всем возможным цифрам
             for (0..10) |digit| {
                 if (node.children[digit]) |child| {
-                    // Проверяем переполнение умножения
                     const new_number = math.mul(i32, number, 10) catch continue;
                     try bfs_queue.append(self.allocator, .{ .node = child, .number = new_number + @as(i32, @intCast(digit)) });
                 }
             }
         }
 
-        // Сортируем результаты
         std.mem.sort(i32, results.items, {}, std.sort.asc(i32));
         return results;
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
         const self: *Primes = @ptrCast(@alignCast(ptr));
+        _ = iteration_id;
 
         // 1. Генерация простых чисел
         var primes = self.generatePrimes() catch return;
@@ -196,20 +181,23 @@ pub const Primes = struct {
 
         // 2. Построение префиксного дерева
         const trie = self.buildTrie(primes.items) catch return;
-        defer self.freeTrie(trie);
+        defer {
+            trie.deinit(self.allocator);
+            self.allocator.destroy(trie);
+        }
 
         // 3. Поиск по префиксу
-        var results = self.findPrimesWithPrefix(trie, PREFIX) catch return;
+        var results = self.findPrimesWithPrefix(trie, self.prefix) catch return;
         defer results.deinit(self.allocator);
 
-        // 4. Вычисление результата
+        // 4. Вычисление результата как в C++
         self.result_val += @as(u32, @intCast(results.items.len));
         for (results.items) |prime| {
             self.result_val +%= @as(u32, @intCast(prime));
         }
     }
 
-    fn resultImpl(ptr: *anyopaque) u32 {
+    fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *Primes = @ptrCast(@alignCast(ptr));
         return self.result_val;
     }

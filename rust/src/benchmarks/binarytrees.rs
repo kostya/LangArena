@@ -1,4 +1,5 @@
-use super::super::{Benchmark, INPUT};
+use super::super::{Benchmark, helper};
+use super::super::config_i64;
 
 struct TreeNode {
     left: Option<Box<TreeNode>>,
@@ -38,22 +39,17 @@ impl TreeNode {
 }
 
 pub struct Binarytrees {
-    n: i32,
-    result: i64,
+    n: i64,
+    result_val: u32,
 }
 
 impl Binarytrees {
     pub fn new() -> Self {
-        let name = "Binarytrees".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
+        let n = config_i64("Binarytrees", "depth");
         
         Self {
-            n: iterations,
-            result: 0,
+            n,
+            result_val: 0,
         }
     }
 }
@@ -63,31 +59,27 @@ impl Benchmark for Binarytrees {
         "Binarytrees".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.n
-    }
-    
-    fn run(&mut self) {
+    fn run(&mut self, _iteration_id: i64) {
         let min_depth = 4;
-        let max_depth = std::cmp::max(min_depth + 2, self.n);
+        let max_depth = std::cmp::max(min_depth + 2, self.n as i32);
         let stretch_depth = max_depth + 1;
         
-        self.result += TreeNode::create(0, stretch_depth).check() as i64;
+        self.result_val = self.result_val.wrapping_add(TreeNode::create(0, stretch_depth).check() as u32);
 
         let mut depth = min_depth;
         while depth <= max_depth {
             let iterations = 1 << (max_depth - depth + min_depth);
             let mut i = 1;
             while i <= iterations {
-                self.result += TreeNode::create(i, depth).check() as i64;
-                self.result += TreeNode::create(-i, depth).check() as i64;
+                self.result_val = self.result_val.wrapping_add(TreeNode::create(i, depth).check() as u32);
+                self.result_val = self.result_val.wrapping_add(TreeNode::create(-i, depth).check() as u32);
                 i += 1;
             }
             depth += 2;
         }
     }
     
-    fn result(&self) -> i64 {
-        self.result
+    fn checksum(&self) -> u32 {
+        self.result_val
     }
 }

@@ -3,33 +3,6 @@ using System.Collections.Generic;
 
 public class AStarPathfinder : Benchmark
 {
-    private interface IHeuristic
-    {
-        int Distance(int aX, int aY, int bX, int bY);
-    }
-    
-    private class ManhattanHeuristic : IHeuristic
-    {
-        public int Distance(int aX, int aY, int bX, int bY)
-            => (Math.Abs(aX - bX) + Math.Abs(aY - bY)) * 1000;
-    }
-    
-    private class EuclideanHeuristic : IHeuristic
-    {
-        public int Distance(int aX, int aY, int bX, int bY)
-        {
-            double dx = Math.Abs(aX - bX);
-            double dy = Math.Abs(aY - bY);
-            return (int)(Math.Sqrt(dx * dx + dy * dy) * 1000.0);
-        }
-    }
-    
-    private class ChebyshevHeuristic : IHeuristic
-    {
-        public int Distance(int aX, int aY, int bX, int bY)
-            => Math.Max(Math.Abs(aX - bX), Math.Abs(aY - bY)) * 1000;
-    }
-    
     private class Node : IComparable<Node>
     {
         public int X { get; }
@@ -47,11 +20,8 @@ public class AStarPathfinder : Benchmark
         {
             if (other == null) return 1;
             
-            // Сортировка по fScore, затем по координатам для стабильности
-            if (FScore != other.FScore)
-                return FScore.CompareTo(other.FScore);
-            if (Y != other.Y)
-                return Y.CompareTo(other.Y);
+            if (FScore != other.FScore) return FScore.CompareTo(other.FScore);
+            if (Y != other.Y) return Y.CompareTo(other.Y);
             return X.CompareTo(other.X);
         }
     }
@@ -106,11 +76,8 @@ public class AStarPathfinder : Benchmark
                 int right = left + 1;
                 int smallest = index;
                 
-                if (left < size && _data[left].CompareTo(_data[smallest]) < 0)
-                    smallest = left;
-                
-                if (right < size && _data[right].CompareTo(_data[smallest]) < 0)
-                    smallest = right;
+                if (left < size && _data[left].CompareTo(_data[smallest]) < 0) smallest = left;
+                if (right < size && _data[right].CompareTo(_data[smallest]) < 0) smallest = right;
                 
                 if (smallest == index) break;
                 
@@ -120,19 +87,19 @@ public class AStarPathfinder : Benchmark
         }
     }
     
-    private long _resultVal;
-    private readonly int _startX;
-    private readonly int _startY;
-    private readonly int _goalX;
-    private readonly int _goalY;
-    private readonly int _width;
-    private readonly int _height;
-    private bool[,]? _mazeGrid;
+    private uint _result;
+    private int _startX;
+    private int _startY;
+    private int _goalX;
+    private int _goalY;
+    private int _width;
+    private int _height;
+    private bool[,] _mazeGrid;
     
     public AStarPathfinder()
     {
-        _width = Iterations;
-        _height = Iterations;
+        _width = (int)ConfigVal("w");
+        _height = (int)ConfigVal("h");
         _startX = 1;
         _startY = 1;
         _goalX = _width - 2;
@@ -144,16 +111,14 @@ public class AStarPathfinder : Benchmark
         return MazeGenerator.Maze.GenerateWalkableMaze(width, height);
     }
     
-    private bool[,] EnsureMazeGrid()
+    private int Distance(int aX, int aY, int bX, int bY)
     {
-        if (_mazeGrid == null)
-            _mazeGrid = GenerateWalkableMaze(_width, _height);
-        return _mazeGrid;
+        return (Math.Abs(aX - bX) + Math.Abs(aY - bY));
     }
     
-    private List<(int x, int y)>? FindPath(IHeuristic heuristic, bool allowDiagonal = false)
+    private (List<(int x, int y)>? path, int nodesExplored) FindPath()
     {
-        bool[,] grid = EnsureMazeGrid();
+        bool[,] grid = _mazeGrid;
         
         int[,] gScores = new int[_height, _width];
         (int x, int y)[,] cameFrom = new (int, int)[_height, _width];
@@ -168,26 +133,19 @@ public class AStarPathfinder : Benchmark
         }
         
         BinaryHeap openSet = new BinaryHeap();
+        int nodesExplored = 0;
         
         gScores[_startY, _startX] = 0;
-        openSet.Push(new Node(_startX, _startY, 
-                             heuristic.Distance(_startX, _startY, _goalX, _goalY)));
+        openSet.Push(new Node(_startX, _startY, Distance(_startX, _startY, _goalX, _goalY)));
         
-        List<(int dx, int dy)> directions = allowDiagonal ? new List<(int, int)>
-        {
-            (0, -1), (1, 0), (0, 1), (-1, 0),
-            (-1, -1), (1, -1), (1, 1), (-1, 1)
-        } : new List<(int, int)>
-        {
-            (0, -1), (1, 0), (0, 1), (-1, 0)
-        };
-        
-        int diagonalCost = allowDiagonal ? 1414 : 1000;
+        List<(int dx, int dy)> directions = new() { (0, -1), (1, 0), (0, 1), (-1, 0) };
         
         while (!openSet.IsEmpty())
         {
             Node? current = openSet.Pop();
             if (current == null) break;
+            
+            nodesExplored++;
             
             if (current.X == _goalX && current.Y == _goalY)
             {
@@ -205,7 +163,7 @@ public class AStarPathfinder : Benchmark
                 
                 path.Add((_startX, _startY));
                 path.Reverse();
-                return path;
+                return (path, nodesExplored);
             }
             
             int currentG = gScores[current.Y, current.X];
@@ -218,145 +176,33 @@ public class AStarPathfinder : Benchmark
                 if (nx < 0 || nx >= _width || ny < 0 || ny >= _height) continue;
                 if (!grid[ny, nx]) continue;
                 
-                int moveCost = (Math.Abs(dx) == 1 && Math.Abs(dy) == 1) ? diagonalCost : 1000;
-                int tentativeG = currentG + moveCost;
+                int tentativeG = currentG + 1000;
                 
                 if (tentativeG < gScores[ny, nx])
                 {
                     cameFrom[ny, nx] = (current.X, current.Y);
                     gScores[ny, nx] = tentativeG;
                     
-                    int fScore = tentativeG + heuristic.Distance(nx, ny, _goalX, _goalY);
+                    int fScore = tentativeG + Distance(nx, ny, _goalX, _goalY);
                     openSet.Push(new Node(nx, ny, fScore));
                 }
             }
         }
         
-        return null;
+        return (null, nodesExplored);
     }
     
-    private int EstimateNodesExplored(IHeuristic heuristic, bool allowDiagonal = false)
+    public override void Prepare() => _mazeGrid = GenerateWalkableMaze(_width, _height);
+    
+    public override void Run(long IterationId)
     {
-        bool[,] grid = EnsureMazeGrid();
+        var (path, nodesExplored) = FindPath();
         
-        int[,] gScores = new int[_height, _width];
-        for (int y = 0; y < _height; y++)
-            for (int x = 0; x < _width; x++)
-                gScores[y, x] = int.MaxValue;
-        
-        BinaryHeap openSet = new BinaryHeap();
-        bool[,] closed = new bool[_height, _width];
-        
-        gScores[_startY, _startX] = 0;
-        openSet.Push(new Node(_startX, _startY, 
-                             heuristic.Distance(_startX, _startY, _goalX, _goalY)));
-        
-        List<(int dx, int dy)> directions = allowDiagonal ? new List<(int, int)>
-        {
-            (0, -1), (1, 0), (0, 1), (-1, 0),
-            (-1, -1), (1, -1), (1, 1), (-1, 1)
-        } : new List<(int, int)>
-        {
-            (0, -1), (1, 0), (0, 1), (-1, 0)
-        };
-        
-        int nodesExplored = 0;
-        
-        while (!openSet.IsEmpty())
-        {
-            Node? current = openSet.Pop();
-            if (current == null) break;
-            
-            if (current.X == _goalX && current.Y == _goalY)
-                break;
-            
-            if (closed[current.Y, current.X]) continue;
-            
-            closed[current.Y, current.X] = true;
-            nodesExplored++;
-            
-            int currentG = gScores[current.Y, current.X];
-            
-            foreach (var (dx, dy) in directions)
-            {
-                int nx = current.X + dx;
-                int ny = current.Y + dy;
-                
-                if (nx < 0 || nx >= _width || ny < 0 || ny >= _height) continue;
-                if (!grid[ny, nx]) continue;
-                
-                int moveCost = (Math.Abs(dx) == 1 && Math.Abs(dy) == 1) ? 1414 : 1000;
-                int tentativeG = currentG + moveCost;
-                
-                if (tentativeG < gScores[ny, nx])
-                {
-                    gScores[ny, nx] = tentativeG;
-                    
-                    int fScore = tentativeG + heuristic.Distance(nx, ny, _goalX, _goalY);
-                    openSet.Push(new Node(nx, ny, fScore));
-                }
-            }
-        }
-        
-        return nodesExplored;
+        long localResult = 0;
+        localResult = (localResult << 5) + (path?.Count ?? 0);
+        localResult = (localResult << 5) + nodesExplored;
+        _result += (uint)localResult;
     }
     
-    private (int pathsFound, int pathLength, int nodesExplored) BenchmarkDifferentApproaches()
-    {
-        List<IHeuristic> heuristics = new List<IHeuristic>
-        {
-            new ManhattanHeuristic(),
-            new EuclideanHeuristic(),
-            new ChebyshevHeuristic()
-        };
-        
-        int totalPathsFound = 0;
-        int totalPathLength = 0;
-        int totalNodesExplored = 0;
-        
-        foreach (var heuristic in heuristics)
-        {
-            var path = FindPath(heuristic, false);
-            if (path != null)
-            {
-                totalPathsFound++;
-                totalPathLength += path.Count;
-                totalNodesExplored += EstimateNodesExplored(heuristic, false);
-            }
-        }
-        
-        return (totalPathsFound, totalPathLength, totalNodesExplored);
-    }
-    
-    public override void Prepare()
-    {
-        EnsureMazeGrid();
-    }
-    
-    public override void Run()
-    {
-        int totalPathsFound = 0;
-        int totalPathLength = 0;
-        int totalNodesExplored = 0;
-        
-        int iters = 10;
-        for (int i = 0; i < iters; i++)
-        {
-            var (pathsFound, pathLength, nodesExplored) = BenchmarkDifferentApproaches();
-            
-            totalPathsFound += pathsFound;
-            totalPathLength += pathLength;
-            totalNodesExplored += nodesExplored;
-        }
-        
-        long pathsChecksum = Helper.Checksum(totalPathsFound);
-        long lengthChecksum = Helper.Checksum(totalPathLength);
-        long nodesChecksum = Helper.Checksum(totalNodesExplored);
-        
-        _resultVal = (pathsChecksum) ^
-                   ((lengthChecksum) << 16) ^
-                   ((nodesChecksum) << 32);
-    }
-    
-    public override long Result => _resultVal;
+    public override uint Checksum => _result;
 }

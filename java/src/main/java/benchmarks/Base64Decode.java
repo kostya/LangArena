@@ -3,15 +3,19 @@ package benchmarks;
 import java.util.Base64;
 
 public class Base64Decode extends Benchmark {
-    private static final int TRIES = 8192;
-    
     private int n;
     private String str2;
     private String str3;
-    private long result;
+    private long resultVal;
     
     public Base64Decode() {
-        n = getIterations();
+        n = (int) configVal("size");
+        resultVal = 0L;
+    }
+    
+    @Override
+    public String name() {
+        return "Base64Decode";
     }
     
     @Override
@@ -21,25 +25,22 @@ public class Base64Decode extends Benchmark {
         str3 = new String(Base64.getDecoder().decode(str2));
     }
     
-    @Override
-    public void run() {
-        long sDecoded = 0L;
-        
-        for (int i = 0; i < TRIES; i++) {
-            String decoded = new String(Base64.getDecoder().decode(str2));
-            sDecoded += decoded.length();
-        }
-        
-        String message = String.format("decode %s... to %s...: %d\n", 
-            str2.substring(0, Math.min(4, str2.length())),
-            str3.substring(0, Math.min(4, str3.length())),
-            sDecoded);
-        
-        result = Helper.checksum(message);
+    private String base64DecodeSimple(String input) {
+        return new String(Base64.getDecoder().decode(input));
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public void run(int iterationId) {
+        // В соответствии с диффом: просто декодируем один раз
+        str3 = base64DecodeSimple(str2);
+        resultVal += str3.length();
+    }
+    
+    @Override
+    public long checksum() {
+        String prefix2 = str2.length() > 4 ? str2.substring(0, 4) + "..." : str2;
+        String prefix3 = str3.length() > 4 ? str3.substring(0, 4) + "..." : str3;
+        String message = "decode " + prefix2 + " to " + prefix3 + ": " + resultVal;
+        return Helper.checksum(message);
     }
 }

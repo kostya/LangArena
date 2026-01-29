@@ -1,41 +1,35 @@
 import Foundation
 
 final class Base64Encode: BenchmarkProtocol {
-    private static let TRIES = 8192
-    
-    private var n: Int = 0
+    private var sizeVal: Int64 = 0
     private var str: String = ""
     private var str2: String = ""
-    private var cachedData: Data!  // Кэшируем Data
-    private var _result: UInt32 = 0
+    private var resultVal: UInt32 = 0
     
     init() {
-        n = iterations
+        sizeVal = configValue("size") ?? 0
+    }
+    
+    private func base64EncodeSimple(_ input: String) -> String {
+        let data = input.data(using: .utf8)!
+        return data.base64EncodedString()
     }
     
     func prepare() {
-        // Быстрое создание строки
-        str = String(repeating: "a", count: n)
-        // Кэшируем Data один раз
-        cachedData = str.data(using: .utf8)!
-        str2 = cachedData.base64EncodedString()
+        str = String(repeating: "a", count: Int(sizeVal))
+        let data = str.data(using: .utf8)!
+        str2 = data.base64EncodedString()
     }
     
-    func run() {
-        var sEncoded: Int64 = 0
-        
-        // БЫСТРАЯ версия - используем кэшированный Data
-        for _ in 0..<Base64Encode.TRIES {
-            // Используем кэшированные данные, не создаем новых объектов
-            let encoded = cachedData.base64EncodedString()
-            sEncoded += Int64(encoded.utf8.count)  // Быстрее чем .count
-        }
-        
-        let message = "encode \(str.prefix(4))... to \(str2.prefix(4))...: \(sEncoded)\n"
-        _result = Helper.checksum(message)
+    func run(iterationId: Int) {
+        str2 = base64EncodeSimple(str)
+        resultVal &+= UInt32(str2.count)
     }
     
-    var result: Int64 {
-        return Int64(_result)
+    var checksum: UInt32 {
+        let truncatedStr = str.count > 4 ? String(str.prefix(4)) + "..." : str
+        let truncatedStr2 = str2.count > 4 ? String(str2.prefix(4)) + "..." : str2
+        let message = "encode \(truncatedStr) to \(truncatedStr2): \(resultVal)"
+        return Helper.checksum(message)
     }
 }

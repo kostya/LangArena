@@ -4,37 +4,31 @@ import Benchmark
 import java.util.Base64
 
 class Base64Decode : Benchmark() {
-    companion object {
-        private const val TRIES = 8192
-    }
-
-    private var n: Int = 0
+    private var n: Long = 0
     private lateinit var str2: String
     private lateinit var str3: String
-    private var _result: UInt = 0u  // переименовано
+    private var resultVal: UInt = 0u
 
     init {
-        n = iterations
+        n = configVal("size")
     }
 
     override fun prepare() {
-        val str = "a".repeat(n)
+        val str = "a".repeat(n.toInt())
         str2 = Base64.getEncoder().encodeToString(str.toByteArray())
         str3 = String(Base64.getDecoder().decode(str2))
     }
 
-    override fun run() {
-        var sDecoded: Long = 0L
-
-        repeat(TRIES) {
-            val decoded = String(Base64.getDecoder().decode(str2))
-            sDecoded += decoded.length.toLong()
-        }
-
-        val message = "decode ${str2.take(4)}... to ${str3.take(4)}...: $sDecoded\n"
-        _result = Helper.checksum(message)
+    override fun run(iterationId: Int) {
+        // В соответствии с диффом: просто декодируем один раз
+        val decoded = String(Base64.getDecoder().decode(str2))
+        resultVal += decoded.length.toUInt()  // &+= эквивалент
     }
 
-    override val result: Long
-        get() = _result.toLong()
+    override fun checksum(): UInt {
+        val message = "decode ${str2.take(4)}... to ${str3.take(4)}...: $resultVal"
+        return Helper.checksum(message)
+    }
+    
+    override fun name(): String = "Base64Decode"
 }

@@ -1,15 +1,7 @@
 import Foundation
 
-final class Compression: BenchmarkProtocol {
-    private var iterations: Int = 0
-    private var testData: [UInt8] = []
-    
-    init() {
-        iterations = getIterations()
-    }
-    
-    // ==================== BWT ====================
-    private struct BWTResult {
+class Compression: BenchmarkProtocol {
+    public struct BWTResult {
         let transformed: [UInt8]
         let originalIdx: Int
         
@@ -19,21 +11,18 @@ final class Compression: BenchmarkProtocol {
         }
     }
     
-    private func bwtTransform(_ input: [UInt8]) -> BWTResult {
+    public func bwtTransform(_ input: [UInt8]) -> BWTResult {
         let n = input.count
         if n == 0 {
             return BWTResult(transformed: [], originalIdx: 0)
         }
         
-        // 1. Создаём удвоенную строку
         var doubled = [UInt8](repeating: 0, count: n * 2)
         doubled[0..<n] = input[0..<n]
         doubled[n..<(2*n)] = input[0..<n]
         
-        // 2. Создаём и сортируем суффиксный массив
         var sa = [Int](0..<n)
         
-        // 3. Фаза 0: сортировка по первому символу (Radix sort)
         var buckets = [[Int]](repeating: [], count: 256)
         for idx in sa {
             let firstChar = Int(input[idx])
@@ -48,9 +37,7 @@ final class Compression: BenchmarkProtocol {
             }
         }
         
-        // 4. Фаза 1: сортировка по парам символов
         if n > 1 {
-            // Присваиваем ранги по первому символу
             var rank = [Int](repeating: 0, count: n)
             var currentRank = 0
             var prevChar = Int(input[sa[0]])
@@ -65,16 +52,13 @@ final class Compression: BenchmarkProtocol {
                 rank[idx] = currentRank
             }
             
-            // Сортируем по парам (ранг[i], ранг[i+1])
             var k = 1
             while k < n {
-                // Создаём пары
                 var pairs = [(Int, Int)](repeating: (0, 0), count: n)
                 for i in 0..<n {
                     pairs[i] = (rank[i], rank[(i + k) % n])
                 }
                 
-                // Сортируем индексы по парам
                 sa.sort { a, b in
                     let pairA = pairs[a]
                     let pairB = pairs[b]
@@ -85,7 +69,6 @@ final class Compression: BenchmarkProtocol {
                     }
                 }
                 
-                // Обновляем ранги
                 var newRank = [Int](repeating: 0, count: n)
                 newRank[sa[0]] = 0
                 for i in 1..<n {
@@ -100,7 +83,6 @@ final class Compression: BenchmarkProtocol {
             }
         }
         
-        // 5. Собираем BWT результат
         var transformed = [UInt8](repeating: 0, count: n)
         var originalIdx = 0
         
@@ -116,20 +98,18 @@ final class Compression: BenchmarkProtocol {
         return BWTResult(transformed: transformed, originalIdx: originalIdx)
     }
     
-    private func bwtInverse(_ bwtResult: BWTResult) -> [UInt8] {
+    public func bwtInverse(_ bwtResult: BWTResult) -> [UInt8] {
         let bwt = bwtResult.transformed
         let n = bwt.count
         if n == 0 {
             return []
         }
         
-        // 1. Подсчитываем частоты символов
         var counts = [Int](repeating: 0, count: 256)
         for byte in bwt {
             counts[Int(byte)] += 1
         }
         
-        // 2. Вычисляем стартовые позиции для каждого символа
         var positions = [Int](repeating: 0, count: 256)
         var total = 0
         for i in 0..<256 {
@@ -137,7 +117,6 @@ final class Compression: BenchmarkProtocol {
             total += counts[i]
         }
         
-        // 3. Строим массив next (LF-маппинг)
         var next = [Int](repeating: 0, count: n)
         var tempCounts = [Int](repeating: 0, count: 256)
         
@@ -148,7 +127,6 @@ final class Compression: BenchmarkProtocol {
             tempCounts[byteIdx] += 1
         }
         
-        // 4. Восстанавливаем исходную строку
         var result = [UInt8](repeating: 0, count: n)
         var idx = bwtResult.originalIdx
         
@@ -160,8 +138,7 @@ final class Compression: BenchmarkProtocol {
         return result
     }
     
-    // ==================== Huffman ====================
-    private class HuffmanNode {
+    public class HuffmanNode {
         let frequency: Int
         let byteVal: UInt8?
         let isLeaf: Bool
@@ -178,20 +155,17 @@ final class Compression: BenchmarkProtocol {
         }
     }
     
-    private func buildHuffmanTree(_ frequencies: [Int]) -> HuffmanNode {
-        var heap = [(HuffmanNode, Int)]() // (node, frequency)
+    public func buildHuffmanTree(_ frequencies: [Int]) -> HuffmanNode {
+        var heap = [(HuffmanNode, Int)]()
         
-        // Добавляем все символы с ненулевой частотой
         for (i, freq) in frequencies.enumerated() {
             if freq > 0 {
                 heap.append((HuffmanNode(frequency: freq, byteVal: UInt8(i)), freq))
             }
         }
         
-        // Сортируем по частоте (min-heap)
         heap.sort { $0.1 < $1.1 }
         
-        // Если только один символ, создаём искусственный узел
         if heap.count == 1 {
             let node = heap[0].0
             let root = HuffmanNode(
@@ -204,7 +178,6 @@ final class Compression: BenchmarkProtocol {
             return root
         }
         
-        // Строим дерево
         while heap.count > 1 {
             let (left, freq1) = heap.removeFirst()
             let (right, freq2) = heap.removeFirst()
@@ -217,7 +190,6 @@ final class Compression: BenchmarkProtocol {
                 right: right
             )
             
-            // Вставляем родителя в правильную позицию (поддерживаем сортировку)
             let newFreq = freq1 + freq2
             var inserted = false
             for i in 0..<heap.count {
@@ -235,12 +207,12 @@ final class Compression: BenchmarkProtocol {
         return heap[0].0
     }
     
-    private struct HuffmanCodes {
+    public struct HuffmanCodes {
         var codeLengths = [Int](repeating: 0, count: 256)
         var codes = [Int](repeating: 0, count: 256)
     }
     
-    private func buildHuffmanCodes(_ node: HuffmanNode, code: Int = 0, length: Int = 0, 
+    public func buildHuffmanCodes(_ node: HuffmanNode, code: Int = 0, length: Int = 0, 
                                   into huffmanCodes: inout HuffmanCodes) {
         if node.isLeaf {
             if length > 0 || node.byteVal != 0 {
@@ -258,13 +230,12 @@ final class Compression: BenchmarkProtocol {
         }
     }
     
-    private struct EncodedResult {
+    public struct EncodedResult {
         let data: [UInt8]
         let bitCount: Int
     }
     
-    private func huffmanEncode(_ data: [UInt8], _ huffmanCodes: HuffmanCodes) -> EncodedResult {
-        // Предварительное выделение с запасом
+    public func huffmanEncode(_ data: [UInt8], _ huffmanCodes: HuffmanCodes) -> EncodedResult {
         var result = [UInt8](repeating: 0, count: data.count * 2)
         var currentByte: UInt8 = 0
         var bitPos = 0
@@ -276,7 +247,6 @@ final class Compression: BenchmarkProtocol {
             let code = huffmanCodes.codes[idx]
             let length = huffmanCodes.codeLengths[idx]
             
-            // Копируем биты из code
             for i in stride(from: length - 1, through: 0, by: -1) {
                 if (code & (1 << i)) != 0 {
                     currentByte |= 1 << (7 - bitPos)
@@ -293,7 +263,6 @@ final class Compression: BenchmarkProtocol {
             }
         }
         
-        // Последний неполный байт
         if bitPos > 0 {
             result[byteIndex] = currentByte
             byteIndex += 1
@@ -302,7 +271,7 @@ final class Compression: BenchmarkProtocol {
         return EncodedResult(data: Array(result[0..<byteIndex]), bitCount: totalBits)
     }
     
-    private func huffmanDecode(_ encoded: [UInt8], _ root: HuffmanNode, _ bitCount: Int) -> [UInt8] {
+    public func huffmanDecode(_ encoded: [UInt8], _ root: HuffmanNode, _ bitCount: Int) -> [UInt8] {
         var result = [UInt8]()
         result.reserveCapacity(bitCount / 4 + 1)
         
@@ -336,32 +305,26 @@ final class Compression: BenchmarkProtocol {
         return result
     }
     
-    // ==================== Компрессор ====================
-    private struct CompressedData {
+    public struct CompressedData {
         let bwtResult: BWTResult
         let frequencies: [Int]
         let encodedBits: [UInt8]
         let originalBitCount: Int
     }
     
-    private func compress(_ data: [UInt8]) -> CompressedData {
-        // 1. BWT преобразование
+    public func compress(_ data: [UInt8]) -> CompressedData {
         let bwtResult = bwtTransform(data)
         
-        // 2. Подсчёт частот
         var frequencies = [Int](repeating: 0, count: 256)
         for byte in bwtResult.transformed {
             frequencies[Int(byte)] += 1
         }
         
-        // 3. Построение дерева Huffman
         let huffmanTree = buildHuffmanTree(frequencies)
         
-        // 4. Построение кодов
         var huffmanCodes = HuffmanCodes()
         buildHuffmanCodes(huffmanTree, into: &huffmanCodes)
         
-        // 5. Кодирование
         let encoded = huffmanEncode(bwtResult.transformed, huffmanCodes)
         
         return CompressedData(
@@ -372,18 +335,15 @@ final class Compression: BenchmarkProtocol {
         )
     }
     
-    private func decompress(_ compressed: CompressedData) -> [UInt8] {
-        // 1. Восстанавливаем дерево Huffman
+    public func decompress(_ compressed: CompressedData) -> [UInt8] {
         let huffmanTree = buildHuffmanTree(compressed.frequencies)
         
-        // 2. Декодирование Huffman
         let decoded = huffmanDecode(
             compressed.encodedBits,
             huffmanTree,
             compressed.originalBitCount
         )
         
-        // 3. Обратное BWT
         let bwtResult = BWTResult(
             transformed: decoded,
             originalIdx: compressed.bwtResult.originalIdx
@@ -392,52 +352,35 @@ final class Compression: BenchmarkProtocol {
         return bwtInverse(bwtResult)
     }
     
-    // ==================== Benchmark ====================
-    private func getIterations() -> Int {
-        if let value = Helper.input["Compression"] {
-            return Int(value) ?? 0
-        }
-        return 0
-    }
-    
-    private func generateTestData(size: Int) -> [UInt8] {
+    public func generateTestData(_ dataSize: Int64) -> [UInt8] {
         let pattern: [UInt8] = Array("ABRACADABRA".utf8)
-        var data = [UInt8](repeating: 0, count: size)
+        var data = [UInt8](repeating: 0, count: Int(dataSize))
         
-        for i in 0..<size {
+        for i in 0..<Int(dataSize) {
             data[i] = pattern[i % pattern.count]
         }
         
         return data
     }
     
+    public var sizeVal: Int64 = 0
+    public var testData: [UInt8] = []
+    public var resultVal: UInt32 = 0
+    
+    init() {
+        sizeVal = configValue("size") ?? 0
+    }
+    
     func prepare() {
-        testData = generateTestData(size: iterations)
-    }
-
-    private var resultVal: Int64 = 0
-    
-    func run() {
-        var totalChecksum: UInt32 = 0
-        
-        for _ in 0..<5 {
-            // Компрессия
-            let compressed = compress(testData)
-            
-            // Декомпрессия
-            let decompressed = decompress(compressed)
-            
-            // Подсчёт checksum
-            let checksum = Helper.checksum(decompressed)
-            
-            totalChecksum = totalChecksum &+ UInt32(compressed.encodedBits.count)
-            totalChecksum = totalChecksum &+ checksum
-        }
-        
-        resultVal = Int64(totalChecksum)
+        testData = generateTestData(sizeVal)
     }
     
-    var result: Int64 {
-        return Int64(resultVal)
+    func run(iterationId: Int) {
+        let compressed = compress(testData)
+        resultVal &+= UInt32(compressed.encodedBits.count)
+    }
+    
+    var checksum: UInt32 {
+        return resultVal
     }
 }

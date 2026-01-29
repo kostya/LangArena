@@ -48,18 +48,19 @@ abstract class GraphPathBenchmark : Benchmark() {
 
     protected lateinit var graph: Graph
     protected lateinit var pairs: List<Pair<Int, Int>>
-    private var _result: Long = 0L
-    private var nPairs: Int = 0
-
-    init {
-        nPairs = iterations
-    }
+    private var resultVal: UInt = 0u
+    private var nPairs: Long = 0
+    private var vertices: Long = 0
 
     override fun prepare() {
-        val vertices = nPairs * 10
-        graph = Graph(vertices, maxOf(10, vertices / 10_000))
-        graph.generateRandom()
-        pairs = generatePairs(nPairs)
+        if (nPairs == 0L) {
+            nPairs = configVal("pairs")
+            vertices = configVal("vertices")
+            val comps = maxOf(10, (vertices / 10_000).toInt())
+            graph = Graph(vertices.toInt(), comps)
+            graph.generateRandom()
+            pairs = generatePairs(nPairs.toInt())
+        }
     }
 
     private fun generatePairs(n: Int): List<Pair<Int, Int>> {
@@ -95,10 +96,9 @@ abstract class GraphPathBenchmark : Benchmark() {
 
     abstract fun test(): Long
 
-    override fun run() {
-        _result = test()
+    override fun run(iterationId: Int) {
+        resultVal += test().toUInt()  // &+= эквивалент
     }
 
-    override val result: Long
-        get() = _result
+    override fun checksum(): UInt = resultVal
 }

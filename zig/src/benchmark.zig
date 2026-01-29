@@ -9,10 +9,16 @@ pub const BenchInfo = struct {
 
 pub const Benchmark = struct {
     pub const VTable = struct {
-        run: *const fn (self: *anyopaque) void,
-        result: *const fn (self: *anyopaque) u32,
+        run: *const fn (self: *anyopaque, iteration_id: i64) void,
+        checksum: *const fn (self: *anyopaque) u32,
         prepare: ?*const fn (self: *anyopaque) void = null,
         deinit: ?*const fn (self: *anyopaque) void = null,
+        warmup: ?*const fn (self: *anyopaque) void = null,
+        run_all: ?*const fn (self: *anyopaque) void = null,
+        config_val: ?*const fn (self: *anyopaque, field_name: []const u8) i64 = null,
+        iterations: ?*const fn (self: *anyopaque) i64 = null,
+        expected_checksum: ?*const fn (self: *anyopaque) i64 = null,
+        warmup_iterations: ?*const fn (self: *anyopaque) i64 = null,
     };
 
     vtable: *const VTable,
@@ -31,12 +37,12 @@ pub const Benchmark = struct {
         };
     }
 
-    pub fn run(self: Benchmark) void {
-        self.vtable.run(self.ptr);
+    pub fn run(self: Benchmark, iteration_id: i64) void {
+        self.vtable.run(self.ptr, iteration_id);
     }
 
-    pub fn result(self: Benchmark) u32 {
-        return self.vtable.result(self.ptr);
+    pub fn checksum(self: Benchmark) u32 {
+        return self.vtable.checksum(self.ptr);
     }
 
     pub fn prepare(self: Benchmark) void {
@@ -48,6 +54,66 @@ pub const Benchmark = struct {
     pub fn deinit(self: Benchmark) void {
         if (self.vtable.deinit) |deinit_fn| {
             deinit_fn(self.ptr);
+        }
+    }
+
+    pub fn warmup(self: Benchmark) void {
+        if (self.vtable.warmup) |warmup_fn| {
+            warmup_fn(self.ptr);
+        } else {
+            const warmup_iters = self.warmup_iterations();
+            var i: i64 = 0;
+            while (i < warmup_iters) : (i += 1) {
+                self.run(i);
+            }
+        }
+    }
+
+    pub fn run_all(self: Benchmark) void {
+        if (self.vtable.run_all) |run_all_fn| {
+            run_all_fn(self.ptr);
+        } else {
+            const iters = self.iterations();
+            var i: i64 = 0;
+            while (i < iters) : (i += 1) {
+                self.run(i);
+            }
+        }
+    }
+
+    pub fn config_val(self: Benchmark, field_name: []const u8) i64 {
+        if (self.vtable.config_val) |config_val_fn| {
+            return config_val_fn(self.ptr, field_name);
+        }
+        // Дефолтная реализация - получение из конфигурации через helper
+        if (self.vtable.checksum) |_| {
+            // Нам нужно имя бенчмарка, но у нас его нет здесь
+            // В реальной реализации нужно добавить поле name в Benchmark
+            return 0;
+        }
+        return 0;
+    }
+
+    pub fn iterations(self: Benchmark) i64 {
+        if (self.vtable.iterations) |iterations_fn| {
+            return iterations_fn(self.ptr);
+        }
+        return self.config_val("iterations");
+    }
+
+    pub fn expected_checksum(self: Benchmark) i64 {
+        if (self.vtable.expected_checksum) |expected_checksum_fn| {
+            return expected_checksum_fn(self.ptr);
+        }
+        return self.config_val("checksum");
+    }
+
+    pub fn warmup_iterations(self: Benchmark) i64 {
+        if (self.vtable.warmup_iterations) |warmup_iterations_fn| {
+            return warmup_iterations_fn(self.ptr);
+        } else {
+            const iters = self.iterations();
+            return @max(@as(i64, @intFromFloat(@as(f64, @floatFromInt(iters)) * 0.2)), 1);
         }
     }
 };
@@ -71,6 +137,14 @@ pub fn createBenchInfo(
             }
         }.asBenchmarkFn,
     };
+}
+
+// Вспомогательная функция для сравнения строк без учета регистра
+fn toLower(str: []const u8, buffer: []u8) []const u8 {
+    for (str, 0..) |c, i| {
+        buffer[i] = std.ascii.toLower(c);
+    }
+    return buffer[0..str.len];
 }
 
 // ========== РЕГИСТРАЦИЯ БЕНЧМАРКОВ ==========
@@ -116,6 +190,7 @@ pub const all_benchmarks_list = blk: {
         createBenchInfo("MazeGenerator", @import("maze_generator.zig").MazeGenerator),
         createBenchInfo("AStarPathfinder", @import("astar_pathfinder.zig").AStarPathfinder),
         createBenchInfo("Compression", @import("compression.zig").Compression),
+        createBenchInfo("Decompression", @import("decompression.zig").Decompression),
     };
     break :blk list;
 };
@@ -146,7 +221,17 @@ pub fn runAllBenchmarks(
         const bench_name = bench_info.name;
 
         if (single_bench) |name| {
-            if (!std.mem.eql(u8, name, bench_name)) continue;
+            // Сравнение без учета регистра, как в C++ версии
+            var name_lower_buf: [256]u8 = undefined;
+            var bench_lower_buf: [256]u8 = undefined;
+
+            const name_lower = toLower(name, &name_lower_buf);
+            const bench_lower = toLower(bench_name, &bench_lower_buf);
+
+            // Проверяем, содержит ли имя бенчмарка искомую строку
+            if (std.mem.indexOf(u8, bench_lower, name_lower) == null) {
+                continue;
+            }
         }
 
         std.debug.print("{s}: ", .{bench_name});
@@ -162,29 +247,26 @@ pub fn runAllBenchmarks(
         const benchmark = bench_info.as_benchmark_fn(bench_instance);
 
         benchmark.prepare();
+        benchmark.warmup();
+
+        helper.reset();
 
         var timer = try std.time.Timer.start();
-        benchmark.run();
+        benchmark.run_all(); // Используем run_all() вместо отдельного run()
         const time_delta_ns = @as(f64, @floatFromInt(timer.read()));
         const time_delta = time_delta_ns / 1_000_000_000.0;
 
         try results.put(bench_name, time_delta);
 
-        const actual_result = benchmark.result();
-        const expected_result = helper.getExpect(bench_name);
+        const actual_checksum = benchmark.checksum();
+        const expected_checksum = @as(u32, @intCast(benchmark.expected_checksum()));
 
-        if (expected_result) |expected| {
-            const expected_u32 = @as(u32, @bitCast(@as(i32, @truncate(expected))));
-
-            if (actual_result == expected_u32) {
-                std.debug.print("OK ", .{});
-                ok += 1;
-            } else {
-                std.debug.print("ERR[actual={}, expected={}] ", .{ actual_result, expected });
-                fails += 1;
-            }
+        if (actual_checksum == expected_checksum) {
+            std.debug.print("OK ", .{});
+            ok += 1;
         } else {
-            std.debug.print("NO_EXPECTED_VALUE ", .{});
+            std.debug.print("ERR[actual={}, expected={}] ", .{ actual_checksum, expected_checksum });
+            fails += 1;
         }
 
         std.debug.print("in {d:.3}s\n", .{time_delta});
@@ -197,6 +279,27 @@ pub fn runAllBenchmarks(
         ok,
         fails,
     });
+
+    // Запись результатов в файл
+    const results_file = try std.fs.cwd().createFile("/tmp/results.js", .{});
+    defer results_file.close();
+
+    var writer = results_file.writer();
+    try writer.writeAll("{");
+
+    var first = true;
+    var iter = results.iterator();
+    while (iter.next()) |entry| {
+        if (!first) {
+            try writer.writeAll(",");
+        }
+        first = false;
+
+        try writer.print("\"{s}\":{d:.3}", .{ entry.key_ptr.*, entry.value_ptr.* });
+    }
+
+    try writer.writeAll("}");
+    try writer.writeAll("\n");
 
     if (fails > 0) {
         std.process.exit(1);

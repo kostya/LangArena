@@ -1,29 +1,7 @@
+using System.Text;
+
 public class TextRaytracer : Benchmark
 {
-    private int _w;
-    private ulong _result;
-    
-    public override long Result => (long)_result;
-    
-    public TextRaytracer()
-    {
-        _result = 0;
-    }
-    
-    public override void Prepare()
-    {
-        var className = nameof(TextRaytracer);
-        if (Helper.Input.TryGetValue(className, out var value))
-        {
-            if (int.TryParse(value, out var iter))
-            {
-                _w = iter;
-                return;
-            }
-        }
-        _w = 1;
-    }
-    
     private record struct Vector(double X, double Y, double Z)
     {
         public Vector Scale(double s) => new(X * s, Y * s, Z * s);
@@ -47,7 +25,6 @@ public class TextRaytracer : Benchmark
     }
     
     private record Light(Vector Position, Color LightColor);
-    private record Hit(Sphere Obj, double Value);
     
     private static readonly Color WHITE = new(1.0, 1.0, 1.0);
     private static readonly Color RED = new(1.0, 0.0, 0.0);
@@ -64,12 +41,28 @@ public class TextRaytracer : Benchmark
         new Sphere(new Vector(1.0, 0.0, 3.0), 0.4, BLUE),
     ];
     
+    private int _w;
+    private int _h;
+    private uint _result;
+    
+    public TextRaytracer()
+    {
+        _result = 0;
+        _w = (int)ConfigVal("w");
+        _h = (int)ConfigVal("h");
+    }
+    
     private int ShadePixel(Ray ray, Sphere obj, double tval)
     {
         Vector pi = ray.Orig.Add(ray.Dir.Scale(tval));
         Color color = DiffuseShading(pi, obj, LIGHT1);
         double col = (color.R + color.G + color.B) / 3.0;
-        return (int)(col * 6.0);
+        
+        // Добавляем проверку границ как в C++ версии
+        int idx = (int)(col * 6.0);
+        if (idx < 0) idx = 0;
+        if (idx >= 6) idx = 5;
+        return idx;
     }
     
     private double? IntersectSphere(Ray ray, Vector center, double radius)
@@ -77,20 +70,17 @@ public class TextRaytracer : Benchmark
         Vector l = center.Subtract(ray.Orig);
         double tca = l.Dot(ray.Dir);
         
-        if (tca < 0.0)
-            return null;
+        if (tca < 0.0) return null;
         
         double d2 = l.Dot(l) - tca * tca;
         double r2 = radius * radius;
         
-        if (d2 > r2)
-            return null;
+        if (d2 > r2) return null;
         
         double thc = Math.Sqrt(r2 - d2);
         double t0 = tca - thc;
         
-        if (t0 > 10000)
-            return null;
+        if (t0 > 10000) return null;
         
         return t0;
     }
@@ -112,10 +102,9 @@ public class TextRaytracer : Benchmark
         return light.LightColor.Scale(lam2 * 0.5).Add(obj.SphereColor.Scale(0.3));
     }
     
-    public override void Run()
+    public override void Run(long IterationId)
     {
-        int h = _w; // квадратное изображение
-        ulong res = 0;
+        int h = _h;
         
         for (int j = 0; j < h; j++)
         {
@@ -135,23 +124,31 @@ public class TextRaytracer : Benchmark
                     ).Normalize()
                 );
                 
-                Hit? hit = null;
+                Sphere? hitObj = null;
+                double? tval = null;
                 
+                // ИЗМЕНЕНИЕ: Прерываем после первого найденного пересечения как в C++
                 foreach (var obj in SCENE)
                 {
                     double? ret = IntersectSphere(ray, obj.Center, obj.Radius);
                     if (ret.HasValue)
                     {
-                        hit = new Hit(obj, ret.Value);
-                        break;
+                        hitObj = obj;
+                        tval = ret.Value;
+                        break;  // ← ДОБАВЛЕНО: прерываем как в C++
                     }
                 }
                 
-                char pixel = hit != null ? LUT[ShadePixel(ray, hit.Obj, hit.Value)] : ' ';
-                res += (ulong)pixel;
+                char pixel = ' ';
+                if (hitObj != null && tval.HasValue)
+                {
+                    int shadeIdx = ShadePixel(ray, hitObj, tval.Value);
+                    pixel = LUT[shadeIdx];
+                }
+                _result += (byte)pixel;
             }
         }
-        
-        _result = res;
     }
+    
+    public override uint Checksum => _result;
 }

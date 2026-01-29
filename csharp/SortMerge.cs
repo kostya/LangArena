@@ -26,11 +26,7 @@ public class SortMerge : SortBenchmark
     
     private void Merge(int[] arr, int[] temp, int left, int mid, int right)
     {
-        // Копируем обе половины во временный массив
-        for (int i = left; i <= right; i++)
-        {
-            temp[i] = arr[i];
-        }
+        for (int i = left; i <= right; i++) temp[i] = arr[i];
         
         int iIdx = left;
         int jIdx = mid + 1;
@@ -38,25 +34,11 @@ public class SortMerge : SortBenchmark
         
         while (iIdx <= mid && jIdx <= right)
         {
-            if (temp[iIdx] <= temp[jIdx])
-            {
-                arr[k] = temp[iIdx];
-                iIdx++;
-            }
-            else
-            {
-                arr[k] = temp[jIdx];
-                jIdx++;
-            }
+            if (temp[iIdx] <= temp[jIdx]) arr[k] = temp[iIdx++];
+            else arr[k] = temp[jIdx++];
             k++;
         }
         
-        // Копируем оставшиеся элементы левой половины
-        while (iIdx <= mid)
-        {
-            arr[k] = temp[iIdx];
-            iIdx++;
-            k++;
-        }
+        while (iIdx <= mid) arr[k++] = temp[iIdx++];
     }
 }

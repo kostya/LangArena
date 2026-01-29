@@ -10,16 +10,16 @@ class CalculatorAst : Benchmark() {
     data class BinaryOp(val op: Char, val left: Node, val right: Node) : Node()
     data class Assignment(val variable: String, val expr: Node) : Node()
     
-    private var n: Int = 0
-    private var _result: Long = 0L
+    var n: Long = 0
+    private var resultVal: UInt = 0u
     private lateinit var text: String
-    private val expressions = mutableListOf<Node>()
+    lateinit var expressions: List<Node>
     
     init {
-        n = iterations
+        n = configVal("operations")
     }
     
-    private fun generateRandomProgram(lines: Int = 1000): String {
+    private fun generateRandomProgram(lines: Long = 1000): String {
         return buildString {
             append("v0 = 1\n")
             for (i in 0 until 10) {
@@ -50,24 +50,17 @@ class CalculatorAst : Benchmark() {
         text = generateRandomProgram(n)
     }
     
-    override fun run() {
-        val parser = Parser(text)
-        parser.parse()
-        expressions.clear()
-        expressions.addAll(parser.expressions)
-        _result = (_result + expressions.size) and 0xFFFFFFFF
-    }
-    
     private class Parser(private val input: String) {
         private var pos = 0
         private val chars = input.toCharArray()
         private val length = chars.size
         val expressions = mutableListOf<Node>()
         
-        fun parse() {
+        fun parse(): List<Node> {
             while (pos < length) {
                 expressions.add(parseExpression())
             }
+            return expressions
         }
         
         private fun parseExpression(): Node {
@@ -174,6 +167,17 @@ class CalculatorAst : Benchmark() {
         }
     }
     
-    override val result: Long
-        get() = _result
+    override fun run(iterationId: Int) {
+        val parser = Parser(text)
+        expressions = parser.parse()
+        resultVal += expressions.size.toUInt()  // &+= эквивалент
+        if (expressions.isNotEmpty() && expressions.last() is Assignment) {
+            val assign = expressions.last() as Assignment
+            resultVal += Helper.checksum(assign.variable)
+        }
+    }
+    
+    override fun checksum(): UInt = resultVal
+    
+    override fun name(): String = "CalculatorAst"
 }

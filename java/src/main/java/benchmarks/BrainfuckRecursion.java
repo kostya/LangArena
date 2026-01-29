@@ -140,23 +140,41 @@ public class BrainfuckRecursion extends Benchmark {
     }
     
     private String text;
-    private long result;
+    private long resultVal;
+    private String warmupProgram;
     
     public BrainfuckRecursion() {
-        text = Helper.INPUT.getOrDefault(getClass().getSimpleName(), "");
-        if (text.isEmpty()) {
-            text = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.";
+        text = Helper.configS(name(), "program");
+        warmupProgram = Helper.configS(name(), "warmup_program");
+        resultVal = 0L;
+    }
+    
+    @Override
+    public String name() {
+        return "BrainfuckRecursion";
+    }
+    
+    private long runProgram(String programText) {
+        Program program = new Program(programText);
+        program.run();
+        return program.run();  // В C++ возвращаем prog.result
+    }
+    
+    @Override
+    public void warmup() {
+        long prepareIters = warmupIterations();
+        for (long i = 0; i < prepareIters; i++) {
+            runProgram(warmupProgram);
         }
     }
     
     @Override
-    public void run() {
-        Program program = new Program(text);
-        result = program.run();
+    public void run(int iterationId) {
+        resultVal += runProgram(text);
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

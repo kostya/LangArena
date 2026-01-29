@@ -1,6 +1,6 @@
-// src/helper.zig
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const json = std.json;
 
 pub const Helper = struct {
     const IM: i32 = 139968;
@@ -14,22 +14,18 @@ pub const Helper = struct {
     };
 
     last: i32,
-    config: std.StringHashMap(ConfigValue),
+    config: std.json.Value,
 
     pub fn init(allocator: Allocator) !Helper {
         return Helper{
             .last = INIT,
-            .config = std.StringHashMap(ConfigValue).init(allocator),
+            .config = std.json.Value{ .object = std.json.ObjectMap.init(allocator) },
         };
     }
 
     pub fn deinit(self: *Helper) void {
-        var iter = self.config.iterator();
-        while (iter.next()) |entry| {
-            self.config.allocator.free(entry.key_ptr.*);
-            self.config.allocator.free(entry.value_ptr.arg);
-        }
-        self.config.deinit();
+        // JSON объект сам очистит память через аллокатор
+        _ = self;
     }
 
     pub fn reset(self: *Helper) void {
@@ -83,7 +79,7 @@ pub const Helper = struct {
     }
 
     pub fn loadConfig(self: *Helper, allocator: Allocator, filename: ?[]const u8) !void {
-        const default_filename = "test.txt";
+        const default_filename = "test.js";
         const actual_filename = filename orelse default_filename;
 
         const file = try std.fs.cwd().openFile(actual_filename, .{});
@@ -92,39 +88,47 @@ pub const Helper = struct {
         const content = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
         defer allocator.free(content);
 
-        var lines = std.mem.splitScalar(u8, content, '\n');
+        var parser = std.json.Parser.init(allocator, .{});
+        defer parser.deinit();
 
-        while (lines.next()) |line| {
-            if (line.len == 0) continue;
+        self.config = try parser.parse(content);
+    }
 
-            var parts = std.mem.splitScalar(u8, line, '|');
-
-            const bench = parts.next() orelse continue;
-            const arg = parts.next() orelse continue;
-            const expected_str = parts.next() orelse continue;
-
-            const expected = std.fmt.parseInt(i64, expected_str, 10) catch continue;
-
-            // Копируем строки с помощью аллокатора хэш-мапы
-            const bench_copy = try self.config.allocator.dupe(u8, bench);
-            const arg_copy = try self.config.allocator.dupe(u8, arg);
-
-            try self.config.put(bench_copy, .{ .arg = arg_copy, .expected = expected });
+    // Методы для доступа к конфигурации (как в Crystal)
+    pub fn config_i64(self: *Helper, class_name: []const u8, field_name: []const u8) i64 {
+        if (self.config.object.get(class_name)) |class_config| {
+            if (class_config.object.get(field_name)) |field_value| {
+                if (field_value == .integer) {
+                    return field_value.integer;
+                } else if (field_value == .float) {
+                    return @as(i64, @intFromFloat(field_value.float));
+                } else if (field_value == .string) {
+                    return std.fmt.parseInt(i64, field_value.string, 10) catch 0;
+                }
+            }
         }
+        std.debug.print("Config not found for {s}, field: {s}\n", .{ class_name, field_name });
+        return 0;
+    }
+
+    pub fn config_s(self: *Helper, class_name: []const u8, field_name: []const u8) []const u8 {
+        if (self.config.object.get(class_name)) |class_config| {
+            if (class_config.object.get(field_name)) |field_value| {
+                if (field_value == .string) {
+                    return field_value.string;
+                }
+            }
+        }
+        std.debug.print("Config not found for {s}, field: {s}\n", .{ class_name, field_name });
+        return "";
     }
 
     pub fn getInput(self: *Helper, bench_name: []const u8) ?[]const u8 {
-        if (self.config.get(bench_name)) |config| {
-            return config.arg;
-        }
-        return null;
+        return self.config_s(bench_name, "input");
     }
 
     pub fn getExpect(self: *Helper, bench_name: []const u8) ?i64 {
-        if (self.config.get(bench_name)) |config| {
-            return config.expected;
-        }
-        return null;
+        return self.config_i64(bench_name, "checksum");
     }
 
     pub fn getInputInt(self: *Helper, bench_name: []const u8) i32 {

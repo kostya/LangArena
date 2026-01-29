@@ -1,41 +1,37 @@
 import Foundation
+
 class SortBenchmark: BenchmarkProtocol {
-    private static let ARR_SIZE = 100_000
     var data: [Int] = []
-    private var _result: UInt32 = 0
-    var n: Int = 0
+    private var sizeVal: Int64 = 0
+    private var resultVal: UInt32 = 0
+    
     init() {
-        n = iterations
+        // Пустой конструктор
     }
+    
     func prepare() {
-        data = (0..<SortBenchmark.ARR_SIZE).map { _ in 
-            Helper.nextInt(max: 1_000_000)
+        if sizeVal == 0 {
+            sizeVal = configValue("size") ?? 0
+            data.reserveCapacity(Int(sizeVal))
+            for _ in 0..<Int(sizeVal) {
+                data.append(Helper.nextInt(max: 1_000_000))
+            }
         }
     }
+    
+    func run(iterationId: Int) {
+        resultVal &+= UInt32(data[Helper.nextInt(max: Int(sizeVal))])
+        let t = test()
+        resultVal &+= UInt32(t[Helper.nextInt(max: Int(sizeVal))])
+    }
+    
     func test() -> [Int] {
-        return [] // Override in subclasses
+        return []
     }
-    private func checkNElements(_ arr: [Int], _ n: Int) -> String {
-        let step = arr.count / n
-        var result = "["
-        for index in stride(from: 0, to: arr.count, by: step) {
-            result += "\(index):\(arr[index]),"
-        }
-        result += "]\n"
-        return result
+    
+    var checksum: UInt32 {
+        return resultVal
     }
-    func run() {
-        var verify = checkNElements(data, 10)
-        for _ in 0..<(n - 1) {
-            let t = test()
-            _result = (_result &+ UInt32(t[t.count / 2])) & 0xFFFFFFFF
-        }
-        let arr = test()
-        verify += checkNElements(data, 10)
-        verify += checkNElements(arr, 10)
-        _result = (_result &+ Helper.checksum(verify)) & 0xFFFFFFFF
-    }
-    var result: Int64 {
-        return Int64(_result)
-    }
+    
+    var name: String { return "SortBenchmark" }
 }

@@ -3,6 +3,11 @@ package benchmarks;
 public class BufferHashCRC32 extends BufferHashBenchmark {
     
     @Override
+    public String name() {
+        return "BufferHashCRC32";
+    }
+    
+    @Override
     long test() {
         int crc = 0xFFFFFFFF;
         

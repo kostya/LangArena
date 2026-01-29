@@ -1,4 +1,4 @@
-using System.Numerics; // для Pidigits
+using System.Numerics;
 
 public class Program
 {
@@ -16,12 +16,12 @@ public class Program
         {
             // Пытаемся найти конфиг относительно исполняемого файла
             var exeDir = Path.GetDirectoryName(Environment.ProcessPath) ?? ".";
-            configFile = Path.Combine(exeDir, "../test.txt");
+            configFile = Path.Combine(exeDir, "../test.js");
             
             // Если не нашли, пробуем относительно текущей директории
             if (!File.Exists(configFile))
             {
-                configFile = "test.txt";
+                configFile = "test.js";
             }
         }
         
@@ -38,6 +38,6 @@ public class Program
         string? singleBench = args.Length > 1 ? args[1] : null;
         
         // Запускаем бенчмарки
-        Benchmark.RunBenchmarks(singleBench);
+        Benchmark.All(singleBench);
     }
 }

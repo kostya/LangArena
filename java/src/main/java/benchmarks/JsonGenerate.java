@@ -8,32 +8,48 @@ public class JsonGenerate extends Benchmark {
     public int n;
     private List<Map<String, Object>> data;
     private String text;
+    private long resultVal;
     
     public JsonGenerate() {
-        n = getIterations();
+        n = (int) configVal("coords");
+        data = new ArrayList<>(n);
+        text = "";
+        resultVal = 0;
+    }
+    
+    @Override
+    public String name() {
+        return "JsonGenerate";
     }
     
     @Override
     public void prepare() {
-        data = new ArrayList<>(n);
-        
         for (int i = 0; i < n; i++) {
-            Map<String, Object> coord = new HashMap<>();
+            Map<String, Object> coord = new LinkedHashMap<>();
             
-            // Форматирование как в Crystal версии
-            coord.put("x", String.format(Locale.US, "%.8f", Helper.nextFloat()));
-            coord.put("y", String.format(Locale.US, "%.8f", Helper.nextFloat()));
-            coord.put("z", String.format(Locale.US, "%.8f", Helper.nextFloat()));
-            coord.put("name", String.format(Locale.US, "%.7f", Helper.nextFloat()) + 
-                              " " + Helper.nextInt(10000));
-            coord.put("opts", Collections.singletonMap("1", Arrays.asList(1, true)));
+            // Координаты как числа (Double/Float), а не строки
+            coord.put("x", Math.round(Helper.nextFloat() * 1e8) / 1e8);
+            coord.put("y", Math.round(Helper.nextFloat() * 1e8) / 1e8);
+            coord.put("z", Math.round(Helper.nextFloat() * 1e8) / 1e8);
+            
+            // Только name остается строкой
+            coord.put("name", String.format(Locale.US, "%.7f %d", 
+                Helper.nextFloat(), Helper.nextInt(10000)));
+            
+            // opts как вложенная структура
+            Map<String, List<Object>> opts = new LinkedHashMap<>();
+            List<Object> tuple = new ArrayList<>();
+            tuple.add(1);
+            tuple.add(true);
+            opts.put("1", tuple);
+            coord.put("opts", opts);
             
             data.add(coord);
         }
     }
     
     @Override
-    public void run() {
+    public void run(int iterationId) {
         JSONArray jsonArray = new JSONArray();
         for (Map<String, Object> coord : data) {
             jsonArray.put(coord);
@@ -44,11 +60,15 @@ public class JsonGenerate extends Benchmark {
         jsonObject.put("info", "some info");
         
         text = jsonObject.toString();
+        if (text.startsWith("{\"coordinates\":")) resultVal += 1;
+    }
+
+    @Override
+    public long checksum() {
+        return resultVal;
     }
     
-    // Как в Crystal версии: всегда возвращает 1
-    @Override
-    public long getResult() {
-        return 1L;
+    public String getText() {
+        return text;
     }
 }

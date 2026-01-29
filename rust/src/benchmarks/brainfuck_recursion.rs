@@ -1,4 +1,5 @@
-use super::super::{Benchmark, INPUT};
+use super::super::{Benchmark, helper};
+use super::super::config_s;
 
 // Операции Brainfuck
 #[derive(Clone)]
@@ -104,22 +105,25 @@ impl Program {
 
 pub struct BrainfuckRecursion {
     text: String,
-    result: i64,
+    warmup_text: String,
+    result_val: u32,
 }
 
 impl BrainfuckRecursion {
     pub fn new() -> Self {
-        let name = "BrainfuckRecursion".to_string();
-        let text = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .cloned()
-            .unwrap_or_default();
+        let text = config_s("BrainfuckRecursion", "program");
+        let warmup_text = config_s("BrainfuckRecursion", "warmup_program");
         
         Self {
             text,
-            result: 0,
+            warmup_text,
+            result_val: 0,
         }
+    }
+    
+    fn _run(&self, text: &str) -> i64 {
+        let program = Program::new(text);
+        program.run()
     }
 }
 
@@ -128,12 +132,19 @@ impl Benchmark for BrainfuckRecursion {
         "BrainfuckRecursion".to_string()
     }
     
-    fn run(&mut self) {
-        let program = Program::new(&self.text);
-        self.result = program.run();
+    fn warmup(&mut self) {
+        let prepare_iters = self.warmup_iterations();
+        for i in 0..prepare_iters {
+            self._run(&self.warmup_text);
+        }
     }
     
-    fn result(&self) -> i64 {
-        self.result
+    fn run(&mut self, _iteration_id: i64) {
+        let result = self._run(&self.text);
+        self.result_val = self.result_val.wrapping_add(result as u32);
+    }
+    
+    fn checksum(&self) -> u32 {
+        self.result_val
     }
 }

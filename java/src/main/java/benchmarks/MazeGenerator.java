@@ -142,6 +142,27 @@ public class MazeGenerator extends Benchmark {
             }
             
             divide(0, 0, width - 1, height - 1);
+            
+            // Добавляем случайные проходы
+            addRandomPaths();
+        }
+        
+        private void addRandomPaths() {
+            int numExtraPaths = (width * height) / 20; // 5% клеток
+            
+            for (int i = 0; i < numExtraPaths; i++) {
+                int x = Helper.nextInt(width - 2) + 1; // Не на границах
+                int y = Helper.nextInt(height - 2) + 1;
+                
+                // Превращаем стену в проход, если окружена стенами
+                if (get(x, y) == Cell.WALL &&
+                    get(x - 1, y) == Cell.WALL &&
+                    get(x + 1, y) == Cell.WALL &&
+                    get(x, y - 1) == Cell.WALL &&
+                    get(x, y + 1) == Cell.WALL) {
+                    set(x, y, Cell.PATH);
+                }
+            }
         }
         
         public boolean[][] toBoolGrid() {
@@ -188,35 +209,43 @@ public class MazeGenerator extends Benchmark {
     private long resultVal;
     private final int width;
     private final int height;
+    private boolean[][] boolGrid;
     
     public MazeGenerator() {
-        this.width = 1001;
-        this.height = 1001;
+        this.width = (int) configVal("w");
+        this.height = (int) configVal("h");
+        this.resultVal = 0L;
     }
     
     @Override
-    public void run() {
-        long checksum = 0;
+    public String name() {
+        return "MazeGenerator";
+    }
+    
+    private long gridChecksum(boolean[][] grid) {
+        final long FNV_OFFSET_BASIS = 2166136261L;
+        final long FNV_PRIME = 16777619L;
         
-        int iters = getIterations();
-        for (int i = 0; i < iters; i++) {
-            boolean[][] boolGrid = Maze.generateWalkableMaze(width, height);
-            
-            // Простая checksum для сравнения с C++
-            for (int y = 0; y < boolGrid.length; y++) {
-                for (int x = 0; x < boolGrid[y].length; x++) {
-                    if (!boolGrid[y][x]) {
-                        checksum = checksum + (x * y);
-                    }
+        long hasher = FNV_OFFSET_BASIS;
+        for (int i = 0; i < grid.length; i++) {
+            boolean[] row = grid[i];
+            for (int j = 0; j < row.length; j++) {
+                if (row[j]) {  // только true клетки
+                    long jSquared = (long) j * j;
+                    hasher = (hasher ^ jSquared) * FNV_PRIME;
                 }
             }
         }
-        
-        resultVal = checksum;
+        return hasher;
     }
     
     @Override
-    public long getResult() {
-        return resultVal;
+    public void run(int iterationId) {
+        boolGrid = Maze.generateWalkableMaze(width, height);
+    }
+    
+    @Override
+    public long checksum() {
+        return gridChecksum(boolGrid);
     }
 }

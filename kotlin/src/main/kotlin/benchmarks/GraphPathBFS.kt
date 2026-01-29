@@ -3,17 +3,6 @@ package benchmarks
 import java.util.ArrayDeque
 
 class GraphPathBFS : GraphPathBenchmark() {
-    override fun test(): Long {
-        var totalLength = 0L
-
-        for ((start, end) in pairs) {
-            val length = bfsShortestPath(start, end)
-            totalLength += length
-        }
-
-        return totalLength
-    }
-
     private fun bfsShortestPath(start: Int, target: Int): Int {
         if (start == target) return 0
 
@@ -38,4 +27,17 @@ class GraphPathBFS : GraphPathBenchmark() {
 
         return -1 // путь не найден
     }
+
+    override fun test(): Long {
+        var totalLength = 0L
+
+        for ((start, end) in pairs) {
+            val length = bfsShortestPath(start, end)
+            totalLength += length
+        }
+
+        return totalLength
+    }
+    
+    override fun name(): String = "GraphPathBFS"
 }

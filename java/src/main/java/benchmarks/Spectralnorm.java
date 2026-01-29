@@ -3,11 +3,21 @@ package benchmarks;
 import java.util.Arrays;
 
 public class Spectralnorm extends Benchmark {
-    private int n;
-    private long result;
+    private int sizeVal;
+    private double[] u;
+    private double[] v;
     
     public Spectralnorm() {
-        n = getIterations();
+        sizeVal = (int) configVal("size");
+        u = new double[sizeVal];
+        v = new double[sizeVal];
+        Arrays.fill(u, 1.0);
+        Arrays.fill(v, 1.0);
+    }
+    
+    @Override
+    public String name() {
+        return "Spectralnorm";
     }
     
     private double evalA(int i, int j) {
@@ -43,29 +53,19 @@ public class Spectralnorm extends Benchmark {
     }
     
     @Override
-    public void run() {
-        double[] u = new double[n];
-        double[] v = new double[n];
-        Arrays.fill(u, 1.0);
-        Arrays.fill(v, 1.0);
-        
-        for (int i = 0; i < 10; i++) {
-            v = evalAtATimesU(u);
-            u = evalAtATimesU(v);
-        }
-        
-        double vBv = 0.0;
-        double vv = 0.0;
-        for (int i = 0; i < n; i++) {
-            vBv += u[i] * v[i];
-            vv += v[i] * v[i];
-        }
-        
-        result = Helper.checksumF64(Math.sqrt(vBv / vv));
+    public void run(int iterationId) {
+        v = evalAtATimesU(u);
+        u = evalAtATimesU(v);
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        double vBv = 0.0;
+        double vv = 0.0;
+        for (int i = 0; i < sizeVal; i++) {
+            vBv += u[i] * v[i];
+            vv += v[i] * v[i];
+        }
+        return Helper.checksumF64(Math.sqrt(vBv / vv));
     }
 }

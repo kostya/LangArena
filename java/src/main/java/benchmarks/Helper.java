@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
 import java.util.function.Supplier;
+import org.json.JSONObject;
 
 public class Helper {
     private static final int IM = 139968;
@@ -42,7 +43,6 @@ public class Helper {
     }
     
     public static long checksum(String v) {
-        // debug(() -> "checksum: " + inspect(v));
         long hash = 5381;
         for (char c : v.toCharArray()) {
             hash = ((hash << 5) + hash) + c;
@@ -51,7 +51,6 @@ public class Helper {
     }
     
     public static long checksum(byte[] v) {
-        // debug(() -> "checksum: " + Arrays.toString(v));
         long hash = 5381;
         for (byte b : v) {
             hash = ((hash << 5) + hash) + (b & 0xFF);
@@ -63,20 +62,37 @@ public class Helper {
         return checksum(String.format(Locale.US, "%.7f", v)) & 0xFFFFFFFFL;
     }
     
-    public static final Map<String, String> INPUT = new HashMap<>();
-    public static final Map<String, Long> EXPECT = new HashMap<>();
+    public static JSONObject CONFIG = new JSONObject();
     
     public static void loadConfig(String filename) throws IOException {
-        String file = filename != null ? filename : "../test.txt";
-        List<String> lines = Files.readAllLines(Paths.get(file));
-        
-        for (String line : lines) {
-            if (line.trim().isEmpty()) continue;
-            String[] parts = line.split("\\|");
-            if (parts.length == 3) {
-                INPUT.put(parts[0], parts[1]);
-                EXPECT.put(parts[0], Long.parseLong(parts[2]));
+        String file = filename != null ? filename : "../test.js";
+        String content = new String(Files.readAllBytes(Paths.get(file)));
+        CONFIG = new JSONObject(content);
+    }
+    
+    public static long configI64(String className, String fieldName) {
+        try {
+            if (CONFIG.has(className) && CONFIG.getJSONObject(className).has(fieldName)) {
+                return CONFIG.getJSONObject(className).getLong(fieldName);
+            } else {
+                throw new RuntimeException("Config not found for " + className + ", field: " + fieldName);
             }
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            return 0;
+        }
+    }
+    
+    public static String configS(String className, String fieldName) {
+        try {
+            if (CONFIG.has(className) && CONFIG.getJSONObject(className).has(fieldName)) {
+                return CONFIG.getJSONObject(className).getString(fieldName);
+            } else {
+                throw new RuntimeException("Config not found for " + className + ", field: " + fieldName);
+            }
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            return "";
         }
     }
     

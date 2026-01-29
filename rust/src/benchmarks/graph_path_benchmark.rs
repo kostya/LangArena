@@ -1,4 +1,5 @@
-use super::super::{helper};
+use super::super::helper;
+use crate::config_i64;
 
 pub struct Graph {
     pub vertices: i32,
@@ -63,25 +64,41 @@ impl Graph {
 pub struct GraphPathBenchmark {
     pub graph: Graph,
     pub pairs: Vec<(i32, i32)>,
-    pub result: i64,
+    pub result_val: u32,
+    pub prepared: bool,
 }
 
 impl GraphPathBenchmark {
-    pub fn new_base(iterations: i32) -> Self {
-        let vertices = iterations * 10;
-        let components = std::cmp::max(10, vertices / 10_000);
-        let graph = Graph::new(vertices, components);
-        
+    pub fn new_base() -> Self {
         Self {
-            graph,
+            graph: Graph::new(0, 0), // временные значения
             pairs: Vec::new(),
-            result: 0,
+            result_val: 0,
+            prepared: false,
         }
     }
     
-    pub fn generate_pairs(&self, n: i32) -> Vec<(i32, i32)> {
+    pub fn prepare(&mut self, class_name: &str) {
+        if !self.prepared {
+            let vertices = config_i64(class_name, "vertices") as i32;
+            let comps = std::cmp::max(10, vertices / 10_000);
+            
+            // Создаем граф
+            let mut graph = Graph::new(vertices, comps);
+            graph.generate_random();
+            self.graph = graph;
+            
+            // Генерируем пары
+            let n_pairs = config_i64(class_name, "pairs") as i32;
+            self.pairs = Self::generate_pairs(&self.graph, n_pairs);
+            
+            self.prepared = true;
+        }
+    }
+    
+    fn generate_pairs(graph: &Graph, n: i32) -> Vec<(i32, i32)> {
         let mut pairs = Vec::with_capacity(n as usize);
-        let component_size = self.graph.vertices / 10;
+        let component_size = graph.vertices / 10;
         
         for _ in 0..n {
             // 70% пар в одной компоненте, 30% - в разных
@@ -111,10 +128,5 @@ impl GraphPathBenchmark {
         }
         
         pairs
-    }
-    
-    pub fn prepare_common(&mut self, n_pairs: i32) {
-        self.graph.generate_random();
-        self.pairs = self.generate_pairs(n_pairs);
     }
 }

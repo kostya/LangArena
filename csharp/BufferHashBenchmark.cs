@@ -4,31 +4,16 @@ public abstract class BufferHashBenchmark : Benchmark
     protected int _n;
     protected uint _result;
     
-    public override long Result => _result;
-    
     protected BufferHashBenchmark()
     {
         _data = Array.Empty<byte>();
         _result = 0;
+        _n = (int)ConfigVal("size");
     }
     
     public override void Prepare()
     {
-        var className = GetType().Name;
-        if (Helper.Input.TryGetValue(className, out var value))
-        {
-            if (int.TryParse(value, out var iter))
-            {
-                _n = iter;
-            }
-        }
-        else
-        {
-            _n = 1;
-        }
-        
-        // Генерируем случайные данные
-        _data = new byte[1000000];
+        _data = new byte[_n];
         for (int i = 0; i < _data.Length; i++)
         {
             _data[i] = (byte)Helper.NextInt(256);
@@ -37,14 +22,10 @@ public abstract class BufferHashBenchmark : Benchmark
     
     protected abstract uint Test();
     
-    public override void Run()
+    public override void Run(long IterationId)
     {
-        for (int i = 0; i < _n; i++)
-        {
-            unchecked
-            {
-                _result += Test();
-            }
-        }
+        _result += Test();
     }
+    
+    public override uint Checksum => _result;
 }

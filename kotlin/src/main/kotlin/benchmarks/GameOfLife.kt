@@ -10,8 +10,8 @@ class GameOfLife : Benchmark() {
     private class Grid(private val width: Int, private val height: Int) {
         private val cells = Array(height) { Array(width) { Cell.DEAD } }
         
-        fun get(x: Int, y: Int): Cell = cells[y][x]
-        fun set(x: Int, y: Int, cell: Cell) {
+        operator fun get(x: Int, y: Int): Cell = cells[y][x]
+        operator fun set(x: Int, y: Int, cell: Cell) {
             cells[y][x] = cell
         }
         
@@ -58,34 +58,29 @@ class GameOfLife : Benchmark() {
             return nextGrid
         }
         
-        fun aliveCount(): Int {
-            var count = 0
+        fun computeHash(): UInt {
+            var hasher = 2166136261UL      // FNV offset basis
+            val prime = 16777619UL         // FNV prime
+            
             for (row in cells) {
                 for (cell in row) {
-                    if (cell == Cell.ALIVE) {
-                        count++
-                    }
+                    val alive = if (cell == Cell.ALIVE) 1UL else 0UL
+                    hasher = (hasher xor alive) * prime
                 }
             }
-            return count
-        }
-        
-        fun computeHash(): Long {
-            var hasher = 0L
-            for (row in cells) {
-                for (cell in row) {
-                    // Простой хэш - сдвиг и XOR
-                    hasher = (hasher shl 1) xor if (cell == Cell.ALIVE) 1L else 0L
-                }
-            }
-            return hasher
+            return hasher.toUInt()
         }
     }
     
-    private var resultVal: Long = 0L
-    private val width = 256
-    private val height = 256
+    private var resultVal: UInt = 0u
+    private val width: Int
+    private val height: Int
     private lateinit var grid: Grid
+    
+    init {
+        width = configVal("w").toInt()
+        height = configVal("h").toInt()
+    }
     
     override fun prepare() {
         grid = Grid(width, height)
@@ -94,22 +89,18 @@ class GameOfLife : Benchmark() {
         for (y in 0 until height) {
             for (x in 0 until width) {
                 if (Helper.nextFloat() < 0.1f) {
-                    grid.set(x, y, Cell.ALIVE)
+                    grid[x, y] = Cell.ALIVE
                 }
             }
         }
     }
     
-    override fun run() {
-        // Основной цикл симуляции
-        val iters = iterations
-        for (i in 0 until iters) {
-            grid = grid.nextGeneration()
-        }
-        
-        resultVal = grid.aliveCount().toLong()
+    override fun run(iterationId: Int) {
+        // Только одна итерация
+        grid = grid.nextGeneration()
     }
     
-    override val result: Long
-        get() = resultVal
+    override fun checksum(): UInt = grid.computeHash()
+    
+    override fun name(): String = "GameOfLife"
 }

@@ -1,11 +1,11 @@
 import Foundation
 
 final class SortQuick: SortBenchmark {
-    override func test() -> [Int] {
-        var arr = data
-        quickSort(&arr, low: 0, high: arr.count - 1)
-        return arr
+    override init() {
+        super.init()
     }
+    
+    override var name: String { return "SortQuick" }
     
     private func quickSort(_ arr: inout [Int], low: Int, high: Int) {
         if low >= high { return }
@@ -26,5 +26,11 @@ final class SortQuick: SortBenchmark {
         
         quickSort(&arr, low: low, high: j)
         quickSort(&arr, low: i, high: high)
+    }
+    
+    override func test() -> [Int] {
+        var arr = data
+        quickSort(&arr, low: 0, high: arr.count - 1)
+        return arr
     }
 }

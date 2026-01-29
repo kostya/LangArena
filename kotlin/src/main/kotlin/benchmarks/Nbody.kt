@@ -4,8 +4,9 @@ import Benchmark
 import kotlin.math.sqrt
 
 class Nbody : Benchmark() {
-    private var n: Int = 0
-    private var resultValue: Long = 0L
+    private var resultVal: UInt = 0u
+    private val bodies: List<Planet>
+    private var v1: Double = 0.0
     
     companion object {
         private const val SOLAR_MASS = 4.0 * Math.PI * Math.PI
@@ -101,7 +102,13 @@ class Nbody : Benchmark() {
     }
     
     init {
-        n = iterations
+        bodies = PLANET_DATA.map { data ->
+            Planet(
+                data[0], data[1], data[2],  // x, y, z
+                data[3], data[4], data[5],  // vx, vy, vz
+                data[6]                     // mass
+            )
+        }
     }
     
     private fun energy(bodies: List<Planet>): Double {
@@ -140,39 +147,27 @@ class Nbody : Benchmark() {
         b.vz = -pz / SOLAR_MASS
     }
     
-    override fun run() {
-        // Создаем планеты из исходных данных
-        val bodies = PLANET_DATA.map { data ->
-            Planet(
-                data[0], data[1], data[2],  // x, y, z
-                data[3], data[4], data[5],  // vx, vy, vz
-                data[6]                     // mass
-            )
-        }
-        
+    override fun prepare() {
         offsetMomentum(bodies)
-        
-        val v1 = energy(bodies)
-        //println("Energy before: $v1")
-        
+        v1 = energy(bodies)
+    }
+    
+    override fun run(iterationId: Int) {
         val nbodies = bodies.size
         val dt = 0.01
         
-        repeat(n) {
-            var i = 0
-            while (i < nbodies) {
-                val b = bodies[i]
-                b.moveFromI(bodies, nbodies, dt, i + 1)
-                i += 1
-            }
+        var i = 0
+        while (i < nbodies) {
+            val b = bodies[i]
+            b.moveFromI(bodies, nbodies, dt, i + 1)
+            i++
         }
-        
-        val v2 = energy(bodies)
-        // println("Energy after: $v2")
-        
-        resultValue = (Helper.checksumF64(v1).toLong() shl 5) and Helper.checksumF64(v2).toLong()
     }
     
-    override val result: Long
-        get() = resultValue
+    override fun checksum(): UInt {
+        val v2 = energy(bodies)
+        return (Helper.checksumF64(v1) shl 5) and Helper.checksumF64(v2)
+    }
+    
+    override fun name(): String = "Nbody"
 }

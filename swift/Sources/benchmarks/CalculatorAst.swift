@@ -1,4 +1,5 @@
 import Foundation
+
 final class CalculatorAst: BenchmarkProtocol {
     indirect enum Node {
         case number(Int64)
@@ -6,20 +7,23 @@ final class CalculatorAst: BenchmarkProtocol {
         case binaryOp(Character, Node, Node)
         case assignment(String, Node)
     }
-    public var n: Int = 0
-    private var _result: Int64 = 0
+    
+    private var resultVal: UInt32 = 0
     private var text: String = ""
     public var expressions: [Node] = []
+    public var n: Int64 = 0
+    
     init() {
-        n = iterations
+        n = configValue("operations") ?? 0
     }
-    private func generateRandomProgram(lines: Int = 1000) -> String {
+    
+    private func generateRandomProgram(_ n: Int64 = 1000) -> String {
         var result = "v0 = 1\n"
         for i in 0..<10 {
             let v = i + 1
             result += "v\(v) = v\(v - 1) + \(v)\n"
         }
-        for i in 0..<lines {
+        for i in 0..<Int(n) {
             let v = i + 10
             result += "v\(v) = v\(v - 1) + "
             let rand = Helper.nextInt(max: 10)
@@ -51,24 +55,26 @@ final class CalculatorAst: BenchmarkProtocol {
         }
         return result
     }
-    func prepare() {
-        text = generateRandomProgram(lines: n)
-    }
+    
     private class Parser {
         private let input: String
         private var pos: String.Index
         var expressions: [Node] = []
+        
         init(_ input: String) {
             self.input = input
             self.pos = input.startIndex
         }
-        func parse() {
+        
+        func parse() -> [Node] {
             while pos < input.endIndex {
                 skipWhitespace()
                 if pos >= input.endIndex { break }
                 expressions.append(parseExpression())
             }
+            return expressions
         }
+        
         private func parseExpression() -> Node {
             var node = parseTerm()
             while pos < input.endIndex {
@@ -86,6 +92,7 @@ final class CalculatorAst: BenchmarkProtocol {
             }
             return node
         }
+        
         private func parseTerm() -> Node {
             var node = parseFactor()
             while pos < input.endIndex {
@@ -103,6 +110,7 @@ final class CalculatorAst: BenchmarkProtocol {
             }
             return node
         }
+        
         private func parseFactor() -> Node {
             skipWhitespace()
             guard pos < input.endIndex else { return .number(0) }
@@ -113,17 +121,18 @@ final class CalculatorAst: BenchmarkProtocol {
             case "a"..."z":
                 return parseVariable()
             case "(":
-                advance() // '('
+                advance()
                 let node = parseExpression()
                 skipWhitespace()
                 if currentChar() == ")" {
-                    advance() // ')'
+                    advance()
                 }
                 return node
             default:
                 return .number(0)
             }
         }
+        
         private func parseNumber() -> Node {
             var value: Int64 = 0
             while pos < input.endIndex {
@@ -134,6 +143,7 @@ final class CalculatorAst: BenchmarkProtocol {
             }
             return .number(value)
         }
+        
         private func parseVariable() -> Node {
             let start = pos
             while pos < input.endIndex {
@@ -142,36 +152,48 @@ final class CalculatorAst: BenchmarkProtocol {
                 advance()
             }
             let varName = String(input[start..<pos])
-            // Проверяем присвоение
             skipWhitespace()
             if pos < input.endIndex && currentChar() == "=" {
-                advance() // '='
+                advance()
                 let expr = parseExpression()
                 return .assignment(varName, expr)
             }
             return .variable(varName)
         }
+        
         private func currentChar() -> Character {
             guard pos < input.endIndex else { return "\0" }
             return input[pos]
         }
+        
         private func advance() {
             guard pos < input.endIndex else { return }
             pos = input.index(after: pos)
         }
+        
         private func skipWhitespace() {
             while pos < input.endIndex && input[pos].isWhitespace {
                 advance()
             }
         }
     }
-    func run() {
-        let parser = Parser(text)
-        parser.parse()
-        expressions = parser.expressions
-        _result = (_result + Int64(expressions.count)) & 0xFFFFFFFF
+    
+    func prepare() {
+        text = generateRandomProgram(n)
     }
-    var result: Int64 {
-        return _result
+    
+    func run(iterationId: Int) {
+        let parser = Parser(text)
+        expressions = parser.parse()
+        resultVal &+= UInt32(expressions.count)
+        
+        if !expressions.isEmpty,
+           case .assignment(let varName, _) = expressions.last! {
+            resultVal &+= Helper.checksum(varName)
+        }
+    }
+    
+    var checksum: UInt32 {
+        return resultVal
     }
 }

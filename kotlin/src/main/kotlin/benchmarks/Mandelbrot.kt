@@ -3,8 +3,9 @@ package benchmarks
 import Benchmark
 
 class Mandelbrot : Benchmark() {
-    private var n: Int = 0
-    private lateinit var output: ByteArray
+    private var w: Int = 0
+    private var h: Int = 0
+    private lateinit var result: java.io.ByteArrayOutputStream
     
     companion object {
         private const val ITER = 50
@@ -12,26 +13,20 @@ class Mandelbrot : Benchmark() {
     }
     
     init {
-        n = iterations
+        w = configVal("w").toInt()
+        h = configVal("h").toInt()
     }
     
     override fun prepare() {
-        val w = n
-        val h = n
-        val header = "P4\n$w $h\n"
-        
-        val dataSize = ((w + 7) / 8) * h
-        output = ByteArray(header.length + dataSize)
-        header.toByteArray().copyInto(output)
+        result = java.io.ByteArrayOutputStream()
     }
     
-    override fun run() {
-        val w = n
-        val h = n
+    override fun run(iterationId: Int) {        
+        // Пишем хедер при КАЖДОЙ итерации
+        result.write("P4\n$w $h\n".toByteArray())
         
         var bitNum = 0
         var byteAcc = 0
-        var outputIndex = "P4\n$w $h\n".length
         
         for (y in 0 until h) {
             for (x in 0 until w) {
@@ -51,20 +46,21 @@ class Mandelbrot : Benchmark() {
                     i += 1
                 }
                 
-                byteAcc = byteAcc shl 1
+                byteAcc = (byteAcc shl 1) and 0xFF
                 if (tr + ti <= LIMIT * LIMIT) {
                     byteAcc = byteAcc or 0x01
                 }
                 bitNum += 1
                 
                 if (bitNum == 8) {
-                    output[outputIndex++] = byteAcc.toByte()
+                    result.write(byteAcc)
                     byteAcc = 0
                     bitNum = 0
                 } else if (x == w - 1) {
+                    // Исправленный padding
                     if (bitNum > 0) {
-                        byteAcc = byteAcc shl (8 - bitNum)
-                        output[outputIndex++] = byteAcc.toByte()
+                        byteAcc = (byteAcc shl (8 - bitNum)) and 0xFF
+                        result.write(byteAcc)
                     }
                     byteAcc = 0
                     bitNum = 0
@@ -73,6 +69,11 @@ class Mandelbrot : Benchmark() {
         }
     }
     
-    override val result: Long
-        get() = Helper.checksum(output).toLong()
+    override fun checksum(): UInt {
+        val bytes = result.toByteArray()
+        val checksum = Helper.checksum(bytes)        
+        return checksum
+    }
+       
+    override fun name(): String = "Mandelbrot"
 }

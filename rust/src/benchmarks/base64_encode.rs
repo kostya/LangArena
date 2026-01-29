@@ -1,29 +1,29 @@
-use super::super::{Benchmark, INPUT, helper};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 use base64::{engine::general_purpose, Engine as _};
 
-const TRIES: i32 = 8192;
-
 pub struct Base64Encode {
-    n: i32,
+    n: i64,
     str_data: String,
     str2_encoded: String,
-    result: u32,
+    result_val: u32,
 }
 
 impl Base64Encode {
     pub fn new() -> Self {
-        let name = "Base64Encode".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
+        let n = config_i64("Base64Encode", "size");
+        
+        // Создаем строку из 'a' длиной n
+        let str_data = "a".repeat(n as usize);
+        
+        // Кодируем в base64
+        let str2_encoded = general_purpose::STANDARD.encode(&str_data);
         
         Self {
-            n: iterations,
-            str_data: String::new(),
-            str2_encoded: String::new(),
-            result: 0,
+            n,
+            str_data,
+            str2_encoded,
+            result_val: 0,
         }
     }
 }
@@ -33,37 +33,20 @@ impl Benchmark for Base64Encode {
         "Base64Encode".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.n
+    fn run(&mut self, _iteration_id: i64) {
+        // В соответствии с диффом: просто кодируем один раз
+        let encoded = general_purpose::STANDARD.encode(&self.str_data);
+        self.result_val = self.result_val.wrapping_add(encoded.len() as u32);
     }
     
-    fn prepare(&mut self) {
-        // Создаем строку из 'a' длиной n
-        self.str_data = "a".repeat(self.n as usize);
-        
-        // Кодируем в base64
-        self.str2_encoded = general_purpose::STANDARD.encode(&self.str_data);
-    }
-    
-    fn run(&mut self) {
-        let mut s_encoded: i64 = 0;
-        
-        for _ in 0..TRIES {
-            let encoded = general_purpose::STANDARD.encode(&self.str_data);
-            s_encoded += encoded.len() as i64;
-        }
-        
+    fn checksum(&self) -> u32 {
         let message = format!(
-            "encode {}... to {}...: {}\n",
-            &self.str_data[0..std::cmp::min(4, self.str_data.len())],
-            &self.str2_encoded[0..std::cmp::min(4, self.str2_encoded.len())],
-            s_encoded
+            "encode {} to {}: {}",
+            if self.str_data.len() > 4 { format!("{}...", &self.str_data[0..4]) } else { self.str_data.clone() },
+            if self.str2_encoded.len() > 4 { format!("{}...", &self.str2_encoded[0..4]) } else { self.str2_encoded.clone() },
+            self.result_val
         );
         
-        self.result = helper::checksum_str(&message);
-    }
-    
-    fn result(&self) -> i64 {
-        self.result as i64
+        helper::checksum_str(&message)
     }
 }

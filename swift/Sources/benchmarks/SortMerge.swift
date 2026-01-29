@@ -1,11 +1,11 @@
 import Foundation
 
 final class SortMerge: SortBenchmark {
-    override func test() -> [Int] {
-        var arr = data
-        mergeSort(&arr, left: 0, right: arr.count - 1)
-        return arr
+    override init() {
+        super.init()
     }
+    
+    override var name: String { return "SortMerge" }
     
     private func mergeSort(_ arr: inout [Int], left: Int, right: Int) {
         if left >= right { return }
@@ -46,5 +46,11 @@ final class SortMerge: SortBenchmark {
             j += 1
             k += 1
         }
+    }
+    
+    override func test() -> [Int] {
+        var arr = data
+        mergeSort(&arr, left: 0, right: arr.count - 1)
+        return arr
     }
 }

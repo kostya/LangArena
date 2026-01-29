@@ -13,9 +13,9 @@ class RegexDna : Benchmark() {
         output = StringBuilder()
         
         val fasta = Fasta()
-        fasta.n = iterations
+        fasta.n = configVal("n")
         fasta.prepare()
-        fasta.run()
+        fasta.run(0)
         val res = fasta.getOutput()
         
         val seqBuilder = StringBuilder()
@@ -36,7 +36,7 @@ class RegexDna : Benchmark() {
         seq = seqBuilder.toString()
     }
     
-    override fun run() {
+    override fun run(iterationId: Int) {
         val patterns = listOf(
             Regex("agggtaaa|tttaccct"),
             Regex("[cgt]gggtaaa|tttaccc[acg]"),
@@ -79,6 +79,7 @@ class RegexDna : Benchmark() {
         output.append("${processed.length}\n")
     }
     
-    override val result: Long
-        get() = Helper.checksum(output.toString()).toLong()
+    override fun checksum(): UInt = Helper.checksum(output.toString())
+    
+    override fun name(): String = "RegexDna"
 }

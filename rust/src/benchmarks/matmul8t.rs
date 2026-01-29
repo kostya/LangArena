@@ -1,24 +1,20 @@
-use super::super::{Benchmark, INPUT, helper};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 
 pub struct Matmul8T {
-    n: i32,
-    result: u32,
+    n: i64,
+    result_val: u32,
 }
 
 impl Matmul8T {
     pub fn new() -> Self {
-        let name = "Matmul8T".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
+        let n = config_i64("Matmul8T", "n");
         
         Self {
-            n: iterations,
-            result: 0,
+            n,
+            result_val: 0,
         }
     }
 
@@ -79,11 +75,7 @@ impl Benchmark for Matmul8T {
         "Matmul8T".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.n
-    }
-    
-    fn run(&mut self) {
+    fn run(&mut self, _iteration_id: i64) {
         let n = self.n as usize;
         
         let a = self.matgen(n);
@@ -92,10 +84,10 @@ impl Benchmark for Matmul8T {
         let c = self.matmul_parallel(&a, &b);
         
         let center_value = c[n >> 1][n >> 1];
-        self.result = helper::checksum_f64(center_value);
+        self.result_val = self.result_val.wrapping_add(helper::checksum_f64(center_value));
     }
     
-    fn result(&self) -> i64 {
-        self.result as i64
+    fn checksum(&self) -> u32 {
+        self.result_val
     }
 }

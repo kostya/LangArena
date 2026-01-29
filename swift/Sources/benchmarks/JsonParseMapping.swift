@@ -1,6 +1,5 @@
 import Foundation
 
-// Структуры для парсинга JSON с помощью JSONDecoder
 struct CoordinateData: Codable {
     let x: Double
     let y: Double
@@ -12,27 +11,19 @@ struct CoordinatesData: Codable {
 }
 
 final class JsonParseMapping: BenchmarkProtocol {
-    // Добавляем обязательные свойства протокола
-    var iterations: Int = 0
+    private var jsonData: Data?
+    private var resultVal: UInt32 = 0
     
-    private var jsonData: Data?  // Храним Data вместо String
-    private var _result: UInt32 = 0
-    
-    // Инициализатор
     init() {
-        let input = Helper.getInput("JsonParseMapping")
-        self.iterations = Int(input ?? "100") ?? 100
+        // Пустой конструктор
     }
     
     func prepare() {
-        // Генерируем JSON через JsonGenerate
         let generator = JsonGenerate()
-        generator.n = iterations
+        generator.n = configValue("coords") ?? 0
         generator.prepare()
-        generator.run()
+        generator.run(iterationId: 0)
         
-        // Получаем сгенерированный JSON текст через публичный метод или рефлексию
-        // Поскольку text приватный, используем Mirror (как в оригинале)
         let mirror = Mirror(reflecting: generator)
         for child in mirror.children {
             if child.label == "text" {
@@ -45,14 +36,12 @@ final class JsonParseMapping: BenchmarkProtocol {
         }
     }
     
-    // Mapping parsing - используем JSONDecoder
     private func calcMapping() -> (Double, Double, Double) {
         guard let jsonData = jsonData else {
             return (0, 0, 0)
         }
         
         do {
-            // Используем JSONDecoder вместо JSONSerialization
             let decoded = try JSONDecoder().decode(CoordinatesData.self, from: jsonData)
             let coordinates = decoded.coordinates
             let count = Double(coordinates.count)
@@ -77,19 +66,12 @@ final class JsonParseMapping: BenchmarkProtocol {
         }
     }
     
-    func run() {
+    func run(iterationId: Int) {
         let (x, y, z) = calcMapping()
-        let xStr = String(format: "%.7f", x)
-        let yStr = String(format: "%.7f", y)
-        let zStr = String(format: "%.7f", z)
-        
-        _result = Helper.checksum(xStr) &+
-                 Helper.checksum(yStr) &+
-                 Helper.checksum(zStr)
+        resultVal &+= Helper.checksumF64(x) &+ Helper.checksumF64(y) &+ Helper.checksumF64(z)
     }
     
-    // Обязательное свойство протокола
-    var result: Int64 {
-        return Int64(_result)
+    var checksum: UInt32 {
+        return resultVal
     }
 }

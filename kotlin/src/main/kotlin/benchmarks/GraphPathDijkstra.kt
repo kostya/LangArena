@@ -5,17 +5,6 @@ class GraphPathDijkstra : GraphPathBenchmark() {
         const val INF = Int.MAX_VALUE / 2
     }
 
-    override fun test(): Long {
-        var totalLength = 0L
-
-        for ((start, end) in pairs) {
-            val length = dijkstraShortestPath(start, end)
-            totalLength += length
-        }
-
-        return totalLength
-    }
-
     private fun dijkstraShortestPath(start: Int, target: Int): Int {
         if (start == target) return 0
 
@@ -53,4 +42,17 @@ class GraphPathDijkstra : GraphPathBenchmark() {
 
         return -1
     }
+
+    override fun test(): Long {
+        var totalLength = 0L
+
+        for ((start, end) in pairs) {
+            val length = dijkstraShortestPath(start, end)
+            totalLength += length
+        }
+
+        return totalLength
+    }
+    
+    override fun name(): String = "GraphPathDijkstra"
 }

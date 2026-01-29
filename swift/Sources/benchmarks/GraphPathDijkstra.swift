@@ -1,21 +1,21 @@
 import Foundation
+
 final class GraphPathDijkstra: GraphPathBenchmark {
     private static let INF = Int.max / 2
-    override func test() -> Int64 {
-        var totalLength: Int64 = 0
-        for (start, end) in pairs {
-            let length = dijkstraShortestPath(start, end)
-            totalLength += Int64(length)
-        }
-        return totalLength
+    
+    override init() {
+        super.init()
     }
+    
+    override var name: String { return "GraphPathDijkstra" }
+    
     private func dijkstraShortestPath(_ start: Int, _ target: Int) -> Int {
         if start == target { return 0 }
         var dist = [Int](repeating: GraphPathDijkstra.INF, count: graph.vertices)
         var visited = [Bool](repeating: false, count: graph.vertices)
         dist[start] = 0
+        
         for _ in 0..<graph.vertices {
-            // Находим непосещённую вершину с минимальным расстоянием
             var u = -1
             var minDist = GraphPathDijkstra.INF
             for v in 0..<graph.vertices {
@@ -24,12 +24,12 @@ final class GraphPathDijkstra: GraphPathBenchmark {
                     u = v
                 }
             }
-            // Выход если нет вершин или нашли цель
+            
             if u == -1 || minDist == GraphPathDijkstra.INF || u == target {
                 return u == target ? minDist : -1
             }
             visited[u] = true
-            // Обновляем расстояния до соседей
+            
             for v in graph.adj[u] {
                 let newDist = dist[u] + 1
                 if newDist < dist[v] {
@@ -38,5 +38,14 @@ final class GraphPathDijkstra: GraphPathBenchmark {
             }
         }
         return -1
+    }
+    
+    override func test() -> Int64 {
+        var totalLength: Int64 = 0
+        for (start, end) in pairs {
+            let length = dijkstraShortestPath(start, end)
+            totalLength += Int64(length)
+        }
+        return totalLength
     }
 }

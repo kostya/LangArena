@@ -38,8 +38,13 @@ public class Fasta extends Benchmark {
     public ByteArrayOutputStream result;
     
     public Fasta() {
-        n = getIterations();
+        n = (int) configVal("n");
         result = new ByteArrayOutputStream();
+    }
+    
+    @Override
+    public String name() {
+        return "Fasta";
     }
     
     private char selectRandom(Gene[] genelist) {
@@ -114,14 +119,18 @@ public class Fasta extends Benchmark {
     }
     
     @Override
-    public void run() {
+    public void run(int iterationId) {
         makeRepeatFasta("ONE", "Homo sapiens alu", ALU, n * 2);
         makeRandomFasta("TWO", "IUB ambiguity codes", IUB, n * 3);
         makeRandomFasta("THREE", "Homo sapiens frequency", HOMO, n * 5);
     }
     
     @Override
-    public long getResult() {
+    public long checksum() {
         return Helper.checksum(result.toByteArray());
+    }
+    
+    public String getResultString() {
+        return result.toString();
     }
 }

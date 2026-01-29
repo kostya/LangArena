@@ -1,2 +1,2 @@
 #!/bin/sh
-mvn clean compile exec:java -Pjava-plain -Dexec.args="../test.txt $@" -q
+mvn clean compile exec:java -Pjava-plain -Dexec.args="../test.js $@" -q

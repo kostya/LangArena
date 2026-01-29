@@ -115,11 +115,17 @@ public class TextRaytracer extends Benchmark {
     );
     
     private int w, h;
-    private long result;
+    private long resultVal;
     
     public TextRaytracer() {
-        w = getIterations();
-        h = getIterations();
+        w = (int) configVal("w");
+        h = (int) configVal("h");
+        resultVal = 0L;
+    }
+    
+    @Override
+    public String name() {
+        return "TextRaytracer";
     }
     
     private int shadePixel(Ray ray, Sphere obj, double tval) {
@@ -159,8 +165,7 @@ public class TextRaytracer extends Benchmark {
     }
     
     @Override
-    public void run() {
-        long res = 0L;
+    public void run(int iterationId) {
         double fw = w;
         double fh = h;
         
@@ -195,15 +200,13 @@ public class TextRaytracer extends Benchmark {
                     pixel = ' ';
                 }
                 
-                res += pixel;
+                resultVal += pixel;
             }
         }
-        
-        result = res;
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

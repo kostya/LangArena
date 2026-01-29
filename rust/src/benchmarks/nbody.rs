@@ -1,4 +1,5 @@
-use super::super::{Benchmark, INPUT, helper};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 
 const SOLAR_MASS: f64 = 4.0 * std::f64::consts::PI * std::f64::consts::PI;
 const DAYS_PER_YEAR: f64 = 365.24;
@@ -141,24 +142,17 @@ fn create_bodies() -> [Planet; 5] {
 }
 
 pub struct Nbody {
-    n: i32,
-    result: u32,
     bodies: [Planet; 5],
+    v1: f64,
+    result_val: u32,
 }
 
 impl Nbody {
     pub fn new() -> Self {
-        let name = "Nbody".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
-        
         Self {
-            n: iterations,
-            result: 0,
             bodies: create_bodies(),
+            v1: 0.0,
+            result_val: 0,
         }
     }
 }
@@ -168,33 +162,26 @@ impl Benchmark for Nbody {
         "Nbody".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.n
+    fn prepare(&mut self) {
+        offset_momentum(&mut self.bodies);
+        self.v1 = energy(&self.bodies);
     }
     
-    fn run(&mut self) {
-        let mut bodies = self.bodies.clone();
-        offset_momentum(&mut bodies);
-        
-        let v1 = energy(&bodies);
-        let nbodies = bodies.len();
+    fn run(&mut self, _iteration_id: i64) {
+        let nbodies = self.bodies.len();
         let dt = 0.01;
         
-        for _ in 0..self.n {
-            let mut i = 0;
-            while i < nbodies {
-                let mut b = bodies[i].clone();
-                b.move_from_i(&mut bodies, nbodies, dt, i + 1);
-                bodies[i] = b;
-                i += 1;
-            }
+        let mut i = 0;
+        while i < nbodies {
+            let mut b = self.bodies[i].clone();
+            b.move_from_i(&mut self.bodies, nbodies, dt, i + 1);
+            self.bodies[i] = b;
+            i += 1;
         }
-        
-        let v2 = energy(&bodies);
-        self.result = helper::checksum_f64(v1).wrapping_shl(5) & helper::checksum_f64(v2);
     }
     
-    fn result(&self) -> i64 {
-        self.result as i64
+    fn checksum(&self) -> u32 {
+        let v2 = energy(&self.bodies);
+        (helper::checksum_f64(self.v1) << 5) & helper::checksum_f64(v2)
     }
 }

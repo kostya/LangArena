@@ -1,4 +1,5 @@
-use super::super::{Benchmark, INPUT};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 use crate::benchmarks::graph_path_benchmark::GraphPathBenchmark;
 
 pub struct GraphPathDFS {
@@ -41,15 +42,8 @@ impl GraphPathDFS {
     }
     
     pub fn new() -> Self {
-        let name = "GraphPathDFS".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
-        
         Self {
-            base: GraphPathBenchmark::new_base(iterations),
+            base: GraphPathBenchmark::new_base(),
         }
     }
 }
@@ -59,34 +53,22 @@ impl Benchmark for GraphPathDFS {
         "GraphPathDFS".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.base.pairs.len() as i32
-    }
-    
     fn prepare(&mut self) {
-        let n_pairs = self.base.pairs.len() as i32;
-        if n_pairs == 0 {
-            let iterations = INPUT.get()
-                .unwrap()
-                .get(&self.name())
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(0);
-            self.base.prepare_common(iterations);
-        }
+        self.base.prepare("GraphPathDFS");
     }
-    
-    fn run(&mut self) {
-        let mut total_length = 0i64;
+
+    fn run(&mut self, _iteration_id: i64) {
+        let mut total_length: i64 = 0;
         
-        for &(start, end) in &self.base.pairs {
-            let length = self.dfs_find_path(start, end);
-            total_length += length;
+        // Обрабатываем ВСЕ пары, а не только первую
+        for (start, target) in &self.base.pairs {
+            total_length += self.dfs_find_path(*start, *target);
         }
         
-        self.base.result = total_length;
+        self.base.result_val = self.base.result_val.wrapping_add(total_length as u32);
     }
     
-    fn result(&self) -> i64 {
-        self.base.result
+    fn checksum(&self) -> u32 {
+        self.base.result_val
     }
 }

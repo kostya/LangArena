@@ -1,14 +1,18 @@
 import Foundation
+
 final class Fannkuchredux: BenchmarkProtocol {
-    private var n: Int = 0
-    private var resultValue: Int64 = 0
+    private var n: Int64 = 0
+    private var resultVal: UInt32 = 0
+    
     init() {
-        n = iterations
+        n = configValue("n") ?? 0
     }
+    
     private struct Result {
         let checksum: Int
         let maxFlipsCount: Int
     }
+    
     private func fannkuchredux(_ n: Int) -> Result {
         var perm1 = Array(0..<32)
         var perm = Array(0..<32)
@@ -17,15 +21,17 @@ final class Fannkuchredux: BenchmarkProtocol {
         var permCount = 0
         var checksum = 0
         var r = n
+        
         while true {
             while r > 1 {
                 count[r - 1] = r
                 r -= 1
             }
-            // Копируем
+            
             perm = perm1
             var flipsCount = 0
             var k = perm[0]
+            
             while k != 0 {
                 let k2 = (k + 1) / 2
                 for i in 0..<k2 {
@@ -35,14 +41,17 @@ final class Fannkuchredux: BenchmarkProtocol {
                 flipsCount += 1
                 k = perm[0]
             }
+            
             if flipsCount > maxFlipsCount {
                 maxFlipsCount = flipsCount
             }
+            
             if permCount % 2 == 0 {
                 checksum += flipsCount
             } else {
                 checksum -= flipsCount
             }
+            
             while true {
                 if r == n {
                     return Result(checksum: checksum, maxFlipsCount: maxFlipsCount)
@@ -60,12 +69,15 @@ final class Fannkuchredux: BenchmarkProtocol {
             permCount += 1
         }
     }
-    func run() {
-        let result = fannkuchredux(n)
-        resultValue = Int64(result.checksum) * 100 + Int64(result.maxFlipsCount)
+    
+    func run(iterationId: Int) {
+        let result = fannkuchredux(Int(n))
+        resultVal &+= UInt32(result.checksum) * 100 + UInt32(result.maxFlipsCount)
     }
-    var result: Int64 {
-        return resultValue
+    
+    var checksum: UInt32 {
+        return resultVal
     }
+    
     func prepare() {}
 }

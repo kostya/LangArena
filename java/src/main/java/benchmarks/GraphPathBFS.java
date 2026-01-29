@@ -5,6 +5,11 @@ import java.util.*;
 public class GraphPathBFS extends GraphPathBenchmark {
     
     @Override
+    public String name() {
+        return "GraphPathBFS";
+    }
+    
+    @Override
     long test() {
         long totalLength = 0L;
         

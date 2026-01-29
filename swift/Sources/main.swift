@@ -47,26 +47,26 @@ func main() {
     BenchmarkManager.register { MazeGenerator() }
     BenchmarkManager.register { AStarPathfinder() }
     BenchmarkManager.register { Compression() }
+    BenchmarkManager.register { Decompression() }  // новый бенчмарк
         
     // Обработка аргументов командной строки
     let args = CommandLine.arguments.dropFirst()
-    let configFile = args.first { $0.hasSuffix(".txt") }
-    let singleBench = args.first { !$0.hasSuffix(".txt") }
+    let configFile = args.first { $0.hasSuffix(".txt") || $0.hasSuffix(".js") }
+    let singleBench = args.first { !$0.hasSuffix(".txt") && !$0.hasSuffix(".js") }
     
     do {
         try Helper.loadConfig(filename: configFile)
         
-        if Helper.input.isEmpty {
+        if Helper.config.isEmpty {
             fputs("Warning: No test cases loaded from config file\n", stderr)
-            fputs("Usage: swift run Benchmarks test.txt BrainfuckHashMap\n", stderr)
-            fputs("Or: swift run Benchmarks ../run.txt\n", stderr)
+            fputs("Usage: swift run Benchmarks test.js BrainfuckHashMap\n", stderr)
+            fputs("Or: swift run Benchmarks ../run.js\n", stderr)
             exit(1)
         }
     } catch {
-        fputs("Error loading config file '\(configFile ?? "test.txt")': \(error)\n", stderr)
+        fputs("Error loading config file '\(configFile ?? "test.js")': \(error)\n", stderr)
         exit(1)
     }
-
 
     do {
         try "RECOMPILE_MARKER_0".write(toFile: "/tmp/recompile_marker", 

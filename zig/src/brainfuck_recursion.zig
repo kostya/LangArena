@@ -6,22 +6,22 @@ pub const BrainfuckRecursion = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
     text: []const u8,
-    result_val: i64,
+    result_val: u32,
 
     const OpType = enum { inc, move, loop, print };
 
     const Op = struct {
         op_type: OpType,
         val: i32 = 0,
-        loop: []const Op = &.{}, // slice вместо ArrayList
+        loop: []const Op = &.{},
     };
 
     const Tape = struct {
-        data: []u8, // slice с управлением capacity
+        data: []u8,
         pos: usize = 0,
 
         fn init(allocator: std.mem.Allocator) !Tape {
-            const initial_size = 65536; // 64KB предварительно
+            const initial_size = 65536;
             const data = try allocator.alloc(u8, initial_size);
             @memset(data, 0);
             return Tape{ .data = data };
@@ -45,10 +45,8 @@ pub const BrainfuckRecursion = struct {
             if (x >= 0) {
                 const new_pos = self.pos + @as(usize, @intCast(x));
                 if (new_pos >= self.data.len) {
-                    // Увеличиваем размер в 2 раза или до нужного
                     const new_len = @max(self.data.len * 2, new_pos + 1);
                     const new_data = allocator.realloc(self.data, new_len) catch return;
-                    // Обнуляем новую часть
                     @memset(new_data[self.data.len..], 0);
                     self.data = new_data;
                 }
@@ -56,7 +54,7 @@ pub const BrainfuckRecursion = struct {
             } else {
                 const move_left = @as(usize, @intCast(-x));
                 if (move_left > self.pos) {
-                    self.pos = 0; // Ограничиваем слева
+                    self.pos = 0;
                 } else {
                     self.pos -= move_left;
                 }
@@ -82,16 +80,16 @@ pub const BrainfuckRecursion = struct {
             self.allocator.free(self.ops);
         }
 
-        fn run(self: *Program) !i64 {
+        fn run(self: *Program) !u32 {
             var tape = try Tape.init(self.allocator);
             defer tape.deinit(self.allocator);
 
-            var result: i64 = 0;
+            var result: u32 = 0;
             self.runOps(self.ops, &tape, &result);
             return result;
         }
 
-        fn runOps(self: *Program, ops: []const Op, tape: *Tape, result: *i64) void {
+        fn runOps(self: *Program, ops: []const Op, tape: *Tape, result: *u32) void {
             for (ops) |op| {
                 switch (op.op_type) {
                     .inc => tape.inc(op.val),
@@ -102,7 +100,7 @@ pub const BrainfuckRecursion = struct {
                         }
                     },
                     .print => {
-                        result.* = (result.* << 2) + tape.get();
+                        result.* = (result.* << 2) +% tape.get();
                     },
                 }
             }
@@ -167,12 +165,13 @@ pub const BrainfuckRecursion = struct {
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = resultImpl,
         .deinit = deinitImpl,
+        .warmup = warmupImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*BrainfuckRecursion {
-        const text = helper.getInput("BrainfuckRecursion") orelse "";
+        const text = helper.config_s("BrainfuckRecursion", "program");
 
         const self = try allocator.create(BrainfuckRecursion);
         errdefer allocator.destroy(self);
@@ -195,22 +194,34 @@ pub const BrainfuckRecursion = struct {
         return Benchmark.init(self, &vtable, self.helper);
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
+        _ = iteration_id;
         const self: *BrainfuckRecursion = @ptrCast(@alignCast(ptr));
 
         var program = Program.init(self.allocator, self.text) catch return;
         defer program.deinit();
 
-        self.result_val = program.run() catch return;
+        const result = program.run() catch return;
+        self.result_val +%= result;
     }
 
     fn resultImpl(ptr: *anyopaque) u32 {
         const self: *BrainfuckRecursion = @ptrCast(@alignCast(ptr));
-        return @as(u32, @bitCast(@as(i32, @truncate(self.result_val))));
+        return self.result_val;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {
         const self: *BrainfuckRecursion = @ptrCast(@alignCast(ptr));
         self.deinit();
+    }
+
+    fn warmupImpl(ptr: *anyopaque) void {
+        const self: *BrainfuckRecursion = @ptrCast(@alignCast(ptr));
+        const warmup_program = self.helper.config_s("BrainfuckRecursion", "warmup_program");
+        if (warmup_program.len == 0) return;
+
+        var program = Program.init(self.allocator, warmup_program) catch return;
+        defer program.deinit();
+        _ = program.run() catch return;
     }
 };

@@ -3,33 +3,6 @@ package benchmarks;
 import java.util.*;
 
 public class AStarPathfinder extends Benchmark {
-    private interface Heuristic {
-        int distance(int aX, int aY, int bX, int bY);
-    }
-    
-    private static class ManhattanHeuristic implements Heuristic {
-        @Override
-        public int distance(int aX, int aY, int bX, int bY) {
-            return (Math.abs(aX - bX) + Math.abs(aY - bY)) * 1000;
-        }
-    }
-    
-    private static class EuclideanHeuristic implements Heuristic {
-        @Override
-        public int distance(int aX, int aY, int bX, int bY) {
-            double dx = Math.abs(aX - bX);
-            double dy = Math.abs(aY - bY);
-            return (int)(Math.sqrt(dx * dx + dy * dy) * 1000.0); // Используем sqrt вместо hypot
-        }
-    }
-    
-    private static class ChebyshevHeuristic implements Heuristic {
-        @Override
-        public int distance(int aX, int aY, int bX, int bY) {
-            return Math.max(Math.abs(aX - bX), Math.abs(aY - bY)) * 1000;
-        }
-    }
-    
     private static class Node implements Comparable<Node> {
         int x;
         int y;
@@ -127,12 +100,6 @@ public class AStarPathfinder extends Benchmark {
         {0, -1}, {1, 0}, {0, 1}, {-1, 0}
     };
     
-    private static final int[][] ALL_DIRECTIONS = {
-        {0, -1}, {1, 0}, {0, 1}, {-1, 0},
-        {-1, -1}, {1, -1}, {1, 1}, {-1, 1}
-    };
-    
-    private static final int DIAGONAL_COST = 1414;
     private static final int STRAIGHT_COST = 1000;
     
     private long resultVal;
@@ -145,30 +112,29 @@ public class AStarPathfinder extends Benchmark {
     private boolean[][] mazeGrid;
     
     public AStarPathfinder() {
-        this.width = getIterations();
-        this.height = getIterations();
+        this.width = (int) configVal("w");
+        this.height = (int) configVal("h");
         this.startX = 1;
         this.startY = 1;
         this.goalX = width - 2;
         this.goalY = height - 2;
+        this.resultVal = 0L;
     }
     
-    private boolean[][] generateWalkableMaze(int width, int height) {
-        return MazeGenerator.Maze.generateWalkableMaze(width, height);
+    @Override
+    public String name() {
+        return "AStarPathfinder";
     }
     
-    private boolean[][] ensureMazeGrid() {
-        if (mazeGrid == null) {
-            mazeGrid = generateWalkableMaze(width, height);
-        }
-        return mazeGrid;
+    private int distance(int aX, int aY, int bX, int bY) {
+        return (Math.abs(aX - bX) + Math.abs(aY - bY));
     }
     
-    private List<Point> findPath(Heuristic heuristic, boolean allowDiagonal) {
-        boolean[][] grid = ensureMazeGrid();
+    private Pair<Optional<List<Point>>, Integer> findPath() {
+        boolean[][] grid = mazeGrid;
         
         int[][] gScores = new int[height][width];
-        Point[][] cameFrom = new Point[height][width]; // Используем Point вместо int[][][]
+        Point[][] cameFrom = new Point[height][width];
         
         // Оптимизированная инициализация gScores
         if (height > 0 && width > 0) {
@@ -180,16 +146,17 @@ public class AStarPathfinder extends Benchmark {
         }
         
         BinaryHeap openSet = new BinaryHeap();
+        int nodesExplored = 0;
         
         gScores[startY][startX] = 0;
         openSet.push(new Node(startX, startY, 
-                             heuristic.distance(startX, startY, goalX, goalY)));
+                             distance(startX, startY, goalX, goalY)));
         
-        int[][] directions = allowDiagonal ? ALL_DIRECTIONS : CARDINAL_DIRECTIONS;
-        int diagonalCost = allowDiagonal ? DIAGONAL_COST : STRAIGHT_COST;
+        int[][] directions = CARDINAL_DIRECTIONS;
         
         while (!openSet.isEmpty()) {
             Node current = openSet.pop();
+            nodesExplored++;
             
             if (current.x == goalX && current.y == goalY) {
                 List<Point> path = new ArrayList<>();
@@ -205,7 +172,7 @@ public class AStarPathfinder extends Benchmark {
                 
                 path.add(new Point(startX, startY));
                 Collections.reverse(path);
-                return path;
+                return new Pair<>(Optional.of(path), nodesExplored);
             }
             
             int currentG = gScores[current.y][current.x];
@@ -217,136 +184,47 @@ public class AStarPathfinder extends Benchmark {
                 if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
                 if (!grid[ny][nx]) continue;
                 
-                int moveCost = (Math.abs(dir[0]) == 1 && Math.abs(dir[1]) == 1) ? diagonalCost : STRAIGHT_COST;
-                int tentativeG = currentG + moveCost;
+                int tentativeG = currentG + STRAIGHT_COST;
                 
                 if (tentativeG < gScores[ny][nx]) {
-                    cameFrom[ny][nx] = new Point(current.x, current.y); // Создаем Point один раз
+                    cameFrom[ny][nx] = new Point(current.x, current.y);
                     gScores[ny][nx] = tentativeG;
                     
-                    int fScore = tentativeG + heuristic.distance(nx, ny, goalX, goalY);
+                    int fScore = tentativeG + distance(nx, ny, goalX, goalY);
                     openSet.push(new Node(nx, ny, fScore));
                 }
             }
         }
         
-        return null;
+        return new Pair<>(Optional.empty(), nodesExplored);
     }
     
-    private int estimateNodesExplored(Heuristic heuristic, boolean allowDiagonal) {
-        boolean[][] grid = ensureMazeGrid();
-        
-        int[][] gScores = new int[height][width];
-        // Оптимизированная инициализация
-        if (height > 0 && width > 0) {
-            int[] firstRow = gScores[0];
-            Arrays.fill(firstRow, Integer.MAX_VALUE);
-            for (int y = 1; y < height; y++) {
-                System.arraycopy(firstRow, 0, gScores[y], 0, width);
-            }
+    private static class Pair<A, B> {
+        final A first;
+        final B second;
+        Pair(A first, B second) {
+            this.first = first;
+            this.second = second;
         }
-        
-        BinaryHeap openSet = new BinaryHeap();
-        boolean[][] closed = new boolean[height][width];
-        
-        gScores[startY][startX] = 0;
-        openSet.push(new Node(startX, startY, 
-                             heuristic.distance(startX, startY, goalX, goalY)));
-        
-        int[][] directions = allowDiagonal ? ALL_DIRECTIONS : CARDINAL_DIRECTIONS;
-        
-        int nodesExplored = 0;
-        
-        while (!openSet.isEmpty()) {
-            Node current = openSet.pop();
-            
-            if (current.x == goalX && current.y == goalY) {
-                break;
-            }
-            
-            if (closed[current.y][current.x]) continue;
-            
-            closed[current.y][current.x] = true;
-            nodesExplored++;
-            
-            int currentG = gScores[current.y][current.x];
-            
-            for (int[] dir : directions) {
-                int nx = current.x + dir[0];
-                int ny = current.y + dir[1];
-                
-                if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-                if (!grid[ny][nx]) continue;
-                
-                int moveCost = (Math.abs(dir[0]) == 1 && Math.abs(dir[1]) == 1) ? DIAGONAL_COST : STRAIGHT_COST;
-                int tentativeG = currentG + moveCost;
-                
-                if (tentativeG < gScores[ny][nx]) {
-                    gScores[ny][nx] = tentativeG;
-                    
-                    int fScore = tentativeG + heuristic.distance(nx, ny, goalX, goalY);
-                    openSet.push(new Node(nx, ny, fScore));
-                }
-            }
-        }
-        
-        return nodesExplored;
-    }
-    
-    private int[] benchmarkDifferentApproaches() {
-        Heuristic[] heuristics = {
-            new ManhattanHeuristic(),
-            new EuclideanHeuristic(),
-            new ChebyshevHeuristic()
-        };
-        
-        int totalPathsFound = 0;
-        int totalPathLength = 0;
-        int totalNodesExplored = 0;
-        
-        for (Heuristic heuristic : heuristics) {
-            List<Point> path = findPath(heuristic, false);
-            if (path != null) {
-                totalPathsFound++;
-                totalPathLength += path.size();
-                totalNodesExplored += estimateNodesExplored(heuristic, false);
-            }
-        }
-        
-        return new int[]{totalPathsFound, totalPathLength, totalNodesExplored};
     }
     
     @Override
     public void prepare() {
-        ensureMazeGrid();
+        mazeGrid = MazeGenerator.Maze.generateWalkableMaze(width, height);
     }
     
     @Override
-    public void run() {
-        int totalPathsFound = 0;
-        int totalPathLength = 0;
-        int totalNodesExplored = 0;
+    public void run(int iterationId) {
+        Pair<Optional<List<Point>>, Integer> result = findPath();
         
-        int iters = 10;
-        for (int i = 0; i < iters; i++) {
-            int[] results = benchmarkDifferentApproaches();
-            
-            totalPathsFound += results[0];
-            totalPathLength += results[1];
-            totalNodesExplored += results[2];
-        }
-        
-        long pathsChecksum = Helper.checksumF64((double) totalPathsFound);
-        long lengthChecksum = Helper.checksumF64((double) totalPathLength);
-        long nodesChecksum = Helper.checksumF64((double) totalNodesExplored);
-        
-        resultVal = (pathsChecksum) ^
-                   ((lengthChecksum) << 16) ^
-                   ((nodesChecksum) << 32);
+        long localResult = 0;
+        localResult = (localResult << 5) + (result.first.isPresent() ? result.first.get().size() : 0);
+        localResult = (localResult << 5) + result.second;
+        resultVal += localResult;
     }
     
     @Override
-    public long getResult() {
+    public long checksum() {
         return resultVal;
     }
 }

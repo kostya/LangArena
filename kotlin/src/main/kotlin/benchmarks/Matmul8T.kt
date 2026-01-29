@@ -5,11 +5,11 @@ import kotlinx.coroutines.*
 import java.util.concurrent.Executors
 
 class Matmul8T : Benchmark() {
-    private var n: Int = 0
-    private var resultValue: Long = 0L
+    private var n: Long = 0
+    private var resultVal: UInt = 0u
     
     init {
-        n = iterations
+        n = configVal("n")
     }
     
     private fun matgen(n: Int): Array<DoubleArray> {
@@ -79,14 +79,15 @@ class Matmul8T : Benchmark() {
         return c
     }
     
-    override fun run() {
-        val a = matgen(n)
-        val b = matgen(n)
+    override fun run(iterationId: Int) {
+        val a = matgen(n.toInt())
+        val b = matgen(n.toInt())
         val c = matmulParallel(a, b)
-        val center = c[n shr 1][n shr 1]
-        resultValue = Helper.checksumF64(center).toLong()
+        val center = c[(n shr 1).toInt()][(n shr 1).toInt()]
+        resultVal += Helper.checksumF64(center)  // &+= эквивалент
     }
     
-    override val result: Long
-        get() = resultValue
+    override fun checksum(): UInt = resultVal
+    
+    override fun name(): String = "Matmul8T"
 }

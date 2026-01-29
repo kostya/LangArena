@@ -1,4 +1,3 @@
-// src/binarytrees.zig
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
@@ -6,8 +5,8 @@ const Helper = @import("helper.zig").Helper;
 pub const Binarytrees = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    n: i32,
-    result_val: i32,
+    n: i64,
+    result_val: u32,
 
     // Пул памяти для одного дерева
     const TreeNodePool = struct {
@@ -53,12 +52,12 @@ pub const Binarytrees = struct {
         // Создаёт дерево рекурсивно, используя пул
         pub fn create(pool: *TreeNodePool, item: i32, depth: i32) *TreeNode {
             const node = pool.allocNode(item);
-            
+
             if (depth > 0) {
                 node.left = TreeNode.create(pool, 2 * item - 1, depth - 1);
                 node.right = TreeNode.create(pool, 2 * item, depth - 1);
             }
-            
+
             return node;
         }
 
@@ -72,12 +71,12 @@ pub const Binarytrees = struct {
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = resultImpl,
         .deinit = deinitImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Binarytrees {
-        const n = helper.getInputInt("Binarytrees");
+        const n = helper.config_i64("Binarytrees", "depth");
 
         const self = try allocator.create(Binarytrees);
         errdefer allocator.destroy(self);
@@ -99,11 +98,12 @@ pub const Binarytrees = struct {
         return Benchmark.init(self, &vtable, self.helper);
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
+        _ = iteration_id;
         const self: *Binarytrees = @ptrCast(@alignCast(ptr));
 
         const min_depth: i32 = 4;
-        const max_depth = @max(min_depth + 2, self.n);
+        const max_depth = @max(min_depth + 2, @as(i32, @intCast(self.n)));
         const stretch_depth = max_depth + 1;
 
         // 1. Создаём пул под максимальное дерево (stretch_depth)
@@ -114,7 +114,7 @@ pub const Binarytrees = struct {
         // 2. Stretch tree (используем пул, потом сбрасываем)
         {
             const stretch_tree = TreeNode.create(&main_pool, 0, stretch_depth);
-            self.result_val += stretch_tree.check();
+            self.result_val += @as(u32, @bitCast(stretch_tree.check()));
             main_pool.reset(); // Сброс пула = "удаление" дерева
         }
 
@@ -127,14 +127,14 @@ pub const Binarytrees = struct {
                 // 3. Tree1
                 {
                     const tree1 = TreeNode.create(&main_pool, i, depth);
-                    self.result_val += tree1.check();
+                    self.result_val += @as(u32, @bitCast(tree1.check()));
                     main_pool.reset();
                 }
 
-                // 4. Tree2  
+                // 4. Tree2
                 {
                     const tree2 = TreeNode.create(&main_pool, -i, depth);
-                    self.result_val += tree2.check();
+                    self.result_val += @as(u32, @bitCast(tree2.check()));
                     main_pool.reset();
                 }
             }
@@ -143,7 +143,7 @@ pub const Binarytrees = struct {
 
     fn resultImpl(ptr: *anyopaque) u32 {
         const self: *Binarytrees = @ptrCast(@alignCast(ptr));
-        return @as(u32, @bitCast(self.result_val));
+        return self.result_val;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

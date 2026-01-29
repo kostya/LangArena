@@ -5,11 +5,17 @@ import java.util.stream.IntStream;
 
 public class Matmul16T extends Benchmark {
     private int n;
-    private long result;
+    private long resultVal;
     private static final ForkJoinPool POOL = new ForkJoinPool(16);
     
     public Matmul16T() {
-        n = getIterations();
+        n = (int) configVal("n");
+        resultVal = 0L;
+    }
+    
+    @Override
+    public String name() {
+        return "Matmul16T";
     }
     
     private double[][] matgen(int n) {
@@ -60,16 +66,16 @@ public class Matmul16T extends Benchmark {
     }
     
     @Override
-    public void run() {
+    public void run(int iterationId) {
         double[][] a = matgen(n);
         double[][] b = matgen(n);
         double[][] c = matmulParallel(a, b);
         
-        result = Helper.checksumF64(c[n >> 1][n >> 1]);
+        resultVal += Helper.checksumF64(c[n >> 1][n >> 1]);
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

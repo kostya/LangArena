@@ -51,8 +51,7 @@ public class MazeGenerator : Benchmark
                 if (wallX > x2 || holeY > y2) return;
                 
                 for (int y = y1; y <= y2; y++)
-                    if (y != holeY)
-                        Set(wallX, y, Cell.Wall);
+                    if (y != holeY) Set(wallX, y, Cell.Wall);
                 
                 if (wallX > x1 + 1) Divide(x1, y1, wallX - 1, y2);
                 if (wallX + 1 < x2) Divide(wallX + 1, y1, x2, y2);
@@ -70,19 +69,37 @@ public class MazeGenerator : Benchmark
                 if (wallY > y2 || holeX > x2) return;
                 
                 for (int x = x1; x <= x2; x++)
-                    if (x != holeX)
-                        Set(x, wallY, Cell.Wall);
+                    if (x != holeX) Set(x, wallY, Cell.Wall);
                 
                 if (wallY > y1 + 1) Divide(x1, y1, x2, wallY - 1);
                 if (wallY + 1 < y2) Divide(x1, wallY + 1, x2, y2);
             }
         }
         
+        private void AddRandomPaths()
+        {
+            int numExtraPaths = (_width * _height) / 20;
+            
+            for (int i = 0; i < numExtraPaths; i++)
+            {
+                int x = Helper.NextInt(_width - 2) + 1;
+                int y = Helper.NextInt(_height - 2) + 1;
+                
+                if (Get(x, y) == Cell.Wall &&
+                    Get(x - 1, y) == Cell.Wall &&
+                    Get(x + 1, y) == Cell.Wall &&
+                    Get(x, y - 1) == Cell.Wall &&
+                    Get(x, y + 1) == Cell.Wall)
+                {
+                    Set(x, y, Cell.Path);
+                }
+            }
+        }
+        
         private bool IsConnectedImpl(int startX, int startY, int goalX, int goalY)
         {
             if (startX >= _width || startY >= _height ||
-                goalX >= _width || goalY >= _height)
-                return false;
+                goalX >= _width || goalY >= _height) return false;
             
             bool[,] visited = new bool[_height, _width];
             var queue = new Queue<(int x, int y)>();
@@ -102,21 +119,18 @@ public class MazeGenerator : Benchmark
                     queue.Enqueue((x, y - 1));
                 }
                 
-                // Право
                 if (x + 1 < _width && Get(x + 1, y) == Cell.Path && !visited[y, x + 1])
                 {
                     visited[y, x + 1] = true;
                     queue.Enqueue((x + 1, y));
                 }
                 
-                // Низ
                 if (y + 1 < _height && Get(x, y + 1) == Cell.Path && !visited[y + 1, x])
                 {
                     visited[y + 1, x] = true;
                     queue.Enqueue((x, y + 1));
                 }
                 
-                // Лево
                 if (x > 0 && Get(x - 1, y) == Cell.Path && !visited[y, x - 1])
                 {
                     visited[y, x - 1] = true;
@@ -131,13 +145,12 @@ public class MazeGenerator : Benchmark
         {
             if (_width < 5 || _height < 5)
             {
-                // ТОЧНО как в Rust: делаем простой проход
-                for (int x = 0; x < _width; x++)
-                    Set(x, _height / 2, Cell.Path);
+                for (int x = 0; x < _width; x++) Set(x, _height / 2, Cell.Path);
                 return;
             }
             
             Divide(0, 0, _width - 1, _height - 1);
+            AddRandomPaths();
         }
         
         public bool[,] ToBoolGrid()
@@ -179,35 +192,40 @@ public class MazeGenerator : Benchmark
         }
     }
     
-    private long _resultVal;
-    private readonly int _width = 1001;
-    private readonly int _height = 1001;
+    private uint _result;
+    private int _width;
+    private int _height;
+    private bool[,] _boolGrid;
     
-    public override void Prepare()
+    public MazeGenerator()
     {
+        _width = (int)ConfigVal("w");
+        _height = (int)ConfigVal("h");
     }
     
-    public override void Run()
+    private uint GridChecksum(bool[,] grid)
     {
-        long checksum = 0;
+        uint hasher = 2166136261;
+        uint prime = 16777619;
         
-        int iters = Iterations;
-        for (int i = 0; i < iters; i++)
+        for (int i = 0; i < grid.GetLength(0); i++)
         {
-            var boolGrid = Maze.GenerateWalkableMaze(_width, _height);
-            
-            for (int y = 0; y < _height; y++)
+            for (int j = 0; j < grid.GetLength(1); j++)
             {
-                for (int x = 0; x < _width; x++)
+                if (grid[i, j])
                 {
-                    if (!boolGrid[y, x])  // ТОЛЬКО стены (!cell)
-                        checksum += x * y;
+                    uint jSquared = (uint)(j * j);
+                    hasher = (hasher ^ jSquared) * prime;
                 }
             }
         }
-        
-        _resultVal = checksum;
+        return hasher;
     }
     
-    public override long Result => _resultVal;
+    public override void Run(long IterationId)
+    {
+        _boolGrid = Maze.GenerateWalkableMaze(_width, _height);
+    }
+    
+    public override uint Checksum => GridChecksum(_boolGrid);
 }

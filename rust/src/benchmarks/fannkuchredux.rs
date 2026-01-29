@@ -1,22 +1,18 @@
-use crate::{Benchmark, INPUT};
+use crate::{Benchmark, helper};
+use crate::config_i64;
 
 pub struct Fannkuchredux {
-    n: i32,
-    result: i64,
+    n: i64,
+    result_val: u32,
 }
 
 impl Fannkuchredux {
     pub fn new() -> Self {
-        let name = "Fannkuchredux".to_string();
-        let n = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
+        let n = config_i64("Fannkuchredux", "n");
         
         Self {
             n,
-            result: 0,
+            result_val: 0,
         }
     }
 
@@ -94,17 +90,13 @@ impl Benchmark for Fannkuchredux {
         "Fannkuchredux".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.n
-    }
-    
-    fn run(&mut self) {
-        let (checksum, max_flips) = self.fannkuchredux(self.n);
+    fn run(&mut self, _iteration_id: i64) {
+        let (checksum, max_flips) = self.fannkuchredux(self.n as i32);
         // Как в Crystal: a.to_i64 * 100 &+ b
-        self.result = (checksum as i64).wrapping_mul(100).wrapping_add(max_flips as i64);
+        self.result_val = self.result_val.wrapping_add((checksum as u32).wrapping_mul(100).wrapping_add(max_flips as u32));
     }
     
-    fn result(&self) -> i64 {
-        self.result
+    fn checksum(&self) -> u32 {
+        self.result_val
     }
 }

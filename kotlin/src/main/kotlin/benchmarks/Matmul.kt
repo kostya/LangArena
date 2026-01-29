@@ -3,11 +3,11 @@ package benchmarks
 import Benchmark
 
 class Matmul : Benchmark() {
-    private var n: Int = 0
-    private var resultValue: Long = 0L
+    private var n: Long = 0
+    private var resultVal: UInt = 0u
     
     init {
-        n = iterations
+        n = configVal("n")
     }
     
     private fun matmul(a: Array<DoubleArray>, b: Array<DoubleArray>): Array<DoubleArray> {
@@ -52,14 +52,15 @@ class Matmul : Benchmark() {
         return a
     }
     
-    override fun run() {
-        val a = matgen(n)
-        val b = matgen(n)
+    override fun run(iterationId: Int) {
+        val a = matgen(n.toInt())
+        val b = matgen(n.toInt())
         val c = matmul(a, b)
-        val center = c[n shr 1][n shr 1]
-        resultValue = Helper.checksumF64(center).toLong()
+        val center = c[(n shr 1).toInt()][(n shr 1).toInt()]
+        resultVal += Helper.checksumF64(center)  // &+= эквивалент
     }
     
-    override val result: Long
-        get() = resultValue
+    override fun checksum(): UInt = resultVal
+    
+    override fun name(): String = "Matmul"
 }

@@ -1,7 +1,9 @@
 import Foundation
+
 final class CalculatorInterpreter: BenchmarkProtocol {
     private class Interpreter {
         private var variables: [String: Int64] = [:]
+        
         private func simpleDiv(_ a: Int64, _ b: Int64) -> Int64 {
             if b == 0 { return 0 }
             if (a >= 0 && b > 0) || (a < 0 && b < 0) {
@@ -10,10 +12,12 @@ final class CalculatorInterpreter: BenchmarkProtocol {
                 return -Int64(abs(Int(a)) / abs(Int(b)))
             }
         }
+        
         private func simpleMod(_ a: Int64, _ b: Int64) -> Int64 {
             if b == 0 { return 0 }
             return a - simpleDiv(a, b) * b
         }
+        
         private func evaluate(_ node: CalculatorAst.Node) -> Int64 {
             switch node {
             case .number(let value):
@@ -37,6 +41,7 @@ final class CalculatorInterpreter: BenchmarkProtocol {
                 return value
             }
         }
+        
         func run(_ expressions: [CalculatorAst.Node]) -> Int64 {
             var result: Int64 = 0
             for expr in expressions {
@@ -45,30 +50,32 @@ final class CalculatorInterpreter: BenchmarkProtocol {
             return result
         }
     }
-    private var n: Int = 0
-    private var _result: Int64 = 0
+    
+    private var n: Int64 = 0
+    private var resultVal: UInt32 = 0
     private var ast: CalculatorAst?
+    
     init() {
-        n = iterations
+        n = configValue("operations") ?? 0
     }
+    
     func prepare() {
-        // Создаем и подготавливаем CalculatorAst
         ast = CalculatorAst()
         ast?.n = n
         ast?.prepare()
-        ast?.run()
+        ast?.run(iterationId: 0)
     }
-    func run() {
+    
+    func run(iterationId: Int) {
         guard let ast = ast else { return }
-        var total: Int64 = 0
-        for _ in 0..<100 {
-            let interpreter = Interpreter()
-            let result = interpreter.run(ast.expressions)
-            total &+= result
-        }
-        _result = total
+        let interpreter = Interpreter()
+        let result = interpreter.run(ast.expressions)
+        
+        let truncated = UInt32(truncatingIfNeeded: result)
+        resultVal &+= truncated
     }
-    var result: Int64 {
-        return _result
+    
+    var checksum: UInt32 {
+        return resultVal
     }
 }

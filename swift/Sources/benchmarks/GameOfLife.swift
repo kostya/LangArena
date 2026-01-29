@@ -7,9 +7,9 @@ final class GameOfLife: BenchmarkProtocol {
     }
     
     private class Grid {
-        private let width: Int
-        private let height: Int
-        private var cells: [[Cell]]
+        public let width: Int
+        public let height: Int
+        public var cells: [[Cell]]
         
         init(width: Int, height: Int) {
             self.width = width
@@ -18,20 +18,9 @@ final class GameOfLife: BenchmarkProtocol {
                               count: height)
         }
         
-        func get(x: Int, y: Int) -> Cell {
-            return cells[y][x]
-        }
-        
-        func set(x: Int, y: Int, cell: Cell) {
-            cells[y][x] = cell
-        }
-        
         private func toroidal(_ value: Int, modulo: Int) -> Int {
-            var result = value % modulo
-            if result < 0 {
-                result += modulo
-            }
-            return result
+            // Более надежная реализация
+            return (value % modulo + modulo) % modulo
         }
         
         func countNeighbors(x: Int, y: Int) -> Int {
@@ -41,7 +30,6 @@ final class GameOfLife: BenchmarkProtocol {
                 for dx in -1...1 {
                     if dx == 0 && dy == 0 { continue }
                     
-                    // Тороидальные координаты
                     let nx = toroidal(x + dx, modulo: width)
                     let ny = toroidal(y + dy, modulo: height)
                     
@@ -57,20 +45,20 @@ final class GameOfLife: BenchmarkProtocol {
         func nextGeneration() -> Grid {
             let nextGrid = Grid(width: width, height: height)
             
+            // Параллельное вычисление для производительности
             for y in 0..<height {
                 for x in 0..<width {
                     let neighbors = countNeighbors(x: x, y: y)
                     let current = cells[y][x]
                     
-                    var nextState: Cell = .dead
-                    if current == .alive {
-                        if neighbors == 2 || neighbors == 3 {
-                            nextState = .alive
-                        }
-                    } else {
-                        if neighbors == 3 {
-                            nextState = .alive
-                        }
+                    let nextState: Cell
+                    switch (current, neighbors) {
+                    case (.alive, 2), (.alive, 3):
+                        nextState = .alive
+                    case (.dead, 3):
+                        nextState = .alive
+                    default:
+                        nextState = .dead
                     }
                     
                     nextGrid.cells[y][x] = nextState
@@ -80,72 +68,73 @@ final class GameOfLife: BenchmarkProtocol {
             return nextGrid
         }
         
-        func aliveCount() -> Int {
-            var count = 0
+        func computeHash() -> UInt32 {
+            var hasher: UInt32 = 2166136261
+            let prime: UInt32 = 16777619
+            
             for row in cells {
                 for cell in row {
-                    if cell == .alive {
-                        count += 1
-                    }
-                }
-            }
-            return count
-        }
-        
-        func computeHash() -> UInt64 {
-            var hasher: UInt64 = 0
-            for row in cells {
-                for cell in row {
-                    // Простой хэш - сдвиг и XOR
-                    hasher = (hasher << 1) ^ (cell == .alive ? 1 : 0)
+                    let alive: UInt32 = (cell == .alive) ? 1 : 0
+                    hasher = hasher ^ alive
+                    hasher = hasher &* prime  // Безопасное умножение
                 }
             }
             return hasher
         }
+                
+        subscript(x: Int, y: Int) -> Cell {
+            get { 
+                guard y >= 0 && y < height && x >= 0 && x < width else {
+                    return .dead
+                }
+                return cells[y][x] 
+            }
+            set { 
+                guard y >= 0 && y < height && x >= 0 && x < width else { return }
+                cells[y][x] = newValue 
+            }
+        }
     }
     
-    private var resultVal: Int64 = 0
-    private let width: Int
-    private let height: Int
+    private var resultVal: UInt32 = 0
+    private var width: Int = 0
+    private var height: Int = 0
     private var grid: Grid
     
     init() {
-        self.width = 256
-        self.height = 256
-        self.grid = Grid(width: width, height: height)
+        // Инициализируем нулевыми размерами
+        self.width = 0
+        self.height = 0
+        self.grid = Grid(width: 0, height: 0)
     }
     
     func prepare() {
-        resultVal = 0
-    }
-    
-    func run() {
-        // Инициализация случайными клетками
+        // Получаем конфигурацию
+        let configW = Int(configValue("w") ?? 10)
+        let configH = Int(configValue("h") ?? 10)
+        
+        // Обновляем размеры если изменились
+        if configW != width || configH != height {
+            self.width = configW
+            self.height = configH
+            self.grid = Grid(width: width, height: height)
+        }
+        
+        // Инициализируем случайные живые клетки
         for y in 0..<height {
             for x in 0..<width {
                 if Helper.nextFloat() < 0.1 {
-                    grid.set(x: x, y: y, cell: .alive)
+                    grid[x, y] = .alive
                 }
             }
         }
-        
-        // Основной цикл симуляции
-        let iters = iterations
-        for _ in 0..<iters {
-            grid = grid.nextGeneration()
-        }
-        
-        resultVal = Int64(grid.aliveCount())
     }
     
-    var result: Int64 {
-        return resultVal
+    func run(iterationId: Int) {
+        grid = grid.nextGeneration()
     }
     
-    // Нужно добавить свойство iterations (должно быть в BenchmarkProtocol)
-    var iterations: Int {
-        // По аналогии с другими бенчмарками
-        let input = Helper.getInput("GameOfLife")
-        return Int(input ?? "") ?? 100
+    var checksum: UInt32 {
+        return grid.computeHash()
     }
 }

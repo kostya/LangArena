@@ -36,16 +36,22 @@ public class CalculatorAst extends Benchmark {
         }
     }
     
-    private int n;
-    private long result;
+    private long resultVal;
     private String text;
-    private List<Node> expressions = new ArrayList<>();
+    public List<Node> expressions = new ArrayList<>();
+    private long n;
     
     public CalculatorAst() {
-        n = getIterations();
+        n = configVal("operations");
+        resultVal = 0L;
     }
     
-    private String generateRandomProgram(int lines) {
+    @Override
+    public String name() {
+        return "CalculatorAst";
+    }
+    
+    private String generateRandomProgram(long lines) {
         StringBuilder sb = new StringBuilder();
         sb.append("v0 = 1\n");
         
@@ -55,8 +61,8 @@ public class CalculatorAst extends Benchmark {
               .append(" + ").append(v).append("\n");
         }
         
-        for (int i = 0; i < lines; i++) {
-            int v = i + 10;
+        for (long i = 0; i < lines; i++) {
+            int v = (int)(i + 10);
             sb.append("v").append(v).append(" = v").append(v - 1).append(" + ");
             
             switch (Helper.nextInt(10)) {
@@ -229,15 +235,20 @@ public class CalculatorAst extends Benchmark {
     }
     
     @Override
-    public void run() {
+    public void run(int iterationId) {
         Parser parser = new Parser(text);
         parser.parse();
         expressions = parser.expressions;
-        result = (result + expressions.size()) & 0xFFFFFFFFL;
+        resultVal += expressions.size();
+        
+        if (!expressions.isEmpty() && expressions.get(expressions.size() - 1) instanceof Assignment) {
+            Assignment assign = (Assignment) expressions.get(expressions.size() - 1);
+            resultVal += Helper.checksum(assign.variable);
+        }
     }
-    
+
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

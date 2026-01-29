@@ -1,5 +1,7 @@
-use super::super::{Benchmark, INPUT, helper};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 
+#[derive(Clone)]
 struct Synapse {
     weight: f64,
     prev_weight: f64,
@@ -19,6 +21,7 @@ impl Synapse {
     }
 }
 
+#[derive(Clone)]
 struct Neuron {
     threshold: f64,
     prev_threshold: f64,
@@ -43,8 +46,13 @@ impl Neuron {
             synapses_out: Vec::new(),
         }
     }
+    
+    fn derivative(&self) -> f64 {
+        self.output * (1.0 - self.output)
+    }
 }
 
+#[derive(Clone)]
 struct NeuralNetwork {
     input_layer: Vec<usize>,
     hidden_layer: Vec<usize>,
@@ -99,88 +107,116 @@ impl NeuralNetwork {
     fn train(&mut self, inputs: &[f64], targets: &[f64]) {
         self.feed_forward(inputs);
         
-        // Сначала вычисляем ошибки для всех нейронов
+        const RATE: f64 = 0.3;
+        
+        // 1. Обучаем выходные нейроны
         for (i, &target) in targets.iter().enumerate() {
             let neuron_idx = self.output_layer[i];
-            let neurons_slice = self.neurons.as_slice();
-            let error = (target - neurons_slice[neuron_idx].output) * neurons_slice[neuron_idx].derivative();
+            
+            // Вычисляем ошибку
+            let output = self.neurons[neuron_idx].output;
+            let derivative = self.neurons[neuron_idx].derivative();
+            let error = (target - output) * derivative;
             self.neurons[neuron_idx].error = error;
+            
+            // Обновляем веса
+            let synapses_in = self.neurons[neuron_idx].synapses_in.clone(); // Клонируем индексы
+            for &synapse_idx in &synapses_in {
+                let synapse = &mut self.synapses[synapse_idx];
+                let source_output = self.neurons[synapse.source_neuron].output;
+                
+                let temp_weight = synapse.weight;
+                synapse.weight += (RATE * Neuron::LEARNING_RATE * error * source_output)
+                               + (Neuron::MOMENTUM * (synapse.weight - synapse.prev_weight));
+                synapse.prev_weight = temp_weight;
+            }
+            
+            // Обновляем порог
+            let neuron = &mut self.neurons[neuron_idx];
+            let temp_threshold = neuron.threshold;
+            neuron.threshold += (RATE * Neuron::LEARNING_RATE * error * -1.0)
+                             + (Neuron::MOMENTUM * (neuron.threshold - neuron.prev_threshold));
+            neuron.prev_threshold = temp_threshold;
         }
         
-        for &neuron_idx in &self.hidden_layer {
+        // 2. Обучаем скрытые нейроны
+        // Сначала вычисляем ошибки для всех скрытых нейронов
+        let mut hidden_errors = vec![0.0; self.hidden_layer.len()];
+        
+        for (i, &neuron_idx) in self.hidden_layer.iter().enumerate() {
+            let neuron = &self.neurons[neuron_idx];
             let mut sum = 0.0;
-            for &synapse_idx in &self.neurons[neuron_idx].synapses_out {
+            
+            for &synapse_idx in &neuron.synapses_out {
                 let synapse = &self.synapses[synapse_idx];
-                sum += synapse.weight * self.neurons[synapse.dest_neuron].error;
+                // ВАЖНО: используем prev_weight (значение до обновления)
+                sum += synapse.prev_weight * self.neurons[synapse.dest_neuron].error;
             }
-            self.neurons[neuron_idx].error = sum * self.neurons[neuron_idx].derivative();
+            
+            hidden_errors[i] = sum * neuron.derivative();
         }
         
-        // Затем обновляем веса
-        for (i, &neuron_idx) in self.output_layer.iter().enumerate() {
-            let _target = targets[i]; // Переменная не используется, но нужна для индексации
-            let error = self.neurons[neuron_idx].error;
+        // Затем обновляем веса для всех скрытых нейронов
+        for (i, &neuron_idx) in self.hidden_layer.iter().enumerate() {
+            let error = hidden_errors[i];
+            self.neurons[neuron_idx].error = error;
             
-            for &synapse_idx in &self.neurons[neuron_idx].synapses_in {
+            // Обновляем веса
+            let synapses_in = self.neurons[neuron_idx].synapses_in.clone(); // Клонируем индексы
+            for &synapse_idx in &synapses_in {
                 let synapse = &mut self.synapses[synapse_idx];
-                let temp_weight = synapse.weight;
                 let source_output = self.neurons[synapse.source_neuron].output;
-                synapse.weight += (0.3 * Neuron::LEARNING_RATE * error * source_output) 
-                    + (Neuron::MOMENTUM * (synapse.weight - synapse.prev_weight));
+                
+                let temp_weight = synapse.weight;
+                synapse.weight += (RATE * Neuron::LEARNING_RATE * error * source_output)
+                               + (Neuron::MOMENTUM * (synapse.weight - synapse.prev_weight));
                 synapse.prev_weight = temp_weight;
             }
             
-            let temp_threshold = self.neurons[neuron_idx].threshold;
-            self.neurons[neuron_idx].threshold += (0.3 * Neuron::LEARNING_RATE * error * -1.0)
-                + (Neuron::MOMENTUM * (self.neurons[neuron_idx].threshold - self.neurons[neuron_idx].prev_threshold));
-            self.neurons[neuron_idx].prev_threshold = temp_threshold;
-        }
-        
-        for &neuron_idx in &self.hidden_layer {
-            let error = self.neurons[neuron_idx].error;
-            
-            for &synapse_idx in &self.neurons[neuron_idx].synapses_in {
-                let synapse = &mut self.synapses[synapse_idx];
-                let temp_weight = synapse.weight;
-                let source_output = self.neurons[synapse.source_neuron].output;
-                synapse.weight += (0.3 * Neuron::LEARNING_RATE * error * source_output) 
-                    + (Neuron::MOMENTUM * (synapse.weight - synapse.prev_weight));
-                synapse.prev_weight = temp_weight;
-            }
-            
-            let temp_threshold = self.neurons[neuron_idx].threshold;
-            self.neurons[neuron_idx].threshold += (0.3 * Neuron::LEARNING_RATE * error * -1.0)
-                + (Neuron::MOMENTUM * (self.neurons[neuron_idx].threshold - self.neurons[neuron_idx].prev_threshold));
-            self.neurons[neuron_idx].prev_threshold = temp_threshold;
+            // Обновляем порог
+            let neuron = &mut self.neurons[neuron_idx];
+            let temp_threshold = neuron.threshold;
+            neuron.threshold += (RATE * Neuron::LEARNING_RATE * error * -1.0)
+                             + (Neuron::MOMENTUM * (neuron.threshold - neuron.prev_threshold));
+            neuron.prev_threshold = temp_threshold;
         }
     }
     
     fn feed_forward(&mut self, inputs: &[f64]) {
+        // Устанавливаем входы
         for (i, &input) in inputs.iter().enumerate() {
             let neuron_idx = self.input_layer[i];
             self.neurons[neuron_idx].output = input;
         }
         
+        // Вычисляем выходы скрытых нейронов
         for &neuron_idx in &self.hidden_layer {
             let mut activation = 0.0;
-            for &synapse_idx in &self.neurons[neuron_idx].synapses_in {
+            let neuron = &self.neurons[neuron_idx];
+            
+            for &synapse_idx in &neuron.synapses_in {
                 let synapse = &self.synapses[synapse_idx];
-                let source = &self.neurons[synapse.source_neuron];
-                activation += synapse.weight * source.output;
+                activation += synapse.weight * self.neurons[synapse.source_neuron].output;
             }
-            activation -= self.neurons[neuron_idx].threshold;
-            self.neurons[neuron_idx].output = 1.0 / (1.0 + (-activation).exp());
+            activation -= neuron.threshold;
+            
+            let output = 1.0 / (1.0 + (-activation).exp());
+            self.neurons[neuron_idx].output = output;
         }
         
+        // Вычисляем выходы выходных нейронов
         for &neuron_idx in &self.output_layer {
             let mut activation = 0.0;
-            for &synapse_idx in &self.neurons[neuron_idx].synapses_in {
+            let neuron = &self.neurons[neuron_idx];
+            
+            for &synapse_idx in &neuron.synapses_in {
                 let synapse = &self.synapses[synapse_idx];
-                let source = &self.neurons[synapse.source_neuron];
-                activation += synapse.weight * source.output;
+                activation += synapse.weight * self.neurons[synapse.source_neuron].output;
             }
-            activation -= self.neurons[neuron_idx].threshold;
-            self.neurons[neuron_idx].output = 1.0 / (1.0 + (-activation).exp());
+            activation -= neuron.threshold;
+            
+            let output = 1.0 / (1.0 + (-activation).exp());
+            self.neurons[neuron_idx].output = output;
         }
     }
     
@@ -192,22 +228,14 @@ impl NeuralNetwork {
 }
 
 pub struct NeuralNet {
-    n: i32,
-    result: Vec<f64>,
+    xor_net: NeuralNetwork,
 }
 
 impl NeuralNet {
     pub fn new() -> Self {
-        let name = "NeuralNet".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
-        
+        // Инициализируем пустую сеть
         Self {
-            n: iterations,
-            result: Vec::new(),
+            xor_net: NeuralNetwork::new(0, 0, 0), // Пустая сеть
         }
     }
 }
@@ -217,42 +245,43 @@ impl Benchmark for NeuralNet {
         "NeuralNet".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.n
+    fn prepare(&mut self) {
+        // Создаем сеть в prepare, как в C++ и Go версиях
+        self.xor_net = NeuralNetwork::new(2, 10, 1);
     }
     
-    fn run(&mut self) {
-        let mut xor = NeuralNetwork::new(2, 10, 1);
-        
-        for _ in 0..self.n {
-            xor.train(&[0.0, 0.0], &[0.0]);
-            xor.train(&[1.0, 0.0], &[1.0]);
-            xor.train(&[0.0, 1.0], &[1.0]);
-            xor.train(&[1.0, 1.0], &[0.0]);
-        }
-        
-        let test_cases = [
-            [0.0, 0.0],
-            [0.0, 1.0],
-            [1.0, 0.0],
-            [1.0, 1.0],
-        ];
-        
-        for inputs in test_cases {
-            xor.feed_forward(&inputs);
-            self.result.extend_from_slice(&xor.current_outputs());
-        }
+    fn run(&mut self, _iteration_id: i64) {
+        // Используем изменяемое заимствование, а не перемещение
+        self.xor_net.train(&[0.0, 0.0], &[0.0]);
+        self.xor_net.train(&[1.0, 0.0], &[1.0]);
+        self.xor_net.train(&[0.0, 1.0], &[1.0]);
+        self.xor_net.train(&[1.0, 1.0], &[0.0]);
     }
     
-    fn result(&self) -> i64 {
-        let sum: f64 = self.result.iter().sum();
-        helper::checksum_f64(sum) as i64
-    }
-}
-
-// Вспомогательные методы для Neuron (добавляем в impl Neuron)
-impl Neuron {
-    fn derivative(&self) -> f64 {
-        self.output * (1.0 - self.output)
+    fn checksum(&self) -> u32 {
+        let mut net_copy = self.xor_net.clone();
+        
+        net_copy.feed_forward(&[0.0, 0.0]);
+        let outputs1 = net_copy.current_outputs();
+        
+        net_copy.feed_forward(&[0.0, 1.0]);
+        let outputs2 = net_copy.current_outputs();
+        
+        net_copy.feed_forward(&[1.0, 0.0]);
+        let outputs3 = net_copy.current_outputs();
+        
+        net_copy.feed_forward(&[1.0, 1.0]);
+        let outputs4 = net_copy.current_outputs();
+        
+        // Собираем все выходы
+        let mut all_outputs = Vec::new();
+        all_outputs.extend_from_slice(&outputs1);
+        all_outputs.extend_from_slice(&outputs2);
+        all_outputs.extend_from_slice(&outputs3);
+        all_outputs.extend_from_slice(&outputs4);
+        
+        // Вычисляем сумму
+        let sum: f64 = all_outputs.iter().sum();
+        helper::checksum_f64(sum)
     }
 }

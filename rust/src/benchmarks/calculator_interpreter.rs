@@ -1,24 +1,23 @@
 use crate::benchmarks::calculator_ast::{CalculatorAst, Node};
+use crate::config_i64;
+use super::super::{Benchmark};
 use std::collections::HashMap;
 
 // Интерпретатор
 pub struct CalculatorInterpreter {
-    n: i32,
+    n: i64,
     ast: Vec<Node>,
-    result: i64,
+    result_val: u32,
 }
 
 impl CalculatorInterpreter {
     pub fn new() -> Self {
-        let name = "CalculatorInterpreter".to_string();
-        let n = crate::INPUT.get()
-            .map(|input| input.get(&name).and_then(|s| s.parse().ok()).unwrap_or(1))
-            .unwrap_or(1);
+        let n = config_i64("CalculatorInterpreter", "operations");
         
         Self {
             n,
             ast: Vec::new(),
-            result: 0,
+            result_val: 0,
         }
     }
     
@@ -43,7 +42,7 @@ impl CalculatorInterpreter {
     }
 }
 
-impl crate::Benchmark for CalculatorInterpreter {
+impl Benchmark for CalculatorInterpreter {
     fn name(&self) -> String {
         "CalculatorInterpreter".to_string()
     }
@@ -52,11 +51,11 @@ impl crate::Benchmark for CalculatorInterpreter {
         let mut ast_bench = CalculatorAst::new();
         ast_bench.n = self.n;
         ast_bench.prepare();
-        ast_bench.run();
+        ast_bench.run(0);
         self.ast = ast_bench.expressions().to_vec();
     }
     
-    fn run(&mut self) {
+    fn run(&mut self, _iteration_id: i64) {
         struct Interpreter {
             variables: HashMap<String, i64>,
         }
@@ -102,20 +101,12 @@ impl crate::Benchmark for CalculatorInterpreter {
             }
         }
         
-        let mut total = 0i64;
-        for _ in 0..100 {
-            let mut interpreter = Interpreter::new();
-            let result = interpreter.run(&self.ast);
-            total = total.wrapping_add(result);
-        }
-        self.result = total;
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.run(&self.ast);
+        self.result_val = self.result_val.wrapping_add(result as u32);
     }
     
-    fn result(&self) -> i64 {
-        self.result
-    }
-
-    fn iterations(&self) -> i32 {
-        self.n
+    fn checksum(&self) -> u32 {
+        self.result_val
     }
 }

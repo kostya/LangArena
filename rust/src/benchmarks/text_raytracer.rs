@@ -1,5 +1,5 @@
-use super::super::{Benchmark, INPUT};
-// helper не используется в этом файле, можно удалить
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 
 #[derive(Clone, Copy)]
 struct Vector {
@@ -118,7 +118,7 @@ const SCENE: [Sphere; 3] = [
 pub struct TextRaytracer {
     w: i32,
     h: i32,
-    result: u64,
+    result_val: u32,
 }
 
 impl TextRaytracer {
@@ -173,17 +173,13 @@ impl TextRaytracer {
     }
     
     pub fn new() -> Self {
-        let name = "TextRaytracer".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
+        let w = config_i64("TextRaytracer", "w") as i32;
+        let h = config_i64("TextRaytracer", "h") as i32;
         
         Self {
-            w: iterations,
-            h: iterations,
-            result: 0,
+            w,
+            h,
+            result_val: 0,
         }
     }
 }
@@ -193,12 +189,7 @@ impl Benchmark for TextRaytracer {
         "TextRaytracer".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.w
-    }
-    
-    fn run(&mut self) {
-        let mut res = 0u64;
+    fn run(&mut self, _iteration_id: i64) {
         let fw = self.w as f64;
         let fh = self.h as f64;
         
@@ -212,7 +203,7 @@ impl Benchmark for TextRaytracer {
                     Vector::new((fi - fw / 2.0) / fw, (fj - fh / 2.0) / fh, 1.0).normalize(),
                 );
                 
-                let mut hit = None;
+                let mut hit: Option<Hit> = None;
                 
                 for obj in &SCENE {
                     if let Some(tval) = self.intersect_sphere(&ray, &obj.center, obj.radius) {
@@ -235,13 +226,12 @@ impl Benchmark for TextRaytracer {
                     ' '
                 };
                 
-                res = res.wrapping_add(pixel as u64);
+                self.result_val = self.result_val.wrapping_add(pixel as u32);
             }
         }
-        self.result = res;
     }
     
-    fn result(&self) -> i64 {
-        self.result as i64
+    fn checksum(&self) -> u32 {
+        self.result_val
     }
 }

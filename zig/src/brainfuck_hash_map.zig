@@ -6,7 +6,7 @@ pub const BrainfuckHashMap = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
     text: []const u8,
-    result_val: u64,
+    result_val: u32,
 
     const Tape = struct {
         tape: std.ArrayListUnmanaged(u8),
@@ -89,8 +89,8 @@ pub const BrainfuckHashMap = struct {
             self.bracket_map.deinit();
         }
 
-        pub fn run(self: *Program, allocator: std.mem.Allocator) !u64 {
-            var result: u64 = 0;
+        pub fn run(self: *Program, allocator: std.mem.Allocator) !u32 {
+            var result: u32 = 0;
             var tape = try Tape.init(allocator);
             defer tape.deinit(allocator);
 
@@ -115,7 +115,7 @@ pub const BrainfuckHashMap = struct {
                         }
                     },
                     '.' => {
-                        result = (result << 2) + @as(u64, tape.get());
+                        result = (result << 2) +% tape.get();
                     },
                     else => {},
                 }
@@ -128,12 +128,13 @@ pub const BrainfuckHashMap = struct {
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = resultImpl,
         .deinit = deinitImpl,
+        .warmup = warmupImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*BrainfuckHashMap {
-        const text = helper.getInput("BrainfuckHashMap") orelse "";
+        const text = helper.config_s("BrainfuckHashMap", "program");
 
         const self = try allocator.create(BrainfuckHashMap);
         errdefer allocator.destroy(self);
@@ -156,22 +157,34 @@ pub const BrainfuckHashMap = struct {
         return Benchmark.init(self, &vtable, self.helper);
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
+        _ = iteration_id;
         const self: *BrainfuckHashMap = @ptrCast(@alignCast(ptr));
 
         var program = Program.init(self.allocator, self.text) catch return;
         defer program.deinit(self.allocator);
 
-        self.result_val = program.run(self.allocator) catch return;
+        const result = program.run(self.allocator) catch return;
+        self.result_val +%= result;
     }
 
     fn resultImpl(ptr: *anyopaque) u32 {
         const self: *BrainfuckHashMap = @ptrCast(@alignCast(ptr));
-        return @as(u32, @truncate(self.result_val));
+        return self.result_val;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {
         const self: *BrainfuckHashMap = @ptrCast(@alignCast(ptr));
         self.deinit();
+    }
+
+    fn warmupImpl(ptr: *anyopaque) void {
+        const self: *BrainfuckHashMap = @ptrCast(@alignCast(ptr));
+        const warmup_program = self.helper.config_s("BrainfuckHashMap", "warmup_program");
+        if (warmup_program.len == 0) return;
+
+        var program = Program.init(self.allocator, warmup_program) catch return;
+        defer program.deinit(self.allocator);
+        _ = program.run(self.allocator) catch return;
     }
 };

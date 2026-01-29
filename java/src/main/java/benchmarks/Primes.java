@@ -3,19 +3,26 @@ package benchmarks;
 import java.util.*;
 
 public class Primes extends Benchmark {
-    private static final int PREFIX = 32338;
-    
-    private int n;
-    private long result = 5432L;
-    
-    // Статический вложенный класс для узла дерева
-    static class Node {
-        // Используем массив вместо HashMap для эффективности
+    private static class Node {
         final Node[] children = new Node[10];
         boolean terminal = false;
     }
     
-    // Более эффективное и простое решето Эратосфена
+    private long resultVal;
+    private long n;
+    private long prefix;
+    
+    public Primes() {
+        n = configVal("limit");
+        prefix = configVal("prefix");
+        resultVal = 5432L;
+    }
+    
+    @Override
+    public String name() {
+        return "Primes";
+    }
+    
     private static List<Integer> generatePrimes(int limit) {
         if (limit < 2) {
             return Collections.emptyList();
@@ -116,37 +123,28 @@ public class Primes extends Benchmark {
         return results;
     }
     
-    public Primes() {
-        n = getIterations();
-    }
-    
     @Override
-    public void run() {
+    public void run(int iterationId) {
         // 1. Генерация простых чисел (как в C++)
-        List<Integer> primes = generatePrimes(n);
+        List<Integer> primes = generatePrimes((int) n);
         
         // 2. Построение префиксного дерева (как в C++)
         Node trie = buildTrie(primes);
         
         // 3. Поиск по префиксу (как в C++)
-        List<Integer> results = findPrimesWithPrefix(trie, PREFIX);
+        List<Integer> results = findPrimesWithPrefix(trie, (int) prefix);
         
         // 4. Вычисление результата в том же порядке, что и в C++
-        long temp = 5432L;
-        
-        // Сначала добавляем размер (как в C++)
-        temp = (temp + results.size()) & 0xFFFFFFFFL;
+        resultVal += results.size();
         
         // Затем добавляем все числа (как в C++)
         for (int prime : results) {
-            temp = (temp + prime) & 0xFFFFFFFFL;
+            resultVal += prime;
         }
-        
-        result = temp;
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

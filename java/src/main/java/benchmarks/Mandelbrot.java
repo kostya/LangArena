@@ -6,20 +6,23 @@ public class Mandelbrot extends Benchmark {
     private static final int ITER = 50;
     private static final double LIMIT = 2.0;
     
-    private int n;
+    private int w, h;
     private ByteArrayOutputStream result;
     
     public Mandelbrot() {
-        n = getIterations();
+        w = (int) configVal("w");
+        h = (int) configVal("h");
         result = new ByteArrayOutputStream();
     }
     
     @Override
-    public void run() {
+    public String name() {
+        return "Mandelbrot";
+    }
+    
+    @Override
+    public void run(int iterationId) {
         try {
-            int w = n;
-            int h = n;
-            
             result.write(("P4\n" + w + " " + h + "\n").getBytes());
             
             int bitNum = 0;
@@ -63,9 +66,9 @@ public class Mandelbrot extends Benchmark {
             throw new RuntimeException(e);
         }
     }
-    
+
     @Override
-    public long getResult() {
+    public long checksum() {
         return Helper.checksum(result.toByteArray());
     }
 }

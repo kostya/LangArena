@@ -1,16 +1,15 @@
-// src/nbody.zig
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
-const math = std.math;
 
 pub const Nbody = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    n: i32,
-    result_val: u64,
+    bodies: [5]Planet,
+    v1: f64,
+    result_val: u32,
 
-    const SOLAR_MASS: f64 = 4.0 * math.pi * math.pi;
+    const SOLAR_MASS: f64 = 4.0 * std.math.pi * std.math.pi;
     const DAYS_PER_YEAR: f64 = 365.24;
 
     const Planet = struct {
@@ -63,21 +62,27 @@ pub const Nbody = struct {
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = resultImpl,
         .deinit = deinitImpl,
+        .prepare = prepareImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Nbody {
-        const n_int = helper.getInputInt("Nbody");
-        const n: i32 = if (n_int > 0) n_int else 0;
-
         const self = try allocator.create(Nbody);
         errdefer allocator.destroy(self);
+
+        var bodies: [5]Planet = undefined;
+        bodies[0] = Planet.init(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0);
+        bodies[1] = Planet.init(4.84143144246472090e+00, -1.16032004402742839e+00, -1.03622044471123109e-01, 1.66007664274403694e-03, 7.69901118419740425e-03, -6.90460016972063023e-05, 9.54791938424326609e-04);
+        bodies[2] = Planet.init(8.34336671824457987e+00, 4.12479856412430479e+00, -4.03523417114321381e-01, -2.76742510726862411e-03, 4.99852801234917238e-03, 2.30417297573763929e-05, 2.85885980666130812e-04);
+        bodies[3] = Planet.init(1.28943695621391310e+01, -1.51111514016986312e+01, -2.23307578892655734e-01, 2.96460137564761618e-03, 2.37847173959480950e-03, -2.96589568540237556e-05, 4.36624404335156298e-05);
+        bodies[4] = Planet.init(1.53796971148509165e+01, -2.59193146099879641e+01, 1.79258772950371181e-01, 2.68067772490389322e-03, 1.62824170038242295e-03, -9.51592254519715870e-05, 5.15138902046611451e-05);
 
         self.* = Nbody{
             .allocator = allocator,
             .helper = helper,
-            .n = n,
+            .bodies = bodies,
+            .v1 = 0.0,
             .result_val = 0,
         };
 
@@ -130,53 +135,31 @@ pub const Nbody = struct {
         sun.vz = -pz / SOLAR_MASS;
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn prepareImpl(ptr: *anyopaque) void {
         const self: *Nbody = @ptrCast(@alignCast(ptr));
-        const n = self.n;
+        offsetMomentum(&self.bodies);
+        self.v1 = energy(&self.bodies);
+    }
 
-        // Инициализация планет (солнечная система)
-        var bodies: [5]Planet = undefined;
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
+        _ = iteration_id;
+        const self: *Nbody = @ptrCast(@alignCast(ptr));
 
-        // sun
-        bodies[0] = Planet.init(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0);
-
-        // jupiter
-        bodies[1] = Planet.init(4.84143144246472090e+00, -1.16032004402742839e+00, -1.03622044471123109e-01, 1.66007664274403694e-03, 7.69901118419740425e-03, -6.90460016972063023e-05, 9.54791938424326609e-04);
-
-        // saturn
-        bodies[2] = Planet.init(8.34336671824457987e+00, 4.12479856412430479e+00, -4.03523417114321381e-01, -2.76742510726862411e-03, 4.99852801234917238e-03, 2.30417297573763929e-05, 2.85885980666130812e-04);
-
-        // uranus
-        bodies[3] = Planet.init(1.28943695621391310e+01, -1.51111514016986312e+01, -2.23307578892655734e-01, 2.96460137564761618e-03, 2.37847173959480950e-03, -2.96589568540237556e-05, 4.36624404335156298e-05);
-
-        // neptune
-        bodies[4] = Planet.init(1.53796971148509165e+01, -2.59193146099879641e+01, 1.79258772950371181e-01, 2.68067772490389322e-03, 1.62824170038242295e-03, -9.51592254519715870e-05, 5.15138902046611451e-05);
-
-        // Выравниваем импульс
-        offsetMomentum(&bodies);
-
-        const v1 = energy(&bodies);
-        const nbodies = bodies.len;
+        const nbodies = self.bodies.len;
         const dt: f64 = 0.01;
 
-        // Симуляция
-        var iter: i32 = 0;
-        while (iter < n) : (iter += 1) {
-            for (0..nbodies) |i| {
-                bodies[i].moveFromI(&bodies, nbodies, dt, i + 1);
-            }
+        var i: usize = 0;
+        while (i < nbodies) : (i += 1) {
+            self.bodies[i].moveFromI(&self.bodies, nbodies, dt, i + 1);
         }
-
-        const v2 = energy(&bodies);
-        const checksum1 = self.helper.checksumFloat(v1);
-        const checksum2 = self.helper.checksumFloat(v2);
-
-        self.result_val = (checksum1 << 5) & checksum2;
     }
 
     fn resultImpl(ptr: *anyopaque) u32 {
         const self: *Nbody = @ptrCast(@alignCast(ptr));
-        return @as(u32, @truncate(self.result_val));
+        const v2 = energy(&self.bodies);
+        const checksum1 = self.helper.checksumFloat(self.v1);
+        const checksum2 = self.helper.checksumFloat(v2);
+        return (checksum1 << 5) & checksum2;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

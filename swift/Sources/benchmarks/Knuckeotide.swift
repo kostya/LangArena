@@ -8,9 +8,9 @@ final class Knuckeotide: BenchmarkProtocol {
         output = ""
         
         let fasta = Fasta()
-        fasta.n = iterations
+        fasta.n = configValue("n") ?? 0
         fasta.prepare()
-        fasta.run()
+        fasta.run(iterationId: 0)
         let res = fasta.getOutput()
         
         var three = false
@@ -67,7 +67,7 @@ final class Knuckeotide: BenchmarkProtocol {
         output += "\(count)\t\(s.uppercased())\n"
     }
     
-    func run() {
+    func run(iterationId: Int) {
         output.reserveCapacity(50000)
         
         for i in 1...2 {
@@ -80,8 +80,7 @@ final class Knuckeotide: BenchmarkProtocol {
         }
     }
     
-    var result: Int64 {
-        let checksum = Helper.checksum(output)
-        return Int64(bitPattern: UInt64(checksum))
+    var checksum: UInt32 {
+        return Helper.checksum(output)
     }
 }

@@ -2,16 +2,16 @@ using System.Text;
 
 public class Fasta : Benchmark
 {
-    public int _n;
+    public long _n;
     private StringBuilder _resultBuilder;
+    private uint _result;
     
-    public override long Result => Helper.Checksum(_resultBuilder.ToString());
-	public string GetResult() => _resultBuilder.ToString();
-
+    public override uint Checksum => _result;
+    
     public Fasta()
     {
         _resultBuilder = new StringBuilder();
-        _n = Iterations;
+        _n = ConfigVal("n");
     }
     
     public override void Prepare() {}
@@ -19,8 +19,7 @@ public class Fasta : Benchmark
     private char SelectRandom((char, double)[] genelist)
     {
         double r = Helper.NextFloat();
-        if (r < genelist[0].Item2)
-            return genelist[0].Item1;
+        if (r < genelist[0].Item2) return genelist[0].Item1;
         
         int lo = 0;
         int hi = genelist.Length - 1;
@@ -28,10 +27,8 @@ public class Fasta : Benchmark
         while (hi > lo + 1)
         {
             int i = (hi + lo) / 2;
-            if (r < genelist[i].Item2)
-                hi = i;
-            else
-                lo = i;
+            if (r < genelist[i].Item2) hi = i;
+            else lo = i;
         }
         return genelist[hi].Item1;
     }
@@ -49,10 +46,7 @@ public class Fasta : Benchmark
         {
             int m = todo < LINE_LENGTH ? todo : LINE_LENGTH;
             
-            for (int i = 0; i < m; i++)
-            {
-                buffer[i] = SelectRandom(genelist);
-            }
+            for (int i = 0; i < m; i++) buffer[i] = SelectRandom(genelist);
             
             _resultBuilder.Append(buffer, 0, m);
             _resultBuilder.Append('\n');
@@ -108,10 +102,14 @@ public class Fasta : Benchmark
     
     private const string ALU = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
     
-    public override void Run()
+    public override void Run(long IterationId)
     {
-        MakeRepeatFasta("ONE", "Homo sapiens alu", ALU, _n * 2);
-        MakeRandomFasta("TWO", "IUB ambiguity codes", IUB, _n * 3);
-        MakeRandomFasta("THREE", "Homo sapiens frequency", HOMO, _n * 5);
+        MakeRepeatFasta("ONE", "Homo sapiens alu", ALU, (int)(_n * 2));
+        MakeRandomFasta("TWO", "IUB ambiguity codes", IUB, (int)(_n * 3));
+        MakeRandomFasta("THREE", "Homo sapiens frequency", HOMO, (int)(_n * 5));
+        
+        _result = Helper.Checksum(_resultBuilder.ToString());
     }
+    
+    public string GetResult() => _resultBuilder.ToString();
 }

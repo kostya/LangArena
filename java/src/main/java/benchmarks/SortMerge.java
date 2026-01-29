@@ -3,6 +3,11 @@ package benchmarks;
 public class SortMerge extends SortBenchmark {
     
     @Override
+    public String name() {
+        return "SortMerge";
+    }
+    
+    @Override
     int[] test() {
         int[] arr = data.clone();
         mergeSortInplace(arr);

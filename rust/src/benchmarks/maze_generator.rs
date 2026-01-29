@@ -1,4 +1,5 @@
-use super::super::{Benchmark, INPUT, helper};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 use std::collections::VecDeque;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,6 +53,27 @@ impl Maze {
         }
         
         self.divide(0, 0, self.width - 1, self.height - 1);
+        
+        // Добавляем случайные пути
+        self.add_random_paths();
+    }
+    
+    fn add_random_paths(&mut self) {
+        let num_extra_paths = (self.width * self.height) / 20; // 5% клеток
+
+        for _ in 0..num_extra_paths {
+            let x = helper::next_int((self.width - 2) as i32) as usize + 1; // Не на границах
+            let y = helper::next_int((self.height - 2) as i32) as usize + 1;
+
+            // Превращаем стену в проход, если окружена стенами
+            if self.get(x, y) == Cell::Wall &&
+                self.get(x - 1, y) == Cell::Wall &&
+                self.get(x + 1, y) == Cell::Wall &&
+                self.get(x, y - 1) == Cell::Wall &&
+                self.get(x, y + 1) == Cell::Wall {
+                *self.get_mut(x, y) = Cell::Path;
+            }
+        }
     }
     
     fn divide(&mut self, x1: usize, y1: usize, x2: usize, y2: usize) {
@@ -235,27 +257,37 @@ impl Maze {
 }
 
 pub struct MazeGenerator {
-    iterations: i32,
-    result: i64,
-    width: usize,
-    height: usize,
+    width_: i32,
+    height_: i32,
+    bool_grid: Vec<Vec<bool>>,
+    result_val: u32,
 }
 
 impl MazeGenerator {
-    pub fn new() -> Self {
-        let name = "MazeGenerator".to_string();
+    fn grid_checksum(&self, grid: &Vec<Vec<bool>>) -> u32 {
+        let mut hasher: u32 = 2166136261;      // FNV offset basis
+        let prime: u32 = 16777619;             // FNV prime
         
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(10);  // Меньше итераций для больших размеров
+        for (i, row) in grid.iter().enumerate() {
+            for (j, &cell) in row.iter().enumerate() {
+                if cell {  // только true клетки
+                    let j_squared = (j * j) as u32;
+                    hasher = (hasher ^ j_squared).wrapping_mul(prime);
+                }
+            }
+        }
+        hasher
+    }
+    
+    pub fn new() -> Self {
+        let width_ = config_i64("MazeGenerator", "w") as i32;
+        let height_ = config_i64("MazeGenerator", "h") as i32;
         
         Self {
-            iterations,
-            result: 0,
-            width: 1001,
-            height: 1001,
+            width_,
+            height_,
+            bool_grid: Vec::new(),
+            result_val: 0,
         }
     }
 }
@@ -265,31 +297,11 @@ impl Benchmark for MazeGenerator {
         "MazeGenerator".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.iterations
+    fn run(&mut self, _iteration_id: i64) {
+        self.bool_grid = Maze::generate_walkable_maze(self.width_ as usize, self.height_ as usize);
     }
     
-    fn run(&mut self) {
-        let mut checksum = 0_u64;
-        
-        for i in 0..self.iterations {
-            // Используем ТУ ЖЕ функцию что и AStarPathfinder!
-            let bool_grid = Maze::generate_walkable_maze(self.width, self.height);
-
-
-            for (y, row) in bool_grid.iter().enumerate() {
-                for (x, &cell) in row.iter().enumerate() {
-                    if !cell {
-                        checksum += (x * y) as u64;
-                    }
-                }
-            }            
-        }
-        
-        self.result = checksum as i64;
-    }
-
-    fn result(&self) -> i64 {
-        self.result
+    fn checksum(&self) -> u32 {
+        self.grid_checksum(&self.bool_grid)
     }
 }

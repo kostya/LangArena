@@ -3,11 +3,11 @@ package benchmarks
 import Benchmark
 
 class Fannkuchredux : Benchmark() {
-    private var n: Int = 0
-    private var resultValue: Long = 0L
+    private var n: Long = 0
+    private var resultVal: UInt = 0u
     
     init {
-        n = iterations
+        n = configVal("n")
     }
     
     private data class Result(val checksum: Int, val maxFlipsCount: Int)
@@ -76,11 +76,12 @@ class Fannkuchredux : Benchmark() {
         }
     }
     
-    override fun run() {
-        val (a, b) = fannkuchredux(n)
-        resultValue = (a.toLong() * 100) + b
+    override fun run(iterationId: Int) {
+        val (a, b) = fannkuchredux(n.toInt())
+        resultVal += (a * 100 + b).toUInt()  // &+= эквивалент
     }
     
-    override val result: Long
-        get() = resultValue
+    override fun checksum(): UInt = resultVal
+    
+    override fun name(): String = "Fannkuchredux"
 }

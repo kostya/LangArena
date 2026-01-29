@@ -5,14 +5,19 @@ import org.json.JSONObject;
 
 public class JsonParseDom extends Benchmark {
     private String text;
-    private long result;
+    private long resultVal;
+    
+    @Override
+    public String name() {
+        return "JsonParseDom";
+    }
     
     @Override
     public void prepare() {
         JsonGenerate generator = new JsonGenerate();
-        generator.n = getIterations();
+        generator.n = (int) configVal("coords");
         generator.prepare();
-        generator.run();
+        generator.run(0);
         
         // Получаем текст через рефлексию
         try {
@@ -42,13 +47,13 @@ public class JsonParseDom extends Benchmark {
     }
     
     @Override
-    public void run() {
+    public void run(int iterationId) {
         double[] values = calc(text);
-        result = ((int)Helper.checksumF64(values[0]) + (int)Helper.checksumF64(values[1]) + (int)Helper.checksumF64(values[2])) & 0xFFFFFFFFL;
+        resultVal += ((int)Helper.checksumF64(values[0]) + (int)Helper.checksumF64(values[1]) + (int)Helper.checksumF64(values[2])) & 0xFFFFFFFFL;
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

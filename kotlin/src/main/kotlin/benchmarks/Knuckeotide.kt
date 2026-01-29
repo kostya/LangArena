@@ -11,9 +11,9 @@ class Knuckeotide : Benchmark() {
         
         // Генерируем последовательность через Fasta
         val fasta = Fasta()
-        fasta.n = iterations
+        fasta.n = configVal("n")
         fasta.prepare()
-        fasta.run()
+        fasta.run(0)
         val res = fasta.getOutput()
         
         var three = false
@@ -63,7 +63,7 @@ class Knuckeotide : Benchmark() {
         output.append("${table.getOrDefault(s, 0)}\t${s.uppercase()}\n")
     }
     
-    override fun run() {
+    override fun run(iterationId: Int) {
         for (i in 1..2) {
             sortByFreq(seq, i)
         }
@@ -73,6 +73,7 @@ class Knuckeotide : Benchmark() {
         }
     }
     
-    override val result: Long
-        get() = Helper.checksum(output.toString()).toLong()
+    override fun checksum(): UInt = Helper.checksum(output.toString())
+    
+    override fun name(): String = "Knuckeotide"
 }

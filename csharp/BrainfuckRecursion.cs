@@ -1,27 +1,24 @@
 public class BrainfuckRecursion : Benchmark
 {
     private string _text = "";
-    private long _result = 0;
+    private string _warmupText = "";
+    private uint _result;
     
-    public override long Result => _result;
-    
-    public BrainfuckRecursion() { }
-    
-    public override void Prepare()
+    public BrainfuckRecursion()
     {
-        _text = Helper.Input.GetValueOrDefault(nameof(BrainfuckRecursion), "");
+        _text = Helper.Config_s(nameof(BrainfuckRecursion), "program");
+        _warmupText = Helper.Config_s(nameof(BrainfuckRecursion), "warmup_program");
     }
     
-    // Используем readonly record struct для value types
     private interface IOp { }
-    private readonly record struct Inc(int Value) : IOp;
-    private readonly record struct Move(int Value) : IOp;
-    private readonly record struct Print : IOp;
+    private record struct Inc(int Value) : IOp;
+    private record struct Move(int Value) : IOp;
+    private record struct Print : IOp;
     private record class Loop(List<IOp> Operations) : IOp;
     
     private sealed class Tape
     {
-        private byte[] _tape = new byte[1024];  // Начальный размер
+        private byte[] _tape = new byte[1024];
         private int _pos = 0;
         
         public byte Get() => _tape[_pos];
@@ -34,7 +31,6 @@ public class BrainfuckRecursion : Benchmark
             
             if (_pos < 0)
             {
-                // Движение влево - расширяем в начале
                 int needed = -_pos;
                 byte[] newTape = new byte[_tape.Length + needed];
                 Array.Copy(_tape, 0, newTape, needed, _tape.Length);
@@ -43,7 +39,6 @@ public class BrainfuckRecursion : Benchmark
             }
             else if (_pos >= _tape.Length)
             {
-                // Движение вправо - удваиваем размер
                 int newSize = Math.Max(_tape.Length * 2, _pos + 1);
                 Array.Resize(ref _tape, newSize);
             }
@@ -53,15 +48,14 @@ public class BrainfuckRecursion : Benchmark
     private sealed class Program
     {
         private readonly List<IOp> _operations;
-        private long _result = 0;
+        private uint _result = 0;
         
-        public long Result => _result;
+        public uint Result => _result;
         
         public Program(string code)
         {
             int index = 0;
             _operations = Parse(ref index, code);
-            _operations.TrimExcess();  // Освобождаем лишнюю память
         }
         
         private List<IOp> Parse(ref int index, string code)
@@ -84,11 +78,9 @@ public class BrainfuckRecursion : Benchmark
                     _ => null
                 };
                 
-                if (op is not null)
-                    operations.Add(op);
+                if (op is not null) operations.Add(op);
                 
-                if (c == ']')
-                    break;
+                if (c == ']') break;
             }
             
             return operations;
@@ -102,42 +94,37 @@ public class BrainfuckRecursion : Benchmark
         
         private void RunOperations(List<IOp> operations, Tape tape)
         {
-            // Используем for вместо foreach для избежания аллокации enumerator
             for (int i = 0; i < operations.Count; i++)
             {
                 var op = operations[i];
                 
                 switch (op)
                 {
-                    case Inc inc:
-                        tape.Inc(inc.Value);
-                        break;
-                        
-                    case Move move:
-                        tape.Move(move.Value);
-                        break;
-                        
-                    case Print:
-                        _result = ((_result << 2) + tape.Get());
-                        break;
-                        
+                    case Inc inc: tape.Inc(inc.Value); break;
+                    case Move move: tape.Move(move.Value); break;
+                    case Print: _result = ((_result << 2) + tape.Get()); break;
                     case Loop loop:
-                        // Предвычисляем condition вне цикла
-                        byte condition;
-                        while ((condition = tape.Get()) != 0)
-                        {
-                            RunOperations(loop.Operations, tape);
-                        }
+                        while (tape.Get() != 0) RunOperations(loop.Operations, tape);
                         break;
                 }
             }
         }
     }
     
-    public override void Run()
+    private uint RunProgram(string text)
     {
-        var program = new Program(_text);
+        var program = new Program(text);
         program.Run();
-        _result = program.Result;
+        return program.Result;
     }
+    
+    public override void Warmup()
+    {
+        long prepareIters = WarmupIterations;
+        for (long i = 0; i < prepareIters; i++) RunProgram(_warmupText);
+    }
+    
+    public override void Run(long IterationId) => _result += RunProgram(_text);
+    
+    public override uint Checksum => _result;
 }

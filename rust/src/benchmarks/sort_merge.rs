@@ -1,4 +1,5 @@
-use super::super::{Benchmark, INPUT};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 use crate::benchmarks::sort_benchmark::SortBenchmark;
 
 pub struct SortMerge {
@@ -52,15 +53,8 @@ impl SortMerge {
     }
     
     pub fn new() -> Self {
-        let name = "SortMerge".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
-        
         Self {
-            base: SortBenchmark::new_base(iterations),
+            base: SortBenchmark::new_base(),
         }
     }
 }
@@ -70,24 +64,23 @@ impl Benchmark for SortMerge {
         "SortMerge".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.base.n
-    }
-    
     fn prepare(&mut self) {
-        self.base.prepare_common();
+        self.base.prepare("SortMerge");
+    }
+
+    fn run(&mut self, _iteration_id: i64) {
+        // Простой тест как в Crystal версии
+        self.base.result_val = self.base.result_val.wrapping_add(
+            self.base.data[helper::next_int(self.base.size_val as i32) as usize] as u32
+        );
+        let mut t = self.base.data.clone();
+        Self::merge_sort_inplace(&mut t);
+        self.base.result_val = self.base.result_val.wrapping_add(
+            t[helper::next_int(self.base.size_val as i32) as usize] as u32
+        );
     }
     
-    fn run(&mut self) {
-        let data = self.base.data.clone();
-        self.base.run_common(|| {
-            let mut arr = data.clone();
-            Self::merge_sort_inplace(&mut arr);
-            arr
-        });
-    }
-    
-    fn result(&self) -> i64 {
-        self.base.result as i64
+    fn checksum(&self) -> u32 {
+        self.base.result_val
     }
 }

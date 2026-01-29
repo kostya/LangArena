@@ -1,16 +1,19 @@
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
-const SortBenchmark = @import("sort_benchmark.zig").SortBenchmark;
 
 pub const SortQuick = struct {
-    base: SortBenchmark,
     allocator: std.mem.Allocator,
+    helper: *Helper,
+    data: std.ArrayListUnmanaged(i32),
+    size_val: i64,
+    result_val: u32,
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = checksumImpl,
         .deinit = deinitImpl,
+        .prepare = prepareImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*SortQuick {
@@ -18,21 +21,39 @@ pub const SortQuick = struct {
         errdefer allocator.destroy(self);
 
         self.* = SortQuick{
-            // Используем имя бенчмарка из helper или фиксированное
-            .base = try SortBenchmark.init(allocator, helper, "SortQuick"), // "SortQuick" или берем из helper
             .allocator = allocator,
+            .helper = helper,
+            .data = .{},
+            .size_val = 0,
+            .result_val = 0,
         };
 
         return self;
     }
 
     pub fn deinit(self: *SortQuick) void {
-        self.base.deinit();
+        self.data.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
     pub fn asBenchmark(self: *SortQuick) Benchmark {
-        return Benchmark.init(self, &vtable, self.base.helper);
+        return Benchmark.init(self, &vtable, self.helper);
+    }
+
+    fn prepareImpl(ptr: *anyopaque) void {
+        const self: *SortQuick = @ptrCast(@alignCast(ptr));
+
+        if (self.size_val == 0) {
+            self.size_val = self.helper.config_i64("SortQuick", "size");
+            const size = @as(usize, @intCast(self.size_val));
+
+            self.data.clearAndFree(self.allocator);
+            self.data.ensureTotalCapacity(self.allocator, size) catch return;
+
+            for (0..size) |_| {
+                self.data.appendAssumeCapacity(self.helper.nextInt(1_000_000));
+            }
+        }
     }
 
     fn quickSort(arr: []i32, low: i32, high: i32) void {
@@ -57,67 +78,31 @@ pub const SortQuick = struct {
         quickSort(arr, i, high);
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
         const self: *SortQuick = @ptrCast(@alignCast(ptr));
+        _ = iteration_id;
 
-        // Проверяем исходный массив (1 раз)
-        const verify1 = self.base.checkNElements(self.base.data.items, 10) catch return;
-        defer self.base.allocator.free(verify1);
+        const size = self.data.items.len;
+        if (size == 0) return;
 
-        // Выполняем сортировку (n-1) раз
-        const n_int = @as(usize, @intCast(@max(self.base.n, 0)));
-        
-        // ИСПРАВЛЕНИЕ: для каждой итерации отдельная arena!
-        for (0..n_int - 1) |_| {
-            // НОВАЯ arena для каждой итерации
-            var arena = std.heap.ArenaAllocator.init(self.base.allocator);
-            defer arena.deinit(); // Освобождается ЗДЕСЬ
-            
-            const arena_allocator = arena.allocator();
-            const arr = arena_allocator.alloc(i32, self.base.data.items.len) catch return;
-            @memcpy(arr, self.base.data.items);
+        // Создаем копию данных и сортируем
+        var arr = self.allocator.alloc(i32, size) catch return;
+        defer self.allocator.free(arr);
 
-            if (arr.len > 0) {
-                quickSort(arr, 0, @as(i32, @intCast(arr.len - 1)));
-                self.base.result_val +%= @as(u64, @intCast(arr[arr.len / 2]));
-            }
-            // arena.deinit() освободит ВСЮ память этой итерации!
+        @memcpy(arr, self.data.items);
+
+        if (arr.len > 0) {
+            quickSort(arr, 0, @as(i32, @intCast(arr.len - 1)));
+
+            // Добавляем случайный элемент как в C++ версии
+            const random_idx = @as(usize, @intCast(self.helper.nextInt(@as(i32, @intCast(size)))));
+            self.result_val +%= @as(u32, @intCast(arr[random_idx]));
         }
-
-        // Финальная сортировка (отдельная arena)
-        var arena_final = std.heap.ArenaAllocator.init(self.base.allocator);
-        defer arena_final.deinit();
-        const final_allocator = arena_final.allocator();
-        
-        const final_arr = final_allocator.alloc(i32, self.base.data.items.len) catch return;
-        @memcpy(final_arr, self.base.data.items);
-        if (final_arr.len > 0) {
-            quickSort(final_arr, 0, @as(i32, @intCast(final_arr.len - 1)));
-        }
-
-        // Проверки (используют self.base.allocator, не arena)
-        const verify2 = self.base.checkNElements(self.base.data.items, 10) catch return;
-        defer self.base.allocator.free(verify2);
-        
-        const verify3 = self.base.checkNElements(final_arr, 10) catch return;
-        defer self.base.allocator.free(verify3);
-        
-        // Объединяем проверки
-        var combined = std.ArrayList(u8){};
-        defer combined.deinit(self.base.allocator);
-
-        combined.appendSlice(self.base.allocator, verify1) catch return;
-        combined.appendSlice(self.base.allocator, verify2) catch return;
-        combined.appendSlice(self.base.allocator, verify3) catch return;
-
-        // Checksum
-        const checksum = self.base.helper.checksumString(combined.items);
-        self.base.result_val +%= @as(u64, checksum);
     }
 
-    fn resultImpl(ptr: *anyopaque) u32 {
+    fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *SortQuick = @ptrCast(@alignCast(ptr));
-        return @as(u32, @intCast(self.base.result_val));
+        return self.result_val;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

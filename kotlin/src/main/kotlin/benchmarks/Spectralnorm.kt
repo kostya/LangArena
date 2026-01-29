@@ -4,11 +4,14 @@ import Benchmark
 import kotlin.math.sqrt
 
 class Spectralnorm : Benchmark() {
-    private var n: Int = 0
-    private var resultValue: Long = 0L
+    private var sizeVal: Long = 0
+    private lateinit var u: DoubleArray
+    private lateinit var v: DoubleArray
     
     init {
-        n = iterations
+        sizeVal = configVal("size")
+        u = DoubleArray(sizeVal.toInt()) { 1.0 }
+        v = DoubleArray(sizeVal.toInt()) { 1.0 }
     }
     
     private fun evalA(i: Int, j: Int): Double {
@@ -39,26 +42,20 @@ class Spectralnorm : Benchmark() {
         return evalAtTimesU(evalATimesU(u))
     }
     
-    override fun run() {
-        var u = DoubleArray(n) { 1.0 }
-        var v = DoubleArray(n) { 1.0 }
-        
-        repeat(10) {
-            v = evalAtATimesU(u)
-            u = evalAtATimesU(v)
-        }
-        
+    override fun run(iterationId: Int) {
+        v = evalAtATimesU(u)
+        u = evalAtATimesU(v)
+    }
+    
+    override fun checksum(): UInt {
         var vBv = 0.0
         var vv = 0.0
-        for (i in 0 until n) {
+        for (i in 0 until sizeVal.toInt()) {
             vBv += u[i] * v[i]
             vv += v[i] * v[i]
         }
-        
-        val resultDouble = sqrt(vBv / vv)
-        resultValue = Helper.checksumF64(resultDouble).toLong()
+        return Helper.checksumF64(sqrt(vBv / vv))
     }
     
-    override val result: Long
-        get() = resultValue
+    override fun name(): String = "Spectralnorm"
 }

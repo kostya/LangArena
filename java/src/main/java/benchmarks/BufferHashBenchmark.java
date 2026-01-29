@@ -2,33 +2,34 @@ package benchmarks;
 
 public abstract class BufferHashBenchmark extends Benchmark {
     protected byte[] data;
-    private long result;
-    private int n;
+    private long resultVal;
+    private long sizeVal;
     
     public BufferHashBenchmark() {
-        n = getIterations();
+        resultVal = 0L;
+        sizeVal = 0L;
     }
     
     @Override
     public void prepare() {
-        // Генерируем случайные данные для хэширования
-        data = new byte[1_000_000];
-        for (int i = 0; i < data.length; i++) {
-            data[i] = (byte) Helper.nextInt(256);
+        if (sizeVal == 0) {
+            sizeVal = configVal("size");
+            data = new byte[(int) sizeVal];
+            for (int i = 0; i < data.length; i++) {
+                data[i] = (byte) Helper.nextInt(256);
+            }
         }
     }
     
     abstract long test();
     
     @Override
-    public void run() {
-        for (int i = 0; i < n; i++) {
-            result = (result + test()) & 0xFFFFFFFFL;
-        }
+    public void run(int iterationId) {
+        resultVal += test();
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

@@ -119,37 +119,42 @@ class NeuralNet : Benchmark() {
         }
     }
     
-    private var n: Int = 0
-    private val outputs = mutableListOf<Double>()
+    private lateinit var xorNet: NeuralNetwork
+    private val res = mutableListOf<Double>()
     
     init {
-        n = iterations
+        xorNet = NeuralNetwork(2, 10, 1)
     }
     
-    override fun run() {
-        outputs.clear()
-        val xor = NeuralNetwork(2, 10, 1)
-        
-        repeat(n) {
-            xor.train(listOf(0, 0), listOf(0))
-            xor.train(listOf(1, 0), listOf(1))
-            xor.train(listOf(0, 1), listOf(1))
-            xor.train(listOf(1, 1), listOf(0))
-        }
-        
-        xor.feedForward(listOf(0, 0))
-        outputs.addAll(xor.currentOutputs())
-        
-        xor.feedForward(listOf(0, 1))
-        outputs.addAll(xor.currentOutputs())
-        
-        xor.feedForward(listOf(1, 0))
-        outputs.addAll(xor.currentOutputs())
-        
-        xor.feedForward(listOf(1, 1))
-        outputs.addAll(xor.currentOutputs())
+    override fun run(iterationId: Int) {
+        xorNet.train(listOf(0, 0), listOf(0))
+        xorNet.train(listOf(1, 0), listOf(1))
+        xorNet.train(listOf(0, 1), listOf(1))
+        xorNet.train(listOf(1, 1), listOf(0))
     }
     
-    override val result: Long
-        get() = Helper.checksumF64(outputs.sum()).toLong()
+    override fun checksum(): UInt {
+        xorNet.feedForward(listOf(0, 0))
+        val outputs1 = xorNet.currentOutputs()
+        
+        xorNet.feedForward(listOf(0, 1))
+        val outputs2 = xorNet.currentOutputs()
+        
+        xorNet.feedForward(listOf(1, 0))
+        val outputs3 = xorNet.currentOutputs()
+        
+        xorNet.feedForward(listOf(1, 1))
+        val outputs4 = xorNet.currentOutputs()
+        
+        val allOutputs = mutableListOf<Double>()
+        allOutputs.addAll(outputs1)
+        allOutputs.addAll(outputs2)
+        allOutputs.addAll(outputs3)
+        allOutputs.addAll(outputs4)
+        
+        val sum = allOutputs.sum()
+        return Helper.checksumF64(sum)
+    }
+    
+    override fun name(): String = "NeuralNet"
 }

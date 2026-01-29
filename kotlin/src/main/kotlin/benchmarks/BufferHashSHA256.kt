@@ -1,8 +1,5 @@
 package benchmarks
 
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-
 class BufferHashSHA256 : BufferHashBenchmark() {
     private object SimpleSHA256 {
         fun digest(data: ByteArray): ByteArray {
@@ -52,4 +49,6 @@ class BufferHashSHA256 : BufferHashBenchmark() {
                ((bytes[1].toUInt() and 0xFFu) shl 8) or
                (bytes[0].toUInt() and 0xFFu)
     }
+    
+    override fun name(): String = "BufferHashSHA256"
 }

@@ -110,23 +110,39 @@ public class BrainfuckHashMap extends Benchmark {
     }
     
     private String text;
-    private long result;
+    private long resultVal;
+    private String warmupProgram;
     
     public BrainfuckHashMap() {
-        text = Helper.INPUT.getOrDefault(getClass().getSimpleName(), "");
-        if (text.isEmpty()) {
-            // Пример программы Brainfuck для тестирования
-            text = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.";
+        text = Helper.configS(name(), "program");
+        warmupProgram = Helper.configS(name(), "warmup_program");
+        resultVal = 0L;
+    }
+    
+    @Override
+    public String name() {
+        return "BrainfuckHashMap";
+    }
+    
+    private long runProgram(String programText) {
+        return new Program(programText).run();
+    }
+    
+    @Override
+    public void warmup() {
+        long prepareIters = warmupIterations();
+        for (long i = 0; i < prepareIters; i++) {
+            runProgram(warmupProgram);
         }
     }
     
     @Override
-    public void run() {
-        result = new Program(text).run();
+    public void run(int iterationId) {
+        resultVal += runProgram(text);
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

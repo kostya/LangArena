@@ -6,14 +6,21 @@ import java.math.BigInteger;
 public class Pidigits extends Benchmark {
     private int nn;
     private ByteArrayOutputStream result;
+    private long checksumVal;
     
     public Pidigits() {
-        nn = getIterations();
+        nn = (int) configVal("amount");
         result = new ByteArrayOutputStream();
+        checksumVal = 0L;
     }
     
     @Override
-    public void run() {
+    public String name() {
+        return "Pidigits";
+    }
+    
+    @Override
+    public void run(int iterationId) {
         int i = 0;          // счетчик цифр
         int k = 0;          // k в формуле
         BigInteger ns = BigInteger.ZERO;  // накопленные цифры
@@ -82,10 +89,12 @@ public class Pidigits extends Benchmark {
                 // ignore
             }
         }
+        
+        checksumVal = Helper.checksum(result.toString());
     }
     
     @Override
-    public long getResult() {
-        return Helper.checksum(result.toString());
+    public long checksum() {
+        return checksumVal & 0xFFFFFFFFL;
     }
 }

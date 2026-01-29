@@ -6,6 +6,11 @@ public class GraphPathDijkstra extends GraphPathBenchmark {
     private static final int INF = Integer.MAX_VALUE / 2;
     
     @Override
+    public String name() {
+        return "GraphPathDijkstra";
+    }
+    
+    @Override
     long test() {
         long totalLength = 0L;
         

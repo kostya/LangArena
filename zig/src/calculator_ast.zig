@@ -5,40 +5,33 @@ const Helper = @import("helper.zig").Helper;
 pub const CalculatorAst = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    n: i32,
-    result_val: u64,
+    operations: i64,
+    result_val: u32,
     text: []const u8,
     expressions: std.ArrayListUnmanaged(*Node),
 
-    const vtable = Benchmark.VTable{
-        .run = runImpl,
-        .prepare = prepareImpl,
-        .result = resultImpl,
-        .deinit = deinitImpl,
-    };
-
     // AST структуры
-    pub const Number = struct {
+    const Number = struct {
         value: i64,
     };
 
-    pub const Variable = struct {
+    const Variable = struct {
         name: []const u8,
     };
 
-    pub const BinaryOp = struct {
+    const BinaryOp = struct {
         op: u8,
         left: *Node,
         right: *Node,
     };
 
-    pub const Assignment = struct {
+    const Assignment = struct {
         var_name: []const u8,
         expr: *Node,
     };
 
     // Узел AST
-    pub const Node = union(enum) {
+    const Node = union(enum) {
         number: Number,
         variable: Variable,
         binary_op: *BinaryOp,
@@ -213,50 +206,26 @@ pub const CalculatorAst = struct {
 
                 const expr = try self.parseExpression();
                 try self.expressions.append(self.allocator, expr);
+
+                // Пропускаем перевод строки
+                if (self.current_char == '\n') {
+                    self.advance();
+                }
             }
 
             return self.expressions;
         }
     };
 
-    fn generateRandomProgram(allocator: std.mem.Allocator, helper: *Helper, n: i32) ![]const u8 {
-        var buffer = std.ArrayList(u8){};
-        defer buffer.deinit(allocator);
-
-        const writer = buffer.writer(allocator);
-
-        try writer.writeAll("v0 = 1\n");
-        for (0..10) |i| {
-            const v = i + 1;
-            try writer.print("v{} = v{} + {}\n", .{ v, v - 1, v });
-        }
-
-        for (0..@as(usize, @intCast(n))) |i| {
-            const v = i + 10;
-            try writer.print("v{} = v{} + ", .{ v, v - 1 });
-
-            const choice = helper.nextInt(10);
-            switch (choice) {
-                0 => try writer.print("(v{} / 3) * 4 - {} / (3 + (18 - v{})) % v{} + 2 * ((9 - v{}) * (v{} + 7))", .{ v - 1, i, v - 2, v - 3, v - 6, v - 5 }),
-                1 => try writer.print("v{} + (v{} + v{}) * v{} - (v{} / v{})", .{ v - 1, v - 2, v - 3, v - 4, v - 5, v - 6 }),
-                2 => try writer.print("(3789 - (((v{})))) + 1", .{v - 7}),
-                3 => try writer.print("4/2 * (1-3) + v{}/v{}", .{ v - 9, v - 5 }),
-                4 => try writer.print("1+2+3+4+5+6+v{}", .{v - 1}),
-                5 => try writer.print("(99999 / v{})", .{v - 3}),
-                6 => try writer.print("0 + 0 - v{}", .{v - 8}),
-                7 => try writer.print("((((((((((v{})))))))))) * 2", .{v - 6}),
-                8 => try writer.print("{} * (v{}%6)%7", .{ i, v - 1 }),
-                9 => try writer.print("(1)/(0-v{}) + (v{})", .{ v - 5, v - 7 }),
-                else => unreachable,
-            }
-            try writer.writeAll("\n");
-        }
-
-        return buffer.toOwnedSlice(allocator);
-    }
+    const vtable = Benchmark.VTable{
+        .run = runImpl,
+        .checksum = checksumImpl,
+        .deinit = deinitImpl,
+        .prepare = prepareImpl,
+    };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*CalculatorAst {
-        const n = helper.getInputInt("CalculatorAst");
+        const operations = helper.config_i64("CalculatorAst", "operations");
 
         const self = try allocator.create(CalculatorAst);
         errdefer allocator.destroy(self);
@@ -264,7 +233,7 @@ pub const CalculatorAst = struct {
         self.* = CalculatorAst{
             .allocator = allocator,
             .helper = helper,
-            .n = n,
+            .operations = operations,
             .result_val = 0,
             .text = "",
             .expressions = .{},
@@ -293,60 +262,84 @@ pub const CalculatorAst = struct {
         return Benchmark.init(self, &vtable, self.helper);
     }
 
-    // Публичные методы для CalculatorInterpreter
-    pub fn prepare(self: *CalculatorAst) void {
-        prepareImpl(self);
-    }
+    fn generateRandomProgram(self: *CalculatorAst) ![]const u8 {
+        var buffer = std.ArrayList(u8).init(self.allocator);
+        defer buffer.deinit();
 
-    pub fn run(self: *CalculatorAst) void {
-        runImpl(self);
-    }
+        const writer = buffer.writer();
 
-    pub fn getExpressions(self: *CalculatorAst) []*Node {
-        return self.expressions.items;
-    }
+        try writer.writeAll("v0 = 1\n");
+        for (0..10) |i| {
+            const v = i + 1;
+            try writer.print("v{} = v{} + {}\n", .{ v, v - 1, v });
+        }
 
-    // Передает владение AST CalculatorInterpreter
-    pub fn takeExpressions(self: *CalculatorAst) std.ArrayListUnmanaged(*Node) {
-        const result = self.expressions;
-        self.expressions = .{}; // Обнуляем, чтобы не освобождалось дважды
-        return result;
+        for (0..@as(usize, @intCast(self.operations))) |i| {
+            const v = i + 10;
+            try writer.print("v{} = v{} + ", .{ v, v - 1 });
+
+            const choice = self.helper.nextInt(10);
+            switch (choice) {
+                0 => try writer.print("(v{} / 3) * 4 - {} / (3 + (18 - v{})) % v{} + 2 * ((9 - v{}) * (v{} + 7))", .{ v - 1, i, v - 2, v - 3, v - 6, v - 5 }),
+                1 => try writer.print("v{} + (v{} + v{}) * v{} - (v{} / v{})", .{ v - 1, v - 2, v - 3, v - 4, v - 5, v - 6 }),
+                2 => try writer.print("(3789 - (((v{})))) + 1", .{v - 7}),
+                3 => try writer.print("4/2 * (1-3) + v{}/v{}", .{ v - 9, v - 5 }),
+                4 => try writer.print("1+2+3+4+5+6+v{}", .{v - 1}),
+                5 => try writer.print("(99999 / v{})", .{v - 3}),
+                6 => try writer.print("0 + 0 - v{}", .{v - 8}),
+                7 => try writer.print("((((((((((v{})))))))))) * 2", .{v - 6}),
+                8 => try writer.print("{} * (v{}%6)%7", .{ i, v - 1 }),
+                9 => try writer.print("(1)/(0-v{}) + (v{})", .{ v - 5, v - 7 }),
+                else => unreachable,
+            }
+            try writer.writeAll("\n");
+        }
+
+        return buffer.toOwnedSlice();
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *CalculatorAst = @ptrCast(@alignCast(ptr));
-        const allocator = self.allocator;
 
         // Освобождаем старый текст
         if (self.text.len > 0) {
-            allocator.free(self.text);
-            self.text = "";
+            self.allocator.free(self.text);
         }
 
         // Генерируем новый текст программы
-        self.text = generateRandomProgram(allocator, self.helper, self.n) catch "";
+        self.text = self.generateRandomProgram() catch "";
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
         const self: *CalculatorAst = @ptrCast(@alignCast(ptr));
-        const allocator = self.allocator;
+        _ = iteration_id;
 
         // Очищаем старые выражения
         for (self.expressions.items) |expr| {
-            freeNode(allocator, expr);
+            freeNode(self.allocator, expr);
         }
-        self.expressions.clearAndFree(allocator);
+        self.expressions.clearAndFree(self.allocator);
 
-        // Парсим прямо в основной аллокатор (без временной arena)
-        var parser = Parser.init(allocator, self.text);
+        // Парсим программу
+        var parser = Parser.init(self.allocator, self.text);
         self.expressions = parser.parse() catch return;
 
-        self.result_val = self.expressions.items.len;
+        // Обновляем результат
+        self.result_val += @as(u32, @intCast(self.expressions.items.len));
+
+        // Добавляем checksum последнего имени переменной если это assignment
+        if (self.expressions.items.len > 0) {
+            const last_expr = self.expressions.items[self.expressions.items.len - 1];
+            if (last_expr.* == .assignment) {
+                const assignment = last_expr.assignment;
+                self.result_val += self.helper.checksumString(assignment.var_name);
+            }
+        }
     }
 
-    fn resultImpl(ptr: *anyopaque) u32 {
+    fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *CalculatorAst = @ptrCast(@alignCast(ptr));
-        return @as(u32, @truncate(self.result_val));
+        return self.result_val;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

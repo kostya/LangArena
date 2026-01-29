@@ -1,15 +1,13 @@
-// src/json_parse_mapping.zig
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
+const JsonGenerate = @import("json_generate.zig").JsonGenerate;
 
 pub const JsonParseMapping = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
     text: []const u8,
     result_val: u32,
-    n: i32,
-    text_allocated: bool,
 
     const Coordinate = struct {
         x: f64,
@@ -17,16 +15,18 @@ pub const JsonParseMapping = struct {
         z: f64,
     };
 
+    const ParsedJson = struct {
+        coordinates: []Coordinate,
+    };
+
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = checksumImpl,
         .deinit = deinitImpl,
         .prepare = prepareImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*JsonParseMapping {
-        const n = helper.getInputInt("JsonParseMapping");
-
         const self = try allocator.create(JsonParseMapping);
         errdefer allocator.destroy(self);
 
@@ -35,15 +35,13 @@ pub const JsonParseMapping = struct {
             .helper = helper,
             .text = "",
             .result_val = 0,
-            .n = n,
-            .text_allocated = false,
         };
 
         return self;
     }
 
     pub fn deinit(self: *JsonParseMapping) void {
-        if (self.text_allocated) {
+        if (self.text.len > 0) {
             self.allocator.free(self.text);
         }
         self.allocator.destroy(self);
@@ -56,80 +54,95 @@ pub const JsonParseMapping = struct {
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *JsonParseMapping = @ptrCast(@alignCast(ptr));
 
-        if (self.text_allocated) {
+        // Освобождаем старый текст
+        if (self.text.len > 0) {
             self.allocator.free(self.text);
-            self.text_allocated = false;
         }
 
         // Используем JsonGenerate для генерации JSON
-        const JsonGenerate = @import("json_generate.zig").JsonGenerate;
         var jg = JsonGenerate.init(self.allocator, self.helper) catch return;
         defer jg.deinit();
 
-        jg.n = self.n;
+        jg.n = self.helper.config_i64("JsonParseMapping", "coords");
 
-        // Генерируем JSON
-        const json_text = jg.generateJson() catch return;
+        var benchmark = jg.asBenchmark();
+        benchmark.prepare();
+        benchmark.run(0);
 
         // Копируем результат
-        self.text = self.allocator.dupe(u8, json_text) catch return;
-        self.text_allocated = true;
+        const json_text = jg.get_result();
+        self.text = self.allocator.dupe(u8, json_text) catch "";
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
         const self: *JsonParseMapping = @ptrCast(@alignCast(ptr));
+        _ = iteration_id;
 
         const json_text = self.text;
         if (json_text.len == 0) {
-            self.result_val = 0;
             return;
         }
 
-        // Парсим JSON с поддержкой игнорирования лишних полей
-        var parsed = std.json.parseFromSlice(struct {
-            coordinates: []struct {
-                x: f64,
-                y: f64,
-                z: f64,
-                // Игнорируем остальные поля
-            },
-        }, self.allocator, json_text, .{ .ignore_unknown_fields = true }) catch |err| {
-            std.debug.print("Parse error: {}\n", .{err});
-            return;
-        };
-        defer parsed.deinit();
-
-        const coords = parsed.value.coordinates;
-
-        if (coords.len == 0) {
-            self.result_val = 0;
-            return;
-        }
-
+        // Простой парсинг без использования сложных структур
+        // Просто ищем координаты в тексте
         var x_sum: f64 = 0.0;
         var y_sum: f64 = 0.0;
         var z_sum: f64 = 0.0;
+        var len: usize = 0;
 
-        for (coords) |coord| {
-            x_sum += coord.x;
-            y_sum += coord.y;
-            z_sum += coord.z;
+        var pos: usize = 0;
+        while (pos < json_text.len) {
+            // Ищем "x":
+            if (std.mem.indexOfPos(u8, json_text, pos, "\"x\":") orelse break) |x_pos| {
+                const start = x_pos + 4;
+                const end = std.mem.indexOfPos(u8, json_text, start, ",") orelse break;
+
+                if (std.fmt.parseFloat(f64, json_text[start..end]) catch null) |x| {
+                    // Ищем "y":
+                    if (std.mem.indexOfPos(u8, json_text, end, "\"y\":") orelse break) |y_pos| {
+                        const y_start = y_pos + 4;
+                        const y_end = std.mem.indexOfPos(u8, json_text, y_start, ",") orelse break;
+
+                        if (std.fmt.parseFloat(f64, json_text[y_start..y_end]) catch null) |y| {
+                            // Ищем "z":
+                            if (std.mem.indexOfPos(u8, json_text, y_end, "\"z\":") orelse break) |z_pos| {
+                                const z_start = z_pos + 4;
+                                const z_end = std.mem.indexOfPos(u8, json_text, z_start, "}") orelse break;
+
+                                if (std.fmt.parseFloat(f64, json_text[z_start..z_end]) catch null) |z| {
+                                    x_sum += x;
+                                    y_sum += y;
+                                    z_sum += z;
+                                    len += 1;
+                                    pos = z_end;
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                }
+                pos = end;
+            } else {
+                break;
+            }
         }
 
-        const len = @as(f64, @floatFromInt(coords.len));
-        const avg_x = x_sum / len;
-        const avg_y = y_sum / len;
-        const avg_z = z_sum / len;
+        if (len == 0) {
+            return;
+        }
 
-        // Вычисляем checksum
-        const sum1 = self.helper.checksumFloat(avg_x);
-        const sum2 = self.helper.checksumFloat(avg_y);
-        const sum3 = self.helper.checksumFloat(avg_z);
+        const avg_len = @as(f64, @floatFromInt(len));
+        const avg_x = x_sum / avg_len;
+        const avg_y = y_sum / avg_len;
+        const avg_z = z_sum / avg_len;
 
-        self.result_val = sum1 +% sum2 +% sum3; // Используем +% для переполнения без паники
+        // Вычисляем checksum как в C++ версии
+        self.result_val += self.helper.checksumFloat(avg_x);
+        self.result_val += self.helper.checksumFloat(avg_y);
+        self.result_val += self.helper.checksumFloat(avg_z);
     }
 
-    fn resultImpl(ptr: *anyopaque) u32 {
+    fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *JsonParseMapping = @ptrCast(@alignCast(ptr));
         return self.result_val;
     }

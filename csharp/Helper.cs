@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 
 public static class Helper
 {
@@ -8,6 +9,14 @@ public static class Helper
     private const int INIT = 42;
     
     private static long s_last = INIT;
+    
+    // Конфигурация в формате JSON
+    private static JsonDocument? s_config = null;
+    
+    public static JsonDocument Config
+    {
+        get => s_config ?? JsonDocument.Parse("{}");
+    }
     
     public static long Last
     {
@@ -39,7 +48,6 @@ public static class Helper
     
     public static uint Checksum(string v)
     {
-        // Debug($"checksum: {v}");
         uint hash = 5381;
         foreach (byte b in Encoding.UTF8.GetBytes(v))
         {
@@ -50,7 +58,6 @@ public static class Helper
    
     public static uint Checksum(byte[] bytes)
     {
-        // Debug($"checksum: {BitConverter.ToString(bytes)}");
         uint hash = 5381;
         foreach (byte b in bytes)
         {
@@ -64,72 +71,91 @@ public static class Helper
         return Checksum(v.ToString("F7"));
     }
     
-    private static void Debug(string message)
+    // Методы для доступа к конфигурации (как в Crystal)
+    public static long Config_i64(string className, string fieldName)
     {
-        // В C# нет директив компиляции как в Crystal, используем переменную окружения
-        if (Environment.GetEnvironmentVariable("DEBUG") == "1")
+        try
         {
-#if DEBUG
-            Console.WriteLine($"DEBUG: {message}");
-#else
-            // В релизе тоже можно выводить, если DEBUG=1
-            Console.WriteLine($"DEBUG: {message}");
-#endif
+            if (Config.RootElement.TryGetProperty(className, out var benchObj))
+            {
+                if (benchObj.TryGetProperty(fieldName, out var value))
+                {
+                    return value.GetInt64();
+                }
+            }
+            throw new InvalidOperationException($"Config not found for {className}, field: {fieldName}");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+            return 0;
         }
     }
     
-    // Конфигурация
-    public static Dictionary<string, string> Input = new();
-    public static Dictionary<string, long> Expect = new();
+    public static string Config_s(string className, string fieldName)
+    {
+        try
+        {
+            if (Config.RootElement.TryGetProperty(className, out var benchObj))
+            {
+                if (benchObj.TryGetProperty(fieldName, out var value))
+                {
+                    return value.GetString() ?? "";
+                }
+            }
+            throw new InvalidOperationException($"Config not found for {className}, field: {fieldName}");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+            return "";
+        }
+    }
     
-	public static void LoadConfig(string? filename = null)
-	{
-	    filename ??= "test.txt";
-	    
-	    // Console.WriteLine($"Trying to load config: {filename}");
-	    // Console.WriteLine($"File exists: {File.Exists(filename)}");
-	    
-	    if (!File.Exists(filename))
-	    {
-	        // Пробуем альтернативные пути
-	        var alternatives = new[]
-	        {
-	            Path.Combine("../", filename),
-	            Path.Combine("../../", filename),
-	            Path.GetFileName(filename)
-	        };
-	        
-	        foreach (var alt in alternatives)
-	        {
-	            if (File.Exists(alt))
-	            {
-	                filename = alt;
-	                break;
-	            }
-	        }
-	    }
-	    
-	    if (!File.Exists(filename))
-	    {
-	        Console.WriteLine($"Error: Config file not found: {filename}");
-	        Console.WriteLine("Current directory: " + Environment.CurrentDirectory);
-	        return;
-	    }
-	    
-	    Input.Clear();
-	    Expect.Clear();
-	    
-	    var lines = File.ReadAllLines(filename)
-	        .Where(l => !string.IsNullOrWhiteSpace(l));
-	    
-	    foreach (var line in lines)
-	    {
-	        var parts = line.Split('|');
-	        if (parts.Length >= 3)
-	        {
-	            Input[parts[0]] = parts[1];
-	            Expect[parts[0]] = long.Parse(parts[2]);
-	        }
-	    }
-	}
+    public static void LoadConfig(string? filename = null)
+    {
+        filename ??= "test.js";
+        
+        // Console.WriteLine($"Trying to load config: {filename}");
+        // Console.WriteLine($"File exists: {File.Exists(filename)}");
+        
+        if (!File.Exists(filename))
+        {
+            // Пробуем альтернативные пути
+            var alternatives = new[]
+            {
+                Path.Combine("../", filename),
+                Path.Combine("../../", filename),
+                Path.GetFileName(filename)
+            };
+            
+            foreach (var alt in alternatives)
+            {
+                if (File.Exists(alt))
+                {
+                    filename = alt;
+                    break;
+                }
+            }
+        }
+        
+        if (!File.Exists(filename))
+        {
+            Console.WriteLine($"Error: Config file not found: {filename}");
+            Console.WriteLine("Current directory: " + Environment.CurrentDirectory);
+            s_config = JsonDocument.Parse("{}");
+            return;
+        }
+        
+        try
+        {
+            var jsonText = File.ReadAllText(filename);
+            s_config = JsonDocument.Parse(jsonText);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error parsing JSON config: {ex.Message}");
+            s_config = JsonDocument.Parse("{}");
+        }
+    }
 }

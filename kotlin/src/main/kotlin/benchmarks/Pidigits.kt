@@ -5,17 +5,17 @@ import java.math.BigInteger
 
 class Pidigits : Benchmark() {
     private lateinit var output: StringBuilder
-    private var nn: Int = 0
+    private var nn: Long = 0
     
     init {
-        nn = iterations
+        nn = configVal("amount")
     }
     
     override fun prepare() {
         output = StringBuilder()
     }
     
-    override fun run() {
+    override fun run(iterationId: Int) {
         var i = 0
         var k = 0
         var ns = BigInteger.ZERO
@@ -80,6 +80,7 @@ class Pidigits : Benchmark() {
         }
     }
     
-    override val result: Long
-        get() = Helper.checksum(output.toString()).toLong()
+    override fun checksum(): UInt = Helper.checksum(output.toString())
+    
+    override fun name(): String = "Pidigits"
 }

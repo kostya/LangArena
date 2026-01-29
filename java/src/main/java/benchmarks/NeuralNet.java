@@ -149,42 +149,44 @@ public class NeuralNet extends Benchmark {
         }
     }
     
-    private int n;
-    private List<Double> outputs = new ArrayList<>();
+    private List<Double> allOutputs = new ArrayList<>();
+    private NeuralNetwork xorNet;
     
     public NeuralNet() {
-        n = getIterations();
+        xorNet = new NeuralNetwork(2, 10, 1);
     }
     
     @Override
-    public void run() {
-        outputs.clear();
-        NeuralNetwork xor = new NeuralNetwork(2, 10, 1);
-        
-        for (int i = 0; i < n; i++) {
-            xor.train(new int[]{0, 0}, new int[]{0});
-            xor.train(new int[]{1, 0}, new int[]{1});
-            xor.train(new int[]{0, 1}, new int[]{1});
-            xor.train(new int[]{1, 1}, new int[]{0});
-        }
-        
-        xor.feedForward(new int[]{0, 0});
-        outputs.addAll(xor.currentOutputs());
-        
-        xor.feedForward(new int[]{0, 1});
-        outputs.addAll(xor.currentOutputs());
-        
-        xor.feedForward(new int[]{1, 0});
-        outputs.addAll(xor.currentOutputs());
-        
-        xor.feedForward(new int[]{1, 1});
-        outputs.addAll(xor.currentOutputs());
+    public String name() {
+        return "NeuralNet";
     }
     
     @Override
-    public long getResult() {
+    public void run(int iterationId) {
+        xorNet.train(new int[]{0, 0}, new int[]{0});
+        xorNet.train(new int[]{1, 0}, new int[]{1});
+        xorNet.train(new int[]{0, 1}, new int[]{1});
+        xorNet.train(new int[]{1, 1}, new int[]{0});
+    }
+    
+    @Override
+    public long checksum() {
+        allOutputs.clear();
+        
+        xorNet.feedForward(new int[]{0, 0});
+        allOutputs.addAll(xorNet.currentOutputs());
+        
+        xorNet.feedForward(new int[]{0, 1});
+        allOutputs.addAll(xorNet.currentOutputs());
+        
+        xorNet.feedForward(new int[]{1, 0});
+        allOutputs.addAll(xorNet.currentOutputs());
+        
+        xorNet.feedForward(new int[]{1, 1});
+        allOutputs.addAll(xorNet.currentOutputs());
+        
         double sum = 0.0;
-        for (Double val : outputs) {
+        for (Double val : allOutputs) {
             sum += val;
         }
         return Helper.checksumF64(sum);

@@ -1,4 +1,3 @@
-// src/text_raytracer.zig
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
@@ -9,7 +8,7 @@ pub const TextRaytracer = struct {
     helper: *Helper,
     w: i32,
     h: i32,
-    res: u64,
+    result_val: u32, // Изменено на u32
 
     const Vector = struct {
         x: f64,
@@ -111,7 +110,6 @@ pub const TextRaytracer = struct {
 
     const LUT = [_]u8{ '.', '-', '+', '*', 'X', 'M' };
 
-    // Сцена с тремя сферами
     const SCENE = [_]Sphere{
         Sphere{
             .center = Vector{ .x = -1.0, .y = 0.0, .z = 3.0 },
@@ -132,12 +130,13 @@ pub const TextRaytracer = struct {
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = checksumImpl,
         .deinit = deinitImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*TextRaytracer {
-        const size = helper.getInputInt("TextRaytracer");
+        const w = helper.config_i64("TextRaytracer", "w");
+        const h = helper.config_i64("TextRaytracer", "h");
 
         const self = try allocator.create(TextRaytracer);
         errdefer allocator.destroy(self);
@@ -145,9 +144,9 @@ pub const TextRaytracer = struct {
         self.* = TextRaytracer{
             .allocator = allocator,
             .helper = helper,
-            .w = size,
-            .h = size,
-            .res = 0,
+            .w = @as(i32, @intCast(w)),
+            .h = @as(i32, @intCast(h)),
+            .result_val = 0,
         };
 
         return self;
@@ -205,13 +204,12 @@ pub const TextRaytracer = struct {
         return light.color.scale(lam2 * 0.5).add(obj.color.scale(0.3));
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
         const self: *TextRaytracer = @ptrCast(@alignCast(ptr));
+        _ = iteration_id;
 
         const w_f64 = @as(f64, @floatFromInt(self.w));
         const h_f64 = @as(f64, @floatFromInt(self.h));
-
-        var total: u64 = 0;
 
         for (0..@as(usize, @intCast(self.h))) |j| {
             for (0..@as(usize, @intCast(self.w))) |i| {
@@ -232,7 +230,6 @@ pub const TextRaytracer = struct {
                 var hit_tval: ?f64 = null;
                 var hit_obj: ?Sphere = null;
 
-                // Ищем пересечение со сферами
                 for (SCENE) |obj| {
                     if (intersectSphere(ray, obj.center, obj.radius)) |tval| {
                         hit_tval = tval;
@@ -247,16 +244,14 @@ pub const TextRaytracer = struct {
                     pixel = LUT[idx];
                 }
 
-                total += pixel;
+                self.result_val += pixel; // &+= эквивалент как в C++
             }
         }
-
-        self.res = total;
     }
 
-    fn resultImpl(ptr: *anyopaque) u32 {
+    fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *TextRaytracer = @ptrCast(@alignCast(ptr));
-        return @as(u32, @intCast(self.res));
+        return self.result_val;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

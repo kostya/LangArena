@@ -1,25 +1,20 @@
-use super::super::{Benchmark, INPUT, helper};
-use std::io::Write;
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 
 const LINE_LENGTH: usize = 60;
 
 pub struct Fasta {
-    pub(crate) n: i32,
-    pub(crate) result: Vec<u8>,
+    pub(crate) n: i64,
+    result_str: String,
 }
 
 impl Fasta {
     pub fn new() -> Self {
-        let name = "Fasta".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
+        let n = config_i64("Fasta", "n");
         
         Self {
-            n: iterations,
-            result: Vec::new(),
+            n,
+            result_str: String::new(),
         }
     }
 
@@ -45,7 +40,7 @@ impl Fasta {
     }
 
     fn make_random_fasta(&mut self, id: &str, desc: &str, genelist: &[(char, f64)], n: usize) {
-        writeln!(&mut self.result, ">{} {}", id, desc).unwrap();
+        self.result_str.push_str(&format!(">{} {}\n", id, desc));
         
         let mut todo = n;
         while todo > 0 {
@@ -56,13 +51,13 @@ impl Fasta {
                 line.push(self.select_random(genelist));
             }
             
-            writeln!(&mut self.result, "{}", line).unwrap();
+            self.result_str.push_str(&format!("{}\n", line));
             todo -= m;
         }
     }
 
     fn make_repeat_fasta(&mut self, id: &str, desc: &str, s: &str, n: usize) {
-        writeln!(&mut self.result, ">{} {}", id, desc).unwrap();
+        self.result_str.push_str(&format!(">{} {}\n", id, desc));
         
         let mut todo = n;
         let mut k = 0;
@@ -73,25 +68,24 @@ impl Fasta {
             let mut remaining = m;
             
             while remaining >= kn - k {
-                let chunk = &s[k..];
-                write!(&mut self.result, "{}", chunk).unwrap();
+                self.result_str.push_str(&s[k..]);
                 remaining -= kn - k;
                 k = 0;
             }
             
             if remaining > 0 {
-                let chunk = &s[k..k + remaining];
-                write!(&mut self.result, "{}", chunk).unwrap();
+                self.result_str.push_str(&s[k..k + remaining]);
                 k += remaining;
             }
             
-            writeln!(&mut self.result).unwrap();
+            self.result_str.push('\n');
             todo -= m;
         }
-    }    
+    }
+    
     // Публичный метод для получения результата как строки
-    pub fn result_string(&self) -> String {
-        String::from_utf8_lossy(&self.result).to_string()
+    pub fn get_result(&self) -> &str {
+        &self.result_str
     }
 }
 
@@ -100,11 +94,7 @@ impl Benchmark for Fasta {
         "Fasta".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.n
-    }
-    
-    fn run(&mut self) {
+    fn run(&mut self, _iteration_id: i64) {
         const ALU: &str = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
         
         const IUB: [(char, f64); 15] = [
@@ -126,8 +116,7 @@ impl Benchmark for Fasta {
         self.make_random_fasta("THREE", "Homo sapiens frequency", &HOMO, n * 5);
     }
     
-    fn result(&self) -> i64 {
-        let result_str = String::from_utf8_lossy(&self.result);
-        helper::checksum_str(&result_str) as i64
+    fn checksum(&self) -> u32 {
+        helper::checksum_str(&self.result_str)
     }
 }

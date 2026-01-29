@@ -4,12 +4,8 @@ import java.util.*;
 import java.nio.ByteBuffer;
 
 public class Compression extends Benchmark {
-    private int iterations;
-    private byte[] testData;
-    private long result;
-    
     // ==================== BWT ====================
-    private static class BWTResult {
+    public static class BWTResult {
         byte[] transformed;
         int originalIdx;
         
@@ -19,7 +15,7 @@ public class Compression extends Benchmark {
         }
     }
     
-    private BWTResult bwtTransform(byte[] input) {
+    public BWTResult bwtTransform(byte[] input) {
         int n = input.length;
         if (n == 0) {
             return new BWTResult(new byte[0], 0);
@@ -124,7 +120,7 @@ public class Compression extends Benchmark {
         return new BWTResult(transformed, originalIdx);
     }    
     // Быстрое обратное BWT как в Rust
-    private byte[] bwtInverse(BWTResult bwtResult) {
+    public byte[] bwtInverse(BWTResult bwtResult) {
         byte[] bwt = bwtResult.transformed;
         int n = bwt.length;
         
@@ -171,7 +167,7 @@ public class Compression extends Benchmark {
     }
     
     // ==================== Huffman ====================
-    private static class HuffmanNode implements Comparable<HuffmanNode> {
+    public static class HuffmanNode implements Comparable<HuffmanNode> {
         int frequency;
         Byte byteVal;
         HuffmanNode left;
@@ -192,7 +188,7 @@ public class Compression extends Benchmark {
         }
     }
     
-    private HuffmanNode buildHuffmanTree(int[] frequencies) {
+    public HuffmanNode buildHuffmanTree(int[] frequencies) {
         PriorityQueue<HuffmanNode> heap = new PriorityQueue<>();
         
         for (int i = 0; i < frequencies.length; i++) {
@@ -227,7 +223,7 @@ public class Compression extends Benchmark {
     }
     
     // Оптимизация: используем boolean[] вместо String
-    private void buildHuffmanCodes(HuffmanNode node, boolean[] prefix, int length,
+    public void buildHuffmanCodes(HuffmanNode node, boolean[] prefix, int length,
                                   Map<Byte, boolean[]> codes) {
         if (node.byteVal != null) {
             if (length > 0 || node.byteVal != 0) {
@@ -252,7 +248,7 @@ public class Compression extends Benchmark {
         }
     }
     
-    private static class EncodedResult {
+    public static class EncodedResult {
         byte[] data;
         int bitCount;
         
@@ -263,7 +259,7 @@ public class Compression extends Benchmark {
     }
     
     // Быстрое кодирование как в Rust
-    private EncodedResult huffmanEncode(byte[] data, Map<Byte, boolean[]> codes) {
+    public EncodedResult huffmanEncode(byte[] data, Map<Byte, boolean[]> codes) {
         // Предварительное выделение
         byte[] result = new byte[data.length * 2]; // Максимальный размер
         int currentByte = 0;
@@ -301,7 +297,7 @@ public class Compression extends Benchmark {
         return new EncodedResult(finalResult, totalBits);
     }
     
-    private byte[] huffmanDecode(byte[] encoded, HuffmanNode root, int bitCount) {
+    public byte[] huffmanDecode(byte[] encoded, HuffmanNode root, int bitCount) {
         byte[] result = new byte[bitCount / 4 + 1];
         int resultIdx = 0;
         HuffmanNode currentNode = root;
@@ -338,7 +334,7 @@ public class Compression extends Benchmark {
     }
     
     // ==================== Компрессор ====================
-    private static class CompressedData {
+    public static class CompressedData {
         BWTResult bwtResult;
         int[] frequencies;
         byte[] encodedBits;
@@ -353,7 +349,7 @@ public class Compression extends Benchmark {
         }
     }
     
-    private CompressedData compress(byte[] data) {
+    public CompressedData compress(byte[] data) {
         // 1. BWT преобразование
         BWTResult bwtResult = bwtTransform(data);
         
@@ -377,7 +373,7 @@ public class Compression extends Benchmark {
                                  encoded.data, encoded.bitCount);
     }
     
-    private byte[] decompress(CompressedData compressed) {
+    public byte[] decompress(CompressedData compressed) {
         // 1. Восстанавливаем дерево
         HuffmanNode huffmanTree = buildHuffmanTree(compressed.frequencies);
         
@@ -395,17 +391,26 @@ public class Compression extends Benchmark {
     }
     
     // ==================== Benchmark ====================
+    public long sizeVal;
+    public byte[] testData;
+    public long resultVal;
+    
     public Compression() {
-        this.iterations = getIterations();
-        this.result = 0;
+        sizeVal = configVal("size");
+        resultVal = 0L;
     }
     
-    private byte[] generateTestData(int size) {
-        byte[] pattern = "ABRACADABRA".getBytes();
-        byte[] data = new byte[size];
+    @Override
+    public String name() {
+        return "Compression";
+    }
+    
+    public byte[] generateTestData(long dataSize) {
+        String pattern = "ABRACADABRA";
+        byte[] data = new byte[(int) dataSize];
         
-        for (int i = 0; i < size; i++) {
-            data[i] = pattern[i % pattern.length];
+        for (int i = 0; i < data.length; i++) {
+            data[i] = (byte) pattern.charAt(i % pattern.length());
         }
         
         return data;
@@ -413,27 +418,17 @@ public class Compression extends Benchmark {
     
     @Override
     public void prepare() {
-        testData = generateTestData(iterations);
+        testData = generateTestData(sizeVal);
     }
     
     @Override
-    public void run() {
-        long totalChecksum = 0;
-        
-        for (int i = 0; i < 5; i++) {
-            CompressedData compressed = compress(testData);
-            byte[] decompressed = decompress(compressed);
-            long checksum = Helper.checksum(decompressed);
-            
-            totalChecksum = (totalChecksum + compressed.encodedBits.length) & 0xFFFFFFFFL;
-            totalChecksum = (totalChecksum + (int)checksum) & 0xFFFFFFFFL;
-        }
-        
-        result = totalChecksum;
+    public void run(int iterationId) {
+        CompressedData compressed = compress(testData);
+        resultVal += compressed.encodedBits.length;
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

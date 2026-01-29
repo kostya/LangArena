@@ -1,19 +1,11 @@
-use super::super::{Benchmark, INPUT, helper};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 use serde::{Serialize, Deserialize};
 use serde_json;
+use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize, Clone)]
-struct Opts {
-    _1: (i32, bool),
-}
-
-impl Opts {
-    fn new() -> Self {
-        Self {
-            _1: (1, true),
-        }
-    }
-}
+// Используем HashMap как в C++ версии
+type OptsMap = HashMap<String, (i32, bool)>;
 
 #[derive(Serialize, Deserialize, Clone)]
 struct Coordinate {
@@ -21,7 +13,7 @@ struct Coordinate {
     y: f64,
     z: f64,
     name: String,
-    opts: Opts,
+    opts: OptsMap,
 }
 
 #[derive(Serialize)]
@@ -31,28 +23,31 @@ struct JsonData {
 }
 
 pub struct JsonGenerate {
-    pub(crate) n: i32,
+    pub(crate) n: i64,
     text: String,
     data: Vec<Coordinate>,
+    result: u32,
 }
 
 impl JsonGenerate {
     pub fn new() -> Self {
-        let name = "JsonGenerate".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);  
+        let n = config_i64("JsonGenerate", "coords");
+        
         Self {
-            n: iterations,
+            n,
             text: String::new(),
             data: Vec::new(),
+            result: 0,
         }
     }
     
+    // Вспомогательная функция для округления до 8 знаков как в C++
+    fn round_to_8(value: f64) -> f64 {
+        (value * 100_000_000.0).round() / 100_000_000.0
+    }
+    
     // Публичный метод для получения сгенерированного JSON
-    pub fn get_text(&self) -> &str {
+    pub fn get_result(&self) -> &str {
         &self.text
     }
 }
@@ -65,32 +60,42 @@ impl Benchmark for JsonGenerate {
     fn prepare(&mut self) {
         let mut data = Vec::new();
         for _ in 0..self.n {
+            // Округление до 8 знаков как в C++
+            let x = Self::round_to_8(helper::next_float(1.0));
+            let y = Self::round_to_8(helper::next_float(1.0));
+            let z = Self::round_to_8(helper::next_float(1.0));
+            
+            // Форматирование как в C++
+            let name = format!("{:.7} {}", helper::next_float(1.0), helper::next_int(10000));
+            
+            // Используем "1" как ключ, а не "_1"
+            let mut opts = HashMap::new();
+            opts.insert("1".to_string(), (1, true));
+            
             data.push(Coordinate {
-                x: (helper::next_float(1.0) * 1_000_000.0).round() / 1_000_000.0, // round to 6 decimal places
-                y: (helper::next_float(1.0) * 1_000_000.0).round() / 1_000_000.0,
-                z: (helper::next_float(1.0) * 1_000_000.0).round() / 1_000_000.0,
-                name: format!("{:.7} {}", helper::next_float(1.0), helper::next_int(10_000)),
-                opts: Opts::new(),
+                x,
+                y,
+                z,
+                name,
+                opts,
             });
         }
         self.data = data;
     }
 
-    fn iterations(&self) -> i32 {
-        self.n
-    }
-    
-    fn run(&mut self) {
+    fn run(&mut self, _iteration_id: i64) {
         let json_data = JsonData {
-            coordinates: self.data.clone(), // TODO: probably clone take some time, move it to prepare
+            coordinates: self.data.clone(),
             info: "some info",
         };
         
         self.text = serde_json::to_string(&json_data).unwrap();
+        if self.text.starts_with("{\"coordinates\":") {
+            self.result += 1;
+        }
     }
     
-    fn result(&self) -> i64 {
-        // Как в оригинале - всегда возвращаем 1, потому что проверка делается при парсинге
-        1
+    fn checksum(&self) -> u32 {
+        self.result
     }
 }

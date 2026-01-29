@@ -1,7 +1,7 @@
 package benchmarks
 import Benchmark
 
-class CalculatorInterpreter : Benchmark() {  // Benchmark импортируется автоматически
+class CalculatorInterpreter : Benchmark() {
     private class Interpreter {
         private val variables = mutableMapOf<String, Long>()
         
@@ -54,50 +54,29 @@ class CalculatorInterpreter : Benchmark() {  // Benchmark импортирует
         }
     }
     
-    private var n: Int = 0
-    private var _result: Long = 0L
+    private var n: Long = 0
+    private var resultVal: UInt = 0u
     private lateinit var ast: List<CalculatorAst.Node>
     
     init {
-        n = iterations  // iterations наследуется от Benchmark
+        n = configVal("operations")
     }
     
     override fun prepare() {
-        // Получаем CalculatorAst через рефлексию
         val calculator = CalculatorAst()
-        
-        // Устанавливаем n через рефлексию
-        val nField = CalculatorAst::class.java.getDeclaredField("n")
-        nField.isAccessible = true
-        nField.setInt(calculator, n)
-        
-        // Вызываем prepare через рефлексию
-        val prepareMethod = CalculatorAst::class.java.getDeclaredMethod("prepare")
-        prepareMethod.isAccessible = true
-        prepareMethod.invoke(calculator)
-        
-        // Вызываем run через рефлексию
-        val runMethod = CalculatorAst::class.java.getDeclaredMethod("run")
-        runMethod.isAccessible = true
-        runMethod.invoke(calculator)
-        
-        // Получаем expressions через рефлексию
-        val expressionsField = CalculatorAst::class.java.getDeclaredField("expressions")
-        expressionsField.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        ast = expressionsField.get(calculator) as List<CalculatorAst.Node>
+        calculator.n = n.toLong()
+        calculator.prepare()
+        calculator.run(0)
+        ast = calculator.expressions
     }
     
-    override fun run() {
-        var total: Long = 0L
-        repeat(100) {
-            val interpreter = Interpreter()
-            val result = interpreter.run(ast)
-            total += result
-        }
-        _result = total
+    override fun run(iterationId: Int) {
+        val interpreter = Interpreter()
+        val result = interpreter.run(ast)
+        resultVal += result.toUInt()  // &+= эквивалент
     }
     
-    override val result: Long
-        get() = _result
+    override fun checksum(): UInt = resultVal
+    
+    override fun name(): String = "CalculatorInterpreter"
 }

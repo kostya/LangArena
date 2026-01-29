@@ -1,31 +1,40 @@
 import Foundation
+
 final class BrainfuckRecursion: BenchmarkProtocol {
-    private let text: String
-    private var _result: Int64 = 0
+    private var text: String
+    private var warmupProgram: String
+    private var resultVal: UInt32 = 0
+    
     init() {
-        let className = String(describing: type(of: self))
-        text = Helper.getInput(className)
+        text = ""
+        warmupProgram = ""
     }
+    
     enum Op {
         case inc(Int)
         case move(Int)
         case print
         case loop([Op])
     }
+    
     class Tape {
         private var tape: [UInt8]
         private var pos: Int
+        
         init() {
             tape = [0]
             pos = 0
         }
+        
         func get() -> UInt8 {
             return tape[pos]
         }
+        
         func inc(_ x: Int) {
             let newValue = Int(tape[pos]) + x
             tape[pos] = UInt8(newValue & 255)
         }
+        
         func move(_ x: Int) {
             pos += x
             while pos >= tape.count {
@@ -33,17 +42,21 @@ final class BrainfuckRecursion: BenchmarkProtocol {
             }
         }
     }
+    
     class Program {
         private let ops: [Op]
-        var result: Int64 = 0
+        var resultVal: Int64 = 0
+        
         init(_ code: String) {
             var iterator = code.makeIterator()
             ops = Self.parse(&iterator)
         }
+        
         func run() {
             let tape = Tape()
             run(ops, tape)
         }
+        
         private func run(_ program: [Op], _ tape: Tape) {
             for op in program {
                 switch op {
@@ -56,10 +69,11 @@ final class BrainfuckRecursion: BenchmarkProtocol {
                         run(innerOps, tape)
                     }
                 case .print:
-                    result = (result << 2) + Int64(tape.get())
+                    resultVal = (resultVal << 2) + Int64(tape.get())
                 }
             }
         }
+        
         private static func parse(_ iterator: inout String.Iterator) -> [Op] {
             var result: [Op] = []
             while let char = iterator.next() {
@@ -89,13 +103,32 @@ final class BrainfuckRecursion: BenchmarkProtocol {
             return result
         }
     }
-    func run() {
-        let program = Program(text)
+    
+    private func runProgram(_ programText: String) -> Int64 {
+        let program = Program(programText)
         program.run()
-        _result = program.result
+        return program.resultVal
     }
-    var result: Int64 {
-        return _result
+    
+    func warmup() {
+        let prepareIters = warmupIterations
+        for i in 0..<prepareIters {
+            _ = runProgram(warmupProgram)
+        }
     }
-    func prepare() {}
+    
+    func run(iterationId: Int) {
+        let res = runProgram(text)
+        let res32 = UInt32(truncatingIfNeeded: res)
+        resultVal &+= res32
+    }
+    
+    var checksum: UInt32 {
+        return resultVal
+    }
+    
+    func prepare() {
+        text = configValue("program") ?? ""
+        warmupProgram = configValue("warmup_program") ?? text        
+    }
 }

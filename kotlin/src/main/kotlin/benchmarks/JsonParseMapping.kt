@@ -8,13 +8,13 @@ data class Coord(val x: Double, val y: Double, val z: Double)
 
 class JsonParseMapping : Benchmark() {
     private lateinit var text: String
-    private var _result: UInt = 0u
+    private var resultVal: UInt = 0u
 
     override fun prepare() {
         val generator = JsonGenerate()
-        generator.n = iterations
+        generator.n = configVal("coords")
         generator.prepare()
-        generator.run()
+        generator.run(0)
         
         // Получаем данные из генератора
         val dataField = generator::class.java.getDeclaredField("data")
@@ -55,13 +55,14 @@ class JsonParseMapping : Benchmark() {
         return Coord(x / len, y / len, z / len)
     }
 
-    override fun run() {
+    override fun run(iterationId: Int) {
         val coord = calc(text)
-        _result = Helper.checksum("%.7f".format(coord.x)) +
-                 Helper.checksum("%.7f".format(coord.y)) +
-                 Helper.checksum("%.7f".format(coord.z))
+        resultVal += Helper.checksum("%.7f".format(coord.x)) +
+                    Helper.checksum("%.7f".format(coord.y)) +
+                    Helper.checksum("%.7f".format(coord.z))  // &+= эквивалент
     }
 
-    override val result: Long
-        get() = _result.toLong()
+    override fun checksum(): UInt = resultVal
+    
+    override fun name(): String = "JsonParseMapping"
 }

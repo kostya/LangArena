@@ -22,8 +22,7 @@ public class GraphPathDijkstra : GraphPathBenchmark
         int[] dist = new int[_graph.Vertices];
         byte[] visited = new byte[_graph.Vertices];
         
-        for (int i = 0; i < _graph.Vertices; i++)
-            dist[i] = INF;
+        for (int i = 0; i < _graph.Vertices; i++) dist[i] = INF;
             
         dist[start] = 0;
         int maxIterations = _graph.Vertices;
@@ -51,10 +50,7 @@ public class GraphPathDijkstra : GraphPathBenchmark
             
             foreach (int v in _graph.Adj[u])
             {
-                if (dist[u] + 1 < dist[v])
-                {
-                    dist[v] = dist[u] + 1;
-                }
+                if (dist[u] + 1 < dist[v]) dist[v] = dist[u] + 1;
             }
         }
         

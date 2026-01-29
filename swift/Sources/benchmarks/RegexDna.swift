@@ -1,30 +1,29 @@
 import Foundation
+
 final class RegexDna: BenchmarkProtocol {
     private var seq: String = ""
     private var ilen: Int = 0
     private var clen: Int = 0
     private var output: String = ""
+    
     func prepare() {
         output = ""
-        // Используем Fasta для генерации данных
         let fasta = Fasta()
-        fasta.n = iterations
+        fasta.n = configValue("n") ?? 0
         fasta.prepare()
-        fasta.run()
-        // Получаем вывод из Fasta
-        seq = fasta.getOutput()
-        // Эмулируем Crystal: общий размер в байтах
-        ilen = seq.utf8.count
-        // Считаем clen как сумму байтов не-заголовочных строк
+        fasta.run(iterationId: 0)
+        let res = fasta.getOutput()
+        
+        ilen = res.utf8.count
         clen = 0
-        let lines = seq.split(separator: "\n")
+        let lines = res.split(separator: "\n")
         for line in lines {
             let lineStr = String(line)
             if !lineStr.isEmpty && !lineStr.starts(with: ">") {
                 clen += lineStr.utf8.count
             }
         }
-        // Убираем заголовки из последовательности
+        
         var seqBuilder = ""
         for line in lines {
             let lineStr = String(line)
@@ -34,7 +33,8 @@ final class RegexDna: BenchmarkProtocol {
         }
         seq = seqBuilder
     }
-    func run() {
+    
+    func run(iterationId: Int) {
         var outputBuilder = ""
         let patterns = [
             try! NSRegularExpression(pattern: "agggtaaa|tttaccct"),
@@ -47,11 +47,13 @@ final class RegexDna: BenchmarkProtocol {
             try! NSRegularExpression(pattern: "agggta[cgt]a|t[acg]taccct"),
             try! NSRegularExpression(pattern: "agggtaa[cgt]|[acg]ttaccct")
         ]
+        
         for regex in patterns {
             let matches = regex.matches(in: seq, range: NSRange(seq.startIndex..., in: seq))
             let count = matches.count
             outputBuilder.append("\(regex.pattern) \(count)\n")
         }
+        
         let replacements = [
             "B": "(c|g|t)",
             "D": "(a|g|t)", 
@@ -65,6 +67,7 @@ final class RegexDna: BenchmarkProtocol {
             "W": "(a|t)",
             "Y": "(c|t)"
         ]
+        
         var processed = seq
         for (key, value) in replacements {
             processed = processed.replacingOccurrences(
@@ -73,14 +76,15 @@ final class RegexDna: BenchmarkProtocol {
                 options: .regularExpression
             )
         }
+        
         outputBuilder.append("\n")
         outputBuilder.append("\(ilen)\n")
         outputBuilder.append("\(clen)\n")
         outputBuilder.append("\(processed.count)\n")
-        output = outputBuilder
+        output += outputBuilder
     }
-    var result: Int64 {
-        let checksum = Helper.checksum(output)
-        return Int64(bitPattern: UInt64(checksum))
+    
+    var checksum: UInt32 {
+        return Helper.checksum(output)
     }
 }

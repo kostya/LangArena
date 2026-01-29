@@ -16,6 +16,24 @@ class MazeGenerator : Benchmark() {
             cells[y][x] = cell
         }
         
+        private fun addRandomPaths() {
+            val numExtraPaths = (width * height) / 20 // 5% клеток
+            
+            for (i in 0 until numExtraPaths) {
+                val x = Helper.nextInt(width - 2) + 1 // Не на границах
+                val y = Helper.nextInt(height - 2) + 1
+                
+                // Превращаем стену в проход, если окружена стенами
+                if (get(x, y) == Cell.WALL &&
+                    get(x - 1, y) == Cell.WALL &&
+                    get(x + 1, y) == Cell.WALL &&
+                    get(x, y - 1) == Cell.WALL &&
+                    get(x, y + 1) == Cell.WALL) {
+                    set(x, y, Cell.PATH)
+                }
+            }
+        }
+        
         private fun divide(x1: Int, y1: Int, x2: Int, y2: Int) {
             val width = x2 - x1
             val height = y2 - y1
@@ -127,6 +145,7 @@ class MazeGenerator : Benchmark() {
             }
             
             divide(0, 0, width - 1, height - 1)
+            addRandomPaths()
         }
         
         fun toBoolGrid(): Array<BooleanArray> {
@@ -170,30 +189,37 @@ class MazeGenerator : Benchmark() {
         }
     }
     
-    private var resultVal: Long = 0L
-    private val width = 1001
-    private val height = 1001
+    private var resultVal: UInt = 0u
+    private val width: Int
+    private val height: Int
+    private lateinit var boolGrid: Array<BooleanArray>
     
-    override fun run() {
-        var checksum = 0L
+    init {
+        width = configVal("w").toInt()
+        height = configVal("h").toInt()
+    }
+    
+    private fun gridChecksum(grid: Array<BooleanArray>): UInt {
+        var hasher = 2166136261UL      // FNV offset basis
+        val prime = 16777619UL         // FNV prime
         
-        val iters = iterations
-        for (i in 0 until iters) {
-            val boolGrid = Maze.generateWalkableMaze(width, height)
-            
-            // Простая checksum для сравнения с C++
-            for (y in boolGrid.indices) {
-                for (x in boolGrid[y].indices) {
-                    if (!boolGrid[y][x]) {
-                        checksum += (x * y).toLong()
-                    }
+        for (i in grid.indices) {
+            val row = grid[i]
+            for (j in row.indices) {
+                if (row[j]) {  // только true клетки
+                    val jSquared = (j * j).toULong()
+                    hasher = (hasher xor jSquared) * prime
                 }
             }
         }
-        
-        resultVal = checksum
+        return hasher.toUInt()
     }
     
-    override val result: Long
-        get() = resultVal
+    override fun run(iterationId: Int) {
+        boolGrid = Maze.generateWalkableMaze(width, height)
+    }
+    
+    override fun checksum(): UInt = gridChecksum(boolGrid)
+    
+    override fun name(): String = "MazeGenerator"
 }

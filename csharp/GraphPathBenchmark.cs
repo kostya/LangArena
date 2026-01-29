@@ -11,8 +11,7 @@ public abstract class GraphPathBenchmark : Benchmark
             Vertices = vertices;
             _components = components;
             Adj = new List<int>[vertices];
-            for (int i = 0; i < vertices; i++)
-                Adj[i] = new List<int>();
+            for (int i = 0; i < vertices; i++) Adj[i] = new List<int>();
         }
         
         public void AddEdge(int u, int v)
@@ -29,54 +28,35 @@ public abstract class GraphPathBenchmark : Benchmark
             {
                 int startIdx = c * componentSize;
                 int endIdx = (c + 1) * componentSize;
-                if (c == _components - 1)
-                    endIdx = Vertices;
+                if (c == _components - 1) endIdx = Vertices;
                 
-                // Делаем компоненту связной
                 for (int i = startIdx + 1; i < endIdx; i++)
                 {
                     int parent = startIdx + Helper.NextInt(i - startIdx);
                     AddEdge(i, parent);
                 }
                 
-                // Добавляем случайные рёбра внутри компоненты
                 for (int i = 0; i < componentSize * 2; i++)
                 {
                     int u = startIdx + Helper.NextInt(endIdx - startIdx);
                     int v = startIdx + Helper.NextInt(endIdx - startIdx);
-                    if (u != v)
-                        AddEdge(u, v);
+                    if (u != v) AddEdge(u, v);
                 }
             }
-        }
-        
-        public bool SameComponent(int u, int v)
-        {
-            int componentSize = Vertices / _components;
-            return (u / componentSize) == (v / componentSize);
         }
     }
     
     protected Graph _graph;
     protected List<(int, int)> _pairs;
-    protected long _result;
-    
-    public override long Result => _result;
+    protected uint _result;
+    protected long _nPairs;
     
     protected GraphPathBenchmark()
     {
         _result = 0;
+        _nPairs = ConfigVal("pairs");
     }
     
-    public override void Prepare()
-    {
-        int vertices = Iterations * 10;
-        int components = Math.Max(10, vertices / 10000);
-        _graph = new Graph(vertices, components);
-        _graph.GenerateRandom();  // ← Генерируем здесь!
-        _pairs = GeneratePairs(Iterations);
-    }
-
     protected List<(int, int)> GeneratePairs(int n)
     {
         var pairs = new List<(int, int)>();
@@ -86,26 +66,17 @@ public abstract class GraphPathBenchmark : Benchmark
         {
             if (Helper.NextInt(100) < 70)
             {
-                // В одной компоненте
                 int component = Helper.NextInt(10);
                 int start = component * componentSize + Helper.NextInt(componentSize);
                 int end;
-                do
-                {
-                    end = component * componentSize + Helper.NextInt(componentSize);
-                } while (end == start);
-                
+                do { end = component * componentSize + Helper.NextInt(componentSize); } while (end == start);
                 pairs.Add((start, end));
             }
             else
             {
-                // В разных компонентах
                 int c1 = Helper.NextInt(10);
                 int c2;
-                do
-                {
-                    c2 = Helper.NextInt(10);
-                } while (c2 == c1);
+                do { c2 = Helper.NextInt(10); } while (c2 == c1);
                 
                 int start = c1 * componentSize + Helper.NextInt(componentSize);
                 int end = c2 * componentSize + Helper.NextInt(componentSize);
@@ -116,10 +87,18 @@ public abstract class GraphPathBenchmark : Benchmark
         return pairs;
     }
     
+    public override void Prepare()
+    {
+        int vertices = (int)ConfigVal("vertices");
+        int comps = Math.Max(10, vertices / 10000);
+        _graph = new Graph(vertices, comps);
+        _graph.GenerateRandom();
+        _pairs = GeneratePairs((int)_nPairs);
+    }
+    
     protected abstract long Test();
     
-    public override void Run()
-    {
-        _result = Test();
-    }
+    public override void Run(long IterationId) => _result += (uint)Test();
+    
+    public override uint Checksum => _result;
 }

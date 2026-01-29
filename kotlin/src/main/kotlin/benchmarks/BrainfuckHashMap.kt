@@ -4,10 +4,10 @@ import Benchmark
 
 class BrainfuckHashMap : Benchmark() {
     private lateinit var text: String
-    private var res: Long = 0L
+    private var resultVal: UInt = 0u
     
     init {
-        text = Helper.INPUT[this::class.simpleName ?: ""] ?: ""
+        text = Helper.configS(name(), "program")
     }
     
     class Tape {
@@ -101,10 +101,23 @@ class BrainfuckHashMap : Benchmark() {
         }
     }
     
-    override fun run() {
-        res = Program(text).run()
+    private fun runProgram(text: String): Long {
+        return Program(text).run()
     }
     
-    override val result: Long
-        get() = res
+    override fun warmup() {
+        val prepareIters = warmupIterations()
+        val warmupProgram = Helper.configS(name(), "warmup_program")
+        for (i in 0 until prepareIters) {
+            runProgram(warmupProgram)
+        }
+    }
+    
+    override fun run(iterationId: Int) {
+        resultVal += runProgram(text).toUInt()  // &+= эквивалент
+    }
+    
+    override fun checksum(): UInt = resultVal
+    
+    override fun name(): String = "BrainfuckHashMap"
 }

@@ -101,16 +101,22 @@ public class Nbody extends Benchmark {
             5.15138902046611451e-05)
     };
     
-    private int n;
     private Planet[] bodies;
-    private long result;
+    private double v1;
+    private long resultVal;
     
     public Nbody() {
-        n = getIterations();
         bodies = new Planet[BODIES.length];
         for (int i = 0; i < BODIES.length; i++) {
             bodies[i] = BODIES[i].clone();
         }
+        resultVal = 0L;
+        v1 = 0.0;
+    }
+    
+    @Override
+    public String name() {
+        return "Nbody";
     }
     
     private double energy(Planet[] bodies) {
@@ -150,25 +156,27 @@ public class Nbody extends Benchmark {
     }
     
     @Override
-    public void run() {
+    public void prepare() {
         offsetMomentum(bodies);
-        
-        double v1 = energy(bodies);
-        int nbodies = bodies.length;
-        double dt = 0.01;
-        
-        for (int iter = 0; iter < n; iter++) {
-            for (int i = 0; i < nbodies; i++) {
-                bodies[i].moveFromI(bodies, nbodies, dt, i + 1);
-            }
-        }
-        
-        double v2 = energy(bodies);
-        result = (Helper.checksumF64(v1) << 5) & Helper.checksumF64(v2);
+        v1 = energy(bodies);
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public void run(int iterationId) {
+        int nbodies = bodies.length;
+        double dt = 0.01;
+        
+        int i = 0;
+        while (i < nbodies) {
+            Planet b = bodies[i];
+            b.moveFromI(bodies, nbodies, dt, i + 1);
+            i++;
+        }
+    }
+    
+    @Override
+    public long checksum() {
+        double v2 = energy(bodies);
+        return (Helper.checksumF64(v1) << 5) & Helper.checksumF64(v2);
     }
 }

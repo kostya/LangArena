@@ -3,8 +3,6 @@ package benchmarks;
 import java.util.*;
 
 public class Noise extends Benchmark {
-    private static final int SIZE = 64;
-    private static final char[] SYM = {' ', '░', '▒', '▓', '█', '█'};
     
     static class Vec2 {
         final double x, y;
@@ -16,24 +14,23 @@ public class Noise extends Benchmark {
     }
     
     static class Noise2DContext {
-        private final Vec2[] rgradients = new Vec2[SIZE];
-        private final int[] permutations = new int[SIZE];
+        private final Vec2[] rgradients;
+        private final int[] permutations;
+        private final int sizeVal;
         
-        Noise2DContext() {
-            // Инициализация градиентов
-            for (int i = 0; i < SIZE; i++) {
-                rgradients[i] = randomGradient();
-            }
+        Noise2DContext(int size) {
+            this.sizeVal = size;
+            this.rgradients = new Vec2[size];
+            this.permutations = new int[size];
             
-            // Инициализация перестановок
-            for (int i = 0; i < SIZE; i++) {
+            for (int i = 0; i < size; i++) {
+                rgradients[i] = randomGradient();
                 permutations[i] = i;
             }
             
-            // Перемешивание
-            for (int i = 0; i < SIZE; i++) {
-                int a = Helper.nextInt(SIZE);
-                int b = Helper.nextInt(SIZE);
+            for (int i = 0; i < size; i++) {
+                int a = Helper.nextInt(size);
+                int b = Helper.nextInt(size);
                 int temp = permutations[a];
                 permutations[a] = permutations[b];
                 permutations[b] = temp;
@@ -46,8 +43,8 @@ public class Noise extends Benchmark {
         }
         
         private Vec2 getGradient(int x, int y) {
-            int idx = permutations[x & (SIZE - 1)] + permutations[y & (SIZE - 1)];
-            return rgradients[idx & (SIZE - 1)];
+            int idx = permutations[x & (sizeVal - 1)] + permutations[y & (sizeVal - 1)];
+            return rgradients[idx & (sizeVal - 1)];
         }
         
         private Vec2[][] getGradients(double x, double y) {
@@ -106,51 +103,37 @@ public class Noise extends Benchmark {
         }
     }
     
-    private int n;
-    private long result;
+    private long sizeVal;
+    private long resultVal;
+    private Noise2DContext n2d;
     
     public Noise() {
-        n = getIterations();
+        sizeVal = configVal("size");
+        resultVal = 0L;
+        n2d = new Noise2DContext((int) sizeVal);
     }
     
-    private long noise() {
-        double[][] pixels = new double[SIZE][SIZE];
-        Noise2DContext n2d = new Noise2DContext();
-        
-        for (int i = 0; i < 100; i++) {
-            for (int y = 0; y < SIZE; y++) {
-                for (int x = 0; x < SIZE; x++) {
-                    double v = n2d.get(x * 0.1, (y + (i * 128)) * 0.1) * 0.5 + 0.5;
-                    pixels[y][x] = v;
-                }
-            }
-        }
-        
-        long res = 0L;
-        
-        for (int y = 0; y < SIZE; y++) {
-            for (int x = 0; x < SIZE; x++) {
-                double v = pixels[y][x];
+    @Override
+    public String name() {
+        return "Noise";
+    }
+    
+    private static final char[] SYM = {' ', '░', '▒', '▓', '█', '█'};
+    
+    @Override
+    public void run(int iterationId) {
+        for (long y = 0; y < sizeVal; y++) {
+            for (long x = 0; x < sizeVal; x++) {
+                double v = n2d.get(x * 0.1, (y + (iterationId * 128)) * 0.1) * 0.5 + 0.5;
                 int idx = (int) (v / 0.2);
-                if (idx < 0) idx = 0;
-                if (idx >= SYM.length) idx = SYM.length - 1;
-                res += SYM[idx];
+                if (idx >= 6) idx = 5;
+                resultVal += SYM[idx];
             }
         }
-        
-        return res;
     }
     
     @Override
-    public void run() {
-        for (int i = 0; i < n; i++) {
-            long v = noise();
-            result = (result + v);
-        }
-    }
-    
-    @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

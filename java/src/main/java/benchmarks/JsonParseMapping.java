@@ -21,14 +21,19 @@ public class JsonParseMapping extends Benchmark {
     }
     
     private String text;
-    private long result;
+    private long resultVal;
+    
+    @Override
+    public String name() {
+        return "JsonParseMapping";
+    }
     
     @Override
     public void prepare() {
         JsonGenerate generator = new JsonGenerate();
-        generator.n = getIterations();
+        generator.n = (int) configVal("coords");
         generator.prepare();
-        generator.run();
+        generator.run(0);
         
         // Получаем данные из генератора
         try {
@@ -74,13 +79,13 @@ public class JsonParseMapping extends Benchmark {
     }
     
     @Override
-    public void run() {
+    public void run(int iterationId) {
         Coord coord = calc(text);
-        result = ((int)Helper.checksumF64(coord.x) + (int)Helper.checksumF64(coord.y) + (int)Helper.checksumF64(coord.z)) & 0xFFFFFFFFL;
+        resultVal += ((int)Helper.checksumF64(coord.x) + (int)Helper.checksumF64(coord.y) + (int)Helper.checksumF64(coord.z)) & 0xFFFFFFFFL;
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

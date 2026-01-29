@@ -1,5 +1,12 @@
 import Foundation
+
 final class BufferHashCRC32: BufferHashBenchmark {
+    override init() {
+        super.init()
+    }
+    
+    override var name: String { return "BufferHashCRC32" }
+    
     static let CRC_TABLE: [UInt32] = {
         var table = [UInt32](repeating: 0, count: 256)
         for i in 0..<256 {
@@ -11,6 +18,7 @@ final class BufferHashCRC32: BufferHashBenchmark {
         }
         return table
     }()
+    
     override func test() -> UInt32 {
         var crc: UInt32 = 0xFFFFFFFF
         for byte in self.data {

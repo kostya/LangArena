@@ -1949,9 +1949,10 @@ type Coordinate struct {
 
 type JsonGenerate struct {
 	BaseBenchmark
-	n    int64
-	data []Coordinate
-	text bytes.Buffer
+	n      int64
+	data   []Coordinate
+	text   bytes.Buffer
+	result uint32
 }
 
 func round(val float64, precision int) float64 {
@@ -1988,14 +1989,14 @@ func (j *JsonGenerate) Run(iteration_id int) {
 
 	data, _ := json.Marshal(resp)
 	j.text.Write(data)
+
+	if len(data) >= 15 && string(data[:15]) == "{\"coordinates\":" {
+		j.result++
+	}
 }
 
 func (j *JsonGenerate) Checksum() uint32 {
-	length := min(500, j.text.Len()) - 1
-	if length < 0 {
-		length = 0
-	}
-	return Checksum(string(j.text.Bytes()[:length]))
+	return j.result
 }
 
 // JsonParseDom

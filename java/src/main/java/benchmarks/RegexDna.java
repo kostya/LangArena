@@ -8,17 +8,24 @@ public class RegexDna extends Benchmark {
     private int ilen;
     private int clen;
     private StringBuilder result;
+    private List<Pattern> compiledPatterns;
     
     public RegexDna() {
         result = new StringBuilder();
+        compiledPatterns = new ArrayList<>();
+    }
+    
+    @Override
+    public String name() {
+        return "RegexDna";
     }
     
     @Override
     public void prepare() {
         Fasta fasta = new Fasta();
-        fasta.n = getIterations();
-        fasta.run();
-        String res = fasta.result.toString(); // Нужно добавить метод getOutput() в Fasta
+        fasta.n = (int) configVal("n");
+        fasta.run(0);
+        String res = fasta.getResultString();
 
         StringBuilder seqBuilder = new StringBuilder();
         ilen = 0;
@@ -33,12 +40,8 @@ public class RegexDna extends Benchmark {
         }
         
         seq = seqBuilder.toString();
-    }
-    
-    @Override
-    public void run() {
-        result.setLength(0);
         
+        // Компилируем паттерны
         String[] patterns = {
             "agggtaaa|tttaccct",
             "[cgt]gggtaaa|tttaccc[acg]",
@@ -51,13 +54,27 @@ public class RegexDna extends Benchmark {
             "agggtaa[cgt]|[acg]ttaccct"
         };
         
+        compiledPatterns.clear();
         for (String pattern : patterns) {
-            Pattern p = Pattern.compile(pattern);
-            java.util.regex.Matcher m = p.matcher(seq);
-            int count = 0;
-            while (m.find()) {
-                count++;
-            }
+            compiledPatterns.add(Pattern.compile(pattern));
+        }
+    }
+    
+    private int countPattern(int patternIdx) {
+        Pattern pattern = compiledPatterns.get(patternIdx);
+        java.util.regex.Matcher matcher = pattern.matcher(seq);
+        int count = 0;
+        while (matcher.find()) {
+            count++;
+        }
+        return count;
+    }
+    
+    @Override
+    public void run(int iterationId) {
+        for (int i = 0; i < compiledPatterns.size(); i++) {
+            int count = countPattern(i);
+            String pattern = compiledPatterns.get(i).pattern();
             result.append(pattern).append(" ").append(count).append("\n");
         }
         
@@ -86,12 +103,12 @@ public class RegexDna extends Benchmark {
     }
     
     @Override
-    public long getResult() {
+    public long checksum() {
         return Helper.checksum(result.toString());
     }
     
     // Helper method to get result as string for Fasta
-    private String getResultString() {
+    public String getResultString() {
         return result.toString();
     }
 }

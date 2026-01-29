@@ -3,10 +3,10 @@ package benchmarks
 import Benchmark
 
 class Binarytrees : Benchmark() {
-    private var n: Int = 0
+    private var n: Long = 0
     
     init {
-        n = iterations
+        n = configVal("depth")
     }
     
     class TreeNode(val item: Int, depth: Int) {
@@ -38,25 +38,23 @@ class Binarytrees : Benchmark() {
         }
     }
     
-    private var checkResult: Long = 0L
+    private var resultVal: UInt = 0u
     
-    override fun run() {
-        checkResult = 0L
-        
+    override fun run(iterationId: Int) {
         val minDepth = 4
-        val maxDepth = Math.max(minDepth + 2, n)
+        val maxDepth = Math.max(minDepth + 2, n.toInt())
         val stretchDepth = maxDepth + 1
         
         // 1. Stretch tree (только этот!)
-        checkResult += TreeNode.create(0, stretchDepth).check().toLong()
+        resultVal += TreeNode.create(0, stretchDepth).check().toUInt()  // &+= эквивалент
         
         // 2. Деревья разных глубин (без long-lived tree!)
         for (depth in minDepth..maxDepth step 2) {
             val iterations = 1 shl (maxDepth - depth + minDepth)
             
             for (i in 1..iterations) {
-                checkResult += TreeNode.create(i, depth).check().toLong()
-                checkResult += TreeNode.create(-i, depth).check().toLong()
+                resultVal += TreeNode.create(i, depth).check().toUInt()
+                resultVal += TreeNode.create(-i, depth).check().toUInt()
             }
         }
         
@@ -64,6 +62,7 @@ class Binarytrees : Benchmark() {
         // В Crystal коде её нет!
     }
     
-    override val result: Long
-        get() = checkResult
+    override fun checksum(): UInt = resultVal
+    
+    override fun name(): String = "Binarytrees"
 }

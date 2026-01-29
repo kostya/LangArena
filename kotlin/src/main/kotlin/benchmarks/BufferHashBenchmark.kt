@@ -4,26 +4,21 @@ import Benchmark
 
 abstract class BufferHashBenchmark : Benchmark() {
     protected lateinit var data: ByteArray
-    private var _result: UInt = 0u
-    private var n: Int = 0
-
-    init {
-        n = iterations
-    }
+    protected var resultVal: UInt = 0u
+    protected var sizeVal: Long = 0
 
     override fun prepare() {
-        // Генерируем случайные данные для хэширования
-        data = ByteArray(1_000_000) { Helper.nextInt(256).toByte() }
+        if (sizeVal == 0L) {
+            sizeVal = configVal("size")
+            data = ByteArray(sizeVal.toInt()) { Helper.nextInt(256).toByte() }
+        }
     }
 
     abstract fun test(): UInt
 
-    override fun run() {
-        repeat(n) {
-            _result = (_result + test()) and 0xFFFFFFFFu
-        }
+    override fun run(iterationId: Int) {
+        resultVal += test()  // &+= эквивалент
     }
 
-    override val result: Long
-        get() = _result.toLong()
+    override fun checksum(): UInt = resultVal
 }

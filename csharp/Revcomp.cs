@@ -3,30 +3,48 @@ using System.Text;
 public class Revcomp : Benchmark
 {
     private string _input = "";
-    private StringBuilder _resultBuilder;
-    
-    public override long Result => Helper.Checksum(_resultBuilder.ToString());
+    private StringBuilder _resultBuilder = new StringBuilder();
     
     public Revcomp()
     {
+        // Инициализируем здесь
         _resultBuilder = new StringBuilder();
     }
     
     public override void Prepare()
     {
         var fasta = new Fasta();
-        fasta._n = Iterations;
+        fasta._n = ConfigVal("n");
         fasta.Prepare();
-        fasta.Run();
-        _input = fasta.GetResult();
+        fasta.Run(0);
+        string fastaResult = fasta.GetResult();
+        
+        var seqBuilder = new StringBuilder();
+        
+        using (var reader = new StringReader(fastaResult))
+        {
+            string? line;
+            while ((line = reader.ReadLine()) != null)
+            {
+                if (line.StartsWith(">"))
+                {
+                    seqBuilder.Append("\n---\n"); // Как в C++ версии
+                }
+                else
+                {
+                    seqBuilder.Append(line);
+                }
+            }
+        }
+        
+        _input = seqBuilder.ToString();
+        _resultBuilder.Clear();
     }
     
     private string ReverseComplement(string seq)
     {
-        // Создаем массив для результата
         char[] result = new char[seq.Length];
         
-        // Трансляция символов
         for (int i = 0; i < seq.Length; i++)
         {
             char c = seq[i];
@@ -53,52 +71,30 @@ public class Revcomp : Benchmark
             result[seq.Length - 1 - i] = rc;
         }
         
-        return new string(result);
-    }
-    
-    private void ProcessSequence(string seq)
-    {
-        string revcomp = ReverseComplement(seq);
-        int stringlen = revcomp.Length - 1;
-        
-        for (int x = 0; x <= stringlen; x += 60)
+        // Добавляем переносы строк каждые 60 символов как в C++ версии
+        var formatted = new StringBuilder();
+        for (int i = 0; i < result.Length; i += 60)
         {
-            int length = Math.Min(60, stringlen - x + 1);
-            _resultBuilder.Append(revcomp, x, length);
-            _resultBuilder.Append('\n');
-        }
-    }
-    
-    public override void Run()
-    {
-        var seqBuilder = new StringBuilder();
-        
-        using (var reader = new StringReader(_input))
-        {
-            string? line;
-            while ((line = reader.ReadLine()) != null)
-            {
-                if (line.StartsWith('>'))
-                {
-                    if (seqBuilder.Length > 0)
-                    {
-                        ProcessSequence(seqBuilder.ToString());
-                        seqBuilder.Clear();
-                    }
-                    _resultBuilder.Append(line);
-                    _resultBuilder.Append('\n');
-                }
-                else
-                {
-                    seqBuilder.Append(line);
-                }
-            }
+            int length = Math.Min(60, result.Length - i);
+            formatted.Append(result, i, length);
+            formatted.Append('\n');
         }
         
-        // Обработать последнюю последовательность
-        if (seqBuilder.Length > 0)
+        return formatted.ToString();
+    }
+    
+    public override void Run(long IterationId)
+    {
+        // Аккумулируем результат между запусками
+        _resultBuilder.Append(ReverseComplement(_input));
+    }
+    
+    public override uint Checksum
+    {
+        get
         {
-            ProcessSequence(seqBuilder.ToString());
+            // Как в C++ версии: checksum от всей накопленной строки
+            return Helper.Checksum(_resultBuilder.ToString());
         }
     }
 }

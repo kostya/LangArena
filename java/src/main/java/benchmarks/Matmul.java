@@ -2,10 +2,16 @@ package benchmarks;
 
 public class Matmul extends Benchmark {
     private int n;
-    private long result;
+    private long resultVal;
     
     public Matmul() {
-        n = getIterations();
+        n = (int) configVal("n");
+        resultVal = 0L;
+    }
+    
+    @Override
+    public String name() {
+        return "Matmul";
     }
     
     private double[][] matmul(double[][] a, double[][] b) {
@@ -53,16 +59,16 @@ public class Matmul extends Benchmark {
     }
     
     @Override
-    public void run() {
+    public void run(int iterationId) {
         double[][] a = matgen(n);
         double[][] b = matgen(n);
         double[][] c = matmul(a, b);
         
-        result = Helper.checksumF64(c[n >> 1][n >> 1]);
+        resultVal += Helper.checksumF64(c[n >> 1][n >> 1]);
     }
     
     @Override
-    public long getResult() {
-        return result;
+    public long checksum() {
+        return resultVal;
     }
 }

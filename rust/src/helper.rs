@@ -71,4 +71,3 @@ pub fn debug_print(msg: &str) {
     }
     // В релизе ничего не делаем
 }
-

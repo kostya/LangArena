@@ -3,6 +3,11 @@ package benchmarks;
 public class SortQuick extends SortBenchmark {
     
     @Override
+    public String name() {
+        return "SortQuick";
+    }
+    
+    @Override
     int[] test() {
         int[] arr = data.clone();
         quickSort(arr, 0, arr.length - 1);

@@ -1,26 +1,25 @@
-use super::super::{Benchmark, INPUT, helper};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 use std::io::Write;
 
 const ITER: i32 = 50;
 const LIMIT: f64 = 2.0;
 
 pub struct Mandelbrot {
-    n: i32,
-    result: Vec<u8>,
+    w: i64,
+    h: i64,
+    result_bin: Vec<u8>,
 }
 
 impl Mandelbrot {
     pub fn new() -> Self {
-        let name = "Mandelbrot".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
+        let w = config_i64("Mandelbrot", "w");
+        let h = config_i64("Mandelbrot", "h");
         
         Self {
-            n: iterations,
-            result: Vec::new(),
+            w,
+            h,
+            result_bin: Vec::new(),
         }
     }
 }
@@ -30,15 +29,12 @@ impl Benchmark for Mandelbrot {
         "Mandelbrot".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.n
-    }
-    
-    fn run(&mut self) {
-        let w = self.n as usize;
-        let h = self.n as usize;
+    fn run(&mut self, _iteration_id: i64) {
+        let w = self.w as usize;
+        let h = self.h as usize;
         
-        writeln!(&mut self.result, "P4\n{} {}", w, h).unwrap();
+        let mut header = format!("P4\n{} {}\n", w, h);
+        self.result_bin.extend_from_slice(header.as_bytes());
         
         let mut bit_num = 0;
         let mut byte_acc: u8 = 0;
@@ -69,12 +65,12 @@ impl Benchmark for Mandelbrot {
                 bit_num += 1;
                 
                 if bit_num == 8 {                    
-                    self.result.push(byte_acc);
+                    self.result_bin.push(byte_acc);
                     byte_acc = 0;
                     bit_num = 0;
                 } else if x == w - 1 {
                     byte_acc <<= 8 - (w % 8);
-                    self.result.push(byte_acc);
+                    self.result_bin.push(byte_acc);
                     byte_acc = 0;
                     bit_num = 0;
                 }
@@ -82,7 +78,7 @@ impl Benchmark for Mandelbrot {
         }
     }
     
-    fn result(&self) -> i64 {
-        helper::checksum_bytes(&self.result) as i64
+    fn checksum(&self) -> u32 {
+        helper::checksum_bytes(&self.result_bin)
     }
 }

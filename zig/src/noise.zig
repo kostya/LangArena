@@ -1,4 +1,3 @@
-// src/noise.zig
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
@@ -7,11 +6,8 @@ const math = std.math;
 pub const Noise = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    n_iter: i32,
-    res_val: u64,
-
-    const SIZE: usize = 64;
-    const SYM: [6]u32 = [_]u32{ ' ', 0x2591, 0x2592, 0x2593, 0x2588, 0x2588 }; // ░▒▓█
+    size_val: i64,
+    result_val: u32,
 
     const Vec2 = struct {
         x: f64,
@@ -19,39 +15,52 @@ pub const Noise = struct {
     };
 
     const Noise2DContext = struct {
-        rgradients: [SIZE]Vec2,
-        permutations: [SIZE]i32,
+        rgradients: std.ArrayListUnmanaged(Vec2),
+        permutations: std.ArrayListUnmanaged(i32),
 
-        fn init(helper: *Helper) Noise2DContext {
-            var self: Noise2DContext = undefined;
+        fn init(allocator: std.mem.Allocator, helper: *Helper, size: i64) !Noise2DContext {
+            const size_int = @as(usize, @intCast(size));
+            var self = Noise2DContext{
+                .rgradients = .{},
+                .permutations = .{},
+            };
+
+            try self.rgradients.ensureTotalCapacity(allocator, size_int);
+            try self.permutations.ensureTotalCapacity(allocator, size_int);
 
             // Инициализируем случайные градиенты
-            for (0..SIZE) |i| {
+            for (0..size_int) |i| {
                 const v = helper.nextFloat(math.pi * 2.0);
-                self.rgradients[i] = Vec2{
+                self.rgradients.appendAssumeCapacity(Vec2{
                     .x = @cos(v),
                     .y = @sin(v),
-                };
-                self.permutations[i] = @as(i32, @intCast(i));
+                });
+                self.permutations.appendAssumeCapacity(@as(i32, @intCast(i)));
             }
 
             // Перемешиваем permutations
-            for (0..SIZE) |i| {
+            for (0..size_int) |i| {
                 _ = i;
-                const a = @as(usize, @intCast(helper.nextInt(SIZE)));
-                const b = @as(usize, @intCast(helper.nextInt(SIZE)));
-                std.mem.swap(i32, &self.permutations[a], &self.permutations[b]);
+                const a = @as(usize, @intCast(helper.nextInt(@as(i32, @intCast(size_int)))));
+                const b = @as(usize, @intCast(helper.nextInt(@as(i32, @intCast(size_int)))));
+                std.mem.swap(i32, &self.permutations.items[a], &self.permutations.items[b]);
             }
 
             return self;
         }
 
+        fn deinit(self: *Noise2DContext, allocator: std.mem.Allocator) void {
+            self.rgradients.deinit(allocator);
+            self.permutations.deinit(allocator);
+        }
+
         fn getGradient(self: *const Noise2DContext, x: i32, y: i32) Vec2 {
-            const idx_x = @as(usize, @intCast(x)) & (SIZE - 1);
-            const idx_y = @as(usize, @intCast(y)) & (SIZE - 1);
-            const sum = self.permutations[idx_x] + self.permutations[idx_y];
-            const idx = @as(usize, @intCast(sum)) & (SIZE - 1);
-            return self.rgradients[idx];
+            const size_mask = @as(usize, @intCast(self.permutations.items.len - 1));
+            const idx_x = @as(usize, @intCast(x)) & size_mask;
+            const idx_y = @as(usize, @intCast(y)) & size_mask;
+            const sum = self.permutations.items[idx_x] + self.permutations.items[idx_y];
+            const idx = @as(usize, @intCast(sum)) & size_mask;
+            return self.rgradients.items[idx];
         }
 
         fn get(self: *const Noise2DContext, x: f64, y: f64) f64 {
@@ -62,13 +71,11 @@ pub const Noise = struct {
             const x1 = x0 + 1;
             const y1 = y0 + 1;
 
-            // Получаем градиенты для 4 углов
             const g00 = self.getGradient(x0, y0);
             const g10 = self.getGradient(x1, y0);
             const g01 = self.getGradient(x0, y1);
             const g11 = self.getGradient(x1, y1);
 
-            // Вычисляем скалярные произведения
             const dx0 = x - x0f;
             const dx1 = x - (x0f + 1.0);
             const dy0 = y - y0f;
@@ -79,20 +86,21 @@ pub const Noise = struct {
             const n01 = g01.x * dx0 + g01.y * dy1;
             const n11 = g11.x * dx1 + g11.y * dy1;
 
-            // Интерполяция
             const sx = smooth(dx0);
             const sy = smooth(dy0);
 
             const nx0 = lerp(n00, n10, sx);
-            const nx1 = lerp(n01, n11, sx);
+            const nx1 = lerp(n01, n11, sy);
 
             return lerp(nx0, nx1, sy);
         }
     };
 
+    const SYM = [6]u32{ ' ', 0x2591, 0x2592, 0x2593, 0x2588, 0x2588 }; // ░▒▓█
+
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = checksumImpl,
         .deinit = deinitImpl,
     };
 
@@ -106,7 +114,7 @@ pub const Noise = struct {
     }
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Noise {
-        const n_iter = helper.getInputInt("Noise");
+        const size_val = helper.config_i64("Noise", "size");
 
         const self = try allocator.create(Noise);
         errdefer allocator.destroy(self);
@@ -114,8 +122,8 @@ pub const Noise = struct {
         self.* = Noise{
             .allocator = allocator,
             .helper = helper,
-            .n_iter = n_iter,
-            .res_val = 0,
+            .size_val = size_val,
+            .result_val = 0,
         };
 
         return self;
@@ -129,51 +137,34 @@ pub const Noise = struct {
         return Benchmark.init(self, &vtable, self.helper);
     }
 
-    fn noiseFunc(self: *Noise) u64 {
-        var pixels: [SIZE][SIZE]f64 = undefined;
-        var n2d = Noise2DContext.init(self.helper);
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
+        const self: *Noise = @ptrCast(@alignCast(ptr));
+        const size = @as(usize, @intCast(self.size_val));
 
-        // Генерируем шум 100 раз
-        for (0..100) |i| {
-            const y_offset: f64 = @as(f64, @floatFromInt(i * 128));
-
-            for (0..SIZE) |y| {
-                for (0..SIZE) |x| {
-                    const v = n2d.get(@as(f64, @floatFromInt(x)) * 0.1, (@as(f64, @floatFromInt(y)) + y_offset) * 0.1) * 0.5 + 0.5;
-
-                    pixels[y][x] = v;
-                }
-            }
+        if (size == 0) {
+            return;
         }
 
-        // Суммируем символы
-        var res: u64 = 0;
-        for (0..SIZE) |y| {
-            for (0..SIZE) |x| {
-                const v = pixels[y][x];
+        // Создаем контекст шума
+        var n2d = Noise2DContext.init(self.allocator, self.helper, self.size_val) catch return;
+        defer n2d.deinit(self.allocator);
+
+        // Вычисляем значения для текущей итерации
+        const y_offset: f64 = @as(f64, @floatFromInt(iteration_id * 128));
+
+        for (0..size) |y| {
+            for (0..size) |x| {
+                const v = n2d.get(@as(f64, @floatFromInt(x)) * 0.1, (@as(f64, @floatFromInt(y)) + y_offset) * 0.1) * 0.5 + 0.5;
                 var idx = @as(usize, @intFromFloat(v / 0.2));
                 if (idx >= SYM.len) idx = SYM.len - 1;
-                res += SYM[idx];
+                self.result_val += SYM[idx];
             }
         }
-
-        return res;
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *Noise = @ptrCast(@alignCast(ptr));
-
-        var total: u64 = 0;
-        for (0..@as(usize, @intCast(self.n_iter))) |_| {
-            total += self.noiseFunc();
-        }
-
-        self.res_val = total;
-    }
-
-    fn resultImpl(ptr: *anyopaque) u32 {
-        const self: *Noise = @ptrCast(@alignCast(ptr));
-        return @as(u32, @truncate(self.res_val));
+        return self.result_val;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

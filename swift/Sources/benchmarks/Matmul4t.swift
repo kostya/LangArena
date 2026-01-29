@@ -1,13 +1,17 @@
 import Foundation
 import Dispatch
 
-final class Matmul4T: BenchmarkProtocol {
-    private var n: Int = 0
-    private var _result: UInt32 = 0
+class Matmul4T: BenchmarkProtocol {
+    public var n: Int64 = 0
+    public var resultVal: UInt32 = 0
     private let lock = NSLock()
     
     init() {
-        n = iterations
+        n = configValue("n") ?? 0
+    }
+    
+    func getNumThreads() -> Int {
+        return 4
     }
     
     private func matgen(_ n: Int) -> [[Double]] {
@@ -24,8 +28,8 @@ final class Matmul4T: BenchmarkProtocol {
     
     private func matmulParallel(_ a: [[Double]], _ b: [[Double]]) -> [[Double]] {
         let size = a.count
+        let numThreads = getNumThreads()
         
-        // Транспонируем b
         var bT = [[Double]](repeating: [Double](repeating: 0, count: size), count: size)
         for i in 0..<size {
             for j in 0..<size {
@@ -33,18 +37,11 @@ final class Matmul4T: BenchmarkProtocol {
             }
         }
         
-        // Умножение матриц
         var c = [[Double]](repeating: [Double](repeating: 0, count: size), count: size)
         
-        // Используем 4 потока явно
-        let numThreads = 4
-        let rowsPerThread = (size + numThreads - 1) / numThreads
-        
         DispatchQueue.concurrentPerform(iterations: numThreads) { threadId in
-            let startRow = threadId * rowsPerThread
-            let endRow = min(startRow + rowsPerThread, size)
-            
-            for i in startRow..<endRow {
+            let startRow = threadId
+            for i in stride(from: startRow, to: size, by: numThreads) {
                 let ai = a[i]
                 var row = [Double](repeating: 0.0, count: size)
                 
@@ -59,7 +56,6 @@ final class Matmul4T: BenchmarkProtocol {
                     row[j] = sum
                 }
                 
-                // Синхронизация записи
                 lock.lock()
                 c[i] = row
                 lock.unlock()
@@ -69,17 +65,19 @@ final class Matmul4T: BenchmarkProtocol {
         return c
     }
     
-    func run() {
-        let a = matgen(n)
-        let b = matgen(n)
+    func run(iterationId: Int) {
+        let a = matgen(Int(n))
+        let b = matgen(Int(n))
         let c = matmulParallel(a, b)
-        let center = c[n / 2][n / 2]
-        _result = Helper.checksumF64(center)
+        let center = c[Int(n) / 2][Int(n) / 2]
+        resultVal &+= Helper.checksumF64(center)
     }
     
-    var result: Int64 {
-        return Int64(_result)
+    var checksum: UInt32 {
+        return resultVal
     }
     
     func prepare() {}
+    
+    var name: String { return "Matmul4T" }
 }

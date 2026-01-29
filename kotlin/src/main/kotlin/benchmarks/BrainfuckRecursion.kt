@@ -4,10 +4,10 @@ import Benchmark
 
 class BrainfuckRecursion : Benchmark() {
     private lateinit var text: String
-    override var result: Long = 0L
+    private var resultVal: UInt = 0u
     
     init {
-        text = Helper.INPUT[this::class.simpleName ?: ""] ?: ""
+        text = Helper.configS(name(), "program")
     }
 
     sealed interface Op {
@@ -87,10 +87,26 @@ class BrainfuckRecursion : Benchmark() {
             return res
         }
     }
-
-    override fun run() {
+    
+    private fun runProgram(text: String): Long {
         val program = Program(text)
         program.run()
-        result = program.result
+        return program.result
     }
+
+    override fun warmup() {
+        val prepareIters = warmupIterations()
+        val warmupProgram = Helper.configS(name(), "warmup_program")
+        for (i in 0 until prepareIters) {
+            runProgram(warmupProgram)
+        }
+    }
+
+    override fun run(iterationId: Int) {
+        resultVal += runProgram(text).toUInt()  // &+= эквивалент
+    }
+    
+    override fun checksum(): UInt = resultVal
+    
+    override fun name(): String = "BrainfuckRecursion"
 }

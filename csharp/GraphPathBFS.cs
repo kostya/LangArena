@@ -29,8 +29,7 @@ public class GraphPathBFS : GraphPathBenchmark
             
             foreach (int neighbor in _graph.Adj[v])
             {
-                if (neighbor == target)
-                    return dist + 1;
+                if (neighbor == target) return dist + 1;
                 
                 if (visited[neighbor] == 0)
                 {
@@ -40,6 +39,6 @@ public class GraphPathBFS : GraphPathBenchmark
             }
         }
         
-        return -1; // путь не найден
+        return -1;
     }
 }

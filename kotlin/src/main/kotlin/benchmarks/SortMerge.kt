@@ -1,12 +1,6 @@
 package benchmarks
 
 class SortMerge : SortBenchmark() {
-    override fun test(): IntArray {
-        val arr = data.copyOf()
-        mergeSortInplace(arr)
-        return arr
-    }
-
     private fun mergeSortInplace(arr: IntArray) {
         val temp = IntArray(arr.size)
         mergeSortHelper(arr, temp, 0, arr.size - 1)
@@ -49,4 +43,12 @@ class SortMerge : SortBenchmark() {
             k++
         }
     }
+
+    override fun test(): IntArray {
+        val arr = data.copyOf()
+        mergeSortInplace(arr)
+        return arr
+    }
+    
+    override fun name(): String = "SortMerge"
 }

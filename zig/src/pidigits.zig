@@ -9,16 +9,17 @@ pub const Pidigits = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
     nn: i32,
-    result: std.ArrayListUnmanaged(u8),
+    result_val: u32,
+    result_str: std.ArrayListUnmanaged(u8),
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = resultImpl,
         .deinit = deinitImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Pidigits {
-        const nn = helper.getInputInt("Pidigits");
+        const nn = helper.config_i64("Pidigits", "amount");
 
         const self = try allocator.create(Pidigits);
         errdefer allocator.destroy(self);
@@ -26,14 +27,15 @@ pub const Pidigits = struct {
         self.* = Pidigits{
             .allocator = allocator,
             .helper = helper,
-            .nn = nn,
-            .result = .{},
+            .nn = @as(i32, @intCast(nn)),
+            .result_val = 0,
+            .result_str = .{},
         };
         return self;
     }
 
     pub fn deinit(self: *Pidigits) void {
-        self.result.deinit(self.allocator);
+        self.result_str.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -41,7 +43,8 @@ pub const Pidigits = struct {
         return Benchmark.init(self, &vtable, self.helper);
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
+        _ = iteration_id;
         const self: *Pidigits = @ptrCast(@alignCast(ptr));
         const n = self.nn;
         if (n <= 0) return;
@@ -85,12 +88,11 @@ pub const Pidigits = struct {
         c.mpz_set_ui(&n_val, 1);
         c.mpz_set_ui(&d, 1);
 
+        self.result_str.clearRetainingCapacity();
+
         var i: i32 = 0;
         var k: i32 = 0;
         var k1: i32 = 1;
-
-        // Предварительное выделение для результата
-        self.result.ensureTotalCapacity(self.allocator, @as(usize, @intCast(n * 15))) catch return;
 
         var digit_buffer: [10]u8 = undefined;
         var buf_idx: usize = 0;
@@ -141,17 +143,15 @@ pub const Pidigits = struct {
 
                     // Каждые 10 цифр выводим строку
                     if (buf_idx == 10) {
-                        // Добавляем 10 цифр
-                        self.result.appendSlice(self.allocator, digit_buffer[0..10]) catch return;
+                        self.result_str.appendSlice(self.allocator, digit_buffer[0..10]) catch return;
+                        self.result_str.appendSlice(self.allocator, "\t:") catch return;
 
-                        // Форматирование
-                        self.result.appendSlice(self.allocator, "\t:") catch return;
                         var num_buf: [10]u8 = undefined;
                         const num_str = std.fmt.bufPrint(&num_buf, "{}\n", .{i}) catch "0\n";
-                        self.result.appendSlice(self.allocator, num_str) catch return;
+                        self.result_str.appendSlice(self.allocator, num_str) catch return;
 
                         buf_idx = 0;
-                        c.mpz_set_ui(&ns, 0); // Сбрасываем ns как в C++
+                        c.mpz_set_ui(&ns, 0);
                     }
 
                     if (i >= n) break;
@@ -169,7 +169,6 @@ pub const Pidigits = struct {
 
         // Оставшиеся цифры
         if (buf_idx > 0) {
-            // Получаем оставшиеся цифры из ns
             const ns_cstr = c.mpz_get_str(null, 10, &ns);
             defer std.c.free(ns_cstr);
 
@@ -179,17 +178,19 @@ pub const Pidigits = struct {
                 @memcpy(digit_buffer[0..copy_len], ns_str[0..copy_len]);
             }
 
-            self.result.appendSlice(self.allocator, digit_buffer[0..buf_idx]) catch return;
-            self.result.appendSlice(self.allocator, "\t:") catch return;
+            self.result_str.appendSlice(self.allocator, digit_buffer[0..buf_idx]) catch return;
+            self.result_str.appendSlice(self.allocator, "\t:") catch return;
             var num_buf: [10]u8 = undefined;
             const num_str = std.fmt.bufPrint(&num_buf, "{}\n", .{n}) catch "0\n";
-            self.result.appendSlice(self.allocator, num_str) catch return;
+            self.result_str.appendSlice(self.allocator, num_str) catch return;
         }
+
+        self.result_val = self.helper.checksumString(self.result_str.items);
     }
 
     fn resultImpl(ptr: *anyopaque) u32 {
         const self: *Pidigits = @ptrCast(@alignCast(ptr));
-        return self.helper.checksumString(self.result.items);
+        return self.result_val;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

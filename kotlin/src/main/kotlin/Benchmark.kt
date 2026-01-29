@@ -1,35 +1,70 @@
-// Файл: src/main/kotlin/Benchmark.kt
-// НЕ в пакете benchmarks!
-
 abstract class Benchmark {
-    abstract fun run()  // this is only method which time measured
-    abstract val result: Long
-
-    open fun prepare() {
-        // optional override
+    protected var _timeDelta = 0.0
+    
+    abstract fun run(iterationId: Int)  // изменен сигнатур
+    abstract fun checksum(): UInt  // изменено с result на checksum
+    
+    open fun prepare() {}
+    
+    abstract fun name(): String
+    
+    open fun warmupIterations(): Long {
+        val iters = iterations()
+        return kotlin.math.max((iters * 0.2).toLong(), 1L)
     }
-
-    val iterations: Int
-        get() = Helper.INPUT[this::class.simpleName ?: ""]?.toIntOrNull() ?: 0
-
+    
+    open fun warmup() {
+        val prepareIters = warmupIterations()
+        for (i in 0 until prepareIters) {
+            this.run(i.toInt())
+        }
+    }
+    
+    open fun runAll() {
+        val iters = iterations()
+        for (i in 0 until iters) {
+            this.run(i.toInt())
+        }
+    }
+    
+    open fun configVal(fieldName: String): Long {
+        return Helper.configI64(name(), fieldName)
+    }
+    
+    open fun iterations(): Long {
+        return configVal("iterations")
+    }
+    
+    open fun expectedChecksum(): Long {
+        return configVal("checksum")
+    }
+    
+    fun setTimeDelta(delta: Double) { _timeDelta = delta }
+    
     companion object {
         private val benchmarkFactories = mutableListOf<() -> Benchmark>()
-
+        
         fun registerBenchmark(factory: () -> Benchmark) {
             benchmarkFactories.add(factory)
         }
-
-        fun run(singleBench: String? = null) {
+        
+        fun all(singleBench: String? = null) {
             val results = mutableMapOf<String, Double>()
             var summaryTime = 0.0
             var ok = 0
             var fails = 0
-
+            
             benchmarkFactories.forEach { factory ->
                 val bench = factory()
-                val className = bench::class.simpleName ?: ""
+                val className = bench.name()
                 
-                if ((singleBench == null || singleBench == className) && 
+                val shouldRun = when {
+                    singleBench == null -> true
+                    className.lowercase().contains(singleBench.lowercase()) -> true
+                    else -> false
+                }
+                
+                if (shouldRun && 
                     className != "SortBenchmark" && 
                     className != "BufferHashBenchmark" && 
                     className != "GraphPathBenchmark") {
@@ -39,27 +74,31 @@ abstract class Benchmark {
                     Helper.reset()
                     
                     bench.prepare()
+                    bench.warmup()
+                    
+                    Helper.reset()
                     
                     val startTime = System.nanoTime()
-                    bench.run()
-                    val timeDelta = (System.nanoTime() - startTime) / 1_000_000_000.0
+                    bench.runAll()  // используем runAll() вместо run()
+                    val timeDelta2 = (System.nanoTime() - startTime) / 1_000_000_000.0
                     
-                    results[className] = timeDelta
+                    bench.setTimeDelta(timeDelta2)
+                    results[className] = timeDelta2
                     
                     System.gc()
-                    Thread.sleep(0) // context switch
+                    Thread.sleep(1)  // context switch
                     System.gc()
                     
-                    if (bench.result == Helper.EXPECT[className]) {
+                    if (bench.checksum().toLong() == bench.expectedChecksum()) {
                         print("OK ")
                         ok++
                     } else {
-                        print("ERR[actual=${bench.result}, expected=${Helper.EXPECT[className]}] ")
+                        print("ERR[actual=${bench.checksum()}, expected=${bench.expectedChecksum()}] ")
                         fails++
                     }
                     
-                    print("in %.3fs\n".format(timeDelta))
-                    summaryTime += timeDelta
+                    print("in %.3fs\n".format(timeDelta2))
+                    summaryTime += timeDelta2
                 }
             }
 

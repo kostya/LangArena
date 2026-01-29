@@ -1,4 +1,6 @@
-use super::super::{helper};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
+use std::collections::HashMap;
 
 // AST структуры как enum (аналог variant в C++)
 #[derive(Clone)]
@@ -10,23 +12,19 @@ pub enum Node {
 }
 
 pub struct CalculatorAst {
-    pub(crate) n: i32,
-    result: i64,
+    pub(crate) n: i64,
+    result_val: u32,
     text: String,
     expressions: Vec<Node>,
 }
 
 impl CalculatorAst {
     pub fn new() -> Self {
-        // Получаем n из конфигурации
-        let name = "CalculatorAst".to_string();
-        let n = crate::INPUT.get()
-            .map(|input| input.get(&name).and_then(|s| s.parse().ok()).unwrap_or(1))
-            .unwrap_or(1);
+        let n = config_i64("CalculatorAst", "operations");
         
         Self {
             n,
-            result: 0,
+            result_val: 0,
             text: String::new(),
             expressions: Vec::new(),
         }
@@ -36,7 +34,7 @@ impl CalculatorAst {
         &self.expressions
     }
     
-    fn generate_random_program(&self, n: usize) -> String {
+    fn generate_random_program(&self, n: i64) -> String {
         let mut result = String::new();
         result.push_str("v0 = 1\n");
         
@@ -96,28 +94,28 @@ impl CalculatorAst {
     }
 }
 
-impl crate::Benchmark for CalculatorAst {
+impl Benchmark for CalculatorAst {
     fn name(&self) -> String {
         "CalculatorAst".to_string()
     }
     
     fn prepare(&mut self) {
-        self.text = self.generate_random_program(self.n as usize);
+        self.text = self.generate_random_program(self.n);
     }
     
-    fn run(&mut self) {
+    fn run(&mut self, _iteration_id: i64) {
         let mut parser = Parser::new(&self.text);
         parser.parse();
         self.expressions = parser.expressions;
-        self.result = self.result.wrapping_add(self.expressions.len() as i64);
+        self.result_val = self.result_val.wrapping_add(self.expressions.len() as u32);
+        
+        if let Some(Node::Assignment(var, _)) = self.expressions.last() {
+            self.result_val = self.result_val.wrapping_add(helper::checksum_str(var));
+        }
     }
     
-    fn result(&self) -> i64 {
-        self.result
-    }
-
-    fn iterations(&self) -> i32 {
-        self.n
+    fn checksum(&self) -> u32 {
+        self.result_val
     }
 }
 
@@ -142,7 +140,7 @@ impl Parser {
         }
     }
 
-    fn parse(&mut self) {
+    fn parse(&mut self) -> Vec<Node> {
         while self.pos < self.chars.len() {
             self.skip_whitespace();
             if self.pos >= self.chars.len() {
@@ -160,6 +158,8 @@ impl Parser {
                 self.skip_whitespace();
             }
         }
+        
+        self.expressions.clone()
     }
 
     fn parse_expression(&mut self) -> Node {
@@ -286,4 +286,3 @@ impl Parser {
         }
     }
 }
-

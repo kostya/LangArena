@@ -1,17 +1,15 @@
 public class BrainfuckHashMap : Benchmark
 {
     private string _text = "";
-    private long _result = 0;
+    private uint _result;
+    private string _warmupText = "";
     
-    public override long Result => _result;
+    public override uint Checksum => _result;
     
     public BrainfuckHashMap()
     {
-    }
-    
-    public override void Prepare()
-    {
-        _text = Helper.Input.GetValueOrDefault(nameof(BrainfuckHashMap), "");
+        _text = Helper.Config_s(nameof(BrainfuckHashMap), "program");
+        _warmupText = Helper.Config_s(nameof(BrainfuckHashMap), "warmup_program");
     }
     
     private class Tape
@@ -28,14 +26,12 @@ public class BrainfuckHashMap : Benchmark
         public void Advance()
         {
             _pos += 1;
-            if (_tape.Count <= _pos)
-                _tape.Add(0);
+            if (_tape.Count <= _pos) _tape.Add(0);
         }
         
         public void Devance()
         {
-            if (_pos > 0)
-                _pos -= 1;
+            if (_pos > 0) _pos -= 1;
         }
     }
     
@@ -43,9 +39,9 @@ public class BrainfuckHashMap : Benchmark
     {
         private List<char> _chars = new();
         private Dictionary<int, int> _bracketMap = new();
-        private long _result = 0;
+        private uint _result = 0;
         
-        public long Result => _result;
+        public uint Result => _result;
         
         public Program(string text)
         {
@@ -86,31 +82,18 @@ public class BrainfuckHashMap : Benchmark
                 
                 switch (c)
                 {
-                    case '+':
-                        tape.Inc();
-                        break;
-                    case '-':
-                        tape.Dec();
-                        break;
-                    case '>':
-                        tape.Advance();
-                        break;
-                    case '<':
-                        tape.Devance();
-                        break;
+                    case '+': tape.Inc(); break;
+                    case '-': tape.Dec(); break;
+                    case '>': tape.Advance(); break;
+                    case '<': tape.Devance(); break;
                     case '[':
-                        if (tape.Get() == 0)
-                            pc = _bracketMap[pc];
+                        if (tape.Get() == 0) pc = _bracketMap[pc];
                         break;
                     case ']':
-                        if (tape.Get() != 0)
-                            pc = _bracketMap[pc];
+                        if (tape.Get() != 0) pc = _bracketMap[pc];
                         break;
                     case '.':
-                        unchecked
-                        {
-                            _result = ((_result << 2) + tape.Get());
-                        }
+                        _result = ((_result << 2) + tape.Get());
                         break;
                 }
                 
@@ -119,10 +102,18 @@ public class BrainfuckHashMap : Benchmark
         }
     }
     
-    public override void Run()
+    private uint RunProgram(string text)
     {
-        var program = new Program(_text);
+        var program = new Program(text);
         program.Run();
-        _result = program.Result;
+        return program.Result;
     }
+    
+    public override void Warmup()
+    {
+        long prepareIters = WarmupIterations;
+        for (long i = 0; i < prepareIters; i++) RunProgram(_warmupText);
+    }
+    
+    public override void Run(long IterationId) => _result += RunProgram(_text);
 }

@@ -1,12 +1,6 @@
 package benchmarks
 
 class SortQuick : SortBenchmark() {
-    override fun test(): IntArray {
-        val arr = data.copyOf()
-        quickSort(arr, 0, arr.size - 1)
-        return arr
-    }
-
     private fun quickSort(arr: IntArray, low: Int, high: Int) {
         if (low >= high) return
 
@@ -29,4 +23,12 @@ class SortQuick : SortBenchmark() {
         quickSort(arr, low, j)
         quickSort(arr, i, high)
     }
+
+    override fun test(): IntArray {
+        val arr = data.copyOf()
+        quickSort(arr, 0, arr.size - 1)
+        return arr
+    }
+    
+    override fun name(): String = "SortQuick"
 }

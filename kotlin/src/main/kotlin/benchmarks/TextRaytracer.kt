@@ -51,13 +51,13 @@ class TextRaytracer : Benchmark() {
         )
     }
     
-    private var w: Int = 0
-    private var h: Int = 0
-    private var _result: ULong = 0uL
+    private var w: Long = 0
+    private var h: Long = 0
+    private var resultVal: UInt = 0u
     
     init {
-        w = iterations
-        h = iterations
+        w = configVal("w")
+        h = configVal("h")
     }
     
     private fun shadePixel(ray: Ray, obj: Sphere, tval: Double): Int {
@@ -101,13 +101,12 @@ class TextRaytracer : Benchmark() {
         return light.color.scale(lam2 * 0.5) + obj.color.scale(0.3)
     }
     
-    override fun run() {
-        var res: ULong = 0uL
+    override fun run(iterationId: Int) {
         val fw = w.toDouble()
         val fh = h.toDouble()
         
-        for (j in 0 until h) {
-            for (i in 0 until w) {
+        for (j in 0 until h.toInt()) {
+            for (i in 0 until w.toInt()) {
                 val fi = i.toDouble()
                 val fj = j.toDouble()
                 
@@ -133,13 +132,12 @@ class TextRaytracer : Benchmark() {
                     ' '
                 }
                 
-                res += pixel.code.toULong()  // <-- Просто складываем!
+                resultVal += pixel.code.toUInt()  // &+= эквивалент
             }
         }
-        
-        _result = res
     }
     
-    override val result: Long
-        get() = _result.toLong()
+    override fun checksum(): UInt = resultVal
+    
+    override fun name(): String = "TextRaytracer"
 }

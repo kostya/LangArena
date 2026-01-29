@@ -1,13 +1,13 @@
 import Foundation
 
 final class Primes: BenchmarkProtocol {
-    private static let PREFIX = 32338
-    
-    private var n: Int = 0
-    private var _result: UInt32 = 5432
+    private var limitVal: Int64 = 0
+    private var prefixVal: Int64 = 0
+    private var resultVal: UInt32 = 5432
     
     init() {
-        n = iterations
+        limitVal = configValue("limit") ?? 0
+        prefixVal = configValue("prefix") ?? 32338
     }
     
     private class Node {
@@ -34,7 +34,6 @@ final class Primes: BenchmarkProtocol {
             }
         }
         
-        // Разумная оценка размера
         let estimatedSize = Int(Double(limit) / (log(Double(limit)) - 1.1))
         var primes = [Int]()
         primes.reserveCapacity(estimatedSize)
@@ -80,7 +79,6 @@ final class Primes: BenchmarkProtocol {
             current = next
         }
         
-        // BFS как в C++ версии
         var results = [Int]()
         var queue = [(node: Node, number: Int)]()
         queue.append((current, prefix))
@@ -103,32 +101,19 @@ final class Primes: BenchmarkProtocol {
         return results
     }
     
-    func run() {
-        // 1. Генерация простых чисел (как в C++)
-        let primes = generatePrimes(limit: n)
-        
-        // 2. Построение префиксного дерева (как в C++)
+    func run(iterationId: Int) {
+        let primes = generatePrimes(limit: Int(limitVal))
         let trie = buildTrie(primes: primes)
+        let results = findPrimesWithPrefix(root: trie, prefix: Int(prefixVal))
         
-        // 3. Поиск по префиксу (как в C++)
-        let results = findPrimesWithPrefix(root: trie, prefix: Primes.PREFIX)
-        
-        // 4. Вычисление результата в том же порядке
-        var temp = UInt64(result)
-        
-        // Сначала добавляем размер (как в C++)
-        temp = (temp + UInt64(results.count)) & 0xFFFFFFFF
-        
-        // Затем добавляем все числа (как в C++)
+        resultVal &+= UInt32(results.count)
         for prime in results {
-            temp = (temp + UInt64(prime)) & 0xFFFFFFFF
+            resultVal &+= UInt32(prime)
         }
-        
-        _result = UInt32(temp)
     }
     
-    var result: Int64 {
-        return Int64(_result)
+    var checksum: UInt32 {
+        return resultVal
     }
     
     func prepare() {}

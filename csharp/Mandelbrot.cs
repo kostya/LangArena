@@ -5,34 +5,21 @@ public class Mandelbrot : Benchmark
     private const int ITER = 50;
     private const double LIMIT = 2.0;
     
-    private int _n;
+    private long _w;
+    private long _h;
     private MemoryStream _resultStream;
-    
-    public override long Result => Helper.Checksum(_resultStream.ToArray());
     
     public Mandelbrot()
     {
         _resultStream = new MemoryStream();
+        _w = ConfigVal("w");
+        _h = ConfigVal("h");
     }
     
-    public override void Prepare()
+    public override void Run(long IterationId)
     {
-        var className = nameof(Mandelbrot);
-        if (Helper.Input.TryGetValue(className, out var value))
-        {
-            if (int.TryParse(value, out var iter))
-            {
-                _n = iter;
-                return;
-            }
-        }
-        _n = 1;
-    }
-    
-    public override void Run()
-    {
-        int w = _n;
-        int h = _n;
+        int w = (int)_w;
+        int h = (int)_h;
         
         using (var writer = new StreamWriter(_resultStream, Encoding.ASCII, 1024, true))
         {
@@ -63,8 +50,7 @@ public class Mandelbrot : Benchmark
                 } while (i < ITER && (zr * zr + zi * zi) <= (LIMIT * LIMIT));
                 
                 byte_acc <<= 1;
-                if ((zr * zr + zi * zi) <= (LIMIT * LIMIT))
-                    byte_acc |= 0x01;
+                if ((zr * zr + zi * zi) <= (LIMIT * LIMIT)) byte_acc |= 0x01;
                 
                 bit_num++;
                 
@@ -84,4 +70,6 @@ public class Mandelbrot : Benchmark
             }
         }
     }
+    
+    public override uint Checksum => Helper.Checksum(_resultStream.ToArray());
 }

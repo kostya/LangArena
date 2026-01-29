@@ -1,39 +1,90 @@
 using System.Globalization;
 using System.IO;
+using System.Text.Json;
 
 public abstract class Benchmark
 {
-    public abstract void Run();
-    public abstract long Result { get; }
+    private double _timeDelta = 0.0;
+    
+    public abstract void Run(long IterationId);
+    public abstract uint Checksum { get; }
     
     public virtual void Prepare() { }
     
-    public int Iterations 
+    public virtual long WarmupIterations
     {
         get
         {
             var className = GetType().Name;
-            if (Helper.Input.TryGetValue(className, out var value))
+            if (Helper.Config.RootElement.TryGetProperty(className, out var benchObj))
             {
-                if (int.TryParse(value, out var iter))
+                if (benchObj.TryGetProperty("warmup_iterations", out var warmupProp))
                 {
-                    return iter;
+                    return warmupProp.GetInt64();
                 }
             }
-            Console.WriteLine($"Warning: No iterations config for {className}, using default 1");
-            return 1;
+            long iters = Iterations;
+            return Math.Max((long)(iters * 0.2), 1);
         }
     }
     
-    public static void RunBenchmarks(string? singleBench = null)
+    public virtual void Warmup()
     {
-        // Console.WriteLine("\n=== Starting benchmarks ===");
+        long prepareIters = WarmupIterations;
+        for (long i = 0; i < prepareIters; i++)
+        {
+            Run(i);
+        }
+    }
+    
+    public virtual void RunAll()
+    {
+        long iters = Iterations;
+        for (long i = 0; i < iters; i++)
+        {
+            Run(i);
+        }
+    }
+    
+    public virtual long ConfigVal(string fieldName)
+    {
+        var className = GetType().Name;
+        return Helper.Config_i64(className, fieldName);
+    }
+    
+    public virtual long Iterations
+    {
+        get
+        {
+            var className = GetType().Name;
+            return Helper.Config_i64(className, "iterations");
+        }
+    }
+    
+    public virtual long ExpectedChecksum
+    {
+        get
+        {
+            var className = GetType().Name;
+            return Helper.Config_i64(className, "checksum");
+        }
+    }
+    
+    public double TimeDelta
+    {
+        get => _timeDelta;
+        set => _timeDelta = value;
+    }
+    
+    public static void All(string? singleBench = null)
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        Console.WriteLine($"start: {now}");
         
         var results = new Dictionary<string, double>();
         double summaryTime = 0.0;
         int ok = 0, fails = 0;
         
-        // ЯВНЫЙ СПИСОК БЕНЧМАРКОВ (для работы с AOT)
         var benchmarks = new List<Benchmark>
         {
             new Pidigits(),
@@ -75,15 +126,16 @@ public abstract class Benchmark
             new GameOfLife(),
             new MazeGenerator(),
             new AStarPathfinder(),           
-            new Compression(),           
+            new Compression(),
+            new Decompression(),
         };
         
         foreach (var benchmark in benchmarks)
         {
             var className = benchmark.GetType().Name;
             
-            // Пропускаем, если запускаем только конкретный бенчмарк
-            if (!string.IsNullOrEmpty(singleBench) && className != singleBench)
+            if (!string.IsNullOrEmpty(singleBench) && 
+                !className.ToLower().Contains(singleBench.ToLower()))
                 continue;
             
             // Пропускаем исключенные типы
@@ -93,9 +145,9 @@ public abstract class Benchmark
                 continue;
             
             // Проверяем, есть ли конфиг для этого бенчмарка
-            if (!Helper.Input.ContainsKey(className))
+            if (!Helper.Config.RootElement.TryGetProperty(className, out _))
             {
-                Console.WriteLine($"Skipping {className} - no config in test.txt");
+                Console.WriteLine($"Skipping {className} - no config in test.js");
                 continue;
             }
             
@@ -106,20 +158,24 @@ public abstract class Benchmark
             try
             {
                 benchmark.Prepare();
+                benchmark.Warmup();
+                
+                Helper.Reset();
                 
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-                benchmark.Run();
+                benchmark.RunAll();
                 stopwatch.Stop();
                 
                 var timeDelta = stopwatch.Elapsed.TotalSeconds;
+                benchmark.TimeDelta = timeDelta;
                 results[className] = timeDelta;
                 
                 GC.Collect();
                 Thread.Sleep(0);
                 GC.Collect();
                 
-                var actual = benchmark.Result;
-                var expected = Helper.Expect.GetValueOrDefault(className, 0);
+                var actual = benchmark.Checksum;
+                var expected = benchmark.ExpectedChecksum;
                 
                 if (actual == expected)
                 {
@@ -162,7 +218,6 @@ public abstract class Benchmark
 
         if (fails > 0 || ok == 0)
         {
-            // Console.WriteLine("\n❌ Benchmark run failed!");
             Environment.Exit(1);
         }
     }

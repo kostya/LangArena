@@ -50,7 +50,7 @@
                         <configuration>
                             <mainClass>benchmarks.Main</mainClass>
                             <arguments>
-                                <argument>test.txt</argument>
+                                <argument>test.js</argument>
                             </arguments>
                         </configuration>
                     </plugin>
@@ -87,7 +87,7 @@
                         <configuration>
                             <mainClass>benchmarks.Main</mainClass>
                             <arguments>
-                                <argument>test.txt</argument>
+                                <argument>test.js</argument>
                             </arguments>
                         </configuration>
                     </plugin>
@@ -116,7 +116,7 @@
                         <configuration>
                             <mainClass>benchmarks.Main</mainClass>
                             <arguments>
-                                <argument>test.txt</argument>
+                                <argument>test.js</argument>
                             </arguments>
                         </configuration>
                     </plugin>

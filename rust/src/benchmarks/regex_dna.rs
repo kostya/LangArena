@@ -1,5 +1,5 @@
-use super::super::{Benchmark, INPUT, helper};
-use std::io::Write;
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 use regex::Regex;
 use crate::benchmarks::fasta::Fasta;
 
@@ -7,25 +7,20 @@ pub struct RegexDna {
     seq: String,
     ilen: usize,
     clen: usize,
-    result: Vec<u8>,
-    n: i32,
+    result_str: String,
+    n: i64,
 }
 
 impl RegexDna {
     pub fn new() -> Self {
-        let name = "RegexDna".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
+        let n = config_i64("RegexDna", "n");
         
         Self {
-            n: iterations,
+            n,
             seq: String::new(),
             ilen: 0,
             clen: 0,
-            result: Vec::new(),
+            result_str: String::new(),
         }
     }
 }
@@ -38,8 +33,8 @@ impl Benchmark for RegexDna {
     fn prepare(&mut self) {
         let mut fasta = Fasta::new();
         fasta.n = self.n;
-        fasta.run();
-        let res = fasta.result_string();
+        fasta.run(0);
+        let res = fasta.get_result();
         
         let mut seq_buf = String::new();
         self.ilen = 0;
@@ -55,7 +50,7 @@ impl Benchmark for RegexDna {
         self.clen = self.seq.len();
     }
     
-    fn run(&mut self) {
+    fn run(&mut self, _iteration_id: i64) {
         let patterns = [
             (r"agggtaaa|tttaccct", "agggtaaa|tttaccct"),
             (r"[cgt]gggtaaa|tttaccc[acg]", "[cgt]gggtaaa|tttaccc[acg]"),
@@ -71,7 +66,7 @@ impl Benchmark for RegexDna {
         for (pattern, display) in &patterns {
             let re = Regex::new(pattern).unwrap();
             let count = re.find_iter(&self.seq).count();
-            writeln!(&mut self.result, "{} {}", display, count).unwrap();
+            self.result_str.push_str(&format!("{} {}\n", display, count));
         }
         
         let replacements = [
@@ -94,14 +89,13 @@ impl Benchmark for RegexDna {
             seq = re.replace_all(&seq, *to).to_string();
         }
         
-        writeln!(&mut self.result).unwrap();
-        writeln!(&mut self.result, "{}", self.ilen).unwrap();
-        writeln!(&mut self.result, "{}", self.clen).unwrap();
-        writeln!(&mut self.result, "{}", seq.len()).unwrap();
+        self.result_str.push('\n');
+        self.result_str.push_str(&format!("{}\n", self.ilen));
+        self.result_str.push_str(&format!("{}\n", self.clen));
+        self.result_str.push_str(&format!("{}\n", seq.len()));
     }
     
-    fn result(&self) -> i64 {
-        let result_str = String::from_utf8_lossy(&self.result);
-        helper::checksum_str(&result_str) as i64
+    fn checksum(&self) -> u32 {
+        helper::checksum_str(&self.result_str)
     }
 }

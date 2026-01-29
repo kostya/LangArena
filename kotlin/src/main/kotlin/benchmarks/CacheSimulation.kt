@@ -105,33 +105,40 @@ class CacheSimulation : Benchmark() {
         }
     }
     
-    private var operations: Int = 0
-    private var _result: UInt = 0u
+    private var resultVal: UInt = 5432u
+    private val valuesSize: Int
+    private val cacheSize: Int
+    private lateinit var cache: LRUCache<String, String>
+    private var hits: UInt = 0u
+    private var misses: UInt = 0u
     
     init {
-        operations = iterations * 1000
+        valuesSize = configVal("values").toInt()
+        cacheSize = configVal("size").toInt()
     }
     
-    override fun run() {
-        val cache = LRUCache<String, String>(1000)
-        var hits = 0
-        var misses = 0
-        
-        repeat(operations) { i ->
-            val key = "item_${Helper.nextInt(2000)}"
-            if (cache.get(key) != null) {
-                hits++
-                cache.put(key, "updated_$i")
-            } else {
-                misses++
-                cache.put(key, "new_$i")
-            }
+    override fun prepare() {
+        cache = LRUCache(cacheSize)
+    }
+    
+    override fun run(iterationId: Int) {
+        val key = "item_${Helper.nextInt(valuesSize)}"
+        if (cache.get(key) != null) {
+            hits++
+            cache.put(key, "updated_$iterationId")
+        } else {
+            misses++
+            cache.put(key, "new_$iterationId")
         }
-        
-        val message = "hits:$hits|misses:$misses|size:${cache.getSize()}"
-        _result = Helper.checksum(message)
     }
     
-    override val result: Long
-        get() = _result.toLong()
+    override fun checksum(): UInt {
+        var finalResult = resultVal
+        finalResult = (finalResult shl 5) + hits
+        finalResult = (finalResult shl 5) + misses
+        finalResult = (finalResult shl 5) + cache.getSize().toUInt()
+        return finalResult
+    }
+    
+    override fun name(): String = "CacheSimulation"
 }

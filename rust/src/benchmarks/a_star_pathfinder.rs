@@ -1,35 +1,7 @@
-use super::super::{Benchmark, INPUT, helper};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 use super::maze_generator::Maze;
 use std::cmp::Ordering;
-
-// Heuristics
-trait Heuristic: Send + Sync {
-    fn distance(&self, a: (usize, usize), b: (usize, usize)) -> i32;
-}
-
-struct ManhattanHeuristic;
-struct EuclideanHeuristic;
-struct ChebyshevHeuristic;
-
-impl Heuristic for ManhattanHeuristic {
-    fn distance(&self, (x1, y1): (usize, usize), (x2, y2): (usize, usize)) -> i32 {
-        ((x1 as i32 - x2 as i32).abs() + (y1 as i32 - y2 as i32).abs()) * 1000
-    }
-}
-
-impl Heuristic for EuclideanHeuristic {
-    fn distance(&self, (x1, y1): (usize, usize), (x2, y2): (usize, usize)) -> i32 {
-        let dx = (x1 as f64 - x2 as f64).abs();
-        let dy = (y1 as f64 - y2 as f64).abs();
-        (dx.hypot(dy) * 1000.0) as i32
-    }
-}
-
-impl Heuristic for ChebyshevHeuristic {
-    fn distance(&self, (x1, y1): (usize, usize), (x2, y2): (usize, usize)) -> i32 {
-        (x1.abs_diff(x2).max(y1.abs_diff(y2)) as i32) * 1000
-    }
-}
 
 // BinaryHeap (минимальная куча)
 struct BinaryHeap<T> {
@@ -132,98 +104,59 @@ impl PartialOrd for Node {
 
 // AStarPathfinder
 pub struct AStarPathfinder {
-    iterations: i32,
-    result: i64,
-    maze_grid: Option<Vec<Vec<bool>>>,
-    start: (i32, i32),
-    goal: (i32, i32),
-    width: i32,
-    height: i32,
+    start_x_: i32,
+    start_y_: i32,
+    goal_x_: i32,
+    goal_y_: i32,
+    width_: i32,
+    height_: i32,
+    maze_grid: Vec<Vec<bool>>,
+    result_val: u32,
 }
 
 impl AStarPathfinder {
-    pub fn new() -> Self {
-        let name = "AStarPathfinder".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(5);
-        
-        let width = iterations;
-        let height = iterations;
-        let start = (1, 1);
-        let goal = (width - 2, height - 2);
-        
-        Self {
-            iterations,
-            result: 0,
-            maze_grid: None,
-            start,
-            goal,
-            width,
-            height,
-        }
+    fn distance(&self, a_x: i32, a_y: i32, b_x: i32, b_y: i32) -> i32 {
+        ((a_x - b_x).abs() + (a_y - b_y).abs()) as i32
     }
     
-    fn ensure_maze_grid(&mut self) -> &Vec<Vec<bool>> {
-        if self.maze_grid.is_none() {
-            let maze_grid = Maze::generate_walkable_maze(
-                self.width as usize, 
-                self.height as usize
-            );
-            self.maze_grid = Some(maze_grid);
-        }
-        self.maze_grid.as_ref().unwrap()
-    }
+    fn find_path(&self) -> (Option<Vec<(i32, i32)>>, i32) {
+        let grid = &self.maze_grid;
         
-    fn find_path(&self, heuristic: &dyn Heuristic, allow_diagonal: bool) -> Option<Vec<(i32, i32)>> {
-        let grid = self.maze_grid.as_ref().unwrap();
-        
-        let width = self.width as usize;
-        let height = self.height as usize;
+        let width = self.width_ as usize;
+        let height = self.height_ as usize;
         
         let mut g_scores = vec![vec![i32::MAX; width]; height];
         let mut came_from = vec![vec![(-1, -1); width]; height];
         let mut open_set = BinaryHeap::new();
+        let mut nodes_explored = 0;
         
-        g_scores[self.start.1 as usize][self.start.0 as usize] = 0;
+        g_scores[self.start_y_ as usize][self.start_x_ as usize] = 0;
         open_set.push(Node::new(
-            self.start.0,
-            self.start.1,
-            heuristic.distance(
-                (self.start.0 as usize, self.start.1 as usize),
-                (self.goal.0 as usize, self.goal.1 as usize)
-            )
+            self.start_x_,
+            self.start_y_,
+            self.distance(self.start_x_, self.start_y_, self.goal_x_, self.goal_y_)
         ));
         
-        let directions = if allow_diagonal {
-            vec![
-                (0, -1), (1, 0), (0, 1), (-1, 0),
-                (-1, -1), (1, -1), (1, 1), (-1, 1),
-            ]
-        } else {
-            vec![(0, -1), (1, 0), (0, 1), (-1, 0)]
-        };
-        
-        let diagonal_cost = if allow_diagonal { 1414 } else { 1000 };
+        let directions = vec![(0, -1), (1, 0), (0, 1), (-1, 0)];
         
         while let Some(current) = open_set.pop() {
-            if current.x == self.goal.0 && current.y == self.goal.1 {
+            nodes_explored += 1;
+
+            if current.x == self.goal_x_ && current.y == self.goal_y_ {
                 let mut path = Vec::new();
                 let mut x = current.x;
                 let mut y = current.y;
                 
-                while x != self.start.0 || y != self.start.1 {
+                while x != self.start_x_ || y != self.start_y_ {
                     path.push((x, y));
                     let (px, py) = came_from[y as usize][x as usize];
                     x = px;
                     y = py;
                 }
                 
-                path.push((self.start.0, self.start.1));
+                path.push((self.start_x_, self.start_y_));
                 path.reverse();
-                return Some(path);
+                return (Some(path), nodes_explored);
             }
             
             let current_g = g_scores[current.y as usize][current.x as usize];
@@ -232,7 +165,7 @@ impl AStarPathfinder {
                 let nx = current.x + dx;
                 let ny = current.y + dy;
                 
-                if nx < 0 || ny < 0 || nx >= self.width || ny >= self.height {
+                if nx < 0 || ny < 0 || nx >= self.width_ || ny >= self.height_ {
                     continue;
                 }
                 
@@ -243,136 +176,40 @@ impl AStarPathfinder {
                     continue;
                 }
                 
-                let move_cost = if dx.abs() == 1 && dy.abs() == 1 {
-                    diagonal_cost
-                } else {
-                    1000
-                };
-                
-                let tentative_g = current_g + move_cost;
+                let tentative_g = current_g + 1000;
                 
                 if tentative_g < g_scores[ny_usize][nx_usize] {
                     came_from[ny_usize][nx_usize] = (current.x, current.y);
                     g_scores[ny_usize][nx_usize] = tentative_g;
                     
-                    let f_score = tentative_g + heuristic.distance(
-                        (nx_usize, ny_usize),
-                        (self.goal.0 as usize, self.goal.1 as usize)
-                    );
+                    let f_score = tentative_g + self.distance(nx, ny, self.goal_x_, self.goal_y_);
                     
                     open_set.push(Node::new(nx, ny, f_score));
                 }
             }
         }
         
-        None
+        (None, nodes_explored)
     }
     
-    fn estimate_nodes_explored(&self, heuristic: &dyn Heuristic, allow_diagonal: bool) -> i32 {
-        let grid = self.maze_grid.as_ref().unwrap();
+    pub fn new() -> Self {
+        let width_ = config_i64("AStarPathfinder", "w") as i32;
+        let height_ = config_i64("AStarPathfinder", "h") as i32;
+        let start_x_ = 1;
+        let start_y_ = 1;
+        let goal_x_ = width_ - 2;
+        let goal_y_ = height_ - 2;
         
-        let width = self.width as usize;
-        let height = self.height as usize;
-        
-        let mut g_scores = vec![vec![i32::MAX; width]; height];
-        let mut open_set = BinaryHeap::new();
-        let mut closed = vec![vec![false; width]; height];
-        
-        g_scores[self.start.1 as usize][self.start.0 as usize] = 0;
-        open_set.push(Node::new(
-            self.start.0,
-            self.start.1,
-            heuristic.distance(
-                (self.start.0 as usize, self.start.1 as usize),
-                (self.goal.0 as usize, self.goal.1 as usize)
-            )
-        ));
-        
-        let directions = if allow_diagonal {
-            vec![
-                (0, -1), (1, 0), (0, 1), (-1, 0),
-                (-1, -1), (1, -1), (1, 1), (-1, 1),
-            ]
-        } else {
-            vec![(0, -1), (1, 0), (0, 1), (-1, 0)]
-        };
-        
-        let mut nodes_explored = 0;
-        
-        while let Some(current) = open_set.pop() {
-            if current.x == self.goal.0 && current.y == self.goal.1 {
-                break;
-            }
-            
-            if closed[current.y as usize][current.x as usize] {
-                continue;
-            }
-            
-            closed[current.y as usize][current.x as usize] = true;
-            nodes_explored += 1;
-            
-            let current_g = g_scores[current.y as usize][current.x as usize];
-            
-            for (dx, dy) in &directions {
-                let nx = current.x + dx;
-                let ny = current.y + dy;
-                
-                if nx < 0 || ny < 0 || nx >= self.width || ny >= self.height {
-                    continue;
-                }
-                
-                let nx_usize = nx as usize;
-                let ny_usize = ny as usize;
-                
-                if !grid[ny_usize][nx_usize] {
-                    continue;
-                }
-                
-                let move_cost = if dx.abs() == 1 && dy.abs() == 1 { 1414 } else { 1000 };
-                let tentative_g = current_g + move_cost;
-                
-                if tentative_g < g_scores[ny_usize][nx_usize] {
-                    g_scores[ny_usize][nx_usize] = tentative_g;
-                    
-                    let f_score = tentative_g + heuristic.distance(
-                        (nx_usize, ny_usize),
-                        (self.goal.0 as usize, self.goal.1 as usize)
-                    );
-                    
-                    open_set.push(Node::new(nx, ny, f_score));
-                }
-            }
+        Self {
+            start_x_,
+            start_y_,
+            goal_x_,
+            goal_y_,
+            width_,
+            height_,
+            maze_grid: Vec::new(),
+            result_val: 0,
         }
-        
-        nodes_explored
-    }
-    
-    fn benchmark_different_approaches(&self) -> (i32, i32, i32) {
-        let manhattan = ManhattanHeuristic;
-        let euclidean = EuclideanHeuristic;
-        let chebyshev = ChebyshevHeuristic;
-        
-        let heuristics: Vec<&dyn Heuristic> = vec![
-            &manhattan,
-            &euclidean,
-            &chebyshev,
-        ];
-        
-        let mut total_paths_found = 0;
-        let mut total_path_length = 0;
-        let mut total_nodes_explored = 0;
-        
-        for heuristic in heuristics {
-            if let Some(path) = self.find_path(heuristic, false) {
-                total_paths_found += 1;
-                total_path_length += path.len() as i32;
-                
-                let nodes_explored = self.estimate_nodes_explored(heuristic, false);
-                total_nodes_explored += nodes_explored;
-            }
-        }
-        
-        (total_paths_found, total_path_length, total_nodes_explored)
     }
 }
 
@@ -381,38 +218,20 @@ impl Benchmark for AStarPathfinder {
         "AStarPathfinder".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.iterations
-    }
-
     fn prepare(&mut self) {
-        self.ensure_maze_grid();
+        self.maze_grid = Maze::generate_walkable_maze(self.width_ as usize, self.height_ as usize);
     }
     
-    fn run(&mut self) {
-        let mut total_paths_found = 0;
-        let mut total_path_length = 0;
-        let mut total_nodes_explored = 0;
-        
-        let iters = 10;
-        for _ in 0..iters {
-            let (paths_found, path_length, nodes_explored) = self.benchmark_different_approaches();
-            
-            total_paths_found += paths_found;
-            total_path_length += path_length;
-            total_nodes_explored += nodes_explored;
-        }
-        
-        let paths_checksum = helper::checksum_f64(total_paths_found as f64);
-        let length_checksum = helper::checksum_f64(total_path_length as f64);
-        let nodes_checksum = helper::checksum_f64(total_nodes_explored as f64);
+    fn run(&mut self, _iteration_id: i64) {
+        let (path, nodes_explored) = self.find_path();
 
-        self.result = (paths_checksum as i64) ^ 
-                     ((length_checksum as i64) << 16) ^ 
-                     ((nodes_checksum as i64) << 32);
+        let mut local_result: u32 = 0;
+        local_result = (local_result << 5) + (path.map(|p| p.len()).unwrap_or(0) as u32);
+        local_result = (local_result << 5) + nodes_explored as u32;
+        self.result_val = self.result_val.wrapping_add(local_result);
     }
     
-    fn result(&self) -> i64 {
-        self.result
+    fn checksum(&self) -> u32 {
+        self.result_val
     }
 }

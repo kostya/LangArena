@@ -1,4 +1,5 @@
-use super::super::{Benchmark, INPUT};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 use std::collections::VecDeque;
 
 const PREFIX: i32 = 32_338;
@@ -110,21 +111,20 @@ fn find_primes_with_prefix(trie_root: &Node, prefix: i32) -> Vec<i32> {
 }
 
 pub struct Primes {
-    n: i32,
-    result: u32,
+    n: i64,
+    prefix: i64,
+    result_val: u32,
 }
 
 impl Primes {
     pub fn new() -> Self {
-        let name = "Primes".to_string();
-        let iterations = INPUT.get()
-            .and_then(|input| input.get(&name))
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
+        let n = config_i64("Primes", "limit");
+        let prefix = config_i64("Primes", "prefix");
         
         Self {
-            n: iterations,
-            result: 5432,
+            n,
+            prefix,
+            result_val: 5432,
         }
     }
 }
@@ -134,35 +134,26 @@ impl Benchmark for Primes {
         "Primes".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.n
-    }
-    
-    fn run(&mut self) {
+    fn run(&mut self, _iteration_id: i64) {
         // 1. Генерация простых чисел (как в C++)
-        let primes = generate_primes(self.n);
+        let primes = generate_primes(self.n as i32);
         
         // 2. Построение префиксного дерева (как в C++)
         let trie = build_trie(&primes);
         
         // 3. Поиск по префиксу (как в C++)
-        let results = find_primes_with_prefix(&trie, PREFIX);
+        let results = find_primes_with_prefix(&trie, self.prefix as i32);
         
         // 4. Вычисление результата в том же порядке
-        let mut temp = self.result;
-        
-        // Сначала добавляем размер (как в C++)
-        temp = temp.wrapping_add(results.len() as u32);
+        self.result_val = self.result_val.wrapping_add(results.len() as u32);
         
         // Затем добавляем все числа (как в C++)
         for prime in results {
-            temp = temp.wrapping_add(prime as u32);
+            self.result_val = self.result_val.wrapping_add(prime as u32);
         }
-        
-        self.result = temp;
     }
     
-    fn result(&self) -> i64 {
-        self.result as i64
+    fn checksum(&self) -> u32 {
+        self.result_val
     }
 }

@@ -1,86 +1,58 @@
 public class Noise : Benchmark
 {
-    private const int SIZE = 64;
-    private int _n;
-    private ulong _result;
-    
-    public override long Result => (long)_result;
-    
-    public Noise()
-    {
-        _result = 0;
-    }
-    
-    public override void Prepare()
-    {
-        var className = nameof(Noise);
-        if (Helper.Input.TryGetValue(className, out var value))
-        {
-            if (int.TryParse(value, out var iter))
-            {
-                _n = iter;
-                return;
-            }
-        }
-        _n = 1;
-    }
-    
     private record struct Vec2(double X, double Y);
-    
-    private static double Lerp(double a, double b, double v)
-    {
-        return a * (1.0 - v) + b * v;
-    }
-    
-    private static double Smooth(double v)
-    {
-        return v * v * (3.0 - 2.0 * v);
-    }
-    
-    private static Vec2 RandomGradient()
-    {
-        double v = Helper.NextFloat() * Math.PI * 2.0;
-        return new Vec2(Math.Cos(v), Math.Sin(v));
-    }
-    
-    private static double Gradient(Vec2 orig, Vec2 grad, Vec2 p)
-    {
-        Vec2 sp = new(p.X - orig.X, p.Y - orig.Y);
-        return grad.X * sp.X + grad.Y * sp.Y;
-    }
     
     private class Noise2DContext
     {
         private readonly Vec2[] _rgradients;
         private readonly int[] _permutations;
+        private readonly int _size;
         
-        public Noise2DContext()
+        public Noise2DContext(int size)
         {
-            _rgradients = new Vec2[SIZE];
-            _permutations = new int[SIZE];
+            _size = size;
+            _rgradients = new Vec2[size];
+            _permutations = new int[size];
             
-            for (int i = 0; i < SIZE; i++)
+            for (int i = 0; i < size; i++)
             {
                 _rgradients[i] = RandomGradient();
                 _permutations[i] = i;
             }
             
-            // Shuffle permutations
-            for (int i = 0; i < SIZE; i++)
+            for (int i = 0; i < size; i++)
             {
-                int a = Helper.NextInt(SIZE);
-                int b = Helper.NextInt(SIZE);
+                int a = Helper.NextInt(size);
+                int b = Helper.NextInt(size);
                 (_permutations[a], _permutations[b]) = (_permutations[b], _permutations[a]);
             }
         }
         
-        private Vec2 GetGradient(int x, int y)
+        private static Vec2 RandomGradient()
         {
-            int idx = _permutations[x & (SIZE - 1)] + _permutations[y & (SIZE - 1)];
-            return _rgradients[idx & (SIZE - 1)];
+            double v = Helper.NextFloat() * Math.PI * 2.0;
+            return new Vec2(Math.Cos(v), Math.Sin(v));
         }
         
-        public (Vec2[], Vec2[]) GetGradients(double x, double y)
+        public double Get(double x, double y)
+        {
+            Vec2 p = new(x, y);
+            var (gradients, origins) = GetGradients(x, y);
+            
+            double v0 = Gradient(origins[0], gradients[0], p);
+            double v1 = Gradient(origins[1], gradients[1], p);
+            double v2 = Gradient(origins[2], gradients[2], p);
+            double v3 = Gradient(origins[3], gradients[3], p);
+            
+            double fx = Smooth(x - origins[0].X);
+            double vx0 = Lerp(v0, v1, fx);
+            double vx1 = Lerp(v2, v3, fx);
+            
+            double fy = Smooth(y - origins[0].Y);
+            return Lerp(vx0, vx1, fy);
+        }
+        
+        private (Vec2[], Vec2[]) GetGradients(double x, double y)
         {
             double x0f = Math.Floor(x);
             double y0f = Math.Floor(y);
@@ -108,72 +80,48 @@ public class Noise : Benchmark
             return (gradients, origins);
         }
         
-        public double Get(double x, double y)
+        private Vec2 GetGradient(int x, int y)
         {
-            Vec2 p = new(x, y);
-            var (gradients, origins) = GetGradients(x, y);
-            
-            double v0 = Gradient(origins[0], gradients[0], p);
-            double v1 = Gradient(origins[1], gradients[1], p);
-            double v2 = Gradient(origins[2], gradients[2], p);
-            double v3 = Gradient(origins[3], gradients[3], p);
-            
-            double fx = Smooth(x - origins[0].X);
-            double vx0 = Lerp(v0, v1, fx);
-            double vx1 = Lerp(v2, v3, fx);
-            
-            double fy = Smooth(y - origins[0].Y);
-            return Lerp(vx0, vx1, fy);
+            int idx = _permutations[x & (_size - 1)] + _permutations[y & (_size - 1)];
+            return _rgradients[idx & (_size - 1)];
         }
+        
+        private static double Gradient(Vec2 orig, Vec2 grad, Vec2 p)
+        {
+            Vec2 sp = new(p.X - orig.X, p.Y - orig.Y);
+            return grad.X * sp.X + grad.Y * sp.Y;
+        }
+        
+        private static double Lerp(double a, double b, double v) => a * (1.0 - v) + b * v;
+        private static double Smooth(double v) => v * v * (3.0 - 2.0 * v);
     }
     
     private static readonly char[] SYM = [' ', '░', '▒', '▓', '█', '█'];
     
-    private ulong NoiseAlgo()
+    private long _size;
+    private uint _result;
+    private Noise2DContext _n2d;
+    
+    public Noise()
     {
-        double[][] pixels = new double[SIZE][];
-        for (int i = 0; i < SIZE; i++)
-            pixels[i] = new double[SIZE];
-        
-        var n2d = new Noise2DContext();
-        
-        for (int i = 0; i < 100; i++)
-        {
-            for (int y = 0; y < SIZE; y++)
-            {
-                for (int x = 0; x < SIZE; x++)
-                {
-                    double v = n2d.Get(x * 0.1, (y + (i * 128)) * 0.1) * 0.5 + 0.5;
-                    pixels[y][x] = v;
-                }
-            }
-        }
-        
-        ulong res = 0;
-        
-        for (int y = 0; y < SIZE; y++)
-        {
-            for (int x = 0; x < SIZE; x++)
-            {
-                double v = pixels[y][x];
-                int idx = (int)(v / 0.2);
-                if (idx >= SYM.Length) idx = SYM.Length - 1;
-                res += (ulong)SYM[idx];
-            }
-        }
-        
-        return res;
+        _result = 0;
+        _size = ConfigVal("size");
+        _n2d = new Noise2DContext((int)_size);
     }
     
-    public override void Run()
+    public override void Run(long IterationId)
     {
-        for (int i = 0; i < _n; i++)
+        for (long y = 0; y < _size; y++)
         {
-            ulong v = NoiseAlgo();
-            unchecked
+            for (long x = 0; x < _size; x++)
             {
-                _result += v;
+                double v = _n2d.Get(x * 0.1, (y + (IterationId * 128)) * 0.1) * 0.5 + 0.5;
+                int idx = (int)(v / 0.2);
+                if (idx >= 6) idx = 5;
+                _result += (uint)SYM[idx];
             }
         }
     }
+    
+    public override uint Checksum => _result;
 }

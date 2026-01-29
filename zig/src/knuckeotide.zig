@@ -1,4 +1,3 @@
-// src/knuckeotide.zig
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
@@ -9,19 +8,19 @@ pub const Knuckeotide = struct {
     helper: *Helper,
     seq: std.ArrayListUnmanaged(u8),
     result_str: std.ArrayListUnmanaged(u8),
-    n: i32,
+    n: i64,
 
     const KeyValue = struct { key: []const u8, value: usize };
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = resultImpl,
         .deinit = deinitImpl,
         .prepare = prepareImpl,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Knuckeotide {
-        const n = helper.getInputInt("Knuckeotide");
+        const n = helper.config_i64("Knuckeotide", "n");
 
         const self = try allocator.create(Knuckeotide);
         errdefer allocator.destroy(self);
@@ -57,7 +56,7 @@ pub const Knuckeotide = struct {
 
         fasta.n = self.n;
         var benchmark = fasta.asBenchmark();
-        benchmark.run();
+        benchmark.run(0);
 
         const fasta_result = fasta.getResult();
 
@@ -122,7 +121,6 @@ pub const Knuckeotide = struct {
             };
         }
 
-        // Сортируем
         std.mem.sort(KeyValue, pairs.items, {}, struct {
             fn lessThan(context: void, a: KeyValue, b: KeyValue) bool {
                 _ = context;
@@ -131,11 +129,9 @@ pub const Knuckeotide = struct {
             }
         }.lessThan);
 
-        // Форматируем результат
         for (pairs.items) |pair| {
             const percent = (@as(f64, @floatFromInt(pair.value)) * 100.0) / @as(f64, @floatFromInt(freq_result.n));
 
-            // Конвертируем в верхний регистр (упрощенная версия)
             var upper_buf: [64]u8 = undefined;
             const copy_len = @min(pair.key.len, upper_buf.len);
             @memcpy(upper_buf[0..copy_len], pair.key[0..copy_len]);
@@ -144,7 +140,6 @@ pub const Knuckeotide = struct {
             }
             const upper_key = upper_buf[0..copy_len];
 
-            // Форматируем строку
             var buf: [128]u8 = undefined;
             const formatted = std.fmt.bufPrint(&buf, "{s} {d:.3}\n", .{ upper_key, percent }) catch continue;
             self.result_str.appendSlice(self.allocator, formatted) catch return;
@@ -152,7 +147,6 @@ pub const Knuckeotide = struct {
 
         self.result_str.appendSlice(self.allocator, "\n") catch return;
 
-        // Освобождаем пары
         for (pairs.items) |pair| {
             self.allocator.free(pair.key);
         }
@@ -170,7 +164,6 @@ pub const Knuckeotide = struct {
             freq_result.table.deinit();
         }
 
-        // Конвертируем поисковый запрос в нижний регистр
         var lower_buf: [64]u8 = undefined;
         const copy_len = @min(search.len, lower_buf.len);
         @memcpy(lower_buf[0..copy_len], search[0..copy_len]);
@@ -181,7 +174,6 @@ pub const Knuckeotide = struct {
 
         const count = freq_result.table.get(search_lower) orelse 0;
 
-        // Конвертируем в верхний регистр для вывода
         var upper_buf: [64]u8 = undefined;
         @memcpy(upper_buf[0..copy_len], search[0..copy_len]);
         for (0..copy_len) |i| {
@@ -189,23 +181,21 @@ pub const Knuckeotide = struct {
         }
         const search_upper = upper_buf[0..copy_len];
 
-        // Форматируем результат
         var buf: [128]u8 = undefined;
         const formatted = std.fmt.bufPrint(&buf, "{}\t{s}\n", .{ count, search_upper }) catch return;
         self.result_str.appendSlice(self.allocator, formatted) catch return;
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
+        _ = iteration_id;
         const self: *Knuckeotide = @ptrCast(@alignCast(ptr));
 
         self.result_str.clearAndFree(self.allocator);
 
-        // Анализ частот для длин 1 и 2
         for (1..3) |length| {
             self.sortByFreq(length);
         }
 
-        // Поиск конкретных последовательностей
         const searches = [_][]const u8{ "ggt", "ggta", "ggtatt", "ggtattttaatt", "ggtattttaatttatagt" };
 
         for (searches) |search| {

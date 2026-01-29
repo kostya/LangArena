@@ -1,13 +1,17 @@
 import Foundation
+
 final class Fasta: BenchmarkProtocol {
-    var n: Int = 0
+    var n: Int64 = 0
     private var output: String = ""
+    
     init() {
-        n = iterations
+        n = configValue("n") ?? 0
     }
+    
     func prepare() {
         output = ""
     }
+    
     private static let LINE_LENGTH = 60
     private static let IUB: [(Character, Double)] = [
         ("a", 0.27), ("c", 0.39), ("g", 0.51), ("t", 0.78),
@@ -21,6 +25,7 @@ final class Fasta: BenchmarkProtocol {
         ("g", 0.6984905497992), ("t", 1.0)
     ]
     private static let ALU = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"
+    
     private func selectRandom(_ genelist: [(Character, Double)]) -> Character {
         let r = Helper.nextFloat()
         if r < genelist[0].1 { return genelist[0].0 }
@@ -36,6 +41,7 @@ final class Fasta: BenchmarkProtocol {
         }
         return genelist[hi].0
     }
+    
     private func makeRandomFasta(id: String, desc: String, genelist: [(Character, Double)], n: Int) {
         output.append(">\(id) \(desc)\n")
         var todo = n
@@ -51,6 +57,7 @@ final class Fasta: BenchmarkProtocol {
             todo -= Fasta.LINE_LENGTH
         }
     }
+    
     private func makeRepeatFasta(id: String, desc: String, s: String, n: Int) {
         output.append(">\(id) \(desc)\n")
         var todo = n
@@ -75,15 +82,17 @@ final class Fasta: BenchmarkProtocol {
             todo -= Fasta.LINE_LENGTH
         }
     }
-    func run() {
-        makeRepeatFasta(id: "ONE", desc: "Homo sapiens alu", s: Fasta.ALU, n: n * 2)
-        makeRandomFasta(id: "TWO", desc: "IUB ambiguity codes", genelist: Fasta.IUB, n: n * 3)
-        makeRandomFasta(id: "THREE", desc: "Homo sapiens frequency", genelist: Fasta.HOMO, n: n * 5)
+    
+    func run(iterationId: Int) {
+        makeRepeatFasta(id: "ONE", desc: "Homo sapiens alu", s: Fasta.ALU, n: Int(n * 2))
+        makeRandomFasta(id: "TWO", desc: "IUB ambiguity codes", genelist: Fasta.IUB, n: Int(n * 3))
+        makeRandomFasta(id: "THREE", desc: "Homo sapiens frequency", genelist: Fasta.HOMO, n: Int(n * 5))
     }
-    var result: Int64 {
-        let checksum = Helper.checksum(output)
-        return Int64(bitPattern: UInt64(checksum))
+    
+    var checksum: UInt32 {
+        return Helper.checksum(output)
     }
+    
     // Геттер для доступа из других бенчмарков
     func getOutput() -> String {
         return output

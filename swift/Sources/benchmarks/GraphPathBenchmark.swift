@@ -4,30 +4,26 @@ class GraphPathBenchmark: BenchmarkProtocol {
     final class Graph {
         let vertices: Int
         let adj: [[Int]]
-        private let componentsCount: Int
         
         init(vertices: Int, components: Int = 10) {
             self.vertices = vertices
-            self.componentsCount = components
             
             var tempAdj = Array(repeating: [Int](), count: vertices)
-            let componentSize = vertices / componentsCount
+            let componentSize = vertices / components
             
-            for c in 0..<componentsCount {
+            for c in 0..<components {
                 let startIdx = c * componentSize
                 var endIdx = (c + 1) * componentSize
-                if c == componentsCount - 1 {
+                if c == components - 1 {
                     endIdx = vertices
                 }
                 
-                // Делаем компоненту связной (точно как в Crystal)
                 for i in (startIdx + 1)..<endIdx {
                     let parent = startIdx + Helper.nextInt(max: i - startIdx)
                     tempAdj[i].append(parent)
                     tempAdj[parent].append(i)
                 }
                 
-                // Добавляем случайные рёбра внутри компоненты (точно как в Crystal)
                 for _ in 0..<(componentSize * 2) {
                     let u = startIdx + Helper.nextInt(max: endIdx - startIdx)
                     let v = startIdx + Helper.nextInt(max: endIdx - startIdx)
@@ -38,32 +34,31 @@ class GraphPathBenchmark: BenchmarkProtocol {
                 }
             }
             
-            // ИСПРАВЛЕНО: Убрана сортировка! Оставляем дубликаты как есть, как в Crystal
             self.adj = tempAdj
-            
-            // Crystal код НЕ делает ни сортировку, ни удаление дубликатов!
-            // adj[v] << neighbor может добавлять дубликаты
         }
         
-        func sameComponent(_ u: Int, _ v: Int) -> Bool {
-            let componentSize = vertices / componentsCount
-            return (u / componentSize) == (v / componentSize)
+        func generateRandom() {
+            // В Swift граф создается сразу в конструкторе
         }
     }
     
     var graph: Graph!
     var pairs: [(Int, Int)] = []
-    private var _result: Int64 = 0
-    private var nPairs: Int = 0
+    private var nPairs: Int64 = 0
+    private var resultVal: UInt32 = 0
     
     init() {
-        nPairs = iterations
+        // Пустой конструктор
     }
     
     func prepare() {
-        let vertices = nPairs * 10
-        graph = Graph(vertices: vertices, components: max(10, vertices / 10_000))
-        pairs = generatePairs(n: nPairs)
+        if nPairs == 0 {
+            nPairs = configValue("pairs") ?? 0
+            let vertices = Int(configValue("vertices") ?? 0)
+            let comps = max(10, vertices / 10_000)
+            graph = Graph(vertices: vertices, components: comps)
+            pairs = generatePairs(n: Int(nPairs))
+        }
     }
     
     private func generatePairs(n: Int) -> [(Int, Int)] {
@@ -73,7 +68,6 @@ class GraphPathBenchmark: BenchmarkProtocol {
         
         for _ in 0..<n {
             if Helper.nextInt(max: 100) < 70 {
-                // В одной компоненте (70% случаев) - как в Crystal
                 let component = Helper.nextInt(max: 10)
                 let start = component * componentSize + Helper.nextInt(max: componentSize)
                 var end: Int
@@ -82,7 +76,6 @@ class GraphPathBenchmark: BenchmarkProtocol {
                 } while end == start
                 pairs.append((start, end))
             } else {
-                // В разных компонентах (30% случаев) - как в Crystal
                 let c1 = Helper.nextInt(max: 10)
                 var c2 = Helper.nextInt(max: 10)
                 while c2 == c1 {
@@ -97,15 +90,16 @@ class GraphPathBenchmark: BenchmarkProtocol {
     }
     
     func test() -> Int64 {
-        return 0 // Override in subclasses
+        return 0
     }
     
-    func run() {
-        _result = test()
+    func run(iterationId: Int) {
+        resultVal &+= UInt32(test())
     }
     
-    var result: Int64 {
-        return _result
+    var checksum: UInt32 {
+        return resultVal
     }
+    
+    var name: String { return "GraphPathBenchmark" }
 }
-

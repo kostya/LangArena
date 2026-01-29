@@ -7,53 +7,102 @@ use std::io::{BufRead, BufReader};
 use std::sync::OnceLock;
 use std::time::Instant;
 use std::fs;
+use serde_json::Value;
 
-// Глобальные структуры для конфигурации
-static INPUT: OnceLock<HashMap<String, String>> = OnceLock::new();
-static EXPECT: OnceLock<HashMap<String, i64>> = OnceLock::new();
+// Глобальные структуры для конфигурации - JSON вместо старого формата
+static CONFIG: OnceLock<Value> = OnceLock::new();
 
 fn load_config() {
-    let filename = std::env::args().nth(1).unwrap_or_else(|| "../test.txt".to_string());
-    let file = File::open(filename).expect("Failed to open config file");
+    let filename = std::env::args().nth(1).unwrap_or_else(|| "../test.js".to_string());
+    let file_content = fs::read_to_string(filename).expect("Failed to read config file");
     
-    let mut input_map = HashMap::new();
-    let mut expect_map = HashMap::new();
+    let config: Value = serde_json::from_str(&file_content)
+        .expect("Failed to parse JSON config");
     
-    for line in BufReader::new(file).lines() {
-        let line = line.expect("Failed to read line");
-        if line.trim().is_empty() {
-            continue;
-        }
-        
-        let parts: Vec<&str> = line.split('|').collect();
-        if parts.len() == 3 {
-            let bench_name = parts[0].to_string();
-            input_map.insert(bench_name.clone(), parts[1].to_string());
-            expect_map.insert(bench_name, parts[2].parse().expect("Failed to parse expected value"));
-        }
-    }
-    
-    INPUT.set(input_map).expect("Failed to set INPUT");
-    EXPECT.set(expect_map).expect("Failed to set EXPECT");
+    CONFIG.set(config).expect("Failed to set CONFIG");
+}
+
+// Методы для доступа к конфигурации (как в Crystal)
+fn config_i64(class_name: &str, field_name: &str) -> i64 {
+    let config = CONFIG.get().expect("Config not loaded");
+    config.get(class_name)
+        .and_then(|c| c.get(field_name))
+        .and_then(|v| v.as_i64())
+        .unwrap_or_else(|| {
+            eprintln!("Config not found for {}, field: {}", class_name, field_name);
+            0
+        })
+}
+
+fn config_s(class_name: &str, field_name: &str) -> String {
+    let config = CONFIG.get().expect("Config not loaded");
+    config.get(class_name)
+        .and_then(|c| c.get(field_name))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| {
+            eprintln!("Config not found for {}, field: {}", class_name, field_name);
+            String::new()
+        })
 }
 
 // Базовый trait для бенчмарков
 trait Benchmark: Send + Sync {
-    fn run(&mut self);
+    fn run(&mut self, iteration_id: i64);
     fn prepare(&mut self) {}
-    fn result(&self) -> i64;
-    fn iterations(&self) -> i32 {
-        INPUT.get()
-            .unwrap()
-            .get(&self.name())
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0)
+    fn warmup_iterations(&self) -> i64 {
+        let config = CONFIG.get().expect("Config not loaded");
+        config.get(&self.name())
+            .and_then(|c| c.get("warmup_iterations"))
+            .and_then(|v| v.as_i64())
+            .unwrap_or_else(|| {
+                let iters = self.iterations();
+                std::cmp::max((iters as f64 * 0.2) as i64, 1)
+            })
     }
+    
+    fn warmup(&mut self) {
+        let prepare_iters = self.warmup_iterations();
+        for i in 0..prepare_iters {
+            self.run(i);
+        }
+    }
+    
+    fn run_all(&mut self) {
+        let iters = self.iterations();
+        for i in 0..iters {
+            self.run(i);
+        }
+    }
+    
+    fn checksum(&self) -> u32;
     fn name(&self) -> String;
+    
+    fn config_val(&self, field_name: &str) -> i64 {
+        config_i64(&self.name(), field_name)
+    }
+    
+    fn iterations(&self) -> i64 {
+        self.config_val("iterations")
+    }
+    
+    fn expected_checksum(&self) -> u32 {
+        self.config_val("checksum") as u32
+    }
 }
 
 // Функция для запуска бенчмарков
+fn to_lower(s: &str) -> String {
+    s.chars().flat_map(char::to_lowercase).collect()
+}
+
 fn run_benchmarks(single_bench: Option<&str>) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    println!("start: {}", now);
+    
     load_config();
     helper::reset();
     
@@ -100,6 +149,7 @@ fn run_benchmarks(single_bench: Option<&str>) {
     benchmarks.push(Box::new(benchmarks::maze_generator::MazeGenerator::new()));
     benchmarks.push(Box::new(benchmarks::a_star_pathfinder::AStarPathfinder::new()));
     benchmarks.push(Box::new(benchmarks::compression::Compression::new()));
+    benchmarks.push(Box::new(benchmarks::compression::Decompression::new()));
     
     let mut results = HashMap::new();
     let mut summary_time = 0.0;
@@ -110,7 +160,9 @@ fn run_benchmarks(single_bench: Option<&str>) {
         let name = bench.name();
         
         if let Some(single) = single_bench {
-            if single != name {
+            let bench_lower = to_lower(&name);
+            let search_lower = to_lower(single);
+            if !bench_lower.contains(&search_lower) {
                 continue;
             }
         }
@@ -125,8 +177,12 @@ fn run_benchmarks(single_bench: Option<&str>) {
         helper::reset();
         bench.prepare();
         
+        bench.warmup();
+        
+        helper::reset();
+        
         let start = Instant::now();
-        bench.run();
+        bench.run_all();  // Используем run_all() вместо run()
         let time_delta = start.elapsed().as_secs_f64();
         
         results.insert(name.clone(), time_delta);
@@ -134,17 +190,13 @@ fn run_benchmarks(single_bench: Option<&str>) {
         // Симуляция сборки мусора и переключения контекста
         std::thread::yield_now();
         
-        let expected = EXPECT.get()
-            .unwrap()
-            .get(&name)
-            .copied()
-            .unwrap_or(0);
+        let expected = bench.expected_checksum();
         
-        if bench.result() == expected {
+        if bench.checksum() == expected {
             print!("OK ");
             ok += 1;
         } else {
-            print!("ERR[actual={:?}, expected={:?}] ", bench.result(), expected);
+            print!("ERR[actual={:?}, expected={:?}] ", bench.checksum(), expected);
             fails += 1;
         }
         
@@ -176,4 +228,3 @@ fn main() {
     
     run_benchmarks(single_bench);
 }
-

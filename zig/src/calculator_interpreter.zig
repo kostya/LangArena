@@ -6,15 +6,15 @@ const CalculatorAst = @import("calculator_ast.zig").CalculatorAst;
 pub const CalculatorInterpreter = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    n: i32,
-    result_val: i64,
-    ast_expressions: std.ArrayListUnmanaged(*CalculatorAst.Node), // Владеем AST
+    operations: i64,
+    result_val: u32,
+    ast_expressions: std.ArrayListUnmanaged(*CalculatorAst.Node),
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .prepare = prepareImpl,
-        .result = resultImpl,
+        .checksum = checksumImpl,
         .deinit = deinitImpl,
+        .prepare = prepareImpl,
     };
 
     // Интерпретатор
@@ -84,7 +84,7 @@ pub const CalculatorInterpreter = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*CalculatorInterpreter {
-        const n = helper.getInputInt("CalculatorInterpreter");
+        const operations = helper.config_i64("CalculatorInterpreter", "operations");
 
         const self = try allocator.create(CalculatorInterpreter);
         errdefer allocator.destroy(self);
@@ -92,7 +92,7 @@ pub const CalculatorInterpreter = struct {
         self.* = CalculatorInterpreter{
             .allocator = allocator,
             .helper = helper,
-            .n = n,
+            .operations = operations,
             .result_val = 0,
             .ast_expressions = .{},
         };
@@ -118,53 +118,45 @@ pub const CalculatorInterpreter = struct {
 
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *CalculatorInterpreter = @ptrCast(@alignCast(ptr));
-        const allocator = self.allocator;
 
         // Освобождаем старые AST выражения
         for (self.ast_expressions.items) |expr| {
-            freeNode(allocator, expr);
+            freeNode(self.allocator, expr);
         }
-        self.ast_expressions.clearAndFree(allocator);
+        self.ast_expressions.clearAndFree(self.allocator);
 
         // Создаем CalculatorAst для парсинга
-        var ast_calculator = CalculatorAst.init(allocator, self.helper) catch return;
+        var ast_calculator = CalculatorAst.init(self.allocator, self.helper) catch return;
         defer ast_calculator.deinit();
 
-        ast_calculator.n = self.n;
-        ast_calculator.prepare();
-        ast_calculator.run();
+        ast_calculator.operations = self.operations;
+
+        var benchmark = ast_calculator.asBenchmark();
+        benchmark.prepare();
+        benchmark.run(0);
 
         // Забираем владение AST (move семантика как в C++)
-        self.ast_expressions = ast_calculator.takeExpressions();
-        // Теперь ast_calculator не владеет выражениями, они принадлежат нам
+        self.ast_expressions = ast_calculator.expressions;
+        ast_calculator.expressions = .{}; // Обнуляем, чтобы не освобождалось дважды
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
         const self: *CalculatorInterpreter = @ptrCast(@alignCast(ptr));
+        _ = iteration_id;
+
         const allocator = self.allocator;
         const expressions = self.ast_expressions.items;
 
-        var total: i64 = 0;
+        var interpreter = Interpreter.init(allocator);
+        defer interpreter.deinit();
 
-        // Используем arena для каждого запуска интерпретатора
-        for (0..100) |_| {
-            var arena = std.heap.ArenaAllocator.init(allocator);
-            defer arena.deinit();
-            const arena_allocator = arena.allocator();
-
-            var interpreter = Interpreter.init(arena_allocator);
-            defer interpreter.deinit();
-
-            const result = interpreter.run(expressions);
-            total = total +% result;
-        }
-
-        self.result_val = total;
+        const result = interpreter.run(expressions);
+        self.result_val +%= @as(u32, @intCast(result));
     }
 
-    fn resultImpl(ptr: *anyopaque) u32 {
+    fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *CalculatorInterpreter = @ptrCast(@alignCast(ptr));
-        return @as(u32, @bitCast(@as(i32, @truncate(self.result_val))));
+        return self.result_val;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

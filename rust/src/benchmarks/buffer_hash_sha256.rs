@@ -1,4 +1,5 @@
-use super::super::{Benchmark, INPUT};
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 use crate::benchmarks::buffer_hash_benchmark::BufferHashBenchmark;
 
 struct SimpleSHA256;
@@ -46,15 +47,8 @@ pub struct BufferHashSHA256 {
 
 impl BufferHashSHA256 {
     pub fn new() -> Self {
-        let name = "BufferHashSHA256".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
-        
         Self {
-            base: BufferHashBenchmark::new_base(iterations),
+            base: BufferHashBenchmark::new_base(),
         }
     }
 }
@@ -63,24 +57,19 @@ impl Benchmark for BufferHashSHA256 {
     fn name(&self) -> String {
         "BufferHashSHA256".to_string()
     }
-    
-    fn iterations(&self) -> i32 {
-        self.base.n
-    }
-    
+
     fn prepare(&mut self) {
-        self.base.prepare_common();
+        self.base.prepare("BufferHashSHA256");
     }
     
-    fn run(&mut self) {
-        self.base.run_common(|data| {
-            let digest = SimpleSHA256::digest(data);
-            // Возвращаем первое 32-битное слово из хэша
-            u32::from_le_bytes([digest[0], digest[1], digest[2], digest[3]])
-        });
+    fn run(&mut self, _iteration_id: i64) {
+        let digest = SimpleSHA256::digest(&self.base.data);
+        // Возвращаем первое 32-битное слово из хэша
+        let hash = u32::from_le_bytes([digest[0], digest[1], digest[2], digest[3]]);
+        self.base.result_val = self.base.result_val.wrapping_add(hash);
     }
     
-    fn result(&self) -> i64 {
-        self.base.result as i64
+    fn checksum(&self) -> u32 {
+        self.base.result_val
     }
 }

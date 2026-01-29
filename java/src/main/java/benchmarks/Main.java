@@ -1,6 +1,7 @@
 package benchmarks;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.time.Instant;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -44,13 +45,17 @@ public class Main {
         Benchmark.registerBenchmark(() -> new MazeGenerator());
         Benchmark.registerBenchmark(() -> new AStarPathfinder());
         Benchmark.registerBenchmark(() -> new Compression());
+        Benchmark.registerBenchmark(() -> new Decompression());
 
+        long now = Instant.now().toEpochMilli();
+        System.out.println("start: " + now);
+        
         // Обработка аргументов
         String configFile = null;
         String singleBench = null;
         
         for (String arg : args) {
-            if (arg.endsWith(".txt")) {
+            if (arg.endsWith(".js")) {
                 configFile = arg;
             } else {
                 singleBench = arg;
@@ -60,15 +65,15 @@ public class Main {
         try {
             Helper.loadConfig(configFile);
             
-            if (Helper.INPUT.isEmpty()) {
+            if (Helper.CONFIG.length() == 0) {
                 System.err.println("Warning: No test cases loaded from config file");
-                System.err.println("Usage: mvn exec:java -Dexec.args=\"test.txt BrainfuckRecursion\"");
-                System.err.println("Or: mvn exec:java -Dexec.args=\"../run.txt\"");
+                System.err.println("Usage: mvn exec:java -Dexec.args=\"test.js BrainfuckRecursion\"");
+                System.err.println("Or: mvn exec:java -Dexec.args=\"../run.js\"");
                 System.exit(1);
             }
         } catch (Exception e) {
             System.err.println("Error loading config file '" + 
-                             (configFile != null ? configFile : "test.txt") + 
+                             (configFile != null ? configFile : "test.js") + 
                              "': " + e.getMessage());
             e.printStackTrace();
             System.exit(1);
@@ -78,6 +83,6 @@ public class Main {
             writer.write("RECOMPILE_MARKER_0");
         }
         
-        Benchmark.run(singleBench);
+        Benchmark.all(singleBench);
     }
 }

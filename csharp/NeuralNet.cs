@@ -1,29 +1,5 @@
 public class NeuralNet : Benchmark
 {
-    private int _n;
-    private double _sum;
-    
-    public override long Result => (long)Helper.Checksum(_sum);
-    
-    public NeuralNet()
-    {
-        _sum = 0;
-    }
-    
-    public override void Prepare()
-    {
-        var className = nameof(NeuralNet);
-        if (Helper.Input.TryGetValue(className, out var value))
-        {
-            if (int.TryParse(value, out var iter))
-            {
-                _n = iter;
-                return;
-            }
-        }
-        _n = 1;
-    }
-    
     private class Synapse
     {
         public Neuron SourceNeuron { get; }
@@ -59,10 +35,7 @@ public class NeuralNet : Benchmark
         public void CalculateOutput()
         {
             double activation = 0;
-            foreach (var synapse in SynapsesIn)
-            {
-                activation += synapse.Weight * synapse.SourceNeuron.Output;
-            }
+            foreach (var synapse in SynapsesIn) activation += synapse.Weight * synapse.SourceNeuron.Output;
             activation -= Threshold;
             
             Output = 1.0 / (1.0 + Math.Exp(-activation));
@@ -79,10 +52,7 @@ public class NeuralNet : Benchmark
         public void HiddenTrain(double rate)
         {
             Error = 0;
-            foreach (var synapse in SynapsesOut)
-            {
-                Error += synapse.PrevWeight * synapse.DestNeuron.Error;
-            }
+            foreach (var synapse in SynapsesOut) Error += synapse.PrevWeight * synapse.DestNeuron.Error;
             Error *= Derivative();
             UpdateWeights(rate);
         }
@@ -116,14 +86,10 @@ public class NeuralNet : Benchmark
             _hiddenLayer = new Neuron[hidden];
             _outputLayer = new Neuron[outputs];
             
-            for (int i = 0; i < inputs; i++)
-                _inputLayer[i] = new Neuron();
-            for (int i = 0; i < hidden; i++)
-                _hiddenLayer[i] = new Neuron();
-            for (int i = 0; i < outputs; i++)
-                _outputLayer[i] = new Neuron();
+            for (int i = 0; i < inputs; i++) _inputLayer[i] = new Neuron();
+            for (int i = 0; i < hidden; i++) _hiddenLayer[i] = new Neuron();
+            for (int i = 0; i < outputs; i++) _outputLayer[i] = new Neuron();
             
-            // Connect input to hidden
             foreach (var source in _inputLayer)
             {
                 foreach (var dest in _hiddenLayer)
@@ -134,7 +100,6 @@ public class NeuralNet : Benchmark
                 }
             }
             
-            // Connect hidden to output
             foreach (var source in _hiddenLayer)
             {
                 foreach (var dest in _outputLayer)
@@ -150,66 +115,83 @@ public class NeuralNet : Benchmark
         {
             FeedForward(inputs);
             
-            for (int i = 0; i < _outputLayer.Length; i++)
-            {
-                _outputLayer[i].OutputTrain(0.3, targets[i]);
-            }
-            
-            foreach (var neuron in _hiddenLayer)
-            {
-                neuron.HiddenTrain(0.3);
-            }
+            for (int i = 0; i < _outputLayer.Length; i++) _outputLayer[i].OutputTrain(0.3, targets[i]);
+            foreach (var neuron in _hiddenLayer) neuron.HiddenTrain(0.3);
         }
         
         public void FeedForward(double[] inputs)
         {
-            for (int i = 0; i < _inputLayer.Length; i++)
-            {
-                _inputLayer[i].Output = inputs[i];
-            }
-            
-            foreach (var neuron in _hiddenLayer)
-            {
-                neuron.CalculateOutput();
-            }
-            
-            foreach (var neuron in _outputLayer)
-            {
-                neuron.CalculateOutput();
-            }
+            for (int i = 0; i < _inputLayer.Length; i++) _inputLayer[i].Output = inputs[i];
+            foreach (var neuron in _hiddenLayer) neuron.CalculateOutput();
+            foreach (var neuron in _outputLayer) neuron.CalculateOutput();
         }
         
-        public double[] CurrentOutputs()
+        public double[] CurrentOutputs() => _outputLayer.Select(n => n.Output).ToArray();
+        
+        // Отладочный метод для проверки весов
+        public double GetWeightSum()
         {
-            return _outputLayer.Select(n => n.Output).ToArray();
+            double sum = 0;
+            foreach (var neuron in _inputLayer.Concat(_hiddenLayer).Concat(_outputLayer))
+            {
+                sum += neuron.Threshold;
+                foreach (var synapse in neuron.SynapsesOut)
+                {
+                    sum += synapse.Weight;
+                }
+            }
+            return sum;
         }
     }
     
-    public override void Run()
+    private NeuralNetwork _xorNet;
+    
+    public NeuralNet()
     {
-        var xor = new NeuralNetwork(2, 10, 1);
-        double sum = 0;
-        
-        for (int i = 0; i < _n; i++)
+    }
+    
+    public override void Prepare()
+    {
+        _xorNet = new NeuralNetwork(2, 10, 1);
+    }
+    
+    public override void Run(long IterationId)
+    {
+        _xorNet.Train([0, 0], [0]);
+        _xorNet.Train([1, 0], [1]);
+        _xorNet.Train([0, 1], [1]);
+        _xorNet.Train([1, 1], [0]);
+    }
+    
+    public override uint Checksum
+    {
+        get
         {
-            xor.Train([0, 0], [0]);
-            xor.Train([1, 0], [1]);
-            xor.Train([0, 1], [1]);
-            xor.Train([1, 1], [0]);
+            _xorNet.FeedForward([0, 0]);
+            var outputs1 = _xorNet.CurrentOutputs();
+            
+            _xorNet.FeedForward([0, 1]);
+            var outputs2 = _xorNet.CurrentOutputs();
+            
+            _xorNet.FeedForward([1, 0]);
+            var outputs3 = _xorNet.CurrentOutputs();
+            
+            _xorNet.FeedForward([1, 1]);
+            var outputs4 = _xorNet.CurrentOutputs();
+            
+            var allOutputs = new List<double>();
+            allOutputs.AddRange(outputs1);
+            allOutputs.AddRange(outputs2);
+            allOutputs.AddRange(outputs3);
+            allOutputs.AddRange(outputs4);
+            
+            double sum = 0.0;
+            foreach (double v in allOutputs) sum += v;
+            
+            // Для отладки
+            // Console.WriteLine($"NeuralNet checksum inputs: sum={sum}, outputs1={string.Join(",", outputs1)}");
+            
+            return Helper.Checksum(sum);
         }
-        
-        xor.FeedForward([0, 0]);
-        sum += xor.CurrentOutputs().Sum();
-        
-        xor.FeedForward([0, 1]);
-        sum += xor.CurrentOutputs().Sum();
-        
-        xor.FeedForward([1, 0]);
-        sum += xor.CurrentOutputs().Sum();
-        
-        xor.FeedForward([1, 1]);
-        sum += xor.CurrentOutputs().Sum();
-        
-        _sum = sum;
     }
 }

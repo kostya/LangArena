@@ -4,67 +4,72 @@ import Benchmark
 
 class Revcomp : Benchmark() {
     private lateinit var input: String
-    private lateinit var output: StringBuilder
+    private val resultStr = StringBuilder()
+    
+    companion object {
+        private val LOOKUP = CharArray(256).apply {
+            // Инициализируем как идентичное преобразование
+            for (i in indices) {
+                this[i] = i.toChar()
+            }
+            
+            val from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
+            val to = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
+            
+            for (i in from.indices) {
+                this[from[i].code] = to[i]
+            }
+        }
+    }
+    
+    override fun name(): String = "Revcomp"
     
     override fun prepare() {
-        output = StringBuilder()
-        
         val fasta = Fasta()
-        fasta.n = iterations
+        fasta.n = configVal("n")  // Без .toInt(), т.к. n в Fasta имеет тип Long
         fasta.prepare()
-        fasta.run()
+        fasta.run(0)
         
-        input = fasta.getOutput()
-    }
-    
-    private fun revcomp(seq: String) {
-        // Таблица трансляции как в Crystal
-        val from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
-        val to = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
+        val fastaResult = fasta.getOutput()
         
-        val translationMap = mutableMapOf<Char, Char>()
-        for (i in from.indices) {
-            translationMap[from[i]] = to[i]
-        }
-        
-        val reversed = seq.reversed()
-        val complemented = StringBuilder(reversed.length)
-        
-        for (ch in reversed) {
-            complemented.append(translationMap[ch] ?: ch)
-        }
-        
-        val result = complemented.toString()
-        var i = 0
-        while (i < result.length) {
-            val end = minOf(i + 60, result.length)
-            output.append(result.substring(i, end))
-            output.append('\n')
-            i += 60
-        }
-    }
-        
-    override fun run() {
+        // Обрабатываем как в C++ версии
         val seq = StringBuilder()
-        
-        input.lineSequence().forEach { line ->
-            if (line.startsWith('>')) {
-                if (seq.isNotEmpty()) {
-                    revcomp(seq.toString())
-                    seq.clear()
-                }
-                output.append(line)
-                output.append('\n')
+        fastaResult.lineSequence().forEach { line: String ->
+            if (line.isNotEmpty() && line[0] == '>') {
+                seq.append("\n---\n")
             } else {
-                seq.append(line.trim())
+                seq.append(line)
             }
         }
         
-        if (seq.isNotEmpty()) {
-            revcomp(seq.toString())
-        }
+        input = seq.toString()
     }
     
-    override val result: Long
-        get() = Helper.checksum(output.toString()).toLong()
+    private fun revcomp(seq: String): String {
+        val reversed = seq.reversed()
+        val complemented = CharArray(reversed.length)
+        
+        for (i in reversed.indices) {
+            complemented[i] = LOOKUP[reversed[i].code]
+        }
+        
+        val result = StringBuilder()
+        for (i in complemented.indices step 60) {
+            val end = minOf(i + 60, complemented.size)
+            result.append(complemented, i, end - i)
+            result.append('\n')
+        }
+        
+        return result.toString()
+    }
+    
+    override fun run(iterationId: Int) {
+        resultStr.append(revcomp(input))
+    }
+    
+    override fun checksum(): UInt {
+        val result = resultStr.toString()
+        val checksum = Helper.checksum(result)
+        return checksum.toUInt()
+    }
 }

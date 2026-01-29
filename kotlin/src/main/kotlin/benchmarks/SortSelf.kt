@@ -6,4 +6,6 @@ class SortSelf : SortBenchmark() {
         arr.sort()
         return arr
     }
+    
+    override fun name(): String = "SortSelf"
 }

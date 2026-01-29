@@ -1,4 +1,3 @@
-// src/neural_net.zig
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
@@ -7,8 +6,8 @@ const math = std.math;
 pub const NeuralNet = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    n: i32,
-    sum_result: f64,
+    result_val: u32,
+    res: std.ArrayListUnmanaged(f64),
 
     const LEARNING_RATE: f64 = 1.0;
     const MOMENTUM: f64 = 0.3;
@@ -16,7 +15,7 @@ pub const NeuralNet = struct {
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .result = resultImpl,
+        .checksum = checksumImpl,
         .deinit = deinitImpl,
     };
 
@@ -249,23 +248,21 @@ pub const NeuralNet = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*NeuralNet {
-        const n_int = helper.getInputInt("NeuralNet");
-        const n: i32 = if (n_int > 0) n_int else 0;
-
         const self = try allocator.create(NeuralNet);
         errdefer allocator.destroy(self);
 
         self.* = NeuralNet{
             .allocator = allocator,
             .helper = helper,
-            .n = n,
-            .sum_result = 0.0,
+            .result_val = 0,
+            .res = .{},
         };
 
         return self;
     }
 
     pub fn deinit(self: *NeuralNet) void {
+        self.res.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -273,7 +270,7 @@ pub const NeuralNet = struct {
         return Benchmark.init(self, &vtable, self.helper);
     }
 
-    fn runImpl(ptr: *anyopaque) void {
+    fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
         const self: *NeuralNet = @ptrCast(@alignCast(ptr));
         const allocator = self.allocator;
         const helper = self.helper;
@@ -285,38 +282,42 @@ pub const NeuralNet = struct {
         var xor_net = NeuralNetwork.init(arena_allocator, helper, 2, 10, 1) catch return;
         defer xor_net.deinit();
 
-        const n_int = @as(usize, @intCast(if (self.n > 0) self.n else 0));
-        for (0..n_int) |_| {
-            xor_net.train(&[_]f64{ 0.0, 0.0 }, &[_]f64{0.0});
-            xor_net.train(&[_]f64{ 1.0, 0.0 }, &[_]f64{1.0});
-            xor_net.train(&[_]f64{ 0.0, 1.0 }, &[_]f64{1.0});
-            xor_net.train(&[_]f64{ 1.0, 1.0 }, &[_]f64{0.0});
-        }
+        // Одна итерация обучения как в C++ версии
+        xor_net.train(&[_]f64{ 0.0, 0.0 }, &[_]f64{0.0});
+        xor_net.train(&[_]f64{ 1.0, 0.0 }, &[_]f64{1.0});
+        xor_net.train(&[_]f64{ 0.0, 1.0 }, &[_]f64{1.0});
+        xor_net.train(&[_]f64{ 1.0, 1.0 }, &[_]f64{0.0});
 
-        var sum: f64 = 0.0;
-
+        // Сохраняем результаты для checksum
         xor_net.feedForward(&[_]f64{ 0.0, 0.0 });
         const outputs1 = xor_net.currentOutputs();
-        sum += outputs1[0];
 
         xor_net.feedForward(&[_]f64{ 0.0, 1.0 });
         const outputs2 = xor_net.currentOutputs();
-        sum += outputs2[0];
 
         xor_net.feedForward(&[_]f64{ 1.0, 0.0 });
         const outputs3 = xor_net.currentOutputs();
-        sum += outputs3[0];
 
         xor_net.feedForward(&[_]f64{ 1.0, 1.0 });
         const outputs4 = xor_net.currentOutputs();
-        sum += outputs4[0];
 
-        self.sum_result = sum;
+        // Сохраняем все результаты
+        self.res.clearAndFree(allocator);
+        self.res.appendSlice(allocator, &outputs1) catch return;
+        self.res.appendSlice(allocator, &outputs2) catch return;
+        self.res.appendSlice(allocator, &outputs3) catch return;
+        self.res.appendSlice(allocator, &outputs4) catch return;
     }
 
-    fn resultImpl(ptr: *anyopaque) u32 {
+    fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *NeuralNet = @ptrCast(@alignCast(ptr));
-        return self.helper.checksumFloat(self.sum_result);
+
+        var sum: f64 = 0.0;
+        for (self.res.items) |v| {
+            sum += v;
+        }
+
+        return self.helper.checksumFloat(sum);
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

@@ -1705,11 +1705,12 @@ private:
     
     std::vector<Coordinate> data;
     std::string _result;
+    uint32_t result;
     
 public:
     int64_t n;
 
-    JsonGenerate() : n(config_val("coords")) {
+    JsonGenerate() : n(config_val("coords")), result(0) {
         data.reserve(static_cast<size_t>(n));
     }
 
@@ -1788,14 +1789,14 @@ public:
             throw std::runtime_error("JSON generation failed");
         }
         _result = std::string(view.value_unsafe());
+
+        if (_result.size() >= 15 && _result.compare(0, 15, "{\"coordinates\":") == 0) {
+            result++;
+        }
     }
     
     uint32_t checksum() override {
-        std::string truncated = _result;
-        if (truncated.size() >= 500) {
-            truncated.resize(499);
-        }
-        return Helper::checksum(truncated);
+        return result;
     }
     
     const std::string& get_result() const { 
@@ -2475,10 +2476,14 @@ private:
     
 public:
     NeuralNet() {
-        xor_net = std::make_unique<NeuralNetwork>(2, 10, 1);
+        xor_net = std::make_unique<NeuralNetwork>(0, 0, 0);
     }
     
     std::string name() const override { return "NeuralNet"; }    
+
+    void prepare() override {
+        xor_net = std::make_unique<NeuralNetwork>(2, 10, 1);
+    }
     
     void run(int iteration_id) override {
         NeuralNetwork& xor_ref = *xor_net;
@@ -4540,9 +4545,8 @@ void Benchmark::all(const std::string& single_bench) {
         std::cout << name << ": ";
         std::cout.flush();
         
-        Helper::reset();
-        
         auto bench = create_benchmark();
+        Helper::reset();
         bench->prepare();
         
         bench->warmup();

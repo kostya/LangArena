@@ -5,12 +5,6 @@ import kotlin.math.sqrt
 import kotlin.math.ln
 
 class Primes : Benchmark() {
-    companion object {
-        private const val PREFIX = 32338
-    }
-
-    private var _result: UInt = 5432u  // переименовал
-
     private class Node {
         val children = arrayOfNulls<Node>(10)
         var terminal = false
@@ -98,19 +92,28 @@ class Primes : Benchmark() {
         results.sort()
         return results
     }
+    
+    private var n: Long = 0
+    private var prefix: Long = 0
+    private var resultVal: UInt = 5432u
+    
+    init {
+        n = configVal("limit")
+        prefix = configVal("prefix")
+    }
 
-    override fun run() {
+    override fun run(iterationId: Int) {
         // 1. Генерация простых чисел (как в C++)
-        val primes = generatePrimes(iterations)
+        val primes = generatePrimes(n.toInt())
         
         // 2. Построение префиксного дерева (как в C++)
         val trie = buildTrie(primes)
         
         // 3. Поиск по префиксу (как в C++)
-        val results = findPrimesWithPrefix(trie, PREFIX)
+        val results = findPrimesWithPrefix(trie, prefix.toInt())
         
         // 4. Вычисление результата в том же порядке
-        var temp = _result.toLong()
+        var temp = resultVal.toLong()
         
         // Сначала добавляем размер (как в C++)
         temp = (temp + results.size) and 0xFFFFFFFFL
@@ -120,9 +123,10 @@ class Primes : Benchmark() {
             temp = (temp + prime) and 0xFFFFFFFFL
         }
         
-        _result = temp.toUInt()
+        resultVal = temp.toUInt()
     }
 
-    override val result: Long
-        get() = _result.toLong()
+    override fun checksum(): UInt = resultVal
+    
+    override fun name(): String = "Primes"
 }

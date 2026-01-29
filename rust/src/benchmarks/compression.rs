@@ -1,7 +1,7 @@
 use std::collections::{BinaryHeap, HashMap};
 use std::cmp::Ordering;
-use super::super::{helper, INPUT};
-
+use super::super::{Benchmark, helper};
+use crate::config_i64;
 
 // ==================== BWT ====================
 #[derive(Debug, Clone)]
@@ -108,7 +108,6 @@ fn bwt_transform(input: &[u8]) -> BWTResult {
     }
 }
 
-// Обновлённое обратное преобразование BWT
 fn bwt_inverse(bwt_result: &BWTResult) -> Vec<u8> {
     let bwt = &bwt_result.transformed;
     let original_idx = bwt_result.original_idx;
@@ -365,87 +364,124 @@ fn decompress(compressed: &CompressedData) -> Vec<u8> {
     bwt_inverse(&bwt_result)
 }
 
-// ==================== Бенчмарк ====================
+// ==================== Бенчмарк Compression ====================
 pub struct Compression {
-    iterations: i32,
-    result: i64,
+    size_val: i64,
     test_data: Vec<u8>,
+    result_val: u32,
 }
 
 impl Compression {
     pub fn new() -> Self {
-        let name = "Compression".to_string();
-        let iterations: i32 = INPUT.get()
-            .unwrap()
-            .get(&name)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
+        let size_val = config_i64("Compression", "size");
         
         Self {
-            iterations: iterations,
-            result: 0,
+            size_val,
             test_data: Vec::new(),
+            result_val: 0,
         }
     }
     
-    pub fn run_benchmark(&mut self) {
-        let mut total_checksum = 0u32;
+    fn generate_test_data(&self, size: i64) -> Vec<u8> {
+        // Простой паттерн для хорошего сжатия
+        let pattern = b"ABRACADABRA";
+        let mut data = Vec::with_capacity(size as usize);
         
-        for _ in 0..5 {
-            // Компрессия
-            let compressed = compress(&self.test_data);
-            
-            // Декомпрессия
-            let decompressed = decompress(&compressed);
-
-            let checksum = helper::checksum_bytes(&decompressed);
-            // let original_checksum = helper::checksum_bytes(&self.test_data);
-
-            total_checksum = total_checksum.wrapping_add(compressed.encoded_bits.len() as u32);
-            total_checksum = total_checksum.wrapping_add(checksum);
+        for i in 0..size {
+            data.push(pattern[(i as usize) % pattern.len()]);
         }
         
-        self.result = total_checksum as i64;
+        data
     }
 }
-
-// Вспомогательные функции
-fn generate_test_data(size: usize) -> Vec<u8> {
-    // Простой паттерн для хорошего сжатия
-    let pattern = b"ABRACADABRA";
-    let mut data = Vec::with_capacity(size);
-    
-    for i in 0..size {
-        data.push(pattern[i % pattern.len()]);
-    }
-    
-    data
-}
-
-// ==================== Реализация Benchmark трейта ====================
-use super::super::Benchmark;
 
 impl Benchmark for Compression {
     fn name(&self) -> String {
         "Compression".to_string()
     }
     
-    fn iterations(&self) -> i32 {
-        self.iterations
+    fn prepare(&mut self) {
+        self.test_data = self.generate_test_data(self.size_val);
+    }
+
+    fn run(&mut self, _iteration_id: i64) {
+        let compressed = compress(&self.test_data);
+        self.result_val = self.result_val.wrapping_add(compressed.encoded_bits.len() as u32);
+    }
+    
+    fn checksum(&self) -> u32 {
+        self.result_val
+    }
+}
+
+// ==================== Бенчмарк Decompression ====================
+pub struct Decompression {
+    compression_base: Compression,
+    compressed_data: Option<CompressedData>,
+    decompressed: Vec<u8>,
+}
+
+impl Decompression {
+    pub fn new() -> Self {
+        // Создаем Compression с правильным size_val
+        let size_val = config_i64("Decompression", "size");  // Используем "Decompression", "size"
+        
+        let mut compression_base = Compression {
+            size_val,
+            test_data: Vec::new(),
+            result_val: 0,
+        };
+        
+        // Генерируем тестовые данные
+        compression_base.test_data = compression_base.generate_test_data(size_val);
+        
+        Self {
+            compression_base,
+            compressed_data: None,
+            decompressed: Vec::new(),
+        }
+    }
+}
+
+impl Benchmark for Decompression {
+    fn name(&self) -> String {
+        "Decompression".to_string()
     }
     
     fn prepare(&mut self) {
-        self.test_data = generate_test_data(self.iterations as usize);
-    }
-
-    fn run(&mut self) {
-        self.run_benchmark();
+        // НЕ вызываем compression_base.prepare() - мы уже создали test_data в конструкторе
+        // Сжимаем тестовые данные
+        let test_data = &self.compression_base.test_data;
+        self.compressed_data = Some(compress(test_data));
+        
+        // Сбрасываем result_val на всякий случай
+        self.compression_base.result_val = 0;
     }
     
-    fn result(&self) -> i64 {
-        self.result
+    fn run(&mut self, _iteration_id: i64) {
+        // Распаковываем данные
+        if let Some(ref compressed) = self.compressed_data {
+            self.decompressed = decompress(compressed);
+            // Добавляем размер распакованных данных к результату
+            self.compression_base.result_val = self.compression_base.result_val
+                .wrapping_add(self.decompressed.len() as u32);
+        }
+    }
+    
+    fn checksum(&self) -> u32 {
+        let mut res = self.compression_base.result_val;
+        
+        // Проверяем, что распакованные данные совпадают с исходными
+        if self.compressed_data.is_some() && 
+           self.decompressed == self.compression_base.test_data {
+            res = res.wrapping_add(1000000);
+        }
+        
+        res
     }
 }
 
 unsafe impl Send for Compression {}
 unsafe impl Sync for Compression {}
+unsafe impl Send for Decompression {}
+unsafe impl Sync for Decompression {}
