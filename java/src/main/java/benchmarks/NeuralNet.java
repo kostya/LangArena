@@ -153,12 +153,17 @@ public class NeuralNet extends Benchmark {
     private NeuralNetwork xorNet;
     
     public NeuralNet() {
-        xorNet = new NeuralNetwork(2, 10, 1);
+        xorNet = new NeuralNetwork(0, 0, 0);
     }
     
     @Override
     public String name() {
         return "NeuralNet";
+    }
+
+    @Override
+    public void prepare() {
+        xorNet = new NeuralNetwork(2, 10, 1);
     }
     
     @Override
@@ -189,6 +194,7 @@ public class NeuralNet extends Benchmark {
         for (Double val : allOutputs) {
             sum += val;
         }
+
         return Helper.checksumF64(sum);
     }
 }

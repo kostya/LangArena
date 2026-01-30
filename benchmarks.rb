@@ -1,6 +1,6 @@
 # Run all benchmarks and store results to ./results/
 #
-# `docker compose build` should be called before use this script
+# `docker compose build` should be done before use this script
 #
 # Run all `ruby benchmarks.rb`
 # Run only Lang Regex `ruby benchmarks.rb C++`
@@ -8,9 +8,11 @@
 # Run Prod configs exclude Hack `PROD=1 ruby benchmarks.rb`
 # Run test configs - just to check (faster finished) `TEST=1 ruby benchmarks.rb`
 
-IS_VERBOSE = ENV["VERBOSE"] == "1"
-IS_RUN_PROD = ENV["PROD"] == "1"
-IS_RUN_TEST = ENV["TEST"] == "1"
+IS_VERBOSE = ENV["VERBOSE"] == "1" # show docker commands
+IS_RUN_PROD = ENV["PROD"] == "1" # use only prod runs
+IS_RUN_TEST = ENV["TEST"] == "1" # use test.js for testing, faster
+IS_LOG_CRASH = ENV["LOG_CRASH"] == "1" # log instead of crash
+IS_ONE_RUN_PER_LANG = ENV["BY_LANG"] == "1" # run only one run for each language
 
 require 'json'
 require 'timeout'
@@ -183,7 +185,12 @@ class Run
     stdout = `#{cmd}`    
     exitstatus = $?.exitstatus
     if exitstatus != 0
-      raise "Failed to build `#{cmd}`, exitstatus: #{exitstatus}"
+      if IS_LOG_CRASH
+        puts "Failed `#{cmd}`, exitstatus: #{exitstatus}"
+        File.open("/tmp/log_crash.txt", "a") { |f| f.puts "#{Time.now}: Failed `#{cmd}`, exitstatus: #{exitstatus}" }
+      else
+        raise "Failed to build `#{cmd}`, exitstatus: #{exitstatus}"
+      end
     end
     stdout =~ /MaxRSS\(([0-9]*?)\)KB\n/
     rss = $1.to_i
@@ -1202,6 +1209,25 @@ end
 
 if IS_RUN_PROD
   RUNS.select! { |run| run.group == :prod }
+end
+
+if IS_ONE_RUN_PER_LANG
+  new_runs = []  
+  RUNS.group_by(&:lang).each do |lang, runs| 
+    r = runs[0]
+    if r.group == :prod
+      new_runs << r
+    else
+      if r = runs.find { |r| r.group == :prod }
+        new_runs << r 
+      else
+        runs[0]
+      end
+    end
+  end
+  RUNS.clear
+  new_runs.each { |r| RUNS << r }
+  puts "Select one run per language: #{RUNS.size}"
 end
 
 puts "Found runs: #{RUNS.size} #{RUNS.size < 10 ? RUNS.map(&:name).inspect : nil}"

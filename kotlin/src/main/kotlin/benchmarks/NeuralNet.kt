@@ -123,6 +123,10 @@ class NeuralNet : Benchmark() {
     private val res = mutableListOf<Double>()
     
     init {
+        xorNet = NeuralNetwork(0, 0, 0)
+    }
+
+    override fun prepare() {
         xorNet = NeuralNetwork(2, 10, 1)
     }
     

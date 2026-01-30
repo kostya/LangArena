@@ -11,7 +11,7 @@ public abstract class Benchmark
     
     public virtual void Prepare() { }
     
-    public virtual long WarmupIterations
+    public long WarmupIterations
     {
         get
         {
@@ -37,7 +37,7 @@ public abstract class Benchmark
         }
     }
     
-    public virtual void RunAll()
+    public void RunAll()
     {
         long iters = Iterations;
         for (long i = 0; i < iters; i++)
@@ -46,13 +46,13 @@ public abstract class Benchmark
         }
     }
     
-    public virtual long ConfigVal(string fieldName)
+    public long ConfigVal(string fieldName)
     {
         var className = GetType().Name;
         return Helper.Config_i64(className, fieldName);
     }
     
-    public virtual long Iterations
+    public long Iterations
     {
         get
         {
@@ -61,7 +61,7 @@ public abstract class Benchmark
         }
     }
     
-    public virtual long ExpectedChecksum
+    public long ExpectedChecksum
     {
         get
         {

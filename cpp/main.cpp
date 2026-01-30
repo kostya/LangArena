@@ -159,7 +159,7 @@ public:
     virtual void prepare() {}
     virtual std::string name() const = 0;
     
-    virtual int64_t warmup_iterations() {
+    int64_t warmup_iterations() {
         if (CONFIG.contains(name()) && CONFIG[name()].contains("warmup_iterations")) {
             return CONFIG[name()]["warmup_iterations"].get<int64_t>();
         } else {
@@ -175,22 +175,22 @@ public:
         }
     }
     
-    virtual void run_all() {
+    void run_all() {
         int64_t iters = iterations();
         for (int64_t i = 0; i < iters; i++) {
             this->run(i);
         }
     }
     
-    virtual int64_t config_val(const std::string& field_name) const {
+    int64_t config_val(const std::string& field_name) const {
         return Helper::config_i64(this->name(), field_name);
     }
     
-    virtual int64_t iterations() const {
+    int64_t iterations() const {
         return config_val("iterations");
     }
     
-    virtual int64_t expected_checksum() const {
+    int64_t expected_checksum() const {
         return config_val("checksum");
     }
     
@@ -4530,8 +4530,8 @@ void Benchmark::all(const std::string& single_bench) {
         {"CacheSimulation", []() { return std::make_unique<CacheSimulation>(); }},        
         {"CalculatorAst", []() { return std::make_unique<CalculatorAst>(); }},
         {"CalculatorInterpreter", []() { return std::make_unique<CalculatorInterpreter>(); }},
-        {"MazeGenerator", []() { return std::make_unique<MazeGenerator>(); }},        
         {"GameOfLife", []() { return std::make_unique<GameOfLife>(); }},
+        {"MazeGenerator", []() { return std::make_unique<MazeGenerator>(); }},        
         {"AStarPathfinder", []() { return std::make_unique<AStarPathfinder>(); }},        
         {"Compression", []() { return std::make_unique<Compression>(); }},        
         {"Decompression", []() { return std::make_unique<Decompression>(); }},        

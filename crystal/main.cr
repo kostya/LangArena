@@ -1336,7 +1336,6 @@ class JsonParseDom < Benchmark
 
   def run(iteration_id)
     x, y, z = calc(@text)
-    p [x,y,z]
     @result &+= Helper.checksum_f64(x) &+ Helper.checksum_f64(y) &+ Helper.checksum_f64(z)
   end
 

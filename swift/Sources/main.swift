@@ -25,10 +25,10 @@ func main() {
     BenchmarkManager.register { Spectralnorm() }
     BenchmarkManager.register { Base64Encode() }
     BenchmarkManager.register { Base64Decode() }
-    BenchmarkManager.register { Primes() }
     BenchmarkManager.register { JsonGenerate() }
     BenchmarkManager.register { JsonParseDom() }
     BenchmarkManager.register { JsonParseMapping() }
+    BenchmarkManager.register { Primes() }
     BenchmarkManager.register { Noise() }
     BenchmarkManager.register { TextRaytracer() }
     BenchmarkManager.register { NeuralNet() }

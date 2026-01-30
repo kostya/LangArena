@@ -133,8 +133,12 @@ final class NeuralNet: BenchmarkProtocol {
     private var resultVal: UInt32 = 0
     
     init() {
-        xorNet = NeuralNetwork(inputs: 2, hidden: 10, outputs: 1)
+        xorNet = NeuralNetwork(inputs: 0, hidden: 0, outputs: 0)
         outputs.reserveCapacity(4)
+    }
+
+    func prepare() {
+        xorNet = NeuralNetwork(inputs: 2, hidden: 10, outputs: 1)
     }
     
     func run(iterationId: Int) {
@@ -166,6 +170,4 @@ final class NeuralNet: BenchmarkProtocol {
         let sum = allOutputs.reduce(0.0, +)
         return Helper.checksumF64(sum)
     }
-    
-    func prepare() {}
 }
