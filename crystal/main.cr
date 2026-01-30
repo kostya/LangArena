@@ -1332,7 +1332,6 @@ class JsonParseDom < Benchmark
     j = JsonGenerate.new(config_val("coords"))
     j.run(0)
     @text = j.text.to_s
-    puts @text
   end
 
   def run(iteration_id)
