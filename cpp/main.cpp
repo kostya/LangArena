@@ -164,7 +164,7 @@ public:
             return CONFIG[name()]["warmup_iterations"].get<int64_t>();
         } else {
             int64_t iters = iterations();
-            return std::max(static_cast<int64_t>(iters * 0.2), 1LL);
+            return std::max<int64_t>(static_cast<int64_t>(iters * 0.2), 1LL);
         }
     }
     

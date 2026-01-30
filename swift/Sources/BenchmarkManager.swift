@@ -1,6 +1,5 @@
 import Foundation
 import CoreFoundation
-import CryptoKit
 
 // Протокол для всех бенчмарков - ТОЧНО как в Kotlin
 protocol BenchmarkProtocol: AnyObject {
