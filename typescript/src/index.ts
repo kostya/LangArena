@@ -4863,6 +4863,8 @@ Benchmark.registerBenchmark(Decompression);
 
 // =========== ЗАПУСК ===========
 
+const RECOMPILE_MARKER = 'RECOMPILE_MARKER_0';
+
 try {
   main().catch(console.error);
 } catch (error) {
