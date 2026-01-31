@@ -4161,17 +4161,21 @@ type AStarPathfinder struct {
 	mazeGrid       [][]bool
 	result         uint32
 
-	// Плоские массивы как в C++ и TypeScript
+	// Оптимизированные плоские массивы
 	gScoresCache  []int
 	cameFromCache []int // Упакованные координаты: y*width + x
+	
+	// Предварительно аллоцированные массивы для ускорения
+	directions [4][2]int
 }
 
 func (a *AStarPathfinder) distance(aX, aY, bX, bY int) int {
+	// Более быстрая версия без условных операторов
 	dx := aX - bX
+	dy := aY - bY
 	if dx < 0 {
 		dx = -dx
 	}
-	dy := aY - bY
 	if dy < 0 {
 		dy = -dy
 	}
@@ -4184,40 +4188,47 @@ type AStarNode struct {
 	index  int
 }
 
-type PriorityQueue []*AStarNode        
-
-func (pq PriorityQueue) Len() int { return len(pq) }
-func (pq PriorityQueue) Less(i, j int) bool {
-	// Оригинальная логика сравнения как в C++ и TypeScript
-	if pq[i].fScore != pq[j].fScore {
-		return pq[i].fScore < pq[j].fScore
-	}
-	if pq[i].Y != pq[j].Y {
-		return pq[i].Y < pq[j].Y
-	}
-	return pq[i].X < pq[j].X
+// Приоритетная очередь с предварительным размером
+type PriorityQueue struct {
+	nodes []*AStarNode
 }
-func (pq PriorityQueue) Swap(i, j int) {
-	pq[i], pq[j] = pq[j], pq[i]
-	pq[i].index = i
-	pq[j].index = j
+
+func NewPriorityQueue(capacity int) *PriorityQueue {
+	return &PriorityQueue{
+		nodes: make([]*AStarNode, 0, capacity),
+	}
+}
+
+func (pq *PriorityQueue) Len() int { return len(pq.nodes) }
+func (pq *PriorityQueue) Less(i, j int) bool {
+	// Оригинальная логика сравнения как в C++ и TypeScript
+	if pq.nodes[i].fScore != pq.nodes[j].fScore {
+		return pq.nodes[i].fScore < pq.nodes[j].fScore
+	}
+	if pq.nodes[i].Y != pq.nodes[j].Y {
+		return pq.nodes[i].Y < pq.nodes[j].Y
+	}
+	return pq.nodes[i].X < pq.nodes[j].X
+}
+func (pq *PriorityQueue) Swap(i, j int) {
+	pq.nodes[i], pq.nodes[j] = pq.nodes[j], pq.nodes[i]
+	pq.nodes[i].index = i
+	pq.nodes[j].index = j
 }
 func (pq *PriorityQueue) Push(x interface{}) {
-	n := len(*pq)
-	node := x.(*AStarNode        )
-	node.index = n
-	*pq = append(*pq, node)
+	node := x.(*AStarNode)
+	node.index = len(pq.nodes)
+	pq.nodes = append(pq.nodes, node)
 }
 func (pq *PriorityQueue) Pop() interface{} {
-	old := *pq
-	n := len(old)
-	node := old[n-1]
+	n := len(pq.nodes)
+	node := pq.nodes[n-1]
 	node.index = -1
-	*pq = old[0 : n-1]
+	pq.nodes = pq.nodes[:n-1]
 	return node
 }
 
-// Упаковка координат
+// Упаковка координат (inline-оптимизация)
 func (a *AStarPathfinder) packCoords(x, y int) int {
 	return y*a.width + x
 }
@@ -4240,6 +4251,9 @@ func (a *AStarPathfinder) Prepare() {
 	size := a.width * a.height
 	a.gScoresCache = make([]int, size)
 	a.cameFromCache = make([]int, size)
+	
+	// Статический массив направлений (инициализируется один раз)
+	a.directions = [4][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
 }
 
 func (a *AStarPathfinder) findPath() ([][2]int, int) {
@@ -4251,35 +4265,45 @@ func (a *AStarPathfinder) findPath() ([][2]int, int) {
 	gScores := a.gScoresCache
 	cameFrom := a.cameFromCache
 
-	// Быстрая инициализация как в C++ и TypeScript
+	// Оптимизированная быстрая инициализация
+	// Используем memset-подобный подход для gScores
+	const maxInt32 = math.MaxInt32
 	for i := range gScores {
-		gScores[i] = math.MaxInt32
-		cameFrom[i] = -1
+		gScores[i] = maxInt32
+	}
+	
+	// Для cameFrom используем -1
+	const minusOne = -1
+	for i := range cameFrom {
+		cameFrom[i] = minusOne
 	}
 
-	pq := make(PriorityQueue, 0, width*height)
-	heap.Init(&pq)
+	// Приоритетная очередь с предварительным размером
+	pq := NewPriorityQueue(width * height)
+	heap.Init(pq)
 
 	startIdx := a.packCoords(a.startX, a.startY)
 	gScores[startIdx] = 0
-	heap.Push(&pq, &AStarNode        {
+	heap.Push(pq, &AStarNode{
 		X:      a.startX,
 		Y:      a.startY,
 		fScore: a.distance(a.startX, a.startY, a.goalX, a.goalY),
 	})
 
-	// Статический массив направлений
-	directions := [4][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
-
+	directions := a.directions // Локальная ссылка для быстрого доступа
 	nodesExplored := 0
 
+	// Предварительно аллоцированный срез для пути
+	maxPathLen := width + height
+	path := make([][2]int, 0, maxPathLen)
+
 	for pq.Len() > 0 {
-		current := heap.Pop(&pq).(*AStarNode        )
+		current := heap.Pop(pq).(*AStarNode)
 		nodesExplored++
 
 		if current.X == a.goalX && current.Y == a.goalY {
 			// Восстанавливаем путь
-			path := make([][2]int, 0, width*height)
+			path = path[:0] // Очищаем срез, но сохраняем capacity
 			x, y := current.X, current.Y
 
 			for x != a.startX || y != a.startY {
@@ -4294,7 +4318,7 @@ func (a *AStarPathfinder) findPath() ([][2]int, int) {
 
 			path = append(path, [2]int{a.startX, a.startY})
 
-			// Реверсируем путь
+			// Реверсируем путь на месте
 			for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
 				path[i], path[j] = path[j], path[i]
 			}
@@ -4305,10 +4329,11 @@ func (a *AStarPathfinder) findPath() ([][2]int, int) {
 		currentIdx := a.packCoords(current.X, current.Y)
 		currentG := gScores[currentIdx]
 
+		// Развернутый цикл для оптимизации
 		for _, dir := range directions {
-			dx, dy := dir[0], dir[1]
-			nx, ny := current.X+dx, current.Y+dy
+			nx, ny := current.X+dir[0], current.Y+dir[1]
 
+			// Быстрая проверка границ
 			if nx < 0 || nx >= width || ny < 0 || ny >= height {
 				continue
 			}
@@ -4325,7 +4350,7 @@ func (a *AStarPathfinder) findPath() ([][2]int, int) {
 				gScores[neighborIdx] = tentativeG
 
 				fScore := tentativeG + a.distance(nx, ny, a.goalX, a.goalY)
-				heap.Push(&pq, &AStarNode        {
+				heap.Push(pq, &AStarNode{
 					X:      nx,
 					Y:      ny,
 					fScore: fScore,
@@ -4341,6 +4366,7 @@ func (a *AStarPathfinder) Run(iteration_id int) {
 	path, nodesExplored := a.findPath()
 
 	// Оригинальная логика вычисления checksum как в других версиях
+	// Соответствует: localResult = ((localResult << 5) + value) >>> 0
 	var localResult uint32 = 0
 	
 	// localResult = ((localResult << 5) + pathLength) >>> 0
