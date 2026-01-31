@@ -2960,69 +2960,76 @@ class CalculatorInterpreter < Benchmark
 end
 
 class GameOfLife < Benchmark
-  enum Cell : UInt8
-    Dead
-    Alive
-  end
-
+  # Убираем enum, используем прямо UInt8 для производительности
+  DEAD = 0_u8
+  ALIVE = 1_u8
+  
   class Grid
     property width : Int32
     property height : Int32
     
-    # Используем плоские массивы для лучшей производительности
-    @cells : Slice(Cell)
-    @buffer : Slice(Cell)  # Предварительно аллоцированный буфер
+    # Используем UInt8 напрямую для максимальной производительности
+    @cells : Slice(UInt8)
+    @buffer : Slice(UInt8)  # Предварительно аллоцированный буфер
     
     def initialize(@width : Int32, @height : Int32)
       size = @width * @height
-      @cells = Slice(Cell).new(size, Cell::Dead)
-      @buffer = Slice(Cell).new(size, Cell::Dead)
+      @cells = Slice(UInt8).new(size, DEAD)
+      @buffer = Slice(UInt8).new(size, DEAD)
     end
     
     # Конструктор для обмена буферов
-    def initialize(@width : Int32, @height : Int32, @cells : Slice(Cell), @buffer : Slice(Cell))
+    private def initialize(@width : Int32, @height : Int32, @cells : Slice(UInt8), @buffer : Slice(UInt8))
     end
     
-    # Инлайн методы для быстрого доступа
+    # Статический метод для создания с обменом буферов
+    def self.with_buffers(width : Int32, height : Int32, cells : Slice(UInt8), buffer : Slice(UInt8)) : Grid
+      new(width, height, cells, buffer)
+    end
+    
+    # Быстрый доступ по индексу
     private def index(x, y) : Int32
       y * @width + x
     end
     
-    def get(x, y) : Cell
+    def get(x, y) : UInt8
       @cells[index(x, y)]
     end
     
-    def set(x, y, cell : Cell)
+    def set(x, y, cell : UInt8)
       @cells[index(x, y)] = cell
     end
     
-    # Оптимизированный подсчет соседей
-    private def count_neighbors(x, y, cells : Slice(Cell)) : Int32
+    # Оптимизированный подсчет соседей (инлайн для скорости)
+    private def count_neighbors(x, y, cells : Slice(UInt8)) : Int32
+      w = @width
+      h = @height
+      
       # Предварительно вычисленные индексы с тороидальными границами
-      y_prev = y == 0 ? @height - 1 : y - 1
-      y_next = y == @height - 1 ? 0 : y + 1
-      x_prev = x == 0 ? @width - 1 : x - 1
-      x_next = x == @width - 1 ? 0 : x + 1
+      y_prev = y == 0 ? h - 1 : y - 1
+      y_next = y == h - 1 ? 0 : y + 1
+      x_prev = x == 0 ? w - 1 : x - 1
+      x_next = x == w - 1 ? 0 : x + 1
       
       # Развернутый подсчет 8 соседей
       count = 0
       
       # Верхний ряд
-      i = y_prev * @width
-      count += 1 if cells[i + x_prev] == Cell::Alive
-      count += 1 if cells[i + x] == Cell::Alive
-      count += 1 if cells[i + x_next] == Cell::Alive
+      idx = y_prev * w
+      count += cells[idx + x_prev].to_i32
+      count += cells[idx + x].to_i32
+      count += cells[idx + x_next].to_i32
       
       # Средний ряд
-      i = y * @width
-      count += 1 if cells[i + x_prev] == Cell::Alive
-      count += 1 if cells[i + x_next] == Cell::Alive
+      idx = y * w
+      count += cells[idx + x_prev].to_i32
+      count += cells[idx + x_next].to_i32
       
       # Нижний ряд
-      i = y_next * @width
-      count += 1 if cells[i + x_prev] == Cell::Alive
-      count += 1 if cells[i + x] == Cell::Alive
-      count += 1 if cells[i + x_next] == Cell::Alive
+      idx = y_next * w
+      count += cells[idx + x_prev].to_i32
+      count += cells[idx + x].to_i32
+      count += cells[idx + x_next].to_i32
       
       count
     end
@@ -3032,30 +3039,52 @@ class GameOfLife < Benchmark
       width = @width
       height = @height
       
-      # Локальные переменные для лучшей оптимизации
+      # Локальные ссылки для производительности
       cells = @cells
       buffer = @buffer
       
-      # Параллелизуемый цикл
+      # Оптимизированный цикл с предварительными вычислениями
       y = 0
       while y < height
         y_idx = y * width
+        
+        # Предварительно вычисленные индексы для y
+        y_prev_idx = (y == 0 ? height - 1 : y - 1) * width
+        y_next_idx = (y == height - 1 ? 0 : y + 1) * width
         
         x = 0
         while x < width
           idx = y_idx + x
           
-          # Подсчет соседей
-          neighbors = count_neighbors(x, y, cells)
+          # Вычисляем индексы соседей для x
+          x_prev = x == 0 ? width - 1 : x - 1
+          x_next = x == width - 1 ? 0 : x + 1
+          
+          # Развернутый подсчет соседей для максимальной скорости
+          neighbors = 0
+          
+          # Верхний ряд
+          neighbors += cells[y_prev_idx + x_prev].to_i32
+          neighbors += cells[y_prev_idx + x].to_i32
+          neighbors += cells[y_prev_idx + x_next].to_i32
+          
+          # Средний ряд
+          neighbors += cells[y_idx + x_prev].to_i32
+          neighbors += cells[y_idx + x_next].to_i32
+          
+          # Нижний ряд
+          neighbors += cells[y_next_idx + x_prev].to_i32
+          neighbors += cells[y_next_idx + x].to_i32
+          neighbors += cells[y_next_idx + x_next].to_i32
           
           # Оптимизированная логика игры
           current = cells[idx]
-          next_state = Cell::Dead
+          next_state = DEAD
           
-          if current.alive?
-            next_state = (neighbors == 2 || neighbors == 3) ? Cell::Alive : Cell::Dead
+          if current == ALIVE
+            next_state = (neighbors == 2 || neighbors == 3) ? ALIVE : DEAD
           elsif neighbors == 3
-            next_state = Cell::Alive
+            next_state = ALIVE
           end
           
           buffer[idx] = next_state
@@ -3067,19 +3096,20 @@ class GameOfLife < Benchmark
       end
       
       # Возвращаем новый Grid с обмененными буферами
-      Grid.new(width, height, buffer, cells)
+      Grid.with_buffers(width, height, buffer, cells)
     end
-
+    
     FNV_OFFSET_BASIS = 2166136261_u32
     FNV_PRIME = 16777619_u32
     
-    def compute_hash : UInt32      
+    def compute_hash : UInt32
       hash = FNV_OFFSET_BASIS
       
       # Оптимизированный цикл хэширования
+      cells = @cells
       i = 0
-      while i < @cells.size
-        alive = @cells[i] == Cell::Alive ? 1_u32 : 0_u32
+      while i < cells.size
+        alive = cells[i].to_u32  # 0 или 1 уже
         hash = (hash ^ alive) &* FNV_PRIME
         i += 1
       end
@@ -3100,14 +3130,18 @@ class GameOfLife < Benchmark
   
   def prepare
     # Инициализация случайными клетками
+    width = @width
+    height = @height
+    grid = @grid
+    
     y = 0
-    while y < @height
-      y_idx = y * @width
+    while y < height
+      y_idx = y * width
       
       x = 0
-      while x < @width
+      while x < width
         if Helper.next_float(1.0) < 0.1
-          @grid.set(x, y, Cell::Alive)
+          grid.set(x, y, ALIVE)
         end
         x += 1
       end
