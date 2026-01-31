@@ -1134,10 +1134,37 @@ end
 class Revcomp < Benchmark
   @input : String
 
+  COMPLEMENT_LOOKUP = begin
+    table = StaticArray(UInt8, 256).new(0_u8)
+    256.times { |i| table[i] = i.to_u8 }
+    
+    from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
+    to = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
+    from.to_slice.each_with_index do |byte, i|
+      table[byte] = to.unsafe_byte_at(i)
+    end
+    table
+  end
+
   def revcomp(seq)
-    seq = seq.reverse.tr("wsatugcyrkmbdhvnATUGCYRKMBDHVN", "WSTAACGRYMKVHDBNTAACGRYMKVHDBN")
-    stringlen = seq.size - 1
-    0.step(to: stringlen, by: 60) { |x| @result << seq[x...x + 60]; @result << "\n" }
+    bytesize = seq.bytesize
+    chunk_count = (bytesize + 59) // 60
+    
+    # Предвыделяем память
+    @result.clear
+    # @result.capacity = bytesize + chunk_count + 1
+    
+    # Обрабатываем блоками по 60 символов
+    bytesize.step(to: 1, by: -60) do |end_pos|
+      start_pos = Math.max(end_pos - 60, 0)
+      
+      # Обрабатываем блок
+      (end_pos - 1).downto(start_pos) do |i|
+        @result.write_byte(COMPLEMENT_LOOKUP[seq.unsafe_byte_at(i)])
+      end
+      
+      @result << "\n"
+    end
   end
 
   def initialize
