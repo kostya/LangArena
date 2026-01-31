@@ -3,12 +3,11 @@ using System.Text;
 public class Revcomp : Benchmark
 {
     private string _input = "";
-    private StringBuilder _resultBuilder = new StringBuilder();
+    private uint _result;
     
     public Revcomp()
     {
-        // Инициализируем здесь
-        _resultBuilder = new StringBuilder();
+        _result = 0;
     }
     
     public override void Prepare()
@@ -38,7 +37,6 @@ public class Revcomp : Benchmark
         }
         
         _input = seqBuilder.ToString();
-        _resultBuilder.Clear();
     }
     
     private string ReverseComplement(string seq)
@@ -85,16 +83,8 @@ public class Revcomp : Benchmark
     
     public override void Run(long IterationId)
     {
-        // Аккумулируем результат между запусками
-        _resultBuilder.Append(ReverseComplement(_input));
+        _result += Helper.Checksum(ReverseComplement(_input));
     }
     
-    public override uint Checksum
-    {
-        get
-        {
-            // Как в C++ версии: checksum от всей накопленной строки
-            return Helper.Checksum(_resultBuilder.ToString());
-        }
-    }
+    public override uint Checksum => _result;
 }
