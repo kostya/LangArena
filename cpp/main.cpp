@@ -348,24 +348,24 @@ public:
     }
 };
 
-// ==================== BrainfuckHashMap ====================
+// ==================== BrainfuckArray ====================
 
-class BrainfuckHashMap : public Benchmark {
+class BrainfuckArray : public Benchmark {
 private:
     class Tape {
     private:
-        std::vector<int> tape;
-        int pos;
+        std::vector<uint8_t> tape;
+        size_t pos;
         
     public:
-        Tape() : tape(1, 0), pos(0) {}
+        Tape() : tape(30000, 0), pos(0) {}
         
-        int get() const { return tape[pos]; }
+        uint8_t get() const { return tape[pos]; }
         void inc() { tape[pos]++; }
         void dec() { tape[pos]--; }
         void advance() { 
             pos++; 
-            if (pos >= static_cast<int>(tape.size())) {
+            if (pos >= tape.size()) {
                 tape.push_back(0);
             }
         }
@@ -376,27 +376,31 @@ private:
     
     class Program {
     private:
-        std::string chars;
-        std::unordered_map<int, int> bracket_map;
+        std::vector<uint8_t> commands;
+        std::vector<size_t> jumps;
         
     public:
         Program(const std::string& text) {
-            std::vector<int> left_stack;
-            int pc = 0;
-            
+            // Фильтруем только BF команды
             for (char c : text) {
                 if (std::string("[]<>+-,.").find(c) != std::string::npos) {
-                    chars.push_back(c);
-                    if (c == '[') {
-                        left_stack.push_back(pc);
-                    } else if (c == ']' && !left_stack.empty()) {
-                        int left = left_stack.back();
-                        left_stack.pop_back();
-                        int right = pc;
-                        bracket_map[left] = right;
-                        bracket_map[right] = left;
-                    }
-                    pc++;
+                    commands.push_back(static_cast<uint8_t>(c));
+                }
+            }
+            
+            // Строим массив прыжков
+            jumps.resize(commands.size(), 0);
+            std::vector<size_t> stack;
+            
+            for (size_t i = 0; i < commands.size(); ++i) {
+                uint8_t cmd = commands[i];
+                if (cmd == '[') {
+                    stack.push_back(i);
+                } else if (cmd == ']' && !stack.empty()) {
+                    size_t start = stack.back();
+                    stack.pop_back();
+                    jumps[start] = i;
+                    jumps[i] = start;
                 }
             }
         }
@@ -404,22 +408,30 @@ private:
         int64_t run() {
             int64_t result = 0;
             Tape tape;
-            int pc = 0;
+            size_t pc = 0;
             
-            while (pc < static_cast<int>(chars.size())) {
-                char c = chars[pc];
-                switch (c) {
+            while (pc < commands.size()) {
+                uint8_t cmd = commands[pc];
+                switch (cmd) {
                     case '+': tape.inc(); break;
                     case '-': tape.dec(); break;
                     case '>': tape.advance(); break;
                     case '<': tape.devance(); break;
                     case '[': 
-                        if (tape.get() == 0) pc = bracket_map[pc];
+                        if (tape.get() == 0) {
+                            pc = jumps[pc];
+                            continue;  // Важно: continue чтобы не выполнять pc++
+                        }
                         break;
                     case ']': 
-                        if (tape.get() != 0) pc = bracket_map[pc];
+                        if (tape.get() != 0) {
+                            pc = jumps[pc];
+                            continue;  // Важно: continue чтобы не выполнять pc++
+                        }
                         break;
-                    case '.': result = (result << 2) + static_cast<int>(tape.get()); break;
+                    case '.': 
+                        result = (result << 2) + static_cast<int64_t>(tape.get()); 
+                        break;
                 }
                 pc++;
             }
@@ -427,7 +439,8 @@ private:
         }
     };
     
-    std::string text;
+    std::string program_text;
+    std::string warmup_text;
     uint32_t result_val;
     
     int64_t _run(const std::string& text) {
@@ -436,22 +449,23 @@ private:
     }
     
 public:
-    BrainfuckHashMap() : result_val(0) {
-        text = Helper::config_s(name(), "program");
+    BrainfuckArray() : result_val(0) {
+        program_text = Helper::config_s(name(), "program");
+        warmup_text = Helper::config_s(name(), "warmup_program");
     }
     
-    std::string name() const override { return "BrainfuckHashMap"; }    
+    std::string name() const override { return "BrainfuckArray"; }    
     
     void warmup() override {
         int64_t prepare_iters = warmup_iterations();
-        std::string warmup_program = Helper::config_s(name(), "warmup_program");
         for (int64_t i = 0; i < prepare_iters; i++) {
-            _run(warmup_program);
+            _run(warmup_text);
         }
     }
     
     void run(int iteration_id) override {
-        result_val += _run(text);  // &+= эквивалент
+        int64_t run_result = _run(program_text);
+        result_val += static_cast<uint32_t>(run_result);
     }
     
     uint32_t checksum() override {
@@ -4448,7 +4462,7 @@ void Benchmark::all(const std::string& single_bench) {
     std::vector<std::pair<std::string, std::function<std::unique_ptr<Benchmark>()>>> benchmarks = {
         {"Pidigits", []() { return std::make_unique<Pidigits>(); }},
         {"Binarytrees", []() { return std::make_unique<Binarytrees>(); }},
-        {"BrainfuckHashMap", []() { return std::make_unique<BrainfuckHashMap>(); }},
+        {"BrainfuckArray", []() { return std::make_unique<BrainfuckArray>(); }},
         {"BrainfuckRecursion", []() { return std::make_unique<BrainfuckRecursion>(); }},
         {"Fannkuchredux", []() { return std::make_unique<Fannkuchredux>(); }},
         {"Fasta", []() { return std::make_unique<Fasta>(); }},
