@@ -1,11 +1,10 @@
 use super::super::{Benchmark, helper};
 use crate::config_i64;
-use std::io::Write;
 use crate::benchmarks::fasta::Fasta;
 
 pub struct Revcomp {
     input: String,
-    result_str: String,
+    result_val: u32,
     n: i64,
 }
 
@@ -16,11 +15,13 @@ impl Revcomp {
         Self {
             n,
             input: String::new(),
-            result_str: String::new(),
+            result_val: 0
         }
     }
 
-    fn revcomp(result: &mut String, seq: &str) {
+    fn revcomp(seq: &str) -> String {
+        let mut result = String::new();
+        
         // Таблица трансляции как в Crystal: 
         // from: "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
         // to:   "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
@@ -45,6 +46,8 @@ impl Revcomp {
             result.push_str(std::str::from_utf8(chunk).unwrap());
             result.push('\n');
         }
+
+        result
     }
 }
 
@@ -73,10 +76,16 @@ impl Benchmark for Revcomp {
     }
     
     fn run(&mut self, _iteration_id: i64) {
-        Self::revcomp(&mut self.result_str, &self.input);
+        let rev = Self::revcomp(&self.input);
+        // Используем &str, передавая ссылку на String
+        self.result_val = self.result_val.wrapping_add(helper::checksum_str(&rev));
     }
     
     fn checksum(&self) -> u32 {
-        helper::checksum_str(&self.result_str)
+        self.result_val
     }
 }
+
+// Для многопоточности
+unsafe impl Send for Revcomp {}
+unsafe impl Sync for Revcomp {}
