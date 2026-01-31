@@ -281,106 +281,112 @@ class Binarytrees < Benchmark
   end
 end
 
-class BrainfuckHashMap < Benchmark
-  class Tape
-    def initialize
-      @tape = [0]
-      @pos = 0
-    end
-
-    @[AlwaysInline]
-    def get
-      @tape[@pos]
-    end
-
-    @[AlwaysInline]
-    def inc
-      @tape[@pos] += 1
-    end
-
-    @[AlwaysInline]
-    def dec
-      @tape[@pos] -= 1
-    end
-
-    @[AlwaysInline]
-    def advance
-      @pos += 1
-      @tape << 0 if @tape.size <= @pos
-    end
-
-    @[AlwaysInline]
-    def devance
-      @pos -= 1 if @pos > 0
-    end
-  end
-
-  class Program
-    def initialize(text)
-      @chars = [] of Char
-      @bracket_map = {} of Int32 => Int32
-      leftstack = [] of Int32
-      pc = 0
-      text.each_char do |char|
-        if "[]<>+-,.".includes?(char)
-          @chars << char
-          if char == '['
-            leftstack << pc
-          elsif char == ']' && !leftstack.empty?
-            left = leftstack.pop
-            right = pc
-            @bracket_map[left] = right
-            @bracket_map[right] = left
-          end
-          pc += 1
-        end
-      end
-    end
-
-    def run
-      result = 0_i64
-      tape = Tape.new
-      pc = 0
-      while pc < @chars.size
-        case @chars[pc]
-        when '+'; tape.inc
-        when '-'; tape.dec
-        when '>'; tape.advance
-        when '<'; tape.devance
-        when '['; pc = @bracket_map[pc] if tape.get == 0
-        when ']'; pc = @bracket_map[pc] if tape.get != 0
-        when '.'; result = (result << 2) &+ tape.get.chr.ord
-        else
-        end
-        pc += 1
-      end
-      result
-    end
-  end
-
-  @text : String
-
+class BrainfuckArray < Benchmark
+  @program_text : String
+  @warmup_text : String
+  @result_val = 0u32
+  
   def initialize
-    @text = Helper.config_s(self.class.name.to_s, "program")
-    @result = 0_u32
+    @program_text = Helper.config_s("BrainfuckArray", "program")
+    @warmup_text = Helper.config_s("BrainfuckArray", "warmup_program")
   end
-
+  
   def warmup
-    warmup_iterations.times do
-      _run(Helper.config_s(self.class.name.to_s, "warmup_program"))
+    prepare_iters = warmup_iterations
+    prepare_iters.times do
+      run_program(@warmup_text)
     end
   end
-
-  private def _run(text : String)
-    Program.new(text).run
-  end
-
+  
   def run(iteration_id)
-    @result &+= _run(@text)
+    if result = run_program(@program_text)
+      @result_val &+= result.to_u32
+    end
   end
-
+  
   def checksum : UInt32
-    @result
+    @result_val
+  end
+  
+  private def run_program(source : String) : UInt32?
+    commands = parse_commands(source)
+    return nil unless commands
+    
+    jumps = build_jump_array(commands)
+    return nil unless jumps
+    
+    interpret(commands, jumps)
+  end
+  
+  private def parse_commands(source : String) : Array(Char)?
+    # Crystal-стиль: компактный фильтр
+    source.chars
+          .select(&.ascii?)
+          .select { |c| "+-<>[].,".includes?(c) }
+          .to_a
+  end
+  
+  private def build_jump_array(commands : Array(Char)) : Array(Int32)?
+    jumps = Array.new(commands.size, 0)
+    stack = [] of Int32
+    
+    commands.each_with_index do |cmd, i|
+      case cmd
+      when '['
+        stack << i
+      when ']'
+        start = stack.pop?
+        return nil unless start
+        jumps[start] = i
+        jumps[i] = start
+      end
+    end
+    
+    stack.empty? ? jumps : nil
+  end
+  
+  private def interpret(commands : Array(Char), jumps : Array(Int32)) : UInt32?
+    tape = Array.new(30000, 0_u8)
+    tape_ptr = 0
+    pc = 0
+    result = 0_u32
+    
+    while pc < commands.size
+      case commands[pc]
+      when '+'
+        tape[tape_ptr] &+= 1
+      when '-'
+        tape[tape_ptr] &-= 1
+      when '>'
+        tape_ptr += 1
+        tape << 0 if tape_ptr >= tape.size
+      when '<'
+        tape_ptr = (tape_ptr - 1).clamp(0, Int32::MAX)
+      when '['
+        if tape[tape_ptr] == 0
+          jump_to = jumps[pc]?
+          return nil unless jump_to
+          pc = jump_to
+          next
+        end
+      when ']'
+        if tape[tape_ptr] != 0
+          jump_to = jumps[pc]?
+          return nil unless jump_to
+          pc = jump_to
+          next
+        end
+      when '.'
+        # result = (result << 2) &+ tape[tape_ptr]
+        result <<= 2
+        result &+= tape[tape_ptr]
+      end
+      pc += 1
+    end
+    
+    result
+  rescue
+    nil
   end
 end
 
