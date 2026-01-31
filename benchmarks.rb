@@ -1375,7 +1375,7 @@ def run(run, index)
     RESULTS[test_name+"-runtime"][run.name] = run_time
   end
 
-  [summary, (memory / TESTS.size) rescue 0]
+  [summary, ((memory / TESTS.size) rescue 0)]
 end
 
 puts "---------- Run ----------"
