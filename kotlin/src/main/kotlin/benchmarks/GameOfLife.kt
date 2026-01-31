@@ -8,66 +8,108 @@ class GameOfLife : Benchmark() {
     }
     
     private class Grid(private val width: Int, private val height: Int) {
-        private val cells = Array(height) { Array(width) { Cell.DEAD } }
+        // Плоские массивы для лучшей производительности
+        private var cells: ByteArray
+        private var buffer: ByteArray  // Предварительно аллоцированный буфер
         
-        operator fun get(x: Int, y: Int): Cell = cells[y][x]
-        operator fun set(x: Int, y: Int, cell: Cell) {
-            cells[y][x] = cell
+        init {
+            val size = width * height
+            cells = ByteArray(size)
+            buffer = ByteArray(size)
         }
         
-        fun countNeighbors(x: Int, y: Int): Int {
+        // Конструктор для обмена буферов
+        private constructor(width: Int, height: Int, cells: ByteArray, buffer: ByteArray) : this(width, height) {
+            this.cells = cells
+            this.buffer = buffer
+        }
+        
+        // Быстрый доступ по индексу
+        private fun index(x: Int, y: Int): Int = y * width + x
+        
+        operator fun get(x: Int, y: Int): Cell = 
+            if (cells[index(x, y)] == 1.toByte()) Cell.ALIVE else Cell.DEAD
+        
+        operator fun set(x: Int, y: Int, cell: Cell) {
+            cells[index(x, y)] = if (cell == Cell.ALIVE) 1 else 0
+        }
+        
+        // Оптимизированный подсчет соседей
+        private fun countNeighbors(x: Int, y: Int, cells: ByteArray): Int {
+            // Предварительно вычисленные индексы с тороидальными границами
+            val yPrev = if (y == 0) height - 1 else y - 1
+            val yNext = if (y == height - 1) 0 else y + 1
+            val xPrev = if (x == 0) width - 1 else x - 1
+            val xNext = if (x == width - 1) 0 else x + 1
+            
+            // Развернутый подсчет 8 соседей
             var count = 0
             
-            for (dy in -1..1) {
-                for (dx in -1..1) {
-                    if (dx == 0 && dy == 0) continue
-                    
-                    // Тороидальные координаты
-                    var nx = (x + dx) % width
-                    var ny = (y + dy) % height
-                    if (nx < 0) nx += width
-                    if (ny < 0) ny += height
-                    
-                    if (cells[ny][nx] == Cell.ALIVE) {
-                        count++
-                    }
-                }
-            }
+            // Верхний ряд
+            var idx = yPrev * width
+            if (cells[idx + xPrev] == 1.toByte()) count++
+            if (cells[idx + x] == 1.toByte()) count++
+            if (cells[idx + xNext] == 1.toByte()) count++
+            
+            // Средний ряд
+            idx = y * width
+            if (cells[idx + xPrev] == 1.toByte()) count++
+            if (cells[idx + xNext] == 1.toByte()) count++
+            
+            // Нижний ряд
+            idx = yNext * width
+            if (cells[idx + xPrev] == 1.toByte()) count++
+            if (cells[idx + x] == 1.toByte()) count++
+            if (cells[idx + xNext] == 1.toByte()) count++
             
             return count
         }
         
         fun nextGeneration(): Grid {
-            val nextGrid = Grid(width, height)
+            // Локальные переменные для лучшей производительности
+            val w = width
+            val h = height
+            val currentCells = cells
+            val nextCells = buffer
             
-            for (y in 0 until height) {
-                for (x in 0 until width) {
-                    val neighbors = countNeighbors(x, y)
-                    val current = cells[y][x]
+            // Оптимизированный цикл
+            for (y in 0 until h) {
+                val yIdx = y * w
+                
+                for (x in 0 until w) {
+                    val idx = yIdx + x
                     
+                    // Подсчет соседей
+                    val neighbors = countNeighbors(x, y, currentCells)
+                    
+                    // Оптимизированная логика игры
+                    val current = currentCells[idx]
                     val nextState = when {
-                        current == Cell.ALIVE && (neighbors == 2 || neighbors == 3) -> Cell.ALIVE
-                        current == Cell.DEAD && neighbors == 3 -> Cell.ALIVE
-                        else -> Cell.DEAD
+                        current == 1.toByte() && (neighbors == 2 || neighbors == 3) -> 1.toByte()
+                        current == 0.toByte() && neighbors == 3 -> 1.toByte()
+                        else -> 0.toByte()
                     }
                     
-                    nextGrid.cells[y][x] = nextState
+                    nextCells[idx] = nextState
                 }
             }
             
-            return nextGrid
+            // Возвращаем новый Grid с обмененными буферами
+            return Grid(w, h, nextCells, currentCells)
         }
         
         fun computeHash(): UInt {
-            var hasher = 2166136261UL      // FNV offset basis
-            val prime = 16777619UL         // FNV prime
+            val FNV_OFFSET_BASIS: ULong = 2166136261UL
+            val FNV_PRIME: ULong = 16777619UL
             
-            for (row in cells) {
-                for (cell in row) {
-                    val alive = if (cell == Cell.ALIVE) 1UL else 0UL
-                    hasher = (hasher xor alive) * prime
-                }
+            var hasher = FNV_OFFSET_BASIS
+            
+            // Оптимизированный цикл хэширования
+            for (i in cells.indices) {
+                val alive = if (cells[i] == 1.toByte()) 1UL else 0UL
+                hasher = (hasher xor alive) * FNV_PRIME
             }
+            
             return hasher.toUInt()
         }
     }
@@ -85,8 +127,9 @@ class GameOfLife : Benchmark() {
     override fun prepare() {
         grid = Grid(width, height)
         
-        // Инициализация случайными клетками
+        // Оптимизированная инициализация случайными клетками
         for (y in 0 until height) {
+            val yIdx = y * width
             for (x in 0 until width) {
                 if (Helper.nextFloat() < 0.1f) {
                     grid[x, y] = Cell.ALIVE
