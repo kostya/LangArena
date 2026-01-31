@@ -1438,30 +1438,38 @@ private:
     uint32_t _checksum;
     
     std::string revcomp(const std::string& seq) {
+        // 1. Сразу создаем строку нужного размера
         std::string reversed = seq;
+        
+        // 2. Быстрый reverse
         std::reverse(reversed.begin(), reversed.end());
         
-        static const std::string from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
-        static const std::string to   = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
-        
+        // 3. Lookup таблица как static (уже оптимально)
         static std::array<char, 256> lookup;
-        static bool initialized = false;
+        static std::once_flag flag;
         
-        if (!initialized) {
+        std::call_once(flag, []() {
             for (int i = 0; i < 256; i++) {
                 lookup[i] = static_cast<char>(i);
             }
+            
+            static constexpr std::string_view from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
+            static constexpr std::string_view to   = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
+            
             for (size_t i = 0; i < from.size(); i++) {
                 lookup[static_cast<unsigned char>(from[i])] = to[i];
             }
-            initialized = true;
-        }
+        });
         
+        // 4. SIMD-дружественная замена
         for (char& c : reversed) {
             c = lookup[static_cast<unsigned char>(c)];
         }
         
+        // 5. Форматирование с reserve
         std::string result;
+        result.reserve(reversed.size() + (reversed.size() / 60) + 1);
+        
         for (size_t i = 0; i < reversed.size(); i += 60) {
             size_t end = std::min(i + 60, reversed.size());
             result.append(reversed, i, end - i);
@@ -1470,7 +1478,7 @@ private:
         
         return result;
     }
-        
+            
 public:
     Revcomp(): _checksum(0) {}
     
