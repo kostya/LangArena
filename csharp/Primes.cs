@@ -76,23 +76,32 @@ public class Primes : Benchmark
     private static Node BuildTrie(List<int> primes)
     {
         var root = new Node();
-        var sb = new StringBuilder(12);
         
-        foreach (int prime in primes)
+        // Локальная функция для избежания замыканий
+        static void AddPrimeToTrie(Node root, int prime)
         {
             Node current = root;
+            int temp = prime;
+            Span<int> digits = stackalloc int[12];
+            int digitCount = 0;
             
-            sb.Clear();
-            sb.Append(prime);
-            ReadOnlySpan<char> digits = sb.ToString();
-            
-            foreach (char ch in digits)
+            while (temp > 0)
             {
-                int digit = ch - '0';
-                current = current.GetOrCreateChild(digit);
+                digits[digitCount++] = temp % 10;
+                temp /= 10;
+            }
+            
+            for (int i = digitCount - 1; i >= 0; i--)
+            {
+                current = current.GetOrCreateChild(digits[i]);
             }
             
             current.Terminal = true;
+        }
+        
+        foreach (int prime in primes)
+        {
+            AddPrimeToTrie(root, prime);
         }
         
         return root;
