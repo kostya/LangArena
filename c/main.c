@@ -2331,34 +2331,59 @@ static char Revcomp_complement(char c) {
 
 static char* Revcomp_process(const char* input) {
     size_t len = strlen(input);
-
-    // 1. Реверсируем всю строку
-    char* reversed = malloc(len + 1);
-    for (size_t i = 0; i < len; i++) {
-        reversed[i] = input[len - 1 - i];
+    
+    // Lookup таблица (статическая инициализация)
+    static char lookup[256];
+    static int initialized = 0;
+    
+    if (!initialized) {
+        for (int i = 0; i < 256; i++) lookup[i] = (char)i;
+        
+        const char* from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
+        const char* to   = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
+        
+        for (size_t i = 0; from[i] && to[i]; i++) {
+            lookup[(unsigned char)from[i]] = to[i];
+        }
+        initialized = 1;
     }
-    reversed[len] = '\0';
     
-    // 2. Комплементируем всю строку
-    for (size_t i = 0; i < len; i++) {
-        reversed[i] = Revcomp_complement(reversed[i]);
-    }
+    // Вычисляем размер результата: len символов + \n каждые 60 символов + 1 для \0
+    size_t result_len = len + (len / 60) + 1;
+    if (len % 60 == 0 && len > 0) result_len--; // Не добавляем лишний \n в конце
     
-    // 3. Разбиваем на строки по 60 символов
-    size_t formatted_len = len + (len / 60) + 2;
-    char* formatted = malloc(formatted_len);
-    char* out = formatted;
+    // Одна аллокация
+    char* result = malloc(result_len + 1);
+    if (!result) return NULL;
     
-    for (size_t i = 0; i < len; i += 60) {
-        size_t chunk = (len - i < 60) ? len - i : 60;
-        memcpy(out, reversed + i, chunk);
-        out += chunk;
+    char* out = result;
+    size_t processed = 0;
+    
+    // Обрабатываем блоками по 60 символов
+    while (processed < len) {
+        // Определяем размер текущего блока (1-60 символов)
+        size_t block_size = 60;
+        if (len - processed < 60) {
+            block_size = len - processed;
+        }
+        
+        // Обрабатываем блок: reverse + complement в одном проходе
+        for (size_t i = 0; i < block_size; i++) {
+            char c = input[len - 1 - processed - i];
+            *out++ = lookup[(unsigned char)c];
+        }
+        
         *out++ = '\n';
+        processed += block_size;
     }
-    *out = '\0';
     
-    free(reversed);
-    return formatted;
+    // Если последний блок был ровно 60 символов, убираем лишний \n
+    if (len > 0 && len % 60 == 0) {
+        out--;
+    }
+    
+    *out = '\0';
+    return result;
 }
 
 void Revcomp_prepare(Benchmark* self) {
