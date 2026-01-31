@@ -1349,6 +1349,9 @@ write_results
 def run(run, index)
   run.run(run.build_cmd, false) # build still neded because swift, java, kotlin, typescript all use same binary
 
+  summary = 0.0
+  memory = 0.0
+
   puts "Running #{run.name} (#{index} from #{RUNS.size})"
   TESTS.each_with_index do |test_name, index|
     print "#{index}. #{test_name}"
@@ -1357,10 +1360,12 @@ def run(run, index)
   
     stats = run.run("#{run.run_cmd} #{CFG} #{test_name}", IS_VERBOSE)
     mem = stats[:rss] / 1024.0
+    memory += mem
     RESULTS[test_name+"-mem-mb"][run.name] = mem
 
     if stats[:out] =~ /#{test_name}: OK in ([\d\.]+)s/      
       run_time = $1.to_f
+      summary += run_time
       puts " - #{run_time}s, #{(mem).round(1)}Mb"
     else
       puts "Warning something wrong while running #{run.inspect}: #{stats.inspect}"
@@ -1369,14 +1374,17 @@ def run(run, index)
 
     RESULTS[test_name+"-runtime"][run.name] = run_time
   end
+
+  [summary, (memory / TESTS.size) rescue 0]
 end
 
 puts "---------- Run ----------"
 RUNS.each_with_index do |run, index| 
+  summary, memory = 0, 0
   delta = measure do
-    run(run, index)
+    summary, memory = run(run, index)
   end
-  puts "Finished #{run.name} in #{delta.round(3)}"
+  puts "Finished #{run.name} in #{delta.round(3)} (#{summary.round(3)}s, #{memory.round(3)}Mb)"
   write_results
 end
 
