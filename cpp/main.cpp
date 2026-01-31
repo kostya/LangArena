@@ -1435,7 +1435,7 @@ public:
 class Revcomp : public Benchmark {
 private:
     std::string input;
-    std::string result_str;
+    uint32_t _checksum;
     
     std::string revcomp(const std::string& seq) {
         std::string reversed = seq;
@@ -1472,7 +1472,7 @@ private:
     }
         
 public:
-    Revcomp() {}
+    Revcomp(): _checksum(0) {}
     
     std::string name() const override { return "Revcomp"; }    
     
@@ -1497,11 +1497,12 @@ public:
     }
     
     void run(int iteration_id) override {
-        result_str += revcomp(input);
+        auto result_str = revcomp(input);
+        _checksum += Helper::checksum(result_str);
     }
     
     uint32_t checksum() override {
-        return Helper::checksum(result_str);
+        return _checksum;
     }
 };
 
