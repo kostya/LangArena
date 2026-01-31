@@ -1143,6 +1143,7 @@ class Revcomp < Benchmark
   def initialize
     @result = IO::Memory.new
     @input = ""
+    @checksum = 0_u32
   end
 
   def prepare
@@ -1162,11 +1163,13 @@ class Revcomp < Benchmark
   end
 
   def run(iteration_id)
+    @result.clear
     revcomp(@input)
+    @checksum &+= Helper.checksum(@result.to_s)
   end
 
   def checksum : UInt32
-    Helper.checksum(@result.to_s)
+    @checksum
   end
 end
 
