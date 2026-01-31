@@ -9,7 +9,7 @@ func main() {
 
     BenchmarkManager.register { Pidigits() }
     BenchmarkManager.register { Binarytrees() }
-    BenchmarkManager.register { BrainfuckHashMap() }
+    BenchmarkManager.register { BrainfuckArray() }
     BenchmarkManager.register { BrainfuckRecursion() }
     BenchmarkManager.register { Fannkuchredux() }
     BenchmarkManager.register { Fasta() }
