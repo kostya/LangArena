@@ -1,8 +1,8 @@
 package benchmarks
 
 import Benchmark
-import java.util.*
-import kotlin.math.*
+import kotlin.math.abs
+import java.util.Collections
 
 class AStarPathfinder : Benchmark() {
     private data class Node(val x: Int, val y: Int, val fScore: Int) : Comparable<Node> {
@@ -17,8 +17,8 @@ class AStarPathfinder : Benchmark() {
         }
     }
     
-    private class BinaryHeap {
-        private val data = mutableListOf<Node>()
+    private class BinaryHeap(initialCapacity: Int = 64) {
+        private val data = ArrayList<Node>(initialCapacity)
         
         fun push(item: Node) {
             data.add(item)
@@ -86,6 +86,18 @@ class AStarPathfinder : Benchmark() {
     private val height: Int
     private lateinit var mazeGrid: Array<BooleanArray>
     
+    // Кэшированные массивы (выделяются один раз)
+    private lateinit var gScoresCache: Array<IntArray>
+    private lateinit var cameFromCache: Array<IntArray> // Упакованные координаты: y * width + x
+    
+    // Статический массив направлений
+    private companion object {
+        val DIRECTIONS = arrayOf(0 to -1, 1 to 0, 0 to 1, -1 to 0)
+        const val STRAIGHT_COST = 1000
+        const val MAX_INT = Int.MAX_VALUE
+        const val INVALID_COORD = -1
+    }
+    
     init {
         width = configVal("w").toInt()
         height = configVal("h").toInt()
@@ -96,35 +108,60 @@ class AStarPathfinder : Benchmark() {
     }
     
     private fun distance(aX: Int, aY: Int, bX: Int, bY: Int): Int {
-        return (abs(aX - bX) + abs(aY - bY))
+        return abs(aX - bX) + abs(aY - bY)
     }
     
-    private fun findPath(): Pair<kotlin.collections.List<Pair<Int, Int>>?, Int> {
+    // Упаковка координат
+    private fun packCoords(x: Int, y: Int): Int = y * width + x
+    
+    // Распаковка координат
+    private fun unpackCoords(packed: Int): Pair<Int, Int> = Pair(packed % width, packed / width)
+    
+    // Инициализация кэшированных массивов
+    private fun initCachedArrays() {
+        if (!::gScoresCache.isInitialized || 
+            gScoresCache.size != height || 
+            gScoresCache[0].size != width) {
+            gScoresCache = Array(height) { IntArray(width) }
+            cameFromCache = Array(height) { IntArray(width) }
+        }
+    }
+    
+    private fun findPathOptimized(): Pair<List<Pair<Int, Int>>?, Int> {
         val grid = mazeGrid
         
-        val gScores = Array(height) { IntArray(width) { Int.MAX_VALUE } }
-        val cameFrom = Array(height) { Array<Pair<Int, Int>?>(width) { null } }
-        val openSet = BinaryHeap()
+        // Используем кэшированные массивы
+        val gScores = gScoresCache
+        val cameFrom = cameFromCache
+        
+        // Быстрая инициализация массивов
+        for (y in 0 until height) {
+            gScores[y].fill(MAX_INT)
+            cameFrom[y].fill(INVALID_COORD)
+        }
+        
+        val openSet = BinaryHeap(width * height)
         var nodesExplored = 0
         
         gScores[startY][startX] = 0
         openSet.push(Node(startX, startY, 
                          distance(startX, startY, goalX, goalY)))
         
-        val directions = listOf(0 to -1, 1 to 0, 0 to 1, -1 to 0)
-        
         while (!openSet.isEmpty()) {
             val current = openSet.pop() ?: break
             nodesExplored++
             
             if (current.x == goalX && current.y == goalY) {
-                val path = mutableListOf<Pair<Int, Int>>()
+                val path = ArrayList<Pair<Int, Int>>(width * height)
                 var x = current.x
                 var y = current.y
                 
                 while (x != startX || y != startY) {
                     path.add(x to y)
-                    val (prevX, prevY) = cameFrom[y][x]!!
+                    val packed = cameFrom[y][x]
+                    if (packed == INVALID_COORD) break
+                    
+                    val (prevX, prevY) = unpackCoords(packed)
                     x = prevX
                     y = prevY
                 }
@@ -136,17 +173,18 @@ class AStarPathfinder : Benchmark() {
             
             val currentG = gScores[current.y][current.x]
             
-            for ((dx, dy) in directions) {
+            for ((dx, dy) in DIRECTIONS) {
                 val nx = current.x + dx
                 val ny = current.y + dy
                 
                 if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue
                 if (!grid[ny][nx]) continue
                 
-                val tentativeG = currentG + 1000
+                val tentativeG = currentG + STRAIGHT_COST
                 
                 if (tentativeG < gScores[ny][nx]) {
-                    cameFrom[ny][nx] = current.x to current.y
+                    // Упаковываем координаты
+                    cameFrom[ny][nx] = packCoords(current.x, current.y)
                     gScores[ny][nx] = tentativeG
                     
                     val fScore = tentativeG + distance(nx, ny, goalX, goalY)
@@ -160,15 +198,16 @@ class AStarPathfinder : Benchmark() {
     
     override fun prepare() {
         mazeGrid = MazeGenerator.Maze.generateWalkableMaze(width, height)
+        initCachedArrays()
     }
     
     override fun run(iterationId: Int) {
-        val (path, nodesExplored) = findPath()
+        val (path, nodesExplored) = findPathOptimized()
         
         var localResult = 0L
         localResult = (localResult shl 5) + (path?.size ?: 0)
         localResult = (localResult shl 5) + nodesExplored
-        resultVal += localResult.toUInt()  // &+= эквивалент
+        resultVal = resultVal.plus(localResult.toUInt())  // Эквивалент &+=
     }
     
     override fun checksum(): UInt = resultVal

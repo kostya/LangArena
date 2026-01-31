@@ -18,7 +18,12 @@ final class AStarPathfinder: BenchmarkProtocol {
     }
     
     private struct BinaryHeap<T: Comparable> {
-        private var data: [T] = []
+        private var data: [T]
+        
+        init(capacity: Int = 64) {
+            data = []
+            data.reserveCapacity(capacity)
+        }
         
         var isEmpty: Bool { data.isEmpty }
         
@@ -42,12 +47,11 @@ final class AStarPathfinder: BenchmarkProtocol {
         
         private mutating func siftUp(from index: Int) {
             var child = index
-            var parent = (child - 1) / 2
-            
-            while child > 0 && data[child] < data[parent] {
+            while child > 0 {
+                let parent = (child - 1) / 2
+                guard data[child] < data[parent] else { break }
                 data.swapAt(child, parent)
                 child = parent
-                parent = (child - 1) / 2
             }
         }
         
@@ -77,34 +81,76 @@ final class AStarPathfinder: BenchmarkProtocol {
     }
     
     private func distance(ax: Int, ay: Int, bx: Int, by: Int) -> Int {
-        return abs(ax - bx) + abs(ay - by)
+        let dx = ax > bx ? ax - bx : bx - ax
+        let dy = ay > by ? ay - by : by - ay
+        return dx + dy
     }
     
-    private func findPath() -> (path: [(x: Int, y: Int)]?, nodesExplored: Int) {
-        var grid = mazeGrid
+    // Упаковка координат
+    private func packCoords(x: Int, y: Int) -> Int {
+        return y * width + x
+    }
+    
+    // Распаковка координат
+    private func unpackCoords(packed: Int) -> (x: Int, y: Int) {
+        return (packed % width, packed / width)
+    }
+    
+    // Кэшированные массивы (выделяются один раз)
+    private var gScoresCache: [[Int]] = []
+    private var cameFromCache: [[Int]] = [] // Упакованные координаты: y * width + x
+    
+    // Статические константы
+    private static let directions = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+    private static let straightCost = 1000
+    private static let maxInt = Int.max
+    
+    private func initCachedArrays() {
+        if gScoresCache.count != height || 
+           (height > 0 && gScoresCache[0].count != width) {
+            gScoresCache = Array(repeating: Array(repeating: 0, count: width), count: height)
+            cameFromCache = Array(repeating: Array(repeating: 0, count: width), count: height)
+        }
+    }
+    
+    private func findPathOptimized() -> (path: [(x: Int, y: Int)]?, nodesExplored: Int) {
+        let grid = mazeGrid
         
-        var gScores = Array(repeating: Array(repeating: Int.max, count: width), count: height)
-        var cameFrom = Array(repeating: Array(repeating: (-1, -1), count: width), count: height)
-        var openSet = BinaryHeap<Node>()
+        // Используем кэшированные массивы
+        var gScores = gScoresCache
+        var cameFrom = cameFromCache
+        
+        // Быстрая инициализация массивов
+        for y in 0..<height {
+            for x in 0..<width {
+                gScores[y][x] = Self.maxInt
+                cameFrom[y][x] = -1
+            }
+        }
+        
+        var openSet = BinaryHeap<Node>(capacity: width * height)
         var nodesExplored = 0
         
         gScores[startY][startX] = 0
         openSet.push(Node(x: startX, y: startY, 
                          fScore: distance(ax: startX, ay: startY, bx: goalX, by: goalY)))
         
-        let directions = [(0, -1), (1, 0), (0, 1), (-1, 0)]
-        
         while let current = openSet.pop() {
             nodesExplored += 1
             
             if current.x == goalX && current.y == goalY {
                 var path: [(x: Int, y: Int)] = []
+                path.reserveCapacity(width * height)
+                
                 var x = current.x
                 var y = current.y
                 
                 while x != startX || y != startY {
                     path.append((x, y))
-                    let (px, py) = cameFrom[y][x]
+                    let packed = cameFrom[y][x]
+                    guard packed != -1 else { break }
+                    
+                    let (px, py) = unpackCoords(packed: packed)
                     x = px
                     y = py
                 }
@@ -116,17 +162,18 @@ final class AStarPathfinder: BenchmarkProtocol {
             
             let currentG = gScores[current.y][current.x]
             
-            for (dx, dy) in directions {
+            for (dx, dy) in Self.directions {
                 let nx = current.x + dx
                 let ny = current.y + dy
                 
                 if nx < 0 || nx >= width || ny < 0 || ny >= height { continue }
                 if !grid[ny][nx] { continue }
                 
-                let tentativeG = currentG + 1000
+                let tentativeG = currentG + Self.straightCost
                 
                 if tentativeG < gScores[ny][nx] {
-                    cameFrom[ny][nx] = (current.x, current.y)
+                    // Упаковываем координаты
+                    cameFrom[ny][nx] = packCoords(x: current.x, y: current.y)
                     gScores[ny][nx] = tentativeG
                     
                     let fScore = tentativeG + distance(ax: nx, ay: ny, bx: goalX, by: goalY)
@@ -162,14 +209,14 @@ final class AStarPathfinder: BenchmarkProtocol {
         
         // Генерируем лабиринт
         mazeGrid = MazeGenerator.Maze.generateWalkableMaze(width: width, height: height)
+        initCachedArrays()
     }
     
     func run(iterationId: Int) {
-        let (path, nodesExplored) = findPath()
+        let (path, nodesExplored) = findPathOptimized()
         
         var localResult: UInt32 = 0
         
-        // КАК В C++: path.count БЕЗ деления на 2 (храним пары координат)
         let pathLength = UInt32(path?.count ?? 0)
         localResult = (localResult << 5) &+ pathLength
         localResult = (localResult << 5) &+ UInt32(nodesExplored)
