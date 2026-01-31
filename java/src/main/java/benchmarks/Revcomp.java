@@ -1,18 +1,21 @@
 package benchmarks;
 
-import java.util.HashMap;
-import java.util.Map;
-
 public class Revcomp extends Benchmark {
     private String input;
     private long resultVal;
-    private static final Map<Character, Character> COMPLEMENT = new HashMap<>();
+    private static final char[] LOOKUP = new char[256];
     
     static {
+        // Инициализируем lookup таблицу
+        for (int i = 0; i < 256; i++) {
+            LOOKUP[i] = (char)i;
+        }
+        
         String from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
         String to   = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
+        
         for (int i = 0; i < from.length(); i++) {
-            COMPLEMENT.put(from.charAt(i), to.charAt(i));
+            LOOKUP[from.charAt(i)] = to.charAt(i);
         }
     }
     
@@ -34,12 +37,20 @@ public class Revcomp extends Benchmark {
         String fastaResult = fasta.getResultString();
         
         StringBuilder seq = new StringBuilder();
-        for (String line : fastaResult.split("\n")) {
+        int start = 0;
+        int end;
+        
+        // Ручной парсинг вместо split("\n")
+        while ((end = fastaResult.indexOf('\n', start)) != -1) {
+            String line = fastaResult.substring(start, end);
+            
             if (line.startsWith(">")) {
                 seq.append("\n---\n");
             } else {
                 seq.append(line);
             }
+            
+            start = end + 1;
         }
         
         input = seq.toString();
@@ -51,19 +62,31 @@ public class Revcomp extends Benchmark {
     }
     
     private String revcompString(String seq) {
-        StringBuilder reversed = new StringBuilder(seq).reverse();
-        for (int i = 0; i < reversed.length(); i++) {
-            char c = reversed.charAt(i);
-            reversed.setCharAt(i, COMPLEMENT.getOrDefault(c, c));
+        int length = seq.length();
+        int lines = (length + 59) / 60;
+        char[] result = new char[length + lines];
+        int pos = 0;
+        
+        // Обрабатываем блоками
+        for (int start = length; start > 0; start -= 60) {
+            int chunkStart = Math.max(start - 60, 0);
+            int chunkSize = start - chunkStart;
+            
+            // Копируем и преобразуем
+            for (int i = start - 1; i >= chunkStart; i--) {
+                char c = seq.charAt(i);
+                result[pos++] = LOOKUP[c];
+            }
+            
+            result[pos++] = '\n';
         }
         
-        StringBuilder resultStr = new StringBuilder();
-        int stringLen = reversed.length();
-        for (int i = 0; i < stringLen; i += 60) {
-            int end = Math.min(i + 60, stringLen);
-            resultStr.append(reversed.substring(i, end)).append("\n");
+        // Убираем последний \n
+        if (length % 60 == 0 && length > 0) {
+            pos--;
         }
-        return resultStr.toString();
+        
+        return new String(result, 0, pos);
     }
     
     @Override
