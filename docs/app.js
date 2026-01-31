@@ -22,7 +22,7 @@ function changeTab(tabId, group_lang_option_checked = false) {
             if (group_lang_option_checked) {
                 data = window.Data.runtime_table_by_lang_rel;
             };
-            create_table($results, "Rumtime relative to fastest", data, true, true, group_lang_option_checked);
+            create_table($results, "Runtime relative to fastest", data, true, true, group_lang_option_checked);
             break;        
         case 'memory_tab':
             var data = window.Data.memory_table;
