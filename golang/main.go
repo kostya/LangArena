@@ -1606,7 +1606,7 @@ func (r *RegexDna) Checksum() uint32 {
 type Revcomp struct {
 	BaseBenchmark
 	input  string
-	result strings.Builder
+	result uint32
 }
 
 func (r *Revcomp) Prepare() {
@@ -1626,9 +1626,10 @@ func (r *Revcomp) Prepare() {
 		}
 	}
 	r.input = seq.String()
+	r.result = 0
 }
 
-func (r *Revcomp) revcomp(seq string) {
+func (r *Revcomp) revcomp(seq string) string {
 	runes := []rune(seq)
 	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
 		runes[i], runes[j] = runes[j], runes[i]
@@ -1652,22 +1653,24 @@ func (r *Revcomp) revcomp(seq string) {
 	}
 
 	result := string(runes)
+	var res strings.Builder
 	for i := 0; i < len(result); i += 60 {
 		end := i + 60
 		if end > len(result) {
 			end = len(result)
 		}
-		r.result.WriteString(result[i:end])
-		r.result.WriteByte('\n')
+		res.WriteString(result[i:end])
+		res.WriteByte('\n')
 	}
+	return res.String()
 }
 
 func (r *Revcomp) Run(iteration_id int) {
-	r.revcomp(r.input)
+	r.result += Checksum(r.revcomp(r.input))
 }
 
 func (r *Revcomp) Checksum() uint32 {
-	return Checksum(r.result.String())
+	return r.result
 }
 
 // 13. Spectralnorm
