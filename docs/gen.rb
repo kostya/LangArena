@@ -217,7 +217,7 @@ This table compares how concisely different programming languages express the sa
     end
 
     m.sort_by! do |line|
-      line[1]
+      line[3]
     end
 
     m2 = []
