@@ -3753,7 +3753,7 @@ func (c *CalculatorInterpreter) Checksum() uint32 {
 	return c.result
 }
 
-// GameOfLife (оптимизированная версия)
+// GameOfLife (оптимизированная версия) - исправлено дублирование
 type Cell uint8
 
 const (
@@ -3807,7 +3807,7 @@ func (g *Grid) countNeighbors(x, y int, cells []Cell) int {
 	count := 0
 
 	// Верхний ряд
-	idx := yPrev*g.width
+	idx := yPrev * g.width
 	if cells[idx+xPrev] == Alive {
 		count++
 	}
@@ -3854,60 +3854,12 @@ func (g *Grid) nextGeneration() *Grid {
 	// Оптимизированный цикл
 	for y := 0; y < height; y++ {
 		yIdx := y * width
-		yPrevIdx := yIdx - width
-		if yPrevIdx < 0 {
-			yPrevIdx = (height-1)*width
-		}
-		yNextIdx := yIdx + width
-		if yNextIdx >= width*height {
-			yNextIdx = 0
-		}
-
+		
 		for x := 0; x < width; x++ {
 			idx := yIdx + x
 
-			// Вычисляем индексы соседей
-			xPrev := x - 1
-			if xPrev < 0 {
-				xPrev = width - 1
-			}
-			xNext := x + 1
-			if xNext >= width {
-				xNext = 0
-			}
-
-			// Развернутый подсчет соседей
-			neighbors := 0
-
-			// Верхний ряд
-			if cells[yPrevIdx+xPrev] == Alive {
-				neighbors++
-			}
-			if cells[yPrevIdx+x] == Alive {
-				neighbors++
-			}
-			if cells[yPrevIdx+xNext] == Alive {
-				neighbors++
-			}
-
-			// Средний ряд
-			if cells[yIdx+xPrev] == Alive {
-				neighbors++
-			}
-			if cells[yIdx+xNext] == Alive {
-				neighbors++
-			}
-
-			// Нижний ряд
-			if cells[yNextIdx+xPrev] == Alive {
-				neighbors++
-			}
-			if cells[yNextIdx+x] == Alive {
-				neighbors++
-			}
-			if cells[yNextIdx+xNext] == Alive {
-				neighbors++
-			}
+			// Подсчет соседей
+			neighbors := g.countNeighbors(x, y, cells)
 
 			// Оптимизированная логика игры
 			current := cells[idx]
