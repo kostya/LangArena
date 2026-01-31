@@ -3885,77 +3885,6 @@ private:
         bool operator>(const Node& other) const {
             return other < *this;
         }
-        
-        bool operator>=(const Node& other) const {
-            return !(*this < other);
-        }
-    };
-    
-    template<typename T>
-    class BinaryHeap {
-    private:
-        std::vector<T> data_;
-        
-        void sift_up(size_t index) {
-            while (index > 0) {
-                size_t parent = (index - 1) / 2;
-                if (data_[index] >= data_[parent]) break;
-                std::swap(data_[index], data_[parent]);
-                index = parent;
-            }
-        }
-        
-        void sift_down(size_t index) {
-            size_t size = data_.size();
-            while (true) {
-                size_t left = index * 2 + 1;
-                size_t right = left + 1;
-                size_t smallest = index;
-                
-                if (left < size && data_[left] < data_[smallest]) {
-                    smallest = left;
-                }
-                
-                if (right < size && data_[right] < data_[smallest]) {
-                    smallest = right;
-                }
-                
-                if (smallest == index) break;
-                
-                std::swap(data_[index], data_[smallest]);
-                index = smallest;
-            }
-        }
-        
-    public:
-        BinaryHeap() = default;
-        
-        void push(const T& item) {
-            data_.push_back(item);
-            sift_up(data_.size() - 1);
-        }
-        
-        std::optional<T> pop() {
-            if (data_.empty()) {
-                return std::nullopt;
-            }
-            
-            if (data_.size() == 1) {
-                T result = data_.back();
-                data_.pop_back();
-                return result;
-            }
-            
-            T result = data_[0];
-            data_[0] = data_.back();
-            data_.pop_back();
-            sift_down(0);
-            return result;
-        }
-        
-        bool empty() const {
-            return data_.empty();
-        }
     };
     
     uint32_t result_val;
@@ -3967,40 +3896,56 @@ private:
     int height_;
     std::vector<std::vector<bool>> maze_grid;
     
-    int distance(int a_x, int a_y, int b_x, int b_y) {
+    // Кэшированные массивы (выделяются один раз)
+    std::vector<std::vector<int>> g_scores_cache_;
+    std::vector<std::vector<std::pair<int, int>>> came_from_cache_;
+    
+    int distance(int a_x, int a_y, int b_x, int b_y) const {
         return (std::abs(a_x - b_x) + std::abs(a_y - b_y));
     }
     
     std::pair<std::optional<std::vector<std::pair<int, int>>>, int> find_path() {
-        std::vector<std::vector<bool>>& grid = maze_grid;
-
-        std::vector<std::vector<int>> g_scores(height_, std::vector<int>(width_, std::numeric_limits<int>::max()));
-        std::vector<std::vector<std::pair<int, int>>> came_from(height_, 
-            std::vector<std::pair<int, int>>(width_, {-1, -1}));
-        BinaryHeap<Node> open_set;
+        const std::vector<std::vector<bool>>& grid = maze_grid;
+        
+        // Используем предварительно выделенные массивы
+        std::vector<std::vector<int>>& g_scores = g_scores_cache_;
+        std::vector<std::vector<std::pair<int, int>>>& came_from = came_from_cache_;
+        
+        // Быстрая инициализация массивов
+        for (int y = 0; y < height_; ++y) {
+            std::fill(g_scores[y].begin(), g_scores[y].end(), std::numeric_limits<int>::max());
+            std::fill(came_from[y].begin(), came_from[y].end(), std::pair<int, int>{-1, -1});
+        }
+        
+        // Используем std::priority_queue вместо самодельной BinaryHeap
+        // std::greater<Node> делает min-heap
+        std::priority_queue<Node, std::vector<Node>, std::greater<Node>> open_set;
         int nodes_explored = 0;
-
+        
         g_scores[start_y_][start_x_] = 0;
         open_set.push(Node(start_x_, start_y_, 
                           distance(start_x_, start_y_, goal_x_, goal_y_)));
-
-        std::vector<std::pair<int, int>> directions = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
-
+        
+        static constexpr std::pair<int, int> directions[] = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
+        
         while (!open_set.empty()) {
-            auto current_opt = open_set.pop();
-            if (!current_opt) break;
-            
-            Node current = *current_opt;
+            Node current = open_set.top();
+            open_set.pop();
             nodes_explored++;
-
+            
             if (current.x == goal_x_ && current.y == goal_y_) {
                 std::vector<std::pair<int, int>> path;
+                path.reserve(width_ * height_); // Предварительное выделение памяти
+                
                 int x = current.x;
                 int y = current.y;
                 
+                // Восстанавливаем путь от цели к старту
                 while (x != start_x_ || y != start_y_) {
                     path.emplace_back(x, y);
-                    auto [prev_x, prev_y] = came_from[y][x];
+                    const auto& [prev_x, prev_y] = came_from[y][x];
+                    if (prev_x == -1 || prev_y == -1) break;
+                    
                     x = prev_x;
                     y = prev_y;
                 }
@@ -4009,28 +3954,30 @@ private:
                 std::reverse(path.begin(), path.end());
                 return {path, nodes_explored};
             }
-
+            
             int current_g = g_scores[current.y][current.x];
-
+            
+            // Проходим по всем направлениям
             for (const auto& [dx, dy] : directions) {
                 int nx = current.x + dx;
                 int ny = current.y + dy;
-
+                
+                // Проверка границ
                 if (nx < 0 || nx >= width_ || ny < 0 || ny >= height_) continue;
                 if (!grid[ny][nx]) continue;
-
+                
                 int tentative_g = current_g + 1000;
-
+                
                 if (tentative_g < g_scores[ny][nx]) {
                     came_from[ny][nx] = {current.x, current.y};
                     g_scores[ny][nx] = tentative_g;
-
+                    
                     int f_score = tentative_g + distance(nx, ny, goal_x_, goal_y_);
                     open_set.push(Node(nx, ny, f_score));
                 }
             }
         }
-
+        
         return {std::nullopt, nodes_explored};
     }
     
@@ -4048,15 +3995,20 @@ public:
     
     void prepare() override {
         maze_grid = MazeGenerator::Maze::generate_walkable_maze(width_, height_);
+        
+        // Инициализируем кэшированные массивы один раз
+        g_scores_cache_.resize(height_, std::vector<int>(width_));
+        came_from_cache_.resize(height_, 
+            std::vector<std::pair<int, int>>(width_, {-1, -1}));
     }
     
     void run(int iteration_id) override {
         auto [path, nodes_explored] = find_path();
-
+        
         int64_t local_result = 0;
-        local_result = (local_result << 5) + (path ? path->size() : 0);
+        local_result = (local_result << 5) + (path ? static_cast<int64_t>(path->size()) : 0);
         local_result = (local_result << 5) + nodes_explored;
-        result_val += local_result;  // &+= эквивалент
+        result_val += static_cast<uint32_t>(local_result);
     }
     
     uint32_t checksum() override {

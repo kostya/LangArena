@@ -2,74 +2,10 @@ use super::super::{Benchmark, helper};
 use crate::config_i64;
 use super::maze_generator::Maze;
 use std::cmp::Ordering;
+use std::collections::BinaryHeap as StdBinaryHeap;
 
-// BinaryHeap (минимальная куча)
-struct BinaryHeap<T> {
-    data: Vec<T>,
-}
-
-impl<T: Ord> BinaryHeap<T> {
-    fn new() -> Self {
-        BinaryHeap { data: Vec::new() }
-    }
-    
-    fn push(&mut self, item: T) {
-        self.data.push(item);
-        self.sift_up(self.data.len() - 1);
-    }
-    
-    fn pop(&mut self) -> Option<T> {
-        if self.data.len() <= 1 {
-            return self.data.pop();
-        }
-        
-        let result = self.data.swap_remove(0);
-        self.sift_down(0);
-        Some(result)
-    }
-    
-    fn is_empty(&self) -> bool {
-        self.data.is_empty()
-    }
-    
-    fn sift_up(&mut self, mut index: usize) {
-        while index > 0 {
-            let parent = (index - 1) / 2;
-            if self.data[index] >= self.data[parent] {
-                break;
-            }
-            self.data.swap(index, parent);
-            index = parent;
-        }
-    }
-    
-    fn sift_down(&mut self, mut index: usize) {
-        let len = self.data.len();
-        loop {
-            let left = index * 2 + 1;
-            let right = left + 1;
-            let mut smallest = index;
-            
-            if left < len && self.data[left] < self.data[smallest] {
-                smallest = left;
-            }
-            
-            if right < len && self.data[right] < self.data[smallest] {
-                smallest = right;
-            }
-            
-            if smallest == index {
-                break;
-            }
-            
-            self.data.swap(index, smallest);
-            index = smallest;
-        }
-    }
-}
-
-// Node
-#[derive(Debug, Clone, Copy, Eq)]
+// Node с реализацией Ord для max-heap (Rust BinaryHeap по умолчанию max-heap)
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 struct Node {
     x: i32,
     y: i32,
@@ -82,17 +18,12 @@ impl Node {
     }
 }
 
-impl PartialEq for Node {
-    fn eq(&self, other: &Self) -> bool {
-        self.f_score == other.f_score && self.x == other.x && self.y == other.y
-    }
-}
-
 impl Ord for Node {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.f_score.cmp(&other.f_score)
-            .then_with(|| self.x.cmp(&other.x))
+        // Для max-heap: меньший f_score считается "большим"
+        other.f_score.cmp(&self.f_score)
             .then_with(|| self.y.cmp(&other.y))
+            .then_with(|| self.x.cmp(&other.x))
     }
 }
 
@@ -102,70 +33,107 @@ impl PartialOrd for Node {
     }
 }
 
-// AStarPathfinder
+// AStarPathfinder с кэшированием
 pub struct AStarPathfinder {
-    start_x_: i32,
-    start_y_: i32,
-    goal_x_: i32,
-    goal_y_: i32,
-    width_: i32,
-    height_: i32,
+    start_x: i32,
+    start_y: i32,
+    goal_x: i32,
+    goal_y: i32,
+    width: i32,
+    height: i32,
     maze_grid: Vec<Vec<bool>>,
     result_val: u32,
+    
+    // Кэшированные массивы (выделяются один раз)
+    g_scores_cache: Vec<Vec<i32>>,
+    came_from_cache: Vec<Vec<i32>>, // Упакованные координаты: y * width + x
 }
 
 impl AStarPathfinder {
+    // Inline для производительности
+    #[inline]
     fn distance(&self, a_x: i32, a_y: i32, b_x: i32, b_y: i32) -> i32 {
-        ((a_x - b_x).abs() + (a_y - b_y).abs()) as i32
+        (a_x - b_x).abs() + (a_y - b_y).abs()
     }
     
-    fn find_path(&self) -> (Option<Vec<(i32, i32)>>, i32) {
+    // Упаковка координат
+    #[inline]
+    fn pack_coords(&self, x: i32, y: i32) -> i32 {
+        y * self.width + x
+    }
+    
+    // Распаковка координат
+    #[inline]
+    fn unpack_coords(&self, packed: i32) -> (i32, i32) {
+        (packed % self.width, packed / self.width)
+    }
+    
+    fn find_path_optimized(&mut self) -> (Option<Vec<(i32, i32)>>, i32) {
         let grid = &self.maze_grid;
+        let width = self.width as usize;
+        let height = self.height as usize;
         
-        let width = self.width_ as usize;
-        let height = self.height_ as usize;
+        // Используем кэшированные массивы
+        let g_scores = &mut self.g_scores_cache;
+        let came_from = &mut self.came_from_cache;
         
-        let mut g_scores = vec![vec![i32::MAX; width]; height];
-        let mut came_from = vec![vec![(-1, -1); width]; height];
-        let mut open_set = BinaryHeap::new();
+        // Быстрая инициализация массивов
+        for y in 0..height {
+            for x in 0..width {
+                g_scores[y][x] = i32::MAX;
+                came_from[y][x] = -1;
+            }
+        }
+        
+        // Используем стандартный BinaryHeap (max-heap по умолчанию)
+        let mut open_set = StdBinaryHeap::with_capacity(width * height);
         let mut nodes_explored = 0;
         
-        g_scores[self.start_y_ as usize][self.start_x_ as usize] = 0;
+        let start_x_usize = self.start_x as usize;
+        let start_y_usize = self.start_y as usize;
+        
+        g_scores[start_y_usize][start_x_usize] = 0;
         open_set.push(Node::new(
-            self.start_x_,
-            self.start_y_,
-            self.distance(self.start_x_, self.start_y_, self.goal_x_, self.goal_y_)
+            self.start_x,
+            self.start_y,
+            self.distance(self.start_x, self.start_y, self.goal_x, self.goal_y)
         ));
         
-        let directions = vec![(0, -1), (1, 0), (0, 1), (-1, 0)];
+        // Статический массив направлений (выделяется один раз)
+        static DIRECTIONS: [(i32, i32); 4] = [(0, -1), (1, 0), (0, 1), (-1, 0)];
         
         while let Some(current) = open_set.pop() {
             nodes_explored += 1;
 
-            if current.x == self.goal_x_ && current.y == self.goal_y_ {
-                let mut path = Vec::new();
+            if current.x == self.goal_x && current.y == self.goal_y {
+                // Восстанавливаем путь
+                let mut path = Vec::with_capacity(width * height);
                 let mut x = current.x;
                 let mut y = current.y;
                 
-                while x != self.start_x_ || y != self.start_y_ {
+                while x != self.start_x || y != self.start_y {
                     path.push((x, y));
-                    let (px, py) = came_from[y as usize][x as usize];
+                    let packed = came_from[y as usize][x as usize];
+                    if packed == -1 {
+                        break;
+                    }
+                    let (px, py) = self.unpack_coords(packed);
                     x = px;
                     y = py;
                 }
                 
-                path.push((self.start_x_, self.start_y_));
+                path.push((self.start_x, self.start_y));
                 path.reverse();
                 return (Some(path), nodes_explored);
             }
             
             let current_g = g_scores[current.y as usize][current.x as usize];
             
-            for (dx, dy) in &directions {
+            for &(dx, dy) in &DIRECTIONS {
                 let nx = current.x + dx;
                 let ny = current.y + dy;
                 
-                if nx < 0 || ny < 0 || nx >= self.width_ || ny >= self.height_ {
+                if nx < 0 || ny < 0 || nx >= self.width || ny >= self.height {
                     continue;
                 }
                 
@@ -179,11 +147,11 @@ impl AStarPathfinder {
                 let tentative_g = current_g + 1000;
                 
                 if tentative_g < g_scores[ny_usize][nx_usize] {
-                    came_from[ny_usize][nx_usize] = (current.x, current.y);
+                    // Упаковываем координаты
+                    came_from[ny_usize][nx_usize] = self.pack_coords(current.x, current.y);
                     g_scores[ny_usize][nx_usize] = tentative_g;
                     
-                    let f_score = tentative_g + self.distance(nx, ny, self.goal_x_, self.goal_y_);
-                    
+                    let f_score = tentative_g + self.distance(nx, ny, self.goal_x, self.goal_y);
                     open_set.push(Node::new(nx, ny, f_score));
                 }
             }
@@ -193,22 +161,38 @@ impl AStarPathfinder {
     }
     
     pub fn new() -> Self {
-        let width_ = config_i64("AStarPathfinder", "w") as i32;
-        let height_ = config_i64("AStarPathfinder", "h") as i32;
-        let start_x_ = 1;
-        let start_y_ = 1;
-        let goal_x_ = width_ - 2;
-        let goal_y_ = height_ - 2;
+        let width = config_i64("AStarPathfinder", "w") as i32;
+        let height = config_i64("AStarPathfinder", "h") as i32;
+        let start_x = 1;
+        let start_y = 1;
+        let goal_x = width - 2;
+        let goal_y = height - 2;
         
+        // Инициализируем кэшированные массивы нулевого размера
+        // Они будут перевыделены в prepare()
         Self {
-            start_x_,
-            start_y_,
-            goal_x_,
-            goal_y_,
-            width_,
-            height_,
+            start_x,
+            start_y,
+            goal_x,
+            goal_y,
+            width,
+            height,
             maze_grid: Vec::new(),
             result_val: 0,
+            g_scores_cache: Vec::new(),
+            came_from_cache: Vec::new(),
+        }
+    }
+    
+    // Инициализация кэшированных массивов
+    fn init_cached_arrays(&mut self) {
+        let width = self.width as usize;
+        let height = self.height as usize;
+        
+        if self.g_scores_cache.len() != height || 
+           (height > 0 && self.g_scores_cache[0].len() != width) {
+            self.g_scores_cache = vec![vec![0; width]; height];
+            self.came_from_cache = vec![vec![0; width]; height];
         }
     }
 }
@@ -219,15 +203,18 @@ impl Benchmark for AStarPathfinder {
     }
     
     fn prepare(&mut self) {
-        self.maze_grid = Maze::generate_walkable_maze(self.width_ as usize, self.height_ as usize);
+        self.maze_grid = Maze::generate_walkable_maze(self.width as usize, self.height as usize);
+        self.init_cached_arrays();
     }
     
     fn run(&mut self, _iteration_id: i64) {
-        let (path, nodes_explored) = self.find_path();
+        let (path, nodes_explored) = self.find_path_optimized();
 
         let mut local_result: u32 = 0;
-        local_result = (local_result << 5) + (path.map(|p| p.len()).unwrap_or(0) as u32);
-        local_result = (local_result << 5) + nodes_explored as u32;
+        local_result = local_result.wrapping_shl(5).wrapping_add(
+            path.as_ref().map(|p| p.len()).unwrap_or(0) as u32
+        );
+        local_result = local_result.wrapping_shl(5).wrapping_add(nodes_explored as u32);
         self.result_val = self.result_val.wrapping_add(local_result);
     }
     
