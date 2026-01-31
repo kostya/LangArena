@@ -4138,39 +4138,41 @@ private:
             return {};
         }
         
-        std::vector<int> counts(256, 0);
+        // ВСЕ на стеке!
+        size_t counts[256] = {0};  // было: std::vector<int> counts(256, 0)
         for (uint8_t byte : bwt) {
             counts[byte]++;
         }
         
-        std::vector<int> positions(256, 0);
-        int total = 0;
+        size_t positions[256] = {0};  // было: std::vector<int> positions(256, 0)
+        size_t total = 0;
         for (int i = 0; i < 256; i++) {
             positions[i] = total;
             total += counts[i];
         }
         
-        std::vector<size_t> next(n, 0);
-        std::vector<int> temp_counts(256, 0);
+        std::vector<size_t> next(n, 0);  // только этот массив динамический
         
+        size_t temp_counts[256] = {0};  // было: std::vector<int> temp_counts(256, 0)
         for (size_t i = 0; i < n; i++) {
-            int byte_idx = bwt[i];
-            int pos = positions[byte_idx] + temp_counts[byte_idx];
+            uint8_t byte = bwt[i];  // НЕ преобразуем в int!
+            size_t pos = positions[byte] + temp_counts[byte];  // byte уже size_t
             next[pos] = i;
-            temp_counts[byte_idx]++;
+            temp_counts[byte]++;
         }
         
-        std::vector<uint8_t> result(n);
-        size_t idx = bwt_result.original_idx;
+        std::vector<uint8_t> result;
+        result.reserve(n);  // КРИТИЧЕСКИ важно!
         
+        size_t idx = bwt_result.original_idx;
         for (size_t i = 0; i < n; i++) {
             idx = next[idx];
-            result[i] = bwt[idx];
+            result.push_back(bwt[idx]);
         }
         
         return result;
     }
-    
+        
     struct HuffmanNode {
         int frequency;
         uint8_t byte_val;
@@ -4297,28 +4299,42 @@ private:
     }
     
     std::vector<uint8_t> huffman_decode(const std::vector<uint8_t>& encoded, 
-                                       const std::shared_ptr<HuffmanNode>& root, int bit_count) {
+                                       const std::shared_ptr<HuffmanNode>& root, 
+                                       int bit_count) {
         std::vector<uint8_t> result;
-        result.reserve(bit_count / 4 + 1);
+        result.reserve(bit_count / 4 + 1);  // Было без reserve!
         
-        std::shared_ptr<HuffmanNode> current_node = root;
+        const HuffmanNode* current_node = root.get();  // Работаем с сырыми указателями
         int bits_processed = 0;
         size_t byte_index = 0;
         
         while (bits_processed < bit_count && byte_index < encoded.size()) {
             uint8_t byte_val = encoded[byte_index++];
             
-            for (int bit_pos = 7; bit_pos >= 0 && bits_processed < bit_count; bit_pos--) {
-                bool bit = ((byte_val >> bit_pos) & 1) == 1;
-                bits_processed++;
-                
-                current_node = bit ? current_node->right : current_node->left;
-                
-                if (current_node->is_leaf) {
-                    if (current_node->byte_val != 0) {
+            // Развернуть цикл для лучшей оптимизации
+            if (bits_processed + 8 <= bit_count) {
+                // Быстрый путь: обрабатываем полный байт
+                for (int bit_pos = 7; bit_pos >= 0; bit_pos--) {
+                    bool bit = ((byte_val >> bit_pos) & 1) == 1;
+                    current_node = bit ? current_node->right.get() : current_node->left.get();
+                    
+                    if (current_node->is_leaf) {
                         result.push_back(current_node->byte_val);
+                        current_node = root.get();
                     }
-                    current_node = root;
+                }
+                bits_processed += 8;
+            } else {
+                // Медленный путь: неполный байт в конце
+                for (int bit_pos = 7; bit_pos >= 0 && bits_processed < bit_count; bit_pos--) {
+                    bool bit = ((byte_val >> bit_pos) & 1) == 1;
+                    current_node = bit ? current_node->right.get() : current_node->left.get();
+                    bits_processed++;
+                    
+                    if (current_node->is_leaf) {
+                        result.push_back(current_node->byte_val);
+                        current_node = root.get();
+                    }
                 }
             }
         }
