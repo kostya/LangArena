@@ -2,7 +2,7 @@ import Foundation
 
 final class Revcomp: BenchmarkProtocol {
     private var input: String = ""
-    private var output: String = ""
+    private var resultVal: UInt32 = 0
     
     private static var lookupTable: [UInt8] = {
         var table = [UInt8](repeating: 0, count: 256)
@@ -28,7 +28,6 @@ final class Revcomp: BenchmarkProtocol {
     }()
     
     func prepare() {
-        output = ""
         let fasta = Fasta()
         fasta.n = configValue("n") ?? 0
         fasta.prepare()
@@ -78,10 +77,10 @@ final class Revcomp: BenchmarkProtocol {
     }
     
     func run(iterationId: Int) {
-        output.append(revcomp(input))
+        resultVal &+= Helper.checksum(revcomp(input))
     }
     
     var checksum: UInt32 {
-        return Helper.checksum(output)
+        return resultVal
     }
 }
