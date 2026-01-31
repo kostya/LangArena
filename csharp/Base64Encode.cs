@@ -20,7 +20,11 @@ public class Base64Encode : Benchmark
         _str2 = Convert.ToBase64String(bytes);
     }
     
-    public override void Run(long IterationId) => _result += (uint)_str2.Length;
+    public override void Run(long IterationId) {
+        byte[] bytes = Encoding.UTF8.GetBytes(_str);
+        _str2 = Convert.ToBase64String(bytes);
+        _result += (uint)_str2.Length;
+    }
     
     public override uint Checksum
     {
