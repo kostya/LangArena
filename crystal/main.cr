@@ -2979,6 +2979,10 @@ class GameOfLife < Benchmark
       @buffer = Slice(Cell).new(size, Cell::Dead)
     end
     
+    # Конструктор для обмена буферов
+    def initialize(@width : Int32, @height : Int32, @cells : Slice(Cell), @buffer : Slice(Cell))
+    end
+    
     # Инлайн методы для быстрого доступа
     private def index(x, y) : Int32
       y * @width + x
@@ -3024,10 +3028,9 @@ class GameOfLife < Benchmark
     end
     
     # Оптимизированное следующее поколение
-    def next_generation : self
+    def next_generation : Grid
       width = @width
       height = @height
-      size = width * height
       
       # Локальные переменные для лучшей оптимизации
       cells = @cells
@@ -3037,41 +3040,22 @@ class GameOfLife < Benchmark
       y = 0
       while y < height
         y_idx = y * width
-        y_prev_idx = (y == 0 ? height - 1 : y - 1) * width
-        y_next_idx = (y == height - 1 ? 0 : y + 1) * width
         
         x = 0
         while x < width
           idx = y_idx + x
           
-          # Вычисляем индексы соседей
-          x_prev = x == 0 ? width - 1 : x - 1
-          x_next = x == width - 1 ? 0 : x + 1
-          
-          # Подсчет соседей (развернутый для скорости)
-          neighbors = 0
-          
-          # Верхний ряд
-          neighbors += 1 if cells[y_prev_idx + x_prev] == Cell::Alive
-          neighbors += 1 if cells[y_prev_idx + x] == Cell::Alive
-          neighbors += 1 if cells[y_prev_idx + x_next] == Cell::Alive
-          
-          # Средний ряд
-          neighbors += 1 if cells[y_idx + x_prev] == Cell::Alive
-          neighbors += 1 if cells[y_idx + x_next] == Cell::Alive
-          
-          # Нижний ряд
-          neighbors += 1 if cells[y_next_idx + x_prev] == Cell::Alive
-          neighbors += 1 if cells[y_next_idx + x] == Cell::Alive
-          neighbors += 1 if cells[y_next_idx + x_next] == Cell::Alive
+          # Подсчет соседей
+          neighbors = count_neighbors(x, y, cells)
           
           # Оптимизированная логика игры
           current = cells[idx]
+          next_state = Cell::Dead
           
           if current.alive?
             next_state = (neighbors == 2 || neighbors == 3) ? Cell::Alive : Cell::Dead
-          else
-            next_state = neighbors == 3 ? Cell::Alive : Cell::Dead
+          elsif neighbors == 3
+            next_state = Cell::Alive
           end
           
           buffer[idx] = next_state
@@ -3082,15 +3066,13 @@ class GameOfLife < Benchmark
         y += 1
       end
       
-      # Быстрое переключение буферов
-      @cells, @buffer = buffer, cells
-      
-      self
+      # Возвращаем новый Grid с обмененными буферами
+      Grid.new(width, height, buffer, cells)
     end
-    
+
     FNV_OFFSET_BASIS = 2166136261_u32
     FNV_PRIME = 16777619_u32
-
+    
     def compute_hash : UInt32      
       hash = FNV_OFFSET_BASIS
       
@@ -3135,7 +3117,7 @@ class GameOfLife < Benchmark
   end
   
   def run(iteration_id)
-    @grid.next_generation
+    @grid = @grid.next_generation
   end
   
   def checksum : UInt32
