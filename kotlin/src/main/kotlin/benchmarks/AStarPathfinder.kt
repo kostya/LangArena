@@ -17,8 +17,8 @@ class AStarPathfinder : Benchmark() {
         }
     }
     
-    private class BinaryHeap(initialCapacity: Int = 64) {
-        private val data = ArrayList<Node>(initialCapacity)
+    private class BinaryHeap {
+        private val data = mutableListOf<Node>()
         
         fun push(item: Node) {
             data.add(item)
@@ -86,16 +86,16 @@ class AStarPathfinder : Benchmark() {
     private val height: Int
     private lateinit var mazeGrid: Array<BooleanArray>
     
-    // Кэшированные массивы (выделяются один раз)
+    // Кэшированные массивы
     private lateinit var gScoresCache: Array<IntArray>
-    private lateinit var cameFromCache: Array<IntArray> // Упакованные координаты: y * width + x
+    private lateinit var cameFromCache: Array<Array<Point?>>
     
-    // Статический массив направлений
+    private data class Point(var x: Int, var y: Int)
+    
+    // Статические константы
     private companion object {
         val DIRECTIONS = arrayOf(0 to -1, 1 to 0, 0 to 1, -1 to 0)
         const val STRAIGHT_COST = 1000
-        const val MAX_INT = Int.MAX_VALUE
-        const val INVALID_COORD = -1
     }
     
     init {
@@ -111,36 +111,31 @@ class AStarPathfinder : Benchmark() {
         return abs(aX - bX) + abs(aY - bY)
     }
     
-    // Упаковка координат
-    private fun packCoords(x: Int, y: Int): Int = y * width + x
-    
-    // Распаковка координат
-    private fun unpackCoords(packed: Int): Pair<Int, Int> = Pair(packed % width, packed / width)
-    
-    // Инициализация кэшированных массивов
-    private fun initCachedArrays() {
-        if (!::gScoresCache.isInitialized || 
-            gScoresCache.size != height || 
-            gScoresCache[0].size != width) {
-            gScoresCache = Array(height) { IntArray(width) }
-            cameFromCache = Array(height) { IntArray(width) }
-        }
-    }
-    
-    private fun findPathOptimized(): Pair<List<Pair<Int, Int>>?, Int> {
+    private fun findPath(): Pair<List<Pair<Int, Int>>?, Int> {
         val grid = mazeGrid
         
         // Используем кэшированные массивы
         val gScores = gScoresCache
         val cameFrom = cameFromCache
         
-        // Быстрая инициализация массивов
-        for (y in 0 until height) {
-            gScores[y].fill(MAX_INT)
-            cameFrom[y].fill(INVALID_COORD)
+        // Быстрая инициализация gScores
+        if (height > 0 && width > 0) {
+            val firstRow = gScores[0]
+            firstRow.fill(Int.MAX_VALUE)
+            for (y in 1 until height) {
+                System.arraycopy(firstRow, 0, gScores[y], 0, width)
+            }
         }
         
-        val openSet = BinaryHeap(width * height)
+        // Инициализация cameFrom
+        for (y in 0 until height) {
+            val row = cameFrom[y]
+            for (x in 0 until width) {
+                row[x] = null
+            }
+        }
+        
+        val openSet = BinaryHeap()
         var nodesExplored = 0
         
         gScores[startY][startX] = 0
@@ -152,18 +147,16 @@ class AStarPathfinder : Benchmark() {
             nodesExplored++
             
             if (current.x == goalX && current.y == goalY) {
-                val path = ArrayList<Pair<Int, Int>>(width * height)
+                val path = mutableListOf<Pair<Int, Int>>()
                 var x = current.x
                 var y = current.y
                 
                 while (x != startX || y != startY) {
                     path.add(x to y)
-                    val packed = cameFrom[y][x]
-                    if (packed == INVALID_COORD) break
-                    
-                    val (prevX, prevY) = unpackCoords(packed)
-                    x = prevX
-                    y = prevY
+                    val prev = cameFrom[y][x]
+                    if (prev == null) break
+                    x = prev.x
+                    y = prev.y
                 }
                 
                 path.add(startX to startY)
@@ -183,8 +176,14 @@ class AStarPathfinder : Benchmark() {
                 val tentativeG = currentG + STRAIGHT_COST
                 
                 if (tentativeG < gScores[ny][nx]) {
-                    // Упаковываем координаты
-                    cameFrom[ny][nx] = packCoords(current.x, current.y)
+                    // Обновляем существующий Point объект или создаем новый
+                    val point = cameFrom[ny][nx]
+                    if (point == null) {
+                        cameFrom[ny][nx] = Point(current.x, current.y)
+                    } else {
+                        point.x = current.x
+                        point.y = current.y
+                    }
                     gScores[ny][nx] = tentativeG
                     
                     val fScore = tentativeG + distance(nx, ny, goalX, goalY)
@@ -198,16 +197,30 @@ class AStarPathfinder : Benchmark() {
     
     override fun prepare() {
         mazeGrid = MazeGenerator.Maze.generateWalkableMaze(width, height)
-        initCachedArrays()
+        
+        // Инициализируем кэшированные массивы один раз
+        if (!::gScoresCache.isInitialized || 
+            gScoresCache.size != height || 
+            gScoresCache[0].size != width) {
+            gScoresCache = Array(height) { IntArray(width) }
+            cameFromCache = Array(height) { arrayOfNulls<Point>(width) }
+            
+            // Предварительно создаем Point объекты
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    cameFromCache[y][x] = Point(-1, -1)
+                }
+            }
+        }
     }
     
     override fun run(iterationId: Int) {
-        val (path, nodesExplored) = findPathOptimized()
+        val (path, nodesExplored) = findPath()
         
         var localResult = 0L
         localResult = (localResult shl 5) + (path?.size ?: 0)
         localResult = (localResult shl 5) + nodesExplored
-        resultVal = resultVal.plus(localResult.toUInt())  // Эквивалент &+=
+        resultVal = resultVal.plus(localResult.toUInt())
     }
     
     override fun checksum(): UInt = resultVal
