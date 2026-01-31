@@ -4,7 +4,8 @@ final class Revcomp: BenchmarkProtocol {
     private var input: String = ""
     private var resultVal: UInt32 = 0
     
-    private static var lookupTable: [UInt8] = {
+    // Lookup таблица
+    private static let lookupTable: [UInt8] = {
         var table = [UInt8](repeating: 0, count: 256)
         
         for i in 0..<256 {
@@ -14,14 +15,11 @@ final class Revcomp: BenchmarkProtocol {
         let from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
         let to   = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
         
-        let fromBytes = from.utf8.map { $0 }
-        let toBytes = to.utf8.map { $0 }
+        let fromBytes = Array(from.utf8)
+        let toBytes = Array(to.utf8)
         
         for i in 0..<min(fromBytes.count, toBytes.count) {
-            let index = Int(fromBytes[i])
-            if index < 256 {
-                table[index] = toBytes[i]
-            }
+            table[Int(fromBytes[i])] = toBytes[i]
         }
         
         return table
@@ -34,46 +32,62 @@ final class Revcomp: BenchmarkProtocol {
         fasta.run(iterationId: 0)
         let fastaResult = fasta.getOutput()
         
-        let lines = fastaResult.split(separator: "\n")
         var seq = ""
-        for line in lines {
-            let lineStr = String(line)
-            if !lineStr.starts(with: ">") {
-                seq += lineStr
+        seq.reserveCapacity(fastaResult.count)
+        
+        // Ручной парсинг строк
+        var start = fastaResult.startIndex
+        let end = fastaResult.endIndex
+        
+        while start < end {
+            let lineEnd = fastaResult[start...].firstIndex(of: "\n") ?? end
+            let line = fastaResult[start..<lineEnd]
+            
+            if line.starts(with: ">") {
+                seq.append("\n---\n")
             } else {
-                seq += "\n---\n"
+                seq.append(contentsOf: line)
             }
+            
+            start = lineEnd == end ? end : fastaResult.index(after: lineEnd)
         }
+        
         input = seq
     }
     
     private func revcomp(_ seq: String) -> String {
+        let lookup = Self.lookupTable
         let bytes = Array(seq.utf8)
         let count = bytes.count
-        var resultBytes = [UInt8](repeating: 0, count: count)
-        let lookup = Self.lookupTable
         
-        for i in 0..<count {
-            let sourceByte = bytes[count - 1 - i]
-            resultBytes[i] = lookup[Int(sourceByte)]
-        }
+        // Предвычисляем размер
+        let lines = (count + 59) / 60
+        var resultBytes = [UInt8]()
+        resultBytes.reserveCapacity(count + lines)
         
-        var result = ""
-        var lineStart = 0
+        // Обрабатываем блоками по 60 символов
+        var pos = count
         
-        while lineStart < count {
-            let lineEnd = min(lineStart + 60, count)
-            let lineBytes = resultBytes[lineStart..<lineEnd]
+        while pos > 0 {
+            let chunkStart = max(pos - 60, 0)
+            let chunkSize = pos - chunkStart
             
-            if let line = String(bytes: lineBytes, encoding: .utf8) {
-                result.append(line)
+            // Добавляем блок в обратном порядке
+            for i in stride(from: pos - 1, through: chunkStart, by: -1) {
+                resultBytes.append(lookup[Int(bytes[i])])
             }
-            result.append("\n")
             
-            lineStart = lineEnd
+            resultBytes.append(10) // "\n"
+            pos = chunkStart
         }
         
-        return result
+        // Убираем последний \n если нужно
+        if count % 60 == 0 && count > 0 {
+            resultBytes.removeLast()
+        }
+        
+        // Создаем строку из байтов
+        return String(decoding: resultBytes, as: UTF8.self)
     }
     
     func run(iterationId: Int) {
