@@ -4,10 +4,7 @@ public class Fasta : Benchmark
 {
     public long _n;
     private StringBuilder _resultBuilder;
-    private uint _result;
-    
-    public override uint Checksum => _result;
-    
+        
     public Fasta()
     {
         _resultBuilder = new StringBuilder();
@@ -107,9 +104,8 @@ public class Fasta : Benchmark
         MakeRepeatFasta("ONE", "Homo sapiens alu", ALU, (int)(_n * 2));
         MakeRandomFasta("TWO", "IUB ambiguity codes", IUB, (int)(_n * 3));
         MakeRandomFasta("THREE", "Homo sapiens frequency", HOMO, (int)(_n * 5));
-        
-        _result = Helper.Checksum(_resultBuilder.ToString());
     }
     
     public string GetResult() => _resultBuilder.ToString();
+    public override uint Checksum => Helper.Checksum(_resultBuilder.ToString());
 }
