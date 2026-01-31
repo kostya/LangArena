@@ -149,7 +149,7 @@ pub const all_benchmarks_list = blk: {
     const list = &[_]BenchInfo{
         createBenchInfo("Pidigits", @import("pidigits.zig").Pidigits),
         createBenchInfo("Binarytrees", @import("binarytrees.zig").Binarytrees),
-        createBenchInfo("BrainfuckHashMap", @import("brainfuck_hash_map.zig").BrainfuckHashMap),
+        createBenchInfo("BrainfuckArray", @import("brainfuck_array.zig").BrainfuckArray),
         createBenchInfo("BrainfuckRecursion", @import("brainfuck_recursion.zig").BrainfuckRecursion),
         createBenchInfo("Fannkuchredux", @import("fannkuchredux.zig").Fannkuchredux),
         createBenchInfo("Fasta", @import("fasta.zig").Fasta),
