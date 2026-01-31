@@ -625,11 +625,12 @@ export class Binarytrees extends Benchmark {
 // =========== ./benchmarks/brainfuck-array.ts ===========
 
 class Tape {
-  private tape: Uint8Array;
+  private tape: number[];
   private pos: number;
 
   constructor() {
-    this.tape = new Uint8Array(30000); // 30000 ячеек
+    // Используем обычный массив - он быстрее для JS движков
+    this.tape = new Array(30000).fill(0);
     this.pos = 0;
   }
 
@@ -638,57 +639,52 @@ class Tape {
   }
 
   inc(): void {
-    // Wrapping overflow естественный для Uint8Array
-    this.tape[this.pos] = this.tape[this.pos] + 1;
+    this.tape[this.pos] = (this.tape[this.pos] + 1) & 255; // Wrapping до 255
   }
 
   dec(): void {
-    // Wrapping overflow естественный для Uint8Array
-    this.tape[this.pos] = this.tape[this.pos] - 1;
+    this.tape[this.pos] = (this.tape[this.pos] - 1) & 255; // Wrapping до 255
   }
 
   advance(): void {
-    this.pos += 1;
+    this.pos++;
     if (this.pos >= this.tape.length) {
-      // Расширяем массив при необходимости
-      const newTape = new Uint8Array(this.tape.length * 2);
-      newTape.set(this.tape);
-      this.tape = newTape;
+      this.tape.push(0);
     }
   }
 
   devance(): void {
     if (this.pos > 0) {
-      this.pos -= 1;
+      this.pos--;
     }
   }
 }
 
 class Program {
-  private commands: Uint8Array;
-  private jumps: Uint32Array; // Массив вместо Map
+  private commands: string;
+  private jumps: number[]; // Массив прыжков
 
   constructor(text: string) {
     // Фильтруем только BF команды
-    const commandCodes: number[] = [];
+    let filtered = '';
     for (let i = 0; i < text.length; i++) {
       const char = text.charAt(i);
       if ('[]<>+-,.'.includes(char)) {
-        commandCodes.push(char.charCodeAt(0));
+        filtered += char;
       }
     }
     
-    this.commands = new Uint8Array(commandCodes);
+    this.commands = filtered;
     
     // Строим массив прыжков
-    this.jumps = new Uint32Array(this.commands.length);
+    this.jumps = new Array(this.commands.length).fill(0);
     const stack: number[] = [];
     
     for (let i = 0; i < this.commands.length; i++) {
-      const cmd = this.commands[i];
-      if (cmd === 91) { // '['
+      const cmd = this.commands.charAt(i);
+      if (cmd === '[') {
         stack.push(i);
-      } else if (cmd === 93 && stack.length > 0) { // ']'
+      } else if (cmd === ']' && stack.length > 0) {
         const start = stack.pop()!;
         this.jumps[start] = i;
         this.jumps[i] = start;
@@ -700,42 +696,43 @@ class Program {
     let result = 0;
     const tape = new Tape();
     let pc = 0;
-
-    while (pc < this.commands.length) {
-      const cmd = this.commands[pc];
+    const commands = this.commands;
+    const jumps = this.jumps;
+    
+    while (pc < commands.length) {
+      const cmd = commands.charAt(pc);
       
       switch (cmd) {
-        case 43: // '+'
+        case '+':
           tape.inc();
           break;
-        case 45: // '-'
+        case '-':
           tape.dec();
           break;
-        case 62: // '>'
+        case '>':
           tape.advance();
           break;
-        case 60: // '<'
+        case '<':
           tape.devance();
           break;
-        case 91: // '['
+        case '[':
           if (tape.get() === 0) {
-            pc = this.jumps[pc];
-            continue; // Важно: continue чтобы не выполнять pc++
+            pc = jumps[pc];
+            // Не делаем continue здесь - уже обработали прыжок
           }
           break;
-        case 93: // ']'
+        case ']':
           if (tape.get() !== 0) {
-            pc = this.jumps[pc];
-            continue; // Важно: continue чтобы не выполнять pc++
+            pc = jumps[pc];
+            // Не делаем continue здесь - уже обработали прыжок
           }
           break;
-        case 46: // '.'
-          // result = (result << 2) + cell
-          result = (result << 2) + tape.get();
+        case '.':
+          result = ((result << 2) + tape.get()) >>> 0; // Wrapping до 32-bit
           break;
       }
       
-      pc += 1;
+      pc++;
     }
 
     return result;
@@ -762,7 +759,7 @@ export class BrainfuckArray extends Benchmark {
 
   run(_iteration_id: number): void {
     const program = new Program(this.programText);
-    this.resultValue += program.run();
+    this.resultValue = (this.resultValue + program.run()) >>> 0; // Wrapping до 32-bit
   }
 
   checksum(): number {
