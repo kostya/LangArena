@@ -4,7 +4,7 @@ import Benchmark
 
 class Revcomp : Benchmark() {
     private lateinit var input: String
-    private val resultStr = StringBuilder()
+    private var resultVal: UInt = 0u
     
     companion object {
         private val LOOKUP = CharArray(256).apply {
@@ -64,12 +64,10 @@ class Revcomp : Benchmark() {
     }
     
     override fun run(iterationId: Int) {
-        resultStr.append(revcomp(input))
+        resultVal += Helper.checksum(revcomp(input))
     }
     
     override fun checksum(): UInt {
-        val result = resultStr.toString()
-        val checksum = Helper.checksum(result)
-        return checksum.toUInt()
+        return resultVal
     }
 }
