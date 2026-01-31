@@ -3885,23 +3885,19 @@ public:
 };
 
 // ==================== AStarPathfinder ====================
-
 class AStarPathfinder : public Benchmark {
 private:
+    static constexpr int INF = std::numeric_limits<int>::max();
+    static constexpr int STRAIGHT_COST = 1000;
+    
+    // Оригинальная структура Node
     struct Node {
-        int x;
-        int y;
-        int f_score;
+        int x, y, f_score;
         
-        Node(int x, int y, int f_score) : x(x), y(y), f_score(f_score) {}
-        
+        // ОРИГИНАЛЬНАЯ логика сравнения!
         bool operator<(const Node& other) const {
-            if (f_score != other.f_score) {
-                return f_score < other.f_score;
-            }
-            if (y != other.y) {
-                return y < other.y;
-            }
+            if (f_score != other.f_score) return f_score < other.f_score;
+            if (y != other.y) return y < other.y;
             return x < other.x;
         }
         
@@ -3910,51 +3906,52 @@ private:
         }
     };
     
-    uint32_t result_val;
-    int start_x_;
-    int start_y_;
-    int goal_x_;
-    int goal_y_;
-    int width_;
-    int height_;
-    std::vector<std::vector<bool>> maze_grid;
+    uint32_t result_val = 0;
+    int width_ = 0;
+    int height_ = 0;
+    int start_x_ = 1;
+    int start_y_ = 1;
+    int goal_x_ = 0;
+    int goal_y_ = 0;
     
-    // Плоские векторы вместо 2D
-    std::vector<int> g_scores_cache_;
-    std::vector<int> came_from_cache_; // Упакованные координаты: y * width + x
+    // Maze остается 2D
+    std::vector<std::vector<bool>> maze_grid_;
     
-    int distance(int a_x, int a_y, int b_x, int b_y) const {
-        return std::abs(a_x - b_x) + std::abs(a_y - b_y);
+    // Оптимизированные плоские массивы
+    std::vector<int> g_scores_;    // g-значения
+    std::vector<int> came_from_;   // индекс предыдущей ноды (y*width + x)
+    
+    // Хелпер функции
+    int heuristic(int x1, int y1, int x2, int y2) const {
+        return std::abs(x1 - x2) + std::abs(y1 - y2);
     }
     
     int pack_coords(int x, int y) const {
         return y * width_ + x;
     }
     
-    std::pair<int, int> unpack_coords(int packed) const {
-        return {packed % width_, packed / width_};
+    std::pair<int, int> unpack_coords(int idx) const {
+        return {idx % width_, idx / width_};
     }
     
-    std::pair<std::optional<std::vector<std::pair<int, int>>>, int> find_path() {
-        const std::vector<std::vector<bool>>& grid = maze_grid;
+    // Основной алгоритм (ближе к оригиналу)
+    std::pair<std::vector<std::pair<int, int>>, int> find_path() {
+        const int size = width_ * height_;
+        const int start_idx = pack_coords(start_x_, start_y_);
+        const int goal_idx = pack_coords(goal_x_, goal_y_);
         
-        // Используем предварительно выделенные плоские массивы
-        std::vector<int>& g_scores = g_scores_cache_;
-        std::vector<int>& came_from = came_from_cache_;
+        // Инициализация как в оригинале, но для плоских массивов
+        std::fill(g_scores_.begin(), g_scores_.end(), INF);
+        std::fill(came_from_.begin(), came_from_.end(), -1);
         
-        // Быстрая инициализация flat массивов
-        std::fill(g_scores.begin(), g_scores.end(), std::numeric_limits<int>::max());
-        std::fill(came_from.begin(), came_from.end(), -1);
-        
-        // Используем std::priority_queue
+        // Используем std::priority_queue как в оригинале
         std::priority_queue<Node, std::vector<Node>, std::greater<Node>> open_set;
+        
+        g_scores_[start_idx] = 0;
+        open_set.push({start_x_, start_y_, 
+                      heuristic(start_x_, start_y_, goal_x_, goal_y_)});
+        
         int nodes_explored = 0;
-        
-        int start_idx = pack_coords(start_x_, start_y_);
-        g_scores[start_idx] = 0;
-        open_set.push(Node(start_x_, start_y_, 
-                          distance(start_x_, start_y_, goal_x_, goal_y_)));
-        
         static constexpr std::pair<int, int> directions[] = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
         
         while (!open_set.empty()) {
@@ -3963,17 +3960,17 @@ private:
             nodes_explored++;
             
             if (current.x == goal_x_ && current.y == goal_y_) {
+                // Восстановление пути
                 std::vector<std::pair<int, int>> path;
-                path.reserve(width_ * height_);
+                path.reserve(width_ + height_);
                 
                 int x = current.x;
                 int y = current.y;
                 
-                // Восстанавливаем путь от цели к старту
                 while (x != start_x_ || y != start_y_) {
                     path.emplace_back(x, y);
                     int idx = pack_coords(x, y);
-                    int packed = came_from[idx];
+                    int packed = came_from_[idx];
                     if (packed == -1) break;
                     
                     auto [px, py] = unpack_coords(packed);
@@ -3987,39 +3984,37 @@ private:
             }
             
             int current_idx = pack_coords(current.x, current.y);
-            int current_g = g_scores[current_idx];
+            int current_g = g_scores_[current_idx];
             
-            // Проходим по всем направлениям
+            // Оригинальный цикл по направлениям
             for (const auto& [dx, dy] : directions) {
                 int nx = current.x + dx;
                 int ny = current.y + dy;
                 
-                // Проверка границ
+                // Проверка границ как в оригинале
                 if (nx < 0 || nx >= width_ || ny < 0 || ny >= height_) continue;
-                if (!grid[ny][nx]) continue;
+                if (!maze_grid_[ny][nx]) continue;
                 
-                int tentative_g = current_g + 1000;
+                int tentative_g = current_g + STRAIGHT_COST;
                 int neighbor_idx = pack_coords(nx, ny);
                 
-                if (tentative_g < g_scores[neighbor_idx]) {
-                    came_from[neighbor_idx] = current_idx;
-                    g_scores[neighbor_idx] = tentative_g;
+                if (tentative_g < g_scores_[neighbor_idx]) {
+                    came_from_[neighbor_idx] = current_idx;
+                    g_scores_[neighbor_idx] = tentative_g;
                     
-                    int f_score = tentative_g + distance(nx, ny, goal_x_, goal_y_);
-                    open_set.push(Node(nx, ny, f_score));
+                    int f_score = tentative_g + heuristic(nx, ny, goal_x_, goal_y_);
+                    open_set.push({nx, ny, f_score});
                 }
             }
         }
         
-        return {std::nullopt, nodes_explored};
+        return {{}, nodes_explored};
     }
     
 public:
-    AStarPathfinder() : result_val(0) {
+    AStarPathfinder() {
         width_ = static_cast<int>(config_val("w"));
         height_ = static_cast<int>(config_val("h"));
-        start_x_ = 1;
-        start_y_ = 1;
         goal_x_ = width_ - 2;
         goal_y_ = height_ - 2;
     }
@@ -4027,20 +4022,22 @@ public:
     std::string name() const override { return "AStarPathfinder"; }    
     
     void prepare() override {
-        maze_grid = MazeGenerator::Maze::generate_walkable_maze(width_, height_);
+        // Генерируем maze
+        maze_grid_ = MazeGenerator::Maze::generate_walkable_maze(width_, height_);
         
-        // Инициализируем плоские массивы
+        // Инициализируем массивы
         int size = width_ * height_;
-        g_scores_cache_.resize(size);
-        came_from_cache_.resize(size);
+        g_scores_.resize(size);
+        came_from_.resize(size);
     }
     
     void run(int iteration_id) override {
         auto [path, nodes_explored] = find_path();
         
+        // ОРИГИНАЛЬНАЯ логика вычисления checksum!
         int64_t local_result = 0;
-        if (path) {
-            local_result = (local_result << 5) + static_cast<int64_t>(path->size());
+        if (!path.empty()) {
+            local_result = (local_result << 5) + static_cast<int64_t>(path.size());
         }
         local_result = (local_result << 5) + nodes_explored;
         result_val += static_cast<uint32_t>(local_result);
@@ -4050,7 +4047,6 @@ public:
         return result_val;
     }
 };
-
 // ==================== Compression ====================
 
 class Compression : public Benchmark {
