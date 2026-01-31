@@ -3303,7 +3303,7 @@ class AStarPathfinder < Benchmark
     include Comparable(Node)
 
     def <=>(other : Node) : Int32
-      # Сортировка по f_score, затем по координатам для стабильности
+      # Оригинальная логика сравнения как в C++ и TypeScript
       cmp = f_score <=> other.f_score
       return cmp unless cmp == 0
 
@@ -3384,19 +3384,42 @@ class AStarPathfinder < Benchmark
     @goal_x = @width - 2
     @goal_y = @height - 2
     @maze_grid = Array(Array(Bool)).new
+    
+    # Инициализируем плоские массивы как в C++ и TypeScript
+    size = @width * @height
+    @g_scores_cache = Array(Int32).new(size, Int32::MAX)
+    @came_from_cache = Array(Int32).new(size, -1)
+  end
+
+  # Упаковка координат
+  private def pack_coords(x : Int32, y : Int32) : Int32
+    y * @width + x
+  end
+
+  # Распаковка координат
+  private def unpack_coords(packed : Int32) : Tuple(Int32, Int32)
+    {packed % @width, packed // @width}
   end
 
   private def find_path : Tuple(Array({Int32, Int32})?, Int32)
     grid = @maze_grid
+    width = @width
+    height = @height
 
-    # ТОЛЬКО ДВА МАССИВА как в оригинале
-    g_scores = Array.new(@height) { Array.new(@width, Int32::MAX) }
-    came_from = Array.new(@height) { Array.new(@width, {-1, -1}) }
+    # Используем плоские массивы как в C++ и TypeScript
+    g_scores = @g_scores_cache
+    came_from = @came_from_cache
+    
+    # Быстрая инициализация как в C++ и TypeScript
+    size = width * height
+    g_scores.fill(Int32::MAX)
+    came_from.fill(-1)
     
     open_set = BinaryHeap(Node).new
     nodes_explored = 0
 
-    g_scores[@start_y][@start_x] = 0
+    start_idx = pack_coords(@start_x, @start_y)
+    g_scores[start_idx] = 0
     open_set.push(Node.new(@start_x, @start_y, distance(@start_x, @start_y, @goal_x, @goal_y)))
 
     directions = { {0, -1}, {1, 0}, {0, 1}, {-1, 0} }
@@ -3412,29 +3435,32 @@ class AStarPathfinder < Benchmark
 
         while x != @start_x || y != @start_y
           path << {x, y}
-          prev_x, prev_y = came_from[y][x]
-          x = prev_x
-          y = prev_y
+          idx = pack_coords(x, y)
+          packed = came_from[idx]
+          break if packed == -1
+          x, y = unpack_coords(packed)
         end
 
         path << {@start_x, @start_y}
         return {path.reverse, nodes_explored}
       end
 
-      current_g = g_scores[current.y][current.x]
+      current_idx = pack_coords(current.x, current.y)
+      current_g = g_scores[current_idx]
 
       directions.each do |dx, dy|
         nx = current.x + dx
         ny = current.y + dy
 
-        next if nx < 0 || nx >= @width || ny < 0 || ny >= @height
+        next if nx < 0 || nx >= width || ny < 0 || ny >= height
         next unless grid[ny][nx]
 
         tentative_g = current_g + 1000
+        neighbor_idx = pack_coords(nx, ny)
 
-        if tentative_g < g_scores[ny][nx]
-          came_from[ny][nx] = {current.x, current.y}
-          g_scores[ny][nx] = tentative_g
+        if tentative_g < g_scores[neighbor_idx]
+          came_from[neighbor_idx] = current_idx
+          g_scores[neighbor_idx] = tentative_g
 
           f_score = tentative_g + distance(nx, ny, @goal_x, @goal_y)
           open_set.push(Node.new(nx, ny, f_score))
@@ -3452,9 +3478,15 @@ class AStarPathfinder < Benchmark
   def run(iteration_id)
     path, nodes_explored = find_path
 
-    local_result = 0_i64
-    local_result = (local_result << 5) &+ (path.try(&.size) || 0)
-    local_result = (local_result << 5) &+ nodes_explored
+    # Оригинальная логика вычисления checksum как в C++ и TypeScript
+    local_result = 0_u32
+    
+    # local_result = ((local_result << 5) + path_length) >>> 0
+    local_result = (path.try(&.size) || 0).to_u32
+    
+    # local_result = ((local_result << 5) + nodes_explored) >>> 0
+    local_result = (local_result << 5) &+ nodes_explored.to_u32
+    
     @result &+= local_result
   end
 
