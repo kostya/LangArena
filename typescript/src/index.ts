@@ -3899,87 +3899,135 @@ enum Cell {
 class GameOfLifeGrid {
     private width: number;
     private height: number;
-    private cells: Cell[][];
+    private cells: Uint8Array;          // Плоский типизированный массив
+    private buffer: Uint8Array;         // Предварительно аллоцированный буфер
     
     constructor(width: number, height: number) {
         this.width = width;
         this.height = height;
-        this.cells = Array(height);
-        for (let y = 0; y < height; y++) {
-            this.cells[y] = Array(width).fill(Cell.Dead);
-        }
+        const size = width * height;
+        this.cells = new Uint8Array(size);
+        this.buffer = new Uint8Array(size);
+    }
+    
+    // Конструктор для обмена буферов
+    private constructorFromBuffers(width: number, height: number, cells: Uint8Array, buffer: Uint8Array) {
+        this.width = width;
+        this.height = height;
+        this.cells = cells;
+        this.buffer = buffer;
+        return this;
+    }
+    
+    // Статический метод для создания Grid с обмененными буферами
+    static fromBuffers(width: number, height: number, cells: Uint8Array, buffer: Uint8Array): GameOfLifeGrid {
+        const grid = new GameOfLifeGrid(width, height);
+        grid.width = width;
+        grid.height = height;
+        grid.cells = cells;
+        grid.buffer = buffer;
+        return grid;
+    }
+    
+    private index(x: number, y: number): number {
+        return y * this.width + x;
     }
     
     get(x: number, y: number): Cell {
-        return this.cells[y][x];
+        const idx = this.index(x, y);
+        return this.cells[idx] === 1 ? Cell.Alive : Cell.Dead;
     }
     
     set(x: number, y: number, cell: Cell): void {
-        this.cells[y][x] = cell;
+        const idx = this.index(x, y);
+        this.cells[idx] = cell === Cell.Alive ? 1 : 0;
     }
     
-    countNeighbors(x: number, y: number): number {
+    // Оптимизированный подсчет соседей
+    private countNeighbors(x: number, y: number, cells: Uint8Array): number {
+        const width = this.width;
+        const height = this.height;
+        
+        // Предварительно вычисленные индексы с тороидальными границами
+        const yPrev = y === 0 ? height - 1 : y - 1;
+        const yNext = y === height - 1 ? 0 : y + 1;
+        const xPrev = x === 0 ? width - 1 : x - 1;
+        const xNext = x === width - 1 ? 0 : x + 1;
+        
+        // Развернутый подсчет 8 соседей
         let count = 0;
         
-        for (let dy = -1; dy <= 1; dy++) {
-            for (let dx = -1; dx <= 1; dx++) {
-                if (dx === 0 && dy === 0) continue;
-                
-                let nx = (x + dx) % this.width;
-                let ny = (y + dy) % this.height;
-                if (nx < 0) nx += this.width;
-                if (ny < 0) ny += this.height;
-                
-                if (this.cells[ny][nx] === Cell.Alive) {
-                    count++;
-                }
-            }
-        }
+        // Верхний ряд
+        let idx = yPrev * width;
+        if (cells[idx + xPrev] === 1) count++;
+        if (cells[idx + x] === 1) count++;
+        if (cells[idx + xNext] === 1) count++;
+        
+        // Средний ряд
+        idx = y * width;
+        if (cells[idx + xPrev] === 1) count++;
+        if (cells[idx + xNext] === 1) count++;
+        
+        // Нижний ряд
+        idx = yNext * width;
+        if (cells[idx + xPrev] === 1) count++;
+        if (cells[idx + x] === 1) count++;
+        if (cells[idx + xNext] === 1) count++;
         
         return count;
     }
     
     nextGeneration(): GameOfLifeGrid {
-        const nextGrid = new GameOfLifeGrid(this.width, this.height);
+        const width = this.width;
+        const height = this.height;
         
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                const neighbors = this.countNeighbors(x, y);
-                const current = this.cells[y][x];
+        // Локальные ссылки для производительности
+        const cells = this.cells;
+        const buffer = this.buffer;
+        
+        // Оптимизированный цикл
+        for (let y = 0; y < height; y++) {
+            const yIdx = y * width;
+            
+            for (let x = 0; x < width; x++) {
+                const idx = yIdx + x;
                 
-                let nextState = Cell.Dead;
-                if (current === Cell.Alive) {
-                    if (neighbors === 2 || neighbors === 3) {
-                        nextState = Cell.Alive;
-                    }
+                // Подсчет соседей
+                const neighbors = this.countNeighbors(x, y, cells);
+                
+                // Оптимизированная логика игры
+                const current = cells[idx];
+                let nextState = 0;
+                
+                if (current === 1) {
+                    nextState = (neighbors === 2 || neighbors === 3) ? 1 : 0;
                 } else {
-                    if (neighbors === 3) {
-                        nextState = Cell.Alive;
-                    }
+                    nextState = neighbors === 3 ? 1 : 0;
                 }
                 
-                nextGrid.cells[y][x] = nextState;
+                buffer[idx] = nextState;
             }
         }
         
-        return nextGrid;
+        // Возвращаем новый Grid с обмененными буферами
+        return GameOfLifeGrid.fromBuffers(width, height, buffer, cells);
     }
     
-  computeHash(): number {
-      let hasher = 2166136261 >>> 0;  // Unsigned 32-bit
-      const prime = 16777619 >>> 0;   // Unsigned 32-bit
-      
-      for (const row of this.cells) {
-          for (const cell of row) {
-              const alive = cell === Cell.Alive ? 1 : 0;
-              
-              // Привести к unsigned 32-bit перед операциями
-              hasher = (hasher ^ alive) >>> 0;
-              hasher = Math.imul(hasher, prime) >>> 0;
-          }
-      }
-      return hasher >>> 0;
-  }
+    computeHash(): number {
+        const FNV_OFFSET_BASIS = 2166136261 >>> 0;  // Unsigned 32-bit
+        const FNV_PRIME = 16777619 >>> 0;           // Unsigned 32-bit
+        
+        let hasher = FNV_OFFSET_BASIS;
+        
+        // Оптимизированный цикл хэширования
+        for (let i = 0; i < this.cells.length; i++) {
+            const alive = this.cells[i];
+            hasher = (hasher ^ alive) >>> 0;
+            hasher = Math.imul(hasher, FNV_PRIME) >>> 0;
+        }
+        
+        return hasher >>> 0;
+    }
 }
 
 export class GameOfLife extends Benchmark {
@@ -3995,7 +4043,9 @@ export class GameOfLife extends Benchmark {
     }
     
     prepare(): void {
+        // Оптимизированная инициализация случайными клетками
         for (let y = 0; y < this.height; y++) {
+            const yIdx = y * this.width;
             for (let x = 0; x < this.width; x++) {
                 if (Helper.nextFloat() < 0.1) {
                     this.grid.set(x, y, Cell.Alive);
