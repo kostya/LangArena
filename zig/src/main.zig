@@ -5,6 +5,9 @@ const benchmark = @import("benchmark.zig");
 const Helper = @import("helper.zig").Helper;
 
 pub fn main() !void {
+    const timestamp = std.time.milliTimestamp();
+    std.debug.print("start: {}\n", .{timestamp});
+
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();

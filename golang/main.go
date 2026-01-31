@@ -472,12 +472,12 @@ func NewTape() *Tape {
 
 func (t *Tape) Get() byte { return t.tape[t.pos] }
 
-func (t *Tape) Inc() { 
-    t.tape[t.pos] = t.tape[t.pos] + 1 // Wrapping overflow для byte
+func (t *Tape) Inc() {
+	t.tape[t.pos] = t.tape[t.pos] + 1 // Wrapping overflow для byte
 }
 
-func (t *Tape) Dec() { 
-    t.tape[t.pos] = t.tape[t.pos] - 1 // Wrapping overflow для byte
+func (t *Tape) Dec() {
+	t.tape[t.pos] = t.tape[t.pos] - 1 // Wrapping overflow для byte
 }
 
 func (t *Tape) Advance() {
@@ -507,11 +507,11 @@ func NewProgram(text string) *Program {
 			commands = append(commands, char)
 		}
 	}
-	
+
 	// Строим массив прыжков
 	jumps := make([]int, len(commands))
 	stack := make([]int, 0, len(commands)/2)
-	
+
 	for i, cmd := range commands {
 		if cmd == '[' {
 			stack = append(stack, i)
@@ -522,7 +522,7 @@ func NewProgram(text string) *Program {
 			jumps[i] = start
 		}
 	}
-	
+
 	return &Program{commands: commands, jumps: jumps}
 }
 
@@ -530,7 +530,7 @@ func (p *Program) Run() int64 {
 	result := int64(0)
 	tape := NewTape()
 	pc := 0
-	
+
 	for pc < len(p.commands) {
 		switch p.commands[pc] {
 		case '+':
@@ -562,9 +562,9 @@ func (p *Program) Run() int64 {
 
 type BrainfuckArray struct {
 	BaseBenchmark
-	programText  string
-	warmupText   string
-	result       uint32
+	programText string
+	warmupText  string
+	result      uint32
 }
 
 func (b *BrainfuckArray) Name() string {
@@ -4133,10 +4133,10 @@ type AStarPathfinder struct {
 	width, height  int
 	mazeGrid       [][]bool
 	result         uint32
-	
+
 	// Кэшированные массивы (выделяются один раз)
-	gScoresCache   [][]int
-	cameFromCache  [][]int // Упакованные координаты: y*width + x
+	gScoresCache  [][]int
+	cameFromCache [][]int // Упакованные координаты: y*width + x
 }
 
 func (a *AStarPathfinder) distance(aX, aY, bX, bY int) int {
@@ -4201,8 +4201,8 @@ func (a *AStarPathfinder) unpackCoords(packed int) (int, int) {
 
 // Инициализация кэшированных массивов
 func (a *AStarPathfinder) initCachedArrays() {
-	if len(a.gScoresCache) != a.height || 
-	   (a.height > 0 && len(a.gScoresCache[0]) != a.width) {
+	if len(a.gScoresCache) != a.height ||
+		(a.height > 0 && len(a.gScoresCache[0]) != a.width) {
 		a.gScoresCache = make([][]int, a.height)
 		a.cameFromCache = make([][]int, a.height)
 		for y := 0; y < a.height; y++ {
@@ -4328,6 +4328,7 @@ func (a *AStarPathfinder) Run(iteration_id int) {
 func (a *AStarPathfinder) Checksum() uint32 {
 	return a.result
 }
+
 // Compression
 
 type CompressionBWTResult struct {
