@@ -75,14 +75,14 @@ class Gen
     t = main_table('runtime', runs)
     m = t[:map]
     new_m = []
-    # rel_indexes = %w{C C++ Rust Zig Crystal}.map { |name| t[:up_header].index { |uh| uh.start_with?(name) } }
+    rel_indexes = %w{C C++ Rust Zig Crystal}.map { |name| t[:up_header].index { |uh| uh.start_with?(name) } }
     m.each do |line|
       sum = 0.0
-      # rel_indexes.each do |ri|
-      #   sum += line[ri]
-      # end
-      # avg = sum / rel_indexes.size
-      avg = line.min
+      rel_indexes.each do |ri|
+        sum += line[ri]
+      end
+      avg = sum / rel_indexes.size
+      # avg = line.min
       new_m << line.map { |v| (v / avg).round(2) }
     end
     t[:map] = new_m
