@@ -3261,10 +3261,14 @@ export abstract class BufferHashBenchmark extends Benchmark {
 export class BufferHashCRC32 extends BufferHashBenchmark {
   test(): number {
     let crc = 0xFFFFFFFF;
-
-    for (const byte of this.data) {
-      crc ^= byte;
+    const data = this.data; // Локальная ссылка
+    
+    // Используем for вместо for-of для больших массивов
+    // Это может быть немного быстрее в некоторых JS движках
+    for (let i = 0; i < data.length; i++) {
+      crc ^= data[i];
       
+      // Оригинальный цикл - оставляем
       for (let j = 0; j < 8; j++) {
         if (crc & 1) {
           crc = (crc >>> 1) ^ 0xEDB88320;
