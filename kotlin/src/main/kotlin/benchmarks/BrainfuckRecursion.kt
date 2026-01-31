@@ -1,109 +1,118 @@
 package benchmarks
 
 import Benchmark
+import kotlin.math.absoluteValue
 
 class BrainfuckRecursion : Benchmark() {
-    private lateinit var text: String
+    private lateinit var programText: String
+    private lateinit var warmupText: String
     private var resultVal: UInt = 0u
     
     init {
-        text = Helper.configS(name(), "program")
+        programText = Helper.configS(name(), "program")
+        warmupText = Helper.configS(name(), "warmup_program")
     }
 
-    sealed interface Op {
-        data class Inc(val value: Int) : Op
-        data class Move(val value: Int) : Op
-        object Print : Op
-        data class Loop(val ops: List<Op>) : Op
+    // Точная копия Rust enum через sealed class
+    sealed class Op {
+        object Dec : Op()
+        object Inc : Op()
+        object Prev : Op()
+        object Next : Op()
+        object Print : Op()
+        data class Loop(val ops: Array<Op>) : Op() // Array вместо List
     }
 
     class Tape {
-        private val tape = mutableListOf<UByte>(0u)
         private var pos = 0
-
-        fun get(): UByte {
-            return tape[pos]
-        }
-
+        private var tape = byteArrayOf(0)
+        
+        fun currentCell(): Byte = tape[pos]
+        
         fun inc(x: Int) {
-            tape[pos] = (tape[pos].toInt() + x).toUByte()
+            tape[pos] = (tape[pos] + x).toByte()
         }
-
-        fun move(x: Int) {
-            pos += x
-            while (pos >= tape.size) {
-                tape.add(0u)
+        
+        fun prev() {
+            pos--
+        }
+        
+        fun next() {
+            pos++
+            if (pos >= tape.size) {
+                tape = tape.copyOf(tape.size * 2)
             }
         }
     }
 
     class Program(private val code: String) {
-        private val ops: List<Op>
+        private val ops: Array<Op>
         var result: Long = 0L
         
         init {
-            ops = parse(code.iterator())
+            ops = parse(code.byteInputStream().bufferedReader().readText().iterator())
         }
-
-        fun run() {
-            run(ops, Tape())
+        
+        private fun parse(iter: CharIterator): Array<Op> {
+            val buf = mutableListOf<Op>()
+            while (iter.hasNext()) {
+                val c = iter.nextChar()
+                val op = when (c) {
+                    '-' -> Op.Dec
+                    '+' -> Op.Inc
+                    '<' -> Op.Prev
+                    '>' -> Op.Next
+                    '.' -> Op.Print
+                    '[' -> Op.Loop(parse(iter))
+                    ']' -> break
+                    else -> continue
+                }
+                buf.add(op)
+            }
+            return buf.toTypedArray()
         }
-
-        private fun run(program: List<Op>, tape: Tape) {
-            program.forEach { op ->
+        
+        fun run(): Long {
+            val tape = Tape()
+            execute(ops, tape)
+            return result
+        }
+        
+        private fun execute(program: Array<Op>, tape: Tape) {
+            for (op in program) {
                 when (op) {
-                    is Op.Inc -> tape.inc(op.value)
-                    is Op.Move -> tape.move(op.value)
+                    is Op.Dec -> tape.inc(-1)
+                    is Op.Inc -> tape.inc(1)
+                    is Op.Prev -> tape.prev()
+                    is Op.Next -> tape.next()
+                    is Op.Print -> {
+                        val cell = tape.currentCell().toInt().absoluteValue
+                        result = (result shl 2) + cell
+                    }
                     is Op.Loop -> {
-                        while (tape.get() != 0u.toUByte()) {
-                            run(op.ops, tape)
+                        while (tape.currentCell() != 0.toByte()) {
+                            execute(op.ops, tape)
                         }
                     }
-                    Op.Print -> {
-                        result = (result shl 2) + tape.get().toInt()
-                    }
                 }
             }
-        }
-
-        private fun parse(iterator: CharIterator): List<Op> {
-            val res = mutableListOf<Op>()
-            
-            while (iterator.hasNext()) {
-                val c = iterator.nextChar()
-                val op = when (c) {
-                    '+' -> Op.Inc(1)
-                    '-' -> Op.Inc(-1)
-                    '>' -> Op.Move(1)
-                    '<' -> Op.Move(-1)
-                    '.' -> Op.Print
-                    '[' -> Op.Loop(parse(iterator))
-                    ']' -> break
-                    else -> null
-                }
-                op?.let { res.add(it) }
-            }
-            
-            return res
         }
     }
     
     private fun runProgram(text: String): Long {
         val program = Program(text)
-        program.run()
-        return program.result
+        return program.run()
     }
 
     override fun warmup() {
         val prepareIters = warmupIterations()
-        val warmupProgram = Helper.configS(name(), "warmup_program")
         for (i in 0 until prepareIters) {
-            runProgram(warmupProgram)
+            runProgram(warmupText)
         }
     }
 
     override fun run(iterationId: Int) {
-        resultVal += runProgram(text).toUInt()  // &+= эквивалент
+        resultVal = resultVal.plus(runProgram(programText).toUInt())
     }
     
     override fun checksum(): UInt = resultVal
