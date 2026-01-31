@@ -89,7 +89,7 @@ public abstract class Benchmark
         {
             new Pidigits(),
             new Binarytrees(),
-            new BrainfuckHashMap(),         
+            new BrainfuckArray(),         
             new BrainfuckRecursion(),                                   
             new Fannkuchredux(),
             new Fasta(),
