@@ -8,10 +8,7 @@ class Revcomp : Benchmark() {
     
     companion object {
         private val LOOKUP = CharArray(256).apply {
-            // Инициализируем как идентичное преобразование
-            for (i in indices) {
-                this[i] = i.toChar()
-            }
+            for (i in indices) this[i] = i.toChar()
             
             val from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
             val to = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
@@ -26,45 +23,62 @@ class Revcomp : Benchmark() {
     
     override fun prepare() {
         val fasta = Fasta()
-        fasta.n = configVal("n")  // Без .toInt(), т.к. n в Fasta имеет тип Long
+        fasta.n = configVal("n")
         fasta.prepare()
         fasta.run(0)
         
         val fastaResult = fasta.getOutput()
         
-        // Обрабатываем как в C++ версии
         val seq = StringBuilder()
-        fastaResult.lineSequence().forEach { line: String ->
+        var start = 0
+        var end: Int
+        
+        // Ручной парсинг вместо lineSequence
+        while (fastaResult.indexOf('\n', start).also { end = it } != -1) {
+            val line = fastaResult.substring(start, end)
+            
             if (line.isNotEmpty() && line[0] == '>') {
                 seq.append("\n---\n")
             } else {
                 seq.append(line)
             }
+            
+            start = end + 1
         }
         
         input = seq.toString()
     }
     
-    private fun revcomp(seq: String): String {
-        val reversed = seq.reversed()
-        val complemented = CharArray(reversed.length)
+    private fun revcompFast(seq: String): String {
+        val length = seq.length
+        val lines = (length + 59) / 60
+        val result = CharArray(length + lines)
+        var pos = 0
         
-        for (i in reversed.indices) {
-            complemented[i] = LOOKUP[reversed[i].code]
+        // Обрабатываем с конца
+        var start = length
+        while (start > 0) {
+            val chunkStart = maxOf(start - 60, 0)
+            
+            // Обрабатываем блок
+            for (i in start - 1 downTo chunkStart) {
+                result[pos++] = LOOKUP[seq[i].code]
+            }
+            
+            result[pos++] = '\n'
+            start = chunkStart
         }
         
-        val result = StringBuilder()
-        for (i in complemented.indices step 60) {
-            val end = minOf(i + 60, complemented.size)
-            result.append(complemented, i, end - i)
-            result.append('\n')
+        // Убираем последний \n
+        if (length % 60 == 0 && length > 0) {
+            pos--
         }
         
-        return result.toString()
+        return String(result, 0, pos)
     }
     
     override fun run(iterationId: Int) {
-        resultVal += Helper.checksum(revcomp(input))
+        resultVal += Helper.checksum(revcompFast(input))
     }
     
     override fun checksum(): UInt {
