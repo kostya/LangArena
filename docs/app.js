@@ -17,6 +17,13 @@ function changeTab(tabId, group_lang_option_checked = false) {
             };
             create_table($results, "Runtime, s", data, true, true, group_lang_option_checked);
             break;
+        case 'memory_tab_rel':
+            var data = window.Data.runtime_table_rel;
+            if (group_lang_option_checked) {
+                data = window.Data.runtime_table_by_lang_rel;
+            };
+            create_table($results, "Runtime relative to fastest", data, true, true, group_lang_option_checked);
+            break;        
         case 'memory_tab':
             var data = window.Data.memory_table;
             if (group_lang_option_checked) {
