@@ -241,7 +241,7 @@ func RunBenchmarks(singleBench string) {
 	allBenches := []Benchmark{
 		&Pidigits{BaseBenchmark: BaseBenchmark{className: "Pidigits"}},
 		&Binarytrees{BaseBenchmark: BaseBenchmark{className: "Binarytrees"}},
-		&BrainfuckHashMap{BaseBenchmark: BaseBenchmark{className: "BrainfuckHashMap"}},
+		&BrainfuckArray{BaseBenchmark: BaseBenchmark{className: "BrainfuckArray"}},
 		&BrainfuckRecursion{BaseBenchmark: BaseBenchmark{className: "BrainfuckRecursion"}},
 		&Fannkuchredux{BaseBenchmark: BaseBenchmark{className: "Fannkuchredux"}},
 		&Fasta{BaseBenchmark: BaseBenchmark{className: "Fasta"}},
@@ -460,25 +460,33 @@ func (b *Binarytrees) Checksum() uint32 {
 	return b.result
 }
 
-// 3. BrainfuckHashMap
+// 3. BrainfuckArray
 type Tape struct {
-	tape []int32
-	pos  int32
+	tape []byte
+	pos  int
 }
 
 func NewTape() *Tape {
-	return &Tape{tape: []int32{0}, pos: 0}
+	return &Tape{tape: make([]byte, 30000), pos: 0}
 }
 
-func (t *Tape) Get() int32 { return t.tape[t.pos] }
-func (t *Tape) Inc()       { t.tape[t.pos]++ }
-func (t *Tape) Dec()       { t.tape[t.pos]-- }
+func (t *Tape) Get() byte { return t.tape[t.pos] }
+
+func (t *Tape) Inc() { 
+    t.tape[t.pos] = t.tape[t.pos] + 1 // Wrapping overflow для byte
+}
+
+func (t *Tape) Dec() { 
+    t.tape[t.pos] = t.tape[t.pos] - 1 // Wrapping overflow для byte
+}
+
 func (t *Tape) Advance() {
 	t.pos++
-	if t.pos >= int32(len(t.tape)) {
+	if t.pos >= len(t.tape) {
 		t.tape = append(t.tape, 0)
 	}
 }
+
 func (t *Tape) Devance() {
 	if t.pos > 0 {
 		t.pos--
@@ -486,42 +494,45 @@ func (t *Tape) Devance() {
 }
 
 type Program struct {
-	chars      []byte
-	bracketMap map[int]int
+	commands []byte
+	jumps    []int // Массив вместо map
 }
 
 func NewProgram(text string) *Program {
-	chars := make([]byte, 0)
-	bracketMap := make(map[int]int)
-	leftStack := make([]int, 0)
-	pc := 0
-
-	for _, char := range text {
-		if strings.ContainsRune("[]<>+-,.", char) {
-			chars = append(chars, byte(char))
-			if char == '[' {
-				leftStack = append(leftStack, pc)
-			} else if char == ']' && len(leftStack) > 0 {
-				left := leftStack[len(leftStack)-1]
-				leftStack = leftStack[:len(leftStack)-1]
-				right := pc
-				bracketMap[left] = right
-				bracketMap[right] = left
-			}
-			pc++
+	// Фильтруем только BF команды
+	commands := make([]byte, 0, len(text))
+	for i := 0; i < len(text); i++ {
+		char := text[i]
+		if strings.Contains("[]<>+-,.", string(char)) {
+			commands = append(commands, char)
 		}
 	}
-
-	return &Program{chars: chars, bracketMap: bracketMap}
+	
+	// Строим массив прыжков
+	jumps := make([]int, len(commands))
+	stack := make([]int, 0, len(commands)/2)
+	
+	for i, cmd := range commands {
+		if cmd == '[' {
+			stack = append(stack, i)
+		} else if cmd == ']' && len(stack) > 0 {
+			start := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			jumps[start] = i
+			jumps[i] = start
+		}
+	}
+	
+	return &Program{commands: commands, jumps: jumps}
 }
 
 func (p *Program) Run() int64 {
 	result := int64(0)
 	tape := NewTape()
 	pc := 0
-
-	for pc < len(p.chars) {
-		switch p.chars[pc] {
+	
+	for pc < len(p.commands) {
+		switch p.commands[pc] {
 		case '+':
 			tape.Inc()
 		case '-':
@@ -532,13 +543,16 @@ func (p *Program) Run() int64 {
 			tape.Devance()
 		case '[':
 			if tape.Get() == 0 {
-				pc = p.bracketMap[pc]
+				pc = p.jumps[pc]
+				continue // Важно: continue чтобы не выполнять pc++
 			}
 		case ']':
 			if tape.Get() != 0 {
-				pc = p.bracketMap[pc]
+				pc = p.jumps[pc]
+				continue // Важно: continue чтобы не выполнять pc++
 			}
 		case '.':
+			// result = (result << 2) + cell
 			result = (result << 2) + int64(tape.Get())
 		}
 		pc++
@@ -546,33 +560,40 @@ func (p *Program) Run() int64 {
 	return result
 }
 
-type BrainfuckHashMap struct {
+type BrainfuckArray struct {
 	BaseBenchmark
-	text   string
-	result uint32
+	programText  string
+	warmupText   string
+	result       uint32
 }
 
-func (b *BrainfuckHashMap) Prepare() {
-	b.text = b.ConfigStr("program")
+func (b *BrainfuckArray) Name() string {
+	return "BrainfuckArray"
 }
 
-func (b *BrainfuckHashMap) _Run(text string) int64 {
+func (b *BrainfuckArray) Prepare() {
+	b.programText = b.ConfigStr("program")
+	b.warmupText = b.ConfigStr("warmup_program")
+	b.result = 0
+}
+
+func (b *BrainfuckArray) _Run(text string) int64 {
 	return NewProgram(text).Run()
 }
 
-func (b *BrainfuckHashMap) Warmup(bench Benchmark) {
-	warmupProgram := b.ConfigStr("warmup_program")
+func (b *BrainfuckArray) Warmup(bench Benchmark) {
 	wi := b.WarmupIterations()
 	for i := 0; i < wi; i++ {
-		b._Run(warmupProgram)
+		b._Run(b.warmupText)
 	}
 }
 
-func (b *BrainfuckHashMap) Run(iteration_id int) {
-	b.result += uint32(b._Run(b.text))
+func (b *BrainfuckArray) Run(iteration_id int) {
+	runResult := b._Run(b.programText)
+	b.result += uint32(runResult)
 }
 
-func (b *BrainfuckHashMap) Checksum() uint32 {
+func (b *BrainfuckArray) Checksum() uint32 {
 	return b.result
 }
 
