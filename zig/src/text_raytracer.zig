@@ -244,7 +244,7 @@ pub const TextRaytracer = struct {
                     pixel = LUT[idx];
                 }
 
-                self.result_val += pixel; // &+= эквивалент как в C++
+                self.result_val +%= pixel; // &+= эквивалент как в C++
             }
         }
     }
