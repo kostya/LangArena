@@ -3537,13 +3537,14 @@ void Base64Encode_run(Benchmark* self, int iteration_id) {
     
     // Выделяем буфер на стеке для максимальной производительности
     size_t encoded_size = b64_encode_size(data->input_len);
-    char encoded_buf[encoded_size];
+    char* encoded_buf = (char*)malloc(encoded_size);
     
     // Выполняем кодирование один раз за итерацию (как в C++ версии)
     size_t actual_len = b64_encode(encoded_buf, data->input_str, data->input_len);
     
     // Накопление результата с использованием &+= (как в C++ версии)
     data->result_val += actual_len;
+    free(encoded_buf);
 }
 
 uint32_t Base64Encode_checksum(Benchmark* self) {
@@ -3677,13 +3678,14 @@ void Base64Decode_run(Benchmark* self, int iteration_id) {
     
     // Выделяем буфер на стеке для максимальной производительности
     size_t decoded_size = b64_decode_size(data->encoded_len);
-    char decoded_buf[decoded_size];
+    char* decoded_buf = (char *)malloc(decoded_size);
     
     // Выполняем декодирование один раз за итерацию (как в C++ версии)
     size_t actual_len = b64_decode(decoded_buf, data->encoded_str, data->encoded_len);
     
     // Накопление результата с использованием &+= (как в C++ версии)
     data->result_val += actual_len;
+    free(decoded_buf);
 }
 
 uint32_t Base64Decode_checksum(Benchmark* self) {
