@@ -1867,11 +1867,16 @@ export class RegexDna extends Benchmark {
   }
 }
 
-// =========== ./benchmarks/revcomp.ts ===========
-
 export class Revcomp extends Benchmark {
   private input: string = '';
   private resultValue: number = 0;
+  
+  // Кешируем таблицу трансляции между вызовами
+  private static lookupTable: Uint8Array | null = null;
+  
+  // Статические константы для таблицы трансляции
+  private static readonly FROM = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
+  private static readonly TO = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
 
   prepare(): void {
     const n = Number(Helper.configI64(this.constructor.name, "n"));
@@ -1883,75 +1888,74 @@ export class Revcomp extends Benchmark {
     
     const fastaOutput = fasta.resultStr;
     
-    let seq = '';
+    // Используем Array.join для эффективности
     const lines = fastaOutput.split('\n');
+    const seqParts: string[] = [];
+    let partCount = 0;
+    
     for (const line of lines) {
         if (line.startsWith('>')) {
-            seq += "\n---\n";
-        } else {
-            seq += line.trim();
+            seqParts[partCount++] = "\n---\n";
+        } else if (line.trim()) {
+            seqParts[partCount++] = line.trim();
         }
     }
     
-    this.input = seq;
+    this.input = seqParts.join('');
   }
 
-  private revcomp(seq: string): string {
-    const len = seq.length;
+  private static initLookupTable(): Uint8Array {
+    if (Revcomp.lookupTable) {
+      return Revcomp.lookupTable;
+    }
     
-    // 1. Таблица трансляции как Uint8Array
     const lookup = new Uint8Array(256);
     for (let i = 0; i < 256; i++) lookup[i] = i;
     
-    const from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
-    const to   = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
-    
-    // Заполняем таблицу
-    for (let i = 0; i < from.length; i++) {
-        const fromChar = from.charCodeAt(i);
-        const toChar = to.charCodeAt(i);
+    for (let i = 0; i < Revcomp.FROM.length; i++) {
+        const fromChar = Revcomp.FROM.charCodeAt(i);
+        const toChar = Revcomp.TO.charCodeAt(i);
         lookup[fromChar] = toChar;
     }
     
-    // 2. Преобразуем строку в Uint8Array ВРУЧНУЮ
-    // TextEncoder кодирует в UTF-8, а нам нужны raw char codes
-    const inputBytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        inputBytes[i] = seq.charCodeAt(i);
-    }
+    Revcomp.lookupTable = lookup;
+    return lookup;
+  }
+
+  // Версия с использованием TextDecoder (как в Go)
+  private revcompGoStyle(seq: string): string {
+    const len = seq.length;
+    const lookup = Revcomp.initLookupTable();
     
-    // 3. Обратный комплемент
-    const outputBytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        outputBytes[i] = lookup[inputBytes[len - 1 - i]];
-    }
-    
-    // 4. Разбиваем на строки с помощью TextDecoder (быстро!)
-    const decoder = new TextDecoder('latin1'); // или 'ascii'
+    // Создаем массив байт результата
     const lineLength = 60;
     const numLines = Math.ceil(len / lineLength);
-    const lines: string[] = new Array(numLines + 1); // +1 для удобства
+    const resultBytes = new Uint8Array(len + numLines); // + переносы строк
     
-    // Декодируем каждую строку отдельно
-    for (let i = 0; i < numLines; i++) {
-        const start = i * lineLength;
-        const end = Math.min(start + lineLength, len);
-        const chunk = outputBytes.subarray(start, end);
-        lines[i] = decoder.decode(chunk);
+    let writePos = 0;
+    let readPos = len - 1;
+    
+    // Обрабатываем построчно
+    for (let line = 0; line < numLines; line++) {
+        const charsInLine = Math.min(lineLength, readPos + 1);
+        
+        // Копируем и трансформируем символы
+        for (let i = 0; i < charsInLine; i++) {
+            const charCode = seq.charCodeAt(readPos--);
+            resultBytes[writePos++] = lookup[charCode];
+        }
+        
+        // Добавляем перенос строки
+        resultBytes[writePos++] = 10; // '\n'
     }
     
-    // 5. Соединяем с переносами строк
-    // Важно: последняя строка тоже должна заканчиваться \n
-    let result = '';
-    for (let i = 0; i < numLines; i++) {
-        result += lines[i] + '\n';
-    }
-    
-    return result;
+    // Конвертируем в строку через TextDecoder
+    const decoder = new TextDecoder('ascii');
+    return decoder.decode(resultBytes);
   }
 
   run(_iteration_id: number): void {
-    const v = Helper.checksumString(this.revcomp(this.input));
+    const v = Helper.checksumString(this.revcompGoStyle(this.input));
     this.resultValue = (this.resultValue + v) >>> 0;
   }
 
@@ -1959,7 +1963,6 @@ export class Revcomp extends Benchmark {
     return this.resultValue;
   }
 }
-
 // =========== ./benchmarks/spectralnorm.ts ===========
 
 export class Spectralnorm extends Benchmark {
