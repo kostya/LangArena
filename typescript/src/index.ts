@@ -1867,7 +1867,7 @@ export class RegexDna extends Benchmark {
 
 export class Revcomp extends Benchmark {
   private input: string = '';
-  private resultStr: string = '';
+  private resultValue: number = 0;
 
   prepare(): void {
     const n = Number(Helper.configI64(this.constructor.name, "n"));
@@ -1892,7 +1892,8 @@ export class Revcomp extends Benchmark {
     this.input = seq;
   }
 
-  private revcomp(seq: string): void {
+  private revcomp(seq: string): string {
+    let resultStr = '';
     const reversed = seq.split('').reverse().join('');
     
     const from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
@@ -1918,16 +1919,18 @@ export class Revcomp extends Benchmark {
     const lineLength = 60;
     for (let i = 0; i < translated.length; i += lineLength) {
         const end = Math.min(i + lineLength, translated.length);
-        this.resultStr += translated.substring(i, end) + '\n';
+        resultStr += translated.substring(i, end) + '\n';
     }
+    return resultStr;
   }
 
   run(_iteration_id: number): void {
-    this.revcomp(this.input);
+    const v = Helper.checksumString(this.revcomp(this.input));
+    this.resultValue = (this.resultValue + v) >>> 0;
   }
 
   checksum(): number {
-    return Helper.checksumString(this.resultStr);
+    return this.resultValue;
   }
 }
 
