@@ -33,7 +33,7 @@ public class Base64Decode extends Benchmark {
     public void run(int iterationId) {
         // В соответствии с диффом: просто декодируем один раз
         str3 = base64DecodeSimple(str2);
-        resultVal += str3.length();
+        resultVal = (resultVal + str3.length()) & 0xFFFFFFFFL;
     }
     
     @Override

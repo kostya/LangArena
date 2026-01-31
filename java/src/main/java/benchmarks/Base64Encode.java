@@ -32,7 +32,7 @@ public class Base64Encode extends Benchmark {
     public void run(int iterationId) {
         // В соответствии с диффом: просто кодируем один раз
         str2 = base64EncodeSimple(str);
-        resultVal += str2.length();
+        resultVal = (resultVal + str2.length()) & 0xFFFFFFFFL;
     }
     
     @Override
