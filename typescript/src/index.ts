@@ -629,7 +629,6 @@ class Tape {
   private pos: number;
 
   constructor() {
-    // Используем обычный массив - он быстрее для JS движков
     this.tape = new Array(30000).fill(0);
     this.pos = 0;
   }
@@ -639,11 +638,13 @@ class Tape {
   }
 
   inc(): void {
-    this.tape[this.pos] = (this.tape[this.pos] + 1) & 255; // Wrapping до 255
+    // Wrapping overflow до 255
+    this.tape[this.pos] = (this.tape[this.pos] + 1) & 255;
   }
 
   dec(): void {
-    this.tape[this.pos] = (this.tape[this.pos] - 1) & 255; // Wrapping до 255
+    // Wrapping overflow до 255
+    this.tape[this.pos] = (this.tape[this.pos] - 1) & 255;
   }
 
   advance(): void {
@@ -662,26 +663,25 @@ class Tape {
 
 class Program {
   private commands: string;
-  private jumps: number[]; // Массив прыжков
+  private jumps: number[];
 
   constructor(text: string) {
-    // Фильтруем только BF команды
-    let filtered = '';
-    for (let i = 0; i < text.length; i++) {
-      const char = text.charAt(i);
+    // Идиоматичный фильтр команд
+    const filteredChars: string[] = [];
+    for (const char of text) {
       if ('[]<>+-,.'.includes(char)) {
-        filtered += char;
+        filteredChars.push(char);
       }
     }
     
-    this.commands = filtered;
+    this.commands = filteredChars.join('');
     
-    // Строим массив прыжков
+    // Идиоматичное построение jumps
     this.jumps = new Array(this.commands.length).fill(0);
     const stack: number[] = [];
     
     for (let i = 0; i < this.commands.length; i++) {
-      const cmd = this.commands.charAt(i);
+      const cmd = this.commands[i];
       if (cmd === '[') {
         stack.push(i);
       } else if (cmd === ']' && stack.length > 0) {
@@ -696,11 +696,9 @@ class Program {
     let result = 0;
     const tape = new Tape();
     let pc = 0;
-    const commands = this.commands;
-    const jumps = this.jumps;
     
-    while (pc < commands.length) {
-      const cmd = commands.charAt(pc);
+    while (pc < this.commands.length) {
+      const cmd = this.commands[pc];
       
       switch (cmd) {
         case '+':
@@ -717,24 +715,23 @@ class Program {
           break;
         case '[':
           if (tape.get() === 0) {
-            pc = jumps[pc];
-            // Не делаем continue здесь - уже обработали прыжок
+            pc = this.jumps[pc];
           }
           break;
         case ']':
           if (tape.get() !== 0) {
-            pc = jumps[pc];
-            // Не делаем continue здесь - уже обработали прыжок
+            pc = this.jumps[pc];
           }
           break;
         case '.':
-          result = ((result << 2) + tape.get()) >>> 0; // Wrapping до 32-bit
+          // result = (result << 2) + cell
+          result = ((result << 2) + tape.get()) >>> 0;
           break;
       }
       
       pc++;
     }
-
+    
     return result;
   }
 }
@@ -751,19 +748,19 @@ export class BrainfuckArray extends Benchmark {
   }
 
   warmup(): void {
-    for (let i = 0; i < this.warmupIterations; i++) {
-      const program = new Program(this.warmupText);
-      program.run();
+    const prepareIters = this.warmupIterations;
+    for (let i = 0; i < prepareIters; i++) {
+      new Program(this.warmupText).run();
     }
   }
 
   run(_iteration_id: number): void {
-    const program = new Program(this.programText);
-    this.resultValue = (this.resultValue + program.run()) >>> 0; // Wrapping до 32-bit
+    const result = new Program(this.programText).run();
+    this.resultValue = (this.resultValue + result) >>> 0;
   }
 
   checksum(): number {
-    return this.resultValue >>> 0; // Преобразование к unsigned 32-bit
+    return this.resultValue >>> 0;
   }
 }
 
