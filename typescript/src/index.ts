@@ -2022,7 +2022,7 @@ export class Base64Encode extends Benchmark {
 
   run(_iteration_id: number): void {
     this.str2 = btoa(this.str);
-    this.resultValue += this.str2.length;
+    this.resultValue = (this.resultValue + this.str2.length) >>> 0;
   }
 
   checksum(): number {
@@ -2052,7 +2052,7 @@ export class Base64Decode extends Benchmark {
 
   run(_iteration_id: number): void {
     this.str3 = atob(this.str2);
-    this.resultValue += this.str3.length;
+    this.resultValue = (this.resultValue + this.str3.length) >>> 0;
   }
 
   checksum(): number {
