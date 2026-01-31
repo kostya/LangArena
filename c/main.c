@@ -2309,32 +2309,8 @@ Benchmark* RegexDna_create(void) {
 
 typedef struct {
     char* input;            // Последовательности с \n---\n разделителями
-    char* result_str;
-    size_t result_capacity;
-    size_t result_length;
     uint32_t checksum_val;
 } RevcompData;
-
-static void Revcomp_grow_result(RevcompData* self, size_t needed) {
-    size_t min_capacity = self->result_length + needed + 1;
-    if (min_capacity <= self->result_capacity) return;
-    
-    size_t new_capacity = self->result_capacity ? self->result_capacity * 2 : 1024;
-    while (new_capacity < min_capacity) new_capacity *= 2;
-    
-    char* new_buffer = realloc(self->result_str, new_capacity);
-    if (!new_buffer) return;
-    
-    self->result_str = new_buffer;
-    self->result_capacity = new_capacity;
-}
-
-static void Revcomp_append(RevcompData* self, const char* str, size_t len) {
-    Revcomp_grow_result(self, len + 1);
-    memcpy(self->result_str + self->result_length, str, len);
-    self->result_length += len;
-    self->result_str[self->result_length] = '\0';
-}
 
 static char Revcomp_complement(char c) {
     static const char* from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
@@ -2390,11 +2366,7 @@ void Revcomp_prepare(Benchmark* self) {
     
     // Освобождаем старые данные
     if (data->input) free(data->input);
-    if (data->result_str) free(data->result_str);
     data->input = NULL;
-    data->result_str = NULL;
-    data->result_capacity = 0;
-    data->result_length = 0;
     data->checksum_val = 0;
     
     int64_t n = Helper_config_i64(self->name, "n");
@@ -2509,7 +2481,6 @@ void Revcomp_cleanup(Benchmark* self) {
     RevcompData* data = (RevcompData*)self->data;
     
     if (data->input) free(data->input);
-    if (data->result_str) free(data->result_str);
     
     // НЕ освобождаем data - сделает системный cleanup
 }
