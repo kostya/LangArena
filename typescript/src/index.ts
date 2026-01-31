@@ -2372,6 +2372,8 @@ export class Primes extends Benchmark {
   }
 }
 
+// =========== ./benchmarks/noise.ts ===========
+
 class NoiseVec2 {
   constructor(
     public x: number,
@@ -2441,9 +2443,9 @@ class Noise2DContext {
     ];
 
     const origins = [
-      new NoiseVec2(x0f, y0f),
-      new NoiseVec2(x0f + 1.0, y0f),
-      new NoiseVec2(x0f, y0f + 1.0),
+      new NoiseVec2(x0f + 0.0, y0f + 0.0),
+      new NoiseVec2(x0f + 1.0, y0f + 0.0),
+      new NoiseVec2(x0f + 0.0, y0f + 1.0),
       new NoiseVec2(x0f + 1.0, y0f + 1.0)
     ];
 
@@ -2482,42 +2484,14 @@ export class Noise extends Benchmark {
   }
 
   run(iteration_id: number): void {
-    const size = Number(this.size);
-    const n2d = this.n2d;
-    const SYM = Noise.SYM;
-    const SYM_LENGTH = SYM.length;
-    
-    // Предвычисляем yOffset
-    const yOffset = iteration_id * 128;
-    
-    // Локальная переменная для накопления
-    let sum = this.resultValue;
-    
-    // Основной цикл с предвычислениями
-    for (let y = 0; y < size; y++) {
-      // Вычисляем y-координату один раз для всей строки
-      const yCoord = y + yOffset;
-      
-      for (let x = 0; x < size; x++) {
-        const v = n2d.get(x * 0.1, yCoord * 0.1) * 0.5 + 0.5;
+    for (let y = 0; y < this.size; y++) {
+      for (let x = 0; x < this.size; x++) {
+        const v = this.n2d.get(x * 0.1, (y + (iteration_id * 128)) * 0.1) * 0.5 + 0.5;
         const idx = Math.floor(v / 0.2);
-        
-        // Оптимизированная проверка границ
-        let charIdx: number;
-        if (idx < 0) {
-          charIdx = 0;
-        } else if (idx >= SYM_LENGTH) {
-          charIdx = SYM_LENGTH - 1;
-        } else {
-          charIdx = idx;
-        }
-        
-        sum += SYM[charIdx].charCodeAt(0);
+        const charIdx = idx < 0 ? 0 : (idx > Noise.SYM.length - 1 ? Noise.SYM.length - 1 : idx);
+        this.resultValue = (this.resultValue + Noise.SYM[charIdx].charCodeAt(0)) & 0xFFFFFFFF;
       }
     }
-    
-    // Обрезаем до 32 бит
-    this.resultValue = sum >>> 0;
   }
 
   checksum(): number {
