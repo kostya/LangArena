@@ -1073,20 +1073,24 @@ export class Fasta extends Benchmark {
   }
 
   private makeRandomFasta(id: string, desc: string, genelist: Gene[], n: number): void {
+    const lines: string[] = [];
+    lines.push(`>${id} ${desc}`);
+    
     let todo = n;
-    this.resultStr += `>${id} ${desc}\n`;
-
+    
     while (todo > 0) {
       const m = todo < Fasta.LINE_LENGTH ? todo : Fasta.LINE_LENGTH;
-      let line = '';
+      const lineChars: string[] = new Array(m);
       
       for (let i = 0; i < m; i++) {
-        line += this.selectRandom(genelist);
+        lineChars[i] = this.selectRandom(genelist);
       }
       
-      this.resultStr += line + '\n';
+      lines.push(lineChars.join(''));
       todo -= Fasta.LINE_LENGTH;
     }
+    
+    this.resultStr += lines.join('\n') + '\n';
   }
 
   private makeRepeatFasta(id: string, desc: string, s: string, n: number): void {
