@@ -5,6 +5,26 @@ public class Revcomp : Benchmark
     private string _input = "";
     private uint _result;
     
+    // Lookup таблица
+    private static readonly char[] LookupTable;
+    
+    static Revcomp()
+    {
+        LookupTable = new char[256];
+        for (int i = 0; i < 256; i++)
+        {
+            LookupTable[i] = (char)i;
+        }
+        
+        string from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
+        string to = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
+        
+        for (int i = 0; i < from.Length; i++)
+        {
+            LookupTable[from[i]] = to[i];
+        }
+    }
+    
     public Revcomp()
     {
         _result = 0;
@@ -27,7 +47,7 @@ public class Revcomp : Benchmark
             {
                 if (line.StartsWith(">"))
                 {
-                    seqBuilder.Append("\n---\n"); // Как в C++ версии
+                    seqBuilder.Append("\n---\n");
                 }
                 else
                 {
@@ -41,44 +61,36 @@ public class Revcomp : Benchmark
     
     private string ReverseComplement(string seq)
     {
-        char[] result = new char[seq.Length];
+        int length = seq.Length;
+        int lines = (length + 59) / 60; // Количество строк
+        int totalSize = length + lines; // Символы + переносы строк
         
-        for (int i = 0; i < seq.Length; i++)
+        // Одна аллокация
+        var result = new StringBuilder(totalSize);
+        
+        // Обрабатываем блоками по 60 символов
+        for (int start = length; start > 0; start -= 60)
         {
-            char c = seq[i];
-            char rc = c switch
+            int chunkStart = Math.Max(start - 60, 0);
+            int chunkSize = start - chunkStart;
+            
+            // Обрабатываем блок в обратном порядке
+            for (int i = start - 1; i >= chunkStart; i--)
             {
-                'w' or 'W' => 'W',
-                's' or 'S' => 'S',
-                'a' or 'A' => 'T',
-                't' or 'T' => 'A',
-                'u' or 'U' => 'A',
-                'g' or 'G' => 'C',
-                'c' or 'C' => 'G',
-                'y' or 'Y' => 'R',
-                'r' or 'R' => 'Y',
-                'k' or 'K' => 'M',
-                'm' or 'M' => 'K',
-                'b' or 'B' => 'V',
-                'd' or 'D' => 'H',
-                'h' or 'H' => 'D',
-                'v' or 'V' => 'B',
-                'n' or 'N' => 'N',
-                _ => c
-            };
-            result[seq.Length - 1 - i] = rc;
+                char c = seq[i];
+                result.Append(LookupTable[c]);
+            }
+            
+            result.Append('\n');
         }
         
-        // Добавляем переносы строк каждые 60 символов как в C++ версии
-        var formatted = new StringBuilder();
-        for (int i = 0; i < result.Length; i += 60)
+        // Убираем последний \n если он лишний
+        if (length % 60 == 0 && length > 0)
         {
-            int length = Math.Min(60, result.Length - i);
-            formatted.Append(result, i, length);
-            formatted.Append('\n');
+            result.Length--;
         }
         
-        return formatted.ToString();
+        return result.ToString();
     }
     
     public override void Run(long IterationId)
