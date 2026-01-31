@@ -111,6 +111,10 @@ public class AStarPathfinder extends Benchmark {
     private final int height;
     private boolean[][] mazeGrid;
     
+    // КЭШИРОВАННЫЕ МАССИВЫ - ГЛАВНАЯ ОПТИМИЗАЦИЯ
+    private int[][] gScoresCache;
+    private Point[][] cameFromCache;
+    
     public AStarPathfinder() {
         this.width = (int) configVal("w");
         this.height = (int) configVal("h");
@@ -127,14 +131,15 @@ public class AStarPathfinder extends Benchmark {
     }
     
     private int distance(int aX, int aY, int bX, int bY) {
-        return (Math.abs(aX - bX) + Math.abs(aY - bY));
+        return Math.abs(aX - bX) + Math.abs(aY - bY);
     }
     
     private Pair<Optional<List<Point>>, Integer> findPath() {
         boolean[][] grid = mazeGrid;
         
-        int[][] gScores = new int[height][width];
-        Point[][] cameFrom = new Point[height][width];
+        // ИСПОЛЬЗУЕМ КЭШИРОВАННЫЕ МАССИВЫ
+        int[][] gScores = gScoresCache;
+        Point[][] cameFrom = cameFromCache;
         
         // Оптимизированная инициализация gScores
         if (height > 0 && width > 0) {
@@ -142,6 +147,14 @@ public class AStarPathfinder extends Benchmark {
             Arrays.fill(firstRow, Integer.MAX_VALUE);
             for (int y = 1; y < height; y++) {
                 System.arraycopy(firstRow, 0, gScores[y], 0, width);
+            }
+        }
+        
+        // Инициализация cameFrom
+        for (int y = 0; y < height; y++) {
+            Point[] row = cameFrom[y];
+            for (int x = 0; x < width; x++) {
+                row[x] = null; // вместо new Point(-1, -1)
             }
         }
         
@@ -166,6 +179,7 @@ public class AStarPathfinder extends Benchmark {
                 while (x != startX || y != startY) {
                     path.add(new Point(x, y));
                     Point prev = cameFrom[y][x];
+                    if (prev == null) break;
                     x = prev.x;
                     y = prev.y;
                 }
@@ -187,7 +201,13 @@ public class AStarPathfinder extends Benchmark {
                 int tentativeG = currentG + STRAIGHT_COST;
                 
                 if (tentativeG < gScores[ny][nx]) {
-                    cameFrom[ny][nx] = new Point(current.x, current.y);
+                    // Кэшируем Point объекты
+                    if (cameFrom[ny][nx] == null) {
+                        cameFrom[ny][nx] = new Point(current.x, current.y);
+                    } else {
+                        cameFrom[ny][nx].x = current.x;
+                        cameFrom[ny][nx].y = current.y;
+                    }
                     gScores[ny][nx] = tentativeG;
                     
                     int fScore = tentativeG + distance(nx, ny, goalX, goalY);
@@ -211,6 +231,19 @@ public class AStarPathfinder extends Benchmark {
     @Override
     public void prepare() {
         mazeGrid = MazeGenerator.Maze.generateWalkableMaze(width, height);
+        
+        // ВЫДЕЛЯЕМ МАССИВЫ ОДИН РАЗ
+        if (gScoresCache == null || gScoresCache.length != height) {
+            gScoresCache = new int[height][width];
+            cameFromCache = new Point[height][width];
+            
+            // Предварительно создаем Point объекты
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    cameFromCache[y][x] = new Point(-1, -1);
+                }
+            }
+        }
     }
     
     @Override

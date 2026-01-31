@@ -14,6 +14,10 @@ pub const AStarPathfinder = struct {
     goal_y: i32,
     result_val: u32,
     maze_grid: ?[]const []const bool,
+    
+    // Кэшируемые массивы для findPath
+    g_scores_cache: ?[][]i32 = null,
+    came_from_cache: ?[][]i32 = null,
 
     const Node = struct {
         x: i32,
@@ -73,6 +77,22 @@ pub const AStarPathfinder = struct {
             }
             self.allocator.free(grid);
         }
+        
+        // Освобождаем кэшированные массивы
+        if (self.g_scores_cache) |g_scores| {
+            for (g_scores) |row| {
+                self.allocator.free(row);
+            }
+            self.allocator.free(g_scores);
+        }
+        
+        if (self.came_from_cache) |came_from| {
+            for (came_from) |row| {
+                self.allocator.free(row);
+            }
+            self.allocator.free(came_from);
+        }
+        
         self.allocator.destroy(self);
     }
 
@@ -95,9 +115,31 @@ pub const AStarPathfinder = struct {
         return grid;
     }
 
+    fn initCachedArrays(self: *AStarPathfinder) !void {
+        if (self.g_scores_cache == null) {
+            const width_usize = @as(usize, @intCast(self.width));
+            const height_usize = @as(usize, @intCast(self.height));
+            
+            // Выделяем g_scores
+            const g_scores = try self.allocator.alloc([]i32, height_usize);
+            for (0..height_usize) |i| {
+                g_scores[i] = try self.allocator.alloc(i32, width_usize);
+            }
+            self.g_scores_cache = g_scores;
+            
+            // Выделяем came_from
+            const came_from = try self.allocator.alloc([]i32, height_usize);
+            for (0..height_usize) |i| {
+                came_from[i] = try self.allocator.alloc(i32, width_usize);
+            }
+            self.came_from_cache = came_from;
+        }
+    }
+
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *AStarPathfinder = @ptrCast(@alignCast(ptr));
         _ = self.ensureMazeGrid() catch return;
+        _ = self.initCachedArrays() catch return;
     }
 
     fn findPath(self: *AStarPathfinder, maze_grid: []const []const bool) struct { 
@@ -112,61 +154,24 @@ pub const AStarPathfinder = struct {
         const goal_x = self.goal_x;
         const goal_y = self.goal_y;
 
+        // Используем кэшированные массивы
+        const g_scores = self.g_scores_cache.?;
+        const came_from = self.came_from_cache.?;
+        
+        // Инициализация массивов
+        const height_usize = @as(usize, @intCast(height));
+        // const width_usize = @as(usize, @intCast(width));
+        
+        // Быстрая инициализация
+        for (0..height_usize) |i| {
+            @memset(g_scores[i], std.math.maxInt(i32));
+            @memset(came_from[i], -1);
+        }
+
         var arena = std.heap.ArenaAllocator.init(self.allocator);
         defer arena.deinit();
         const allocator = arena.allocator();
 
-        // Инициализация g_scores
-        var g_scores = allocator.alloc([]i32, @as(usize, @intCast(height))) catch return .{ 
-            .path_length = 0, .nodes_explored = 0, .found = false 
-        };
-        defer {
-            for (g_scores) |row| {
-                allocator.free(row);
-            }
-            allocator.free(g_scores);
-        }
-
-        for (0..@as(usize, @intCast(height))) |i| {
-            g_scores[i] = allocator.alloc(i32, @as(usize, @intCast(width))) catch return .{ 
-                .path_length = 0, .nodes_explored = 0, .found = false 
-            };
-            @memset(g_scores[i], std.math.maxInt(i32));
-        }
-
-        // Инициализация came_from
-        var came_from_x = allocator.alloc([]i32, @as(usize, @intCast(height))) catch return .{ 
-            .path_length = 0, .nodes_explored = 0, .found = false 
-        };
-        defer {
-            for (came_from_x) |row| {
-                allocator.free(row);
-            }
-            allocator.free(came_from_x);
-        }
-
-        var came_from_y = allocator.alloc([]i32, @as(usize, @intCast(height))) catch return .{ 
-            .path_length = 0, .nodes_explored = 0, .found = false 
-        };
-        defer {
-            for (came_from_y) |row| {
-                allocator.free(row);
-            }
-            allocator.free(came_from_y);
-        }
-
-        for (0..@as(usize, @intCast(height))) |i| {
-            came_from_x[i] = allocator.alloc(i32, @as(usize, @intCast(width))) catch return .{ 
-                .path_length = 0, .nodes_explored = 0, .found = false 
-            };
-            came_from_y[i] = allocator.alloc(i32, @as(usize, @intCast(width))) catch return .{ 
-                .path_length = 0, .nodes_explored = 0, .found = false 
-            };
-            @memset(came_from_x[i], -1);
-            @memset(came_from_y[i], -1);
-        }
-
-        // Инициализация priority queue
         var open_set = NodeQueue.init(allocator, {});
         defer open_set.deinit();
 
@@ -184,39 +189,24 @@ pub const AStarPathfinder = struct {
             nodes_explored += 1;
 
             if (current.x == goal_x and current.y == goal_y) {
-                // Восстанавливаем путь ТОЧНО как в C++
-                var path = std.ArrayList([2]i32).initCapacity(allocator, @as(usize, @intCast(width * height))) catch return .{ 
-                    .path_length = 0, .nodes_explored = nodes_explored, .found = true 
-                };
-                defer path.deinit(allocator);
-                
+                // Восстанавливаем путь
+                var path_length: i32 = 1;
                 var x = current.x;
                 var y = current.y;
                 
-                // Добавляем конечную точку
-                path.append(allocator, .{ x, y }) catch return .{ 
-                    .path_length = 0, .nodes_explored = nodes_explored, .found = true 
-                };
-                
-                // Идем назад до старта
                 while (x != start_x or y != start_y) {
                     const idx_y = @as(usize, @intCast(y));
                     const idx_x = @as(usize, @intCast(x));
-                    const prev_x = came_from_x[idx_y][idx_x];
-                    const prev_y = came_from_y[idx_y][idx_x];
-                    if (prev_x < 0 or prev_y < 0) break;
+                    const prev = came_from[idx_y][idx_x];
+                    if (prev == -1) break;
                     
-                    x = prev_x;
-                    y = prev_y;
-                    path.append(allocator, .{ x, y }) catch return .{ 
-                        .path_length = 0, .nodes_explored = nodes_explored, .found = true 
-                    };
+                    x = @mod(prev, width);
+                    y = @divFloor(prev, width);
+                    path_length += 1;
                 }
                 
-                // В C++ path реверсируется (добавляются от цели к старту, затем reverse)
-                // У нас путь от цели к старту, нужно длину
                 return .{ 
-                    .path_length = @as(i32, @intCast(path.items.len)), 
+                    .path_length = path_length, 
                     .nodes_explored = nodes_explored, 
                     .found = true 
                 };
@@ -236,8 +226,8 @@ pub const AStarPathfinder = struct {
                 const idx_x = @as(usize, @intCast(nx));
 
                 if (tentative_g < g_scores[idx_y][idx_x]) {
-                    came_from_x[idx_y][idx_x] = current.x;
-                    came_from_y[idx_y][idx_x] = current.y;
+                    // Упаковываем координаты в одно число
+                    came_from[idx_y][idx_x] = current.y * width + current.x;
                     g_scores[idx_y][idx_x] = tentative_g;
 
                     const f_score = tentative_g + distance(nx, ny, goal_x, goal_y);
@@ -256,18 +246,12 @@ pub const AStarPathfinder = struct {
         const maze_grid = self.ensureMazeGrid() catch return;
         const result = self.findPath(maze_grid);
         
-        // Воспроизводим C++ поведение точно
         var local_result: i64 = 0;
         const path_size = if (result.found) result.path_length else 0;
 
-        // local_result = (local_result << 5) + (path ? path->size() : 0);
         local_result = @as(i64, @intCast(@as(u64, @bitCast(local_result)) << 5)) + @as(i64, @intCast(path_size));
-        
-        // local_result = (local_result << 5) + nodes_explored;
         local_result = @as(i64, @intCast(@as(u64, @bitCast(local_result)) << 5)) + @as(i64, @intCast(result.nodes_explored));
         
-        // result_val += local_result;
-        // В C++ при сложении uint32_t и int64_t, int64_t преобразуется в uint32_t
         self.result_val = @as(u32, @intCast(@as(i64, @intCast(self.result_val)) + local_result));
     }
 

@@ -3263,7 +3263,6 @@ class AStarPathfinder < Benchmark
     (a_x - b_x).abs + (a_y - b_y).abs
   end
 
-  # Оптимизированный узел с встроенными координатами вместо Tuple
   record Node, x : Int32, y : Int32, f_score : Int32 do
     include Comparable(Node)
 
@@ -3351,13 +3350,15 @@ class AStarPathfinder < Benchmark
     @maze_grid = Array(Array(Bool)).new
   end
 
-  private def find_path : Tuple(Array({Int32, Int32})?, Int32)?
+  private def find_path : Tuple(Array({Int32, Int32})?, Int32)
     grid = @maze_grid
 
+    # ТОЛЬКО ДВА МАССИВА как в оригинале
     g_scores = Array.new(@height) { Array.new(@width, Int32::MAX) }
     came_from = Array.new(@height) { Array.new(@width, {-1, -1}) }
+    
     open_set = BinaryHeap(Node).new
-    nodes_explored = 0 # Локальный счетчик
+    nodes_explored = 0
 
     g_scores[@start_y][@start_x] = 0
     open_set.push(Node.new(@start_x, @start_y, distance(@start_x, @start_y, @goal_x, @goal_y)))
@@ -3366,7 +3367,7 @@ class AStarPathfinder < Benchmark
 
     until open_set.empty?
       current = open_set.pop.not_nil!
-      nodes_explored += 1 # Увеличиваем счетчик при извлечении узла
+      nodes_explored += 1
 
       if current.x == @goal_x && current.y == @goal_y
         path = [] of {Int32, Int32}
@@ -3381,7 +3382,7 @@ class AStarPathfinder < Benchmark
         end
 
         path << {@start_x, @start_y}
-        return {path.reverse, nodes_explored} # Возвращаем tuple
+        return {path.reverse, nodes_explored}
       end
 
       current_g = g_scores[current.y][current.x]
@@ -3393,8 +3394,7 @@ class AStarPathfinder < Benchmark
         next if nx < 0 || nx >= @width || ny < 0 || ny >= @height
         next unless grid[ny][nx]
 
-        move_cost = 1000
-        tentative_g = current_g + move_cost
+        tentative_g = current_g + 1000
 
         if tentative_g < g_scores[ny][nx]
           came_from[ny][nx] = {current.x, current.y}
@@ -3406,7 +3406,7 @@ class AStarPathfinder < Benchmark
       end
     end
 
-    {nil, nodes_explored} # Возвращаем даже если путь не найден
+    {nil, nodes_explored}
   end
 
   def prepare
@@ -3416,7 +3416,6 @@ class AStarPathfinder < Benchmark
   def run(iteration_id)
     path, nodes_explored = find_path
 
-    # Для checksum можно делать комбинацию
     local_result = 0_i64
     local_result = (local_result << 5) &+ (path.try(&.size) || 0)
     local_result = (local_result << 5) &+ nodes_explored

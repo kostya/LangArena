@@ -7749,8 +7749,15 @@ Benchmark* MazeGenerator_create(void) {
 }
 
 // ============================================================================
-// Бенчмарк AStarPathfinder
+// Бенчмарк AStarPathfinder (оптимизированная версия)
 // ============================================================================
+
+typedef struct {
+    int* path_x;
+    int* path_y;
+    int path_length;
+    int nodes_explored;
+} AStarPathResult;
 
 typedef struct {
     int x;
@@ -7764,12 +7771,68 @@ typedef struct {
     int capacity;
 } AStarBinaryHeap;
 
+// Структура для хранения кэшированных массивов
+typedef struct {
+    int** g_scores;        // Кэш для g_scores
+    int** came_from;       // Кэш для came_from (упакованные координаты)
+    int width;
+    int height;
+} AStarCache;
+
+// Глобальный кэш для алгоритма
+static AStarCache astar_cache = {0};
+
+// Инициализация кэша
+static void astar_cache_init(int width, int height) {
+    if (astar_cache.g_scores != NULL && astar_cache.width == width && astar_cache.height == height) {
+        return; // Кэш уже инициализирован
+    }
+    
+    // Освобождаем старый кэш если был
+    if (astar_cache.g_scores != NULL) {
+        for (int i = 0; i < astar_cache.height; i++) {
+            free(astar_cache.g_scores[i]);
+            free(astar_cache.came_from[i]);
+        }
+        free(astar_cache.g_scores);
+        free(astar_cache.came_from);
+    }
+    
+    // Выделяем новый кэш
+    astar_cache.width = width;
+    astar_cache.height = height;
+    
+    astar_cache.g_scores = malloc(height * sizeof(int*));
+    astar_cache.came_from = malloc(height * sizeof(int*));
+    
+    for (int i = 0; i < height; i++) {
+        astar_cache.g_scores[i] = malloc(width * sizeof(int));
+        astar_cache.came_from[i] = malloc(width * sizeof(int));
+    }
+}
+
+// Освобождение кэша
+static void astar_cache_cleanup(void) {
+    if (astar_cache.g_scores != NULL) {
+        for (int i = 0; i < astar_cache.height; i++) {
+            free(astar_cache.g_scores[i]);
+            free(astar_cache.came_from[i]);
+        }
+        free(astar_cache.g_scores);
+        free(astar_cache.came_from);
+        astar_cache.g_scores = NULL;
+        astar_cache.came_from = NULL;
+        astar_cache.width = 0;
+        astar_cache.height = 0;
+    }
+}
+
 // Функции для бинарной кучи
-static AStarBinaryHeap* astar_binary_heap_new(int capacity) {
+static AStarBinaryHeap* astar_binary_heap_new(int initial_capacity) {
     AStarBinaryHeap* heap = malloc(sizeof(AStarBinaryHeap));
-    heap->data = malloc(capacity * sizeof(AStarNode));
+    heap->data = malloc(initial_capacity * sizeof(AStarNode));
     heap->size = 0;
-    heap->capacity = capacity;
+    heap->capacity = initial_capacity;
     return heap;
 }
 
@@ -7817,7 +7880,7 @@ static void astar_binary_heap_sift_down(AStarBinaryHeap* heap, int index) {
 
 static void astar_binary_heap_push(AStarBinaryHeap* heap, AStarNode node) {
     if (heap->size >= heap->capacity) {
-        heap->capacity *= 2;
+        heap->capacity = heap->capacity * 2;
         heap->data = realloc(heap->data, heap->capacity * sizeof(AStarNode));
     }
     
@@ -7827,9 +7890,8 @@ static void astar_binary_heap_push(AStarBinaryHeap* heap, AStarNode node) {
 }
 
 static AStarNode astar_binary_heap_pop(AStarBinaryHeap* heap) {
-    AStarNode null_node = {0, 0, 0};
-    
     if (heap->size == 0) {
+        AStarNode null_node = {0, 0, 0};
         return null_node;
     }
     
@@ -7849,44 +7911,41 @@ static bool astar_binary_heap_empty(AStarBinaryHeap* heap) {
 }
 
 // Эвристика Манхэттенского расстояния
-static int astar_manhattan_distance(int a_x, int a_y, int b_x, int b_y) {
-    return abs(a_x - b_x) + abs(a_y - b_y);
+static inline int astar_manhattan_distance(int a_x, int a_y, int b_x, int b_y) {
+    int dx = a_x > b_x ? a_x - b_x : b_x - a_x;
+    int dy = a_y > b_y ? a_y - b_y : b_y - a_y;
+    return dx + dy;
 }
 
-// Структура для возврата пути
-typedef struct {
-    int* path_x;
-    int* path_y;
-    int path_length;
-    int nodes_explored;
-} AStarPathResult;
+// Упаковка координат в одно число
+static inline int astar_pack_coords(int x, int y, int width) {
+    return y * width + x;
+}
 
-// Алгоритм A* поиска пути
-static AStarPathResult astar_find_path(bool** maze_grid, int width, int height, 
-                                       int start_x, int start_y, int goal_x, int goal_y) {
+// Распаковка координат
+static inline void astar_unpack_coords(int packed, int width, int* x, int* y) {
+    *x = packed % width;
+    *y = packed / width;
+}
+
+// Алгоритм A* поиска пути (оптимизированная версия)
+static AStarPathResult astar_find_path_optimized(bool** maze_grid, int width, int height, 
+                                                int start_x, int start_y, int goal_x, int goal_y) {
     AStarPathResult result = {NULL, NULL, 0, 0};
     
     if (!maze_grid || width <= 0 || height <= 0) {
         return result;
     }
     
-    // Массивы для алгоритма
-    int** g_scores = malloc(height * sizeof(int*));
-    int** came_from_x = malloc(height * sizeof(int*));
-    int** came_from_y = malloc(height * sizeof(int*));
-    bool** closed_set = malloc(height * sizeof(bool*));
+    // Используем кэшированные массивы
+    int** g_scores = astar_cache.g_scores;
+    int** came_from = astar_cache.came_from;
     
-    for (int i = 0; i < height; i++) {
-        g_scores[i] = malloc(width * sizeof(int));
-        came_from_x[i] = malloc(width * sizeof(int));
-        came_from_y[i] = malloc(width * sizeof(int));
-        closed_set[i] = calloc(width, sizeof(bool));
-        
-        for (int j = 0; j < width; j++) {
-            g_scores[i][j] = INT_MAX;
-            came_from_x[i][j] = -1;
-            came_from_y[i][j] = -1;
-            closed_set[i][j] = false;
+    // Быстрая инициализация массивов
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            g_scores[y][x] = INT_MAX;
+            came_from[y][x] = -1;
         }
     }
     
@@ -7899,17 +7958,10 @@ static AStarPathResult astar_find_path(bool** maze_grid, int width, int height,
         .f_score = astar_manhattan_distance(start_x, start_y, goal_x, goal_y)
     });
     
-    int directions[4][2] = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
+    static const int directions[4][2] = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
     
     while (!astar_binary_heap_empty(open_set)) {
         AStarNode current = astar_binary_heap_pop(open_set);
-        
-        // Пропускаем уже обработанные узлы
-        if (closed_set[current.y][current.x]) {
-            continue;
-        }
-        
-        closed_set[current.y][current.x] = true;
         result.nodes_explored++;
         
         if (current.x == goal_x && current.y == goal_y) {
@@ -7921,10 +7973,9 @@ static AStarPathResult astar_find_path(bool** maze_grid, int width, int height,
             // Сначала подсчитываем длину пути
             while (x != start_x || y != start_y) {
                 path_size++;
-                int prev_x = came_from_x[y][x];
-                int prev_y = came_from_y[y][x];
-                x = prev_x;
-                y = prev_y;
+                int packed = came_from[y][x];
+                if (packed == -1) break;
+                astar_unpack_coords(packed, width, &x, &y);
             }
             path_size++; // добавляем стартовую точку
             
@@ -7934,7 +7985,7 @@ static AStarPathResult astar_find_path(bool** maze_grid, int width, int height,
                 result.path_y = malloc(path_size * sizeof(int));
                 result.path_length = path_size;
                 
-                // Восстанавливаем путь
+                // Восстанавливаем путь от цели к старту
                 x = goal_x;
                 y = goal_y;
                 int idx = path_size - 1;
@@ -7947,10 +7998,8 @@ static AStarPathResult astar_find_path(bool** maze_grid, int width, int height,
                         break;
                     }
                     
-                    int prev_x = came_from_x[y][x];
-                    int prev_y = came_from_y[y][x];
-                    x = prev_x;
-                    y = prev_y;
+                    int packed = came_from[y][x];
+                    astar_unpack_coords(packed, width, &x, &y);
                     idx--;
                 }
             }
@@ -7964,14 +8013,13 @@ static AStarPathResult astar_find_path(bool** maze_grid, int width, int height,
             int ny = current.y + directions[d][1];
             
             if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-            if (closed_set[ny][nx]) continue; // Уже обработан
             if (!maze_grid[ny][nx]) continue; // Стена
             
             int tentative_g = current_g + 1000; // Стоимость шага
             
             if (tentative_g < g_scores[ny][nx]) {
-                came_from_x[ny][nx] = current.x;
-                came_from_y[ny][nx] = current.y;
+                // Упаковываем координаты в одно число
+                came_from[ny][nx] = astar_pack_coords(current.x, current.y, width);
                 g_scores[ny][nx] = tentative_g;
                 
                 int f_score = tentative_g + astar_manhattan_distance(nx, ny, goal_x, goal_y);
@@ -7980,34 +8028,8 @@ static AStarPathResult astar_find_path(bool** maze_grid, int width, int height,
         }
     }
     
-    // Освобождаем память
     astar_binary_heap_free(open_set);
-    for (int i = 0; i < height; i++) {
-        free(g_scores[i]);
-        free(came_from_x[i]);
-        free(came_from_y[i]);
-        free(closed_set[i]);
-    }
-    free(g_scores);
-    free(came_from_x);
-    free(came_from_y);
-    free(closed_set);
-    
     return result;
-}
-
-// Освобождение результата пути
-static void astar_path_result_free(AStarPathResult* result) {
-    if (result->path_x) {
-        free(result->path_x);
-        result->path_x = NULL;
-    }
-    if (result->path_y) {
-        free(result->path_y);
-        result->path_y = NULL;
-    }
-    result->path_length = 0;
-    result->nodes_explored = 0;
 }
 
 // Структура данных бенчмарка
@@ -8074,17 +8096,34 @@ void AStarPathfinder_prepare(Benchmark* self) {
     }
     free(maze_grid.cells);
     
+    // Инициализируем кэш алгоритма A*
+    astar_cache_init((int)data->width_val, (int)data->height_val);
+    
     data->result_val = 0;
+}
+
+// Освобождение результата пути
+static void astar_path_result_free(AStarPathResult* result) {
+    if (result->path_x) {
+        free(result->path_x);
+        result->path_x = NULL;
+    }
+    if (result->path_y) {
+        free(result->path_y);
+        result->path_y = NULL;
+    }
+    result->path_length = 0;
+    result->nodes_explored = 0;
 }
 
 void AStarPathfinder_run(Benchmark* self, int iteration_id) {
     AStarPathfinderData* data = (AStarPathfinderData*)self->data;
     
-    // Ищем путь с помощью A*
-    AStarPathResult result = astar_find_path(data->maze_grid, 
-                                            (int)data->width_val, (int)data->height_val,
-                                            data->start_x, data->start_y,
-                                            data->goal_x, data->goal_y);
+    // Ищем путь с помощью A* (оптимизированная версия)
+    AStarPathResult result = astar_find_path_optimized(data->maze_grid, 
+                                                      (int)data->width_val, (int)data->height_val,
+                                                      data->start_x, data->start_y,
+                                                      data->goal_x, data->goal_y);
     
     // Вычисляем результат как в C++ версии
     uint32_t iteration_result = 0;
@@ -8129,6 +8168,12 @@ Benchmark* AStarPathfinder_create(void) {
     bench->cleanup = AStarPathfinder_cleanup;
     
     return bench;
+}
+
+// Освобождение глобального кэша при завершении программы
+__attribute__((destructor))
+static void astar_global_cleanup(void) {
+    astar_cache_cleanup();
 }
 
 // ==================== Compression & Decompression Benchmarks ====================

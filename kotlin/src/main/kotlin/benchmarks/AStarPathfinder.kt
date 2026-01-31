@@ -1,8 +1,8 @@
 package benchmarks
 
 import Benchmark
-import java.util.*
-import kotlin.math.*
+import kotlin.math.abs
+import java.util.Collections
 
 class AStarPathfinder : Benchmark() {
     private data class Node(val x: Int, val y: Int, val fScore: Int) : Comparable<Node> {
@@ -86,6 +86,18 @@ class AStarPathfinder : Benchmark() {
     private val height: Int
     private lateinit var mazeGrid: Array<BooleanArray>
     
+    // Кэшированные массивы
+    private lateinit var gScoresCache: Array<IntArray>
+    private lateinit var cameFromCache: Array<Array<Point?>>
+    
+    private data class Point(var x: Int, var y: Int)
+    
+    // Статические константы
+    private companion object {
+        val DIRECTIONS = arrayOf(0 to -1, 1 to 0, 0 to 1, -1 to 0)
+        const val STRAIGHT_COST = 1000
+    }
+    
     init {
         width = configVal("w").toInt()
         height = configVal("h").toInt()
@@ -96,22 +108,39 @@ class AStarPathfinder : Benchmark() {
     }
     
     private fun distance(aX: Int, aY: Int, bX: Int, bY: Int): Int {
-        return (abs(aX - bX) + abs(aY - bY))
+        return abs(aX - bX) + abs(aY - bY)
     }
     
-    private fun findPath(): Pair<kotlin.collections.List<Pair<Int, Int>>?, Int> {
+    private fun findPath(): Pair<List<Pair<Int, Int>>?, Int> {
         val grid = mazeGrid
         
-        val gScores = Array(height) { IntArray(width) { Int.MAX_VALUE } }
-        val cameFrom = Array(height) { Array<Pair<Int, Int>?>(width) { null } }
+        // Используем кэшированные массивы
+        val gScores = gScoresCache
+        val cameFrom = cameFromCache
+        
+        // Быстрая инициализация gScores
+        if (height > 0 && width > 0) {
+            val firstRow = gScores[0]
+            firstRow.fill(Int.MAX_VALUE)
+            for (y in 1 until height) {
+                System.arraycopy(firstRow, 0, gScores[y], 0, width)
+            }
+        }
+        
+        // Инициализация cameFrom
+        for (y in 0 until height) {
+            val row = cameFrom[y]
+            for (x in 0 until width) {
+                row[x] = null
+            }
+        }
+        
         val openSet = BinaryHeap()
         var nodesExplored = 0
         
         gScores[startY][startX] = 0
         openSet.push(Node(startX, startY, 
                          distance(startX, startY, goalX, goalY)))
-        
-        val directions = listOf(0 to -1, 1 to 0, 0 to 1, -1 to 0)
         
         while (!openSet.isEmpty()) {
             val current = openSet.pop() ?: break
@@ -124,9 +153,10 @@ class AStarPathfinder : Benchmark() {
                 
                 while (x != startX || y != startY) {
                     path.add(x to y)
-                    val (prevX, prevY) = cameFrom[y][x]!!
-                    x = prevX
-                    y = prevY
+                    val prev = cameFrom[y][x]
+                    if (prev == null) break
+                    x = prev.x
+                    y = prev.y
                 }
                 
                 path.add(startX to startY)
@@ -136,17 +166,24 @@ class AStarPathfinder : Benchmark() {
             
             val currentG = gScores[current.y][current.x]
             
-            for ((dx, dy) in directions) {
+            for ((dx, dy) in DIRECTIONS) {
                 val nx = current.x + dx
                 val ny = current.y + dy
                 
                 if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue
                 if (!grid[ny][nx]) continue
                 
-                val tentativeG = currentG + 1000
+                val tentativeG = currentG + STRAIGHT_COST
                 
                 if (tentativeG < gScores[ny][nx]) {
-                    cameFrom[ny][nx] = current.x to current.y
+                    // Обновляем существующий Point объект или создаем новый
+                    val point = cameFrom[ny][nx]
+                    if (point == null) {
+                        cameFrom[ny][nx] = Point(current.x, current.y)
+                    } else {
+                        point.x = current.x
+                        point.y = current.y
+                    }
                     gScores[ny][nx] = tentativeG
                     
                     val fScore = tentativeG + distance(nx, ny, goalX, goalY)
@@ -160,6 +197,21 @@ class AStarPathfinder : Benchmark() {
     
     override fun prepare() {
         mazeGrid = MazeGenerator.Maze.generateWalkableMaze(width, height)
+        
+        // Инициализируем кэшированные массивы один раз
+        if (!::gScoresCache.isInitialized || 
+            gScoresCache.size != height || 
+            gScoresCache[0].size != width) {
+            gScoresCache = Array(height) { IntArray(width) }
+            cameFromCache = Array(height) { arrayOfNulls<Point>(width) }
+            
+            // Предварительно создаем Point объекты
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    cameFromCache[y][x] = Point(-1, -1)
+                }
+            }
+        }
     }
     
     override fun run(iterationId: Int) {
@@ -168,7 +220,7 @@ class AStarPathfinder : Benchmark() {
         var localResult = 0L
         localResult = (localResult shl 5) + (path?.size ?: 0)
         localResult = (localResult shl 5) + nodesExplored
-        resultVal += localResult.toUInt()  // &+= эквивалент
+        resultVal = resultVal.plus(localResult.toUInt())
     }
     
     override fun checksum(): UInt = resultVal

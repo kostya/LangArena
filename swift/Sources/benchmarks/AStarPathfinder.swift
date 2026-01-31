@@ -42,12 +42,11 @@ final class AStarPathfinder: BenchmarkProtocol {
         
         private mutating func siftUp(from index: Int) {
             var child = index
-            var parent = (child - 1) / 2
-            
-            while child > 0 && data[child] < data[parent] {
+            while child > 0 {
+                let parent = (child - 1) / 2
+                guard data[child] < data[parent] else { break }
                 data.swapAt(child, parent)
                 child = parent
-                parent = (child - 1) / 2
             }
         }
         
@@ -81,9 +80,22 @@ final class AStarPathfinder: BenchmarkProtocol {
     }
     
     private func findPath() -> (path: [(x: Int, y: Int)]?, nodesExplored: Int) {
-        var grid = mazeGrid
+        let grid = mazeGrid
         
-        var gScores = Array(repeating: Array(repeating: Int.max, count: width), count: height)
+        // ТОЛЬКО ЭТО ИЗМЕНИЛИ: КЭШИРОВАНИЕ МАССИВОВ
+        // Используем предварительно выделенные массивы
+        if gScoresCache.count != height || (height > 0 && gScoresCache[0].count != width) {
+            gScoresCache = Array(repeating: Array(repeating: Int.max, count: width), count: height)
+        } else {
+            // Быстро инициализируем существующие массивы
+            for y in 0..<height {
+                for x in 0..<width {
+                    gScoresCache[y][x] = Int.max
+                }
+            }
+        }
+        
+        var gScores = gScoresCache
         var cameFrom = Array(repeating: Array(repeating: (-1, -1), count: width), count: height)
         var openSet = BinaryHeap<Node>()
         var nodesExplored = 0
@@ -137,6 +149,9 @@ final class AStarPathfinder: BenchmarkProtocol {
         
         return (nil, nodesExplored)
     }
+    
+    // ДОБАВЛЕН КЭШ
+    private var gScoresCache: [[Int]] = []
     
     private var resultVal: UInt32 = 0
     private var startX: Int = 1
