@@ -622,14 +622,14 @@ export class Binarytrees extends Benchmark {
   }
 }
 
-// =========== ./benchmarks/brainfuck-hashmap.ts ===========
+// =========== ./benchmarks/brainfuck-array.ts ===========
 
 class Tape {
-  private tape: number[];
+  private tape: Uint8Array;
   private pos: number;
 
   constructor() {
-    this.tape = [0];
+    this.tape = new Uint8Array(30000); // 30000 ячеек
     this.pos = 0;
   }
 
@@ -638,17 +638,22 @@ class Tape {
   }
 
   inc(): void {
-    this.tape[this.pos] += 1;
+    // Wrapping overflow естественный для Uint8Array
+    this.tape[this.pos] = this.tape[this.pos] + 1;
   }
 
   dec(): void {
-    this.tape[this.pos] -= 1;
+    // Wrapping overflow естественный для Uint8Array
+    this.tape[this.pos] = this.tape[this.pos] - 1;
   }
 
   advance(): void {
     this.pos += 1;
-    if (this.tape.length <= this.pos) {
-      this.tape.push(0);
+    if (this.pos >= this.tape.length) {
+      // Расширяем массив при необходимости
+      const newTape = new Uint8Array(this.tape.length * 2);
+      newTape.set(this.tape);
+      this.tape = newTape;
     }
   }
 
@@ -660,27 +665,33 @@ class Tape {
 }
 
 class Program {
-  private chars: string[] = [];
-  private bracketMap: Map<number, number> = new Map();
+  private commands: Uint8Array;
+  private jumps: Uint32Array; // Массив вместо Map
 
   constructor(text: string) {
-    const leftStack: number[] = [];
-    let pc = 0;
-
-    for (const char of text) {
+    // Фильтруем только BF команды
+    const commandCodes: number[] = [];
+    for (let i = 0; i < text.length; i++) {
+      const char = text.charAt(i);
       if ('[]<>+-,.'.includes(char)) {
-        this.chars.push(char);
-        
-        if (char === '[') {
-          leftStack.push(pc);
-        } else if (char === ']' && leftStack.length > 0) {
-          const left = leftStack.pop()!;
-          const right = pc;
-          this.bracketMap.set(left, right);
-          this.bracketMap.set(right, left);
-        }
-        
-        pc += 1;
+        commandCodes.push(char.charCodeAt(0));
+      }
+    }
+    
+    this.commands = new Uint8Array(commandCodes);
+    
+    // Строим массив прыжков
+    this.jumps = new Uint32Array(this.commands.length);
+    const stack: number[] = [];
+    
+    for (let i = 0; i < this.commands.length; i++) {
+      const cmd = this.commands[i];
+      if (cmd === 91) { // '['
+        stack.push(i);
+      } else if (cmd === 93 && stack.length > 0) { // ']'
+        const start = stack.pop()!;
+        this.jumps[start] = i;
+        this.jumps[i] = start;
       }
     }
   }
@@ -690,33 +701,36 @@ class Program {
     const tape = new Tape();
     let pc = 0;
 
-    while (pc < this.chars.length) {
-      const char = this.chars[pc];
+    while (pc < this.commands.length) {
+      const cmd = this.commands[pc];
       
-      switch (char) {
-        case '+':
+      switch (cmd) {
+        case 43: // '+'
           tape.inc();
           break;
-        case '-':
+        case 45: // '-'
           tape.dec();
           break;
-        case '>':
+        case 62: // '>'
           tape.advance();
           break;
-        case '<':
+        case 60: // '<'
           tape.devance();
           break;
-        case '[':
+        case 91: // '['
           if (tape.get() === 0) {
-            pc = this.bracketMap.get(pc)!;
+            pc = this.jumps[pc];
+            continue; // Важно: continue чтобы не выполнять pc++
           }
           break;
-        case ']':
+        case 93: // ']'
           if (tape.get() !== 0) {
-            pc = this.bracketMap.get(pc)!;
+            pc = this.jumps[pc];
+            continue; // Важно: continue чтобы не выполнять pc++
           }
           break;
-        case '.':
+        case 46: // '.'
+          // result = (result << 2) + cell
           result = (result << 2) + tape.get();
           break;
       }
@@ -728,30 +742,31 @@ class Program {
   }
 }
 
-export class BrainfuckHashMap extends Benchmark {
-  private text: string;
+export class BrainfuckArray extends Benchmark {
+  private programText: string;
+  private warmupText: string;
   private resultValue: number = 0;
 
   constructor() {
     super();
-    this.text = Helper.configS(this.constructor.name, "program");
+    this.programText = Helper.configS(this.constructor.name, "program");
+    this.warmupText = Helper.configS(this.constructor.name, "warmup_program");
   }
 
   warmup(): void {
-    const warmupProgram = Helper.configS(this.constructor.name, "warmup_program");
     for (let i = 0; i < this.warmupIterations; i++) {
-      const program = new Program(warmupProgram);
+      const program = new Program(this.warmupText);
       program.run();
     }
   }
 
   run(_iteration_id: number): void {
-    const program = new Program(this.text);
+    const program = new Program(this.programText);
     this.resultValue += program.run();
   }
 
   checksum(): number {
-    return this.resultValue >>> 0;
+    return this.resultValue >>> 0; // Преобразование к unsigned 32-bit
   }
 }
 
@@ -4897,7 +4912,7 @@ export class Decompression extends Compression {
 
 Benchmark.registerBenchmark(Pidigits);
 Benchmark.registerBenchmark(Binarytrees);
-Benchmark.registerBenchmark(BrainfuckHashMap);
+Benchmark.registerBenchmark(BrainfuckArray);
 Benchmark.registerBenchmark(BrainfuckRecursion);
 Benchmark.registerBenchmark(Fannkuchredux);
 Benchmark.registerBenchmark(Fasta);
