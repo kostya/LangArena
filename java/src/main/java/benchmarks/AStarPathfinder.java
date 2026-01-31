@@ -3,6 +3,9 @@ package benchmarks;
 import java.util.*;
 
 public class AStarPathfinder extends Benchmark {
+    private static final int INF = Integer.MAX_VALUE;
+    private static final int STRAIGHT_COST = 1000;
+    
     private static class Node implements Comparable<Node> {
         int x;
         int y;
@@ -26,82 +29,6 @@ public class AStarPathfinder extends Benchmark {
         }
     }
     
-    private static class Point {
-        int x, y;
-        Point(int x, int y) { this.x = x; this.y = y; }
-    }
-    
-    private static class BinaryHeap {
-        private final List<Node> data;
-        
-        BinaryHeap() {
-            data = new ArrayList<>();
-        }
-        
-        void push(Node item) {
-            data.add(item);
-            siftUp(data.size() - 1);
-        }
-        
-        Node pop() {
-            if (data.isEmpty()) {
-                return null;
-            }
-            
-            if (data.size() == 1) {
-                return data.remove(0);
-            }
-            
-            Node result = data.get(0);
-            data.set(0, data.get(data.size() - 1));
-            data.remove(data.size() - 1);
-            siftDown(0);
-            return result;
-        }
-        
-        boolean isEmpty() {
-            return data.isEmpty();
-        }
-        
-        private void siftUp(int index) {
-            while (index > 0) {
-                int parent = (index - 1) / 2;
-                if (data.get(index).compareTo(data.get(parent)) >= 0) break;
-                Collections.swap(data, index, parent);
-                index = parent;
-            }
-        }
-        
-        private void siftDown(int index) {
-            int size = data.size();
-            while (true) {
-                int left = index * 2 + 1;
-                int right = left + 1;
-                int smallest = index;
-                
-                if (left < size && data.get(left).compareTo(data.get(smallest)) < 0) {
-                    smallest = left;
-                }
-                
-                if (right < size && data.get(right).compareTo(data.get(smallest)) < 0) {
-                    smallest = right;
-                }
-                
-                if (smallest == index) break;
-                
-                Collections.swap(data, index, smallest);
-                index = smallest;
-            }
-        }
-    }
-    
-    // Константы для направлений
-    private static final int[][] CARDINAL_DIRECTIONS = {
-        {0, -1}, {1, 0}, {0, 1}, {-1, 0}
-    };
-    
-    private static final int STRAIGHT_COST = 1000;
-    
     private long resultVal;
     private final int startX;
     private final int startY;
@@ -111,9 +38,9 @@ public class AStarPathfinder extends Benchmark {
     private final int height;
     private boolean[][] mazeGrid;
     
-    // КЭШИРОВАННЫЕ МАССИВЫ - ГЛАВНАЯ ОПТИМИЗАЦИЯ
-    private int[][] gScoresCache;
-    private Point[][] cameFromCache;
+    // Оптимизированные плоские массивы как в C++
+    private int[] gScoresFlat;      // g-значения
+    private int[] cameFromFlat;     // индекс предыдущей ноды (y*width + x)
     
     public AStarPathfinder() {
         this.width = (int) configVal("w");
@@ -130,66 +57,66 @@ public class AStarPathfinder extends Benchmark {
         return "AStarPathfinder";
     }
     
-    private int distance(int aX, int aY, int bX, int bY) {
+    private int heuristic(int aX, int aY, int bX, int bY) {
         return Math.abs(aX - bX) + Math.abs(aY - bY);
     }
     
-    private Pair<Optional<List<Point>>, Integer> findPath() {
+    private int packCoords(int x, int y) {
+        return y * width + x;
+    }
+    
+    private int[] unpackCoords(int idx) {
+        return new int[]{idx % width, idx / width};
+    }
+    
+    private Pair<Optional<List<int[]>>, Integer> findPath() {
         boolean[][] grid = mazeGrid;
+        int size = width * height;
+        int startIdx = packCoords(startX, startY);
+        int goalIdx = packCoords(goalX, goalY);
         
-        // ИСПОЛЬЗУЕМ КЭШИРОВАННЫЕ МАССИВЫ
-        int[][] gScores = gScoresCache;
-        Point[][] cameFrom = cameFromCache;
+        // Инициализация плоских массивов как в C++
+        Arrays.fill(gScoresFlat, INF);
+        Arrays.fill(cameFromFlat, -1);
         
-        // Оптимизированная инициализация gScores
-        if (height > 0 && width > 0) {
-            int[] firstRow = gScores[0];
-            Arrays.fill(firstRow, Integer.MAX_VALUE);
-            for (int y = 1; y < height; y++) {
-                System.arraycopy(firstRow, 0, gScores[y], 0, width);
-            }
-        }
+        // Используем PriorityQueue вместо собственной BinaryHeap для простоты
+        PriorityQueue<Node> openSet = new PriorityQueue<>();
         
-        // Инициализация cameFrom
-        for (int y = 0; y < height; y++) {
-            Point[] row = cameFrom[y];
-            for (int x = 0; x < width; x++) {
-                row[x] = null; // вместо new Point(-1, -1)
-            }
-        }
+        gScoresFlat[startIdx] = 0;
+        openSet.add(new Node(startX, startY, 
+                           heuristic(startX, startY, goalX, goalY)));
         
-        BinaryHeap openSet = new BinaryHeap();
         int nodesExplored = 0;
-        
-        gScores[startY][startX] = 0;
-        openSet.push(new Node(startX, startY, 
-                             distance(startX, startY, goalX, goalY)));
-        
-        int[][] directions = CARDINAL_DIRECTIONS;
+        int[][] directions = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
         
         while (!openSet.isEmpty()) {
-            Node current = openSet.pop();
+            Node current = openSet.poll();
             nodesExplored++;
             
             if (current.x == goalX && current.y == goalY) {
-                List<Point> path = new ArrayList<>();
+                // Восстановление пути
+                List<int[]> path = new ArrayList<>();
                 int x = current.x;
                 int y = current.y;
                 
                 while (x != startX || y != startY) {
-                    path.add(new Point(x, y));
-                    Point prev = cameFrom[y][x];
-                    if (prev == null) break;
-                    x = prev.x;
-                    y = prev.y;
+                    path.add(new int[]{x, y});
+                    int idx = packCoords(x, y);
+                    int packed = cameFromFlat[idx];
+                    if (packed == -1) break;
+                    
+                    int[] prev = unpackCoords(packed);
+                    x = prev[0];
+                    y = prev[1];
                 }
                 
-                path.add(new Point(startX, startY));
+                path.add(new int[]{startX, startY});
                 Collections.reverse(path);
                 return new Pair<>(Optional.of(path), nodesExplored);
             }
             
-            int currentG = gScores[current.y][current.x];
+            int currentIdx = packCoords(current.x, current.y);
+            int currentG = gScoresFlat[currentIdx];
             
             for (int[] dir : directions) {
                 int nx = current.x + dir[0];
@@ -199,19 +126,14 @@ public class AStarPathfinder extends Benchmark {
                 if (!grid[ny][nx]) continue;
                 
                 int tentativeG = currentG + STRAIGHT_COST;
+                int neighborIdx = packCoords(nx, ny);
                 
-                if (tentativeG < gScores[ny][nx]) {
-                    // Кэшируем Point объекты
-                    if (cameFrom[ny][nx] == null) {
-                        cameFrom[ny][nx] = new Point(current.x, current.y);
-                    } else {
-                        cameFrom[ny][nx].x = current.x;
-                        cameFrom[ny][nx].y = current.y;
-                    }
-                    gScores[ny][nx] = tentativeG;
+                if (tentativeG < gScoresFlat[neighborIdx]) {
+                    cameFromFlat[neighborIdx] = currentIdx;
+                    gScoresFlat[neighborIdx] = tentativeG;
                     
-                    int fScore = tentativeG + distance(nx, ny, goalX, goalY);
-                    openSet.push(new Node(nx, ny, fScore));
+                    int fScore = tentativeG + heuristic(nx, ny, goalX, goalY);
+                    openSet.add(new Node(nx, ny, fScore));
                 }
             }
         }
@@ -232,26 +154,21 @@ public class AStarPathfinder extends Benchmark {
     public void prepare() {
         mazeGrid = MazeGenerator.Maze.generateWalkableMaze(width, height);
         
-        // ВЫДЕЛЯЕМ МАССИВЫ ОДИН РАЗ
-        if (gScoresCache == null || gScoresCache.length != height) {
-            gScoresCache = new int[height][width];
-            cameFromCache = new Point[height][width];
-            
-            // Предварительно создаем Point объекты
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    cameFromCache[y][x] = new Point(-1, -1);
-                }
-            }
-        }
+        // Инициализация плоских массивов как в C++
+        int size = width * height;
+        gScoresFlat = new int[size];
+        cameFromFlat = new int[size];
     }
     
     @Override
     public void run(int iterationId) {
-        Pair<Optional<List<Point>>, Integer> result = findPath();
+        Pair<Optional<List<int[]>>, Integer> result = findPath();
         
+        // Оригинальная логика вычисления checksum из C++
         long localResult = 0;
-        localResult = (localResult << 5) + (result.first.isPresent() ? result.first.get().size() : 0);
+        if (result.first.isPresent()) {
+            localResult = (localResult << 5) + result.first.get().size();
+        }
         localResult = (localResult << 5) + result.second;
         resultVal += localResult;
     }
