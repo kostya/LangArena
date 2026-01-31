@@ -1895,52 +1895,55 @@ export class Revcomp extends Benchmark {
   private revcomp(seq: string): string {
     const len = seq.length;
     
-    // 1. Таблица трансляции как массив символов
-    const lookup: string[] = new Array(256);
-    for (let i = 0; i < 256; i++) {
-        lookup[i] = String.fromCharCode(i);
-    }
+    // 1. Таблица трансляции как Uint8Array
+    const lookup = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) lookup[i] = i;
     
     const from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
     const to   = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
     
+    // Заполняем таблицу
     for (let i = 0; i < from.length; i++) {
-        const charCode = from.charCodeAt(i);
-        if (charCode < 256) {
-            lookup[charCode] = to[i];
-        }
+        const fromChar = from.charCodeAt(i);
+        const toChar = to.charCodeAt(i);
+        lookup[fromChar] = toChar;
     }
     
-    // 2. Сразу собираем обратную комплементарную последовательность в массив
-    const translatedChars: string[] = new Array(len);
+    // 2. Преобразуем строку в Uint8Array ВРУЧНУЮ
+    // TextEncoder кодирует в UTF-8, а нам нужны raw char codes
+    const inputBytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) {
-        const charCode = seq.charCodeAt(len - 1 - i); // reverse за один проход
-        translatedChars[i] = lookup[charCode] || String.fromCharCode(charCode);
+        inputBytes[i] = seq.charCodeAt(i);
     }
     
-    // 3. Разбиваем на строки по 60 символов
+    // 3. Обратный комплемент
+    const outputBytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        outputBytes[i] = lookup[inputBytes[len - 1 - i]];
+    }
+    
+    // 4. Разбиваем на строки с помощью TextDecoder (быстро!)
+    const decoder = new TextDecoder('latin1'); // или 'ascii'
     const lineLength = 60;
-    const lines: string[] = [];
+    const numLines = Math.ceil(len / lineLength);
+    const lines: string[] = new Array(numLines + 1); // +1 для удобства
     
-    for (let i = 0; i < len; i += lineLength) {
-        const end = Math.min(i + lineLength, len);
-        let line = '';
-        
-        // Собираем строку из массива символов
-        for (let j = i; j < end; j++) {
-            line += translatedChars[j];
-        }
-        
-        lines.push(line);
+    // Декодируем каждую строку отдельно
+    for (let i = 0; i < numLines; i++) {
+        const start = i * lineLength;
+        const end = Math.min(start + lineLength, len);
+        const chunk = outputBytes.subarray(start, end);
+        lines[i] = decoder.decode(chunk);
     }
     
-    // 4. Соединяем с переносами строк (последняя строка тоже с \n!)
-    let resultStr = '';
-    for (const line of lines) {
-        resultStr += line + '\n';
+    // 5. Соединяем с переносами строк
+    // Важно: последняя строка тоже должна заканчиваться \n
+    let result = '';
+    for (let i = 0; i < numLines; i++) {
+        result += lines[i] + '\n';
     }
     
-    return resultStr;
+    return result;
   }
 
   run(_iteration_id: number): void {

@@ -7,8 +7,8 @@ pub const Revcomp = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
     input: std.ArrayList(u8),
-    result_str: std.ArrayList(u8),
     n: i32,
+    result_val: u32,
 
     const vtable = Benchmark.VTable{
         .prepare = prepareImpl,
@@ -52,8 +52,8 @@ pub const Revcomp = struct {
             .allocator = allocator,
             .helper = helper,
             .input = .{},
-            .result_str = .{},
             .n = n,
+            .result_val = 0,
         };
 
         return self;
@@ -62,7 +62,6 @@ pub const Revcomp = struct {
     pub fn deinit(self: *Revcomp) void {
         const allocator = self.allocator;
         self.input.deinit(allocator);
-        self.result_str.deinit(allocator);
         allocator.destroy(self);
     }
 
@@ -108,7 +107,6 @@ pub const Revcomp = struct {
 
         // Очищаем данные
         self.input.clearAndFree(allocator);
-        self.result_str.clearAndFree(allocator);
 
         // Получаем FASTA данные как в C++ версии
         var fasta = Fasta.init(allocator, self.helper) catch return;
@@ -135,9 +133,6 @@ pub const Revcomp = struct {
                 }
             }
         }
-
-        // input теперь начинается с "\n---\n", как в C++ версии
-        // Например: "\n---\nACGT\n---\nTGCA"
     }
 
     fn runImpl(ptr: *anyopaque, _: i64) void {
@@ -148,14 +143,12 @@ pub const Revcomp = struct {
         const revcomp_result = revcomp(self.input.items, allocator) catch return;
         defer allocator.free(revcomp_result);
 
-        // Добавляем к результату как в C++: result_str += revcomp_result
-        self.result_str.appendSlice(allocator, revcomp_result) catch return;
+        self.result_val +%= self.helper.checksumBytes(revcomp_result);
     }
 
     fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *Revcomp = @ptrCast(@alignCast(ptr));
-        // Checksum от всей накопленной строки
-        return self.helper.checksumString(self.result_str.items);
+        return self.result_val;
     }
 
     fn deinitImpl(ptr: *anyopaque) void {
