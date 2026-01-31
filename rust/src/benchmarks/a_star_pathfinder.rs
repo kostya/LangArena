@@ -52,112 +52,20 @@ pub struct AStarPathfinder {
 impl AStarPathfinder {
     // Inline для производительности
     #[inline]
-    fn distance(&self, a_x: i32, a_y: i32, b_x: i32, b_y: i32) -> i32 {
+    fn distance(a_x: i32, a_y: i32, b_x: i32, b_y: i32) -> i32 {
         (a_x - b_x).abs() + (a_y - b_y).abs()
     }
     
-    // Упаковка координат
+    // Упаковка координат (статический метод)
     #[inline]
-    fn pack_coords(&self, x: i32, y: i32) -> i32 {
-        y * self.width + x
+    fn pack_coords(x: i32, y: i32, width: i32) -> i32 {
+        y * width + x
     }
     
-    // Распаковка координат
+    // Распаковка координат (статический метод)
     #[inline]
-    fn unpack_coords(&self, packed: i32) -> (i32, i32) {
-        (packed % self.width, packed / self.width)
-    }
-    
-    fn find_path_optimized(&mut self) -> (Option<Vec<(i32, i32)>>, i32) {
-        let grid = &self.maze_grid;
-        let width = self.width as usize;
-        let height = self.height as usize;
-        
-        // Используем кэшированные массивы
-        let g_scores = &mut self.g_scores_cache;
-        let came_from = &mut self.came_from_cache;
-        
-        // Быстрая инициализация массивов
-        for y in 0..height {
-            for x in 0..width {
-                g_scores[y][x] = i32::MAX;
-                came_from[y][x] = -1;
-            }
-        }
-        
-        // Используем стандартный BinaryHeap (max-heap по умолчанию)
-        let mut open_set = StdBinaryHeap::with_capacity(width * height);
-        let mut nodes_explored = 0;
-        
-        let start_x_usize = self.start_x as usize;
-        let start_y_usize = self.start_y as usize;
-        
-        g_scores[start_y_usize][start_x_usize] = 0;
-        open_set.push(Node::new(
-            self.start_x,
-            self.start_y,
-            self.distance(self.start_x, self.start_y, self.goal_x, self.goal_y)
-        ));
-        
-        // Статический массив направлений (выделяется один раз)
-        static DIRECTIONS: [(i32, i32); 4] = [(0, -1), (1, 0), (0, 1), (-1, 0)];
-        
-        while let Some(current) = open_set.pop() {
-            nodes_explored += 1;
-
-            if current.x == self.goal_x && current.y == self.goal_y {
-                // Восстанавливаем путь
-                let mut path = Vec::with_capacity(width * height);
-                let mut x = current.x;
-                let mut y = current.y;
-                
-                while x != self.start_x || y != self.start_y {
-                    path.push((x, y));
-                    let packed = came_from[y as usize][x as usize];
-                    if packed == -1 {
-                        break;
-                    }
-                    let (px, py) = self.unpack_coords(packed);
-                    x = px;
-                    y = py;
-                }
-                
-                path.push((self.start_x, self.start_y));
-                path.reverse();
-                return (Some(path), nodes_explored);
-            }
-            
-            let current_g = g_scores[current.y as usize][current.x as usize];
-            
-            for &(dx, dy) in &DIRECTIONS {
-                let nx = current.x + dx;
-                let ny = current.y + dy;
-                
-                if nx < 0 || ny < 0 || nx >= self.width || ny >= self.height {
-                    continue;
-                }
-                
-                let nx_usize = nx as usize;
-                let ny_usize = ny as usize;
-                
-                if !grid[ny_usize][nx_usize] {
-                    continue;
-                }
-                
-                let tentative_g = current_g + 1000;
-                
-                if tentative_g < g_scores[ny_usize][nx_usize] {
-                    // Упаковываем координаты
-                    came_from[ny_usize][nx_usize] = self.pack_coords(current.x, current.y);
-                    g_scores[ny_usize][nx_usize] = tentative_g;
-                    
-                    let f_score = tentative_g + self.distance(nx, ny, self.goal_x, self.goal_y);
-                    open_set.push(Node::new(nx, ny, f_score));
-                }
-            }
-        }
-        
-        (None, nodes_explored)
+    fn unpack_coords(packed: i32, width: i32) -> (i32, i32) {
+        (packed % width, packed / width)
     }
     
     pub fn new() -> Self {
@@ -194,6 +102,104 @@ impl AStarPathfinder {
             self.g_scores_cache = vec![vec![0; width]; height];
             self.came_from_cache = vec![vec![0; width]; height];
         }
+    }
+    
+    fn find_path_optimized(&mut self) -> (Option<Vec<(i32, i32)>>, i32) {
+        let grid = &self.maze_grid;
+        let width = self.width;
+        let height = self.height as usize;
+        
+        // Извлекаем данные до создания изменяемых ссылок
+        let start_x = self.start_x;
+        let start_y = self.start_y;
+        let goal_x = self.goal_x;
+        let goal_y = self.goal_y;
+        
+        // Используем кэшированные массивы
+        let g_scores = &mut self.g_scores_cache;
+        let came_from = &mut self.came_from_cache;
+        
+        // Быстрая инициализация массивов
+        for y in 0..height {
+            for x in 0..(width as usize) {
+                g_scores[y][x] = i32::MAX;
+                came_from[y][x] = -1;
+            }
+        }
+        
+        // Используем стандартный BinaryHeap (max-heap по умолчанию)
+        let mut open_set = StdBinaryHeap::with_capacity((width * self.height) as usize);
+        let mut nodes_explored = 0;
+        
+        g_scores[start_y as usize][start_x as usize] = 0;
+        open_set.push(Node::new(
+            start_x,
+            start_y,
+            // Используем статический метод Self::distance
+            Self::distance(start_x, start_y, goal_x, goal_y)
+        ));
+        
+        // Статический массив направлений (выделяется один раз)
+        static DIRECTIONS: [(i32, i32); 4] = [(0, -1), (1, 0), (0, 1), (-1, 0)];
+        
+        while let Some(current) = open_set.pop() {
+            nodes_explored += 1;
+
+            if current.x == goal_x && current.y == goal_y {
+                // Восстанавливаем путь
+                let mut path = Vec::with_capacity((width * self.height) as usize);
+                let mut x = current.x;
+                let mut y = current.y;
+                
+                while x != start_x || y != start_y {
+                    path.push((x, y));
+                    let packed = came_from[y as usize][x as usize];
+                    if packed == -1 {
+                        break;
+                    }
+                    // Используем статический метод Self::unpack_coords
+                    let (px, py) = Self::unpack_coords(packed, width);
+                    x = px;
+                    y = py;
+                }
+                
+                path.push((start_x, start_y));
+                path.reverse();
+                return (Some(path), nodes_explored);
+            }
+            
+            let current_g = g_scores[current.y as usize][current.x as usize];
+            
+            for &(dx, dy) in &DIRECTIONS {
+                let nx = current.x + dx;
+                let ny = current.y + dy;
+                
+                if nx < 0 || ny < 0 || nx >= width || ny >= self.height {
+                    continue;
+                }
+                
+                let nx_usize = nx as usize;
+                let ny_usize = ny as usize;
+                
+                if !grid[ny_usize][nx_usize] {
+                    continue;
+                }
+                
+                let tentative_g = current_g + 1000;
+                
+                if tentative_g < g_scores[ny_usize][nx_usize] {
+                    // Упаковываем координаты, используя статический метод
+                    came_from[ny_usize][nx_usize] = Self::pack_coords(current.x, current.y, width);
+                    g_scores[ny_usize][nx_usize] = tentative_g;
+                    
+                    // Используем статический метод Self::distance
+                    let f_score = tentative_g + Self::distance(nx, ny, goal_x, goal_y);
+                    open_set.push(Node::new(nx, ny, f_score));
+                }
+            }
+        }
+        
+        (None, nodes_explored)
     }
 }
 
