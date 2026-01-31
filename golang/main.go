@@ -1630,39 +1630,47 @@ func (r *Revcomp) Prepare() {
 }
 
 func (r *Revcomp) revcomp(seq string) string {
-	runes := []rune(seq)
-	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
-		runes[i], runes[j] = runes[j], runes[i]
-	}
-
-	complement := map[rune]rune{
-		'w': 'W', 's': 'S', 'a': 'T', 't': 'A', 'u': 'A',
-		'g': 'C', 'c': 'G', 'y': 'R', 'r': 'Y', 'k': 'M',
-		'm': 'K', 'b': 'V', 'd': 'H', 'h': 'D', 'v': 'B',
-		'n': 'N',
-		'A': 'T', 'T': 'A', 'U': 'A', 'G': 'C', 'C': 'G',
-		'Y': 'R', 'R': 'Y', 'K': 'M', 'M': 'K', 'B': 'V',
-		'D': 'H', 'H': 'D', 'V': 'B', 'N': 'N',
-		'W': 'W', 'S': 'S',
-	}
-
-	for i, ch := range runes {
-		if comp, ok := complement[ch]; ok {
-			runes[i] = comp
-		}
-	}
-
-	result := string(runes)
-	var res strings.Builder
-	for i := 0; i < len(result); i += 60 {
-		end := i + 60
-		if end > len(result) {
-			end = len(result)
-		}
-		res.WriteString(result[i:end])
-		res.WriteByte('\n')
-	}
-	return res.String()
+    // Конвертируем в байты один раз
+    bytes := []byte(seq)
+    n := len(bytes)
+    
+    // Реверс на месте
+    for i, j := 0, n-1; i < j; i, j = i+1, j-1 {
+        bytes[i], bytes[j] = bytes[j], bytes[i]
+    }
+    
+    // Lookup таблица на 256 байт
+    var lookup [256]byte
+    for i := range lookup {
+        lookup[i] = byte(i)
+    }
+    
+    // Заполняем таблицу
+    from := "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
+    to := "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
+    for i := 0; i < len(from); i++ {
+        lookup[from[i]] = to[i]
+    }
+    
+    // Замена через lookup таблицу
+    for i := range bytes {
+        bytes[i] = lookup[bytes[i]]
+    }
+    
+    // Форматирование по 60 символов
+    var result strings.Builder
+    result.Grow(n + (n/60) + 1) // Предвыделение
+    
+    for i := 0; i < n; i += 60 {
+        end := i + 60
+        if end > n {
+            end = n
+        }
+        result.Write(bytes[i:end])
+        result.WriteByte('\n')
+    }
+    
+    return result.String()
 }
 
 func (r *Revcomp) Run(iteration_id int) {
