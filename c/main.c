@@ -2312,6 +2312,7 @@ typedef struct {
     char* result_str;
     size_t result_capacity;
     size_t result_length;
+    uint32_t checksum_val;
 } RevcompData;
 
 static void Revcomp_grow_result(RevcompData* self, size_t needed) {
@@ -2394,6 +2395,7 @@ void Revcomp_prepare(Benchmark* self) {
     data->result_str = NULL;
     data->result_capacity = 0;
     data->result_length = 0;
+    data->checksum_val = 0;
     
     int64_t n = Helper_config_i64(self->name, "n");
     if (n == 0) n = 1000;
@@ -2493,18 +2495,14 @@ void Revcomp_run(Benchmark* self, int iteration_id) {
     char* processed = Revcomp_process(data->input);
     if (!processed) return;
     
-    size_t len = strlen(processed);
-    Revcomp_append(data, processed, len);
+    data->checksum_val += Helper_checksum_string(processed);
     
     free(processed);
 }
 
 uint32_t Revcomp_checksum(Benchmark* self) {
     RevcompData* data = (RevcompData*)self->data;
-    
-    if (!data->result_str) return 0;
-    
-    return Helper_checksum_string(data->result_str);
+    return data->checksum_val;
 }
 
 void Revcomp_cleanup(Benchmark* self) {
