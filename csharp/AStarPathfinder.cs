@@ -28,7 +28,12 @@ public class AStarPathfinder : Benchmark
     
     private class BinaryHeap
     {
-        private readonly List<Node> _data = new List<Node>();
+        private readonly List<Node> _data;
+        
+        public BinaryHeap(int initialCapacity = 64)
+        {
+            _data = new List<Node>(initialCapacity);
+        }
         
         public void Push(Node item)
         {
@@ -62,7 +67,7 @@ public class AStarPathfinder : Benchmark
             {
                 int parent = (index - 1) / 2;
                 if (_data[index].CompareTo(_data[parent]) >= 0) break;
-                (_data[index], _data[parent]) = (_data[parent], _data[index]);
+                Swap(index, parent);
                 index = parent;
             }
         }
@@ -76,14 +81,23 @@ public class AStarPathfinder : Benchmark
                 int right = left + 1;
                 int smallest = index;
                 
-                if (left < size && _data[left].CompareTo(_data[smallest]) < 0) smallest = left;
-                if (right < size && _data[right].CompareTo(_data[smallest]) < 0) smallest = right;
+                if (left < size && _data[left].CompareTo(_data[smallest]) < 0) 
+                    smallest = left;
+                if (right < size && _data[right].CompareTo(_data[smallest]) < 0) 
+                    smallest = right;
                 
                 if (smallest == index) break;
                 
-                (_data[index], _data[smallest]) = (_data[smallest], _data[index]);
+                Swap(index, smallest);
                 index = smallest;
             }
+        }
+        
+        private void Swap(int i, int j)
+        {
+            Node temp = _data[i];
+            _data[i] = _data[j];
+            _data[j] = temp;
         }
     }
     
@@ -95,6 +109,16 @@ public class AStarPathfinder : Benchmark
     private int _width;
     private int _height;
     private bool[,] _mazeGrid;
+    
+    // Кэшированные массивы (выделяются один раз)
+    private int[,] _gScoresCache;
+    private int[,] _cameFromCache; // Упакованные координаты: y * _width + x
+    
+    // Статический массив направлений (выделяется один раз)
+    private static readonly (int dx, int dy)[] _directions = new[]
+    {
+        (0, -1), (1, 0), (0, 1), (-1, 0)
+    };
     
     public AStarPathfinder()
     {
@@ -113,32 +137,38 @@ public class AStarPathfinder : Benchmark
     
     private int Distance(int aX, int aY, int bX, int bY)
     {
-        return (Math.Abs(aX - bX) + Math.Abs(aY - bY));
+        return Math.Abs(aX - bX) + Math.Abs(aY - bY);
     }
     
-    private (List<(int x, int y)>? path, int nodesExplored) FindPath()
+    // Упаковка координат в одно число
+    private int PackCoords(int x, int y) => y * _width + x;
+    
+    // Распаковка координат
+    private (int x, int y) UnpackCoords(int packed) => (packed % _width, packed / _width);
+    
+    private (List<(int x, int y)>? path, int nodesExplored) FindPathOptimized()
     {
         bool[,] grid = _mazeGrid;
         
-        int[,] gScores = new int[_height, _width];
-        (int x, int y)[,] cameFrom = new (int, int)[_height, _width];
+        // Используем кэшированные массивы
+        int[,] gScores = _gScoresCache;
+        int[,] cameFrom = _cameFromCache;
         
+        // Быстрая инициализация массивов
         for (int y = 0; y < _height; y++)
         {
             for (int x = 0; x < _width; x++)
             {
                 gScores[y, x] = int.MaxValue;
-                cameFrom[y, x] = (-1, -1);
+                cameFrom[y, x] = -1;
             }
         }
         
-        BinaryHeap openSet = new BinaryHeap();
+        BinaryHeap openSet = new BinaryHeap(_width * _height);
         int nodesExplored = 0;
         
         gScores[_startY, _startX] = 0;
         openSet.Push(new Node(_startX, _startY, Distance(_startX, _startY, _goalX, _goalY)));
-        
-        List<(int dx, int dy)> directions = new() { (0, -1), (1, 0), (0, 1), (-1, 0) };
         
         while (!openSet.IsEmpty())
         {
@@ -149,14 +179,17 @@ public class AStarPathfinder : Benchmark
             
             if (current.X == _goalX && current.Y == _goalY)
             {
-                List<(int x, int y)> path = new List<(int, int)>();
+                List<(int x, int y)> path = new List<(int, int)>(_width * _height);
                 int x = current.X;
                 int y = current.Y;
                 
                 while (x != _startX || y != _startY)
                 {
                     path.Add((x, y));
-                    var (prevX, prevY) = cameFrom[y, x];
+                    int packed = cameFrom[y, x];
+                    if (packed == -1) break;
+                    
+                    var (prevX, prevY) = UnpackCoords(packed);
                     x = prevX;
                     y = prevY;
                 }
@@ -168,7 +201,7 @@ public class AStarPathfinder : Benchmark
             
             int currentG = gScores[current.Y, current.X];
             
-            foreach (var (dx, dy) in directions)
+            foreach (var (dx, dy) in _directions)
             {
                 int nx = current.X + dx;
                 int ny = current.Y + dy;
@@ -180,7 +213,8 @@ public class AStarPathfinder : Benchmark
                 
                 if (tentativeG < gScores[ny, nx])
                 {
-                    cameFrom[ny, nx] = (current.X, current.Y);
+                    // Упаковываем координаты
+                    cameFrom[ny, nx] = PackCoords(current.X, current.Y);
                     gScores[ny, nx] = tentativeG;
                     
                     int fScore = tentativeG + Distance(nx, ny, _goalX, _goalY);
@@ -192,16 +226,33 @@ public class AStarPathfinder : Benchmark
         return (null, nodesExplored);
     }
     
-    public override void Prepare() => _mazeGrid = GenerateWalkableMaze(_width, _height);
+    // Инициализация кэшированных массивов
+    private void InitCachedArrays()
+    {
+        if (_gScoresCache == null || _gScoresCache.GetLength(0) != _height || _gScoresCache.GetLength(1) != _width)
+        {
+            _gScoresCache = new int[_height, _width];
+            _cameFromCache = new int[_height, _width];
+        }
+    }
+    
+    public override void Prepare()
+    {
+        _mazeGrid = GenerateWalkableMaze(_width, _height);
+        InitCachedArrays();
+    }
     
     public override void Run(long IterationId)
     {
-        var (path, nodesExplored) = FindPath();
+        var (path, nodesExplored) = FindPathOptimized();
         
         long localResult = 0;
         localResult = (localResult << 5) + (path?.Count ?? 0);
         localResult = (localResult << 5) + nodesExplored;
-        _result += (uint)localResult;
+        unchecked
+        {
+            _result += (uint)localResult;
+        }
     }
     
     public override uint Checksum => _result;

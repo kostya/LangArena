@@ -4112,6 +4112,10 @@ type AStarPathfinder struct {
 	width, height  int
 	mazeGrid       [][]bool
 	result         uint32
+	
+	// Кэшированные массивы (выделяются один раз)
+	gScoresCache   [][]int
+	cameFromCache  [][]int // Упакованные координаты: y*width + x
 }
 
 func (a *AStarPathfinder) distance(aX, aY, bX, bY int) int {
@@ -4164,6 +4168,29 @@ func (pq *PriorityQueue) Pop() interface{} {
 	return node
 }
 
+// Упаковка координат
+func (a *AStarPathfinder) packCoords(x, y int) int {
+	return y*a.width + x
+}
+
+// Распаковка координат
+func (a *AStarPathfinder) unpackCoords(packed int) (int, int) {
+	return packed % a.width, packed / a.width
+}
+
+// Инициализация кэшированных массивов
+func (a *AStarPathfinder) initCachedArrays() {
+	if len(a.gScoresCache) != a.height || 
+	   (a.height > 0 && len(a.gScoresCache[0]) != a.width) {
+		a.gScoresCache = make([][]int, a.height)
+		a.cameFromCache = make([][]int, a.height)
+		for y := 0; y < a.height; y++ {
+			a.gScoresCache[y] = make([]int, a.width)
+			a.cameFromCache[y] = make([]int, a.width)
+		}
+	}
+}
+
 func (a *AStarPathfinder) Prepare() {
 	a.width = int(a.ConfigVal("w"))
 	a.height = int(a.ConfigVal("h"))
@@ -4172,23 +4199,25 @@ func (a *AStarPathfinder) Prepare() {
 	a.goalX = a.width - 2
 	a.goalY = a.height - 2
 	a.mazeGrid = generateWalkableMaze(a.width, a.height)
+	a.initCachedArrays()
 }
 
-func (a *AStarPathfinder) findPath() ([][2]int, int) {
+func (a *AStarPathfinder) findPathOptimized() ([][2]int, int) {
 	grid := a.mazeGrid
 
-	gScores := make([][]int, a.height)
-	cameFrom := make([][][2]int, a.height)
+	// Используем кэшированные массивы
+	gScores := a.gScoresCache
+	cameFrom := a.cameFromCache
+
+	// Быстрая инициализация массивов
 	for y := 0; y < a.height; y++ {
-		gScores[y] = make([]int, a.width)
-		cameFrom[y] = make([][2]int, a.width)
 		for x := 0; x < a.width; x++ {
 			gScores[y][x] = math.MaxInt32
-			cameFrom[y][x] = [2]int{-1, -1}
+			cameFrom[y][x] = -1
 		}
 	}
 
-	pq := make(PriorityQueue, 0)
+	pq := make(PriorityQueue, 0, a.width*a.height)
 	heap.Init(&pq)
 
 	gScores[a.startY][a.startX] = 0
@@ -4198,6 +4227,7 @@ func (a *AStarPathfinder) findPath() ([][2]int, int) {
 		fScore: a.distance(a.startX, a.startY, a.goalX, a.goalY),
 	})
 
+	// Статический массив направлений (выделяется один раз)
 	directions := [][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
 
 	nodesExplored := 0
@@ -4207,17 +4237,22 @@ func (a *AStarPathfinder) findPath() ([][2]int, int) {
 		nodesExplored++
 
 		if current.X == a.goalX && current.Y == a.goalY {
-			path := make([][2]int, 0)
+			// Восстанавливаем путь
+			path := make([][2]int, 0, a.width*a.height)
 			x, y := current.X, current.Y
 
 			for x != a.startX || y != a.startY {
 				path = append(path, [2]int{x, y})
-				prev := cameFrom[y][x]
-				x, y = prev[0], prev[1]
+				packed := cameFrom[y][x]
+				if packed == -1 {
+					break
+				}
+				x, y = a.unpackCoords(packed)
 			}
 
 			path = append(path, [2]int{a.startX, a.startY})
 
+			// Реверсируем путь
 			for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
 				path[i], path[j] = path[j], path[i]
 			}
@@ -4238,11 +4273,11 @@ func (a *AStarPathfinder) findPath() ([][2]int, int) {
 				continue
 			}
 
-			// ИСПРАВЛЕНИЕ: 1000 как в C++
 			tentativeG := currentG + 1000
 
 			if tentativeG < gScores[ny][nx] {
-				cameFrom[ny][nx] = [2]int{current.X, current.Y}
+				// Упаковываем координаты
+				cameFrom[ny][nx] = a.packCoords(current.X, current.Y)
 				gScores[ny][nx] = tentativeG
 
 				fScore := tentativeG + a.distance(nx, ny, a.goalX, a.goalY)
@@ -4259,7 +4294,7 @@ func (a *AStarPathfinder) findPath() ([][2]int, int) {
 }
 
 func (a *AStarPathfinder) Run(iteration_id int) {
-	path, nodesExplored := a.findPath()
+	path, nodesExplored := a.findPathOptimized()
 
 	localResult := uint32(0)
 	if path != nil {
@@ -4272,7 +4307,6 @@ func (a *AStarPathfinder) Run(iteration_id int) {
 func (a *AStarPathfinder) Checksum() uint32 {
 	return a.result
 }
-
 // Compression
 
 type CompressionBWTResult struct {
