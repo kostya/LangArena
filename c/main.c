@@ -792,22 +792,15 @@ Benchmark* Binarytrees_create(void) {
 
 
 // ============================================================================
-// BrainfuckHashMap - с поддержкой warmup (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+// BrainfuckArray - с массивом вместо hashmap (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 // ============================================================================
-
-// Структура для хранения пар скобок
-typedef struct BrainfuckHashMap_BracketPair {
-    int key;
-    int value;
-    UT_hash_handle hh;  // ОБЯЗАТЕЛЬНОЕ ПОЛЕ для uthash
-} BrainfuckHashMap_BracketPair;
 
 // Tape структура
 typedef struct {
     uint8_t* tape;
     int32_t tape_size;
     int32_t pos;
-} BrainfuckHashMap_Tape;
+} BrainfuckArray_Tape;
 
 // Основные данные бенчмарка
 typedef struct {
@@ -815,42 +808,38 @@ typedef struct {
     char* warmup_program;   // Программа для warmup
     int32_t program_length;
     int32_t warmup_length;
-    BrainfuckHashMap_BracketPair* bracket_map;
-    BrainfuckHashMap_BracketPair* warmup_bracket_map;
+    int32_t* jumps;         // Массив прыжков вместо hashmap
+    int32_t* warmup_jumps;  // Массив прыжков для warmup
     uint32_t result_val;
-} BrainfuckHashMapData;
+} BrainfuckArrayData;
 
 // Создание Tape
-static BrainfuckHashMap_Tape* BrainfuckHashMap_Tape_new(void) {
-    BrainfuckHashMap_Tape* tape = malloc(sizeof(BrainfuckHashMap_Tape));
-    tape->tape_size = 1024;
+static BrainfuckArray_Tape* BrainfuckArray_Tape_new(void) {
+    BrainfuckArray_Tape* tape = malloc(sizeof(BrainfuckArray_Tape));
+    tape->tape_size = 30000;  // Стандартный размер для Brainfuck
     tape->tape = calloc(tape->tape_size, sizeof(uint8_t));
     tape->pos = 0;
     return tape;
 }
 
-static void BrainfuckHashMap_Tape_free(BrainfuckHashMap_Tape* tape) {
+static void BrainfuckArray_Tape_free(BrainfuckArray_Tape* tape) {
     free(tape->tape);
     free(tape);
 }
 
-static uint8_t BrainfuckHashMap_Tape_get(BrainfuckHashMap_Tape* tape) {
-    return tape->pos < tape->tape_size ? tape->tape[tape->pos] : 0;
+static inline uint8_t BrainfuckArray_Tape_get(BrainfuckArray_Tape* tape) {
+    return tape->tape[tape->pos];
 }
 
-static void BrainfuckHashMap_Tape_inc(BrainfuckHashMap_Tape* tape) {
-    if (tape->pos < tape->tape_size) {
-        tape->tape[tape->pos]++;
-    }
+static inline void BrainfuckArray_Tape_inc(BrainfuckArray_Tape* tape) {
+    tape->tape[tape->pos] = tape->tape[tape->pos] + 1;  // Wrapping overflow естественный для uint8_t
 }
 
-static void BrainfuckHashMap_Tape_dec(BrainfuckHashMap_Tape* tape) {
-    if (tape->pos < tape->tape_size) {
-        tape->tape[tape->pos]--;
-    }
+static inline void BrainfuckArray_Tape_dec(BrainfuckArray_Tape* tape) {
+    tape->tape[tape->pos] = tape->tape[tape->pos] - 1;  // Wrapping overflow естественный для uint8_t
 }
 
-static void BrainfuckHashMap_Tape_advance(BrainfuckHashMap_Tape* tape) {
+static inline void BrainfuckArray_Tape_advance(BrainfuckArray_Tape* tape) {
     tape->pos++;
     if (tape->pos >= tape->tape_size) {
         tape->tape_size *= 2;
@@ -859,21 +848,21 @@ static void BrainfuckHashMap_Tape_advance(BrainfuckHashMap_Tape* tape) {
     }
 }
 
-static void BrainfuckHashMap_Tape_devance(BrainfuckHashMap_Tape* tape) {
+static inline void BrainfuckArray_Tape_devance(BrainfuckArray_Tape* tape) {
     if (tape->pos > 0) {
         tape->pos--;
     }
 }
 
-// Функция для парсинга программы и создания карты скобок
-static void BrainfuckHashMap_parse_program(const char* input, 
-                                          char** program_ptr, 
-                                          int32_t* program_length_ptr,
-                                          BrainfuckHashMap_BracketPair** bracket_map_ptr) {
+// Функция для парсинга программы и создания массива прыжков
+static void BrainfuckArray_parse_program(const char* input, 
+                                         char** program_ptr, 
+                                         int32_t* program_length_ptr,
+                                         int32_t** jumps_ptr) {
     if (!input || strlen(input) == 0) {
         *program_ptr = NULL;
         *program_length_ptr = 0;
-        *bracket_map_ptr = NULL;
+        *jumps_ptr = NULL;
         return;
     }
     
@@ -890,109 +879,104 @@ static void BrainfuckHashMap_parse_program(const char* input,
     }
     program[program_pos] = '\0';
     
-    // Строим карту скобок
-    BrainfuckHashMap_BracketPair* bracket_map = NULL;
-    int* stack = malloc(sizeof(int) * (program_pos / 2 + 1));
-    int stack_top = -1;
-    
-    for (int pc = 0; pc < program_pos; pc++) {
-        char c = program[pc];
-        if (c == '[') {
-            stack[++stack_top] = pc;
-        } else if (c == ']' && stack_top >= 0) {
-            int left = stack[stack_top--];
-            int right = pc;
-            
-            BrainfuckHashMap_BracketPair* pair = malloc(sizeof(BrainfuckHashMap_BracketPair));
-            pair->key = left;
-            pair->value = right;
-            HASH_ADD_INT(bracket_map, key, pair);
-            
-            pair = malloc(sizeof(BrainfuckHashMap_BracketPair));
-            pair->key = right;
-            pair->value = left;
-            HASH_ADD_INT(bracket_map, key, pair);
+    // Строим массив прыжков
+    int32_t* jumps = NULL;
+    if (program_pos > 0) {
+        jumps = malloc(sizeof(int32_t) * program_pos);
+        memset(jumps, 0, sizeof(int32_t) * program_pos);
+        
+        int* stack = malloc(sizeof(int) * (program_pos / 2 + 1));
+        int stack_top = -1;
+        
+        for (int pc = 0; pc < program_pos; pc++) {
+            char c = program[pc];
+            if (c == '[') {
+                stack[++stack_top] = pc;
+            } else if (c == ']' && stack_top >= 0) {
+                int left = stack[stack_top--];
+                int right = pc;
+                jumps[left] = right;
+                jumps[right] = left;
+            }
         }
+        
+        free(stack);
     }
-    
-    free(stack);
     
     *program_ptr = program;
     *program_length_ptr = program_pos;
-    *bracket_map_ptr = bracket_map;
+    *jumps_ptr = jumps;
 }
 
 // Функция для выполнения программы
-static uint32_t BrainfuckHashMap_execute_program(const char* program, int32_t program_length,
-                                                BrainfuckHashMap_BracketPair* bracket_map) {
-    if (!program || program_length == 0) {
+static uint32_t BrainfuckArray_execute_program(const char* program, int32_t program_length,
+                                               int32_t* jumps) {
+    if (!program || program_length == 0 || !jumps) {
         return 0;
     }
     
-    BrainfuckHashMap_Tape* tape = BrainfuckHashMap_Tape_new();
+    BrainfuckArray_Tape* tape = BrainfuckArray_Tape_new();
     int pc = 0;
     uint32_t result = 0;
     
     while (pc < program_length) {
         char c = program[pc];
         switch (c) {
-            case '+': BrainfuckHashMap_Tape_inc(tape); break;
-            case '-': BrainfuckHashMap_Tape_dec(tape); break;
-            case '>': BrainfuckHashMap_Tape_advance(tape); break;
-            case '<': BrainfuckHashMap_Tape_devance(tape); break;
+            case '+': BrainfuckArray_Tape_inc(tape); break;
+            case '-': BrainfuckArray_Tape_dec(tape); break;
+            case '>': BrainfuckArray_Tape_advance(tape); break;
+            case '<': BrainfuckArray_Tape_devance(tape); break;
             case '[': {
-                if (BrainfuckHashMap_Tape_get(tape) == 0) {
-                    BrainfuckHashMap_BracketPair* pair = NULL;
-                    HASH_FIND_INT(bracket_map, &pc, pair);
-                    if (pair) pc = pair->value;
+                if (BrainfuckArray_Tape_get(tape) == 0) {
+                    pc = jumps[pc];
+                    continue;  // Важно: пропускаем pc++ в конце цикла
                 }
                 break;
             }
             case ']': {
-                if (BrainfuckHashMap_Tape_get(tape) != 0) {
-                    BrainfuckHashMap_BracketPair* pair = NULL;
-                    HASH_FIND_INT(bracket_map, &pc, pair);
-                    if (pair) pc = pair->value;
+                if (BrainfuckArray_Tape_get(tape) != 0) {
+                    pc = jumps[pc];
+                    continue;  // Важно: пропускаем pc++ в конце цикла
                 }
                 break;
             }
             case '.': {
-                uint8_t value = BrainfuckHashMap_Tape_get(tape);
-                result = (result << 2) + value;
+                uint8_t value = BrainfuckArray_Tape_get(tape);
+                result = (result << 2) + value;  // Wrapping overflow естественный для uint32_t
                 break;
             }
         }
         pc++;
     }
     
-    BrainfuckHashMap_Tape_free(tape);
+    BrainfuckArray_Tape_free(tape);
     return result;
 }
 
-void BrainfuckHashMap_prepare(Benchmark* self) {
-    BrainfuckHashMapData* data = (BrainfuckHashMapData*)self->data;
+void BrainfuckArray_prepare(Benchmark* self) {
+    BrainfuckArrayData* data = (BrainfuckArrayData*)self->data;
     
     // Получаем программы из конфигурации
     const char* program_text = Helper_config_s(self->name, "program");
     const char* warmup_text = Helper_config_s(self->name, "warmup_program");
     
     // Парсим основную программу
-    BrainfuckHashMap_parse_program(program_text, 
-                                  &data->program, 
-                                  &data->program_length,
-                                  &data->bracket_map);
+    BrainfuckArray_parse_program(program_text, 
+                                &data->program, 
+                                &data->program_length,
+                                &data->jumps);
     
     // Парсим warmup программу
-    BrainfuckHashMap_parse_program(warmup_text,
-                                  &data->warmup_program,
-                                  &data->warmup_length,
-                                  &data->warmup_bracket_map);
+    BrainfuckArray_parse_program(warmup_text,
+                                &data->warmup_program,
+                                &data->warmup_length,
+                                &data->warmup_jumps);
     
     data->result_val = 0;
 }
 
-void BrainfuckHashMap_warmup(Benchmark* self) {
-    BrainfuckHashMapData* data = (BrainfuckHashMapData*)self->data;
+void BrainfuckArray_warmup(Benchmark* self) {
+    BrainfuckArrayData* data = (BrainfuckArrayData*)self->data;
     int64_t warmup_iters = Helper_config_i64(self->name, "warmup_iterations");
     
     if (warmup_iters == 0) {
@@ -1002,61 +986,73 @@ void BrainfuckHashMap_warmup(Benchmark* self) {
     }
     
     for (int64_t i = 0; i < warmup_iters; i++) {
-        BrainfuckHashMap_execute_program(data->warmup_program, 
-                                        data->warmup_length,
-                                        data->warmup_bracket_map);
+        BrainfuckArray_execute_program(data->warmup_program, 
+                                      data->warmup_length,
+                                      data->warmup_jumps);
     }
 }
 
-void BrainfuckHashMap_run(Benchmark* self, int iteration_id) {
-    BrainfuckHashMapData* data = (BrainfuckHashMapData*)self->data;
+void BrainfuckArray_run(Benchmark* self, int iteration_id) {
+    BrainfuckArrayData* data = (BrainfuckArrayData*)self->data;
     
     if (iteration_id == 0) {
         data->result_val = 0;
     }
     
-    uint32_t run_result = BrainfuckHashMap_execute_program(data->program,
-                                                          data->program_length,
-                                                          data->bracket_map);
+    uint32_t run_result = BrainfuckArray_execute_program(data->program,
+                                                        data->program_length,
+                                                        data->jumps);
     data->result_val += run_result;
 }
 
-uint32_t BrainfuckHashMap_checksum(Benchmark* self) {
-    BrainfuckHashMapData* data = (BrainfuckHashMapData*)self->data;
+uint32_t BrainfuckArray_checksum(Benchmark* self) {
+    BrainfuckArrayData* data = (BrainfuckArrayData*)self->data;
     return data->result_val;
 }
 
-void BrainfuckHashMap_cleanup(Benchmark* self) {
-    BrainfuckHashMapData* data = (BrainfuckHashMapData*)self->data;
+void BrainfuckArray_cleanup(Benchmark* self) {
+    BrainfuckArrayData* data = (BrainfuckArrayData*)self->data;
+    
+    if (!data) return;
     
     // Освобождаем основную программу
-    free(data->program);
-    BrainfuckHashMap_BracketPair* pair, *tmp;
-    HASH_ITER(hh, data->bracket_map, pair, tmp) {
-        HASH_DEL(data->bracket_map, pair);
-        free(pair);
+    if (data->program) {
+        free(data->program);
+        data->program = NULL;
+    }
+    
+    if (data->jumps) {
+        free(data->jumps);
+        data->jumps = NULL;
     }
     
     // Освобождаем warmup программу
-    free(data->warmup_program);
-    HASH_ITER(hh, data->warmup_bracket_map, pair, tmp) {
-        HASH_DEL(data->warmup_bracket_map, pair);
-        free(pair);
+    if (data->warmup_program) {
+        free(data->warmup_program);
+        data->warmup_program = NULL;
     }
+    
+    if (data->warmup_jumps) {
+        free(data->warmup_jumps);
+        data->warmup_jumps = NULL;
+    }
+    
+    free(data);
+    self->data = NULL;  // Важно: обнуляем указатель
 }
 
-Benchmark* BrainfuckHashMap_create(void) {
-    Benchmark* bench = Benchmark_create("BrainfuckHashMap");
+Benchmark* BrainfuckArray_create(void) {
+    Benchmark* bench = Benchmark_create("BrainfuckArray");
     
-    BrainfuckHashMapData* data = malloc(sizeof(BrainfuckHashMapData));
-    memset(data, 0, sizeof(BrainfuckHashMapData));
+    BrainfuckArrayData* data = malloc(sizeof(BrainfuckArrayData));
+    memset(data, 0, sizeof(BrainfuckArrayData));
     
     bench->data = data;
-    bench->prepare = BrainfuckHashMap_prepare;
-    bench->warmup = BrainfuckHashMap_warmup;
-    bench->run = BrainfuckHashMap_run;
-    bench->checksum = BrainfuckHashMap_checksum;
-    bench->cleanup = BrainfuckHashMap_cleanup;
+    bench->prepare = BrainfuckArray_prepare;
+    bench->warmup = BrainfuckArray_warmup;
+    bench->run = BrainfuckArray_run;
+    bench->checksum = BrainfuckArray_checksum;
+    bench->cleanup = BrainfuckArray_cleanup;
     
     return bench;
 }
@@ -9002,7 +8998,7 @@ Benchmark* Decompression_create(void) {
 void register_all_benchmarks(void) {
     Benchmark_register("Pidigits", Pidigits_create);
     Benchmark_register("Binarytrees", Binarytrees_create);
-    Benchmark_register("BrainfuckHashMap", BrainfuckHashMap_create);
+    Benchmark_register("BrainfuckArray", BrainfuckArray_create);
     Benchmark_register("BrainfuckRecursion", BrainfuckRecursion_create);
     Benchmark_register("Fannkuchredux", Fannkuchredux_create);
     Benchmark_register("Fasta", Fasta_create);
