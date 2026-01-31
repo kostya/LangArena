@@ -71,8 +71,33 @@ class Gen
     main_table('runtime')
   end
 
+  def runtime_table_rel(runs = @runs_prod) # relative to basis (c,c++,rust,zig,crystal)
+    t = main_table('runtime', runs)
+    m = t[:map]
+    new_m = []
+    # rel_indexes = %w{C C++ Rust Zig Crystal}.map { |name| t[:up_header].index { |uh| uh.start_with?(name) } }
+    m.each do |line|
+      sum = 0.0
+      # rel_indexes.each do |ri|
+      #   sum += line[ri]
+      # end
+      # avg = sum / rel_indexes.size
+      avg = line.min
+      new_m << line.map { |v| (v / avg).round(2) }
+    end
+    t[:map] = new_m
+    t[:description] += "<br><strong>Relative to fastest (1.0 is fastest)</strong>"
+    t
+  end
+
   def runtime_table_by_best_run
     t = main_table('runtime', _best_lang_run.values)
+    t[:description] += "<br><strong>Only fastest configurations for each language are included.</strong>"
+    t
+  end
+
+  def runtime_table_by_best_run_rel
+    t = runtime_table_rel(_best_lang_run.values)
     t[:description] += "<br><strong>Only fastest configurations for each language are included.</strong>"
     t
   end
@@ -686,6 +711,8 @@ DESC
       'tests_count': @j['tests'].size,
 
       'runtime_table': runtime_table,      
+      'runtime_table_rel': runtime_table_rel, 
+      'runtime_table_by_lang_rel': runtime_table_by_best_run_rel, 
       'memory_table': memory_table,
       'runtime_table_by_lang': runtime_table_by_best_run,
       'memory_table_by_lang': memory_table_by_best_run,
