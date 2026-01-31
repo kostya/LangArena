@@ -3753,8 +3753,8 @@ func (c *CalculatorInterpreter) Checksum() uint32 {
 	return c.result
 }
 
-// GameOfLife
-type Cell int
+// GameOfLife (оптимизированная версия)
+type Cell uint8
 
 const (
 	Dead Cell = iota
@@ -3764,84 +3764,196 @@ const (
 type Grid struct {
 	width  int
 	height int
-	cells  [][]Cell
+	cells  []Cell      // Плоский массив для лучшей производительности
+	buffer []Cell      // Предварительно аллоцированный буфер
 }
 
 func NewGrid(width, height int) *Grid {
-	cells := make([][]Cell, height)
-	for y := 0; y < height; y++ {
-		cells[y] = make([]Cell, width)
+	size := width * height
+	return &Grid{
+		width:  width,
+		height: height,
+		cells:  make([]Cell, size),
+		buffer: make([]Cell, size),
 	}
-	return &Grid{width, height, cells}
 }
 
-func (g *Grid) countNeighbors(x, y int) int {
+// Инлайн-функция для вычисления индекса
+func (g *Grid) idx(x, y int) int {
+	return y*g.width + x
+}
+
+// Оптимизированный подсчет соседей
+func (g *Grid) countNeighbors(x, y int, cells []Cell) int {
+	// Предварительно вычисленные индексы с тороидальными границами
+	yPrev := y - 1
+	if yPrev < 0 {
+		yPrev = g.height - 1
+	}
+	yNext := y + 1
+	if yNext >= g.height {
+		yNext = 0
+	}
+	xPrev := x - 1
+	if xPrev < 0 {
+		xPrev = g.width - 1
+	}
+	xNext := x + 1
+	if xNext >= g.width {
+		xNext = 0
+	}
+
+	// Развернутый подсчет 8 соседей
 	count := 0
 
-	for dy := -1; dy <= 1; dy++ {
-		for dx := -1; dx <= 1; dx++ {
-			if dx == 0 && dy == 0 {
-				continue
-			}
+	// Верхний ряд
+	idx := yPrev*g.width
+	if cells[idx+xPrev] == Alive {
+		count++
+	}
+	if cells[idx+x] == Alive {
+		count++
+	}
+	if cells[idx+xNext] == Alive {
+		count++
+	}
 
-			nx := (x + dx) % g.width
-			ny := (y + dy) % g.height
-			if nx < 0 {
-				nx += g.width
-			}
-			if ny < 0 {
-				ny += g.height
-			}
+	// Средний ряд
+	idx = y * g.width
+	if cells[idx+xPrev] == Alive {
+		count++
+	}
+	if cells[idx+xNext] == Alive {
+		count++
+	}
 
-			if g.cells[ny][nx] == Alive {
-				count++
-			}
-		}
+	// Нижний ряд
+	idx = yNext * g.width
+	if cells[idx+xPrev] == Alive {
+		count++
+	}
+	if cells[idx+x] == Alive {
+		count++
+	}
+	if cells[idx+xNext] == Alive {
+		count++
 	}
 
 	return count
 }
 
+// Оптимизированное следующее поколение
 func (g *Grid) nextGeneration() *Grid {
-	nextGrid := NewGrid(g.width, g.height)
+	width := g.width
+	height := g.height
 
-	for y := 0; y < g.height; y++ {
-		for x := 0; x < g.width; x++ {
-			neighbors := g.countNeighbors(x, y)
-			current := g.cells[y][x]
+	// Локальные переменные для лучшей производительности
+	cells := g.cells
+	buffer := g.buffer
 
+	// Оптимизированный цикл
+	for y := 0; y < height; y++ {
+		yIdx := y * width
+		yPrevIdx := yIdx - width
+		if yPrevIdx < 0 {
+			yPrevIdx = (height-1)*width
+		}
+		yNextIdx := yIdx + width
+		if yNextIdx >= width*height {
+			yNextIdx = 0
+		}
+
+		for x := 0; x < width; x++ {
+			idx := yIdx + x
+
+			// Вычисляем индексы соседей
+			xPrev := x - 1
+			if xPrev < 0 {
+				xPrev = width - 1
+			}
+			xNext := x + 1
+			if xNext >= width {
+				xNext = 0
+			}
+
+			// Развернутый подсчет соседей
+			neighbors := 0
+
+			// Верхний ряд
+			if cells[yPrevIdx+xPrev] == Alive {
+				neighbors++
+			}
+			if cells[yPrevIdx+x] == Alive {
+				neighbors++
+			}
+			if cells[yPrevIdx+xNext] == Alive {
+				neighbors++
+			}
+
+			// Средний ряд
+			if cells[yIdx+xPrev] == Alive {
+				neighbors++
+			}
+			if cells[yIdx+xNext] == Alive {
+				neighbors++
+			}
+
+			// Нижний ряд
+			if cells[yNextIdx+xPrev] == Alive {
+				neighbors++
+			}
+			if cells[yNextIdx+x] == Alive {
+				neighbors++
+			}
+			if cells[yNextIdx+xNext] == Alive {
+				neighbors++
+			}
+
+			// Оптимизированная логика игры
+			current := cells[idx]
 			var nextState Cell = Dead
+
 			if current == Alive {
 				if neighbors == 2 || neighbors == 3 {
 					nextState = Alive
 				}
-			} else {
-				if neighbors == 3 {
-					nextState = Alive
-				}
+			} else if neighbors == 3 {
+				nextState = Alive
 			}
 
-			nextGrid.cells[y][x] = nextState
+			buffer[idx] = nextState
 		}
 	}
 
-	return nextGrid
+	// Создаем новый Grid с обмененными буферами
+	return &Grid{
+		width:  width,
+		height: height,
+		cells:  buffer,
+		buffer: cells,
+	}
 }
 
+// Оптимизированный подсчет хэша
 func (g *Grid) computeHash() uint32 {
-	hasher := uint32(2166136261)
-	prime := uint32(16777619)
+	const (
+		FNV_OFFSET_BASIS uint32 = 2166136261
+		FNV_PRIME        uint32 = 16777619
+	)
 
-	for y := 0; y < g.height; y++ {
-		for x := 0; x < g.width; x++ {
-			alive := uint32(0)
-			if g.cells[y][x] == Alive {
-				alive = 1
-			}
-			hasher = (hasher ^ alive) * prime
+	hash := FNV_OFFSET_BASIS
+	cells := g.cells
+
+	// Оптимизированный цикл
+	for i := 0; i < len(cells); i++ {
+		alive := uint32(0)
+		if cells[i] == Alive {
+			alive = 1
 		}
+		hash = (hash ^ alive) * FNV_PRIME
 	}
-	return hasher
+
+	return hash
 }
 
 type GameOfLife struct {
@@ -3856,10 +3968,15 @@ func (g *GameOfLife) Prepare() {
 	g.height = int(g.ConfigVal("h"))
 	g.grid = NewGrid(g.width, g.height)
 
+	// Оптимизированная инициализация
+	cells := g.grid.cells
+	width := g.width
+
 	for y := 0; y < g.height; y++ {
-		for x := 0; x < g.width; x++ {
+		yIdx := y * width
+		for x := 0; x < width; x++ {
 			if NextFloat(1.0) < 0.1 {
-				g.grid.cells[y][x] = Alive
+				cells[yIdx+x] = Alive
 			}
 		}
 	}
