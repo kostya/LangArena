@@ -1,5 +1,5 @@
 pub mod brainfuck_recursion;
-pub mod brainfuck_hashmap;
+pub mod brainfuck_array;
 pub mod binarytrees;
 pub mod pidigits;
 pub mod fasta;

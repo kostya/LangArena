@@ -111,7 +111,7 @@ fn run_benchmarks(single_bench: Option<&str>) {
     // Регистрируем бенчмарки
     benchmarks.push(Box::new(benchmarks::pidigits::Pidigits::new()));
     benchmarks.push(Box::new(benchmarks::binarytrees::Binarytrees::new()));
-    benchmarks.push(Box::new(benchmarks::brainfuck_hashmap::BrainfuckHashMap::new()));
+    benchmarks.push(Box::new(benchmarks::brainfuck_array::BrainfuckArray::new()));
     benchmarks.push(Box::new(benchmarks::brainfuck_recursion::BrainfuckRecursion::new()));
     benchmarks.push(Box::new(benchmarks::fannkuchredux::Fannkuchredux::new()));
     benchmarks.push(Box::new(benchmarks::fasta::Fasta::new()));
