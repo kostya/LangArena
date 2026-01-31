@@ -7,7 +7,7 @@ public class Main {
     public static void main(String[] args) throws Exception {
         Benchmark.registerBenchmark(() -> new Pidigits());
         Benchmark.registerBenchmark(() -> new Binarytrees());
-        Benchmark.registerBenchmark(() -> new BrainfuckHashMap());
+        Benchmark.registerBenchmark(() -> new BrainfuckArray());
         Benchmark.registerBenchmark(() -> new BrainfuckRecursion());   
         Benchmark.registerBenchmark(() -> new Fannkuchredux());             
         Benchmark.registerBenchmark(() -> new Fasta());
