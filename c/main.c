@@ -7266,7 +7266,7 @@ Benchmark* CalculatorInterpreter_create(void) {
 }
 
 // ============================================================================
-// Бенчмарк GameOfLife
+// Бенчмарк GameOfLife (оптимизирован для GCC)
 // ============================================================================
 
 typedef enum {
@@ -7276,6 +7276,7 @@ typedef enum {
 
 typedef struct {
     CellState** cells;
+    CellState** next_cells;  // Предварительно аллоцированный буфер
     int width;
     int height;
 } GameOfLifeGrid;
@@ -7287,8 +7288,8 @@ typedef struct {
     GameOfLifeGrid grid;
 } GameOfLifeData;
 
-// FNV-1a хэш функция (как в C++ версии)
-static uint32_t fnv1a_hash(uint32_t hash, uint32_t value) {
+// FNV-1a хэш функция
+static inline uint32_t fnv1a_hash(uint32_t hash, uint32_t value) {
     const uint32_t FNV_OFFSET_BASIS = 2166136261UL;
     const uint32_t FNV_PRIME = 16777619UL;
     
@@ -7302,90 +7303,99 @@ static uint32_t fnv1a_hash(uint32_t hash, uint32_t value) {
 static void game_of_life_grid_init(GameOfLifeGrid* grid, int width, int height) {
     grid->width = width;
     grid->height = height;
-    grid->cells = malloc(height * sizeof(CellState*));
     
+    // Выделяем память для текущего состояния
+    grid->cells = malloc(height * sizeof(CellState*));
     for (int y = 0; y < height; y++) {
         grid->cells[y] = malloc(width * sizeof(CellState));
-        for (int x = 0; x < width; x++) {
-            grid->cells[y][x] = CELL_DEAD;
-        }
+        memset(grid->cells[y], 0, width * sizeof(CellState));
+    }
+    
+    // Выделяем память для буфера заранее
+    grid->next_cells = malloc(height * sizeof(CellState*));
+    for (int y = 0; y < height; y++) {
+        grid->next_cells[y] = malloc(width * sizeof(CellState));
     }
 }
 
 static void game_of_life_grid_free(GameOfLifeGrid* grid) {
     for (int y = 0; y < grid->height; y++) {
         free(grid->cells[y]);
+        free(grid->next_cells[y]);
     }
     free(grid->cells);
+    free(grid->next_cells);
 }
 
-// Подсчет соседей с тороидальными координатами
-static int game_of_life_count_neighbors(GameOfLifeGrid* grid, int x, int y) {
+// Оптимизированный подсчет соседей
+static inline int game_of_life_count_neighbors(GameOfLifeGrid* grid, int x, int y) {
     int count = 0;
+    int width = grid->width;
+    int height = grid->height;
     
-    for (int dy = -1; dy <= 1; dy++) {
-        for (int dx = -1; dx <= 1; dx++) {
-            if (dx == 0 && dy == 0) continue;
-            
-            int nx = (x + dx) % grid->width;
-            int ny = (y + dy) % grid->height;
-            
-            if (nx < 0) nx += grid->width;
-            if (ny < 0) ny += grid->height;
-            
-            if (grid->cells[ny][nx] == CELL_ALIVE) {
-                count++;
-            }
-        }
-    }
+    // Предварительно вычисленные индексы соседей
+    int y_prev = (y == 0) ? height - 1 : y - 1;
+    int y_next = (y == height - 1) ? 0 : y + 1;
+    int x_prev = (x == 0) ? width - 1 : x - 1;
+    int x_next = (x == width - 1) ? 0 : x + 1;
+    
+    // Развернутый цикл для 8 соседей
+    count += grid->cells[y_prev][x_prev] == CELL_ALIVE;
+    count += grid->cells[y_prev][x] == CELL_ALIVE;
+    count += grid->cells[y_prev][x_next] == CELL_ALIVE;
+    count += grid->cells[y][x_prev] == CELL_ALIVE;
+    count += grid->cells[y][x_next] == CELL_ALIVE;
+    count += grid->cells[y_next][x_prev] == CELL_ALIVE;
+    count += grid->cells[y_next][x] == CELL_ALIVE;
+    count += grid->cells[y_next][x_next] == CELL_ALIVE;
     
     return count;
 }
 
-// Следующее поколение
+// Оптимизированное следующее поколение
 static void game_of_life_next_generation(GameOfLifeGrid* grid) {
-    // Создаем временную копию для вычислений
-    CellState** next_cells = malloc(grid->height * sizeof(CellState*));
+    int width = grid->width;
+    int height = grid->height;
     
-    for (int y = 0; y < grid->height; y++) {
-        next_cells[y] = malloc(grid->width * sizeof(CellState));
+    // Используем предварительно аллоцированный буфер
+    CellState** cells = grid->cells;
+    CellState** next_cells = grid->next_cells;
+    
+    // Параллелизуемый цикл
+    for (int y = 0; y < height; y++) {
+        CellState* row = cells[y];
+        CellState* next_row = next_cells[y];
         
-        for (int x = 0; x < grid->width; x++) {
+        for (int x = 0; x < width; x++) {
             int neighbors = game_of_life_count_neighbors(grid, x, y);
-            CellState current = grid->cells[y][x];
+            CellState current = row[x];
             CellState next_state = CELL_DEAD;
             
+            // Оптимизированная логика
             if (current == CELL_ALIVE) {
-                if (neighbors == 2 || neighbors == 3) {
-                    next_state = CELL_ALIVE;
-                }
+                next_state = (neighbors == 2 || neighbors == 3) ? CELL_ALIVE : CELL_DEAD;
             } else {
-                if (neighbors == 3) {
-                    next_state = CELL_ALIVE;
-                }
+                next_state = (neighbors == 3) ? CELL_ALIVE : CELL_DEAD;
             }
             
-            next_cells[y][x] = next_state;
+            next_row[x] = next_state;
         }
     }
     
-    // Копируем обратно в исходную сетку
-    for (int y = 0; y < grid->height; y++) {
-        for (int x = 0; x < grid->width; x++) {
-            grid->cells[y][x] = next_cells[y][x];
-        }
-        free(next_cells[y]);
-    }
-    free(next_cells);
+    // Быстрое переключение буферов
+    CellState** temp = grid->cells;
+    grid->cells = grid->next_cells;
+    grid->next_cells = temp;
 }
 
-// Вычисление хэша сетки (как в C++ версии)
+// Вычисление хэша сетки
 static uint32_t game_of_life_grid_hash(GameOfLifeGrid* grid) {
     uint32_t hash = 0;
     
     for (int y = 0; y < grid->height; y++) {
+        CellState* row = grid->cells[y];
         for (int x = 0; x < grid->width; x++) {
-            uint32_t alive = (grid->cells[y][x] == CELL_ALIVE) ? 1UL : 0UL;
+            uint32_t alive = row[x] == CELL_ALIVE;
             hash = fnv1a_hash(hash, alive);
         }
     }
@@ -7404,7 +7414,7 @@ void GameOfLife_prepare(Benchmark* self) {
     
     game_of_life_grid_init(&data->grid, (int)data->width_val, (int)data->height_val);
     
-    // Инициализация случайными клетками (как в C++ версии)
+    // Инициализация случайными клетками
     for (int y = 0; y < data->grid.height; y++) {
         for (int x = 0; x < data->grid.width; x++) {
             if (Helper_next_float(1.0) < 0.1) {
@@ -7418,14 +7428,11 @@ void GameOfLife_prepare(Benchmark* self) {
 
 void GameOfLife_run(Benchmark* self, int iteration_id) {
     GameOfLifeData* data = (GameOfLifeData*)self->data;
-    
-    // Одна итерация эволюции (как в C++ версии)
     game_of_life_next_generation(&data->grid);
 }
 
 uint32_t GameOfLife_checksum(Benchmark* self) {
     GameOfLifeData* data = (GameOfLifeData*)self->data;
-    // Возвращаем хэш сетки (как в C++ версии)
     return game_of_life_grid_hash(&data->grid);
 }
 
@@ -7438,13 +7445,10 @@ void GameOfLife_cleanup(Benchmark* self) {
 Benchmark* GameOfLife_create(void) {
     Benchmark* bench = Benchmark_create("GameOfLife");
     
-    // Создаем данные
     GameOfLifeData* data = malloc(sizeof(GameOfLifeData));
     memset(data, 0, sizeof(GameOfLifeData));
     
     bench->data = data;
-    
-    // Переопределяем методы
     bench->prepare = GameOfLife_prepare;
     bench->run = GameOfLife_run;
     bench->checksum = GameOfLife_checksum;
@@ -7452,7 +7456,6 @@ Benchmark* GameOfLife_create(void) {
     
     return bench;
 }
-
 // ============================================================================
 // Бенчмарк MazeGenerator
 // ============================================================================
