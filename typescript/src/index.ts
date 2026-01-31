@@ -1893,16 +1893,17 @@ export class Revcomp extends Benchmark {
   }
 
   private revcomp(seq: string): string {
-    let resultStr = '';
-    const reversed = seq.split('').reverse().join('');
+    const len = seq.length;
     
-    const from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
-    const to   = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
-    
+    // 1. Таблица трансляции как массив символов
     const lookup: string[] = new Array(256);
     for (let i = 0; i < 256; i++) {
         lookup[i] = String.fromCharCode(i);
     }
+    
+    const from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
+    const to   = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
+    
     for (let i = 0; i < from.length; i++) {
         const charCode = from.charCodeAt(i);
         if (charCode < 256) {
@@ -1910,17 +1911,35 @@ export class Revcomp extends Benchmark {
         }
     }
     
-    let translated = '';
-    for (let i = 0; i < reversed.length; i++) {
-        const charCode = reversed.charCodeAt(i);
-        translated += lookup[charCode] || reversed[i];
+    // 2. Сразу собираем обратную комплементарную последовательность в массив
+    const translatedChars: string[] = new Array(len);
+    for (let i = 0; i < len; i++) {
+        const charCode = seq.charCodeAt(len - 1 - i); // reverse за один проход
+        translatedChars[i] = lookup[charCode] || String.fromCharCode(charCode);
     }
     
+    // 3. Разбиваем на строки по 60 символов
     const lineLength = 60;
-    for (let i = 0; i < translated.length; i += lineLength) {
-        const end = Math.min(i + lineLength, translated.length);
-        resultStr += translated.substring(i, end) + '\n';
+    const lines: string[] = [];
+    
+    for (let i = 0; i < len; i += lineLength) {
+        const end = Math.min(i + lineLength, len);
+        let line = '';
+        
+        // Собираем строку из массива символов
+        for (let j = i; j < end; j++) {
+            line += translatedChars[j];
+        }
+        
+        lines.push(line);
     }
+    
+    // 4. Соединяем с переносами строк (последняя строка тоже с \n!)
+    let resultStr = '';
+    for (const line of lines) {
+        resultStr += line + '\n';
+    }
+    
     return resultStr;
   }
 
