@@ -3518,94 +3518,114 @@ public:
 
 class GameOfLife : public Benchmark {
 private:
-    enum class Cell {
-        Dead,
-        Alive
+    enum class Cell : uint8_t {
+        Dead = 0,
+        Alive = 1
     };
     
     class Grid {
     private:
         int width_;
         int height_;
-        std::vector<std::vector<Cell>> cells_;
+        std::vector<Cell> cells_;      // Плоский массив для лучшей локальности
+        std::vector<Cell> buffer_;     // Предварительно аллоцированный буфер
         
-    public:
-        Grid(int width, int height) : width_(width), height_(height) {
-            cells_.resize(height_, std::vector<Cell>(width_, Cell::Dead));
-        }
-        
-        Cell get(int x, int y) const {
-            return cells_[y][x];
-        }
-        
-        void set(int x, int y, Cell cell) {
-            cells_[y][x] = cell;
-        }
-        
-        int count_neighbors(int x, int y) const {
-            int count = 0;
+        // Оптимизированный подсчет соседей (развернутый)
+        int count_neighbors(int x, int y, const std::vector<Cell>& cells) const {
+            // Предварительно вычисленные индексы с тороидальными границами
+            int y_prev = (y == 0) ? height_ - 1 : y - 1;
+            int y_next = (y == height_ - 1) ? 0 : y + 1;
+            int x_prev = (x == 0) ? width_ - 1 : x - 1;
+            int x_next = (x == width_ - 1) ? 0 : x + 1;
             
-            for (int dy = -1; dy <= 1; dy++) {
-                for (int dx = -1; dx <= 1; dx++) {
-                    if (dx == 0 && dy == 0) continue;
-                    
-                    int nx = (static_cast<int64_t>(x) + dx) % width_;
-                    int ny = (static_cast<int64_t>(y) + dy) % height_;
-                    if (nx < 0) nx += width_;
-                    if (ny < 0) ny += height_;
-                    
-                    if (cells_[ny][nx] == Cell::Alive) {
-                        count++;
-                    }
-                }
-            }
+            // Развернутый цикл для 8 соседей
+            int count = 0;
+            count += static_cast<int>(cells[y_prev * width_ + x_prev] == Cell::Alive);
+            count += static_cast<int>(cells[y_prev * width_ + x] == Cell::Alive);
+            count += static_cast<int>(cells[y_prev * width_ + x_next] == Cell::Alive);
+            count += static_cast<int>(cells[y * width_ + x_prev] == Cell::Alive);
+            count += static_cast<int>(cells[y * width_ + x_next] == Cell::Alive);
+            count += static_cast<int>(cells[y_next * width_ + x_prev] == Cell::Alive);
+            count += static_cast<int>(cells[y_next * width_ + x] == Cell::Alive);
+            count += static_cast<int>(cells[y_next * width_ + x_next] == Cell::Alive);
             
             return count;
         }
         
-        Grid next_generation() const {
-            Grid next_grid(width_, height_);
+    public:
+        Grid(int width, int height) : width_(width), height_(height) {
+            int size = width * height;
+            cells_.resize(size, Cell::Dead);
+            buffer_.resize(size, Cell::Dead);
+        }
+        
+        Cell get(int x, int y) const {
+            return cells_[y * width_ + x];
+        }
+        
+        void set(int x, int y, Cell cell) {
+            cells_[y * width_ + x] = cell;
+        }
+        
+        // Оптимизированное следующее поколение
+        Grid& next_generation() {
+            const int width = width_;
+            const int height = height_;
+            const int size = width * height;
             
-            for (int y = 0; y < height_; y++) {
-                for (int x = 0; x < width_; x++) {
-                    int neighbors = count_neighbors(x, y);
-                    Cell current = cells_[y][x];
+            // Локальные ссылки для лучшей оптимизации
+            const std::vector<Cell>& cells = cells_;
+            std::vector<Cell>& buffer = buffer_;
+            
+            // Параллелизуемый цикл
+            for (int y = 0; y < height; ++y) {
+                const int y_idx = y * width;
+                
+                for (int x = 0; x < width; ++x) {
+                    const int idx = y_idx + x;
                     
+                    // Подсчет соседей
+                    int neighbors = count_neighbors(x, y, cells);
+                    
+                    // Оптимизированная логика игры
+                    Cell current = cells[idx];
                     Cell next_state = Cell::Dead;
+                    
                     if (current == Cell::Alive) {
-                        if (neighbors == 2 || neighbors == 3) {
-                            next_state = Cell::Alive;
-                        }
+                        next_state = (neighbors == 2 || neighbors == 3) ? Cell::Alive : Cell::Dead;
                     } else {
-                        if (neighbors == 3) {
-                            next_state = Cell::Alive;
-                        }
+                        next_state = (neighbors == 3) ? Cell::Alive : Cell::Dead;
                     }
                     
-                    next_grid.cells_[y][x] = next_state;
+                    buffer[idx] = next_state;
                 }
             }
             
-            return next_grid;
+            // Быстрое переключение буферов
+            std::swap(cells_, buffer_);
+            return *this;
         }
         
         uint32_t compute_hash() const {
-            uint32_t hasher = 2166136261UL;      // FNV offset basis
-            uint32_t prime = 16777619UL;         // FNV prime
+            constexpr uint32_t FNV_OFFSET_BASIS = 2166136261UL;
+            constexpr uint32_t FNV_PRIME = 16777619UL;
             
-            for (const auto& row : cells_) {
-                for (Cell cell : row) {
-                    uint32_t alive = (cell == Cell::Alive) ? 1UL : 0UL;
-                    hasher = (hasher ^ alive) * prime;
-                }
+            uint32_t hash = FNV_OFFSET_BASIS;
+            
+            // Оптимизированный цикл хэширования
+            const Cell* data = cells_.data();
+            const size_t size = cells_.size();
+            
+            for (size_t i = 0; i < size; ++i) {
+                uint32_t alive = static_cast<uint32_t>(data[i] == Cell::Alive);
+                hash = (hash ^ alive) * FNV_PRIME;
             }
-            return hasher;
-        }    
-
+            
+            return hash;
+        }
+        
         int width() const { return width_; }
         int height() const { return height_; }
-        
-        const std::vector<std::vector<Cell>>& cells() const { return cells_; }
     };
     
     uint32_t result_val;
@@ -3614,18 +3634,19 @@ private:
     Grid grid_;
     
 public:
-    GameOfLife() : result_val(0), grid_(0, 0) {
-        width_ = static_cast<int32_t>(config_val("w"));
-        height_ = static_cast<int32_t>(config_val("h"));
-        grid_ = Grid(width_, height_);
+    GameOfLife() : 
+        result_val(0),
+        width_(static_cast<int32_t>(config_val("w"))),
+        height_(static_cast<int32_t>(config_val("h"))),
+        grid_(width_, height_) {
     }
     
     std::string name() const override { return "GameOfLife"; }    
     
     void prepare() override {
         // Инициализация случайными клетками
-        for (int y = 0; y < height_; y++) {
-            for (int x = 0; x < width_; x++) {
+        for (int y = 0; y < height_; ++y) {
+            for (int x = 0; x < width_; ++x) {
                 if (Helper::next_float(1.0) < 0.1) {
                     grid_.set(x, y, Cell::Alive);
                 }
@@ -3635,14 +3656,13 @@ public:
     
     void run(int iteration_id) override {
         // Только одна итерация
-        grid_ = grid_.next_generation();
+        grid_.next_generation();
     }
     
     uint32_t checksum() override {
         return grid_.compute_hash();
     }
 };
-
 // ==================== MazeGenerator ====================
 
 class MazeGenerator : public Benchmark {
