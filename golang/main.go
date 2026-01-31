@@ -2121,6 +2121,7 @@ func (j *JsonParseMapping) Checksum() uint32 {
 }
 
 // Noise
+// Noise
 type Vec2 struct {
 	X, Y float64
 }
@@ -2186,14 +2187,17 @@ func (n *Noise2DContext) GetGradients(x, y int) ([4]Vec2, [4]Vec2) {
 	return gradients, origins
 }
 
+//go:inline
 func lerp(a, b, v float64) float64 {
 	return a*(1.0-v) + b*v
 }
 
+//go:inline
 func smooth(v float64) float64 {
 	return v * v * (3.0 - 2.0*v)
 }
 
+//go:inline
 func gradient(orig, grad, p Vec2) float64 {
 	sp := Vec2{p.X - orig.X, p.Y - orig.Y}
 	return grad.X*sp.X + grad.Y*sp.Y
@@ -2231,16 +2235,28 @@ func (n *Noise) Prepare() {
 func (n *Noise) Run(iteration_id int) {
 	SYM := []rune{' ', '░', '▒', '▓', '█', '█'}
 
-	for y := 0; y < int(n.size); y++ {
-		for x := 0; x < int(n.size); x++ {
-			v := n.n2d.Get(float64(x)*0.1, float64(y+(iteration_id*128))*0.1)*0.5 + 0.5
+	// Предвычисляем yOffset один раз
+	yOffset := float64(iteration_id * 128)
+	
+	// Используем локальные переменные для компиляторных оптимизаций
+	size := int(n.size)
+	var sum uint32 = n.result
+	
+	for y := 0; y < size; y++ {
+		// Предвычисляем yCoord для этой строки
+		yCoord := float64(y) + yOffset
+		
+		for x := 0; x < size; x++ {
+			v := n.n2d.Get(float64(x)*0.1, yCoord*0.1)*0.5 + 0.5
 			idx := int(v / 0.2)
 			if idx >= len(SYM) {
 				idx = len(SYM) - 1
 			}
-			n.result += uint32(SYM[idx])
+			sum += uint32(SYM[idx])
 		}
 	}
+	
+	n.result = sum
 }
 
 func (n *Noise) Checksum() uint32 {
