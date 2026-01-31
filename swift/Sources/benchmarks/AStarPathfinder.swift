@@ -7,6 +7,7 @@ final class AStarPathfinder: BenchmarkProtocol {
         let fScore: Int
         
         static func < (lhs: Node, rhs: Node) -> Bool {
+            // Оригинальная логика сравнения как в C++ и TypeScript
             if lhs.fScore != rhs.fScore {
                 return lhs.fScore < rhs.fScore
             }
@@ -43,7 +44,7 @@ final class AStarPathfinder: BenchmarkProtocol {
         private mutating func siftUp(from index: Int) {
             var child = index
             while child > 0 {
-                let parent = (child - 1) / 2
+                let parent = (child - 1) >> 1  // Быстрое деление на 2
                 guard data[child] < data[parent] else { break }
                 data.swapAt(child, parent)
                 child = parent
@@ -55,7 +56,7 @@ final class AStarPathfinder: BenchmarkProtocol {
             let count = data.count
             
             while true {
-                let left = parent * 2 + 1
+                let left = (parent << 1) + 1  // parent * 2 + 1
                 let right = left + 1
                 var candidate = parent
                 
@@ -79,28 +80,38 @@ final class AStarPathfinder: BenchmarkProtocol {
         return abs(ax - bx) + abs(ay - by)
     }
     
+    // Упаковка координат
+    private func packCoords(x: Int, y: Int) -> Int {
+        return y * width + x
+    }
+    
+    // Распаковка координат
+    private func unpackCoords(packed: Int) -> (x: Int, y: Int) {
+        return (packed % width, packed / width)
+    }
+    
     private func findPath() -> (path: [(x: Int, y: Int)]?, nodesExplored: Int) {
         let grid = mazeGrid
         
-        // ТОЛЬКО ЭТО ИЗМЕНИЛИ: КЭШИРОВАНИЕ МАССИВОВ
-        // Используем предварительно выделенные массивы
-        if gScoresCache.count != height || (height > 0 && gScoresCache[0].count != width) {
-            gScoresCache = Array(repeating: Array(repeating: Int.max, count: width), count: height)
-        } else {
-            // Быстро инициализируем существующие массивы
-            for y in 0..<height {
-                for x in 0..<width {
-                    gScoresCache[y][x] = Int.max
-                }
-            }
+        // Используем плоские массивы
+        let gScores = gScoresCache
+        let cameFrom = cameFromCache
+        
+        // Быстрая инициализация как в C++ и TypeScript
+        let size = width * height
+        gScoresCache.withUnsafeMutableBufferPointer { buffer in
+            buffer.assign(repeating: Int.max)
+        }
+        cameFromCache.withUnsafeMutableBufferPointer { buffer in
+            buffer.assign(repeating: -1)
         }
         
-        var gScores = gScoresCache
-        var cameFrom = Array(repeating: Array(repeating: (-1, -1), count: width), count: height)
         var openSet = BinaryHeap<Node>()
         var nodesExplored = 0
         
-        gScores[startY][startX] = 0
+        let startIdx = packCoords(x: startX, y: startY)
+        gScoresCache[startIdx] = 0
+        
         openSet.push(Node(x: startX, y: startY, 
                          fScore: distance(ax: startX, ay: startY, bx: goalX, by: goalY)))
         
@@ -110,15 +121,20 @@ final class AStarPathfinder: BenchmarkProtocol {
             nodesExplored += 1
             
             if current.x == goalX && current.y == goalY {
+                // Восстанавливаем путь
                 var path: [(x: Int, y: Int)] = []
                 var x = current.x
                 var y = current.y
                 
                 while x != startX || y != startY {
                     path.append((x, y))
-                    let (px, py) = cameFrom[y][x]
-                    x = px
-                    y = py
+                    let idx = packCoords(x: x, y: y)
+                    let packed = cameFromCache[idx]
+                    if packed == -1 { break }
+                    
+                    let coords = unpackCoords(packed: packed)
+                    x = coords.x
+                    y = coords.y
                 }
                 
                 path.append((startX, startY))
@@ -126,7 +142,8 @@ final class AStarPathfinder: BenchmarkProtocol {
                 return (path, nodesExplored)
             }
             
-            let currentG = gScores[current.y][current.x]
+            let currentIdx = packCoords(x: current.x, y: current.y)
+            let currentG = gScoresCache[currentIdx]
             
             for (dx, dy) in directions {
                 let nx = current.x + dx
@@ -136,10 +153,12 @@ final class AStarPathfinder: BenchmarkProtocol {
                 if !grid[ny][nx] { continue }
                 
                 let tentativeG = currentG + 1000
+                let neighborIdx = packCoords(x: nx, y: ny)
                 
-                if tentativeG < gScores[ny][nx] {
-                    cameFrom[ny][nx] = (current.x, current.y)
-                    gScores[ny][nx] = tentativeG
+                if tentativeG < gScoresCache[neighborIdx] {
+                    // Упаковываем координаты
+                    cameFromCache[neighborIdx] = currentIdx
+                    gScoresCache[neighborIdx] = tentativeG
                     
                     let fScore = tentativeG + distance(ax: nx, ay: ny, bx: goalX, by: goalY)
                     openSet.push(Node(x: nx, y: ny, fScore: fScore))
@@ -150,8 +169,9 @@ final class AStarPathfinder: BenchmarkProtocol {
         return (nil, nodesExplored)
     }
     
-    // ДОБАВЛЕН КЭШ
-    private var gScoresCache: [[Int]] = []
+    // Плоские массивы как в C++ и TypeScript
+    private var gScoresCache: [Int]
+    private var cameFromCache: [Int]
     
     private var resultVal: UInt32 = 0
     private var startX: Int = 1
@@ -163,7 +183,9 @@ final class AStarPathfinder: BenchmarkProtocol {
     private var mazeGrid: [[Bool]] = []
     
     init() {
-        // Инициализация по умолчанию
+        // Инициализируем массивы нулевой длины, они будут реинициализированы в prepare
+        gScoresCache = []
+        cameFromCache = []
     }
     
     func prepare() {
@@ -177,18 +199,27 @@ final class AStarPathfinder: BenchmarkProtocol {
         
         // Генерируем лабиринт
         mazeGrid = MazeGenerator.Maze.generateWalkableMaze(width: width, height: height)
+        
+        // Инициализируем плоские массивы
+        let size = width * height
+        gScoresCache = [Int](repeating: Int.max, count: size)
+        cameFromCache = [Int](repeating: -1, count: size)
     }
     
     func run(iterationId: Int) {
         let (path, nodesExplored) = findPath()
         
+        // Оригинальная логика вычисления checksum как в других версиях
         var localResult: UInt32 = 0
         
-        // КАК В C++: path.count БЕЗ деления на 2 (храним пары координат)
+        // localResult = ((localResult << 5) + pathLength) >>> 0
         let pathLength = UInt32(path?.count ?? 0)
-        localResult = (localResult << 5) &+ pathLength
+        localResult = pathLength
+        
+        // localResult = ((localResult << 5) + nodesExplored) >>> 0
         localResult = (localResult << 5) &+ UInt32(nodesExplored)
         
+        // Накопление результата
         resultVal &+= localResult
     }
     
