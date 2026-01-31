@@ -3258,16 +3258,11 @@ class AStarPathfinder < Benchmark
   getter width : Int32
   getter height : Int32
 
-  # Кэшированные массивы (выделяются один раз)
-  @g_scores_cache : Array(Array(Int32))?
-  @came_from_cache : Array(Array(Int32))?  # Упакованные координаты: y * width + x
-
-  # manhattan distance (inline для скорости)
-  private def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
+  # manhattan
+  def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
     (a_x - b_x).abs + (a_y - b_y).abs
   end
 
-  # Оптимизированный узел с встроенными координатами
   record Node, x : Int32, y : Int32, f_score : Int32 do
     include Comparable(Node)
 
@@ -3286,8 +3281,8 @@ class AStarPathfinder < Benchmark
   class BinaryHeap(T)
     @data : Array(T)
 
-    def initialize(initial_capacity = 64)
-      @data = Array(T).new(initial_capacity)
+    def initialize
+      @data = [] of T
     end
 
     def push(item : T)
@@ -3296,8 +3291,7 @@ class AStarPathfinder < Benchmark
     end
 
     def pop : T?
-      return nil if @data.empty?
-      return @data.pop if @data.size == 1
+      return @data.pop? if @data.size <= 1
 
       result = @data[0]
       @data[0] = @data.pop
@@ -3320,7 +3314,7 @@ class AStarPathfinder < Benchmark
 
     private def sift_down(index : Int32)
       size = @data.size
-      while true
+      loop do
         left = index * 2 + 1
         right = left + 1
         smallest = index
@@ -3353,67 +3347,38 @@ class AStarPathfinder < Benchmark
     @start_y = 1
     @goal_x = @width - 2
     @goal_y = @height - 2
-    @maze_grid = [] of Array(Bool)
-    @g_scores_cache = nil
-    @came_from_cache = nil
-  end
-
-  # Инициализация кэшированных массивов
-  private def init_cached_arrays
-    if @g_scores_cache.nil?
-      @g_scores_cache = Array.new(@height) { Array.new(@width, Int32::MAX) }
-      @came_from_cache = Array.new(@height) { Array.new(@width, -1) }
-    end
-  end
-
-  # Упаковка координат в одно число
-  private def pack_coords(x : Int32, y : Int32) : Int32
-    y * @width + x
-  end
-
-  # Распаковка координат
-  private def unpack_coords(packed : Int32) : Tuple(Int32, Int32)
-    {packed % @width, packed // @width}
+    @maze_grid = Array(Array(Bool)).new
   end
 
   private def find_path : Tuple(Array({Int32, Int32})?, Int32)
     grid = @maze_grid
-    
-    # Используем кэшированные массивы
-    g_scores = @g_scores_cache.not_nil!
-    came_from = @came_from_cache.not_nil!
-    
-    # Быстрая инициализация массивов
-    @height.times do |y|
-      @width.times do |x|
-        g_scores[y][x] = Int32::MAX
-        came_from[y][x] = -1
-      end
-    end
 
-    open_set = BinaryHeap(Node).new(@width * @height)
+    # ТОЛЬКО ДВА МАССИВА как в оригинале
+    g_scores = Array.new(@height) { Array.new(@width, Int32::MAX) }
+    came_from = Array.new(@height) { Array.new(@width, {-1, -1}) }
+    
+    open_set = BinaryHeap(Node).new
     nodes_explored = 0
 
     g_scores[@start_y][@start_x] = 0
     open_set.push(Node.new(@start_x, @start_y, distance(@start_x, @start_y, @goal_x, @goal_y)))
 
-    directions = [{0, -1}, {1, 0}, {0, 1}, {-1, 0}]
+    directions = { {0, -1}, {1, 0}, {0, 1}, {-1, 0} }
 
     until open_set.empty?
       current = open_set.pop.not_nil!
       nodes_explored += 1
 
       if current.x == @goal_x && current.y == @goal_y
-        # Восстанавливаем путь
         path = [] of {Int32, Int32}
         x = current.x
         y = current.y
 
         while x != @start_x || y != @start_y
           path << {x, y}
-          packed = came_from[y][x]
-          break if packed == -1
-          x, y = unpack_coords(packed)
+          prev_x, prev_y = came_from[y][x]
+          x = prev_x
+          y = prev_y
         end
 
         path << {@start_x, @start_y}
@@ -3432,8 +3397,7 @@ class AStarPathfinder < Benchmark
         tentative_g = current_g + 1000
 
         if tentative_g < g_scores[ny][nx]
-          # Упаковываем координаты в одно число
-          came_from[ny][nx] = pack_coords(current.x, current.y)
+          came_from[ny][nx] = {current.x, current.y}
           g_scores[ny][nx] = tentative_g
 
           f_score = tentative_g + distance(nx, ny, @goal_x, @goal_y)
@@ -3447,16 +3411,15 @@ class AStarPathfinder < Benchmark
 
   def prepare
     @maze_grid = MazeGenerator::Maze.generate_walkable_maze(@width, @height)
-    init_cached_arrays
   end
 
   def run(iteration_id)
     path, nodes_explored = find_path
 
     local_result = 0_i64
-    local_result = (local_result << 5) &+ (path.try(&.size) || 0).to_i64
-    local_result = (local_result << 5) &+ nodes_explored.to_i64
-    @result &+= local_result.to_u32
+    local_result = (local_result << 5) &+ (path.try(&.size) || 0)
+    local_result = (local_result << 5) &+ nodes_explored
+    @result &+= local_result
   end
 
   def checksum : UInt32
