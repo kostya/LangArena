@@ -2663,7 +2663,7 @@ export class TextRaytracer extends Benchmark {
       }
     }
     
-    this.resultValue += res;
+    this.resultValue = (this.resultValue + res) & 0xFFFFFFFF;
   }
 
   checksum(): number {
