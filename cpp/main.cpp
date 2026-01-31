@@ -3919,33 +3919,39 @@ private:
     int height_;
     std::vector<std::vector<bool>> maze_grid;
     
-    // Кэшированные массивы (выделяются один раз)
-    std::vector<std::vector<int>> g_scores_cache_;
-    std::vector<std::vector<std::pair<int, int>>> came_from_cache_;
+    // Плоские векторы вместо 2D
+    std::vector<int> g_scores_cache_;
+    std::vector<int> came_from_cache_; // Упакованные координаты: y * width + x
     
     int distance(int a_x, int a_y, int b_x, int b_y) const {
-        return (std::abs(a_x - b_x) + std::abs(a_y - b_y));
+        return std::abs(a_x - b_x) + std::abs(a_y - b_y);
+    }
+    
+    int pack_coords(int x, int y) const {
+        return y * width_ + x;
+    }
+    
+    std::pair<int, int> unpack_coords(int packed) const {
+        return {packed % width_, packed / width_};
     }
     
     std::pair<std::optional<std::vector<std::pair<int, int>>>, int> find_path() {
         const std::vector<std::vector<bool>>& grid = maze_grid;
         
-        // Используем предварительно выделенные массивы
-        std::vector<std::vector<int>>& g_scores = g_scores_cache_;
-        std::vector<std::vector<std::pair<int, int>>>& came_from = came_from_cache_;
+        // Используем предварительно выделенные плоские массивы
+        std::vector<int>& g_scores = g_scores_cache_;
+        std::vector<int>& came_from = came_from_cache_;
         
-        // Быстрая инициализация массивов
-        for (int y = 0; y < height_; ++y) {
-            std::fill(g_scores[y].begin(), g_scores[y].end(), std::numeric_limits<int>::max());
-            std::fill(came_from[y].begin(), came_from[y].end(), std::pair<int, int>{-1, -1});
-        }
+        // Быстрая инициализация flat массивов
+        std::fill(g_scores.begin(), g_scores.end(), std::numeric_limits<int>::max());
+        std::fill(came_from.begin(), came_from.end(), -1);
         
-        // Используем std::priority_queue вместо самодельной BinaryHeap
-        // std::greater<Node> делает min-heap
+        // Используем std::priority_queue
         std::priority_queue<Node, std::vector<Node>, std::greater<Node>> open_set;
         int nodes_explored = 0;
         
-        g_scores[start_y_][start_x_] = 0;
+        int start_idx = pack_coords(start_x_, start_y_);
+        g_scores[start_idx] = 0;
         open_set.push(Node(start_x_, start_y_, 
                           distance(start_x_, start_y_, goal_x_, goal_y_)));
         
@@ -3958,7 +3964,7 @@ private:
             
             if (current.x == goal_x_ && current.y == goal_y_) {
                 std::vector<std::pair<int, int>> path;
-                path.reserve(width_ * height_); // Предварительное выделение памяти
+                path.reserve(width_ * height_);
                 
                 int x = current.x;
                 int y = current.y;
@@ -3966,11 +3972,13 @@ private:
                 // Восстанавливаем путь от цели к старту
                 while (x != start_x_ || y != start_y_) {
                     path.emplace_back(x, y);
-                    const auto& [prev_x, prev_y] = came_from[y][x];
-                    if (prev_x == -1 || prev_y == -1) break;
+                    int idx = pack_coords(x, y);
+                    int packed = came_from[idx];
+                    if (packed == -1) break;
                     
-                    x = prev_x;
-                    y = prev_y;
+                    auto [px, py] = unpack_coords(packed);
+                    x = px;
+                    y = py;
                 }
                 
                 path.emplace_back(start_x_, start_y_);
@@ -3978,7 +3986,8 @@ private:
                 return {path, nodes_explored};
             }
             
-            int current_g = g_scores[current.y][current.x];
+            int current_idx = pack_coords(current.x, current.y);
+            int current_g = g_scores[current_idx];
             
             // Проходим по всем направлениям
             for (const auto& [dx, dy] : directions) {
@@ -3990,10 +3999,11 @@ private:
                 if (!grid[ny][nx]) continue;
                 
                 int tentative_g = current_g + 1000;
+                int neighbor_idx = pack_coords(nx, ny);
                 
-                if (tentative_g < g_scores[ny][nx]) {
-                    came_from[ny][nx] = {current.x, current.y};
-                    g_scores[ny][nx] = tentative_g;
+                if (tentative_g < g_scores[neighbor_idx]) {
+                    came_from[neighbor_idx] = current_idx;
+                    g_scores[neighbor_idx] = tentative_g;
                     
                     int f_score = tentative_g + distance(nx, ny, goal_x_, goal_y_);
                     open_set.push(Node(nx, ny, f_score));
@@ -4019,17 +4029,19 @@ public:
     void prepare() override {
         maze_grid = MazeGenerator::Maze::generate_walkable_maze(width_, height_);
         
-        // Инициализируем кэшированные массивы один раз
-        g_scores_cache_.resize(height_, std::vector<int>(width_));
-        came_from_cache_.resize(height_, 
-            std::vector<std::pair<int, int>>(width_, {-1, -1}));
+        // Инициализируем плоские массивы
+        int size = width_ * height_;
+        g_scores_cache_.resize(size);
+        came_from_cache_.resize(size);
     }
     
     void run(int iteration_id) override {
         auto [path, nodes_explored] = find_path();
         
         int64_t local_result = 0;
-        local_result = (local_result << 5) + (path ? static_cast<int64_t>(path->size()) : 0);
+        if (path) {
+            local_result = (local_result << 5) + static_cast<int64_t>(path->size());
+        }
         local_result = (local_result << 5) + nodes_explored;
         result_val += static_cast<uint32_t>(local_result);
     }
