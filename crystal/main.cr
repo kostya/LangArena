@@ -2960,7 +2960,7 @@ class CalculatorInterpreter < Benchmark
 end
 
 class GameOfLife < Benchmark
-  enum Cell1
+  enum Cell : UInt8
     Dead
     Alive
   end
@@ -2968,104 +2968,176 @@ class GameOfLife < Benchmark
   class Grid
     property width : Int32
     property height : Int32
-    property cells : Array(Array(Cell1))
-
-    def initialize(@width, @height)
-      @cells = Array.new(@height) { Array.new(@width, Cell1::Dead) }
+    
+    # Используем плоские массивы для лучшей производительности
+    @cells : Slice(Cell)
+    @buffer : Slice(Cell)  # Предварительно аллоцированный буфер
+    
+    def initialize(@width : Int32, @height : Int32)
+      size = @width * @height
+      @cells = Slice(Cell).new(size, Cell::Dead)
+      @buffer = Slice(Cell).new(size, Cell::Dead)
     end
-
-    def get(x, y) : Cell1
-      @cells[y][x]
+    
+    # Инлайн методы для быстрого доступа
+    private def index(x, y) : Int32
+      y * @width + x
     end
-
-    def set(x, y, cell : Cell1)
-      @cells[y][x] = cell
+    
+    def get(x, y) : Cell
+      @cells[index(x, y)]
     end
-
-    def count_neighbors(x, y) : Int32
+    
+    def set(x, y, cell : Cell)
+      @cells[index(x, y)] = cell
+    end
+    
+    # Оптимизированный подсчет соседей
+    private def count_neighbors(x, y, cells : Slice(Cell)) : Int32
+      # Предварительно вычисленные индексы с тороидальными границами
+      y_prev = y == 0 ? @height - 1 : y - 1
+      y_next = y == @height - 1 ? 0 : y + 1
+      x_prev = x == 0 ? @width - 1 : x - 1
+      x_next = x == @width - 1 ? 0 : x + 1
+      
+      # Развернутый подсчет 8 соседей
       count = 0
-
-      (-1..1).each do |dy|
-        (-1..1).each do |dx|
-          next if dx == 0 && dy == 0
-
-          # Тороидальные координаты
-          nx = (x.to_i64 + dx).modulo(@width).to_i32
-          ny = (y.to_i64 + dy).modulo(@height).to_i32
-
-          if @cells[ny][nx] == Cell1::Alive
-            count += 1
-          end
-        end
-      end
-
+      
+      # Верхний ряд
+      i = y_prev * @width
+      count += 1 if cells[i + x_prev] == Cell::Alive
+      count += 1 if cells[i + x] == Cell::Alive
+      count += 1 if cells[i + x_next] == Cell::Alive
+      
+      # Средний ряд
+      i = y * @width
+      count += 1 if cells[i + x_prev] == Cell::Alive
+      count += 1 if cells[i + x_next] == Cell::Alive
+      
+      # Нижний ряд
+      i = y_next * @width
+      count += 1 if cells[i + x_prev] == Cell::Alive
+      count += 1 if cells[i + x] == Cell::Alive
+      count += 1 if cells[i + x_next] == Cell::Alive
+      
       count
     end
-
-    def next_generation : Grid
-      next_grid = Grid.new(@width, @height)
-
-      (0...@height).each do |y|
-        (0...@width).each do |x|
-          neighbors = count_neighbors(x, y)
-          current = @cells[y][x]
-
-          next_state = case {current, neighbors}
-                       when {Cell1::Alive, 2}, {Cell1::Alive, 3}
-                         Cell1::Alive
-                       when {Cell1::Alive, _}
-                         Cell1::Dead
-                       when {Cell1::Dead, 3}
-                         Cell1::Alive
-                       else
-                         Cell1::Dead
-                       end
-
-          next_grid.cells[y][x] = next_state
+    
+    # Оптимизированное следующее поколение
+    def next_generation : self
+      width = @width
+      height = @height
+      size = width * height
+      
+      # Локальные переменные для лучшей оптимизации
+      cells = @cells
+      buffer = @buffer
+      
+      # Параллелизуемый цикл
+      y = 0
+      while y < height
+        y_idx = y * width
+        y_prev_idx = (y == 0 ? height - 1 : y - 1) * width
+        y_next_idx = (y == height - 1 ? 0 : y + 1) * width
+        
+        x = 0
+        while x < width
+          idx = y_idx + x
+          
+          # Вычисляем индексы соседей
+          x_prev = x == 0 ? width - 1 : x - 1
+          x_next = x == width - 1 ? 0 : x + 1
+          
+          # Подсчет соседей (развернутый для скорости)
+          neighbors = 0
+          
+          # Верхний ряд
+          neighbors += 1 if cells[y_prev_idx + x_prev] == Cell::Alive
+          neighbors += 1 if cells[y_prev_idx + x] == Cell::Alive
+          neighbors += 1 if cells[y_prev_idx + x_next] == Cell::Alive
+          
+          # Средний ряд
+          neighbors += 1 if cells[y_idx + x_prev] == Cell::Alive
+          neighbors += 1 if cells[y_idx + x_next] == Cell::Alive
+          
+          # Нижний ряд
+          neighbors += 1 if cells[y_next_idx + x_prev] == Cell::Alive
+          neighbors += 1 if cells[y_next_idx + x] == Cell::Alive
+          neighbors += 1 if cells[y_next_idx + x_next] == Cell::Alive
+          
+          # Оптимизированная логика игры
+          current = cells[idx]
+          
+          if current.alive?
+            next_state = (neighbors == 2 || neighbors == 3) ? Cell::Alive : Cell::Dead
+          else
+            next_state = neighbors == 3 ? Cell::Alive : Cell::Dead
+          end
+          
+          buffer[idx] = next_state
+          
+          x += 1
         end
+        
+        y += 1
       end
-
-      next_grid
+      
+      # Быстрое переключение буферов
+      @cells, @buffer = buffer, cells
+      
+      self
     end
+    
+    FNV_OFFSET_BASIS = 2166136261_u32
+    FNV_PRIME = 16777619_u32
 
-    def compute_hash : UInt32
-      hasher = 2166136261_u32 # FNV offset basis
-      prime = 16777619_u32    # FNV prime
-
-      @cells.each do |row|
-        row.each do |cell|
-          alive = cell == Cell1::Alive ? 1_u32 : 0_u32
-          hasher = (hasher ^ alive) &* prime
-        end
+    def compute_hash : UInt32      
+      hash = FNV_OFFSET_BASIS
+      
+      # Оптимизированный цикл хэширования
+      i = 0
+      while i < @cells.size
+        alive = @cells[i] == Cell::Alive ? 1_u32 : 0_u32
+        hash = (hash ^ alive) &* FNV_PRIME
+        i += 1
       end
-      hasher
+      
+      hash
     end
   end
-
+  
   @width : Int32
   @height : Int32
-
+  @grid : Grid
+  
   def initialize
     @width = config_val("w").to_i32
     @height = config_val("h").to_i32
     @grid = Grid.new(@width, @height)
   end
-
+  
   def prepare
     # Инициализация случайными клетками
-    (0...@height).each do |y|
-      (0...@width).each do |x|
+    y = 0
+    while y < @height
+      y_idx = y * @width
+      
+      x = 0
+      while x < @width
         if Helper.next_float(1.0) < 0.1
-          @grid.set(x, y, Cell1::Alive)
+          @grid.set(x, y, Cell::Alive)
         end
+        x += 1
       end
+      
+      y += 1
     end
   end
-
+  
   def run(iteration_id)
-    @grid = @grid.next_generation
+    @grid.next_generation
   end
-
+  
   def checksum : UInt32
     @grid.compute_hash
   end
