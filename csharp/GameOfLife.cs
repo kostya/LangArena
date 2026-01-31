@@ -18,6 +18,15 @@ public class GameOfLife : Benchmark
             _buffer = new Cell[size];
         }
         
+        // Конструктор для обмена буферов
+        private Grid(int width, int height, Cell[] cells, Cell[] buffer)
+        {
+            _width = width;
+            _height = height;
+            _cells = cells;
+            _buffer = buffer;
+        }
+        
         // Инлайн метод для быстрого доступа
         private int Index(int x, int y) => y * _width + x;
         
@@ -28,30 +37,30 @@ public class GameOfLife : Benchmark
         private int CountNeighbors(int x, int y, Cell[] cells)
         {
             // Предварительно вычисленные индексы с тороидальными границами
-            int y_prev = y == 0 ? _height - 1 : y - 1;
-            int y_next = y == _height - 1 ? 0 : y + 1;
-            int x_prev = x == 0 ? _width - 1 : x - 1;
-            int x_next = x == _width - 1 ? 0 : x + 1;
+            int yPrev = y == 0 ? _height - 1 : y - 1;
+            int yNext = y == _height - 1 ? 0 : y + 1;
+            int xPrev = x == 0 ? _width - 1 : x - 1;
+            int xNext = x == _width - 1 ? 0 : x + 1;
             
             // Развернутый подсчет 8 соседей
             int count = 0;
             
             // Верхний ряд
-            int idx = y_prev * _width;
-            if (cells[idx + x_prev] == Cell.Alive) count++;
+            int idx = yPrev * _width;
+            if (cells[idx + xPrev] == Cell.Alive) count++;
             if (cells[idx + x] == Cell.Alive) count++;
-            if (cells[idx + x_next] == Cell.Alive) count++;
+            if (cells[idx + xNext] == Cell.Alive) count++;
             
             // Средний ряд
             idx = y * _width;
-            if (cells[idx + x_prev] == Cell.Alive) count++;
-            if (cells[idx + x_next] == Cell.Alive) count++;
+            if (cells[idx + xPrev] == Cell.Alive) count++;
+            if (cells[idx + xNext] == Cell.Alive) count++;
             
             // Нижний ряд
-            idx = y_next * _width;
-            if (cells[idx + x_prev] == Cell.Alive) count++;
+            idx = yNext * _width;
+            if (cells[idx + xPrev] == Cell.Alive) count++;
             if (cells[idx + x] == Cell.Alive) count++;
-            if (cells[idx + x_next] == Cell.Alive) count++;
+            if (cells[idx + xNext] == Cell.Alive) count++;
             
             return count;
         }
@@ -60,7 +69,6 @@ public class GameOfLife : Benchmark
         {
             int width = _width;
             int height = _height;
-            int size = width * height;
             
             // Локальные ссылки для лучшей производительности
             Cell[] cells = _cells;
@@ -69,34 +77,14 @@ public class GameOfLife : Benchmark
             // Оптимизированный параллелизуемый цикл
             for (int y = 0; y < height; y++)
             {
-                int y_idx = y * width;
-                int y_prev_idx = (y == 0 ? height - 1 : y - 1) * width;
-                int y_next_idx = (y == height - 1 ? 0 : y + 1) * width;
+                int yIdx = y * width;
                 
                 for (int x = 0; x < width; x++)
                 {
-                    int idx = y_idx + x;
+                    int idx = yIdx + x;
                     
-                    // Вычисляем индексы соседей
-                    int x_prev = x == 0 ? width - 1 : x - 1;
-                    int x_next = x == width - 1 ? 0 : x + 1;
-                    
-                    // Развернутый подсчет соседей
-                    int neighbors = 0;
-                    
-                    // Верхний ряд
-                    if (cells[y_prev_idx + x_prev] == Cell.Alive) neighbors++;
-                    if (cells[y_prev_idx + x] == Cell.Alive) neighbors++;
-                    if (cells[y_prev_idx + x_next] == Cell.Alive) neighbors++;
-                    
-                    // Средний ряд
-                    if (cells[y_idx + x_prev] == Cell.Alive) neighbors++;
-                    if (cells[y_idx + x_next] == Cell.Alive) neighbors++;
-                    
-                    // Нижний ряд
-                    if (cells[y_next_idx + x_prev] == Cell.Alive) neighbors++;
-                    if (cells[y_next_idx + x] == Cell.Alive) neighbors++;
-                    if (cells[y_next_idx + x_next] == Cell.Alive) neighbors++;
+                    // Подсчет соседей
+                    int neighbors = CountNeighbors(x, y, cells);
                     
                     // Оптимизированная логика игры
                     Cell current = cells[idx];
@@ -158,7 +146,7 @@ public class GameOfLife : Benchmark
         // Оптимизированная инициализация
         for (int y = 0; y < _height; y++)
         {
-            int y_idx = y * _width;
+            int yIdx = y * _width;
             
             for (int x = 0; x < _width; x++)
             {
