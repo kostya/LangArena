@@ -201,10 +201,10 @@
     "iterations": 250
   },
   "AStarPathfinder": {
-    "checksum": 61198800,
-    "w": 3001,
-    "h": 3001,
-    "iterations": 250
+    "checksum": 163183200,
+    "w": 4001,
+    "h": 4001,
+    "iterations": 500
   },
   "Compression": {
     "checksum": 1568280,
