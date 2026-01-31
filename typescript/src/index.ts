@@ -4254,7 +4254,9 @@ export class MazeGenerator extends Benchmark {
 
 // =========== ./benchmarks/a_star_pathfinder.ts ===========
 
-// Вспомогательные классы
+// =========== ./benchmarks/a_star_pathfinder.ts ===========
+
+// Вспомогательные классы (как в C++ версии)
 class AStarNode {
     constructor(
         public x: number,
@@ -4262,13 +4264,19 @@ class AStarNode {
         public fScore: number
     ) {}
     
+    // ОРИГИНАЛЬНАЯ логика сравнения как в C++
     compareTo(other: AStarNode): number {
-        if (this.fScore !== other.fScore) return this.fScore - other.fScore;
-        if (this.y !== other.y) return this.y - other.y;
+        if (this.fScore !== other.fScore) {
+            return this.fScore - other.fScore;
+        }
+        if (this.y !== other.y) {
+            return this.y - other.y;
+        }
         return this.x - other.x;
     }
 }
 
+// Min-Heap как в C++ (std::priority_queue с std::greater)
 class AStarBinaryHeap {
     private data: AStarNode[] = [];
     
@@ -4277,19 +4285,15 @@ class AStarBinaryHeap {
         this.siftUp(this.data.length - 1);
     }
     
-    pop(): AStarNode | null {
-        const n = this.data.length;
-        if (n === 0) return null;
-        
+    pop(): AStarNode {
         const result = this.data[0];
-        if (n === 1) {
-            this.data.length = 0;
-            return result;
+        const last = this.data.pop()!;
+        
+        if (this.data.length > 0) {
+            this.data[0] = last;
+            this.siftDown(0);
         }
         
-        this.data[0] = this.data[n - 1];
-        this.data.length = n - 1;
-        this.siftDown(0);
         return result;
     }
     
@@ -4298,43 +4302,48 @@ class AStarBinaryHeap {
     }
     
     private siftUp(index: number): void {
-        const data = this.data;
-        const node = data[index];
+        const node = this.data[index];
         
         while (index > 0) {
             const parent = (index - 1) >> 1;
-            const parentNode = data[parent];
+            const parentNode = this.data[parent];
             
+            // Используем оригинальную логику сравнения
             if (node.compareTo(parentNode) >= 0) break;
             
-            data[index] = parentNode;
-            data[parent] = node;
+            this.data[index] = parentNode;
+            this.data[parent] = node;
             index = parent;
         }
     }
     
     private siftDown(index: number): void {
-        const data = this.data;
-        const size = data.length;
-        const node = data[index];
+        const size = this.data.length;
+        const node = this.data[index];
         
         while (true) {
-            let smallest = index;
             const left = (index << 1) + 1;
             const right = left + 1;
+            let smallest = index;
             
-            if (left < size && data[left].compareTo(data[smallest]) < 0) {
-                smallest = left;
+            if (left < size) {
+                const leftNode = this.data[left];
+                if (leftNode.compareTo(this.data[smallest]) < 0) {
+                    smallest = left;
+                }
             }
             
-            if (right < size && data[right].compareTo(data[smallest]) < 0) {
-                smallest = right;
+            if (right < size) {
+                const rightNode = this.data[right];
+                if (rightNode.compareTo(this.data[smallest]) < 0) {
+                    smallest = right;
+                }
             }
             
             if (smallest === index) break;
             
-            data[index] = data[smallest];
-            data[smallest] = node;
+            this.data[index] = this.data[smallest];
+            this.data[smallest] = node;
             index = smallest;
         }
     }
@@ -4350,7 +4359,7 @@ export class AStarPathfinder extends Benchmark {
     private readonly height: number;
     private mazeGrid: boolean[][] = [];
     
-    // Используем плоские массивы для скорости
+    // Плоские массивы как в C++ версии
     private gScoresCache: Int32Array;
     private cameFromCache: Int32Array;
     
@@ -4358,7 +4367,7 @@ export class AStarPathfinder extends Benchmark {
         [0, -1], [1, 0], [0, 1], [-1, 0]
     ];
     private static readonly STRAIGHT_COST = 1000;
-    private static readonly MAX_INT = 0x7FFFFFFF;
+    private static readonly INF = 0x7FFFFFFF;
     
     constructor() {
         super();
@@ -4369,7 +4378,7 @@ export class AStarPathfinder extends Benchmark {
         this.goalX = this.width - 2;
         this.goalY = this.height - 2;
         
-        // Предвыделяем память
+        // Предвыделяем память как в C++
         const size = this.width * this.height;
         this.gScoresCache = new Int32Array(size);
         this.cameFromCache = new Int32Array(size);
@@ -4384,20 +4393,20 @@ export class AStarPathfinder extends Benchmark {
     }
     
     private unpackCoords(packed: number): [number, number] {
-        return [packed % this.width, (packed / this.width) | 0];
+        return [packed % this.width, Math.floor(packed / this.width)];
     }
     
-    private findPathOptimized(): [number[], number] {
+    private findPath(): [Array<[number, number]>, number] {
         const grid = this.mazeGrid;
         const width = this.width;
         const height = this.height;
         
-        // Используем плоские массивы
+        // Используем плоские массивы как в C++
         const gScores = this.gScoresCache;
         const cameFrom = this.cameFromCache;
         
-        // Быстрая инициализация
-        gScores.fill(AStarPathfinder.MAX_INT);
+        // Быстрая инициализация как в C++
+        gScores.fill(AStarPathfinder.INF);
         cameFrom.fill(-1);
         
         const openSet = new AStarBinaryHeap();
@@ -4413,47 +4422,43 @@ export class AStarPathfinder extends Benchmark {
         let nodesExplored = 0;
         
         while (!openSet.isEmpty()) {
-            const current = openSet.pop()!;
+            const current = openSet.pop();
             nodesExplored++;
             
             if (current.x === this.goalX && current.y === this.goalY) {
-                const path: number[] = [];
+                // Восстанавливаем путь как в C++
+                const path: Array<[number, number]> = [];
                 let x = current.x;
                 let y = current.y;
                 
                 while (x !== this.startX || y !== this.startY) {
-                    path.push(x, y);
-                    const idx = y * width + x;
+                    path.push([x, y]);
+                    const idx = this.packCoords(x, y);
                     const packed = cameFrom[idx];
                     if (packed === -1) break;
                     
                     [x, y] = this.unpackCoords(packed);
                 }
                 
-                path.push(this.startX, this.startY);
-                
-                // Реверсируем путь
-                const reversed: number[] = new Array(path.length);
-                const n = path.length;
-                for (let i = 0; i < n; i++) {
-                    reversed[i] = path[n - 1 - i];
-                }
-                
-                return [reversed, nodesExplored];
+                path.push([this.startX, this.startY]);
+                path.reverse();
+                return [path, nodesExplored];
             }
             
-            const currentIdx = current.y * width + current.x;
+            const currentIdx = this.packCoords(current.x, current.y);
             const currentG = gScores[currentIdx];
             
+            // Оригинальный цикл по направлениям как в C++
             for (const [dx, dy] of AStarPathfinder.DIRECTIONS) {
                 const nx = current.x + dx;
                 const ny = current.y + dy;
                 
+                // Проверка границ как в C++
                 if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
                 if (!grid[ny][nx]) continue;
                 
                 const tentativeG = currentG + AStarPathfinder.STRAIGHT_COST;
-                const neighborIdx = ny * width + nx;
+                const neighborIdx = this.packCoords(nx, ny);
                 
                 if (tentativeG < gScores[neighborIdx]) {
                     cameFrom[neighborIdx] = currentIdx;
@@ -4473,14 +4478,13 @@ export class AStarPathfinder extends Benchmark {
     }
     
     run(_iteration_id: number): void {
-        const [path, nodesExplored] = this.findPathOptimized();
+        const [path, nodesExplored] = this.findPath();
         
-        // Оригинальная логика вычисления checksum
+        // ОРИГИНАЛЬНАЯ логика вычисления checksum как в C++
         let localResult = 0;
-        const pathLength = path.length / 2; // координаты хранятся попарно (x, y)
         
-        // localResult = ((localResult << 5) + pathLength) >>> 0
-        localResult = pathLength;
+        // localResult = ((localResult << 5) + path.length) >>> 0
+        localResult = path.length;
         
         // localResult = ((localResult << 5) + nodesExplored) >>> 0
         localResult = ((localResult << 5) + nodesExplored) >>> 0;
