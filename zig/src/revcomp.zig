@@ -17,26 +17,20 @@ pub const Revcomp = struct {
         .deinit = deinitImpl,
     };
 
-    // Таблица замены для комплементарности (compile-time вычисление)
+    // Таблица замены (compile-time)
     const complement_table: [256]u8 = init: {
         @setEvalBranchQuota(10000);
         var table: [256]u8 = undefined;
 
-        // Инициализируем таблицу значениями по умолчанию
-        var i: u16 = 0;
-        while (i < 256) : (i += 1) {
-            table[i] = @as(u8, @intCast(i));
+        for (&table, 0..) |*item, i| {
+            item.* = @as(u8, @intCast(i));
         }
 
-        // Определяем пары замены
         const from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
         const to = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
 
-        var j: usize = 0;
-        while (j < from.len) : (j += 1) {
-            const from_char = from[j];
-            const to_char = to[j];
-            table[@as(usize, @intCast(from_char))] = to_char;
+        for (from, 0..) |from_char, i| {
+            table[@as(usize, @intCast(from_char))] = to[i];
         }
 
         break :init table;
@@ -69,46 +63,51 @@ pub const Revcomp = struct {
         return Benchmark.init(self, &vtable, self.helper, "Revcomp");
     }
 
-    // Функция обратной комплементарности - точная копия C++ версии
-    fn revcomp(seq: []const u8, allocator: std.mem.Allocator) ![]u8 {
-        // 1. Реверсируем последовательность
-        var reversed = std.ArrayList(u8){};
-        defer reversed.deinit(allocator);
-
-        try reversed.ensureTotalCapacity(allocator, seq.len);
+    // Оптимизированная версия - один проход
+    fn revcompFast(seq: []const u8, allocator: std.mem.Allocator) ![]u8 {
+        const len = seq.len;
+        const lines = (len + 59) / 60;
+        const total_size = len + lines;
         
-        var i: usize = seq.len;
-        while (i > 0) : (i -= 1) {
-            const c = seq[i - 1];
-            const replaced = complement_table[@as(usize, @intCast(c))];
-            try reversed.append(allocator, replaced);
-        }
-
-        // 2. Разбиваем на строки по 60 символов с \n
-        const LINE_LENGTH: usize = 60;
-        var result = std.ArrayList(u8){};
-        defer result.deinit(allocator);
-
+        // Одна аллокация
+        var result = try allocator.alloc(u8, total_size);
         var pos: usize = 0;
-        const rev_items = reversed.items;
-        while (pos < rev_items.len) {
-            const end = @min(pos + LINE_LENGTH, rev_items.len);
-            try result.appendSlice(allocator, rev_items[pos..end]);
-            try result.append(allocator, '\n');
-            pos += LINE_LENGTH;
+        
+        // Обрабатываем блоками по 60 с конца
+        var start = len;
+        while (start > 0) {
+            const chunk_start = if (start >= 60) start - 60 else 0;
+            // const chunk_size = start - chunk_start;
+            
+            // Обрабатываем блок в обратном порядке
+            var i: usize = start;
+            while (i > chunk_start) {
+                i -= 1;
+                const c = seq[i];
+                result[pos] = complement_table[@as(usize, @intCast(c))];
+                pos += 1;
+            }
+            
+            result[pos] = '\n';
+            pos += 1;
+            start = chunk_start;
         }
-
-        return result.toOwnedSlice(allocator);
+        
+        // Убираем последний \n если нужно
+        if (len % 60 == 0 and len > 0) {
+            pos -= 1;
+        }
+        
+        // Возвращаем слайс правильного размера
+        return result[0..pos];
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *Revcomp = @ptrCast(@alignCast(ptr));
         const allocator = self.allocator;
 
-        // Очищаем данные
         self.input.clearAndFree(allocator);
 
-        // Получаем FASTA данные как в C++ версии
         var fasta = Fasta.init(allocator, self.helper) catch return;
         defer fasta.deinit();
 
@@ -118,20 +117,27 @@ pub const Revcomp = struct {
         benchmark.run(0);
 
         const fasta_result = fasta.getResult();
-
-        // Парсим ТОЧНО как в C++ версии
-        var lines = std.mem.splitSequence(u8, fasta_result, "\n");
         
-        while (lines.next()) |line| {
+        // Ручной парсинг для скорости
+        var i: usize = 0;
+        while (i < fasta_result.len) {
+            // Находим конец строки
+            var line_end = i;
+            while (line_end < fasta_result.len and fasta_result[line_end] != '\n') {
+                line_end += 1;
+            }
+            
+            const line = fasta_result[i..line_end];
+            
             if (line.len > 0) {
                 if (line[0] == '>') {
-                    // Заголовок - добавляем разделитель (даже для первого!)
                     self.input.appendSlice(allocator, "\n---\n") catch return;
                 } else {
-                    // Последовательность - добавляем как есть
                     self.input.appendSlice(allocator, line) catch return;
                 }
             }
+            
+            i = line_end + 1; // Пропускаем \n
         }
     }
 
@@ -139,8 +145,7 @@ pub const Revcomp = struct {
         const self: *Revcomp = @ptrCast(@alignCast(ptr));
         const allocator = self.allocator;
 
-        // Вычисляем revcomp для всего input (включая разделители!)
-        const revcomp_result = revcomp(self.input.items, allocator) catch return;
+        const revcomp_result = revcompFast(self.input.items, allocator) catch return;
         defer allocator.free(revcomp_result);
 
         self.result_val +%= self.helper.checksumBytes(revcomp_result);
