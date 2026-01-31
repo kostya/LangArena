@@ -2549,7 +2549,7 @@ void Mandelbrot_run(Benchmark* self, int iteration_id) {
     MandelbrotData* data = (MandelbrotData*)self->data;
     
     // НЕ сбрасываем результат! Накапливаем как в C++
-    int w = (int)data->w;
+    volatile int w = (int)data->w;
     int h = (int)data->h;
     
     // Добавляем заголовок для этой итерации

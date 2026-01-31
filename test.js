@@ -74,7 +74,7 @@
     "iterations": 3
   },
   "Revcomp": {
-    "checksum": 4160518377,
+    "checksum": 3201314680,
     "n": 1000,
     "iterations": 3
   },
