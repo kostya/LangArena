@@ -10,71 +10,104 @@ public class GameOfLife extends Benchmark {
     private static class Grid {
         private final int width;
         private final int height;
-        private final Cell[][] cells;
+        private final Cell[] cells;           // Плоский массив для лучшей производительности
+        private final Cell[] buffer;          // Предварительно аллоцированный буфер
         
         public Grid(int width, int height) {
             this.width = width;
             this.height = height;
-            this.cells = new Cell[height][width];
-            for (int y = 0; y < height; y++) {
-                Arrays.fill(cells[y], Cell.DEAD);
-            }
+            int size = width * height;
+            this.cells = new Cell[size];
+            this.buffer = new Cell[size];
+            Arrays.fill(cells, Cell.DEAD);
+            Arrays.fill(buffer, Cell.DEAD);
+        }
+        
+        // Конструктор для обмена буферов
+        private Grid(int width, int height, Cell[] cells, Cell[] buffer) {
+            this.width = width;
+            this.height = height;
+            this.cells = cells;
+            this.buffer = buffer;
+        }
+        
+        // Быстрый доступ по индексу
+        private int index(int x, int y) {
+            return y * width + x;
         }
         
         public Cell get(int x, int y) {
-            return cells[y][x];
+            return cells[index(x, y)];
         }
         
         public void set(int x, int y, Cell cell) {
-            cells[y][x] = cell;
+            cells[index(x, y)] = cell;
         }
         
-        public int countNeighbors(int x, int y) {
+        // Оптимизированный подсчет соседей (используется в nextGeneration)
+        private int countNeighbors(int x, int y, Cell[] cells) {
+            // Предварительно вычисленные индексы с тороидальными границами
+            int yPrev = (y == 0) ? height - 1 : y - 1;
+            int yNext = (y == height - 1) ? 0 : y + 1;
+            int xPrev = (x == 0) ? width - 1 : x - 1;
+            int xNext = (x == width - 1) ? 0 : x + 1;
+            
+            // Развернутый подсчет 8 соседей
             int count = 0;
             
-            for (int dy = -1; dy <= 1; dy++) {
-                for (int dx = -1; dx <= 1; dx++) {
-                    if (dx == 0 && dy == 0) continue;
-                    
-                    // Тороидальные координаты
-                    int nx = (x + dx) % width;
-                    int ny = (y + dy) % height;
-                    if (nx < 0) nx += width;
-                    if (ny < 0) ny += height;
-                    
-                    if (cells[ny][nx] == Cell.ALIVE) {
-                        count++;
-                    }
-                }
-            }
+            // Верхний ряд
+            int idx = yPrev * width;
+            if (cells[idx + xPrev] == Cell.ALIVE) count++;
+            if (cells[idx + x] == Cell.ALIVE) count++;
+            if (cells[idx + xNext] == Cell.ALIVE) count++;
+            
+            // Средний ряд
+            idx = y * width;
+            if (cells[idx + xPrev] == Cell.ALIVE) count++;
+            if (cells[idx + xNext] == Cell.ALIVE) count++;
+            
+            // Нижний ряд
+            idx = yNext * width;
+            if (cells[idx + xPrev] == Cell.ALIVE) count++;
+            if (cells[idx + x] == Cell.ALIVE) count++;
+            if (cells[idx + xNext] == Cell.ALIVE) count++;
             
             return count;
         }
         
         public Grid nextGeneration() {
-            Grid nextGrid = new Grid(width, height);
+            // Локальные переменные для лучшей производительности
+            final int w = width;
+            final int h = height;
+            final Cell[] currentCells = cells;
+            final Cell[] nextCells = buffer;
             
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    int neighbors = countNeighbors(x, y);
-                    Cell current = cells[y][x];
+            // Оптимизированный цикл
+            for (int y = 0; y < h; y++) {
+                final int yIdx = y * w;
+                
+                for (int x = 0; x < w; x++) {
+                    final int idx = yIdx + x;
                     
+                    // Подсчет соседей
+                    int neighbors = countNeighbors(x, y, currentCells);
+                    
+                    // Оптимизированная логика игры
+                    Cell current = currentCells[idx];
                     Cell nextState = Cell.DEAD;
+                    
                     if (current == Cell.ALIVE) {
-                        if (neighbors == 2 || neighbors == 3) {
-                            nextState = Cell.ALIVE;
-                        }
-                    } else {
-                        if (neighbors == 3) {
-                            nextState = Cell.ALIVE;
-                        }
+                        nextState = (neighbors == 2 || neighbors == 3) ? Cell.ALIVE : Cell.DEAD;
+                    } else if (neighbors == 3) {
+                        nextState = Cell.ALIVE;
                     }
                     
-                    nextGrid.cells[y][x] = nextState;
+                    nextCells[idx] = nextState;
                 }
             }
             
-            return nextGrid;
+            // Возвращаем новый Grid с обмененными буферами
+            return new Grid(w, h, nextCells, currentCells);
         }
         
         public long computeHash() {
@@ -82,12 +115,13 @@ public class GameOfLife extends Benchmark {
             final long FNV_PRIME = 16777619L;
             
             long hasher = FNV_OFFSET_BASIS;
-            for (Cell[] row : cells) {
-                for (Cell cell : row) {
-                    long alive = (cell == Cell.ALIVE) ? 1L : 0L;
-                    hasher = (hasher ^ alive) * FNV_PRIME;
-                }
+            
+            // Оптимизированный цикл хэширования
+            for (int i = 0; i < cells.length; i++) {
+                long alive = (cells[i] == Cell.ALIVE) ? 1L : 0L;
+                hasher = (hasher ^ alive) * FNV_PRIME;
             }
+            
             return hasher;
         }
     }
@@ -111,7 +145,7 @@ public class GameOfLife extends Benchmark {
     
     @Override
     public void prepare() {
-        // Инициализация случайными клетками
+        // Оптимизированная инициализация случайными клетками
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 if (Helper.nextFloat() < 0.1f) {
