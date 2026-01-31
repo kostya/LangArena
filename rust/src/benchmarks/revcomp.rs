@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use super::super::{Benchmark, helper};
 use crate::config_i64;
 use crate::benchmarks::fasta::Fasta;
@@ -7,6 +8,17 @@ pub struct Revcomp {
     result_val: u32,
     n: i64,
 }
+
+// Используем RefCell для кеширования таблицы трансляции в потоке
+thread_local! {
+    static LOOKUP_TABLE: RefCell<[u8; 256]> = RefCell::new([0; 256]);
+    
+    static IS_INITIALIZED: RefCell<bool> = RefCell::new(false);
+}
+
+// Статические константы вне thread_local!
+const FROM_BYTES: &[u8] = b"wsatugcyrkmbdhvnATUGCYRKMBDHVN";
+const TO_BYTES: &[u8] = b"WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
 
 impl Revcomp {
     pub fn new() -> Self {
@@ -19,34 +31,63 @@ impl Revcomp {
         }
     }
 
-    fn revcomp(seq: &str) -> String {
-        let mut result = String::new();
-        
-        // Таблица трансляции как в Crystal: 
-        // from: "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
-        // to:   "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
-        
-        let trans_table = |c: char| -> char {
-            match c {
-                'w' => 'W', 's' => 'S', 'a' => 'T', 't' => 'A', 'u' => 'A', 'g' => 'C',
-                'c' => 'G', 'y' => 'R', 'r' => 'Y', 'k' => 'M', 'm' => 'K', 'b' => 'V',
-                'd' => 'H', 'h' => 'D', 'v' => 'B', 'n' => 'N',
-                'A' => 'T', 'T' => 'A', 'U' => 'A', 'G' => 'C', 'C' => 'G', 'Y' => 'R',
-                'R' => 'Y', 'K' => 'M', 'M' => 'K', 'B' => 'V', 'D' => 'H', 'H' => 'D',
-                'V' => 'B', 'N' => 'N',
-                _ => c,  // оставляем неизменным если не в таблице
+    fn init_lookup_table() {
+        IS_INITIALIZED.with(|initialized| {
+            if *initialized.borrow() {
+                return;
             }
-        };
+            
+            LOOKUP_TABLE.with(|table_cell| {
+                let mut table = table_cell.borrow_mut();
+                
+                // Инициализируем таблицу идентичными значениями
+                for i in 0..256 {
+                    table[i] = i as u8;
+                }
+                
+                // Заполняем таблицу трансляции
+                for (&from, &to) in FROM_BYTES.iter().zip(TO_BYTES.iter()) {
+                    table[from as usize] = to;
+                }
+            });
+            
+            *initialized.borrow_mut() = true;
+        });
+    }
+
+    fn revcomp(seq: &str) -> String {
+        // Инициализируем таблицу при первом вызове
+        Self::init_lookup_table();
         
-        // Собираем обратную комплементарную последовательность
-        let transformed: String = seq.chars().rev().map(trans_table).collect();
+        let n = seq.len();
         
-        // Разбиваем на строки по 60 символов
-        for chunk in transformed.as_bytes().chunks(60) {
-            result.push_str(std::str::from_utf8(chunk).unwrap());
+        // Конвертируем в байты один раз
+        let mut bytes = Vec::with_capacity(n);
+        bytes.extend_from_slice(seq.as_bytes());
+        
+        // Реверс на месте
+        bytes.reverse();
+        
+        // Трансляция через lookup таблицу
+        LOOKUP_TABLE.with(|table_cell| {
+            let table = table_cell.borrow();
+            for byte in bytes.iter_mut() {
+                *byte = table[*byte as usize];
+            }
+        });
+        
+        // Предвыделяем память для результата
+        let line_breaks = n / 60 + if n % 60 > 0 { 1 } else { 0 };
+        let mut result = String::with_capacity(n + line_breaks);
+        
+        // Форматирование по 60 символов
+        for chunk in bytes.chunks(60) {
+            // Безопасно конвертируем байты в строку
+            // Мы знаем что все байты корректны ASCII из lookup таблицы
+            result.push_str(unsafe { std::str::from_utf8_unchecked(chunk) });
             result.push('\n');
         }
-
+        
         result
     }
 }
@@ -77,7 +118,6 @@ impl Benchmark for Revcomp {
     
     fn run(&mut self, _iteration_id: i64) {
         let rev = Self::revcomp(&self.input);
-        // Используем &str, передавая ссылку на String
         self.result_val = self.result_val.wrapping_add(helper::checksum_str(&rev));
     }
     
