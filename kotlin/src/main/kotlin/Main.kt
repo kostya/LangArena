@@ -9,7 +9,7 @@ fun main(args: Array<String>) {
 
     Benchmark.registerBenchmark { Pidigits() }
     Benchmark.registerBenchmark { Binarytrees() }
-    Benchmark.registerBenchmark { BrainfuckHashMap() }
+    Benchmark.registerBenchmark { BrainfuckArray() }
     Benchmark.registerBenchmark { BrainfuckRecursion() }            
     Benchmark.registerBenchmark { Fannkuchredux() }
     Benchmark.registerBenchmark { Fasta() }
