@@ -5,7 +5,7 @@ import java.util.Map;
 
 public class Revcomp extends Benchmark {
     private String input;
-    private StringBuilder result;
+    private long resultVal;
     private static final Map<Character, Character> COMPLEMENT = new HashMap<>();
     
     static {
@@ -17,7 +17,7 @@ public class Revcomp extends Benchmark {
     }
     
     public Revcomp() {
-        result = new StringBuilder();
+        resultVal = 0L;
     }
     
     @Override
@@ -45,23 +45,9 @@ public class Revcomp extends Benchmark {
         input = seq.toString();
     }
     
-    private void revcomp(String seq) {
-        StringBuilder reversed = new StringBuilder(seq).reverse();
-        for (int i = 0; i < reversed.length(); i++) {
-            char c = reversed.charAt(i);
-            reversed.setCharAt(i, COMPLEMENT.getOrDefault(c, c));
-        }
-        
-        int stringLen = reversed.length();
-        for (int i = 0; i < stringLen; i += 60) {
-            int end = Math.min(i + 60, stringLen);
-            result.append(reversed.substring(i, end)).append("\n");
-        }
-    }
-    
     @Override
     public void run(int iterationId) {
-        result.append(revcompString(input));
+        resultVal += Helper.checksum(revcompString(input));
     }
     
     private String revcompString(String seq) {
@@ -82,6 +68,6 @@ public class Revcomp extends Benchmark {
     
     @Override
     public long checksum() {
-        return Helper.checksum(result.toString());
+        return resultVal;
     }
 }
