@@ -2,82 +2,139 @@ use super::super::{Benchmark, helper};
 use crate::config_i64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum Cell {
-    Dead,
-    Alive,
+    Dead = 0,
+    Alive = 1,
 }
 
 impl Cell {
     #[inline]
     fn is_alive(&self) -> bool {
-        matches!(self, Cell::Alive)
+        *self as u8 == 1
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Grid {
     width: usize,
     height: usize,
-    cells: Vec<Vec<Cell>>,
+    cells: Vec<u8>,           // Плоский массив для лучшей производительности
+    buffer: Vec<u8>,          // Предварительно аллоцированный буфер
 }
 
 impl Grid {
     pub fn new(width: usize, height: usize) -> Self {
-        let cells = vec![vec![Cell::Dead; width]; height];
-        Self { width, height, cells }
+        let size = width * height;
+        Self {
+            width,
+            height,
+            cells: vec![0; size],
+            buffer: vec![0; size],
+        }
+    }
+    
+    // Конструктор для обмена буферов
+    fn with_buffers(width: usize, height: usize, cells: Vec<u8>, buffer: Vec<u8>) -> Self {
+        Self {
+            width,
+            height,
+            cells,
+            buffer,
+        }
+    }
+    
+    #[inline]
+    fn index(&self, x: usize, y: usize) -> usize {
+        y * self.width + x
     }
     
     #[inline]
     pub fn get(&self, x: usize, y: usize) -> Cell {
-        self.cells[y][x]
+        let idx = self.index(x, y);
+        if self.cells[idx] == 1 {
+            Cell::Alive
+        } else {
+            Cell::Dead
+        }
     }
     
     #[inline]
     pub fn set(&mut self, x: usize, y: usize, cell: Cell) {
-        self.cells[y][x] = cell;
+        let idx = self.index(x, y);
+        self.cells[idx] = cell as u8;
     }
     
-    pub fn count_neighbors(&self, x: usize, y: usize) -> usize {
+    // Оптимизированный подсчет соседей
+    #[inline]
+    fn count_neighbors(&self, x: usize, y: usize, cells: &[u8]) -> usize {
+        let width = self.width;
+        let height = self.height;
+        
+        // Предварительно вычисленные индексы с тороидальными границами
+        let y_prev = if y == 0 { height - 1 } else { y - 1 };
+        let y_next = if y == height - 1 { 0 } else { y + 1 };
+        let x_prev = if x == 0 { width - 1 } else { x - 1 };
+        let x_next = if x == width - 1 { 0 } else { x + 1 };
+        
+        // Развернутый подсчет 8 соседей
         let mut count = 0;
         
-        for dy in -1..=1 {
-            for dx in -1..=1 {
-                if dx == 0 && dy == 0 {
-                    continue;
-                }
-                
-                let nx = (x as isize + dx).rem_euclid(self.width as isize) as usize;
-                let ny = (y as isize + dy).rem_euclid(self.height as isize) as usize;
-                
-                if self.cells[ny][nx].is_alive() {
-                    count += 1;
-                }
-            }
-        }
+        // Верхний ряд
+        let mut idx = y_prev * width;
+        if cells[idx + x_prev] == 1 { count += 1; }
+        if cells[idx + x] == 1 { count += 1; }
+        if cells[idx + x_next] == 1 { count += 1; }
+        
+        // Средний ряд
+        idx = y * width;
+        if cells[idx + x_prev] == 1 { count += 1; }
+        if cells[idx + x_next] == 1 { count += 1; }
+        
+        // Нижний ряд
+        idx = y_next * width;
+        if cells[idx + x_prev] == 1 { count += 1; }
+        if cells[idx + x] == 1 { count += 1; }
+        if cells[idx + x_next] == 1 { count += 1; }
         
         count
     }
     
     pub fn next_generation(&self) -> Self {
-        let mut next = Grid::new(self.width, self.height);
+        let width = self.width;
+        let height = self.height;
         
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let neighbors = self.count_neighbors(x, y);
-                let current = self.cells[y][x];
+        // Локальные ссылки для лучшей производительности
+        let cells = &self.cells;
+        
+        // Клонируем буфер для записи
+        let mut new_buffer = self.buffer.clone();
+        
+        // Оптимизированный цикл
+        for y in 0..height {
+            let y_idx = y * width;
+            
+            for x in 0..width {
+                let idx = y_idx + x;
                 
+                // Подсчет соседей
+                let neighbors = self.count_neighbors(x, y, cells);
+                
+                // Оптимизированная логика игры
+                let current = cells[idx];
                 let next_state = match (current, neighbors) {
-                    (Cell::Alive, 2) | (Cell::Alive, 3) => Cell::Alive,
-                    (Cell::Alive, _) => Cell::Dead,
-                    (Cell::Dead, 3) => Cell::Alive,
-                    (Cell::Dead, _) => Cell::Dead,
+                    (1, 2) | (1, 3) => 1,
+                    (1, _) => 0,
+                    (0, 3) => 1,
+                    _ => 0,
                 };
                 
-                next.cells[y][x] = next_state;
+                new_buffer[idx] = next_state;
             }
         }
         
-        next
+        // Возвращаем новый Grid с обмененными буферами
+        Self::with_buffers(width, height, new_buffer, cells.clone())
     }
     
     pub fn compute_hash(&self) -> u32 {
@@ -86,13 +143,12 @@ impl Grid {
         
         let mut hasher = FNV_OFFSET_BASIS;
         
-        for row in &self.cells {
-            for cell in row {
-                let alive = if cell.is_alive() { 1 } else { 0 };
-                // ВАЖНО: сначала XOR, потом умножение, как в C++ версии
-                hasher = hasher ^ alive;
-                hasher = hasher.wrapping_mul(FNV_PRIME);
-            }
+        // Оптимизированный цикл хэширования
+        for &cell in &self.cells {
+            let alive = cell as u32;
+            // Соответствие C++ версии: сначала XOR, потом умножение
+            hasher ^= alive;
+            hasher = hasher.wrapping_mul(FNV_PRIME);
         }
         
         hasher
@@ -127,7 +183,7 @@ impl Benchmark for GameOfLife {
     }
     
     fn prepare(&mut self) {
-        // Инициализация случайными клетками
+        // Оптимизированная инициализация случайными клетками
         for y in 0..self.height_ as usize {
             for x in 0..self.width_ as usize {
                 if helper::next_float(1.0) < 0.1 {
