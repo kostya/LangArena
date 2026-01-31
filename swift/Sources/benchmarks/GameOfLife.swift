@@ -9,39 +9,25 @@ final class GameOfLife: BenchmarkProtocol {
     private class Grid {
         let width: Int
         let height: Int
-        private var cells: UnsafeMutableBufferPointer<UInt8>     // Плоский массив для производительности
-        private var buffer: UnsafeMutableBufferPointer<UInt8>     // Предварительно аллоцированный буфер
+        private var cells: [UInt8]          // Плоский массив для производительности
+        private var buffer: [UInt8]         // Предварительно аллоцированный буфер
         
         init(width: Int, height: Int) {
             self.width = width
             self.height = height
             let size = width * height
             
-            // Выделяем память для массивов
-            let cellsPtr = UnsafeMutablePointer<UInt8>.allocate(capacity: size)
-            let bufferPtr = UnsafeMutablePointer<UInt8>.allocate(capacity: size)
-            
-            cells = UnsafeMutableBufferPointer(start: cellsPtr, count: size)
-            buffer = UnsafeMutableBufferPointer(start: bufferPtr, count: size)
-            
-            // Инициализируем нулями
-            cellsPtr.initialize(repeating: 0, count: size)
-            bufferPtr.initialize(repeating: 0, count: size)
+            // Инициализируем массивы нулями
+            self.cells = [UInt8](repeating: 0, count: size)
+            self.buffer = [UInt8](repeating: 0, count: size)
         }
         
         // Конструктор для обмена буферов
-        private init(width: Int, height: Int, 
-                    cells: UnsafeMutableBufferPointer<UInt8>,
-                    buffer: UnsafeMutableBufferPointer<UInt8>) {
+        private init(width: Int, height: Int, cells: [UInt8], buffer: [UInt8]) {
             self.width = width
             self.height = height
             self.cells = cells
             self.buffer = buffer
-        }
-        
-        deinit {
-            cells.baseAddress?.deallocate()
-            buffer.baseAddress?.deallocate()
         }
         
         // Быстрый доступ по индексу
@@ -63,7 +49,7 @@ final class GameOfLife: BenchmarkProtocol {
         
         // Оптимизированный подсчет соседей
         @inline(__always)
-        private func countNeighbors(x: Int, y: Int, cells: UnsafeBufferPointer<UInt8>) -> Int {
+        private func countNeighbors(x: Int, y: Int, cells: [UInt8]) -> Int {
             // Предварительно вычисленные индексы с тороидальными границами
             let yPrev = y == 0 ? height - 1 : y - 1
             let yNext = y == height - 1 ? 0 : y + 1
@@ -97,9 +83,8 @@ final class GameOfLife: BenchmarkProtocol {
             let width = self.width
             let height = self.height
             
-            // Локальные ссылки для производительности
-            let currentCells = UnsafeBufferPointer(cells)
-            let nextBuffer = buffer
+            // Создаем новый массив для следующего поколения
+            var nextCells = buffer // Используем предварительно аллоцированный буфер
             
             // Оптимизированный цикл
             for y in 0..<height {
@@ -109,10 +94,10 @@ final class GameOfLife: BenchmarkProtocol {
                     let idx = yIdx + x
                     
                     // Подсчет соседей
-                    let neighbors = countNeighbors(x: x, y: y, cells: currentCells)
+                    let neighbors = countNeighbors(x: x, y: y, cells: cells)
                     
                     // Оптимизированная логика игры
-                    let current = currentCells[idx]
+                    let current = cells[idx]
                     let nextState: UInt8
                     
                     if current == 1 {
@@ -121,13 +106,14 @@ final class GameOfLife: BenchmarkProtocol {
                         nextState = (neighbors == 3) ? 1 : 0
                     }
                     
-                    nextBuffer[idx] = nextState
+                    nextCells[idx] = nextState
                 }
             }
             
             // Возвращаем новый Grid с обмененными буферами
+            // Текущий cells становится новым buffer, а nextCells становится новым cells
             return Grid(width: width, height: height,
-                       cells: buffer,
+                       cells: nextCells,
                        buffer: cells)
         }
         
@@ -156,30 +142,32 @@ final class GameOfLife: BenchmarkProtocol {
     init() {
         self.width = 0
         self.height = 0
+        // Создаем Grid с минимальными размерами, будет пересоздан в prepare
         self.grid = Grid(width: 0, height: 0)
     }
     
     func prepare() {
         // Получаем конфигурацию
-        let configW = Int(configValue("w") ?? 10)
-        let configH = Int(configValue("h") ?? 10)
+        let configW = Int(configValue("w") ?? 256)
+        let configH = Int(configValue("h") ?? 256)
         
-        // Обновляем размеры если изменились
-        if configW != width || configH != height {
-            self.width = configW
-            self.height = configH
-            self.grid = Grid(width: width, height: height)
-        }
+        // Создаем новый Grid с нужными размерами
+        self.width = configW
+        self.height = configH
+        let newGrid = Grid(width: width, height: height)
         
         // Оптимизированная инициализация случайными клетками
         for y in 0..<height {
             let yIdx = y * width
             for x in 0..<width {
                 if Helper.nextFloat() < 0.1 {
-                    grid[x, y] = .alive
+                    newGrid[x, y] = .alive
                 }
             }
         }
+        
+        // Заменяем старый grid на новый
+        self.grid = newGrid
     }
     
     func run(iterationId: Int) {
