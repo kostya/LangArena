@@ -6,74 +6,138 @@ public class GameOfLife : Benchmark
     {
         private readonly int _width;
         private readonly int _height;
-        private readonly Cell[,] _cells;
+        private Cell[] _cells;           // Плоский массив для лучшей производительности
+        private Cell[] _buffer;          // Предварительно аллоцированный буфер
         
         public Grid(int width, int height)
         {
             _width = width;
             _height = height;
-            _cells = new Cell[height, width];
+            int size = width * height;
+            _cells = new Cell[size];
+            _buffer = new Cell[size];
         }
         
-        public Cell Get(int x, int y) => _cells[y, x];
-        public void Set(int x, int y, Cell cell) => _cells[y, x] = cell;
+        // Инлайн метод для быстрого доступа
+        private int Index(int x, int y) => y * _width + x;
+        
+        public Cell Get(int x, int y) => _cells[Index(x, y)];
+        public void Set(int x, int y, Cell cell) => _cells[Index(x, y)] = cell;
+        
+        // Оптимизированный подсчет соседей
+        private int CountNeighbors(int x, int y, Cell[] cells)
+        {
+            // Предварительно вычисленные индексы с тороидальными границами
+            int y_prev = y == 0 ? _height - 1 : y - 1;
+            int y_next = y == _height - 1 ? 0 : y + 1;
+            int x_prev = x == 0 ? _width - 1 : x - 1;
+            int x_next = x == _width - 1 ? 0 : x + 1;
+            
+            // Развернутый подсчет 8 соседей
+            int count = 0;
+            
+            // Верхний ряд
+            int idx = y_prev * _width;
+            if (cells[idx + x_prev] == Cell.Alive) count++;
+            if (cells[idx + x] == Cell.Alive) count++;
+            if (cells[idx + x_next] == Cell.Alive) count++;
+            
+            // Средний ряд
+            idx = y * _width;
+            if (cells[idx + x_prev] == Cell.Alive) count++;
+            if (cells[idx + x_next] == Cell.Alive) count++;
+            
+            // Нижний ряд
+            idx = y_next * _width;
+            if (cells[idx + x_prev] == Cell.Alive) count++;
+            if (cells[idx + x] == Cell.Alive) count++;
+            if (cells[idx + x_next] == Cell.Alive) count++;
+            
+            return count;
+        }
         
         public Grid NextGeneration()
         {
-            var nextGrid = new Grid(_width, _height);
+            int width = _width;
+            int height = _height;
+            int size = width * height;
             
-            for (int y = 0; y < _height; y++)
+            // Локальные ссылки для лучшей производительности
+            Cell[] cells = _cells;
+            Cell[] buffer = _buffer;
+            
+            // Оптимизированный параллелизуемый цикл
+            for (int y = 0; y < height; y++)
             {
-                for (int x = 0; x < _width; x++)
+                int y_idx = y * width;
+                int y_prev_idx = (y == 0 ? height - 1 : y - 1) * width;
+                int y_next_idx = (y == height - 1 ? 0 : y + 1) * width;
+                
+                for (int x = 0; x < width; x++)
                 {
+                    int idx = y_idx + x;
+                    
+                    // Вычисляем индексы соседей
+                    int x_prev = x == 0 ? width - 1 : x - 1;
+                    int x_next = x == width - 1 ? 0 : x + 1;
+                    
+                    // Развернутый подсчет соседей
                     int neighbors = 0;
                     
-                    for (int dy = -1; dy <= 1; dy++)
-                    {
-                        for (int dx = -1; dx <= 1; dx++)
-                        {
-                            if (dx == 0 && dy == 0) continue;
-                            
-                            int nx = (x + dx) % _width;
-                            int ny = (y + dy) % _height;
-                            if (nx < 0) nx += _width;
-                            if (ny < 0) ny += _height;
-                            
-                            if (_cells[ny, nx] == Cell.Alive) neighbors++;
-                        }
-                    }
+                    // Верхний ряд
+                    if (cells[y_prev_idx + x_prev] == Cell.Alive) neighbors++;
+                    if (cells[y_prev_idx + x] == Cell.Alive) neighbors++;
+                    if (cells[y_prev_idx + x_next] == Cell.Alive) neighbors++;
                     
+                    // Средний ряд
+                    if (cells[y_idx + x_prev] == Cell.Alive) neighbors++;
+                    if (cells[y_idx + x_next] == Cell.Alive) neighbors++;
+                    
+                    // Нижний ряд
+                    if (cells[y_next_idx + x_prev] == Cell.Alive) neighbors++;
+                    if (cells[y_next_idx + x] == Cell.Alive) neighbors++;
+                    if (cells[y_next_idx + x_next] == Cell.Alive) neighbors++;
+                    
+                    // Оптимизированная логика игры
+                    Cell current = cells[idx];
                     Cell nextState = Cell.Dead;
-                    if (_cells[y, x] == Cell.Alive)
+                    
+                    if (current == Cell.Alive)
                     {
-                        if (neighbors == 2 || neighbors == 3) nextState = Cell.Alive;
+                        nextState = (neighbors == 2 || neighbors == 3) ? Cell.Alive : Cell.Dead;
                     }
                     else if (neighbors == 3)
                     {
                         nextState = Cell.Alive;
                     }
                     
-                    nextGrid.Set(x, y, nextState);
+                    buffer[idx] = nextState;
                 }
             }
             
-            return nextGrid;
+            // Возвращаем новый Grid с обмененными буферами
+            return new Grid(width, height)
+            {
+                _cells = buffer,
+                _buffer = cells
+            };
         }
         
         public uint ComputeHash()
         {
-            uint hasher = 2166136261;
-            uint prime = 16777619;
+            const uint FNV_OFFSET_BASIS = 2166136261u;
+            const uint FNV_PRIME = 16777619u;
             
-            for (int y = 0; y < _height; y++)
+            uint hash = FNV_OFFSET_BASIS;
+            
+            // Оптимизированный цикл хэширования
+            for (int i = 0; i < _cells.Length; i++)
             {
-                for (int x = 0; x < _width; x++)
-                {
-                    uint alive = (_cells[y, x] == Cell.Alive) ? 1u : 0u;
-                    hasher = (hasher ^ alive) * prime;
-                }
+                uint alive = _cells[i] == Cell.Alive ? 1u : 0u;
+                hash = (hash ^ alive) * FNV_PRIME;
             }
-            return hasher;
+            
+            return hash;
         }
     }
     
@@ -91,11 +155,17 @@ public class GameOfLife : Benchmark
     
     public override void Prepare()
     {
+        // Оптимизированная инициализация
         for (int y = 0; y < _height; y++)
         {
+            int y_idx = y * _width;
+            
             for (int x = 0; x < _width; x++)
             {
-                if (Helper.NextFloat() < 0.1f) _grid.Set(x, y, Cell.Alive);
+                if (Helper.NextFloat() < 0.1f)
+                {
+                    _grid.Set(x, y, Cell.Alive);
+                }
             }
         }
     }
