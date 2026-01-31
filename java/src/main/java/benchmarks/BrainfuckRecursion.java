@@ -4,23 +4,35 @@ import java.util.*;
 
 public class BrainfuckRecursion extends Benchmark {
     
-    // Интерфейс остается - это идиоматично для Java
     interface Op {
-        void execute(Tape tape, long[] result);  // long[] для мутабельного результата
+        void execute(Tape tape, long[] result);
     }
     
-    // Record classes (Java 14+) - immutable value types
-    record Inc(int val) implements Op {
+    record Dec() implements Op {
         @Override
         public void execute(Tape tape, long[] result) {
-            tape.inc(val);
+            tape.inc(-1);
         }
     }
     
-    record Move(int val) implements Op {
+    record Inc() implements Op {
         @Override
         public void execute(Tape tape, long[] result) {
-            tape.move(val);
+            tape.inc(1);
+        }
+    }
+    
+    record Prev() implements Op {
+        @Override
+        public void execute(Tape tape, long[] result) {
+            tape.prev();
+        }
+    }
+    
+    record Next() implements Op {
+        @Override
+        public void execute(Tape tape, long[] result) {
+            tape.next();
         }
     }
     
@@ -31,9 +43,8 @@ public class BrainfuckRecursion extends Benchmark {
         }
     }
     
-    // Loop как обычный класс (может быть record с List<Op>)
     static class Loop implements Op {
-        private final Op[] body;  // Массив вместо List для производительности
+        private final Op[] body;
         
         Loop(Op[] body) {
             this.body = body;
@@ -49,43 +60,32 @@ public class BrainfuckRecursion extends Benchmark {
         }
     }
     
-    // Оптимизированная лента с массивом примитивов
     static class Tape {
         private byte[] tape;
         private int pos;
         
         Tape() {
-            this.tape = new byte[1024];  // Начальный размер
+            this.tape = new byte[1];  // Начинаем с 1 ячейки как в Rust
             this.pos = 0;
         }
         
         byte get() {
-            if (pos < 0 || pos >= tape.length) {
-                return 0;
-            }
             return tape[pos];
         }
         
         void inc(int x) {
-            if (pos >= 0 && pos < tape.length) {
-                tape[pos] += x;
-            }
+            tape[pos] += x;  // Wrapping автоматический для byte
         }
         
-        void move(int x) {
-            pos += x;
-            
-            // Оптимизированное расширение как во второй версии
-            if (pos < 0) {
-                // Расширяем в начале
-                int needed = -pos;
-                byte[] newTape = new byte[tape.length + needed];
-                System.arraycopy(tape, 0, newTape, needed, tape.length);
-                tape = newTape;
-                pos = 0;
-            } else if (pos >= tape.length) {
-                // Удваиваем размер
-                int newSize = Math.max(tape.length * 2, pos + 1);
+        void prev() {
+            pos--;
+        }
+        
+        void next() {
+            pos++;
+            if (pos >= tape.length) {
+                // Расширяем в 2 раза как в Rust: tape.resize(self.pos * 2, 0);
+                int newSize = pos * 2;
                 byte[] newTape = new byte[newSize];
                 System.arraycopy(tape, 0, newTape, 0, tape.length);
                 tape = newTape;
@@ -94,48 +94,45 @@ public class BrainfuckRecursion extends Benchmark {
     }
     
     static class Program {
-        private final Op[] ops;  // Массив вместо List
-        private long result;
+        private final Op[] ops;
         
         Program(String code) {
             int[] pos = {0};  // mutable int для рекурсивного парсинга
-            List<Op> opsList = new ArrayList<>(code.length() / 2);  // Предварительное выделение
-            parse(opsList, code, pos);
-            this.ops = opsList.toArray(new Op[0]);
-            this.result = 0L;
+            List<Op> opsList = new ArrayList<>(code.length() / 2);
+            this.ops = parse(opsList, code, pos).toArray(new Op[0]);
         }
         
-        private void parse(List<Op> ops, String code, int[] pos) {
+        private List<Op> parse(List<Op> ops, String code, int[] pos) {
             while (pos[0] < code.length()) {
                 char c = code.charAt(pos[0]++);
                 
                 switch (c) {
-                    case '+': ops.add(new Inc(1)); break;
-                    case '-': ops.add(new Inc(-1)); break;
-                    case '>': ops.add(new Move(1)); break;
-                    case '<': ops.add(new Move(-1)); break;
+                    case '-': ops.add(new Dec()); break;
+                    case '+': ops.add(new Inc()); break;
+                    case '<': ops.add(new Prev()); break;
+                    case '>': ops.add(new Next()); break;
                     case '.': ops.add(new Print()); break;
                     case '[':
                         List<Op> loopOps = new ArrayList<>();
                         parse(loopOps, code, pos);
                         ops.add(new Loop(loopOps.toArray(new Op[0])));
                         break;
-                    case ']': return;
+                    case ']': return ops;
                     default: // игнорируем другие символы
                 }
             }
+            return ops;
         }
         
         long run() {
             Tape tape = new Tape();
-            long[] resultRef = {0L};  // mutable reference для лямбд
+            long[] result = {0L};
             
             for (Op op : ops) {
-                op.execute(tape, resultRef);
+                op.execute(tape, result);
             }
             
-            this.result = resultRef[0];
-            return this.result;
+            return result[0];
         }
     }
     
@@ -156,8 +153,7 @@ public class BrainfuckRecursion extends Benchmark {
     
     private long runProgram(String programText) {
         Program program = new Program(programText);
-        program.run();
-        return program.run();  // В C++ возвращаем prog.result
+        return program.run();
     }
     
     @Override
