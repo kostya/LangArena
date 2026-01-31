@@ -4254,60 +4254,41 @@ export class MazeGenerator extends Benchmark {
 
 // =========== ./benchmarks/a_star_pathfinder.ts ===========
 
-interface AStarPathfinderHeuristic {
-    distance(aX: number, aY: number, bX: number, bY: number): number;
-}
-
-class AStarPathfinderNode {
-    x: number;
-    y: number;
-    fScore: number;
+// Вспомогательные классы
+class AStarNode {
+    constructor(
+        public x: number,
+        public y: number,
+        public fScore: number
+    ) {}
     
-    constructor(x: number, y: number, fScore: number) {
-        this.x = x;
-        this.y = y;
-        this.fScore = fScore;
-    }
-    
-    compareTo(other: AStarPathfinderNode): number {
-        // Добавляем проверку на undefined/null
-        if (!other) return 1;
-        
-        if (this.fScore !== other.fScore) {
-            return this.fScore - other.fScore;
-        }
-        if (this.y !== other.y) {
-            return this.y - other.y;
-        }
+    compareTo(other: AStarNode): number {
+        if (this.fScore !== other.fScore) return this.fScore - other.fScore;
+        if (this.y !== other.y) return this.y - other.y;
         return this.x - other.x;
     }
 }
 
-class AStarPathfinderBinaryHeap {
-    private data: AStarPathfinderNode[] = [];
+class AStarBinaryHeap {
+    private data: AStarNode[] = [];
     
-    constructor(initialCapacity: number = 64) {
-        this.data = new Array(initialCapacity);
-        this.data.length = 0;
-    }
-    
-    push(item: AStarPathfinderNode): void {
+    push(item: AStarNode): void {
         this.data.push(item);
         this.siftUp(this.data.length - 1);
     }
     
-    pop(): AStarPathfinderNode | null {
-        if (this.data.length === 0) {
-            return null;
-        }
-        
-        if (this.data.length === 1) {
-            return this.data.pop()!;
-        }
+    pop(): AStarNode | null {
+        const n = this.data.length;
+        if (n === 0) return null;
         
         const result = this.data[0];
-        this.data[0] = this.data[this.data.length - 1];
-        this.data.length--;
+        if (n === 1) {
+            this.data.length = 0;
+            return result;
+        }
+        
+        this.data[0] = this.data[n - 1];
+        this.data.length = n - 1;
         this.siftDown(0);
         return result;
     }
@@ -4317,50 +4298,43 @@ class AStarPathfinderBinaryHeap {
     }
     
     private siftUp(index: number): void {
+        const data = this.data;
+        const node = data[index];
+        
         while (index > 0) {
-            const parent = Math.floor((index - 1) / 2);
-            const childNode = this.data[index];
-            const parentNode = this.data[parent];
+            const parent = (index - 1) >> 1;
+            const parentNode = data[parent];
             
-            if (!childNode || !parentNode || childNode.compareTo(parentNode) >= 0) break;
+            if (node.compareTo(parentNode) >= 0) break;
             
-            // Быстрый swap
-            const temp = this.data[index];
-            this.data[index] = this.data[parent];
-            this.data[parent] = temp;
+            data[index] = parentNode;
+            data[parent] = node;
             index = parent;
         }
     }
     
     private siftDown(index: number): void {
-        const size = this.data.length;
+        const data = this.data;
+        const size = data.length;
+        const node = data[index];
+        
         while (true) {
-            const left = index * 2 + 1;
-            const right = left + 1;
             let smallest = index;
+            const left = (index << 1) + 1;
+            const right = left + 1;
             
-            if (left < size) {
-                const leftNode = this.data[left];
-                const current = this.data[smallest];
-                if (leftNode && current && leftNode.compareTo(current) < 0) {
-                    smallest = left;
-                }
+            if (left < size && data[left].compareTo(data[smallest]) < 0) {
+                smallest = left;
             }
             
-            if (right < size) {
-                const rightNode = this.data[right];
-                const smallestNode = this.data[smallest];
-                if (rightNode && smallestNode && rightNode.compareTo(smallestNode) < 0) {
-                    smallest = right;
-                }
+            if (right < size && data[right].compareTo(data[smallest]) < 0) {
+                smallest = right;
             }
             
             if (smallest === index) break;
             
-            // Быстрый swap
-            const temp = this.data[index];
-            this.data[index] = this.data[smallest];
-            this.data[smallest] = temp;
+            data[index] = data[smallest];
+            data[smallest] = node;
             index = smallest;
         }
     }
@@ -4376,16 +4350,15 @@ export class AStarPathfinder extends Benchmark {
     private readonly height: number;
     private mazeGrid: boolean[][] = [];
     
-    // Кэшированные массивы
-    private gScoresCache: number[][] = [];
-    private cameFromCache: number[][] = []; // Упакованные координаты: y * width + x
+    // Используем плоские массивы для скорости
+    private gScoresCache: Int32Array;
+    private cameFromCache: Int32Array;
     
-    // Статические константы
     private static readonly DIRECTIONS: [number, number][] = [
         [0, -1], [1, 0], [0, 1], [-1, 0]
     ];
     private static readonly STRAIGHT_COST = 1000;
-    private static readonly MAX_INT = Number.MAX_SAFE_INTEGER;
+    private static readonly MAX_INT = 0x7FFFFFFF;
     
     constructor() {
         super();
@@ -4395,58 +4368,43 @@ export class AStarPathfinder extends Benchmark {
         this.startY = 1;
         this.goalX = this.width - 2;
         this.goalY = this.height - 2;
+        
+        // Предвыделяем память
+        const size = this.width * this.height;
+        this.gScoresCache = new Int32Array(size);
+        this.cameFromCache = new Int32Array(size);
     }
     
     private distance(aX: number, aY: number, bX: number, bY: number): number {
-        const dx = aX > bX ? aX - bX : bX - aX;
-        const dy = aY > bY ? aY - bY : bY - aY;
-        return dx + dy;
+        return Math.abs(aX - bX) + Math.abs(aY - bY);
     }
     
-    // Упаковка координат
     private packCoords(x: number, y: number): number {
         return y * this.width + x;
     }
     
-    // Распаковка координат
     private unpackCoords(packed: number): [number, number] {
-        return [packed % this.width, Math.floor(packed / this.width)];
-    }
-    
-    // Инициализация кэшированных массивов
-    private initCachedArrays(): void {
-        if (this.gScoresCache.length !== this.height || 
-            (this.height > 0 && this.gScoresCache[0].length !== this.width)) {
-            this.gScoresCache = new Array(this.height);
-            this.cameFromCache = new Array(this.height);
-            for (let y = 0; y < this.height; y++) {
-                this.gScoresCache[y] = new Array(this.width);
-                this.cameFromCache[y] = new Array(this.width);
-            }
-        }
+        return [packed % this.width, (packed / this.width) | 0];
     }
     
     private findPathOptimized(): [number[], number] {
         const grid = this.mazeGrid;
+        const width = this.width;
+        const height = this.height;
         
-        // Используем кэшированные массивы
+        // Используем плоские массивы
         const gScores = this.gScoresCache;
         const cameFrom = this.cameFromCache;
         
-        // Быстрая инициализация массивов
-        for (let y = 0; y < this.height; y++) {
-            const gRow = gScores[y];
-            const cRow = cameFrom[y];
-            for (let x = 0; x < this.width; x++) {
-                gRow[x] = AStarPathfinder.MAX_INT;
-                cRow[x] = -1;
-            }
-        }
+        // Быстрая инициализация
+        gScores.fill(AStarPathfinder.MAX_INT);
+        cameFrom.fill(-1);
         
-        const openSet = new AStarPathfinderBinaryHeap(this.width * this.height);
+        const openSet = new AStarBinaryHeap();
         
-        gScores[this.startY][this.startX] = 0;
-        openSet.push(new AStarPathfinderNode(
+        const startIdx = this.packCoords(this.startX, this.startY);
+        gScores[startIdx] = 0;
+        openSet.push(new AStarNode(
             this.startX, 
             this.startY, 
             this.distance(this.startX, this.startY, this.goalX, this.goalY)
@@ -4465,37 +4423,44 @@ export class AStarPathfinder extends Benchmark {
                 
                 while (x !== this.startX || y !== this.startY) {
                     path.push(x, y);
-                    const packed = cameFrom[y][x];
+                    const idx = y * width + x;
+                    const packed = cameFrom[idx];
                     if (packed === -1) break;
                     
-                    const [px, py] = this.unpackCoords(packed);
-                    x = px;
-                    y = py;
+                    [x, y] = this.unpackCoords(packed);
                 }
                 
                 path.push(this.startX, this.startY);
-                path.reverse();
-                return [path, nodesExplored];
+                
+                // Реверсируем путь
+                const reversed: number[] = new Array(path.length);
+                const n = path.length;
+                for (let i = 0; i < n; i++) {
+                    reversed[i] = path[n - 1 - i];
+                }
+                
+                return [reversed, nodesExplored];
             }
             
-            const currentG = gScores[current.y][current.x];
+            const currentIdx = current.y * width + current.x;
+            const currentG = gScores[currentIdx];
             
             for (const [dx, dy] of AStarPathfinder.DIRECTIONS) {
                 const nx = current.x + dx;
                 const ny = current.y + dy;
                 
-                if (nx < 0 || nx >= this.width || ny < 0 || ny >= this.height) continue;
+                if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
                 if (!grid[ny][nx]) continue;
                 
                 const tentativeG = currentG + AStarPathfinder.STRAIGHT_COST;
+                const neighborIdx = ny * width + nx;
                 
-                if (tentativeG < gScores[ny][nx]) {
-                    // Упаковываем координаты
-                    cameFrom[ny][nx] = this.packCoords(current.x, current.y);
-                    gScores[ny][nx] = tentativeG;
+                if (tentativeG < gScores[neighborIdx]) {
+                    cameFrom[neighborIdx] = currentIdx;
+                    gScores[neighborIdx] = tentativeG;
                     
                     const fScore = tentativeG + this.distance(nx, ny, this.goalX, this.goalY);
-                    openSet.push(new AStarPathfinderNode(nx, ny, fScore));
+                    openSet.push(new AStarNode(nx, ny, fScore));
                 }
             }
         }
@@ -4505,17 +4470,21 @@ export class AStarPathfinder extends Benchmark {
     
     prepare(): void {
         this.mazeGrid = MazeGeneratorClass.generateWalkableMaze(this.width, this.height);
-        this.initCachedArrays();
     }
     
     run(_iteration_id: number): void {
         const [path, nodesExplored] = this.findPathOptimized();
         
+        // Оригинальная логика вычисления checksum
         let localResult = 0;
-        // В path хранятся координаты попарно (x, y), поэтому длина пути = path.length / 2
-        const pathLength = path.length / 2;
-        localResult = ((localResult << 5) + pathLength) >>> 0; // >>> 0 для 32-битного беззнакового
+        const pathLength = path.length / 2; // координаты хранятся попарно (x, y)
+        
+        // localResult = ((localResult << 5) + pathLength) >>> 0
+        localResult = pathLength;
+        
+        // localResult = ((localResult << 5) + nodesExplored) >>> 0
         localResult = ((localResult << 5) + nodesExplored) >>> 0;
+        
         this.resultVal = (this.resultVal + localResult) >>> 0;
     }
     
