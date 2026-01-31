@@ -5,11 +5,10 @@ const Helper = @import("helper.zig").Helper;
 pub const GameOfLife = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    width: i32,
-    height: i32,
-    iterations: i32,
-    grid_current: []u8,
-    grid_next: []u8,
+    width: usize,
+    height: usize,
+    cells: []u8,           // Плоский массив для текущего поколения
+    buffer: []u8,          // Предварительно аллоцированный буфер
     result_val: u32,
 
     const Cell = enum(u8) { dead = 0, alive = 1 };
@@ -24,17 +23,17 @@ pub const GameOfLife = struct {
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*GameOfLife {
         const w = helper.config_i64("GameOfLife", "w");
         const h = helper.config_i64("GameOfLife", "h");
-        const width = @as(i32, @intCast(w));
-        const height = @as(i32, @intCast(h));
-        const total_cells = @as(usize, @intCast(width * height));
+        const width = @as(usize, @intCast(w));
+        const height = @as(usize, @intCast(h));
+        const total_cells = width * height;
 
-        const grid_current = try allocator.alloc(u8, total_cells);
-        const grid_next = try allocator.alloc(u8, total_cells);
+        const cells = try allocator.alloc(u8, total_cells);
+        const buffer = try allocator.alloc(u8, total_cells);
 
         const self = try allocator.create(GameOfLife);
         errdefer {
-            allocator.free(grid_current);
-            allocator.free(grid_next);
+            allocator.free(cells);
+            allocator.free(buffer);
             allocator.destroy(self);
         }
 
@@ -43,9 +42,8 @@ pub const GameOfLife = struct {
             .helper = helper,
             .width = width,
             .height = height,
-            .iterations = 0,
-            .grid_current = grid_current,
-            .grid_next = grid_next,
+            .cells = cells,
+            .buffer = buffer,
             .result_val = 0,
         };
 
@@ -53,8 +51,8 @@ pub const GameOfLife = struct {
     }
 
     pub fn deinit(self: *GameOfLife) void {
-        self.allocator.free(self.grid_current);
-        self.allocator.free(self.grid_next);
+        self.allocator.free(self.cells);
+        self.allocator.free(self.buffer);
         self.allocator.destroy(self);
     }
 
@@ -64,88 +62,113 @@ pub const GameOfLife = struct {
 
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *GameOfLife = @ptrCast(@alignCast(ptr));
-        // Используем Helper для генерации случайных чисел как в C++ версии
-        for (0..@as(usize, @intCast(self.height))) |y| {
-            for (0..@as(usize, @intCast(self.width))) |x| {
-                const idx = y * @as(usize, @intCast(self.width)) + x;
-                // Используем метод nextFloat из Helper, как предполагалось в оригинале
-                self.grid_current[idx] = if (self.helper.nextFloat(1.0) < 0.1)
-                    @intFromEnum(Cell.alive)
-                else
-                    @intFromEnum(Cell.dead);
+        const width = self.width;
+        const height = self.height;
+        
+        // Инициализируем оба массива нулями
+        @memset(self.cells, @intFromEnum(Cell.dead));
+        @memset(self.buffer, @intFromEnum(Cell.dead));
+        
+        // Используем Helper для генерации случайных чисел
+        for (0..height) |y| {
+            const y_idx = y * width;
+            for (0..width) |x| {
+                const idx = y_idx + x;
+                if (self.helper.nextFloat(1.0) < 0.1) {
+                    self.cells[idx] = @intFromEnum(Cell.alive);
+                }
             }
         }
-        // Инициализируем grid_next нулями
-        @memset(self.grid_next, @intFromEnum(Cell.dead));
     }
 
-    inline fn getCellWrapped(grid: []const u8, width: i32, height: i32, x: i32, y: i32) u8 {
-        // Исправляем вычисление индекса с учетом знака
-        var nx = @rem(@as(i64, @intCast(x)), @as(i64, @intCast(width)));
-        if (nx < 0) nx += @as(i64, @intCast(width));
-
-        var ny = @rem(@as(i64, @intCast(y)), @as(i64, @intCast(height)));
-        if (ny < 0) ny += @as(i64, @intCast(height));
-
-        const idx = @as(usize, @intCast(ny)) * @as(usize, @intCast(width)) + @as(usize, @intCast(nx));
-        return grid[idx];
-    }
-
-    inline fn countNeighbors(grid: []const u8, width: i32, height: i32, x: i32, y: i32) u8 {
+    // Оптимизированный подсчет соседей
+    inline fn countNeighbors(cells: []const u8, width: usize, height: usize, x: usize, y: usize) u8 {
+        // Предварительно вычисленные индексы с тороидальными границами
+        const y_prev = if (y == 0) height - 1 else y - 1;
+        const y_next = if (y == height - 1) 0 else y + 1;
+        const x_prev = if (x == 0) width - 1 else x - 1;
+        const x_next = if (x == width - 1) 0 else x + 1;
+        
+        // Развернутый подсчет 8 соседей
         var count: u8 = 0;
-        count += getCellWrapped(grid, width, height, x - 1, y - 1);
-        count += getCellWrapped(grid, width, height, x, y - 1);
-        count += getCellWrapped(grid, width, height, x + 1, y - 1);
-        count += getCellWrapped(grid, width, height, x - 1, y);
-        count += getCellWrapped(grid, width, height, x + 1, y);
-        count += getCellWrapped(grid, width, height, x - 1, y + 1);
-        count += getCellWrapped(grid, width, height, x, y + 1);
-        count += getCellWrapped(grid, width, height, x + 1, y + 1);
+        
+        // Верхний ряд
+        var idx = y_prev * width;
+        count += cells[idx + x_prev];
+        count += cells[idx + x];
+        count += cells[idx + x_next];
+        
+        // Средний ряд
+        idx = y * width;
+        count += cells[idx + x_prev];
+        count += cells[idx + x_next];
+        
+        // Нижний ряд
+        idx = y_next * width;
+        count += cells[idx + x_prev];
+        count += cells[idx + x];
+        count += cells[idx + x_next];
+        
         return count;
     }
 
-    fn simulateGeneration(self: *GameOfLife) void {
+    fn nextGeneration(self: *GameOfLife) void {
         const width = self.width;
         const height = self.height;
-        const current = self.grid_current;
-        const next = self.grid_next;
-
-        for (0..@as(usize, @intCast(height))) |y| {
-            for (0..@as(usize, @intCast(width))) |x| {
-                const idx = y * @as(usize, @intCast(width)) + x;
-                const neighbors = countNeighbors(current, width, height, @as(i32, @intCast(x)), @as(i32, @intCast(y)));
-                const current_cell = current[idx];
-
-                var next_state: u8 = @intFromEnum(Cell.dead);
-                if (current_cell == @intFromEnum(Cell.alive)) {
-                    if (neighbors == 2 or neighbors == 3) {
-                        next_state = @intFromEnum(Cell.alive);
-                    }
-                } else {
-                    if (neighbors == 3) {
-                        next_state = @intFromEnum(Cell.alive);
-                    }
-                }
-                next[idx] = next_state;
+        const cells = self.cells;
+        const buffer = self.buffer;
+        
+        // Оптимизированный цикл
+        for (0..height) |y| {
+            const y_idx = y * width;
+            
+            for (0..width) |x| {
+                const idx = y_idx + x;
+                
+                // Подсчет соседей
+                const neighbors = countNeighbors(cells, width, height, x, y);
+                const current = cells[idx];
+                
+                // Оптимизированная логика игры
+                const next_state: u8 = if (current == @intFromEnum(Cell.alive)) blk: {
+                    break :blk if (neighbors == 2 or neighbors == 3) 
+                        @intFromEnum(Cell.alive) 
+                    else 
+                        @intFromEnum(Cell.dead);
+                } else blk: {
+                    break :blk if (neighbors == 3) 
+                        @intFromEnum(Cell.alive) 
+                    else 
+                        @intFromEnum(Cell.dead);
+                };
+                
+                buffer[idx] = next_state;
             }
         }
-        std.mem.swap([]u8, &self.grid_current, &self.grid_next);
+        
+        // Меняем местами массивы (обмен буферов)
+        std.mem.swap([]u8, &self.cells, &self.buffer);
     }
 
     fn computeHash(self: *const GameOfLife) u32 {
-        var hasher: u32 = 2166136261;
-        const prime: u32 = 16777619;
-        for (self.grid_current) |cell| {
-            const alive = if (cell == @intFromEnum(Cell.alive)) @as(u32, 1) else 0;
-            hasher = (hasher ^ alive) *% prime;
+        const FNV_OFFSET_BASIS: u32 = 2166136261;
+        const FNV_PRIME: u32 = 16777619;
+        
+        var hasher: u32 = FNV_OFFSET_BASIS;
+        
+        // Оптимизированный цикл хэширования
+        for (self.cells) |cell| {
+            const alive: u32 = if (cell == @intFromEnum(Cell.alive)) 1 else 0;
+            hasher ^= alive;
+            hasher = hasher *% FNV_PRIME;  // Saturating multiplication как в C++
         }
+        
         return hasher;
     }
 
     fn runImpl(ptr: *anyopaque, _: i64) void {
         const self: *GameOfLife = @ptrCast(@alignCast(ptr));
-        // Только симуляция, без лишнего присваивания
-        self.simulateGeneration();
+        self.nextGeneration();
     }
 
     fn resultImpl(ptr: *anyopaque) u32 {
