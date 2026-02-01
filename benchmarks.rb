@@ -178,9 +178,9 @@ class Run
   end
 
   def run(cmd, debug = false)
-    cmd = "#{dcr}#{rss_prefix}#{cmd}"
+    cmd = %Q|#{dcr}#{rss_prefix}sh -c 'echo "start0: $(date +%s%3N)"; #{cmd}'|
     if debug
-      print "`#{cmd}`"
+      print cmd
     end
     stdout = `#{cmd}`    
     exitstatus = $?.exitstatus
@@ -194,7 +194,17 @@ class Run
     end
     stdout =~ /MaxRSS\(([0-9]*?)\)KB\n/
     rss = $1.to_i
-    {out: stdout.sub(/MaxRSS\(([0-9]*?)\)KB\n/, ""), rss: rss}
+
+    stdout =~ /start0: ([0-9]+?)$/
+    start0_ts = $1.to_i
+    start0 = Time.at(start0_ts / 1000.0)
+
+    stdout =~ /start: ([0-9]+?)$/
+    start_ts = $1.to_i
+    start = Time.at(start_ts / 1000.0)
+
+    h = {out: stdout.sub(/MaxRSS\(([0-9]*?)\)KB\n/, ""), rss: rss, start_duration: (start - start0).to_f}
+    h
   end
 
   def deps
@@ -1270,6 +1280,7 @@ RESULTS["compile-memory-incremental"] = {}
 RESULTS["compile-time-cold"] = {}
 RESULTS["compile-time-incremental"] = {}
 RESULTS["version"] = {}
+RESULTS["start-duration"] = {}
 
 check_source_files(IS_VERBOSE)
 
@@ -1363,6 +1374,11 @@ def run(run, index)
     memory += mem
     RESULTS[test_name+"-mem-mb"][run.name] = mem
 
+    RESULTS[test_name+"-mem-mb"][run.name]
+
+    RESULTS["start-duration"][run.name] ||= 0.0
+    RESULTS["start-duration"][run.name] += stats[:start_duration]
+    
     if stats[:out] =~ /#{test_name}: OK in ([\d\.]+)s/      
       run_time = $1.to_f
       summary += run_time
@@ -1387,6 +1403,14 @@ RUNS.each_with_index do |run, index|
   puts "Finished #{run.name} in #{delta.round(3)} (#{summary.round(3)}s, #{memory.round(3)}Mb)"
   write_results
 end
+
+p RESULTS["start-duration"]
+
+RESULTS["start-duration"].each do |run, v|
+  RESULTS["start-duration"][run] = v / TESTS.size # averaging
+end
+
+p RESULTS["start-duration"]
 
 end_t = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
 puts "----------- FINISHED in #{((end_t - START_TIME).to_f / 1e9).round(2)}s-------------"
