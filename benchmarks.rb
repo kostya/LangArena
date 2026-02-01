@@ -181,7 +181,7 @@ class Run
     if measure_start_time
       cmd = %Q|#{dcr}#{rss_prefix} sh -c 'echo "start0: $(date +%s%3N)"; #{cmd}'|
     else
-      cmd = %Q|#{dcr}#{rss_prefix} #{cmd}'|
+      cmd = %Q|#{dcr}#{rss_prefix} #{cmd}|
     end
     if debug
       print cmd
