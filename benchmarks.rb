@@ -177,8 +177,12 @@ class Run
     "/usr/bin/time -f 'MaxRSS(%M)KB' 2>&1 "
   end
 
-  def run(cmd, debug = false)
-    cmd = %Q|#{dcr}#{rss_prefix}sh -c 'echo "start0: $(date +%s%3N)"; #{cmd}'|
+  def run(cmd, debug = false, measure_start_time = false)
+    if measure_start_time
+      cmd = %Q|#{dcr}#{rss_prefix} sh -c 'echo "start0: $(date +%s%3N)"; #{cmd}'|
+    else
+      cmd = %Q|#{dcr}#{rss_prefix} #{cmd}'|
+    end
     if debug
       print cmd
     end
@@ -1369,7 +1373,7 @@ def run(run, index)
     RESULTS[test_name+"-runtime"] ||= {}
     RESULTS[test_name+"-mem-mb"] ||= {}
   
-    stats = run.run("#{run.run_cmd} #{CFG} #{test_name}", IS_VERBOSE)
+    stats = run.run("#{run.run_cmd} #{CFG} #{test_name}", IS_VERBOSE, true)
     mem = stats[:rss] / 1024.0
     memory += mem
     RESULTS[test_name+"-mem-mb"][run.name] = mem
