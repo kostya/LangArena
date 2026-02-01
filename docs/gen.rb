@@ -228,9 +228,23 @@ This table compares how concisely different programming languages express the sa
     end
 
     desc = <<-DESC
+    Shows project compilation/build times<br><br>
+
+    <strong>Time Cold</strong> - full compilation time with cleaned build cache (worst-case scenario)<br>
+    <strong>Time Incremental</strong> - compilation time with only 1 file changed (best-case scenario)<br>
+    <strong>Binary size</strong> - size of compiled output (JAR for Java, JS bundle for TypeScript, executable for native languages, etc.)<br><br>
+
+    All times are in seconds (lower = better)<br>
+    Binary size is in megabytes (lower = better)<br><br>
     DESC
 
     {map: m2, left_header: left_header, up_header: ["Time Cold, s", "Memory Peak Cold, Mb", "Time Incremental, s", "Memory Peak Incremental, Mb", "Binary size, Mb"], lang: :left, first_row: "Run", description: desc}
+  end
+
+  def compile_by_lang
+    t = compile(_best_lang_run.values)
+    t[:description] += "<br><strong>Only fastest configurations for each language are included.</strong>"
+    t
   end
 
   def format_float(v)
@@ -721,7 +735,7 @@ DESC
       'versions': versions,
       # 'build_flags': build_flags,
       'compile': compile,
-      'compile_by_lang': compile(_best_lang_run.values),
+      'compile_by_lang': compile_by_lang,
 
       'hacking': hacking,
       'history': history,
