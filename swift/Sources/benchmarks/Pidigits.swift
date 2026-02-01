@@ -4,7 +4,6 @@ import BigInt
 final class Pidigits: BenchmarkProtocol {
     private var output = ""
     private var nn: Int32 = 0
-    private var checksumVal: UInt32 = 0
     
     init() {
         nn = Int32(configValue("amount") ?? 0)
@@ -58,12 +57,10 @@ final class Pidigits: BenchmarkProtocol {
             let formatted = String(format: "%010lld\t:%d\n", ns.int64 ?? 0, i)
             output.append(formatted)
         }
-        
-        checksumVal = Helper.checksum(output)
     }
     
     var checksum: UInt32 {
-        return checksumVal
+        return Helper.checksum(output)
     }
 }
 

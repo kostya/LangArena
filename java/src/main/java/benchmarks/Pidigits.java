@@ -6,12 +6,10 @@ import java.math.BigInteger;
 public class Pidigits extends Benchmark {
     private int nn;
     private ByteArrayOutputStream result;
-    private long checksumVal;
     
     public Pidigits() {
         nn = (int) configVal("amount");
         result = new ByteArrayOutputStream();
-        checksumVal = 0L;
     }
     
     @Override
@@ -89,12 +87,10 @@ public class Pidigits extends Benchmark {
                 // ignore
             }
         }
-        
-        checksumVal = Helper.checksum(result.toString());
     }
     
     @Override
     public long checksum() {
-        return checksumVal & 0xFFFFFFFFL;
+        return Helper.checksum(result.toString()) & 0xFFFFFFFFL;
     }
 }

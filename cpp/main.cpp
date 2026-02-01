@@ -230,10 +230,9 @@ class Pidigits : public Benchmark {
 private:
     int32_t nn;
     std::ostringstream result_stream;
-    uint32_t checksum_val;
     
 public:
-    Pidigits() : nn(static_cast<int32_t>(config_val("amount"))), checksum_val(0) {
+    Pidigits() : nn(static_cast<int32_t>(config_val("amount"))) {
         result_stream.str("");
         result_stream.clear();
     }
@@ -285,12 +284,10 @@ public:
                 }
             }
         }
-        
-        checksum_val = Helper::checksum(result_stream.str());
     }
     
     uint32_t checksum() override {
-        return checksum_val;
+        return Helper::checksum(result_stream.str());
     }
 };
 

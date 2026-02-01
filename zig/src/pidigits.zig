@@ -9,7 +9,6 @@ pub const Pidigits = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
     nn: i32,
-    result_val: u32,
     result_str: std.ArrayListUnmanaged(u8),
 
     const vtable = Benchmark.VTable{
@@ -28,7 +27,6 @@ pub const Pidigits = struct {
             .allocator = allocator,
             .helper = helper,
             .nn = @as(i32, @intCast(nn)),
-            .result_val = 0,
             .result_str = .{},
         };
         return self;
@@ -182,13 +180,11 @@ pub const Pidigits = struct {
             const num_str = std.fmt.bufPrint(&num_buf, "{}\n", .{n}) catch "0\n";
             self.result_str.appendSlice(self.allocator, num_str) catch return;
         }
-
-        self.result_val = self.helper.checksumString(self.result_str.items);
     }
 
     fn resultImpl(ptr: *anyopaque) u32 {
         const self: *Pidigits = @ptrCast(@alignCast(ptr));
-        return self.result_val;
+        return self.helper.checksumString(self.result_str.items);
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

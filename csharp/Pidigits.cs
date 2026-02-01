@@ -5,9 +5,8 @@ public class Pidigits : Benchmark
 {
     private int _nn;
     private StringBuilder _resultBuilder;
-    private uint _checksumVal;
     
-    public override uint Checksum => _checksumVal;
+    public override uint Checksum => Helper.Checksum(_resultBuilder.ToString());
     
     public Pidigits()
     {
@@ -68,7 +67,5 @@ public class Pidigits : Benchmark
         {
             _resultBuilder.AppendFormat("{0:D10}\t:{1}\n", ns, i);
         }
-        
-        _checksumVal = Helper.Checksum(_resultBuilder.ToString());
     }
 }
