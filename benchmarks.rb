@@ -994,8 +994,8 @@ RUNS = [
   Run.new(
     name: "F#/JIT", 
     build_cmd: "dotnet build -c Release",
-    binary_name: "./bin/Release/net10.0/Benchmark.dll",
-    run_cmd: "dotnet ./bin/Release/net10.0/Benchmark.dll", 
+    binary_name: "./bin/Release/net10.0/MyFirstFSharpApp.dll",
+    run_cmd: "dotnet ./bin/Release/net10.0/MyFirstFSharpApp.dll", 
     version_cmd: "dotnet --version",
     dir: "/src/fsharp",
     container: "fsharp",   
@@ -1015,8 +1015,8 @@ RUNS = [
       -p:InvariantGlobalization=true \
       -o ./bin/aot
     CMD
-    binary_name: "./bin/aot/Benchmark",
-    run_cmd: "./bin/aot/Benchmark", 
+    binary_name: "./bin/aot/MyFirstFSharpApp",
+    run_cmd: "./bin/aot/MyFirstFSharpApp", 
     version_cmd: "dotnet --version",
     dir: "/src/fsharp",
     container: "fsharp",
