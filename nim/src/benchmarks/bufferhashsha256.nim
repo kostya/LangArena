@@ -23,10 +23,18 @@ proc simpleSHA256(data: seq[byte]): uint32 =
     hash = (hash + (hash shl 10)) xor (hash shr 6)
     hashes[hashIdx] = hash
 
-  result = (hashes[0] shr 24) or
-           ((hashes[0] shr 16) and 0xFF) shl 8 or
-           ((hashes[0] shr 8) and 0xFF) shl 16 or
-           (hashes[0] and 0xFF) shl 24
+  var resultBytes: array[32, byte]
+  for i in 0 ..< 8:
+    let hash = hashes[i]
+    resultBytes[i * 4] = byte(hash shr 24)
+    resultBytes[i * 4 + 1] = byte((hash shr 16) and 0xFF)
+    resultBytes[i * 4 + 2] = byte((hash shr 8) and 0xFF)
+    resultBytes[i * 4 + 3] = byte(hash and 0xFF)
+
+  result = (uint32(resultBytes[0]) shl 0) or
+           (uint32(resultBytes[1]) shl 8) or
+           (uint32(resultBytes[2]) shl 16) or
+           (uint32(resultBytes[3]) shl 24)
 
 method test(self: BufferHashSHA256): uint32 =
   simpleSHA256(self.data)
