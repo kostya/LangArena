@@ -1,12 +1,12 @@
 {
   "Pidigits": {
-    "checksum": 1665896021,
-    "amount": 1500,
+    "checksum": 1814470413,
+    "amount": 1000,
     "iterations": 100
   },
   "Binarytrees": {
-    "checksum": 4292348296,
-    "depth": 13,
+    "checksum": 4293657736,
+    "depth": 12,
     "iterations": 100
   },
   "BrainfuckArray": {
@@ -34,9 +34,9 @@
     "iterations": 100
   },
   "Knuckeotide": {
-    "checksum": 431932213,
+    "checksum": 3141068829,
     "n": 6000,
-    "iterations": 200
+    "iterations": 100
   },
   "Mandelbrot": {
     "checksum": 3455988829,
@@ -69,9 +69,9 @@
     "iterations": 20000000
   },
   "RegexDna": {
-    "checksum": 467837941,
+    "checksum": 1111191109,
     "n": 20000,
-    "iterations": 150
+    "iterations": 200
   },
   "Revcomp": {
     "checksum": 471521784,
@@ -81,17 +81,17 @@
   "Spectralnorm": {
     "checksum": 1052198219,
     "size": 1500,
-    "iterations": 120
+    "iterations": 150
   },
   "Base64Encode": {
-    "checksum": 2116298924,
+    "checksum": 3062447189,
     "size": 500000,
-    "iterations": 10000
+    "iterations": 4000
   },
   "Base64Decode": {
-    "checksum": 700345209,
+    "checksum": 1329134018,
     "size": 500000,
-    "iterations": 10000
+    "iterations": 4000
   },
   "Primes": {
     "checksum": 139698008,
@@ -100,34 +100,34 @@
     "iterations": 40
   },
   "JsonGenerate": {
-    "checksum": 36,
-    "coords": 200000,
-    "iterations": 30
+    "checksum": 120,
+    "coords": 50000,
+    "iterations": 100
   },
   "JsonParseDom": {
-    "checksum": 3310069440,
-    "coords": 100000,
+    "checksum": 3989922952,
+    "coords": 10000,
     "iterations": 100
   },
   "JsonParseMapping": {
-    "checksum": 3310069440,
-    "coords": 100000,
+    "checksum": 3826684672,
+    "coords": 25000,
     "iterations": 100
   },
   "Noise": {
-    "checksum": 1279319720,
+    "checksum": 511727888,
     "size": 256,
-    "iterations": 5000
+    "iterations": 2000
   },
   "TextRaytracer": {
-    "checksum": 882249008,
-    "w": 1000,
-    "h": 1000,
-    "iterations": 120
+    "checksum": 2761140480,
+    "w": 800,
+    "h": 800,
+    "iterations": 100
   },
   "NeuralNet": {
-    "checksum": 144809110,
-    "iterations": 1600000
+    "checksum": 1586999118,
+    "iterations": 1100000
   },
   "SortQuick": {
     "checksum": 120187621,
@@ -145,9 +145,9 @@
     "iterations": 100
   },
   "GraphPathBFS": {
-    "checksum": 328320,
-    "pairs": 1000,
-    "vertices": 10000,
+    "checksum": 307320,
+    "pairs": 950,
+    "vertices": 9500,
     "iterations": 100
   },
   "GraphPathDFS": {
@@ -157,15 +157,15 @@
     "iterations": 100
   },
   "GraphPathDijkstra": {
-    "checksum": 33600,
-    "pairs": 150,
-    "vertices": 1500,
+    "checksum": 25920,
+    "pairs": 120,
+    "vertices": 1200,
     "iterations": 100
   },
   "BufferHashSHA256": {
-    "checksum": 3569819776,
+    "checksum": 2844672256,
     "size": 1000000,
-    "iterations": 600
+    "iterations": 1200
   },
   "BufferHashCRC32": {
     "checksum": 2318723244,
@@ -179,13 +179,13 @@
     "iterations": 5000000
   },
   "CalculatorAst": {
-    "checksum": 1818557416,
-    "operations": 22000,
+    "checksum": 1670614456,
+    "operations": 11000,
     "iterations": 100
   },
   "CalculatorInterpreter": {
-    "checksum": 1123478160,
-    "operations": 70000,
+    "checksum": 38749936,
+    "operations": 35000,
     "iterations": 100
   },
   "GameOfLife": {
@@ -201,19 +201,19 @@
     "iterations": 250
   },
   "AStarPathfinder": {
-    "checksum": 163183200,
+    "checksum": 32636640,
     "w": 4001,
     "h": 4001,
-    "iterations": 500
+    "iterations": 100
   },
   "BWTHuffEncode": {
-    "checksum": 1568280,
-    "size": 50000,
+    "checksum": 1097760,
+    "size": 35000,
     "iterations": 100
   },
   "BWTHuffDecode": {
-    "checksum": 181000000,
-    "size": 500000,
+    "checksum": 127000000,
+    "size": 350000,
     "iterations": 300
   }
 }
