@@ -1003,18 +1003,19 @@ RUNS = [
     deps_cmd: "dotnet restore",
   ),
 
-  # AOT Native (максимальная скорость выполнения) - ИСПРАВЛЕННЫЙ
-  Run.new(
-    name: "F#/AOT",
-    build_cmd: "dotnet publish -c Release -p:PublishAOT=true -p:InvariantGlobalization=true -o ./bin/aot",
-    binary_name: "./bin/aot/MyFirstFSharpApp",
-    run_cmd: "./bin/aot/MyFirstFSharpApp", 
-    version_cmd: "dotnet --version",
-    dir: "/src/fsharp",
-    container: "fsharp",
-    group: :hack,        
-    deps_cmd: "dotnet restore",
-  ),
+  # JSON Bug run
+  # # AOT Native (максимальная скорость выполнения) - ИСПРАВЛЕННЫЙ
+  # Run.new(
+  #   name: "F#/AOT",
+  #   build_cmd: "dotnet publish -c Release -p:PublishAOT=true -p:InvariantGlobalization=true -o ./bin/aot",
+  #   binary_name: "./bin/aot/MyFirstFSharpApp",
+  #   run_cmd: "./bin/aot/MyFirstFSharpApp", 
+  #   version_cmd: "dotnet --version",
+  #   dir: "/src/fsharp",
+  #   container: "fsharp",
+  #   group: :hack,        
+  #   deps_cmd: "dotnet restore",
+  # ),
 
   # ======================================= Nim ======================================================
 
