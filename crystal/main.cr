@@ -102,7 +102,7 @@ module Helper
 end
 
 abstract class Benchmark
-  abstract def run(iteration_id) # this is only method which time measured
+  abstract def run(iteration_id)
   abstract def checksum : UInt32
 
   def prepare
@@ -163,7 +163,7 @@ abstract class Benchmark
         results["{{kl.id}}"] = time_delta
 
         GC.collect
-        sleep 0.seconds # context switch, may be needed or maybe not, to close some coroutines
+        sleep 0.seconds
         GC.collect
 
         chks = bench.checksum
@@ -516,14 +516,14 @@ class Fannkuchredux < Benchmark
         r -= 1
       end
 
-      n.times { |i| perm[i] = perm1[i] } # dup
+      n.times { |i| perm[i] = perm1[i] }
       flipsCount = 0
 
       while !((k = perm[0]) == 0)
         k2 = (k + 1) >> 1
         (0...k2).each do |i|
           j = k - i
-          perm[i], perm[j] = perm[j], perm[i] # swap
+          perm[i], perm[j] = perm[j], perm[i]
         end
         flipsCount += 1
       end
@@ -537,7 +537,7 @@ class Fannkuchredux < Benchmark
         perm0 = perm1[0]
         (0...r).each do |i|
           j = i + 1
-          perm1[i], perm1[j] = perm1[j], perm1[i] # swap
+          perm1[i], perm1[j] = perm1[j], perm1[i]
         end
 
         perm1[r] = perm0
@@ -2012,7 +2012,7 @@ class SortBenchmark < Benchmark
   @data : Array(Int32)
 
   def test : Array(Int32)
-    Array(Int32).new # abstract method
+    Array(Int32).new
   end
 
   def initialize(@size : Int64 = config_val("size"))
@@ -2075,7 +2075,7 @@ class SortMerge < SortBenchmark
   end
 
   private def merge_sort_inplace(arr : Array(Int32))
-    temp = Array(Int32).new(arr.size, 0) # ОДИН временный массив
+    temp = Array(Int32).new(arr.size, 0)
     merge_sort_helper(arr, temp, 0, arr.size - 1)
   end
 
@@ -2094,9 +2094,9 @@ class SortMerge < SortBenchmark
       temp[i] = arr[i]
     end
 
-    i = left    # Индекс левой половины
-    j = mid + 1 # Индекс правой половины
-    k = left    # Индекс в исходном массиве
+    i = left
+    j = mid + 1
+    k = left
 
     while i <= mid && j <= right
       if temp[i] <= temp[j]
@@ -2246,7 +2246,7 @@ class GraphPathBFS < GraphPathBenchmark
     return 0 if start == target
 
     visited = Bytes.new(@graph.vertices)
-    queue = Deque({Int32, Int32}).new # {vertex, distance}
+    queue = Deque({Int32, Int32}).new
 
     visited[start] = 1
     queue.push({start, 0})
@@ -2264,7 +2264,7 @@ class GraphPathBFS < GraphPathBenchmark
       end
     end
 
-    -1 # путь не найден
+    -1
   end
 end
 
@@ -2333,7 +2333,7 @@ class GraphPathDijkstra < GraphPathBenchmark
     dist[start] = 0
 
     iteration = 0
-    max_iterations = @graph.vertices # максимум V итераций!
+    max_iterations = @graph.vertices
 
     max_iterations.times do
       iteration += 1
@@ -2370,7 +2370,7 @@ end
 
 class BufferHashBenchmark < Benchmark
   def test : UInt32
-    0_u32 # abstract method
+    0_u32
   end
 
   @data : Bytes
@@ -2745,11 +2745,11 @@ class CalculatorAst < Benchmark
       when 'a'..'z'
         parse_variable
       when '('
-        advance # '('
+        advance
         node = parse_expression
         skip_whitespace
         if current_char == ')'
-          advance # ')'
+          advance
         end
         node
       else
@@ -2776,7 +2776,7 @@ class CalculatorAst < Benchmark
 
       skip_whitespace
       if current_char == '='
-        advance # '='
+        advance
         expr = parse_expression
         return Assignment.new(var_name, expr)
       end
@@ -2815,9 +2815,9 @@ class CalculatorInterpreter < Benchmark
       return 0_i64 if b == 0
 
       if (a >= 0 && b > 0) || (a < 0 && b < 0)
-        a // b # одинаковые знаки
+        a // b
       else
-        -(a.abs // b.abs) # разные знаки
+        -(a.abs // b.abs)
       end
     end
 
@@ -2902,7 +2902,7 @@ class GameOfLife < Benchmark
     property height : Int32
 
     @cells : Slice(UInt8)
-    @buffer : Slice(UInt8) # Предварительно аллоцированный буфер
+    @buffer : Slice(UInt8)
 
     def initialize(@width : Int32, @height : Int32)
       size = @width * @height
@@ -3020,7 +3020,7 @@ class GameOfLife < Benchmark
       cells = @cells
       i = 0
       while i < cells.size
-        alive = cells[i].to_u32 # 0 или 1 уже
+        alive = cells[i].to_u32
         hash = (hash ^ alive) &* FNV_PRIME
         i += 1
       end
@@ -3109,10 +3109,10 @@ class MazeGenerator < Benchmark
 
     private def add_random_paths
 
-      num_extra_paths = (@width * @height) // 20 # 5% клеток
+      num_extra_paths = (@width * @height) // 20
 
       num_extra_paths.times do
-        x = Helper.next_int(@width - 2) + 1 # Не на границах
+        x = Helper.next_int(@width - 2) + 1
         y = Helper.next_int(@height - 2) + 1
 
         if self[x, y] == Cell::Wall &&
@@ -3259,12 +3259,12 @@ class MazeGenerator < Benchmark
   end
 
   def grid_checksum(grid)
-    hasher = 2166136261_u32 # FNV offset basis
-    prime = 16777619_u32    # FNV prime
+    hasher = 2166136261_u32
+    prime = 16777619_u32
 
     @bool_grid.each_with_index do |row, i|
       row.each_with_index do |cell, j|
-        if cell # только true клетки
+        if cell
           j_squared = j.to_u32 &* j.to_u32
           hasher = (hasher ^ j_squared) &* prime
         end

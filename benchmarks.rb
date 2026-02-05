@@ -168,24 +168,60 @@ module ClearComments
       
     when 'typescript'
       # TypeScript - специальная обработка для @ts-ignore
-      # Удаляем многострочные комментарии
       content.gsub!(/\/\*[\s\S]*?\*\//m, '')
       
-      # Обрабатываем строки с @ts-ignore
       content.gsub!(/(\/\/\s*@ts-ignore)[^\n]*/) do |match|
-        # Оставляем только // @ts-ignore
         "#{$1}"
       end
       
-      # Удаляем все остальные однострочные комментарии
       content.gsub!(/\/\/[^\n]*/) do |match|
-        # Пропускаем строки, которые уже начинаются с @ts-ignore
         match.start_with?('// @ts-ignore') ? match : ''
       end
       
     when 'crystal'
-      content.gsub!(/^\s*#[^\n]*/, '')
+      # Удаляем многострочные комментарии
       content.gsub!(/^=begin[\s\S]*?^=end/m, '')
+      
+      # Удаляем однострочные комментарии, но не трогаем интерполяцию строк
+      # Используем более сложный паттерн для пропуска #{...}
+      lines = content.lines.map do |line|
+        # Ищем позицию #, которая не является частью #{...}
+        comment_pos = -1
+        in_string = false
+        string_char = nil
+        
+        line.chars.each_with_index do |char, i|
+          # Отслеживаем строки
+          if char == '"' || char == "'" || char == '`'
+            if !in_string
+              in_string = true
+              string_char = char
+            elsif string_char == char && (i == 0 || line[i-1] != '\\')
+              in_string = false
+              string_char = nil
+            end
+          end
+          
+          # Нашли # вне строки
+          if !in_string && char == '#' && (i == 0 || line[i-1] != '\\')
+            # Проверяем, не является ли это началом интерполяции
+            if i + 1 < line.length && line[i+1] == '{'
+              next # это интерполяция, пропускаем
+            else
+              comment_pos = i
+              break
+            end
+          end
+        end
+        
+        if comment_pos >= 0
+          line[0...comment_pos].rstrip
+        else
+          line.rstrip
+        end
+      end
+      
+      content = lines.join("\n")
       
     when 'julia'
       content.gsub!(/#[^\n]*/, '')
@@ -212,7 +248,7 @@ module ClearComments
     File.write(filepath, content, encoding: 'utf-8')
     puts "Обработан: #{filepath}"
   end
-  
+
   # Функция для обработки всех файлов
   def self.process_all_files(lang_masks)
     lang_masks.each do |lang, config|
