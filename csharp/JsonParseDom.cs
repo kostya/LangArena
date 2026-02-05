@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 public class JsonParseDom : Benchmark
 {
@@ -24,25 +23,44 @@ public class JsonParseDom : Benchmark
 
     private (double x, double y, double z) Calc(string text)
     {
-        JsonNode? root = JsonNode.Parse(text);
-        if (root == null) return (0, 0, 0);
-
-        JsonArray? coordinates = root["coordinates"]?.AsArray();
-        if (coordinates == null) return (0, 0, 0);
-
-        double len = coordinates.Count;
-        double x = 0, y = 0, z = 0;
-
-        foreach (var coord in coordinates)
+        try
         {
-            if (coord == null) continue;
-
-            x += coord["x"]?.GetValue<double>() ?? 0;
-            y += coord["y"]?.GetValue<double>() ?? 0;
-            z += coord["z"]?.GetValue<double>() ?? 0;
+            using var doc = JsonDocument.Parse(text);
+            var root = doc.RootElement;
+            
+            if (root.TryGetProperty("coordinates", out var coordsElement) && 
+                coordsElement.ValueKind == JsonValueKind.Array)
+            {
+                double x = 0, y = 0, z = 0;
+                int count = 0;
+                
+                foreach (var coord in coordsElement.EnumerateArray())
+                {
+                    if (coord.TryGetProperty("x", out var xProp) && 
+                        xProp.ValueKind == JsonValueKind.Number)
+                        x += xProp.GetDouble();
+                    
+                    if (coord.TryGetProperty("y", out var yProp) && 
+                        yProp.ValueKind == JsonValueKind.Number)
+                        y += yProp.GetDouble();
+                    
+                    if (coord.TryGetProperty("z", out var zProp) && 
+                        zProp.ValueKind == JsonValueKind.Number)
+                        z += zProp.GetDouble();
+                    
+                    count++;
+                }
+                
+                if (count > 0)
+                    return (x / count, y / count, z / count);
+            }
         }
-
-        return (x / len, y / len, z / len);
+        catch
+        {
+            // ignore
+        }
+        
+        return (0, 0, 0);
     }
 
     public override void Run(long IterationId)
