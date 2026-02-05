@@ -69,6 +69,7 @@ LANG_MASKS = {
   'v' => ['./v', ['.v'], ['target']],
   'julia' => ['./julia', ['.jl'], ['target']],
   'nim' => ['./nim', ['.nim'], ['target']],
+  'fsharp' => ['./fsharp', ['.fs'], ['bin', 'obj']],
 }
 
 def check_source_files(verbose = false)

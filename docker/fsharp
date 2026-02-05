@@ -1,0 +1,3 @@
+FROM benchmarks:dotnet
+
+# nothing to do, f# already added with dotnet
