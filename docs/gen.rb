@@ -104,6 +104,8 @@ class Gen
       avg1 << sum / rel_indexes.size
     end
 
+    # p t[:left_header].zip(avg1.map { |v| v.round(2) })
+
     mins = []
     avg2 = []
     maxs = []
