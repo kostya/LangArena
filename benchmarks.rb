@@ -162,7 +162,7 @@ module ClearComments
     content = File.read(filepath, encoding: 'utf-8')
     
     case lang
-    when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v'
+    when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 'fsharp'
       # Обычные C-подобные языки
       content.gsub!(/\/\*[\s\S]*?\*\//m, '')
       content.gsub!(/\/\/[^\n]*/, '')
@@ -988,6 +988,41 @@ RUNS = [
     group: :hack,   
     deps_cmd: "dotnet restore",
   ),  
+
+  # ======================================= F# ======================================================
+  # Базовый JIT (для разработки) - БЫСТРЫЙ СТАРТ, СРЕДНЯЯ ПРОИЗВОДИТЕЛЬНОСТЬ
+  Run.new(
+    name: "F#/JIT", 
+    build_cmd: "dotnet build -c Release",
+    binary_name: "./bin/Release/net10.0/Benchmark.dll",
+    run_cmd: "dotnet ./bin/Release/net10.0/Benchmark.dll", 
+    version_cmd: "dotnet --version",
+    dir: "/src/fsharp",
+    container: "fsharp",   
+    group: :prod, 
+    deps_cmd: "dotnet restore",
+  ),
+
+  # AOT Native (максимальная скорость выполнения) - ИСПРАВЛЕННЫЙ
+  Run.new(
+    name: "F#/AOT",
+    build_cmd: <<~CMD.chomp,
+      dotnet publish -c Release \
+      -p:PublishAOT=true \
+      -p:IlcOptimizationPreference=Speed \
+      -p:IlcInstructionSet=native \
+      -p:EnableCppCli=true \
+      -p:InvariantGlobalization=true \
+      -o ./bin/aot
+    CMD
+    binary_name: "./bin/aot/Benchmark",
+    run_cmd: "./bin/aot/Benchmark", 
+    version_cmd: "dotnet --version",
+    dir: "/src/fsharp",
+    container: "fsharp",
+    group: :prod,        
+    deps_cmd: "dotnet restore",
+  ),
 
   # ======================================= Nim ======================================================
 
