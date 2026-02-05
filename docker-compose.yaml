@@ -157,6 +157,28 @@ services:
     depends_on:
       - base
 
+  fsharp:
+    <<: *shared
+    image: benchmarks:fsharp
+    working_dir: /src/fsharp
+    build:
+      dockerfile: docker/fsharp
+    volumes:
+      - .:/src
+      # Dependencies cache - НЕ очищаем
+      - ./cache/deps/fsharp/nuget:/root/.nuget/packages
+      - ./cache/deps/fsharp/sdk:/root/.dotnet/sdk
+      - ./cache/deps/fsharp/tools:/root/.dotnet/tools
+      # Build cache - очищаем для cold compile
+      - ./cache/build/fsharp/obj:/src/fsharp/obj
+      - ./cache/build/fsharp/bin:/src/fsharp/bin
+      - ./cache/build/fsharp/packages:/src/fsharp/packages  # Local packages
+    environment:
+      - DOTNET_CLI_TELEMETRY_OPTOUT=1
+      - DOTNET_NOLOGO=1
+    depends_on:
+      - dotnet
+
   base_gcc:
     <<: *shared  
     image: benchmarks:base_gcc

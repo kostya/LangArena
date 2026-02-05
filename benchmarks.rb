@@ -69,6 +69,7 @@ LANG_MASKS = {
   'v' => ['./v', ['.v'], ['target']],
   'julia' => ['./julia', ['.jl'], ['target']],
   'nim' => ['./nim', ['.nim'], ['target']],
+  'fsharp' => ['./fsharp', ['.fs'], ['bin', 'obj']],
 }
 
 def check_source_files(verbose = false)
@@ -161,7 +162,7 @@ module ClearComments
     content = File.read(filepath, encoding: 'utf-8')
     
     case lang
-    when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v'
+    when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 'fsharp'
       # Обычные C-подобные языки
       content.gsub!(/\/\*[\s\S]*?\*\//m, '')
       content.gsub!(/\/\/[^\n]*/, '')
@@ -1023,6 +1024,34 @@ RUNS = [
     group: :hack,   
     deps_cmd: "dotnet restore",
   ),  
+
+  # ======================================= F# ======================================================
+  # Базовый JIT (для разработки) - БЫСТРЫЙ СТАРТ, СРЕДНЯЯ ПРОИЗВОДИТЕЛЬНОСТЬ
+  Run.new(
+    name: "F#/JIT", 
+    build_cmd: "dotnet build -c Release",
+    binary_name: "./bin/Release/net10.0/MyFirstFSharpApp.dll",
+    run_cmd: "dotnet ./bin/Release/net10.0/MyFirstFSharpApp.dll", 
+    version_cmd: "dotnet --version",
+    dir: "/src/fsharp",
+    container: "fsharp",   
+    group: :prod, 
+    deps_cmd: "dotnet restore",
+  ),
+
+  # JSON Bug run
+  # # AOT Native (максимальная скорость выполнения) - ИСПРАВЛЕННЫЙ
+  # Run.new(
+  #   name: "F#/AOT",
+  #   build_cmd: "dotnet publish -c Release -p:PublishAOT=true -p:InvariantGlobalization=true -o ./bin/aot",
+  #   binary_name: "./bin/aot/MyFirstFSharpApp",
+  #   run_cmd: "./bin/aot/MyFirstFSharpApp", 
+  #   version_cmd: "dotnet --version",
+  #   dir: "/src/fsharp",
+  #   container: "fsharp",
+  #   group: :hack,        
+  #   deps_cmd: "dotnet restore",
+  # ),
 
   # ======================================= Nim ======================================================
 

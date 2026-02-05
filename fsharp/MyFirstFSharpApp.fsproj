@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <Compile Include="Helper.fs" />
+    
+    <Compile Include="Benchmark.fs" />
+    <Compile Include="FastaShared.fs" />
+
+    <Compile Include="Pidigits.fs" />
+    <Compile Include="Binarytrees.fs" />
+    <Compile Include="BrainfuckBenchmarks.fs" />
+    <Compile Include="Fannkuchredux.fs" />
+    <Compile Include="Fasta.fs" />
+    <Compile Include="Knuckeotide.fs" />
+    <Compile Include="Mandelbrot.fs" />
+    <Compile Include="MatmulParallel.fs" />
+    <Compile Include="Nbody.fs" />
+    <Compile Include="RegexDna.fs" />
+    <Compile Include="Revcomp.fs" />
+    <Compile Include="Spectralnorm.fs" />
+    <Compile Include="Base64Benchmarks.fs" />
+    <Compile Include="JsonBenchmarks.fs" />
+    <Compile Include="Primes.fs" />
+    <Compile Include="Noise.fs" />
+    <Compile Include="TextRaytracer.fs" />
+    <Compile Include="NeuralNet.fs" />
+    <Compile Include="Sort.fs" />
+    <Compile Include="Graph.fs" />
+    <Compile Include="BufferHash.fs" />
+    <Compile Include="CacheSimulation.fs" />
+    <Compile Include="Calculator.fs" />
+    <Compile Include="GameOfLife.fs" />
+    <Compile Include="MazeGenerator.fs" />
+    <Compile Include="AStarPathfinder.fs" />
+    <Compile Include="BWTHuffEncode.fs" />
+    <Compile Include="BWTHuffDecode.fs" />
+    
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+</Project>
