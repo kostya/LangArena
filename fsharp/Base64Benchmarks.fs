@@ -14,9 +14,9 @@ type Base64Encode() =
     override this.Checksum =
         let resultStr = 
             if str.Length > 4 then
-                sprintf "encode %s... to %s...: %u" (str.Substring(0, 4)) (str2.Substring(0, 4)) result
+                $"encode {str.Substring(0, 4)}... to {str2.Substring(0, 4)}...: {result}"
             else
-                sprintf "encode %s to %s: %u" str str2 result
+                $"encode {str} to {str2}: {result}"
         Helper.Checksum(resultStr)
 
     override this.Prepare() =
@@ -42,9 +42,9 @@ type Base64Decode() =
     override this.Checksum =
         let resultStr = 
             if str2.Length > 4 then
-                sprintf "decode %s... to %s...: %u" (str2.Substring(0, 4)) (str3.Substring(0, 4)) result
+                $"decode {str2.Substring(0, 4)}... to {str3.Substring(0, 4)}...: {result}"
             else
-                sprintf "decode %s to %s: %u" str2 str3 result
+                $"decode {str2} to {str3}: {result}"
         Helper.Checksum(resultStr)
 
     override this.Prepare() =

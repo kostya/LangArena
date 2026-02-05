@@ -55,7 +55,7 @@ type Benchmark() =
         let singleBench = defaultArg singleBench null
 
         let now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-        printfn "start: %d" now
+        Console.WriteLine($"start: {now}")
 
         let results = Dictionary<string, double>()
         let mutable summaryTime = 0.0
@@ -82,9 +82,9 @@ type Benchmark() =
             else
                 let mutable benchConfig = JsonElement()
                 if not (Helper.Config.TryGetProperty(className, &benchConfig)) then
-                    printfn "Skipping %s - no config in test.js" className
+                    Console.WriteLine($"Skipping {className} - no config in test.js")
                 else
-                    printf "%s: " className
+                    Console.Write($"{className}: ")
 
                     Helper.Reset()
 
@@ -110,26 +110,28 @@ type Benchmark() =
                         let expected = uint32 benchmark.ExpectedChecksum
 
                         if actual = expected then
-                            printf "OK "
+                            Console.Write("OK ")
                             ok <- ok + 1
                         else
-                            printf "ERR[actual=%d, expected=%d] " actual expected
+                            Console.Write($"ERR[actual={actual}, expected={expected}] ")
                             fails <- fails + 1
 
-                        printfn "in %.3fs" timeDelta
+                        // Используем String.Format для форматирования числа
+                        Console.WriteLine("in {0:F3}s", timeDelta)
                         summaryTime <- summaryTime + timeDelta
                     with
                     | ex -> 
-                        printfn "ERROR: %s" ex.Message
+                        Console.WriteLine($"ERROR: {ex.Message}")
                         fails <- fails + 1
 
         try
-            let json = "{" + String.Join(",", results |> Seq.map (fun kv -> sprintf "\"%s\":%f" kv.Key kv.Value)) + "}"
+            let jsonEntries = results |> Seq.map (fun kv -> $"\"{kv.Key}\":{kv.Value}")
+            let json = "{" + String.Join(",", jsonEntries) + "}"
             File.WriteAllText("/tmp/results.js", json)
         with
-        | ex -> printfn "Error saving results: %s" ex.Message
+        | ex -> Console.WriteLine($"Error saving results: {ex.Message}")
 
-        printfn "Summary: %.4fs, %d, %d, %d" summaryTime (ok + fails) ok fails
+        Console.WriteLine("Summary: {0:F4}s, {1}, {2}, {3}", summaryTime, ok + fails, ok, fails)
 
         File.WriteAllText("/tmp/recompile_marker", "RECOMPILE_MARKER_0")
 

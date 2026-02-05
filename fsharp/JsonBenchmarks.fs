@@ -28,7 +28,7 @@ module JsonGenerator =
                 let x = Math.Round(Helper.NextFloat(1.0), 8)
                 let y = Math.Round(Helper.NextFloat(1.0), 8)
                 let z = Math.Round(Helper.NextFloat(1.0), 8)
-                let name = sprintf "%.7f %d" (Helper.NextFloat(1.0)) (Helper.NextInt(10000))
+                let name = String.Format("{0:F7} {1}", Helper.NextFloat(1.0), Helper.NextInt(10000))
 
                 let opts = Dictionary<string, Tuple<int, bool>>()
                 opts.["1"] <- Tuple.Create(1, true)

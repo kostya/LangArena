@@ -54,14 +54,14 @@ type Helper() =
                 if benchObj.TryGetProperty(fieldName, &value) then
                     value.GetInt64()
                 else
-                    printfn "Config not found for %s, field: %s" className fieldName
+                    Console.WriteLine($"Config not found for {className}, field: {fieldName}")
                     0L
             else
-                printfn "Config not found for %s, field: %s" className fieldName
+                Console.WriteLine($"Config not found for {className}, field: {fieldName}")
                 0L
         with
         | ex ->
-            printfn "Error in Config_i64: %s" ex.Message
+            Console.WriteLine($"Error in Config_i64: {ex.Message}")
             0L
 
     static member Config_s(className: string, fieldName: string) : string =
@@ -74,14 +74,14 @@ type Helper() =
                     | null -> ""
                     | s -> s
                 else
-                    printfn "Config not found for %s, field: %s" className fieldName
+                    Console.WriteLine($"Config not found for {className}, field: {fieldName}")
                     ""
             else
-                printfn "Config not found for %s, field: %s" className fieldName
+                Console.WriteLine($"Config not found for {className}, field: {fieldName}")
                 ""
         with
         | ex ->
-            printfn "Error in Config_s: %s" ex.Message
+            Console.WriteLine($"Error in Config_s: {ex.Message}")
             ""
 
     static member LoadConfig(?filename: string) =
@@ -101,8 +101,8 @@ type Helper() =
                     foundFile <- alt
 
         if not (File.Exists foundFile) then
-            printfn "Error: Config file not found: %s" filename
-            printfn "Current directory: %s" Environment.CurrentDirectory
+            Console.WriteLine($"Error: Config file not found: {filename}")
+            Console.WriteLine($"Current directory: {Environment.CurrentDirectory}")
             config <- JsonDocument.Parse("{}")
         else
             try
@@ -110,5 +110,5 @@ type Helper() =
                 config <- JsonDocument.Parse jsonText
             with
             | ex -> 
-                printfn "Error parsing JSON config: %s" ex.Message
+                Console.WriteLine($"Error parsing JSON config: {ex.Message}")
                 config <- JsonDocument.Parse("{}")
