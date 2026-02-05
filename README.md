@@ -9,7 +9,7 @@
 
 ### Origin & Approach
 
-The suite originated in Crystal, with AI tools accelerating initial translations to other languages. This served as a productivity baseline — every implementation then required substantial manual correction, optimization, and verification to ensure idiomatic correctness and fair benchmarking.
+The suite started with my original implementation in Crystal. AI tools assisted in translating it to other languages. Throughout this process, I reviewed and edited the implementation for semantic correctness and logical consistency to ensure idiomatic accuracy and fair benchmarking.
 
 **Sources:** Benchmark ideas were taken from:
 
