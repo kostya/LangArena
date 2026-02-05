@@ -1,22 +1,29 @@
 public class Noise : Benchmark
 {
-    private record struct Vec2(double X, double Y);
+    private struct Vec2
+    {
+        public double X;
+        public double Y;
+        
+        public Vec2(double x, double y) { X = x; Y = y; }
+    }
 
     private class Noise2DContext
     {
         private readonly Vec2[] _rgradients;
         private readonly int[] _permutations;
-        private readonly int _size;
+        private readonly int _sizeMask;
 
         public Noise2DContext(int size)
         {
-            _size = size;
+            _sizeMask = size - 1;
             _rgradients = new Vec2[size];
             _permutations = new int[size];
 
             for (int i = 0; i < size; i++)
             {
-                _rgradients[i] = RandomGradient();
+                double v = Helper.NextFloat() * Math.PI * 2.0;
+                _rgradients[i] = new Vec2(Math.Cos(v), Math.Sin(v));
                 _permutations[i] = i;
             }
 
@@ -28,75 +35,52 @@ public class Noise : Benchmark
             }
         }
 
-        private static Vec2 RandomGradient()
+        private static double Gradient(in Vec2 orig, in Vec2 grad, in Vec2 p)
         {
-            double v = Helper.NextFloat() * Math.PI * 2.0;
-            return new Vec2(Math.Cos(v), Math.Sin(v));
+            double spX = p.X - orig.X;
+            double spY = p.Y - orig.Y;
+            return grad.X * spX + grad.Y * spY;
+        }
+
+        private static double Lerp(double a, double b, double v) => a * (1.0 - v) + b * v;
+        private static double Smooth(double v) => v * v * (3.0 - 2.0 * v);
+
+        private Vec2 GetGradient(int x, int y)
+        {
+            int idx = _permutations[x & _sizeMask] + _permutations[y & _sizeMask];
+            return _rgradients[idx & _sizeMask];
         }
 
         public double Get(double x, double y)
-        {
-            Vec2 p = new(x, y);
-            var (gradients, origins) = GetGradients(x, y);
-
-            double v0 = Gradient(origins[0], gradients[0], p);
-            double v1 = Gradient(origins[1], gradients[1], p);
-            double v2 = Gradient(origins[2], gradients[2], p);
-            double v3 = Gradient(origins[3], gradients[3], p);
-
-            double fx = Smooth(x - origins[0].X);
-            double vx0 = Lerp(v0, v1, fx);
-            double vx1 = Lerp(v2, v3, fx);
-
-            double fy = Smooth(y - origins[0].Y);
-            return Lerp(vx0, vx1, fy);
-        }
-
-        private (Vec2[], Vec2[]) GetGradients(double x, double y)
         {
             double x0f = Math.Floor(x);
             double y0f = Math.Floor(y);
             int x0 = (int)x0f;
             int y0 = (int)y0f;
-            int x1 = x0 + 1;
-            int y1 = y0 + 1;
-
-            var gradients = new Vec2[]
-            {
-                GetGradient(x0, y0),
-                GetGradient(x1, y0),
-                GetGradient(x0, y1),
-                GetGradient(x1, y1)
-            };
-
-            var origins = new Vec2[]
-            {
-                new(x0f + 0.0, y0f + 0.0),
-                new(x0f + 1.0, y0f + 0.0),
-                new(x0f + 0.0, y0f + 1.0),
-                new(x0f + 1.0, y0f + 1.0)
-            };
-
-            return (gradients, origins);
+            
+            Vec2 g00 = GetGradient(x0, y0);
+            Vec2 g10 = GetGradient(x0 + 1, y0);
+            Vec2 g01 = GetGradient(x0, y0 + 1);
+            Vec2 g11 = GetGradient(x0 + 1, y0 + 1);
+            
+            Vec2 p = new(x, y);
+            
+            double v0 = Gradient(new(x0f, y0f), g00, p);
+            double v1 = Gradient(new(x0f + 1.0, y0f), g10, p);
+            double v2 = Gradient(new(x0f, y0f + 1.0), g01, p);
+            double v3 = Gradient(new(x0f + 1.0, y0f + 1.0), g11, p);
+            
+            double fx = Smooth(x - x0f);
+            double vx0 = Lerp(v0, v1, fx);
+            double vx1 = Lerp(v2, v3, fx);
+            
+            double fy = Smooth(y - y0f);
+            return Lerp(vx0, vx1, fy);
         }
-
-        private Vec2 GetGradient(int x, int y)
-        {
-            int idx = _permutations[x & (_size - 1)] + _permutations[y & (_size - 1)];
-            return _rgradients[idx & (_size - 1)];
-        }
-
-        private static double Gradient(Vec2 orig, Vec2 grad, Vec2 p)
-        {
-            Vec2 sp = new(p.X - orig.X, p.Y - orig.Y);
-            return grad.X * sp.X + grad.Y * sp.Y;
-        }
-
-        private static double Lerp(double a, double b, double v) => a * (1.0 - v) + b * v;
-        private static double Smooth(double v) => v * v * (3.0 - 2.0 * v);
     }
 
     private static readonly char[] SYM = [' ', '░', '▒', '▓', '█', '█'];
+    private const int SYM_LENGTH = 6;
 
     private long _size;
     private uint _result;
@@ -111,13 +95,19 @@ public class Noise : Benchmark
 
     public override void Run(long IterationId)
     {
+        double yAdd = IterationId * 128 * 0.1;
+        double step = 0.1;
+        
         for (long y = 0; y < _size; y++)
         {
+            double yf = y * step + yAdd;
             for (long x = 0; x < _size; x++)
             {
-                double v = _n2d.Get(x * 0.1, (y + (IterationId * 128)) * 0.1) * 0.5 + 0.5;
-                int idx = (int)(v / 0.2);
-                if (idx >= 6) idx = 5;
+                double xf = x * step;
+                double v = _n2d.Get(xf, yf) * 0.5 + 0.5;
+                
+                int idx = (int)(v * 5.0);
+                if (idx >= SYM_LENGTH) idx = SYM_LENGTH - 1;
                 _result += (uint)SYM[idx];
             }
         }
