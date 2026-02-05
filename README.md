@@ -10,6 +10,7 @@
 ### Origin & Approach
 
 The suite started with my original implementation in Crystal. AI tools assisted in translating it to other languages. Throughout this process, I reviewed and edited the implementation for semantic correctness and logical consistency to ensure idiomatic accuracy and fair benchmarking.
+Not all algorithms could be implemented identically across all languages—simply because the languages are too different (this is particularly true for base64 and JSON tests). However, I made every effort to make the implementations as similar as possible to each other.
 
 **Sources:** Benchmark ideas were taken from:
 
