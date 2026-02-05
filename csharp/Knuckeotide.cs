@@ -4,9 +4,8 @@ public class Knuckeotide : Benchmark
 {
     private string _seq = "";
     private StringBuilder _resultBuilder;
-    private uint _result;
 
-    public override uint Checksum => _result;
+    public override uint Checksum => Helper.Checksum(_resultBuilder.ToString());
 
     public Knuckeotide()
     {
@@ -82,7 +81,5 @@ public class Knuckeotide : Benchmark
 
         string[] patterns = { "ggt", "ggta", "ggtatt", "ggtattttaatt", "ggtattttaatttatagt" };
         foreach (var pattern in patterns) FindSeq(_seq, pattern);
-
-        _result = Helper.Checksum(_resultBuilder.ToString());
     }
 }
