@@ -1006,15 +1006,7 @@ RUNS = [
   # AOT Native (максимальная скорость выполнения) - ИСПРАВЛЕННЫЙ
   Run.new(
     name: "F#/AOT",
-    build_cmd: <<~CMD.chomp,
-      dotnet publish -c Release \
-      -p:PublishAOT=true \
-      -p:IlcOptimizationPreference=Speed \
-      -p:IlcInstructionSet=native \
-      -p:EnableCppCli=true \
-      -p:InvariantGlobalization=true \
-      -o ./bin/aot
-    CMD
+    build_cmd: "dotnet publish -c Release -p:PublishAOT=true -p:InvariantGlobalization=true -o ./bin/aot",
     binary_name: "./bin/aot/MyFirstFSharpApp",
     run_cmd: "./bin/aot/MyFirstFSharpApp", 
     version_cmd: "dotnet --version",
