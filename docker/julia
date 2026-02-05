@@ -1,0 +1,5 @@
+FROM benchmarks:base
+
+ARG version
+RUN curl -fsSL https://install.julialang.org | sh -s -- --yes --default-channel $version
+ENV PATH=/root/.juliaup/bin:$PATH

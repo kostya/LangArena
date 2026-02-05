@@ -1,0 +1,8 @@
+FROM benchmarks:ldc
+
+ARG version
+RUN apt install -y --no-install-recommends \
+    gdc-$version \
+    && apt clean
+
+RUN ln -sf /usr/bin/gdc-$version /usr/local/bin/gdc

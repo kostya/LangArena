@@ -1,0 +1,2 @@
+#/bin/sh
+julia --project=. benchmark.jl ../test.js $@

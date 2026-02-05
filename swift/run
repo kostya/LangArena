@@ -1,0 +1,4 @@
+#!/bin/bash
+rm -f ./.build/release/Benchmarks
+swift build -c release -Xswiftc -O 
+./.build/release/Benchmarks ../run.js $@

@@ -1,0 +1,31 @@
+{
+  "name": "typescript-benchmarks",
+  "version": "1.0.0",
+  "description": "TypeScript benchmarks implementation",
+  "main": "target/dist/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node target/dist/index.js",
+    "bench": "npm run build && node target/dist/index.js test.js",
+    "bench:single": "npm run build && node target/dist/index.js test.js --name",
+    "test": "echo \"Run benchmarks with: npm run bench\"",
+    "clean": "rm -rf target/dist",
+    "build:dev": "tsc -p tsconfig.json",
+    "build:run": "tsc -p tsconfig.run.json",
+    "bench:dev": "npm run build:dev && node --expose-gc target/dist/index.js ../test.js",
+    "bench:run": "npm run build:run && node --expose-gc target/dist/index.js ../run.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.29",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.9.3"
+  },
+  "keywords": [
+    "benchmark",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT"
+}

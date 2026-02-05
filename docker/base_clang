@@ -1,0 +1,27 @@
+FROM benchmarks:base
+
+ARG version
+ENV LLVM_VERSION=$version
+
+# 1. Добавляем репозиторий LLVM
+RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor > /usr/share/keyrings/llvm-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/noble/ llvm-toolchain-noble-$version main" > /etc/apt/sources.list.d/llvm.list
+
+# 2. Устанавливаем Clang
+RUN apt update && apt install -y --no-install-recommends \
+    clang-$version \
+    lld-$version \
+    && apt clean
+
+# 3. ЗАМЕНЯЕМ ВСЕ КОМПИЛЯТОРЫ
+RUN update-alternatives --install /usr/bin/cc cc /usr/bin/clang-$version 100 \
+    && update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-$version 100 \
+    && update-alternatives --install /usr/bin/gcc gcc /usr/bin/clang-$version 100 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/clang++-$version 100 \
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-$version 100 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-$version 100 \
+    && update-alternatives --install /usr/bin/ld ld /usr/bin/ld.lld-$version 50 \
+    && update-alternatives --set cc /usr/bin/clang-$version \
+    && update-alternatives --set c++ /usr/bin/clang++-$version \
+    && update-alternatives --set gcc /usr/bin/clang-$version \
+    && update-alternatives --set g++ /usr/bin/clang++-$version

@@ -1,0 +1,8 @@
+FROM benchmarks:base_clang
+
+ARG version
+RUN curl https://nim-lang.org/choosenim/init.sh -sSf | sh -s -- --yes --version $version
+ENV PATH=/root/.choosenim/toolchains/nim-$version/bin:$PATH
+
+RUN apt install -y --no-install-recommends libpcre3-dev \
+    && apt clean

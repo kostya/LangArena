@@ -1,0 +1,10 @@
+FROM benchmarks:base
+
+# ============================================
+# Установка LDC2 (LLVM D Compiler)
+# ============================================
+
+ARG version
+RUN curl -fsS https://dlang.org/install.sh | bash -s ldc-$version
+RUN ln -sf /root/dlang/ldc-$version/bin/ldc2 /usr/local/bin/ldc2
+RUN ln -sf /root/dlang/ldc-$version/bin/dub /usr/local/bin/dub

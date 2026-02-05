@@ -1,0 +1,31 @@
+FROM benchmarks:base
+
+# ============================================
+# Установка Zig
+# ============================================
+
+RUN apt install -y --no-install-recommends \
+    llvm-20-dev \
+    clang-20 \
+    lld-20 \
+    libclang-20-dev \
+    liblld-20-dev \
+    && apt clean
+
+RUN ln -sf /usr/bin/llvm-config-20 /usr/local/bin/llvm-config
+RUN ln -sf /usr/bin/llvm-ar-20 /usr/local/bin/llvm-ar
+RUN ln -sf /usr/bin/clang-20 /usr/local/bin/clang
+RUN ln -sf /usr/bin/clang++-20 /usr/local/bin/clang++
+RUN ln -sf /usr/bin/lld-20 /usr/local/bin/lld
+
+ARG version
+
+RUN git clone --progress https://codeberg.org/ziglang/zig.git zig-src \
+    && cd zig-src \
+    && git checkout $version \
+    && mkdir build && cd build \
+    && cmake .. \
+    && make install \
+    && mv stage3 /opt/zig \
+    && ln -sf /opt/zig/bin/zig /usr/local/bin/zig \
+    && cd /opt && rm -rf zig-src

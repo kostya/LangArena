@@ -1,0 +1,7 @@
+#/bin/sh
+mkdir -p target
+rm -f target/bin_benchmarks
+nim c --threads:on --out:target/bin_benchmarks src/benchmarks.nim
+target/bin_benchmarks ../test.js $@
+
+# --cincludes:/opt/homebrew/include --clibdir:/opt/homebrew/lib 

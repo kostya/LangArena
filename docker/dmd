@@ -1,0 +1,8 @@
+FROM benchmarks:ldc
+
+ARG version
+RUN wget https://github.com/dlang/dmd/releases/download/v$version/dmd.stable.linux.tar.xz \
+    && tar -xf /opt/dmd.stable.linux.tar.xz -C /opt \
+    && rm /opt/dmd.stable.linux.tar.xz
+
+RUN ln -sf /opt/dmd2/linux/bin64/dmd /usr/local/bin/dmd

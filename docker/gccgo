@@ -1,0 +1,13 @@
+FROM benchmarks:base_gcc
+
+# ============================================
+# Установка GCCGo
+# ============================================
+
+ARG version
+RUN apt install -y --no-install-recommends gccgo-$version \
+    && apt clean
+
+run ln -sf /usr/bin/gccgo-$version /usr/bin/gccgo \
+    && ln -sf /usr/bin/go-$version /usr/bin/go
+    

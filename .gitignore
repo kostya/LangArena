@@ -1,0 +1,11 @@
+target/
+cache/
+
+*.swp
+*.o
+*.out
+*.dwarf
+bin_*
+
+todo.txt
+_temp/

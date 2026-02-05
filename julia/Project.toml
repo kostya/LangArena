@@ -1,0 +1,28 @@
+name = "BenchmarkFramework"
+uuid = "e6f23430-654f-11ed-1e9f-6f8e6c7b7b5a"
+version = "0.1.0"
+authors = ["Your Name <you@example.com>"]
+
+[deps]
+Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+PackageCompiler = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+StructTypes = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
+
+[compat]
+Base64 = "1.11.0"
+DataStructures = "0.19.3"
+JSON = "1.4.0"
+JSON3 = "1.14.3"
+PackageCompiler = "2.2.4"
+Printf = "1.11.0"
+Random = "1.11.0"
+StaticArrays = "1.9.16"
+Statistics = "1.11.1"
+StructTypes = "1.11.0"

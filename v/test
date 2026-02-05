@@ -1,0 +1,5 @@
+#!/bin/sh
+mkdir -p target
+rm -f target/bin_v_gcc_debug
+v -enable-globals -gc boehm -o target/bin_v_gcc_debug .
+target/bin_v_gcc_debug ../test.js $@

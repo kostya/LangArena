@@ -1,0 +1,6 @@
+#!/bin/sh
+mkdir -p target
+sh build-deps.sh
+rm -f ./target/bin_c_test
+gcc -Ideps/base64/include -I/usr/include/ -Ideps/cJSON -L/opt/homebrew/lib -I/opt/homebrew/include/ main.c -o target/bin_c_test -lgmp target/cJSON.o target/libbase64.o -lm -lpcre2-8 -lpthread
+./target/bin_c_test ../test.js "$@"

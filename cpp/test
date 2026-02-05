@@ -1,0 +1,6 @@
+#!/bin/sh
+mkdir -p target
+sh build-deps.sh
+rm -f ./target/bin_cpp_test
+g++ -Ideps/ -Ideps/base64/include -Wl,-rpath,/opt/homebrew/opt/llvm/lib/c++ -L/opt/homebrew/opt/llvm/lib/c++ -L/opt/homebrew/lib -I/opt/homebrew/include/ -std=c++20 -Ideps/simdjson target/simdjson.o target/libbase64.o main.cpp -o ./target/bin_cpp_test -lgmp -lre2 -lpthread
+./target/bin_cpp_test ../test.js "$@"

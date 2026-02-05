@@ -1,0 +1,22 @@
+FROM benchmarks:graalvm
+
+# ============================================
+# Установка Kotlin
+# ============================================
+
+ARG version
+RUN wget -O kotlin-compiler.zip "https://github.com/JetBrains/kotlin/releases/download/v${version}/kotlin-compiler-${version}.zip" \
+    && unzip kotlin-compiler.zip -d /opt \
+    && rm kotlin-compiler.zip
+
+ENV KOTLIN_HOME="/opt/kotlinc"
+ENV PATH="${KOTLIN_HOME}/bin:${PATH}"
+
+# Устанавливаем Gradle вручную (без apt)
+ARG gradleversion
+RUN wget https://services.gradle.org/distributions/gradle-$gradleversion-bin.zip && \
+    unzip gradle-$gradleversion-bin.zip -d /opt && \
+    ln -s /opt/gradle-$gradleversion /opt/gradle
+
+ENV GRADLE_HOME="/opt/gradle"
+ENV PATH="/opt/gradle/bin:$PATH"

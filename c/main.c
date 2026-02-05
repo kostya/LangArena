@@ -1,0 +1,8352 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <time.h>
+#include <stdbool.h>
+#include <math.h>
+#include <uthash.h>
+#include <ctype.h>
+#include <gmp.h>
+#include "cJSON.h"
+#include <limits.h>
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
+#include <pthread.h>
+#include <unistd.h>  
+#include "libbase64.h"
+
+#define IM      139968
+#define IA       3877
+#define IC      29573
+#define INIT       42
+
+static uint32_t Helper_last = INIT;
+
+static cJSON* global_config = NULL;
+
+void Helper_reset(void) {
+    Helper_last = INIT;
+}
+
+uint32_t Helper_next_int(uint32_t max) {
+    Helper_last = (Helper_last * IA + IC) % IM;
+    return (uint32_t)((Helper_last * (int64_t)max) / IM);
+}
+
+uint32_t Helper_next_int_range(uint32_t from, uint32_t to) {
+    return Helper_next_int(to - from + 1) + from;
+}
+
+double Helper_next_float(double max) {
+    Helper_last = (Helper_last * IA + IC) % IM;
+    return max * Helper_last / IM;
+}
+
+uint32_t Helper_checksum_string(const char* v) {
+    uint32_t hash = 5381;
+    while (*v) {
+        unsigned char c = (unsigned char)(*v);  
+        hash = ((hash << 5) + hash) + c;
+        v++;
+    }
+    return hash;
+}
+
+uint32_t Helper_checksum_bytes(const uint8_t* data, size_t length) {
+    uint32_t hash = 5381;
+    for (size_t i = 0; i < length; i++) {
+        hash = ((hash << 5) + hash) + data[i];
+    }
+    return hash;
+}
+
+uint32_t Helper_checksum_f64(double v) {
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "%.7f", v);
+    return Helper_checksum_string(buffer);
+}
+
+static inline int64_t crystal_add(int64_t a, int64_t b) {
+    uint64_t ua = (uint64_t)a;
+    uint64_t ub = (uint64_t)b;
+    uint64_t result = ua + ub;
+    return (int64_t)result;
+}
+
+static inline int64_t crystal_shl(int64_t a, int shift) {
+    uint64_t ua = (uint64_t)a;
+    uint64_t result = ua << shift;
+    return (int64_t)result;
+}
+
+void Helper_load_config(const char* filename) {
+
+    FILE* file = fopen(filename, "rb");
+    if (!file) {
+        fprintf(stderr, "Cannot open config file: %s\n", filename);
+        exit(1);
+    }
+
+    fseek(file, 0, SEEK_END);
+    long file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    char* json_data = malloc(file_size + 1);
+    if (!json_data) {
+        fprintf(stderr, "Memory allocation error\n");
+        fclose(file);
+        exit(1);
+    }
+
+    size_t read_size = fread(json_data, 1, file_size, file);
+    json_data[read_size] = '\0';
+    fclose(file);
+
+    global_config = cJSON_Parse(json_data);
+    free(json_data);
+
+    if (!global_config) {
+        fprintf(stderr, "Error parsing JSON config: %s\n", cJSON_GetErrorPtr());
+        exit(1);
+    }
+}
+
+void Helper_free_config(void) {
+    if (global_config) {
+        cJSON_Delete(global_config);
+        global_config = NULL;
+    }
+}
+
+int64_t Helper_config_i64(const char* class_name, const char* field_name) {
+    if (!global_config) {
+        fprintf(stderr, "Config not loaded\n");
+        return 0;
+    }
+
+    cJSON* class_obj = cJSON_GetObjectItemCaseSensitive(global_config, class_name);
+    if (!class_obj) {
+
+        return 0;  
+    }
+
+    cJSON* field = cJSON_GetObjectItemCaseSensitive(class_obj, field_name);
+    if (!field) {
+
+        return 0;  
+    }
+
+    if (cJSON_IsNumber(field)) {
+
+        return (int64_t)field->valuedouble;
+    } else if (cJSON_IsString(field)) {
+
+        return atoll(field->valuestring);
+    } else {
+
+        return 0;
+    }
+}
+
+const char* Helper_config_s(const char* class_name, const char* field_name) {
+    if (!global_config) {
+        fprintf(stderr, "Config not loaded\n");
+        return "";
+    }
+
+    cJSON* class_obj = cJSON_GetObjectItemCaseSensitive(global_config, class_name);
+    if (!class_obj) {
+        fprintf(stderr, "Config not found for %s\n", class_name);
+        return "";
+    }
+
+    cJSON* field = cJSON_GetObjectItemCaseSensitive(class_obj, field_name);
+    if (!field || !cJSON_IsString(field)) {
+
+        return "";
+    }
+
+    return field->valuestring;
+}
+
+typedef struct Benchmark Benchmark;
+
+struct Benchmark {
+    const char* name;
+    double time_delta;
+    uint32_t checksum_val;
+    int64_t iterations_val;
+
+    void (*prepare)(Benchmark* self);
+    void (*run)(Benchmark* self, int iteration_id);
+    void (*run_all)(Benchmark* self);
+    void (*warmup)(Benchmark* self);
+    uint32_t (*checksum)(Benchmark* self);
+    int64_t (*iterations)(Benchmark* self);
+    int64_t (*expected_checksum)(Benchmark* self);
+    void (*cleanup)(Benchmark* self);
+
+    void* data;
+};
+
+void Benchmark_default_prepare(Benchmark* self) {
+
+}
+
+void Benchmark_default_warmup(Benchmark* self) {
+    int64_t warmup_iters = Helper_config_i64(self->name, "warmup_iterations");
+    if (warmup_iters == 0) {
+        warmup_iters = self->iterations(self);
+        warmup_iters = (int64_t)(warmup_iters * 0.2);
+        if (warmup_iters < 1) warmup_iters = 1;
+    }
+
+    for (int64_t i = 0; i < warmup_iters; i++) {
+        self->run(self, i);
+    }
+}
+
+void Benchmark_default_run_all(Benchmark* self) {
+    int64_t iters = self->iterations(self);
+    for (int64_t i = 0; i < iters; i++) {
+        self->run(self, i);
+    }
+}
+
+uint32_t Benchmark_default_checksum(Benchmark* self) {
+    return self->checksum_val;
+}
+
+int64_t Benchmark_default_iterations(Benchmark* self) {
+    if (self->iterations_val > 0) {
+        return self->iterations_val;
+    }
+    self->iterations_val = Helper_config_i64(self->name, "iterations");
+    return self->iterations_val;
+}
+
+int64_t Benchmark_default_expected_checksum(Benchmark* self) {
+    return Helper_config_i64(self->name, "checksum");
+}
+
+void Benchmark_default_cleanup(Benchmark* self) {
+
+}
+
+Benchmark* Benchmark_create(const char* name) {
+    Benchmark* bench = malloc(sizeof(Benchmark));
+    bench->name = name;
+    bench->time_delta = 0.0;
+    bench->checksum_val = 0;
+    bench->iterations_val = 0;
+    bench->data = NULL;
+
+    bench->prepare = Benchmark_default_prepare;
+    bench->warmup = Benchmark_default_warmup;
+    bench->run_all = Benchmark_default_run_all;
+    bench->checksum = Benchmark_default_checksum;
+    bench->iterations = Benchmark_default_iterations;
+    bench->expected_checksum = Benchmark_default_expected_checksum;
+    bench->cleanup = Benchmark_default_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    char name[100];
+    Benchmark* (*create)(void);
+} BenchmarkFactory;
+
+static BenchmarkFactory* benchmark_factories = NULL;
+static size_t benchmark_factories_count = 0;
+static size_t benchmark_factories_capacity = 0;
+
+void Benchmark_register(const char* name, Benchmark* (*factory)(void)) {
+    if (benchmark_factories_count >= benchmark_factories_capacity) {
+        benchmark_factories_capacity = benchmark_factories_capacity ? 
+                                      benchmark_factories_capacity * 2 : 16;
+        benchmark_factories = realloc(benchmark_factories, 
+                                     sizeof(BenchmarkFactory) * benchmark_factories_capacity);
+    }
+
+    strncpy(benchmark_factories[benchmark_factories_count].name, name, 
+           sizeof(benchmark_factories[benchmark_factories_count].name) - 1);
+    benchmark_factories[benchmark_factories_count].create = factory;
+    benchmark_factories_count++;
+}
+
+static int strcasecmp_custom(const char* s1, const char* s2) {
+    while (*s1 && *s2) {
+        int c1 = tolower((unsigned char)*s1);
+        int c2 = tolower((unsigned char)*s2);
+        if (c1 != c2) return c1 - c2;
+        s1++;
+        s2++;
+    }
+    return tolower((unsigned char)*s1) - tolower((unsigned char)*s2);
+}
+
+void Benchmark_all(const char* single_bench) {
+    struct timespec start, end;
+    double summary_time = 0.0;
+    int ok = 0;
+    int fails = 0;
+
+    FILE* results_file = fopen("/tmp/results.js", "w");
+    if (results_file) {
+        fprintf(results_file, "{");
+    }
+
+    int first_result = 1;
+
+    for (size_t i = 0; i < benchmark_factories_count; i++) {
+        const char* bench_name = benchmark_factories[i].name;
+
+        if (single_bench && strlen(single_bench) > 0) {
+
+            const char* haystack = bench_name;
+            const char* needle = single_bench;
+
+            char haystack_lower[100];
+            char needle_lower[100];
+            strncpy(haystack_lower, haystack, sizeof(haystack_lower) - 1);
+            haystack_lower[sizeof(haystack_lower) - 1] = '\0';
+            strncpy(needle_lower, needle, sizeof(needle_lower) - 1);
+            needle_lower[sizeof(needle_lower) - 1] = '\0';
+
+            for (char* p = haystack_lower; *p; p++) *p = tolower(*p);
+            for (char* p = needle_lower; *p; p++) *p = tolower(*p);
+
+            if (strstr(haystack_lower, needle_lower) == NULL) {
+                continue;
+            }
+        }
+
+        printf("%s: ", bench_name);
+        fflush(stdout);
+
+        Benchmark* bench = benchmark_factories[i].create();
+
+        Helper_reset();
+
+        bench->prepare(bench);
+
+        bench->warmup(bench);
+
+        Helper_reset();
+        clock_gettime(CLOCK_MONOTONIC, &start);
+
+        bench->run_all(bench);
+
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        double duration = (end.tv_sec - start.tv_sec) + 
+                         (end.tv_nsec - start.tv_nsec) * 1e-9;
+
+        bench->time_delta = duration;
+        summary_time += duration;
+
+        uint32_t actual_checksum = bench->checksum(bench);
+        uint32_t expected_checksum = (uint32_t)bench->expected_checksum(bench);
+
+        if (actual_checksum == expected_checksum) {
+            printf("OK ");
+            ok++;
+        } else {
+            printf("ERR[actual=%u, expected=%u] ", 
+                   actual_checksum,
+                   (long long)expected_checksum);
+            fails++;
+        }
+
+        printf("in %.3fs\n", duration);
+
+        if (results_file) {
+            if (!first_result) {
+                fprintf(results_file, ",");
+            }
+            fprintf(results_file, "\"%s\":%.6f", bench_name, duration);
+            first_result = 0;
+        }
+
+        bench->cleanup(bench);
+        free(bench->data);
+        free(bench);
+
+        usleep(1000); 
+    }
+
+    if (results_file) {
+        fprintf(results_file, "}");
+        fclose(results_file);
+    }
+
+    if (ok + fails > 0) {
+        printf("Summary: %.4fs, %d, %d, %d\n", summary_time, ok+fails, ok, fails);
+    }
+
+    if (fails > 0) {
+        exit(1);
+    }
+}
+
+static double custom_round(double value, int decimals) {
+    double factor = pow(10.0, decimals);
+    return round(value * factor) / factor;
+}
+
+typedef struct {
+    int nn;
+    char* result_str;
+    size_t result_capacity;
+    size_t result_length;
+    char* full_result_str;  
+    size_t full_result_capacity;
+    size_t full_result_length;
+} PidigitsData;
+
+void Pidigits_grow_result(PidigitsData* self, size_t needed) {
+    size_t new_capacity = self->result_capacity;
+    while (self->result_length + needed >= new_capacity) {
+        new_capacity = new_capacity ? new_capacity * 2 : 1024;
+    }
+    if (new_capacity > self->result_capacity) {
+        self->result_str = realloc(self->result_str, new_capacity);
+        self->result_capacity = new_capacity;
+    }
+}
+
+void Pidigits_append(PidigitsData* self, const char* str) {
+    size_t len = strlen(str);
+    Pidigits_grow_result(self, len + 1);
+    memcpy(self->result_str + self->result_length, str, len);
+    self->result_length += len;
+    self->result_str[self->result_length] = '\0';
+}
+
+void Pidigits_grow_full_result(PidigitsData* self, size_t needed) {
+    size_t new_capacity = self->full_result_capacity;
+    while (self->full_result_length + needed >= new_capacity) {
+        new_capacity = new_capacity ? new_capacity * 2 : 1024;
+    }
+    if (new_capacity > self->full_result_capacity) {
+        self->full_result_str = realloc(self->full_result_str, new_capacity);
+        self->full_result_capacity = new_capacity;
+    }
+}
+
+void Pidigits_append_to_full(PidigitsData* self, const char* str) {
+    size_t len = strlen(str);
+    Pidigits_grow_full_result(self, len + 1);
+    memcpy(self->full_result_str + self->full_result_length, str, len);
+    self->full_result_length += len;
+    self->full_result_str[self->full_result_length] = '\0';
+}
+
+void Pidigits_prepare(Benchmark* self) {
+    PidigitsData* data = (PidigitsData*)self->data;
+
+    data->nn = (int)Helper_config_i64(self->name, "amount");
+    if (data->nn == 0) {
+        data->nn = 100; 
+    }
+
+    data->result_capacity = 1024;
+    data->result_length = 0;
+    data->result_str = malloc(data->result_capacity);
+    data->result_str[0] = '\0';
+
+    data->full_result_capacity = 1024;
+    data->full_result_length = 0;
+    data->full_result_str = malloc(data->full_result_capacity);
+    data->full_result_str[0] = '\0';
+}
+
+void Pidigits_run(Benchmark* self, int iteration_id) {
+    PidigitsData* data = (PidigitsData*)self->data;
+
+    data->result_length = 0;
+    data->result_str[0] = '\0';
+
+    mpz_t ns, a, t, u, n, d, temp, q, a_minus_dq;
+    mpz_init(ns);
+    mpz_init(a);
+    mpz_init(t);
+    mpz_init(u);
+    mpz_init(n);
+    mpz_init(d);
+    mpz_init(temp);
+    mpz_init(q);
+    mpz_init(a_minus_dq);
+
+    int i = 0;
+    int k = 0;
+    int k1 = 1;
+    mpz_set_ui(n, 1);
+    mpz_set_ui(d, 1);
+    mpz_set_ui(ns, 0);
+    mpz_set_ui(a, 0);
+
+    while (1) {
+        k += 1;
+        mpz_mul_ui(t, n, 2);
+        mpz_mul_ui(n, n, k);
+        k1 += 2;
+
+        mpz_add(a, a, t);
+        mpz_mul_ui(a, a, k1);
+
+        mpz_mul_ui(d, d, k1);
+
+        if (mpz_cmp(a, n) >= 0) {
+
+            mpz_mul_ui(temp, n, 3);
+            mpz_add(temp, temp, a);
+
+            mpz_fdiv_q(q, temp, d);
+
+            mpz_fdiv_r(u, temp, d);
+
+            mpz_add(u, u, n);
+
+            if (mpz_cmp(d, u) > 0) {
+
+                mpz_mul_ui(ns, ns, 10);
+                mpz_add(ns, ns, q);
+                i++;
+
+                if (i % 10 == 0) {
+                    char* ns_str = mpz_get_str(NULL, 10, ns);
+                    size_t len = strlen(ns_str);
+                    if (len < 10) {
+                        char padded[11] = {0};
+                        memset(padded, '0', 10 - len);
+                        strcpy(padded + 10 - len, ns_str);
+                        Pidigits_append(data, padded);
+                    } else {
+                        Pidigits_append(data, ns_str);
+                    }
+                    Pidigits_append(data, "\t:");
+
+                    char i_str[32];
+                    snprintf(i_str, sizeof(i_str), "%d\n", i);
+                    Pidigits_append(data, i_str);
+
+                    mpz_set_ui(ns, 0);
+                    free(ns_str);
+                }
+
+                if (i >= data->nn) break;
+
+                mpz_mul(temp, d, q);
+                mpz_sub(a_minus_dq, a, temp);
+                mpz_mul_ui(a, a_minus_dq, 10);
+
+                mpz_mul_ui(n, n, 10);
+            }
+        }
+    }
+
+    if (mpz_cmp_ui(ns, 0) > 0) {
+        char* ns_str = mpz_get_str(NULL, 10, ns);
+        size_t len = strlen(ns_str);
+        if (len < 10) {
+            char padded[11] = {0};
+            memset(padded, '0', 10 - len);
+            strcpy(padded + 10 - len, ns_str);
+            Pidigits_append(data, padded);
+        } else {
+            Pidigits_append(data, ns_str);
+        }
+        Pidigits_append(data, "\t:");
+
+        char i_str[32];
+        snprintf(i_str, sizeof(i_str), "%d\n", i);
+        Pidigits_append(data, i_str);
+        free(ns_str);
+    }
+
+    mpz_clear(ns);
+    mpz_clear(a);
+    mpz_clear(t);
+    mpz_clear(u);
+    mpz_clear(n);
+    mpz_clear(d);
+    mpz_clear(temp);
+    mpz_clear(q);
+    mpz_clear(a_minus_dq);
+
+    Pidigits_append_to_full(data, data->result_str);
+}
+
+uint32_t Pidigits_checksum(Benchmark* self) {
+    PidigitsData* data = (PidigitsData*)self->data;
+
+    return Helper_checksum_string(data->full_result_str);
+}
+
+void Pidigits_cleanup(Benchmark* self) {
+    PidigitsData* data = (PidigitsData*)self->data;
+    if (data->result_str) {
+        free(data->result_str);
+        data->result_str = NULL;
+    }
+    if (data->full_result_str) {
+        free(data->full_result_str);
+        data->full_result_str = NULL;
+    }
+}
+
+Benchmark* Pidigits_create(void) {
+    Benchmark* bench = Benchmark_create("Pidigits");
+
+    PidigitsData* data = malloc(sizeof(PidigitsData));
+    memset(data, 0, sizeof(PidigitsData));
+
+    bench->data = data;
+
+    bench->prepare = Pidigits_prepare;
+    bench->run = Pidigits_run;
+    bench->checksum = Pidigits_checksum;
+    bench->cleanup = Pidigits_cleanup;
+
+    return bench;
+}
+
+typedef struct Binarytrees_TreeNode {
+    struct Binarytrees_TreeNode* left;
+    struct Binarytrees_TreeNode* right;
+    int item;
+} Binarytrees_TreeNode;
+
+static Binarytrees_TreeNode* Binarytrees_TreeNode_new(int item, int depth) {
+    Binarytrees_TreeNode* node = malloc(sizeof(Binarytrees_TreeNode));
+    node->item = item;
+    node->left = NULL;
+    node->right = NULL;
+
+    if (depth > 0) {
+        node->left = Binarytrees_TreeNode_new(2 * item - 1, depth - 1);
+        node->right = Binarytrees_TreeNode_new(2 * item, depth - 1);
+    }
+
+    return node;
+}
+
+static void Binarytrees_TreeNode_free(Binarytrees_TreeNode* node) {
+    if (!node) return;
+    Binarytrees_TreeNode_free(node->left);
+    Binarytrees_TreeNode_free(node->right);
+    free(node);
+}
+
+static int Binarytrees_TreeNode_check(Binarytrees_TreeNode* node) {
+    if (!node->left || !node->right) {
+        return node->item;
+    }
+    return Binarytrees_TreeNode_check(node->left) - 
+           Binarytrees_TreeNode_check(node->right) + node->item;
+}
+
+typedef struct {
+    int64_t n;
+    uint32_t result_val;  
+} BinarytreesData;
+
+void Binarytrees_prepare(Benchmark* self) {
+    BinarytreesData* data = (BinarytreesData*)self->data;
+    data->n = Helper_config_i64(self->name, "depth");
+    if (data->n == 0) {
+        data->n = 1;
+    }
+    data->result_val = 0;
+}
+
+void Binarytrees_run(Benchmark* self, int iteration_id) {
+    BinarytreesData* data = (BinarytreesData*)self->data;
+
+    int min_depth = 4;
+    int max_depth = (int)(data->n > (min_depth + 2) ? data->n : (min_depth + 2));
+    int stretch_depth = max_depth + 1;
+
+    uint32_t local_sum = 0;
+
+    Binarytrees_TreeNode* stretch_tree = Binarytrees_TreeNode_new(0, stretch_depth);
+    int stretch_check = Binarytrees_TreeNode_check(stretch_tree);
+    local_sum += (uint32_t)stretch_check;  
+    Binarytrees_TreeNode_free(stretch_tree);
+
+    for (int depth = min_depth; depth <= max_depth; depth += 2) {
+        int iterations = 1 << (max_depth - depth + min_depth);
+        for (int i = 1; i <= iterations; i++) {
+            Binarytrees_TreeNode* tree1 = Binarytrees_TreeNode_new(i, depth);
+            Binarytrees_TreeNode* tree2 = Binarytrees_TreeNode_new(-i, depth);
+
+            int check1 = Binarytrees_TreeNode_check(tree1);
+            int check2 = Binarytrees_TreeNode_check(tree2);
+
+            local_sum += (uint32_t)check1;
+            local_sum += (uint32_t)check2;
+
+            Binarytrees_TreeNode_free(tree1);
+            Binarytrees_TreeNode_free(tree2);
+        }
+    }
+
+    data->result_val += local_sum;
+}
+
+uint32_t Binarytrees_checksum(Benchmark* self) {
+    BinarytreesData* data = (BinarytreesData*)self->data;
+
+    return data->result_val;
+}
+
+void Binarytrees_cleanup(Benchmark* self) {
+    BinarytreesData* data = (BinarytreesData*)self->data;
+
+}
+
+Benchmark* Binarytrees_create(void) {
+    Benchmark* bench = Benchmark_create("Binarytrees");
+
+    BinarytreesData* data = malloc(sizeof(BinarytreesData));
+    data->n = 0;
+    data->result_val = 0;
+
+    bench->data = data;
+    bench->prepare = Binarytrees_prepare;
+    bench->run = Binarytrees_run;
+    bench->checksum = Binarytrees_checksum;
+    bench->cleanup = Binarytrees_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    uint8_t* tape;
+    int32_t tape_size;
+    int32_t pos;
+} BrainfuckArray_Tape;
+
+typedef struct {
+    char* program;          
+    char* warmup_program;   
+    int32_t program_length;
+    int32_t warmup_length;
+    int32_t* jumps;         
+    int32_t* warmup_jumps;  
+    uint32_t result_val;
+} BrainfuckArrayData;
+
+static BrainfuckArray_Tape* BrainfuckArray_Tape_new(void) {
+    BrainfuckArray_Tape* tape = malloc(sizeof(BrainfuckArray_Tape));
+    tape->tape_size = 30000;  
+    tape->tape = calloc(tape->tape_size, sizeof(uint8_t));
+    tape->pos = 0;
+    return tape;
+}
+
+static void BrainfuckArray_Tape_free(BrainfuckArray_Tape* tape) {
+    free(tape->tape);
+    free(tape);
+}
+
+static inline uint8_t BrainfuckArray_Tape_get(BrainfuckArray_Tape* tape) {
+    return tape->tape[tape->pos];
+}
+
+static inline void BrainfuckArray_Tape_inc(BrainfuckArray_Tape* tape) {
+    tape->tape[tape->pos] = tape->tape[tape->pos] + 1;  
+}
+
+static inline void BrainfuckArray_Tape_dec(BrainfuckArray_Tape* tape) {
+    tape->tape[tape->pos] = tape->tape[tape->pos] - 1;  
+}
+
+static inline void BrainfuckArray_Tape_advance(BrainfuckArray_Tape* tape) {
+    tape->pos++;
+    if (tape->pos >= tape->tape_size) {
+        tape->tape_size *= 2;
+        tape->tape = realloc(tape->tape, tape->tape_size);
+        memset(tape->tape + tape->tape_size / 2, 0, tape->tape_size / 2);
+    }
+}
+
+static inline void BrainfuckArray_Tape_devance(BrainfuckArray_Tape* tape) {
+    if (tape->pos > 0) {
+        tape->pos--;
+    }
+}
+
+static void BrainfuckArray_parse_program(const char* input, 
+                                         char** program_ptr, 
+                                         int32_t* program_length_ptr,
+                                         int32_t** jumps_ptr) {
+    if (!input || strlen(input) == 0) {
+        *program_ptr = NULL;
+        *program_length_ptr = 0;
+        *jumps_ptr = NULL;
+        return;
+    }
+
+    int32_t input_len = strlen(input);
+    char* program = malloc(input_len + 1);
+    int32_t program_pos = 0;
+
+    for (int32_t i = 0; i < input_len; i++) {
+        char c = input[i];
+        if (strchr("[]<>+-,.", c) != NULL) {
+            program[program_pos++] = c;
+        }
+    }
+    program[program_pos] = '\0';
+
+    int32_t* jumps = NULL;
+    if (program_pos > 0) {
+        jumps = malloc(sizeof(int32_t) * program_pos);
+        memset(jumps, 0, sizeof(int32_t) * program_pos);
+
+        int* stack = malloc(sizeof(int) * (program_pos / 2 + 1));
+        int stack_top = -1;
+
+        for (int pc = 0; pc < program_pos; pc++) {
+            char c = program[pc];
+            if (c == '[') {
+                stack[++stack_top] = pc;
+            } else if (c == ']' && stack_top >= 0) {
+                int left = stack[stack_top--];
+                int right = pc;
+                jumps[left] = right;
+                jumps[right] = left;
+            }
+        }
+
+        free(stack);
+    }
+
+    *program_ptr = program;
+    *program_length_ptr = program_pos;
+    *jumps_ptr = jumps;
+}
+
+static uint32_t BrainfuckArray_execute_program(const char* program, int32_t program_length,
+                                               int32_t* jumps) {
+    if (!program || program_length == 0 || !jumps) {
+        return 0;
+    }
+
+    BrainfuckArray_Tape* tape = BrainfuckArray_Tape_new();
+    int pc = 0;
+    uint32_t result = 0;
+
+    while (pc < program_length) {
+        char c = program[pc];
+        switch (c) {
+            case '+': BrainfuckArray_Tape_inc(tape); break;
+            case '-': BrainfuckArray_Tape_dec(tape); break;
+            case '>': BrainfuckArray_Tape_advance(tape); break;
+            case '<': BrainfuckArray_Tape_devance(tape); break;
+            case '[': {
+                if (BrainfuckArray_Tape_get(tape) == 0) {
+                    pc = jumps[pc];
+                    continue;  
+                }
+                break;
+            }
+            case ']': {
+                if (BrainfuckArray_Tape_get(tape) != 0) {
+                    pc = jumps[pc];
+                    continue;  
+                }
+                break;
+            }
+            case '.': {
+                uint8_t value = BrainfuckArray_Tape_get(tape);
+                result = (result << 2) + value;  
+                break;
+            }
+        }
+        pc++;
+    }
+
+    BrainfuckArray_Tape_free(tape);
+    return result;
+}
+
+void BrainfuckArray_prepare(Benchmark* self) {
+    BrainfuckArrayData* data = (BrainfuckArrayData*)self->data;
+
+    const char* program_text = Helper_config_s(self->name, "program");
+    const char* warmup_text = Helper_config_s(self->name, "warmup_program");
+
+    BrainfuckArray_parse_program(program_text, 
+                                &data->program, 
+                                &data->program_length,
+                                &data->jumps);
+
+    BrainfuckArray_parse_program(warmup_text,
+                                &data->warmup_program,
+                                &data->warmup_length,
+                                &data->warmup_jumps);
+
+    data->result_val = 0;
+}
+
+void BrainfuckArray_warmup(Benchmark* self) {
+    BrainfuckArrayData* data = (BrainfuckArrayData*)self->data;
+    int64_t warmup_iters = Helper_config_i64(self->name, "warmup_iterations");
+
+    if (warmup_iters == 0) {
+        warmup_iters = self->iterations(self);
+        warmup_iters = (int64_t)(warmup_iters * 0.2);
+        if (warmup_iters < 1) warmup_iters = 1;
+    }
+
+    for (int64_t i = 0; i < warmup_iters; i++) {
+        BrainfuckArray_execute_program(data->warmup_program, 
+                                      data->warmup_length,
+                                      data->warmup_jumps);
+    }
+}
+
+void BrainfuckArray_run(Benchmark* self, int iteration_id) {
+    BrainfuckArrayData* data = (BrainfuckArrayData*)self->data;
+
+    if (iteration_id == 0) {
+        data->result_val = 0;
+    }
+
+    uint32_t run_result = BrainfuckArray_execute_program(data->program,
+                                                        data->program_length,
+                                                        data->jumps);
+    data->result_val += run_result;
+}
+
+uint32_t BrainfuckArray_checksum(Benchmark* self) {
+    BrainfuckArrayData* data = (BrainfuckArrayData*)self->data;
+    return data->result_val;
+}
+
+void BrainfuckArray_cleanup(Benchmark* self) {
+    BrainfuckArrayData* data = (BrainfuckArrayData*)self->data;
+
+    if (!data) return;
+
+    if (data->program) {
+        free(data->program);
+        data->program = NULL;
+    }
+
+    if (data->jumps) {
+        free(data->jumps);
+        data->jumps = NULL;
+    }
+
+    if (data->warmup_program) {
+        free(data->warmup_program);
+        data->warmup_program = NULL;
+    }
+
+    if (data->warmup_jumps) {
+        free(data->warmup_jumps);
+        data->warmup_jumps = NULL;
+    }
+
+    free(data);
+    self->data = NULL;  
+}
+
+Benchmark* BrainfuckArray_create(void) {
+    Benchmark* bench = Benchmark_create("BrainfuckArray");
+
+    BrainfuckArrayData* data = malloc(sizeof(BrainfuckArrayData));
+    memset(data, 0, sizeof(BrainfuckArrayData));
+
+    bench->data = data;
+    bench->prepare = BrainfuckArray_prepare;
+    bench->warmup = BrainfuckArray_warmup;
+    bench->run = BrainfuckArray_run;
+    bench->checksum = BrainfuckArray_checksum;
+    bench->cleanup = BrainfuckArray_cleanup;
+
+    return bench;
+}
+
+typedef enum {
+    BrainfuckRecursion_OP_INC,
+    BrainfuckRecursion_OP_MOVE,
+    BrainfuckRecursion_OP_PRINT,
+    BrainfuckRecursion_OP_LOOP
+} BrainfuckRecursion_OpType;
+
+typedef struct BrainfuckRecursion_Op BrainfuckRecursion_Op;
+
+struct BrainfuckRecursion_Op {
+    BrainfuckRecursion_OpType type;
+    int32_t value;
+    BrainfuckRecursion_Op* loop_ops;
+    int32_t loop_size;
+};
+
+typedef struct BrainfuckRecursion_Tape {
+    uint8_t* tape;
+    int32_t size;
+    int32_t pos;
+} BrainfuckRecursion_Tape;
+
+static BrainfuckRecursion_Tape* BrainfuckRecursion_Tape_new(void);
+static uint8_t BrainfuckRecursion_Tape_get(BrainfuckRecursion_Tape* self);
+static void BrainfuckRecursion_Tape_inc(BrainfuckRecursion_Tape* self, int32_t x);
+static void BrainfuckRecursion_Tape_move(BrainfuckRecursion_Tape* self, int32_t x);
+static void BrainfuckRecursion_Tape_free(BrainfuckRecursion_Tape* self);
+static BrainfuckRecursion_Op* BrainfuckRecursion_parse_ops(const char** code, int32_t* ops_count);
+static void BrainfuckRecursion_free_ops(BrainfuckRecursion_Op* ops, int32_t ops_size);
+static void BrainfuckRecursion_run_ops(BrainfuckRecursion_Op* ops, int32_t ops_size, 
+                                      BrainfuckRecursion_Tape* tape, uint32_t* result);
+static uint32_t BrainfuckRecursion_run_program(const char* code);
+
+static BrainfuckRecursion_Tape* BrainfuckRecursion_Tape_new(void) {
+    BrainfuckRecursion_Tape* self = malloc(sizeof(BrainfuckRecursion_Tape));
+    self->size = 1024;
+    self->tape = calloc(self->size, sizeof(uint8_t));
+    self->pos = 0;
+    return self;
+}
+
+static uint8_t BrainfuckRecursion_Tape_get(BrainfuckRecursion_Tape* self) {
+    return (self->pos < self->size) ? self->tape[self->pos] : 0;
+}
+
+static void BrainfuckRecursion_Tape_inc(BrainfuckRecursion_Tape* self, int32_t x) {
+    if (self->pos < self->size) {
+        self->tape[self->pos] += x;
+    }
+}
+
+static void BrainfuckRecursion_Tape_move(BrainfuckRecursion_Tape* self, int32_t x) {
+    if (x > 0) {
+        self->pos += x;
+        while (self->pos >= self->size) {
+            self->size *= 2;
+            self->tape = realloc(self->tape, self->size);
+            memset(self->tape + self->size / 2, 0, self->size / 2);
+        }
+    } else if (x < 0) {
+        int32_t move_left = -x;
+        if (move_left > self->pos) {
+            int32_t needed = move_left - self->pos;
+            int32_t new_size = self->size + needed;
+            uint8_t* new_tape = malloc(new_size);
+            memset(new_tape, 0, needed);
+            memcpy(new_tape + needed, self->tape, self->size);
+            free(self->tape);
+            self->tape = new_tape;
+            self->size = new_size;
+            self->pos += needed;
+        }
+        self->pos -= move_left;
+    }
+}
+
+static void BrainfuckRecursion_Tape_free(BrainfuckRecursion_Tape* self) {
+    free(self->tape);
+    free(self);
+}
+
+static BrainfuckRecursion_Op* BrainfuckRecursion_parse_ops(const char** code, int32_t* ops_count) {
+    int32_t capacity = 16;
+    BrainfuckRecursion_Op* ops = malloc(sizeof(BrainfuckRecursion_Op) * capacity);
+    int32_t count = 0;
+
+    while (**code) {
+        if (count >= capacity) {
+            capacity *= 2;
+            ops = realloc(ops, sizeof(BrainfuckRecursion_Op) * capacity);
+        }
+
+        switch (**code) {
+            case '+':
+                ops[count].type = BrainfuckRecursion_OP_INC;
+                ops[count].value = 1;
+                ops[count].loop_ops = NULL;
+                ops[count].loop_size = 0;
+                count++;
+                break;
+            case '-':
+                ops[count].type = BrainfuckRecursion_OP_INC;
+                ops[count].value = -1;
+                ops[count].loop_ops = NULL;
+                ops[count].loop_size = 0;
+                count++;
+                break;
+            case '>':
+                ops[count].type = BrainfuckRecursion_OP_MOVE;
+                ops[count].value = 1;
+                ops[count].loop_ops = NULL;
+                ops[count].loop_size = 0;
+                count++;
+                break;
+            case '<':
+                ops[count].type = BrainfuckRecursion_OP_MOVE;
+                ops[count].value = -1;
+                ops[count].loop_ops = NULL;
+                ops[count].loop_size = 0;
+                count++;
+                break;
+            case '.':
+                ops[count].type = BrainfuckRecursion_OP_PRINT;
+                ops[count].value = 0;
+                ops[count].loop_ops = NULL;
+                ops[count].loop_size = 0;
+                count++;
+                break;
+            case '[':
+                (*code)++;
+                ops[count].type = BrainfuckRecursion_OP_LOOP;
+                ops[count].value = 0;
+                int32_t loop_ops_count = 0;
+                ops[count].loop_ops = BrainfuckRecursion_parse_ops(code, &loop_ops_count);
+                ops[count].loop_size = loop_ops_count;
+                count++;
+                continue;
+            case ']':
+                *ops_count = count;
+                (*code)++;
+                return ops;
+            default:
+                break;
+        }
+        (*code)++;
+    }
+
+    *ops_count = count;
+    return ops;
+}
+
+static void BrainfuckRecursion_free_ops(BrainfuckRecursion_Op* ops, int32_t ops_size) {
+    if (!ops) return;
+
+    for (int32_t i = 0; i < ops_size; i++) {
+        if (ops[i].type == BrainfuckRecursion_OP_LOOP && ops[i].loop_ops) {
+            BrainfuckRecursion_free_ops(ops[i].loop_ops, ops[i].loop_size);
+        }
+    }
+    free(ops);
+}
+
+static void BrainfuckRecursion_run_ops(BrainfuckRecursion_Op* ops, int32_t ops_size, 
+                                      BrainfuckRecursion_Tape* tape, uint32_t* result) {
+    for (int32_t i = 0; i < ops_size; i++) {
+        BrainfuckRecursion_Op* op = &ops[i];
+        switch (op->type) {
+            case BrainfuckRecursion_OP_INC:
+                BrainfuckRecursion_Tape_inc(tape, op->value);
+                break;
+            case BrainfuckRecursion_OP_MOVE:
+                BrainfuckRecursion_Tape_move(tape, op->value);
+                break;
+            case BrainfuckRecursion_OP_PRINT: {
+                uint8_t value = BrainfuckRecursion_Tape_get(tape);
+                *result = (*result << 2) + value;
+                break;
+            }
+            case BrainfuckRecursion_OP_LOOP:
+                while (BrainfuckRecursion_Tape_get(tape) != 0) {
+                    BrainfuckRecursion_run_ops(op->loop_ops, op->loop_size, tape, result);
+                }
+                break;
+        }
+    }
+}
+
+static uint32_t BrainfuckRecursion_run_program(const char* code) {
+    if (!code || !code[0]) {
+        return 0;
+    }
+
+    const char* code_ptr = code;
+    int32_t ops_count = 0;
+    BrainfuckRecursion_Op* ops = BrainfuckRecursion_parse_ops(&code_ptr, &ops_count);
+
+    if (!ops) {
+        return 0;
+    }
+
+    BrainfuckRecursion_Tape* tape = BrainfuckRecursion_Tape_new();
+    uint32_t result = 0;
+    BrainfuckRecursion_run_ops(ops, ops_count, tape, &result);
+
+    BrainfuckRecursion_Tape_free(tape);
+    BrainfuckRecursion_free_ops(ops, ops_count);
+
+    return result;
+}
+
+typedef struct {
+    const char* program;
+    const char* warmup_program;
+    uint32_t result_val;
+} BrainfuckRecursionData;
+
+void BrainfuckRecursion_prepare(Benchmark* self) {
+    BrainfuckRecursionData* data = (BrainfuckRecursionData*)self->data;
+    data->program = Helper_config_s(self->name, "program");
+    data->warmup_program = Helper_config_s(self->name, "warmup_program");
+    data->result_val = 0;
+}
+
+void BrainfuckRecursion_warmup(Benchmark* self) {
+    BrainfuckRecursionData* data = (BrainfuckRecursionData*)self->data;
+    int64_t warmup_iters = Helper_config_i64(self->name, "warmup_iterations");
+
+    if (warmup_iters == 0) {
+        warmup_iters = self->iterations(self);
+        warmup_iters = (int64_t)(warmup_iters * 0.2);
+        if (warmup_iters < 1) warmup_iters = 1;
+    }
+
+    for (int64_t i = 0; i < warmup_iters; i++) {
+        BrainfuckRecursion_run_program(data->warmup_program);
+    }
+}
+
+void BrainfuckRecursion_run(Benchmark* self, int iteration_id) {
+    BrainfuckRecursionData* data = (BrainfuckRecursionData*)self->data;
+
+    if (iteration_id == 0) {
+        data->result_val = 0;
+    }
+
+    uint32_t run_result = BrainfuckRecursion_run_program(data->program);
+    data->result_val += run_result;
+}
+
+uint32_t BrainfuckRecursion_checksum(Benchmark* self) {
+    BrainfuckRecursionData* data = (BrainfuckRecursionData*)self->data;
+    return data->result_val;
+}
+
+void BrainfuckRecursion_cleanup(Benchmark* self) {
+    BrainfuckRecursionData* data = (BrainfuckRecursionData*)self->data;
+
+}
+
+Benchmark* BrainfuckRecursion_create(void) {
+    Benchmark* bench = Benchmark_create("BrainfuckRecursion");
+
+    BrainfuckRecursionData* data = malloc(sizeof(BrainfuckRecursionData));
+    data->program = NULL;
+    data->warmup_program = NULL;
+    data->result_val = 0;
+
+    bench->data = data;
+    bench->prepare = BrainfuckRecursion_prepare;
+    bench->warmup = BrainfuckRecursion_warmup;
+    bench->run = BrainfuckRecursion_run;
+    bench->checksum = BrainfuckRecursion_checksum;
+    bench->cleanup = BrainfuckRecursion_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    char c;
+    double prob;
+} Fasta_Gene;
+
+typedef struct {
+    int64_t n;
+    char* result_str;
+    size_t result_capacity;
+    size_t result_length;
+    uint32_t result_val;  
+} FastaData;
+
+static void Fasta_grow_result(FastaData* self, size_t needed) {
+    size_t min_capacity = self->result_length + needed + 1;
+    if (min_capacity <= self->result_capacity) return;
+
+    size_t new_capacity = self->result_capacity ? self->result_capacity * 2 : 1024;
+    while (new_capacity < min_capacity) new_capacity *= 2;
+
+    self->result_str = realloc(self->result_str, new_capacity);
+    self->result_capacity = new_capacity;
+}
+
+static void Fasta_append(FastaData* self, const char* str) {
+    size_t len = strlen(str);
+    Fasta_grow_result(self, len + 1);
+    memcpy(self->result_str + self->result_length, str, len);
+    self->result_length += len;
+    self->result_str[self->result_length] = '\0';
+}
+
+static void Fasta_append_char(FastaData* self, char c) {
+    Fasta_grow_result(self, 2);
+    self->result_str[self->result_length++] = c;
+    self->result_str[self->result_length] = '\0';
+}
+
+static void Fasta_append_substring(FastaData* self, const char* str, size_t len) {
+    Fasta_grow_result(self, len + 1);
+    memcpy(self->result_str + self->result_length, str, len);
+    self->result_length += len;
+    self->result_str[self->result_length] = '\0';
+}
+
+static char Fasta_select_random(Fasta_Gene* genelist, size_t size) {
+    double r = Helper_next_float(1.0);
+    if (r < genelist[0].prob) return genelist[0].c;
+
+    int lo = 0, hi = size - 1;
+    while (hi > lo + 1) {
+        int i = (hi + lo) / 2;
+        if (r < genelist[i].prob) hi = i;
+        else lo = i;
+    }
+    return genelist[hi].c;
+}
+
+static void Fasta_make_random_fasta(FastaData* self, const char* id, const char* desc,
+                                   Fasta_Gene* genelist, size_t genelist_size, int n_iter) {
+    char header[256];
+    snprintf(header, sizeof(header), ">%s %s\n", id, desc);
+    Fasta_append(self, header);
+
+    const int LINE_LENGTH = 60;
+    int todo = n_iter;
+
+    while (todo > 0) {
+        int m = (todo < LINE_LENGTH) ? todo : LINE_LENGTH;
+
+        for (int i = 0; i < m; i++) {
+            char c = Fasta_select_random(genelist, genelist_size);
+            Fasta_append_char(self, c);
+        }
+        Fasta_append_char(self, '\n');
+        todo -= LINE_LENGTH;
+    }
+}
+
+static void Fasta_make_repeat_fasta(FastaData* self, const char* id, const char* desc,
+                                   const char* s, int n_iter) {
+    char header[256];
+    snprintf(header, sizeof(header), ">%s %s\n", id, desc);
+    Fasta_append(self, header);
+
+    const int LINE_LENGTH = 60;
+    int todo = n_iter;
+    size_t pos = 0;
+    size_t s_len = strlen(s);
+
+    while (todo > 0) {
+        int m = (todo < LINE_LENGTH) ? todo : LINE_LENGTH;
+        int remaining = m;
+
+        while (remaining > 0) {
+            int chunk = (remaining < (int)(s_len - pos)) ? remaining : (s_len - pos);
+            Fasta_append_substring(self, s + pos, chunk);
+            pos = (pos + chunk) % s_len;
+            remaining -= chunk;
+        }
+
+        Fasta_append_char(self, '\n');
+        todo -= LINE_LENGTH;
+    }
+}
+
+void Fasta_prepare(Benchmark* self) {
+    FastaData* data = (FastaData*)self->data;
+
+    data->result_length = 0;
+    if (data->result_str) {
+        free(data->result_str);
+        data->result_str = NULL;
+    }
+    data->result_capacity = 0;
+}
+
+void Fasta_run(Benchmark* self, int iteration_id) {
+    FastaData* data = (FastaData*)self->data;
+
+    if (iteration_id == 0 && data->result_str == NULL) {
+        data->result_str = malloc(1024);
+        data->result_capacity = 1024;
+        data->result_str[0] = '\0';
+        data->result_length = 0;
+    }
+
+    Fasta_Gene IUB[] = {
+        {'a', 0.27}, {'c', 0.39}, {'g', 0.51}, {'t', 0.78}, {'B', 0.8}, {'D', 0.8200000000000001},
+        {'H', 0.8400000000000001}, {'K', 0.8600000000000001}, {'M', 0.8800000000000001},
+        {'N', 0.9000000000000001}, {'R', 0.9200000000000002}, {'S', 0.9400000000000002},
+        {'V', 0.9600000000000002}, {'W', 0.9800000000000002}, {'Y', 1.0000000000000002}
+    };
+
+    Fasta_Gene HOMO[] = {
+        {'a', 0.302954942668}, {'c', 0.5009432431601}, {'g', 0.6984905497992}, {'t', 1.0}
+    };
+
+    const char* ALU = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
+
+    Fasta_make_repeat_fasta(data, "ONE", "Homo sapiens alu", ALU, (int)data->n * 2);
+    Fasta_make_random_fasta(data, "TWO", "IUB ambiguity codes", IUB, sizeof(IUB)/sizeof(IUB[0]), (int)data->n * 3);
+    Fasta_make_random_fasta(data, "THREE", "Homo sapiens frequency", HOMO, sizeof(HOMO)/sizeof(HOMO[0]), (int)data->n * 5);
+}
+
+uint32_t Fasta_checksum(Benchmark* self) {
+    FastaData* data = (FastaData*)self->data;
+
+    return Helper_checksum_string(data->result_str);
+}
+
+void Fasta_cleanup(Benchmark* self) {
+    FastaData* data = (FastaData*)self->data;
+    if (data->result_str) {
+        free(data->result_str);
+        data->result_str = NULL;
+    }
+}
+
+Benchmark* Fasta_create(void) {
+    Benchmark* bench = Benchmark_create("Fasta");
+
+    FastaData* data = malloc(sizeof(FastaData));
+    data->n = Helper_config_i64("Fasta", "n");
+    if (data->n == 0) {
+        data->n = 1000; 
+    }
+
+    data->result_str = NULL;
+    data->result_capacity = 0;
+    data->result_length = 0;
+    data->result_val = 0;
+
+    bench->data = data;
+    bench->prepare = Fasta_prepare;
+    bench->run = Fasta_run;
+    bench->checksum = Fasta_checksum;
+    bench->cleanup = Fasta_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    int64_t n;
+    uint32_t result_val;
+} FannkuchreduxData;
+
+static void fannkuchredux_swap(int* a, int* b) {
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+static void fannkuchredux_calculate(int n, int* checksum, int* max_flips) {
+    int* perm1 = malloc(n * sizeof(int));
+    int* perm = malloc(n * sizeof(int));
+    int* count = malloc(n * sizeof(int));
+
+    for (int i = 0; i < n; i++) perm1[i] = i;
+
+    *max_flips = 0;
+    *checksum = 0;
+    int permCount = 0;
+    int r = n;
+
+    while (1) {
+        while (r > 1) {
+            count[r - 1] = r;
+            r--;
+        }
+
+        memcpy(perm, perm1, n * sizeof(int));
+        int flipsCount = 0;
+
+        int k = perm[0];
+        while (k != 0) {
+            int k2 = (k + 1) >> 1;
+            for (int i = 0; i < k2; i++) {
+                int j = k - i;
+                fannkuchredux_swap(&perm[i], &perm[j]);
+            }
+            flipsCount++;
+            k = perm[0];
+        }
+
+        if (flipsCount > *max_flips) *max_flips = flipsCount;
+        *checksum += (permCount % 2 == 0) ? flipsCount : -flipsCount;
+
+        while (1) {
+            if (r == n) {
+                free(perm1);
+                free(perm);
+                free(count);
+                return;
+            }
+
+            int perm0 = perm1[0];
+            for (int i = 0; i < r; i++) {
+                perm1[i] = perm1[i + 1];
+            }
+            perm1[r] = perm0;
+
+            count[r]--;
+            if (count[r] > 0) break;
+            r++;
+        }
+        permCount++;
+    }
+}
+
+void Fannkuchredux_prepare(Benchmark* self) {
+    FannkuchreduxData* data = (FannkuchreduxData*)self->data;
+    data->n = Helper_config_i64(self->name, "n");
+    if (data->n == 0) {
+        data->n = 12; 
+    }
+    data->result_val = 0;
+}
+
+void Fannkuchredux_run(Benchmark* self, int iteration_id) {
+    FannkuchreduxData* data = (FannkuchreduxData*)self->data;
+
+    int checksum, max_flips;
+    fannkuchredux_calculate((int)data->n, &checksum, &max_flips);
+
+    data->result_val = (data->result_val + (uint32_t)(checksum * 100 + max_flips)) & 0xFFFFFFFFu;
+}
+
+uint32_t Fannkuchredux_checksum(Benchmark* self) {
+    FannkuchreduxData* data = (FannkuchreduxData*)self->data;
+    return data->result_val;
+}
+
+void Fannkuchredux_cleanup(Benchmark* self) {
+    FannkuchreduxData* data = (FannkuchreduxData*)self->data;
+
+}
+
+Benchmark* Fannkuchredux_create(void) {
+    Benchmark* bench = Benchmark_create("Fannkuchredux");
+
+    FannkuchreduxData* data = malloc(sizeof(FannkuchreduxData));
+    data->n = 0;
+    data->result_val = 0;
+
+    bench->data = data;
+    bench->prepare = Fannkuchredux_prepare;
+    bench->run = Fannkuchredux_run;
+    bench->checksum = Fannkuchredux_checksum;
+    bench->cleanup = Fannkuchredux_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    int64_t n;
+    char* seq;
+    size_t seq_length;
+    char* result_str;
+    size_t result_capacity;
+    size_t result_length;
+} KnuckeotideData;
+
+typedef struct {
+    char* key;
+    int count;
+} FrequencyEntry;
+
+static int compare_entries(const void* a, const void* b) {
+    const FrequencyEntry* ea = (const FrequencyEntry*)a;
+    const FrequencyEntry* eb = (const FrequencyEntry*)b;
+
+    if (ea->count != eb->count) {
+        return eb->count - ea->count; 
+    }
+
+    return strcmp(ea->key, eb->key);
+}
+
+static void Knuckeotide_grow_result(KnuckeotideData* self, size_t needed) {
+    size_t new_capacity = self->result_capacity;
+    while (self->result_length + needed >= new_capacity) {
+        new_capacity = new_capacity ? new_capacity * 2 : 1024;
+    }
+    if (new_capacity > self->result_capacity) {
+        self->result_str = realloc(self->result_str, new_capacity);
+        self->result_capacity = new_capacity;
+    }
+}
+
+static void Knuckeotide_append(KnuckeotideData* self, const char* str) {
+    size_t len = strlen(str);
+    Knuckeotide_grow_result(self, len + 1);
+    memcpy(self->result_str + self->result_length, str, len);
+    self->result_length += len;
+    self->result_str[self->result_length] = '\0';
+}
+
+static void Knuckeotide_sort_by_freq(KnuckeotideData* self, int length) {
+    #define TABLE_SIZE 8192
+    FrequencyEntry* table = calloc(TABLE_SIZE, sizeof(FrequencyEntry));
+
+    int n = (int)(self->seq_length - length + 1);
+
+    for (int i = 0; i < n; i++) {
+        char key[length + 1];
+        strncpy(key, self->seq + i, length);
+        key[length] = '\0';
+
+        unsigned int hash = 0;
+        for (int j = 0; j < length; j++) {
+            hash = hash * 31 + key[j];
+        }
+        hash %= TABLE_SIZE;
+
+        if (table[hash].key == NULL) {
+            table[hash].key = strdup(key);
+            table[hash].count = 1;
+        } else if (strcmp(table[hash].key, key) == 0) {
+            table[hash].count++;
+        } else {
+
+            int j = (hash + 1) % TABLE_SIZE;
+            while (j != hash && table[j].key != NULL && strcmp(table[j].key, key) != 0) {
+                j = (j + 1) % TABLE_SIZE;
+            }
+            if (table[j].key == NULL) {
+                table[j].key = strdup(key);
+                table[j].count = 1;
+            } else {
+                table[j].count++;
+            }
+        }
+    }
+
+    FrequencyEntry* entries = malloc(TABLE_SIZE * sizeof(FrequencyEntry));
+    int entry_count = 0;
+    for (int i = 0; i < TABLE_SIZE; i++) {
+        if (table[i].key != NULL) {
+            entries[entry_count++] = table[i];
+        }
+    }
+
+    qsort(entries, entry_count, sizeof(FrequencyEntry), compare_entries);
+
+    for (int i = 0; i < entry_count; i++) {
+        double percent = (entries[i].count * 100.0) / n;
+
+        for (char* p = entries[i].key; *p; p++) {
+            if (*p >= 'a' && *p <= 'z') *p = *p - 'a' + 'A';
+        }
+
+        char line[256];
+        snprintf(line, sizeof(line), "%s %.3f\n", entries[i].key, percent);
+        Knuckeotide_append(self, line);
+        free(entries[i].key);
+    }
+    Knuckeotide_append(self, "\n");
+
+    free(table);
+    free(entries);
+}
+
+static void Knuckeotide_find_seq(KnuckeotideData* self, const char* s) {
+    size_t s_len = strlen(s);
+    int count = 0;
+
+    for (size_t i = 0; i <= self->seq_length - s_len; i++) {
+        if (strncasecmp(self->seq + i, s, s_len) == 0) {
+            count++;
+        }
+    }
+
+    char upper_s[32];
+    strcpy(upper_s, s);
+    for (char* p = upper_s; *p; p++) {
+        if (*p >= 'a' && *p <= 'z') *p = *p - 'a' + 'A';
+    }
+
+    char line[256];
+    snprintf(line, sizeof(line), "%d\t%s\n", count, upper_s);
+    Knuckeotide_append(self, line);
+}
+
+void Knuckeotide_prepare(Benchmark* self) {
+    KnuckeotideData* data = (KnuckeotideData*)self->data;
+
+    data->result_length = 0;
+    if (data->result_str) {
+        free(data->result_str);
+        data->result_str = NULL;
+    }
+    data->result_capacity = 0;
+
+    FastaData fasta_instance;
+    memset(&fasta_instance, 0, sizeof(FastaData));
+    fasta_instance.n = data->n;
+    fasta_instance.result_str = NULL;
+    fasta_instance.result_capacity = 0;
+    fasta_instance.result_length = 0;
+
+    Benchmark temp_bench;
+    memset(&temp_bench, 0, sizeof(Benchmark));
+    temp_bench.data = &fasta_instance;
+    temp_bench.name = "Fasta";
+
+    Fasta_run(&temp_bench, 0);
+
+    if (!fasta_instance.result_str) {
+        printf("  ERROR: Fasta returned NULL result\n");
+        data->seq = strdup("");
+        data->seq_length = 0;
+        return;
+    }
+
+    const char* result = fasta_instance.result_str;
+    bool in_three = false;
+    data->seq_length = 0;
+
+    if (data->seq) free(data->seq);
+    data->seq = malloc(strlen(result) + 1);
+
+    const char* ptr = result;
+    while (*ptr) {
+        if (strncmp(ptr, ">THREE", 6) == 0) {
+            in_three = true;
+            while (*ptr && *ptr != '\n') ptr++;
+            if (*ptr == '\n') ptr++;
+            continue;
+        }
+
+        if (in_three) {
+            if (*ptr == '>') break;
+
+            if (*ptr != '\n') {
+                data->seq[data->seq_length++] = *ptr;
+            }
+        }
+
+        ptr++;
+    }
+    data->seq[data->seq_length] = '\0';
+
+    free(fasta_instance.result_str);
+}
+
+void Knuckeotide_run(Benchmark* self, int iteration_id) {
+    KnuckeotideData* data = (KnuckeotideData*)self->data;
+
+    if (iteration_id == 0 && data->result_str == NULL) {
+        data->result_str = malloc(1024);
+        data->result_capacity = 1024;
+        data->result_str[0] = '\0';
+        data->result_length = 0;
+    }
+
+    for (int i = 1; i <= 2; i++) {
+        Knuckeotide_sort_by_freq(data, i);
+    }
+
+    const char* searches[] = {"ggt", "ggta", "ggtatt", "ggtattttaatt", "ggtattttaatttatagt"};
+    for (int i = 0; i < 5; i++) {
+        Knuckeotide_find_seq(data, searches[i]);
+    }
+}
+
+uint32_t Knuckeotide_checksum(Benchmark* self) {
+    KnuckeotideData* data = (KnuckeotideData*)self->data;
+
+    if (!data->result_str) {
+        return 0;
+    }
+
+    uint32_t checksum = Helper_checksum_string(data->result_str);
+    return checksum;
+}
+
+void Knuckeotide_cleanup(Benchmark* self) {
+    KnuckeotideData* data = (KnuckeotideData*)self->data;
+
+    if (data->seq) {
+        free(data->seq);
+        data->seq = NULL;
+    }
+
+    if (data->result_str) {
+        free(data->result_str);
+        data->result_str = NULL;
+    }
+
+    data->result_capacity = 0;
+    data->result_length = 0;
+    data->seq_length = 0;
+}
+
+Benchmark* Knuckeotide_create(void) {
+    Benchmark* bench = Benchmark_create("Knuckeotide");
+
+    KnuckeotideData* data = malloc(sizeof(KnuckeotideData));
+
+    data->n = Helper_config_i64("Knuckeotide", "n");
+    if (data->n == 0) {
+        data->n = 1000;
+    }
+
+    data->seq = NULL;
+    data->seq_length = 0;
+    data->result_str = NULL;
+    data->result_capacity = 0;
+    data->result_length = 0;
+
+    bench->data = data;
+    bench->prepare = Knuckeotide_prepare;
+    bench->run = Knuckeotide_run;
+    bench->checksum = Knuckeotide_checksum;
+    bench->cleanup = Knuckeotide_cleanup;
+
+    return bench;
+}
+
+static const char* REGEXDNA_PATTERNS[] = {
+    "agggtaaa|tttaccct",
+    "[cgt]gggtaaa|tttaccc[acg]",
+    "a[act]ggtaaa|tttacc[agt]t",
+    "ag[act]gtaaa|tttac[agt]ct",
+    "agg[act]taaa|ttta[agt]cct",
+    "aggg[acg]aaa|ttt[cgt]ccct",
+    "agggt[cgt]aa|tt[acg]accct",
+    "agggta[cgt]a|t[acg]taccct",
+    "agggtaa[cgt]|[acg]ttaccct"
+};
+static const int REGEXDNA_PATTERNS_COUNT = 9;
+
+static const struct {
+    char from;
+    const char* to;
+    int len;
+} REGEXDNA_REPLACEMENTS[] = {
+    {'B', "(c|g|t)", 7},
+    {'D', "(a|g|t)", 7},
+    {'H', "(a|c|t)", 7},
+    {'K', "(g|t)", 5},
+    {'M', "(a|c)", 5},
+    {'N', "(a|c|g|t)", 9},
+    {'R', "(a|g)", 5},
+    {'S', "(c|t)", 5},
+    {'V', "(a|c|g)", 7},
+    {'W', "(a|t)", 5},
+    {'Y', "(c|t)", 5},
+};
+static const int REGEXDNA_REPLACEMENTS_COUNT = sizeof(REGEXDNA_REPLACEMENTS) / sizeof(REGEXDNA_REPLACEMENTS[0]);
+
+typedef struct {
+    char* seq;
+    int seq_len;
+    int ilen;
+    int clen;
+    char* result_str;
+    size_t result_capacity;
+    size_t result_length;
+
+    pcre2_code* compiled_patterns[9];
+    pcre2_match_data* match_data[9];
+} RegexDnaData;
+
+static void RegexDna_grow_result(RegexDnaData* self, size_t needed) {
+    size_t min_capacity = self->result_length + needed + 1;
+    if (min_capacity <= self->result_capacity) return;
+
+    size_t new_capacity = self->result_capacity ? self->result_capacity * 2 : 1024;
+    while (new_capacity < min_capacity) new_capacity *= 2;
+
+    char* new_buffer = realloc(self->result_str, new_capacity);
+    if (!new_buffer) {
+        fprintf(stderr, "RegexDna_grow_result: Failed to reallocate memory\n");
+        return;
+    }
+
+    self->result_str = new_buffer;
+    self->result_capacity = new_capacity;
+}
+
+static void RegexDna_append(RegexDnaData* self, const char* str) {
+    size_t len = strlen(str);
+    RegexDna_grow_result(self, len + 1);
+    memcpy(self->result_str + self->result_length, str, len);
+    self->result_length += len;
+    self->result_str[self->result_length] = '\0';
+}
+
+static size_t RegexDna_count_pattern_optimized(RegexDnaData* self, int pattern_idx) {
+    pcre2_code* re = self->compiled_patterns[pattern_idx];
+    pcre2_match_data* match_data = self->match_data[pattern_idx];
+
+    if (re == NULL || match_data == NULL) {
+        return 0;
+    }
+
+    size_t count = 0;
+    PCRE2_SIZE start_offset = 0;
+    PCRE2_SPTR subject = (PCRE2_SPTR)self->seq;
+    PCRE2_SIZE subject_length = self->seq_len;
+
+    while (1) {
+        int rc = pcre2_jit_match(
+            re,
+            subject,
+            subject_length,
+            start_offset,
+            0,
+            match_data,
+            NULL
+        );
+
+        if (rc < 0) {
+            if (rc == PCRE2_ERROR_NOMATCH) break;
+            break;
+        }
+
+        count++;
+
+        PCRE2_SIZE* ovector = pcre2_get_ovector_pointer(match_data);
+        start_offset = ovector[1];
+
+        if (ovector[0] == ovector[1]) {
+            start_offset++;
+        }
+
+        if (start_offset > subject_length) break;
+    }
+
+    return count;
+}
+
+void RegexDna_prepare(Benchmark* self) {
+    RegexDnaData* data = (RegexDnaData*)self->data;
+
+    int64_t n = Helper_config_i64(self->name, "n");
+    if (n == 0) {
+        n = 1000;
+    }
+
+    if (data->result_str) {
+        free(data->result_str);
+    }
+    data->result_str = NULL;
+    data->result_capacity = 0;
+    data->result_length = 0;
+
+    FastaData fasta_instance;
+    memset(&fasta_instance, 0, sizeof(FastaData));
+    fasta_instance.n = n;
+    fasta_instance.result_str = NULL;
+    fasta_instance.result_capacity = 0;
+    fasta_instance.result_length = 0;
+
+    Benchmark temp_bench;
+    memset(&temp_bench, 0, sizeof(Benchmark));
+    temp_bench.data = &fasta_instance;
+    temp_bench.name = "Fasta";
+
+    Fasta_run(&temp_bench, 0);
+
+    if (!fasta_instance.result_str || fasta_instance.result_length == 0) {
+        fprintf(stderr, "Fasta returned empty result\n");
+        data->seq = strdup("");
+        data->seq_len = 0;
+        data->ilen = 0;
+        data->clen = 0;
+        if (fasta_instance.result_str) free(fasta_instance.result_str);
+        return;
+    }
+
+    data->ilen = 0;
+    data->clen = 0;
+
+    data->seq = malloc(fasta_instance.result_length + 1);
+    if (!data->seq) {
+        fprintf(stderr, "Failed to allocate memory for seq\n");
+        free(fasta_instance.result_str);
+        return;
+    }
+
+    size_t seq_pos = 0;
+    char* current = fasta_instance.result_str;
+
+    while (*current) {
+        char* line_start = current;
+
+        while (*current && *current != '\n') {
+            current++;
+        }
+
+        int line_length = current - line_start;
+        data->ilen += line_length + 1;
+
+        if (line_length > 0 && line_start[0] != '>') {
+            memcpy(data->seq + seq_pos, line_start, line_length);
+            seq_pos += line_length;
+        }
+
+        if (*current == '\n') {
+            current++;
+        }
+    }
+
+    data->seq[seq_pos] = '\0';
+    data->seq_len = seq_pos;
+    data->clen = seq_pos;
+
+    free(fasta_instance.result_str);
+
+    for (int i = 0; i < REGEXDNA_PATTERNS_COUNT; i++) {
+        if (data->compiled_patterns[i]) {
+            pcre2_code_free(data->compiled_patterns[i]);
+            data->compiled_patterns[i] = NULL;
+        }
+        if (data->match_data[i]) {
+            pcre2_match_data_free(data->match_data[i]);
+            data->match_data[i] = NULL;
+        }
+    }
+
+    for (int i = 0; i < REGEXDNA_PATTERNS_COUNT; i++) {
+        int errornumber;
+        PCRE2_SIZE erroroffset;
+
+        data->compiled_patterns[i] = pcre2_compile(
+            (PCRE2_SPTR)REGEXDNA_PATTERNS[i],
+            PCRE2_ZERO_TERMINATED,
+            PCRE2_UTF | PCRE2_NO_UTF_CHECK,
+            &errornumber,
+            &erroroffset,
+            NULL
+        );
+
+        if (data->compiled_patterns[i]) {
+            pcre2_jit_compile(data->compiled_patterns[i], PCRE2_JIT_COMPLETE);
+            data->match_data[i] = pcre2_match_data_create_from_pattern(
+                data->compiled_patterns[i], 
+                NULL
+            );
+        } else {
+            PCRE2_UCHAR buffer[256];
+            pcre2_get_error_message(errornumber, buffer, sizeof(buffer));
+            fprintf(stderr, "PCRE2 compilation failed for pattern %d: %s\n", i, buffer);
+            data->match_data[i] = NULL;
+        }
+    }
+}
+
+void RegexDna_run(Benchmark* self, int iteration_id) {
+    RegexDnaData* data = (RegexDnaData*)self->data;
+
+    char buffer[256];
+    for (int i = 0; i < REGEXDNA_PATTERNS_COUNT; i++) {
+        size_t count = RegexDna_count_pattern_optimized(data, i);
+        snprintf(buffer, sizeof(buffer), "%s %zu\n", REGEXDNA_PATTERNS[i], count);
+        RegexDna_append(data, buffer);
+    }
+
+    char* seq2 = malloc(data->seq_len * 9 + 1);
+    if (!seq2) {
+        fprintf(stderr, "Failed to allocate memory for seq2\n");
+        return;
+    }
+
+    int seq2_len = 0;
+    for (int i = 0; i < data->seq_len; i++) {
+        char c = data->seq[i];
+        int found = 0;
+
+        for (int j = 0; j < REGEXDNA_REPLACEMENTS_COUNT; j++) {
+            if (c == REGEXDNA_REPLACEMENTS[j].from) {
+                memcpy(seq2 + seq2_len, REGEXDNA_REPLACEMENTS[j].to, REGEXDNA_REPLACEMENTS[j].len);
+                seq2_len += REGEXDNA_REPLACEMENTS[j].len;
+                found = 1;
+                break;
+            }
+        }
+
+        if (!found) {
+            seq2[seq2_len++] = c;
+        }
+    }
+    seq2[seq2_len] = '\0';
+
+    snprintf(buffer, sizeof(buffer), "\n%d\n%d\n%d\n", 
+             data->ilen, data->clen, seq2_len);
+    RegexDna_append(data, buffer);
+
+    free(seq2);
+}
+
+uint32_t RegexDna_checksum(Benchmark* self) {
+    RegexDnaData* data = (RegexDnaData*)self->data;
+
+    if (!data->result_str) {
+        return 0;
+    }
+
+    uint32_t checksum = Helper_checksum_string(data->result_str);
+    return checksum;
+}
+
+void RegexDna_cleanup(Benchmark* self) {
+    RegexDnaData* data = (RegexDnaData*)self->data;
+
+    if (!data) return;
+
+    for (int i = 0; i < REGEXDNA_PATTERNS_COUNT; i++) {
+        if (data->compiled_patterns[i]) {
+            pcre2_code_free(data->compiled_patterns[i]);
+            data->compiled_patterns[i] = NULL;
+        }
+        if (data->match_data[i]) {
+            pcre2_match_data_free(data->match_data[i]);
+            data->match_data[i] = NULL;
+        }
+    }
+
+    if (data->seq) {
+        free(data->seq);
+        data->seq = NULL;
+    }
+
+    if (data->result_str) {
+        free(data->result_str);
+        data->result_str = NULL;
+    }
+
+    data->result_capacity = 0;
+    data->result_length = 0;
+    data->seq_len = 0;
+    data->ilen = 0;
+    data->clen = 0;
+}
+
+Benchmark* RegexDna_create(void) {
+    Benchmark* bench = Benchmark_create("RegexDna");
+
+    RegexDnaData* data = calloc(1, sizeof(RegexDnaData));
+
+    data->seq = NULL;
+    data->result_str = NULL;
+    data->result_capacity = 0;
+    data->result_length = 0;
+
+    for (int i = 0; i < REGEXDNA_PATTERNS_COUNT; i++) {
+        data->compiled_patterns[i] = NULL;
+        data->match_data[i] = NULL;
+    }
+
+    bench->data = data;
+    bench->prepare = RegexDna_prepare;
+    bench->run = RegexDna_run;
+    bench->checksum = RegexDna_checksum;
+    bench->cleanup = RegexDna_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    char* input;            
+    uint32_t checksum_val;
+} RevcompData;
+
+static char Revcomp_complement(char c) {
+    static const char* from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
+    static const char* to   = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
+    static char lookup[256];
+    static int initialized = 0;
+
+    if (!initialized) {
+        for (int i = 0; i < 256; i++) lookup[i] = (char)i;
+        for (size_t i = 0; from[i] && to[i]; i++) {
+            lookup[(unsigned char)from[i]] = to[i];
+        }
+        initialized = 1;
+    }
+
+    return lookup[(unsigned char)c];
+}
+
+static char* Revcomp_process(const char* input) {
+    size_t len = strlen(input);
+
+    static char lookup[256];
+    static int initialized = 0;
+
+    if (!initialized) {
+        for (int i = 0; i < 256; i++) lookup[i] = (char)i;
+
+        const char* from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
+        const char* to   = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
+
+        for (size_t i = 0; from[i] && to[i]; i++) {
+            lookup[(unsigned char)from[i]] = to[i];
+        }
+        initialized = 1;
+    }
+
+    size_t result_len = len + (len / 60) + 1;
+    if (len % 60 == 0 && len > 0) result_len--; 
+
+    char* result = malloc(result_len + 1);
+    if (!result) return NULL;
+
+    char* out = result;
+    size_t processed = 0;
+
+    while (processed < len) {
+
+        size_t block_size = 60;
+        if (len - processed < 60) {
+            block_size = len - processed;
+        }
+
+        for (size_t i = 0; i < block_size; i++) {
+            char c = input[len - 1 - processed - i];
+            *out++ = lookup[(unsigned char)c];
+        }
+
+        *out++ = '\n';
+        processed += block_size;
+    }
+
+    if (len > 0 && len % 60 == 0) {
+        out--;
+    }
+
+    *out = '\0';
+    return result;
+}
+
+void Revcomp_prepare(Benchmark* self) {
+    RevcompData* data = (RevcompData*)self->data;
+
+    if (data->input) free(data->input);
+    data->input = NULL;
+    data->checksum_val = 0;
+
+    int64_t n = Helper_config_i64(self->name, "n");
+    if (n == 0) n = 1000;
+
+    FastaData fasta_instance;
+    memset(&fasta_instance, 0, sizeof(FastaData));
+    fasta_instance.n = n;
+    fasta_instance.result_str = NULL;
+    fasta_instance.result_capacity = 0;
+    fasta_instance.result_length = 0;
+
+    Benchmark temp_bench;
+    memset(&temp_bench, 0, sizeof(Benchmark));
+    temp_bench.data = &fasta_instance;
+    temp_bench.name = "Fasta";
+
+    Fasta_run(&temp_bench, 0);
+
+    if (!fasta_instance.result_str) {
+        data->input = strdup("");
+        if (fasta_instance.result_str) free(fasta_instance.result_str);
+        return;
+    }
+
+    char* ptr = fasta_instance.result_str;
+    size_t buffer_size = 0;
+    size_t buffer_capacity = 0;
+    char* buffer = NULL;
+
+    while (*ptr) {
+        char* line_start = ptr;
+        while (*ptr && *ptr != '\n') ptr++;
+        size_t line_len = ptr - line_start;
+
+        if (line_len > 0) {
+            if (line_start[0] == '>') {
+
+                const char* sep = "\n---\n";
+                size_t sep_len = 5;
+
+                if (buffer_size + sep_len + 1 > buffer_capacity) {
+                    buffer_capacity = (buffer_size + sep_len + 1) * 2;
+                    char* new_buf = realloc(buffer, buffer_capacity);
+                    if (!new_buf) {
+                        free(buffer);
+                        free(fasta_instance.result_str);
+                        data->input = strdup("");
+                        return;
+                    }
+                    buffer = new_buf;
+                }
+                memcpy(buffer + buffer_size, sep, sep_len);
+                buffer_size += sep_len;
+            } else {
+
+                if (buffer_size + line_len + 1 > buffer_capacity) {
+                    buffer_capacity = (buffer_size + line_len + 1) * 2;
+                    char* new_buf = realloc(buffer, buffer_capacity);
+                    if (!new_buf) {
+                        free(buffer);
+                        free(fasta_instance.result_str);
+                        data->input = strdup("");
+                        return;
+                    }
+                    buffer = new_buf;
+                }
+                memcpy(buffer + buffer_size, line_start, line_len);
+                buffer_size += line_len;
+            }
+        }
+
+        if (*ptr == '\n') ptr++;
+    }
+
+    if (buffer) {
+        buffer[buffer_size] = '\0';
+        data->input = buffer;
+    } else {
+        data->input = strdup("");
+    }
+
+    free(fasta_instance.result_str);
+}
+
+void Revcomp_run(Benchmark* self, int iteration_id) {
+    RevcompData* data = (RevcompData*)self->data;
+
+    if (!data->input) return;
+
+    char* processed = Revcomp_process(data->input);
+    if (!processed) return;
+
+    data->checksum_val += Helper_checksum_string(processed);
+
+    free(processed);
+}
+
+uint32_t Revcomp_checksum(Benchmark* self) {
+    RevcompData* data = (RevcompData*)self->data;
+    return data->checksum_val;
+}
+
+void Revcomp_cleanup(Benchmark* self) {
+    RevcompData* data = (RevcompData*)self->data;
+
+    if (data->input) free(data->input);
+
+}
+
+Benchmark* Revcomp_create(void) {
+    Benchmark* bench = Benchmark_create("Revcomp");
+
+    RevcompData* data = calloc(1, sizeof(RevcompData));
+
+    bench->data = data;
+    bench->prepare = Revcomp_prepare;
+    bench->run = Revcomp_run;
+    bench->checksum = Revcomp_checksum;
+    bench->cleanup = Revcomp_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    int64_t w;
+    int64_t h;
+    uint8_t* result_bin;
+    size_t result_size;
+    size_t result_capacity;
+} MandelbrotData;
+
+static void Mandelbrot_grow_result(MandelbrotData* self, size_t needed) {
+    size_t new_capacity = self->result_capacity;
+    while (self->result_size + needed >= new_capacity) {
+        new_capacity = new_capacity ? new_capacity * 2 : 1024;
+    }
+    if (new_capacity > self->result_capacity) {
+        self->result_bin = realloc(self->result_bin, new_capacity);
+        if (!self->result_bin) {
+            fprintf(stderr, "Mandelbrot_grow_result: Failed to reallocate memory\n");
+            return;
+        }
+        self->result_capacity = new_capacity;
+    }
+}
+
+static void Mandelbrot_append(MandelbrotData* self, const uint8_t* data, size_t size) {
+    Mandelbrot_grow_result(self, size);
+    memcpy(self->result_bin + self->result_size, data, size);
+    self->result_size += size;
+}
+
+void Mandelbrot_prepare(Benchmark* self) {
+    MandelbrotData* data = (MandelbrotData*)self->data;
+
+    data->w = Helper_config_i64(self->name, "w");
+    data->h = Helper_config_i64(self->name, "h");
+
+    if (data->w == 0) data->w = 200;
+    if (data->h == 0) data->h = 200;
+
+    data->result_size = 0;
+}
+
+void Mandelbrot_run(Benchmark* self, int iteration_id) {
+    MandelbrotData* data = (MandelbrotData*)self->data;
+
+    volatile int w = (int)data->w;
+    int h = (int)data->h;
+
+    char header[256];
+    int header_len = snprintf(header, sizeof(header), "P4\n%d %d\n", w, h);
+    Mandelbrot_append(data, (uint8_t*)header, header_len);
+
+    const int ITER = 50;
+    const double LIMIT = 2.0;
+
+    int bit_num = 0;
+    uint8_t byte_acc = 0;
+
+    for (int y = 0; y < h; y++) {
+        double ci = 2.0 * y / (double)h - 1.0;
+
+        for (int x = 0; x < w; x++) {
+            double cr = 2.0 * x / (double)w - 1.5;
+
+            double zr = 0.0, zi = 0.0;
+            double tr = 0.0, ti = 0.0;
+
+            int i = 0;
+            while (i < ITER && tr + ti <= LIMIT * LIMIT) {
+                zi = 2.0 * zr * zi + ci;
+                zr = tr - ti + cr;
+                tr = zr * zr;
+                ti = zi * zi;
+                i++;
+            }
+
+            byte_acc <<= 1;
+            if (tr + ti <= LIMIT * LIMIT) {
+                byte_acc |= 0x01;
+            }
+            bit_num++;
+
+            if (bit_num == 8) {
+                Mandelbrot_append(data, &byte_acc, 1);
+                byte_acc = 0;
+                bit_num = 0;
+            } else if (x == w - 1) {
+
+                byte_acc <<= (8 - (w % 8));
+                Mandelbrot_append(data, &byte_acc, 1);
+                byte_acc = 0;
+                bit_num = 0;
+            }
+        }
+    }
+}
+
+uint32_t Mandelbrot_checksum(Benchmark* self) {
+    MandelbrotData* data = (MandelbrotData*)self->data;
+
+    if (!data->result_bin || data->result_size == 0) {
+        return 0;
+    }
+
+    return Helper_checksum_bytes(data->result_bin, data->result_size);
+}
+
+void Mandelbrot_cleanup(Benchmark* self) {
+    MandelbrotData* data = (MandelbrotData*)self->data;
+
+    if (data->result_bin) {
+        free(data->result_bin);
+        data->result_bin = NULL;
+    }
+
+    data->result_size = 0;
+    data->result_capacity = 0;
+}
+
+Benchmark* Mandelbrot_create(void) {
+    Benchmark* bench = Benchmark_create("Mandelbrot");
+
+    MandelbrotData* data = calloc(1, sizeof(MandelbrotData));
+
+    data->w = Helper_config_i64("Mandelbrot", "w");
+    data->h = Helper_config_i64("Mandelbrot", "h");
+
+    if (data->w == 0) data->w = 200;
+    if (data->h == 0) data->h = 200;
+
+    data->result_bin = NULL;
+    data->result_size = 0;
+    data->result_capacity = 0;
+
+    bench->data = data;
+    bench->prepare = Mandelbrot_prepare;
+    bench->run = Mandelbrot_run;
+    bench->checksum = Mandelbrot_checksum;
+    bench->cleanup = Mandelbrot_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    int64_t n;
+    uint32_t result_val;
+} MatmulData;
+
+static double** Matmul_matgen(int n) {
+    double tmp = 1.0 / n / n;
+    double** a = malloc(n * sizeof(double*));
+
+    for (int i = 0; i < n; i++) {
+        a[i] = malloc(n * sizeof(double));
+        for (int j = 0; j < n; j++) {
+            a[i][j] = tmp * (i - j) * (i + j);
+        }
+    }
+    return a;
+}
+
+static void Matmul_free_matrix(double** a, int n) {
+    for (int i = 0; i < n; i++) {
+        free(a[i]);
+    }
+    free(a);
+}
+
+static double** Matmul_matmul(double** a, double** b, int n) {
+
+    double** b2 = malloc(n * sizeof(double*));
+    for (int j = 0; j < n; j++) {
+        b2[j] = malloc(n * sizeof(double));
+        for (int i = 0; i < n; i++) {
+            b2[j][i] = b[i][j];
+        }
+    }
+
+    double** c = malloc(n * sizeof(double*));
+    for (int i = 0; i < n; i++) {
+        c[i] = malloc(n * sizeof(double));
+        double* ai = a[i];
+        for (int j = 0; j < n; j++) {
+            double s = 0.0;
+            double* b2j = b2[j];
+            for (int k = 0; k < n; k++) {
+                s += ai[k] * b2j[k];
+            }
+            c[i][j] = s;
+        }
+    }
+
+    Matmul_free_matrix(b2, n);
+    return c;
+}
+
+void Matmul_prepare(Benchmark* self) {
+    MatmulData* data = (MatmulData*)self->data;
+
+    data->result_val = 0;
+}
+
+void Matmul_run(Benchmark* self, int iteration_id) {
+    MatmulData* data = (MatmulData*)self->data;
+
+    int n = (int)data->n;
+
+    double** a = Matmul_matgen(n);
+    double** b = Matmul_matgen(n);
+    double** c = Matmul_matmul(a, b, n);
+
+    double center_value = c[n >> 1][n >> 1];
+
+    Matmul_free_matrix(a, n);
+    Matmul_free_matrix(b, n);
+    Matmul_free_matrix(c, n);
+
+    uint32_t iter_checksum = Helper_checksum_f64(center_value);
+    data->result_val += iter_checksum;
+}
+
+uint32_t Matmul_checksum(Benchmark* self) {
+    MatmulData* data = (MatmulData*)self->data;
+    return data->result_val;
+}
+
+void Matmul_cleanup(Benchmark* self) {
+    MatmulData* data = (MatmulData*)self->data;
+
+}
+
+Benchmark* Matmul_create(void) {
+    Benchmark* bench = Benchmark_create("Matmul1T");
+
+    MatmulData* data = malloc(sizeof(MatmulData));
+
+    data->n = Helper_config_i64("Matmul1T", "n");
+    if (data->n == 0) {
+        data->n = 100;
+    }
+
+    data->result_val = 0;
+
+    bench->data = data;
+    bench->prepare = Matmul_prepare;
+    bench->run = Matmul_run;
+    bench->checksum = Matmul_checksum;
+    bench->cleanup = Matmul_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    int64_t n;
+    uint32_t result_val;
+} Matmul4TData;
+
+typedef struct {
+    double** a;
+    double** b_t;
+    double** c;
+    int n;
+    int start_row;
+    int end_row;
+} MatmulThreadData;
+
+static void* Matmul4T_thread_func(void* arg) {
+    MatmulThreadData* data = (MatmulThreadData*)arg;
+
+    for (int i = data->start_row; i < data->end_row; i++) {
+        double* ai = data->a[i];
+        double* ci = data->c[i];
+
+        for (int j = 0; j < data->n; j++) {
+            double sum = 0.0;
+            double* b_tj = data->b_t[j];
+
+            for (int k = 0; k < data->n; k++) {
+                sum += ai[k] * b_tj[k];
+            }
+            ci[j] = sum;
+        }
+    }
+
+    return NULL;
+}
+
+static double** Matmul4T_matgen(int n) {
+    double tmp = 1.0 / n / n;
+    double** a = malloc(n * sizeof(double*));
+
+    for (int i = 0; i < n; i++) {
+        a[i] = malloc(n * sizeof(double));
+        for (int j = 0; j < n; j++) {
+            a[i][j] = tmp * (i - j) * (i + j);
+        }
+    }
+    return a;
+}
+
+static void Matmul4T_free_matrix(double** a, int n) {
+    for (int i = 0; i < n; i++) {
+        free(a[i]);
+    }
+    free(a);
+}
+
+static double** Matmul4T_matmul_parallel(double** a, double** b, int n) {
+    const int num_threads = 4;
+    pthread_t threads[num_threads];
+    MatmulThreadData thread_data[num_threads];
+
+    double** b_t = malloc(n * sizeof(double*));
+    for (int j = 0; j < n; j++) {
+        b_t[j] = malloc(n * sizeof(double));
+        for (int i = 0; i < n; i++) {
+            b_t[j][i] = b[i][j];
+        }
+    }
+
+    double** c = malloc(n * sizeof(double*));
+    for (int i = 0; i < n; i++) {
+        c[i] = calloc(n, sizeof(double)); 
+    }
+
+    int rows_per_thread = (n + num_threads - 1) / num_threads;
+
+    for (int t = 0; t < num_threads; t++) {
+        thread_data[t].a = a;
+        thread_data[t].b_t = b_t;
+        thread_data[t].c = c;
+        thread_data[t].n = n;
+        thread_data[t].start_row = t * rows_per_thread;
+        thread_data[t].end_row = thread_data[t].start_row + rows_per_thread;
+        if (thread_data[t].end_row > n || t == num_threads - 1) {
+            thread_data[t].end_row = n;
+        }
+
+        int rc = pthread_create(&threads[t], NULL, Matmul4T_thread_func, &thread_data[t]);
+        if (rc != 0) {
+            fprintf(stderr, "Failed to create thread %d\n", t);
+
+            Matmul4T_thread_func(&thread_data[t]);
+            threads[t] = 0; 
+        }
+    }
+
+    for (int t = 0; t < num_threads; t++) {
+        if (threads[t] != 0) {
+            pthread_join(threads[t], NULL);
+        }
+    }
+
+    Matmul4T_free_matrix(b_t, n);
+
+    return c;
+}
+
+void Matmul4T_prepare(Benchmark* self) {
+    Matmul4TData* data = (Matmul4TData*)self->data;
+    data->result_val = 0;
+}
+
+void Matmul4T_run(Benchmark* self, int iteration_id) {
+    Matmul4TData* data = (Matmul4TData*)self->data;
+
+    int n = (int)data->n;
+
+    double** a = Matmul4T_matgen(n);
+    double** b = Matmul4T_matgen(n);
+    double** c = Matmul4T_matmul_parallel(a, b, n);
+
+    double center_value = c[n >> 1][n >> 1];
+
+    Matmul4T_free_matrix(a, n);
+    Matmul4T_free_matrix(b, n);
+    Matmul4T_free_matrix(c, n);
+
+    uint32_t iter_checksum = Helper_checksum_f64(center_value);
+    data->result_val += iter_checksum;
+}
+
+uint32_t Matmul4T_checksum(Benchmark* self) {
+    Matmul4TData* data = (Matmul4TData*)self->data;
+    return data->result_val;
+}
+
+void Matmul4T_cleanup(Benchmark* self) {
+    Matmul4TData* data = (Matmul4TData*)self->data;
+
+}
+
+Benchmark* Matmul4T_create(void) {
+    Benchmark* bench = Benchmark_create("Matmul4T");
+
+    Matmul4TData* data = malloc(sizeof(Matmul4TData));
+
+    data->n = Helper_config_i64("Matmul4T", "n");
+    if (data->n == 0) {
+        data->n = 100;
+    }
+
+    data->result_val = 0;
+
+    bench->data = data;
+    bench->prepare = Matmul4T_prepare;
+    bench->run = Matmul4T_run;
+    bench->checksum = Matmul4T_checksum;
+    bench->cleanup = Matmul4T_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    int64_t n;
+    uint32_t result_val;
+} Matmul8TData;
+
+static double** Matmul8T_matmul_parallel(double** a, double** b, int n) {
+    const int num_threads = 8;
+    pthread_t threads[num_threads];
+    MatmulThreadData thread_data[num_threads];
+
+    double** b_t = malloc(n * sizeof(double*));
+    for (int j = 0; j < n; j++) {
+        b_t[j] = malloc(n * sizeof(double));
+        for (int i = 0; i < n; i++) {
+            b_t[j][i] = b[i][j];
+        }
+    }
+
+    double** c = malloc(n * sizeof(double*));
+    for (int i = 0; i < n; i++) {
+        c[i] = calloc(n, sizeof(double));
+    }
+
+    int rows_per_thread = (n + num_threads - 1) / num_threads;
+
+    for (int t = 0; t < num_threads; t++) {
+        thread_data[t].a = a;
+        thread_data[t].b_t = b_t;
+        thread_data[t].c = c;
+        thread_data[t].n = n;
+        thread_data[t].start_row = t * rows_per_thread;
+        thread_data[t].end_row = thread_data[t].start_row + rows_per_thread;
+        if (thread_data[t].end_row > n || t == num_threads - 1) {
+            thread_data[t].end_row = n;
+        }
+
+        int rc = pthread_create(&threads[t], NULL, Matmul4T_thread_func, &thread_data[t]);
+        if (rc != 0) {
+            fprintf(stderr, "Failed to create thread %d\n", t);
+            Matmul4T_thread_func(&thread_data[t]);
+            threads[t] = 0;
+        }
+    }
+
+    for (int t = 0; t < num_threads; t++) {
+        if (threads[t] != 0) {
+            pthread_join(threads[t], NULL);
+        }
+    }
+
+    Matmul4T_free_matrix(b_t, n);
+
+    return c;
+}
+
+void Matmul8T_prepare(Benchmark* self) {
+    Matmul8TData* data = (Matmul8TData*)self->data;
+    data->result_val = 0;
+}
+
+void Matmul8T_run(Benchmark* self, int iteration_id) {
+    Matmul8TData* data = (Matmul8TData*)self->data;
+
+    int n = (int)data->n;
+
+    double** a = Matmul4T_matgen(n);  
+    double** b = Matmul4T_matgen(n);
+    double** c = Matmul8T_matmul_parallel(a, b, n);
+
+    double center_value = c[n >> 1][n >> 1];
+
+    Matmul4T_free_matrix(a, n);
+    Matmul4T_free_matrix(b, n);
+    Matmul4T_free_matrix(c, n);
+
+    uint32_t iter_checksum = Helper_checksum_f64(center_value);
+    data->result_val += iter_checksum;
+}
+
+uint32_t Matmul8T_checksum(Benchmark* self) {
+    Matmul8TData* data = (Matmul8TData*)self->data;
+    return data->result_val;
+}
+
+void Matmul8T_cleanup(Benchmark* self) {
+    Matmul8TData* data = (Matmul8TData*)self->data;
+
+}
+
+Benchmark* Matmul8T_create(void) {
+    Benchmark* bench = Benchmark_create("Matmul8T");
+
+    Matmul8TData* data = malloc(sizeof(Matmul8TData));
+
+    data->n = Helper_config_i64("Matmul8T", "n");
+    if (data->n == 0) {
+        data->n = 100;
+    }
+
+    data->result_val = 0;
+
+    bench->data = data;
+    bench->prepare = Matmul8T_prepare;
+    bench->run = Matmul8T_run;
+    bench->checksum = Matmul8T_checksum;
+    bench->cleanup = Matmul8T_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    int64_t n;
+    uint32_t result_val;
+} Matmul16TData;
+
+static double** Matmul16T_matmul_parallel(double** a, double** b, int n) {
+    const int num_threads = 16;
+    pthread_t threads[num_threads];
+    MatmulThreadData thread_data[num_threads];
+
+    double** b_t = malloc(n * sizeof(double*));
+    for (int j = 0; j < n; j++) {
+        b_t[j] = malloc(n * sizeof(double));
+        for (int i = 0; i < n; i++) {
+            b_t[j][i] = b[i][j];
+        }
+    }
+
+    double** c = malloc(n * sizeof(double*));
+    for (int i = 0; i < n; i++) {
+        c[i] = calloc(n, sizeof(double));
+    }
+
+    int rows_per_thread = (n + num_threads - 1) / num_threads;
+
+    for (int t = 0; t < num_threads; t++) {
+        thread_data[t].a = a;
+        thread_data[t].b_t = b_t;
+        thread_data[t].c = c;
+        thread_data[t].n = n;
+        thread_data[t].start_row = t * rows_per_thread;
+        thread_data[t].end_row = thread_data[t].start_row + rows_per_thread;
+        if (thread_data[t].end_row > n || t == num_threads - 1) {
+            thread_data[t].end_row = n;
+        }
+
+        int rc = pthread_create(&threads[t], NULL, Matmul4T_thread_func, &thread_data[t]);
+        if (rc != 0) {
+            fprintf(stderr, "Failed to create thread %d\n", t);
+            Matmul4T_thread_func(&thread_data[t]);
+            threads[t] = 0;
+        }
+    }
+
+    for (int t = 0; t < num_threads; t++) {
+        if (threads[t] != 0) {
+            pthread_join(threads[t], NULL);
+        }
+    }
+
+    Matmul4T_free_matrix(b_t, n);
+
+    return c;
+}
+
+void Matmul16T_prepare(Benchmark* self) {
+    Matmul16TData* data = (Matmul16TData*)self->data;
+    data->result_val = 0;
+}
+
+void Matmul16T_run(Benchmark* self, int iteration_id) {
+    Matmul16TData* data = (Matmul16TData*)self->data;
+
+    int n = (int)data->n;
+
+    double** a = Matmul4T_matgen(n);
+    double** b = Matmul4T_matgen(n);
+    double** c = Matmul16T_matmul_parallel(a, b, n);
+
+    double center_value = c[n >> 1][n >> 1];
+
+    Matmul4T_free_matrix(a, n);
+    Matmul4T_free_matrix(b, n);
+    Matmul4T_free_matrix(c, n);
+
+    uint32_t iter_checksum = Helper_checksum_f64(center_value);
+    data->result_val += iter_checksum;
+}
+
+uint32_t Matmul16T_checksum(Benchmark* self) {
+    Matmul16TData* data = (Matmul16TData*)self->data;
+    return data->result_val;
+}
+
+void Matmul16T_cleanup(Benchmark* self) {
+    Matmul16TData* data = (Matmul16TData*)self->data;
+
+}
+
+Benchmark* Matmul16T_create(void) {
+    Benchmark* bench = Benchmark_create("Matmul16T");
+
+    Matmul16TData* data = malloc(sizeof(Matmul16TData));
+
+    data->n = Helper_config_i64("Matmul16T", "n");
+    if (data->n == 0) {
+        data->n = 100;
+    }
+
+    data->result_val = 0;
+
+    bench->data = data;
+    bench->prepare = Matmul16T_prepare;
+    bench->run = Matmul16T_run;
+    bench->checksum = Matmul16T_checksum;
+    bench->cleanup = Matmul16T_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    int64_t size_val;
+    double* u;
+    double* v;
+    double* w;  
+} SpectralnormData;
+
+void Spectralnorm_prepare(Benchmark* self) {
+    SpectralnormData* data = (SpectralnormData*)self->data;
+    data->size_val = Helper_config_i64(self->name, "size");
+    if (data->size_val <= 0) {
+        data->size_val = 100; 
+    }
+
+    data->u = malloc(data->size_val * sizeof(double));
+    data->v = malloc(data->size_val * sizeof(double));
+    data->w = malloc(data->size_val * sizeof(double));
+
+    for (int64_t i = 0; i < data->size_val; i++) {
+        data->u[i] = 1.0;
+        data->v[i] = 1.0;
+    }
+}
+
+static double Spectralnorm_eval_A(int64_t i, int64_t j) {
+    return 1.0 / ((i + j) * (i + j + 1.0) / 2.0 + i + 1.0);
+}
+
+static void Spectralnorm_eval_A_times_u(double* u, double* result, int64_t n) {
+    for (int64_t i = 0; i < n; i++) {
+        double sum = 0.0;
+        for (int64_t j = 0; j < n; j++) {
+            sum += Spectralnorm_eval_A(i, j) * u[j];
+        }
+        result[i] = sum;
+    }
+}
+
+static void Spectralnorm_eval_At_times_u(double* u, double* result, int64_t n) {
+    for (int64_t i = 0; i < n; i++) {
+        double sum = 0.0;
+        for (int64_t j = 0; j < n; j++) {
+            sum += Spectralnorm_eval_A(j, i) * u[j];
+        }
+        result[i] = sum;
+    }
+}
+
+static void Spectralnorm_eval_AtA_times_u(double* u, double* result, double* temp, int64_t n) {
+    Spectralnorm_eval_A_times_u(u, temp, n);
+    Spectralnorm_eval_At_times_u(temp, result, n);
+}
+
+void Spectralnorm_run(Benchmark* self, int iteration_id) {
+    SpectralnormData* data = (SpectralnormData*)self->data;
+    Spectralnorm_eval_AtA_times_u(data->u, data->v, data->w, data->size_val);
+    Spectralnorm_eval_AtA_times_u(data->v, data->u, data->w, data->size_val);
+}
+
+uint32_t Spectralnorm_checksum(Benchmark* self) {
+    SpectralnormData* data = (SpectralnormData*)self->data;
+
+    double vBv = 0.0, vv = 0.0;
+    for (int64_t i = 0; i < data->size_val; i++) {
+        vBv += data->u[i] * data->v[i];
+        vv += data->v[i] * data->v[i];
+    }
+
+    double result = sqrt(vBv / vv);
+    return Helper_checksum_f64(result);
+}
+
+void Spectralnorm_cleanup(Benchmark* self) {
+    SpectralnormData* data = (SpectralnormData*)self->data;
+    if (data->u) free(data->u);
+    if (data->v) free(data->v);
+    if (data->w) free(data->w);
+}
+
+Benchmark* Spectralnorm_create(void) {
+    Benchmark* bench = Benchmark_create("Spectralnorm");
+
+    SpectralnormData* data = malloc(sizeof(SpectralnormData));
+    memset(data, 0, sizeof(SpectralnormData));
+
+    bench->data = data;
+
+    bench->prepare = Spectralnorm_prepare;
+    bench->run = Spectralnorm_run;
+    bench->checksum = Spectralnorm_checksum;
+    bench->cleanup = Spectralnorm_cleanup;
+
+    return bench;
+}
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+#define SOLAR_MASS (4 * M_PI * M_PI)
+#define DAYS_PER_YEAR 365.24
+
+typedef struct {
+    double x, y, z;
+    double vx, vy, vz;
+    double mass;
+} NbodyPlanet;
+
+typedef struct {
+    int64_t iterations;
+    NbodyPlanet* bodies;        
+    NbodyPlanet* working_bodies; 
+    int64_t nbodies;
+    double energy_before;
+} NbodyData;
+
+static void Nbody_Planet_init(NbodyPlanet* p, double x, double y, double z,
+                             double vx, double vy, double vz, double mass) {
+    p->x = x;
+    p->y = y;
+    p->z = z;
+    p->vx = vx * DAYS_PER_YEAR;
+    p->vy = vy * DAYS_PER_YEAR;
+    p->vz = vz * DAYS_PER_YEAR;
+    p->mass = mass * SOLAR_MASS;
+}
+
+static double Nbody_energy(NbodyPlanet* bodies, int64_t nbodies) {
+    double e = 0.0;
+
+    for (int64_t i = 0; i < nbodies; i++) {
+        NbodyPlanet* b = &bodies[i];
+        e += 0.5 * b->mass * (b->vx * b->vx + b->vy * b->vy + b->vz * b->vz);
+        for (int64_t j = i + 1; j < nbodies; j++) {
+            NbodyPlanet* b2 = &bodies[j];
+            double dx = b->x - b2->x;
+            double dy = b->y - b2->y;
+            double dz = b->z - b2->z;
+            double distance = sqrt(dx * dx + dy * dy + dz * dz);
+            e -= (b->mass * b2->mass) / distance;
+        }
+    }
+    return e;
+}
+
+static void Nbody_offset_momentum(NbodyPlanet* bodies, int64_t nbodies) {
+    double px = 0.0, py = 0.0, pz = 0.0;
+
+    for (int64_t i = 0; i < nbodies; i++) {
+        NbodyPlanet* b = &bodies[i];
+        px += b->vx * b->mass;
+        py += b->vy * b->mass;
+        pz += b->vz * b->mass;
+    }
+
+    NbodyPlanet* b = &bodies[0];
+    b->vx = -px / SOLAR_MASS;
+    b->vy = -py / SOLAR_MASS;
+    b->vz = -pz / SOLAR_MASS;
+}
+
+static void Nbody_Planet_move_from_i(NbodyPlanet* bodies, int64_t nbodies, double dt, int64_t start) {
+
+    NbodyPlanet* b1 = &bodies[start - 1];
+
+    for (int64_t j = start; j < nbodies; j++) {
+        NbodyPlanet* b2 = &bodies[j];
+        double dx = b1->x - b2->x;
+        double dy = b1->y - b2->y;
+        double dz = b1->z - b2->z;
+
+        double distance_sq = dx * dx + dy * dy + dz * dz;
+        double distance = sqrt(distance_sq);
+        double mag = dt / (distance * distance * distance);
+        double b1_mass_mag = b1->mass * mag;
+        double b2_mass_mag = b2->mass * mag;
+
+        b1->vx -= dx * b2_mass_mag;
+        b1->vy -= dy * b2_mass_mag;
+        b1->vz -= dz * b2_mass_mag;
+        b2->vx += dx * b1_mass_mag;
+        b2->vy += dy * b1_mass_mag;
+        b2->vz += dz * b1_mass_mag;
+    }
+
+    b1->x += dt * b1->vx;
+    b1->y += dt * b1->vy;
+    b1->z += dt * b1->vz;
+}
+
+void Nbody_prepare(Benchmark* self) {
+    NbodyData* data = (NbodyData*)self->data;
+
+    if (!data->bodies) {
+        data->nbodies = 5;
+        data->bodies = malloc(data->nbodies * sizeof(NbodyPlanet));
+
+        Nbody_Planet_init(&data->bodies[0], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0);
+
+        Nbody_Planet_init(&data->bodies[1], 
+            4.84143144246472090e+00, -1.16032004402742839e+00, -1.03622044471123109e-01,
+            1.66007664274403694e-03, 7.69901118419740425e-03, -6.90460016972063023e-05,
+            9.54791938424326609e-04);
+
+        Nbody_Planet_init(&data->bodies[2],
+            8.34336671824457987e+00, 4.12479856412430479e+00, -4.03523417114321381e-01,
+            -2.76742510726862411e-03, 4.99852801234917238e-03, 2.30417297573763929e-05,
+            2.85885980666130812e-04);
+
+        Nbody_Planet_init(&data->bodies[3],
+            1.28943695621391310e+01, -1.51111514016986312e+01, -2.23307578892655734e-01,
+            2.96460137564761618e-03, 2.37847173959480950e-03, -2.96589568540237556e-05,
+            4.36624404335156298e-05);
+
+        Nbody_Planet_init(&data->bodies[4],
+            1.53796971148509165e+01, -2.59193146099879641e+01, 1.79258772950371181e-01,
+            2.68067772490389322e-03, 1.62824170038242295e-03, -9.51592254519715870e-05,
+            5.15138902046611451e-05);
+
+        data->working_bodies = malloc(data->nbodies * sizeof(NbodyPlanet));
+    }
+
+    memcpy(data->working_bodies, data->bodies, data->nbodies * sizeof(NbodyPlanet));
+
+    Nbody_offset_momentum(data->working_bodies, data->nbodies);
+    data->energy_before = Nbody_energy(data->working_bodies, data->nbodies);
+}
+
+void Nbody_run(Benchmark* self, int iteration_id) {
+    NbodyData* data = (NbodyData*)self->data;
+
+    double dt = 0.01;
+    int nbodies = (int)data->nbodies;
+
+    for (int i = 0; i < nbodies; i++) {
+        Nbody_Planet_move_from_i(data->working_bodies, data->nbodies, dt, i + 1);
+    }
+}
+
+uint32_t Nbody_checksum(Benchmark* self) {
+    NbodyData* data = (NbodyData*)self->data;
+
+    double energy_after = Nbody_energy(data->working_bodies, data->nbodies);
+
+    uint32_t checksum_before = Helper_checksum_f64(data->energy_before);
+    uint32_t checksum_after = Helper_checksum_f64(energy_after);
+
+    return crystal_shl((int64_t)checksum_before, 5) & checksum_after;
+}
+
+void Nbody_cleanup(Benchmark* self) {
+    NbodyData* data = (NbodyData*)self->data;
+
+    if (data) {
+        if (data->bodies) {
+            free(data->bodies);
+            data->bodies = NULL;
+        }
+
+        if (data->working_bodies) {
+            free(data->working_bodies);
+            data->working_bodies = NULL;
+        }
+
+    }
+}
+
+Benchmark* Nbody_create(void) {
+    Benchmark* bench = Benchmark_create("Nbody");
+
+    NbodyData* data = malloc(sizeof(NbodyData));
+    memset(data, 0, sizeof(NbodyData));
+
+    bench->data = data;
+
+    bench->prepare = Nbody_prepare;
+    bench->run = Nbody_run;
+    bench->checksum = Nbody_checksum;
+    bench->cleanup = Nbody_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    char* input_str;
+    size_t input_len;
+    char* encoded_str;
+    size_t encoded_len;
+    uint32_t result_val;
+} Base64EncodeData;
+
+static size_t b64_encode_size(size_t size) { 
+    return (size_t)(size * 4 / 3.0) + 6; 
+}
+
+static size_t b64_encode(char *dst, const char *src, size_t src_size) {
+    size_t encoded_size;
+    base64_encode(src, src_size, dst, &encoded_size, 0);
+    return encoded_size;
+}
+
+void Base64Encode_prepare(Benchmark* self) {
+    Base64EncodeData* data = (Base64EncodeData*)self->data;
+
+    int64_t n = Helper_config_i64(self->name, "size");
+    if (n <= 0) {
+        n = 100; 
+    }
+
+    data->input_len = (size_t)n;
+    data->input_str = malloc(data->input_len + 1);
+    memset(data->input_str, 'a', data->input_len);
+    data->input_str[data->input_len] = '\0';
+
+    data->encoded_len = b64_encode_size(data->input_len);
+    data->encoded_str = malloc(data->encoded_len);
+    data->encoded_len = b64_encode(data->encoded_str, data->input_str, data->input_len);
+
+    data->result_val = 0;
+}
+
+void Base64Encode_run(Benchmark* self, int iteration_id) {
+    Base64EncodeData* data = (Base64EncodeData*)self->data;
+
+    size_t encoded_size = b64_encode_size(data->input_len);
+    char* encoded_buf = (char*)malloc(encoded_size);
+
+    size_t actual_len = b64_encode(encoded_buf, data->input_str, data->input_len);
+
+    data->result_val += actual_len;
+    free(encoded_buf);
+}
+
+uint32_t Base64Encode_checksum(Benchmark* self) {
+    Base64EncodeData* data = (Base64EncodeData*)self->data;
+
+    char result_str[256];
+
+    char input_preview[32];
+    if (data->input_len > 4) {
+
+        strncpy(input_preview, data->input_str, 4);
+        input_preview[4] = '.';
+        input_preview[5] = '.';
+        input_preview[6] = '.';
+        input_preview[7] = '\0';
+    } else {
+        strncpy(input_preview, data->input_str, data->input_len);
+        input_preview[data->input_len] = '\0';
+    }
+
+    char encoded_preview[32];
+    if (data->encoded_len > 4) {
+
+        strncpy(encoded_preview, data->encoded_str, 4);
+        encoded_preview[4] = '.';
+        encoded_preview[5] = '.';
+        encoded_preview[6] = '.';
+        encoded_preview[7] = '\0';
+    } else {
+        strncpy(encoded_preview, data->encoded_str, data->encoded_len);
+        encoded_preview[data->encoded_len] = '\0';
+    }
+
+    snprintf(result_str, sizeof(result_str), 
+             "encode %s to %s: %u",
+             input_preview,
+             encoded_preview,
+             data->result_val);
+
+    return Helper_checksum_string(result_str);
+}
+
+void Base64Encode_cleanup(Benchmark* self) {
+    Base64EncodeData* data = (Base64EncodeData*)self->data;
+    if (data->input_str) free(data->input_str);
+    if (data->encoded_str) free(data->encoded_str);
+}
+
+Benchmark* Base64Encode_create(void) {
+    Benchmark* bench = Benchmark_create("Base64Encode");
+
+    Base64EncodeData* data = malloc(sizeof(Base64EncodeData));
+    memset(data, 0, sizeof(Base64EncodeData));
+
+    bench->data = data;
+
+    bench->prepare = Base64Encode_prepare;
+    bench->run = Base64Encode_run;
+    bench->checksum = Base64Encode_checksum;
+    bench->cleanup = Base64Encode_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    char* encoded_str;
+    size_t encoded_len;
+    char* decoded_str;
+    size_t decoded_len;
+    uint32_t result_val;
+    size_t total_decoded_size;  
+} Base64DecodeData;
+
+static size_t b64_decode_size(size_t size) { 
+    return (size_t)(size * 3 / 4.0) + 6; 
+}
+
+static size_t b64_decode(char *dst, const char *src, size_t src_size) {
+    size_t decoded_size;
+    if (base64_decode(src, src_size, dst, &decoded_size, 0) != 1) {
+        return 0; 
+    }
+    return decoded_size;
+}
+
+void Base64Decode_prepare(Benchmark* self) {
+    Base64DecodeData* data = (Base64DecodeData*)self->data;
+
+    int64_t n = Helper_config_i64(self->name, "size");
+    if (n <= 0) {
+        n = 100; 
+    }
+
+    size_t input_len = (size_t)n;
+    char* input_str = malloc(input_len + 1);
+    memset(input_str, 'a', input_len);
+    input_str[input_len] = '\0';
+
+    size_t encoded_size = b64_encode_size(input_len);
+    data->encoded_str = malloc(encoded_size);
+    size_t actual_encoded = 0;
+    base64_encode(input_str, input_len, data->encoded_str, &actual_encoded, 0);
+    data->encoded_len = actual_encoded;
+
+    size_t decoded_size = b64_decode_size(data->encoded_len);
+    data->decoded_str = malloc(decoded_size);
+    data->decoded_len = b64_decode(data->decoded_str, data->encoded_str, data->encoded_len);
+
+    data->result_val = 0;
+
+    free(input_str);
+}
+
+void Base64Decode_run(Benchmark* self, int iteration_id) {
+    Base64DecodeData* data = (Base64DecodeData*)self->data;
+
+    size_t decoded_size = b64_decode_size(data->encoded_len);
+    char* decoded_buf = (char *)malloc(decoded_size);
+
+    size_t actual_len = b64_decode(decoded_buf, data->encoded_str, data->encoded_len);
+
+    data->result_val += actual_len;
+    free(decoded_buf);
+}
+
+uint32_t Base64Decode_checksum(Benchmark* self) {
+    Base64DecodeData* data = (Base64DecodeData*)self->data;
+
+    char result_str[256];
+
+    char encoded_preview[32];
+    if (data->encoded_len > 4) {
+
+        strncpy(encoded_preview, data->encoded_str, 4);
+        encoded_preview[4] = '.';
+        encoded_preview[5] = '.';
+        encoded_preview[6] = '.';
+        encoded_preview[7] = '\0';
+    } else {
+        strncpy(encoded_preview, data->encoded_str, data->encoded_len);
+        encoded_preview[data->encoded_len] = '\0';
+    }
+
+    char decoded_preview[32];
+    if (data->decoded_len > 4) {
+
+        strncpy(decoded_preview, data->decoded_str, 4);
+        decoded_preview[4] = '.';
+        decoded_preview[5] = '.';
+        decoded_preview[6] = '.';
+        decoded_preview[7] = '\0';
+    } else {
+        strncpy(decoded_preview, data->decoded_str, data->decoded_len);
+        decoded_preview[data->decoded_len] = '\0';
+    }
+
+    snprintf(result_str, sizeof(result_str), 
+             "decode %s to %s: %u",  
+             encoded_preview,
+             decoded_preview,
+             data->result_val);
+
+    return Helper_checksum_string(result_str);
+}
+
+void Base64Decode_cleanup(Benchmark* self) {
+    Base64DecodeData* data = (Base64DecodeData*)self->data;
+    if (data->encoded_str) free(data->encoded_str);
+    if (data->decoded_str) free(data->decoded_str);
+}
+
+Benchmark* Base64Decode_create(void) {
+    Benchmark* bench = Benchmark_create("Base64Decode");
+
+    Base64DecodeData* data = malloc(sizeof(Base64DecodeData));
+    memset(data, 0, sizeof(Base64DecodeData));
+
+    bench->data = data;
+
+    bench->prepare = Base64Decode_prepare;
+    bench->run = Base64Decode_run;
+    bench->checksum = Base64Decode_checksum;
+    bench->cleanup = Base64Decode_cleanup;
+
+    return bench;
+}
+
+typedef struct PrimesNode {
+    struct PrimesNode* children[10];
+    bool terminal;
+} PrimesNode;
+
+typedef struct {
+    PrimesNode** node_pool;
+    size_t pool_size;
+    size_t pool_capacity;
+    PrimesNode* root;
+} PrimesTrie;
+
+typedef struct {
+    int64_t limit;
+    int64_t prefix_val;
+    uint32_t result_val;
+} PrimesData;
+
+static PrimesNode* primes_node_create(PrimesTrie* trie) {
+    if (trie->pool_size >= trie->pool_capacity) {
+        size_t new_capacity = trie->pool_capacity * 2;
+        if (new_capacity < 64) new_capacity = 64;
+
+        PrimesNode** new_pool = realloc(trie->node_pool, new_capacity * sizeof(PrimesNode*));
+        if (!new_pool) return NULL;
+
+        trie->node_pool = new_pool;
+        trie->pool_capacity = new_capacity;
+    }
+
+    PrimesNode* node = malloc(sizeof(PrimesNode));
+    if (!node) return NULL;
+
+    memset(node->children, 0, sizeof(node->children));
+    node->terminal = false;
+
+    trie->node_pool[trie->pool_size++] = node;
+    return node;
+}
+
+static PrimesTrie* primes_trie_create(void) {
+    PrimesTrie* trie = malloc(sizeof(PrimesTrie));
+    if (!trie) return NULL;
+
+    trie->node_pool = NULL;
+    trie->pool_size = 0;
+    trie->pool_capacity = 0;
+
+    trie->root = primes_node_create(trie);
+    if (!trie->root) {
+        free(trie);
+        return NULL;
+    }
+
+    return trie;
+}
+
+static bool primes_trie_insert(PrimesTrie* trie, int number) {
+    if (number < 0) return false;
+
+    char buffer[12];
+    char* end = buffer + sizeof(buffer) - 1;
+    *end = '\0';
+
+    int n = number;
+    if (n == 0) {
+        *--end = '0';
+    } else {
+        do {
+            *--end = '0' + (n % 10);
+            n /= 10;
+        } while (n > 0);
+    }
+
+    PrimesNode* current = trie->root;
+    const char* digit_ptr = end;
+
+    while (*digit_ptr) {
+        int digit = *digit_ptr - '0';
+
+        if (digit < 0 || digit > 9) return false;
+
+        if (!current->children[digit]) {
+            current->children[digit] = primes_node_create(trie);
+            if (!current->children[digit]) return false;
+        }
+        current = current->children[digit];
+        digit_ptr++;
+    }
+
+    current->terminal = true;
+    return true;
+}
+
+static void primes_trie_free(PrimesTrie* trie) {
+    if (!trie) return;
+
+    for (size_t i = 0; i < trie->pool_size; i++) {
+        free(trie->node_pool[i]);
+    }
+
+    free(trie->node_pool);
+    free(trie);
+}
+
+static int* primes_generate(int64_t limit, int* count) {
+    if (limit < 2) {
+        *count = 0;
+        return NULL;
+    }
+
+    size_t sieve_size = (size_t)(limit / 2);
+    unsigned char* is_prime = malloc(sieve_size);
+    if (!is_prime) {
+        *count = 0;
+        return NULL;
+    }
+
+    memset(is_prime, 1, sieve_size);
+
+    int sqrt_limit = (int)sqrt((double)limit);
+
+    for (int64_t i = 3; i <= sqrt_limit; i += 2) {
+        size_t idx = (size_t)(i / 2);
+        if (is_prime[idx]) {
+
+            for (int64_t j = i * i; j <= limit; j += 2 * i) {
+                size_t j_idx = (size_t)(j / 2);
+                is_prime[j_idx] = 0;
+            }
+        }
+    }
+
+    int prime_count = 1; 
+    for (size_t i = 1; i < sieve_size; i++) {
+        if (is_prime[i]) prime_count++;
+    }
+
+    int* primes = malloc(prime_count * sizeof(int));
+    if (!primes) {
+        free(is_prime);
+        *count = 0;
+        return NULL;
+    }
+
+    primes[0] = 2;
+    int index = 1;
+    for (size_t i = 1; i < sieve_size; i++) {
+        if (is_prime[i]) {
+            primes[index++] = (int)(2 * i + 1);
+        }
+    }
+
+    free(is_prime);
+    *count = prime_count;
+    return primes;
+}
+
+typedef struct {
+    PrimesNode* node;
+    int number;
+} PrimesQueueItem;
+
+static int* primes_find_with_prefix(PrimesTrie* trie, int prefix, int* result_count) {
+    *result_count = 0;
+
+    if (!trie || !trie->root) return NULL;
+
+    char prefix_str[12];
+    char* end = prefix_str + sizeof(prefix_str) - 1;
+    *end = '\0';
+
+    if (prefix == 0) {
+        *--end = '0';
+    } else {
+        int n = prefix;
+        do {
+            *--end = '0' + (n % 10);
+            n /= 10;
+        } while (n > 0);
+    }
+
+    PrimesNode* current = trie->root;
+    const char* digit_ptr = end;
+
+    while (*digit_ptr) {
+        int digit = *digit_ptr - '0';
+
+        if (!current->children[digit]) {
+            return NULL;
+        }
+        current = current->children[digit];
+        digit_ptr++;
+    }
+
+    size_t queue_capacity = 65536;
+    PrimesQueueItem* queue = malloc(queue_capacity * sizeof(PrimesQueueItem));
+    if (!queue) return NULL;
+
+    size_t results_capacity = 65536;
+    int* results = malloc(results_capacity * sizeof(int));
+    if (!results) {
+        free(queue);
+        return NULL;
+    }
+
+    int queue_front = 0, queue_back = 0;
+    int found_count = 0;
+
+    queue[queue_back++] = (PrimesQueueItem){current, prefix};
+
+    while (queue_front < queue_back) {
+        PrimesQueueItem current_item = queue[queue_front++];
+
+        if (current_item.node->terminal) {
+            if (found_count >= (int)results_capacity) {
+                results_capacity *= 2;
+                int* new_results = realloc(results, results_capacity * sizeof(int));
+                if (!new_results) {
+                    free(queue);
+                    free(results);
+                    return NULL;
+                }
+                results = new_results;
+            }
+            results[found_count++] = current_item.number;
+        }
+
+        for (int digit = 0; digit < 10; digit++) {
+            if (current_item.node->children[digit]) {
+                if (queue_back >= (int)queue_capacity) {
+                    queue_capacity *= 2;
+                    PrimesQueueItem* new_queue = realloc(queue, queue_capacity * sizeof(PrimesQueueItem));
+                    if (!new_queue) {
+                        free(queue);
+                        free(results);
+                        return NULL;
+                    }
+                    queue = new_queue;
+                }
+
+                if (current_item.number <= INT_MAX / 10) {
+                    queue[queue_back++] = (PrimesQueueItem){
+                        current_item.node->children[digit],
+                        current_item.number * 10 + digit
+                    };
+                }
+            }
+        }
+    }
+
+    free(queue);
+
+    if (found_count == 0) {
+        free(results);
+        return NULL;
+    }
+
+    if (found_count > 1) {
+
+        int* stack = malloc(found_count * 2 * sizeof(int));
+        if (stack) {
+            int top = -1;
+            int low = 0;
+            int high = found_count - 1;
+
+            stack[++top] = low;
+            stack[++top] = high;
+
+            while (top >= 0) {
+
+                high = stack[top--];
+                low = stack[top--];
+
+                int pivot = results[high];
+                int i = low - 1;
+
+                for (int j = low; j < high; j++) {
+                    if (results[j] <= pivot) {
+                        i++;
+
+                        int temp = results[i];
+                        results[i] = results[j];
+                        results[j] = temp;
+                    }
+                }
+
+                int pi = i + 1;
+                int temp = results[pi];
+                results[pi] = results[high];
+                results[high] = temp;
+
+                if (pi - 1 > low) {
+                    stack[++top] = low;
+                    stack[++top] = pi - 1;
+                }
+
+                if (pi + 1 < high) {
+                    stack[++top] = pi + 1;
+                    stack[++top] = high;
+                }
+            }
+            free(stack);
+        }
+    }
+
+    if (found_count > 0) {
+        int* resized = realloc(results, found_count * sizeof(int));
+        if (resized) {
+            results = resized;
+        }
+    }
+
+    *result_count = found_count;
+    return results;
+}
+
+void Primes_prepare(Benchmark* self) {
+    PrimesData* data = (PrimesData*)self->data;
+
+    data->limit = Helper_config_i64(self->name, "limit");
+    if (data->limit <= 0) data->limit = 5000000;
+
+    data->prefix_val = Helper_config_i64(self->name, "prefix");
+    if (data->prefix_val < 0) data->prefix_val = 32338;  
+
+    data->result_val = 5432;  
+}
+
+void Primes_run(Benchmark* self, int iteration_id) {
+    PrimesData* data = (PrimesData*)self->data;
+
+    uint32_t current_result = 0;
+
+    int prime_count;
+    int* primes = primes_generate(data->limit, &prime_count);
+
+    if (primes && prime_count > 0) {
+
+        PrimesTrie* trie = primes_trie_create();
+        if (trie) {
+            for (int i = 0; i < prime_count; i++) {
+                primes_trie_insert(trie, primes[i]);
+            }
+
+            int result_count;
+            int* results = primes_find_with_prefix(trie, (int)data->prefix_val, &result_count);
+
+            if (results) {
+                current_result += (uint32_t)result_count;
+
+                for (int i = 0; i < result_count; i++) {
+                    current_result += (uint32_t)results[i];
+                }
+                free(results);
+            }
+
+            primes_trie_free(trie);
+        }
+
+        free(primes);
+    }
+
+    data->result_val += current_result;
+}
+
+uint32_t Primes_checksum(Benchmark* self) {
+    PrimesData* data = (PrimesData*)self->data;
+    return data->result_val;
+}
+
+Benchmark* Primes_create(void) {
+    Benchmark* bench = Benchmark_create("Primes");
+
+    PrimesData* data = malloc(sizeof(PrimesData));
+    memset(data, 0, sizeof(PrimesData));
+
+    bench->data = data;
+
+    bench->prepare = Primes_prepare;
+    bench->run = Primes_run;
+    bench->checksum = Primes_checksum;
+
+    return bench;
+}
+
+typedef struct {
+    double x, y, z;
+    char* name;
+} JsonCoordinate;
+
+typedef struct {
+    int64_t n;
+    JsonCoordinate* coordinates;
+    char* result_str;
+    size_t result_capacity;
+    size_t result_length;
+    uint32_t result_val;
+} JsonGenerateData;
+
+static void JsonGenerate_grow_result(JsonGenerateData* self, size_t needed) {
+    size_t new_capacity = self->result_capacity;
+    while (self->result_length + needed >= new_capacity) {
+        new_capacity = new_capacity ? new_capacity * 2 : 1024;
+    }
+    if (new_capacity > self->result_capacity) {
+        self->result_str = realloc(self->result_str, new_capacity);
+        self->result_capacity = new_capacity;
+    }
+}
+
+static void JsonGenerate_append(JsonGenerateData* self, const char* str) {
+    size_t len = strlen(str);
+    JsonGenerate_grow_result(self, len + 1);
+    memcpy(self->result_str + self->result_length, str, len);
+    self->result_length += len;
+    self->result_str[self->result_length] = '\0';
+}
+
+static void JsonGenerate_append_double(JsonGenerateData* self, double value) {
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "%.8f", value);
+    JsonGenerate_append(self, buffer);
+}
+
+void JsonGenerate_prepare(Benchmark* self) {
+    JsonGenerateData* data = (JsonGenerateData*)self->data;
+
+    data->coordinates = malloc(data->n * sizeof(JsonCoordinate));
+
+    for (int64_t i = 0; i < data->n; i++) {
+        JsonCoordinate* coord = &data->coordinates[i];
+
+        coord->x = custom_round(Helper_next_float(1.0), 8);
+        coord->y = custom_round(Helper_next_float(1.0), 8);
+        coord->z = custom_round(Helper_next_float(1.0), 8);
+
+        char name_buffer[64];
+        snprintf(name_buffer, sizeof(name_buffer), "%.7f %u", 
+                Helper_next_float(1.0), Helper_next_int(10000));
+        coord->name = strdup(name_buffer);
+    }
+
+    data->result_str = NULL;
+    data->result_capacity = 0;
+    data->result_length = 0;
+    data->result_val = 0;
+}
+
+void JsonGenerate_run(Benchmark* self, int iteration_id) {
+    JsonGenerateData* data = (JsonGenerateData*)self->data;
+
+    data->result_length = 0;
+    if (data->result_str) {
+        data->result_str[0] = '\0';
+    }
+
+    JsonGenerate_append(data, "{\"coordinates\":[");
+
+    for (int64_t i = 0; i < data->n; i++) {
+        if (i > 0) JsonGenerate_append(data, ",");
+
+        JsonCoordinate* coord = &data->coordinates[i];
+
+        JsonGenerate_append(data, "{");
+        JsonGenerate_append(data, "\"x\":");
+        JsonGenerate_append_double(data, coord->x);
+        JsonGenerate_append(data, ",\"y\":");
+        JsonGenerate_append_double(data, coord->y);
+        JsonGenerate_append(data, ",\"z\":");
+        JsonGenerate_append_double(data, coord->z);
+        JsonGenerate_append(data, ",\"name\":\"");
+        JsonGenerate_append(data, coord->name);
+        JsonGenerate_append(data, "\",\"opts\":{\"1\":[1,true]}");
+        JsonGenerate_append(data, "}");
+    }
+
+    JsonGenerate_append(data, "],\"info\":\"some info\"}");
+
+    if (data->result_length >= 15 && strncmp(data->result_str, "{\"coordinates\":", 15) == 0) {
+        data->result_val = crystal_add((int64_t)data->result_val, 1);
+    }
+}
+
+uint32_t JsonGenerate_checksum(Benchmark* self) {
+    JsonGenerateData* data = (JsonGenerateData*)self->data;
+    return data->result_val;
+}
+
+void JsonGenerate_cleanup(Benchmark* self) {
+    JsonGenerateData* data = (JsonGenerateData*)self->data;
+
+    if (data->coordinates) {
+        for (int64_t i = 0; i < data->n; i++) {
+            free(data->coordinates[i].name);
+        }
+        free(data->coordinates);
+    }
+
+    if (data->result_str) {
+        free(data->result_str);
+    }
+}
+
+Benchmark* JsonGenerate_create(void) {
+    Benchmark* bench = Benchmark_create("JsonGenerate");
+
+    JsonGenerateData* data = malloc(sizeof(JsonGenerateData));
+    memset(data, 0, sizeof(JsonGenerateData));
+
+    bench->data = data;
+    data->n = Helper_config_i64(bench->name, "coords");
+
+    bench->prepare = JsonGenerate_prepare;
+    bench->run = JsonGenerate_run;
+    bench->checksum = JsonGenerate_checksum;
+    bench->cleanup = JsonGenerate_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    char* json_text;
+    uint32_t result_val;
+    int64_t coords_count;
+} JsonParseDomData;
+
+static char* generate_json_for_parsing(int64_t coords_count) {
+
+    Benchmark* json_gen_bench = JsonGenerate_create();
+    JsonGenerateData* gen_data = (JsonGenerateData*)json_gen_bench->data;
+
+    gen_data->n = coords_count;
+    json_gen_bench->prepare(json_gen_bench);
+
+    json_gen_bench->run(json_gen_bench, 0);
+
+    char* json_text = strdup(gen_data->result_str);
+
+    json_gen_bench->cleanup(json_gen_bench);
+    free(json_gen_bench->data);
+    free(json_gen_bench);
+
+    return json_text;
+}
+
+void JsonParseDom_prepare(Benchmark* self) {
+    JsonParseDomData* data = (JsonParseDomData*)self->data;
+
+    data->coords_count = Helper_config_i64(self->name, "coords");
+    if (data->coords_count <= 0) {
+        data->coords_count = 1000; 
+    }
+
+    data->json_text = generate_json_for_parsing(data->coords_count);
+    data->result_val = 0;
+}
+
+void JsonParseDom_run(Benchmark* self, int iteration_id) {
+    JsonParseDomData* data = (JsonParseDomData*)self->data;
+
+    cJSON* root = cJSON_Parse(data->json_text);
+    if (!root) {
+        return; 
+    }
+
+    cJSON* coordinates = cJSON_GetObjectItem(root, "coordinates");
+    if (!coordinates || !cJSON_IsArray(coordinates)) {
+        cJSON_Delete(root);
+        return;
+    }
+
+    double x_sum = 0.0, y_sum = 0.0, z_sum = 0.0;
+    int64_t len = 0;
+
+    cJSON* coord_item = NULL;
+    cJSON_ArrayForEach(coord_item, coordinates) {
+        cJSON* x_item = cJSON_GetObjectItem(coord_item, "x");
+        cJSON* y_item = cJSON_GetObjectItem(coord_item, "y");
+        cJSON* z_item = cJSON_GetObjectItem(coord_item, "z");
+
+        if (x_item && y_item && z_item && 
+            cJSON_IsNumber(x_item) && 
+            cJSON_IsNumber(y_item) && 
+            cJSON_IsNumber(z_item)) {
+
+            x_sum += x_item->valuedouble;
+            y_sum += y_item->valuedouble;
+            z_sum += z_item->valuedouble;
+            len++;
+        }
+    }
+
+    cJSON_Delete(root);
+
+    if (len > 0) {
+        double x_avg = x_sum / len;
+        double y_avg = y_sum / len;
+        double z_avg = z_sum / len;
+
+        uint32_t checksum = Helper_checksum_f64(x_avg) + 
+                           Helper_checksum_f64(y_avg) + 
+                           Helper_checksum_f64(z_avg);
+        data->result_val = crystal_add((int64_t)data->result_val, (int64_t)checksum);
+    }
+}
+
+uint32_t JsonParseDom_checksum(Benchmark* self) {
+    JsonParseDomData* data = (JsonParseDomData*)self->data;
+    return data->result_val;
+}
+
+void JsonParseDom_cleanup(Benchmark* self) {
+    JsonParseDomData* data = (JsonParseDomData*)self->data;
+    if (data->json_text) {
+        free(data->json_text);
+        data->json_text = NULL;
+    }
+}
+
+Benchmark* JsonParseDom_create(void) {
+    Benchmark* bench = Benchmark_create("JsonParseDom");
+
+    JsonParseDomData* data = malloc(sizeof(JsonParseDomData));
+    memset(data, 0, sizeof(JsonParseDomData));
+
+    bench->data = data;
+
+    bench->prepare = JsonParseDom_prepare;
+    bench->run = JsonParseDom_run;
+    bench->checksum = JsonParseDom_checksum;
+    bench->cleanup = JsonParseDom_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    char* json_text;
+    uint32_t result_val;
+    int64_t coords_count;
+} JsonParseMappingData;
+
+void JsonParseMapping_prepare(Benchmark* self) {
+    JsonParseMappingData* data = (JsonParseMappingData*)self->data;
+
+    data->coords_count = Helper_config_i64(self->name, "coords");
+    if (data->coords_count <= 0) {
+        data->coords_count = 1000; 
+    }
+
+    data->json_text = generate_json_for_parsing(data->coords_count);
+    data->result_val = 0;
+}
+
+void JsonParseMapping_run(Benchmark* self, int iteration_id) {
+
+    JsonParseMappingData* data = (JsonParseMappingData*)self->data;
+
+    cJSON* root = cJSON_Parse(data->json_text);
+    if (!root) {
+        return;
+    }
+
+    cJSON* coordinates = cJSON_GetObjectItem(root, "coordinates");
+    if (!coordinates || !cJSON_IsArray(coordinates)) {
+        cJSON_Delete(root);
+        return;
+    }
+
+    double x_sum = 0.0, y_sum = 0.0, z_sum = 0.0;
+    int64_t len = 0;
+
+    cJSON* coord_item = NULL;
+    cJSON_ArrayForEach(coord_item, coordinates) {
+        cJSON* x_item = cJSON_GetObjectItem(coord_item, "x");
+        cJSON* y_item = cJSON_GetObjectItem(coord_item, "y");
+        cJSON* z_item = cJSON_GetObjectItem(coord_item, "z");
+
+        if (x_item && y_item && z_item && 
+            cJSON_IsNumber(x_item) && 
+            cJSON_IsNumber(y_item) && 
+            cJSON_IsNumber(z_item)) {
+
+            x_sum += x_item->valuedouble;
+            y_sum += y_item->valuedouble;
+            z_sum += z_item->valuedouble;
+            len++;
+        }
+    }
+
+    cJSON_Delete(root);
+
+    if (len > 0) {
+        double x_avg = x_sum / len;
+        double y_avg = y_sum / len;
+        double z_avg = z_sum / len;
+
+        uint32_t checksum = Helper_checksum_f64(x_avg) + 
+                           Helper_checksum_f64(y_avg) + 
+                           Helper_checksum_f64(z_avg);
+        data->result_val = crystal_add((int64_t)data->result_val, (int64_t)checksum);
+    }
+}
+
+uint32_t JsonParseMapping_checksum(Benchmark* self) {
+    JsonParseMappingData* data = (JsonParseMappingData*)self->data;
+    return data->result_val;
+}
+
+void JsonParseMapping_cleanup(Benchmark* self) {
+    JsonParseMappingData* data = (JsonParseMappingData*)self->data;
+    if (data->json_text) {
+        free(data->json_text);
+        data->json_text = NULL;
+    }
+}
+
+Benchmark* JsonParseMapping_create(void) {
+    Benchmark* bench = Benchmark_create("JsonParseMapping");
+
+    JsonParseMappingData* data = malloc(sizeof(JsonParseMappingData));
+    memset(data, 0, sizeof(JsonParseMappingData));
+
+    bench->data = data;
+
+    bench->prepare = JsonParseMapping_prepare;
+    bench->run = JsonParseMapping_run;
+    bench->checksum = JsonParseMapping_checksum;
+    bench->cleanup = JsonParseMapping_cleanup;
+
+    return bench;
+}
+
+#include <math.h>
+#include <stdlib.h>
+
+#define M_PI 3.14159265358979323846
+
+typedef struct {
+    double x, y;
+} NoiseVec2;
+
+typedef struct {
+    NoiseVec2* rgradients;
+    int* permutations;
+    int size_val;
+} Noise2DContext;
+
+typedef struct {
+    int64_t size_val;
+    uint32_t result_val;
+    Noise2DContext* n2d;
+} NoiseData;
+
+static NoiseVec2 random_gradient(void) {
+    double v = Helper_next_float(1.0) * M_PI * 2.0;
+    NoiseVec2 result;
+    result.x = cos(v);
+    result.y = sin(v);
+    return result;
+}
+
+static double lerp(double a, double b, double v) {
+    return a * (1.0 - v) + b * v;
+}
+
+static double smooth(double v) {
+    return v * v * (3.0 - 2.0 * v);
+}
+
+static double gradient(const NoiseVec2* orig, const NoiseVec2* grad, const NoiseVec2* p) {
+    double sp_x = p->x - orig->x;
+    double sp_y = p->y - orig->y;
+    return grad->x * sp_x + grad->y * sp_y;
+}
+
+static Noise2DContext* noise2dcontext_new(int size) {
+    Noise2DContext* ctx = malloc(sizeof(Noise2DContext));
+    if (!ctx) return NULL;
+
+    ctx->size_val = size;
+    ctx->rgradients = malloc(size * sizeof(NoiseVec2));
+    ctx->permutations = malloc(size * sizeof(int));
+
+    if (!ctx->rgradients || !ctx->permutations) {
+        free(ctx->rgradients);
+        free(ctx->permutations);
+        free(ctx);
+        return NULL;
+    }
+
+    for (int i = 0; i < size; i++) {
+        ctx->rgradients[i] = random_gradient();
+        ctx->permutations[i] = i;
+    }
+
+    for (int i = 0; i < size; i++) {
+        int a = Helper_next_int(size);
+        int b = Helper_next_int(size);
+        int temp = ctx->permutations[a];
+        ctx->permutations[a] = ctx->permutations[b];
+        ctx->permutations[b] = temp;
+    }
+
+    return ctx;
+}
+
+static void noise2dcontext_free(Noise2DContext* ctx) {
+    if (!ctx) return;
+    free(ctx->rgradients);
+    free(ctx->permutations);
+    free(ctx);
+}
+
+static NoiseVec2 get_gradient(const Noise2DContext* ctx, int x, int y) {
+    int mask = ctx->size_val - 1;
+    int idx = ctx->permutations[x & mask] + ctx->permutations[y & mask];
+    return ctx->rgradients[idx & mask];
+}
+
+static void get_gradients(const Noise2DContext* ctx, double x, double y, 
+                         NoiseVec2 gradients[4], NoiseVec2 origins[4]) {
+    double x0f = floor(x);
+    double y0f = floor(y);
+    int x0 = (int)x0f;
+    int y0 = (int)y0f;
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+
+    gradients[0] = get_gradient(ctx, x0, y0);
+    gradients[1] = get_gradient(ctx, x1, y0);
+    gradients[2] = get_gradient(ctx, x0, y1);
+    gradients[3] = get_gradient(ctx, x1, y1);
+
+    origins[0].x = x0f + 0.0;
+    origins[0].y = y0f + 0.0;
+    origins[1].x = x0f + 1.0;
+    origins[1].y = y0f + 0.0;
+    origins[2].x = x0f + 0.0;
+    origins[2].y = y0f + 1.0;
+    origins[3].x = x0f + 1.0;
+    origins[3].y = y0f + 1.0;
+}
+
+static double noise_get(const Noise2DContext* ctx, double x, double y) {
+    NoiseVec2 gradients[4];
+    NoiseVec2 origins[4];
+    get_gradients(ctx, x, y, gradients, origins);
+
+    NoiseVec2 p = {x, y};
+
+    double v0 = gradient(&origins[0], &gradients[0], &p);
+    double v1 = gradient(&origins[1], &gradients[1], &p);
+    double v2 = gradient(&origins[2], &gradients[2], &p);
+    double v3 = gradient(&origins[3], &gradients[3], &p);
+
+    double fx = smooth(x - origins[0].x);
+    double vx0 = lerp(v0, v1, fx);
+    double vx1 = lerp(v2, v3, fx);
+
+    double fy = smooth(y - origins[0].y);
+    return lerp(vx0, vx1, fy);
+}
+
+static const uint32_t SYM[6] = {32, 0x2591, 0x2592, 0x2593, 0x2588, 0x2588};
+
+void Noise_prepare(Benchmark* self) {
+    NoiseData* data = (NoiseData*)self->data;
+
+    data->size_val = Helper_config_i64(self->name, "size");
+    if (data->size_val <= 0) {
+        data->size_val = 64; 
+    }
+
+    int size = (int)data->size_val;
+
+    size--;
+    size |= size >> 1;
+    size |= size >> 2;
+    size |= size >> 4;
+    size |= size >> 8;
+    size |= size >> 16;
+    size++;
+    data->size_val = size;
+
+    if (data->n2d) {
+        noise2dcontext_free(data->n2d);
+        data->n2d = NULL;
+    }
+
+    data->n2d = noise2dcontext_new(size);
+
+    data->result_val = 0;
+}
+
+void Noise_run(Benchmark* self, int iteration_id) {
+    NoiseData* data = (NoiseData*)self->data;
+
+    if (!data->n2d) {
+        return;
+    }
+
+    uint32_t iteration_result = 0;
+
+    for (int64_t y = 0; y < data->size_val; y++) {
+        for (int64_t x = 0; x < data->size_val; x++) {
+            double v = noise_get(data->n2d, 
+                               x * 0.1, 
+                               (y + (iteration_id * 128)) * 0.1);
+            v = v * 0.5 + 0.5; 
+
+            int idx = (int)(v / 0.2);
+            if (idx >= 6) idx = 5;
+            if (idx < 0) idx = 0;
+
+            iteration_result += SYM[idx];
+        }
+    }
+
+    data->result_val += iteration_result; 
+}
+
+uint32_t Noise_checksum(Benchmark* self) {
+    NoiseData* data = (NoiseData*)self->data;
+    return data->result_val;
+}
+
+void Noise_cleanup(Benchmark* self) {
+    NoiseData* data = (NoiseData*)self->data;
+
+    if (data->n2d) {
+        noise2dcontext_free(data->n2d);
+        data->n2d = NULL;
+    }
+}
+
+Benchmark* Noise_create(void) {
+    Benchmark* bench = Benchmark_create("Noise");
+
+    NoiseData* data = malloc(sizeof(NoiseData));
+    if (!data) return NULL;
+
+    memset(data, 0, sizeof(NoiseData));
+
+    bench->data = data;
+
+    bench->prepare = Noise_prepare;
+    bench->run = Noise_run;
+    bench->checksum = Noise_checksum;
+    bench->cleanup = Noise_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    double x, y, z;
+} TRVector;
+
+typedef struct {
+    TRVector orig, dir;
+} TRRay;
+
+typedef struct {
+    double r, g, b;
+} TRColor;
+
+typedef struct {
+    TRVector center;
+    double radius;
+    TRColor color;
+} TRSphere;
+
+typedef struct {
+    TRVector position;
+    TRColor color;
+} TRLight;
+
+typedef struct {
+    int32_t width;
+    int32_t height;
+    uint32_t result_val;
+} TextRaytracerData;
+
+static TRVector tr_vector_scale(TRVector v, double s) {
+    return (TRVector){v.x * s, v.y * s, v.z * s};
+}
+
+static TRVector tr_vector_add(TRVector a, TRVector b) {
+    return (TRVector){a.x + b.x, a.y + b.y, a.z + b.z};
+}
+
+static TRVector tr_vector_sub(TRVector a, TRVector b) {
+    return (TRVector){a.x - b.x, a.y - b.y, a.z - b.z};
+}
+
+static double tr_vector_dot(TRVector a, TRVector b) {
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+static double tr_vector_magnitude(TRVector v) {
+    return sqrt(tr_vector_dot(v, v));
+}
+
+static TRVector tr_vector_normalize(TRVector v) {
+    double mag = tr_vector_magnitude(v);
+    if (mag == 0.0) return (TRVector){0, 0, 0};
+    return tr_vector_scale(v, 1.0 / mag);
+}
+
+static TRColor tr_color_scale(TRColor c, double s) {
+    return (TRColor){c.r * s, c.g * s, c.b * s};
+}
+
+static TRColor tr_color_add(TRColor a, TRColor b) {
+    return (TRColor){a.r + b.r, a.g + b.g, a.b + b.b};
+}
+
+static TRVector tr_sphere_get_normal(TRSphere* sphere, TRVector pt) {
+    return tr_vector_normalize(tr_vector_sub(pt, sphere->center));
+}
+
+static double tr_clamp(double x, double a, double b) {
+    if (x < a) return a;
+    if (x > b) return b;
+    return x;
+}
+
+static double tr_intersect_sphere(TRRay ray, TRVector center, double radius) {
+    TRVector l = tr_vector_sub(center, ray.orig);
+    double tca = tr_vector_dot(l, ray.dir);
+    if (tca < 0.0) return -1.0;
+
+    double d2 = tr_vector_dot(l, l) - tca * tca;
+    double r2 = radius * radius;
+    if (d2 > r2) return -1.0;
+
+    double thc = sqrt(r2 - d2);
+    double t0 = tca - thc;
+    if (t0 > 10000.0) return -1.0;
+
+    return t0;
+}
+
+static TRColor tr_diffuse_shading(TRVector pi, TRSphere* obj, TRLight light) {
+    TRVector n = tr_sphere_get_normal(obj, pi);
+    TRVector light_dir = tr_vector_normalize(tr_vector_sub(light.position, pi));
+    double lam1 = tr_vector_dot(light_dir, n);
+    double lam2 = tr_clamp(lam1, 0.0, 1.0);
+
+    TRColor light_color = tr_color_scale(light.color, lam2 * 0.5);
+    TRColor obj_color = tr_color_scale(obj->color, 0.3);
+    return tr_color_add(light_color, obj_color);
+}
+
+static const char LUT[6] = {'.', '-', '+', '*', 'X', 'M'};
+
+void TextRaytracer_prepare(Benchmark* self) {
+    TextRaytracerData* data = (TextRaytracerData*)self->data;
+
+    data->width = (int32_t)Helper_config_i64(self->name, "w");
+    data->height = (int32_t)Helper_config_i64(self->name, "h");
+
+    if (data->width <= 0) data->width = 10;
+    if (data->height <= 0) data->height = 10;
+
+    data->result_val = 0;
+}
+
+void TextRaytracer_run(Benchmark* self, int iteration_id) {
+    TextRaytracerData* data = (TextRaytracerData*)self->data;
+
+    TRSphere scene[3] = {
+        {{-1.0, 0.0, 3.0}, 0.3, {1.0, 0.0, 0.0}},  
+        {{0.0, 0.0, 3.0}, 0.8, {0.0, 1.0, 0.0}},   
+        {{1.0, 0.0, 3.0}, 0.4, {0.0, 0.0, 1.0}}    
+    };
+
+    TRLight light1 = {{0.7, -1.0, 1.7}, {1.0, 1.0, 1.0}};
+
+    uint32_t iteration_result = 0;
+
+    for (int32_t j = 0; j < data->height; j++) {
+        for (int32_t i = 0; i < data->width; i++) {
+            double fw = data->width;
+            double fh = data->height;
+            double fi = i;
+            double fj = j;
+
+            TRRay ray;
+            ray.orig = (TRVector){0.0, 0.0, 0.0};
+
+            TRVector dir = {
+                (fi - fw/2.0)/fw,
+                (fj - fh/2.0)/fh,
+                1.0
+            };
+            ray.dir = tr_vector_normalize(dir);
+
+            double tval = -1.0;
+            TRSphere* hit_obj = NULL;
+
+            for (int k = 0; k < 3; k++) {
+                double intersect = tr_intersect_sphere(ray, scene[k].center, scene[k].radius);
+                if (intersect >= 0.0) {
+                    tval = intersect;
+                    hit_obj = &scene[k];
+                    break;
+                }
+            }
+
+            char pixel = ' ';
+            if (hit_obj && tval >= 0.0) {
+                TRVector pi = tr_vector_add(ray.orig, tr_vector_scale(ray.dir, tval));
+                TRColor color = tr_diffuse_shading(pi, hit_obj, light1);
+                double col = (color.r + color.g + color.b) / 3.0;
+                int idx = (int)(col * 6.0);
+                if (idx < 0) idx = 0;
+                if (idx >= 6) idx = 5;
+                pixel = LUT[idx];
+            }
+
+            iteration_result += (uint8_t)pixel;
+        }
+    }
+
+    data->result_val = crystal_add((int64_t)data->result_val, (int64_t)iteration_result);
+}
+
+uint32_t TextRaytracer_checksum(Benchmark* self) {
+    TextRaytracerData* data = (TextRaytracerData*)self->data;
+    return data->result_val;
+}
+
+void TextRaytracer_cleanup(Benchmark* self) {
+
+}
+
+Benchmark* TextRaytracer_create(void) {
+    Benchmark* bench = Benchmark_create("TextRaytracer");
+
+    TextRaytracerData* data = malloc(sizeof(TextRaytracerData));
+    memset(data, 0, sizeof(TextRaytracerData));
+
+    bench->data = data;
+
+    bench->prepare = TextRaytracer_prepare;
+    bench->run = TextRaytracer_run;
+    bench->checksum = TextRaytracer_checksum;
+    bench->cleanup = TextRaytracer_cleanup;
+
+    return bench;
+}
+
+#define LEARNING_RATE 1.0
+#define MOMENTUM 0.3
+#define TRAIN_RATE 0.3
+
+typedef struct NeuralNetNeuron NeuralNetNeuron;
+typedef struct NeuralNetSynapse NeuralNetSynapse;
+
+struct NeuralNetSynapse {
+    double weight;
+    double prev_weight;
+    NeuralNetNeuron* source_neuron;
+    NeuralNetNeuron* dest_neuron;
+};
+
+struct NeuralNetNeuron {
+
+    NeuralNetSynapse** synapses_in;
+    int synapses_in_count;
+    int synapses_in_capacity;
+
+    NeuralNetSynapse** synapses_out;
+    int synapses_out_count;
+    int synapses_out_capacity;
+
+    double threshold;
+    double prev_threshold;
+    double error;
+    double output;
+};
+
+static void neuron_update_weights(NeuralNetNeuron* neuron);
+
+typedef struct {
+    NeuralNetNeuron* neurons;  
+    int total_neurons;
+
+    int* input_layer;
+    int input_count;
+    int* hidden_layer;
+    int hidden_count;
+    int* output_layer;
+    int output_count;
+
+    NeuralNetSynapse* synapses;  
+    int synapse_count;
+    int synapse_capacity;
+} NeuralNetwork;
+
+typedef struct {
+    uint32_t result_val;
+    double sum_outputs;
+    NeuralNetwork* xor_net;  
+} NeuralNetData;
+
+static void neuron_init(NeuralNetNeuron* neuron) {
+
+    double r = Helper_next_float(1.0);  
+    neuron->threshold = neuron->prev_threshold = r * 2.0 - 1.0;
+    neuron->output = 0.0;
+    neuron->error = 0.0;
+
+    neuron->synapses_in_count = 0;
+    neuron->synapses_in_capacity = 4;
+    neuron->synapses_in = malloc(neuron->synapses_in_capacity * sizeof(NeuralNetSynapse*));
+
+    neuron->synapses_out_count = 0;
+    neuron->synapses_out_capacity = 4;
+    neuron->synapses_out = malloc(neuron->synapses_out_capacity * sizeof(NeuralNetSynapse*));
+}
+
+static void neuron_add_synapse_in(NeuralNetNeuron* neuron, NeuralNetSynapse* synapse) {
+    if (neuron->synapses_in_count >= neuron->synapses_in_capacity) {
+        neuron->synapses_in_capacity *= 2;
+        neuron->synapses_in = realloc(neuron->synapses_in, 
+                                     neuron->synapses_in_capacity * sizeof(NeuralNetSynapse*));
+    }
+    neuron->synapses_in[neuron->synapses_in_count++] = synapse;
+}
+
+static void neuron_add_synapse_out(NeuralNetNeuron* neuron, NeuralNetSynapse* synapse) {
+    if (neuron->synapses_out_count >= neuron->synapses_out_capacity) {
+        neuron->synapses_out_capacity *= 2;
+        neuron->synapses_out = realloc(neuron->synapses_out, 
+                                      neuron->synapses_out_capacity * sizeof(NeuralNetSynapse*));
+    }
+    neuron->synapses_out[neuron->synapses_out_count++] = synapse;
+}
+
+static double neuron_derivative(NeuralNetNeuron* neuron) {
+    return neuron->output * (1.0 - neuron->output);
+}
+
+static void neuron_calculate_output(NeuralNetNeuron* neuron) {
+    double activation = 0.0;
+    for (int i = 0; i < neuron->synapses_in_count; i++) {
+        NeuralNetSynapse* synapse = neuron->synapses_in[i];
+        activation += synapse->weight * synapse->source_neuron->output;
+    }
+    activation -= neuron->threshold;
+    neuron->output = 1.0 / (1.0 + exp(-activation));
+}
+
+static void neuron_output_train(NeuralNetNeuron* neuron, double target) {
+    neuron->error = (target - neuron->output) * neuron_derivative(neuron);
+    neuron_update_weights(neuron);
+}
+
+static void neuron_hidden_train(NeuralNetNeuron* neuron) {
+    double sum = 0.0;
+    for (int i = 0; i < neuron->synapses_out_count; i++) {
+        NeuralNetSynapse* synapse = neuron->synapses_out[i];
+        sum += synapse->prev_weight * synapse->dest_neuron->error;
+    }
+    neuron->error = sum * neuron_derivative(neuron);
+    neuron_update_weights(neuron);
+}
+
+static void neuron_update_weights(NeuralNetNeuron* neuron) {
+
+    for (int i = 0; i < neuron->synapses_in_count; i++) {
+        NeuralNetSynapse* synapse = neuron->synapses_in[i];
+        double temp_weight = synapse->weight;
+        synapse->weight += (TRAIN_RATE * LEARNING_RATE * neuron->error * synapse->source_neuron->output) +
+                         (MOMENTUM * (synapse->weight - synapse->prev_weight));
+        synapse->prev_weight = temp_weight;
+    }
+
+    double temp_threshold = neuron->threshold;
+    neuron->threshold += (TRAIN_RATE * LEARNING_RATE * neuron->error * -1.0) +
+                       (MOMENTUM * (neuron->threshold - neuron->prev_threshold));
+    neuron->prev_threshold = temp_threshold;
+}
+
+static NeuralNetwork* network_new(int inputs, int hidden, int outputs) {
+    NeuralNetwork* net = malloc(sizeof(NeuralNetwork));
+
+    net->total_neurons = inputs + hidden + outputs;
+    net->neurons = malloc(net->total_neurons * sizeof(NeuralNetNeuron));
+
+    for (int i = 0; i < net->total_neurons; i++) {
+        neuron_init(&net->neurons[i]);
+    }
+
+    net->input_count = inputs;
+    net->hidden_count = hidden;
+    net->output_count = outputs;
+
+    net->input_layer = malloc(inputs * sizeof(int));
+    net->hidden_layer = malloc(hidden * sizeof(int));
+    net->output_layer = malloc(outputs * sizeof(int));
+
+    for (int i = 0; i < inputs; i++) {
+        net->input_layer[i] = i;
+    }
+    for (int i = 0; i < hidden; i++) {
+        net->hidden_layer[i] = inputs + i;
+    }
+    for (int i = 0; i < outputs; i++) {
+        net->output_layer[i] = inputs + hidden + i;
+    }
+
+    net->synapse_count = 0;
+    net->synapse_capacity = (inputs * hidden) + (hidden * outputs);
+    net->synapses = malloc(net->synapse_capacity * sizeof(NeuralNetSynapse));
+
+    for (int i = 0; i < inputs; i++) {
+        NeuralNetNeuron* source = &net->neurons[net->input_layer[i]];
+        for (int j = 0; j < hidden; j++) {
+            NeuralNetNeuron* dest = &net->neurons[net->hidden_layer[j]];
+
+            NeuralNetSynapse* synapse = &net->synapses[net->synapse_count++];
+
+            double r = Helper_next_float(1.0);
+            synapse->weight = synapse->prev_weight = r * 2.0 - 1.0;
+
+            synapse->source_neuron = source;
+            synapse->dest_neuron = dest;
+
+            neuron_add_synapse_out(source, synapse);
+            neuron_add_synapse_in(dest, synapse);
+        }
+    }
+
+    for (int i = 0; i < hidden; i++) {
+        NeuralNetNeuron* source = &net->neurons[net->hidden_layer[i]];
+        for (int j = 0; j < outputs; j++) {
+            NeuralNetNeuron* dest = &net->neurons[net->output_layer[j]];
+
+            NeuralNetSynapse* synapse = &net->synapses[net->synapse_count++];
+
+            double r = Helper_next_float(1.0);
+            synapse->weight = synapse->prev_weight = r * 2.0 - 1.0;
+
+            synapse->source_neuron = source;
+            synapse->dest_neuron = dest;
+
+            neuron_add_synapse_out(source, synapse);
+            neuron_add_synapse_in(dest, synapse);
+        }
+    }
+
+    return net;
+}
+
+static void network_free(NeuralNetwork* net) {
+    if (!net) return;
+
+    for (int i = 0; i < net->total_neurons; i++) {
+        free(net->neurons[i].synapses_in);
+        free(net->neurons[i].synapses_out);
+    }
+
+    free(net->neurons);
+    free(net->input_layer);
+    free(net->hidden_layer);
+    free(net->output_layer);
+    free(net->synapses);
+    free(net);
+}
+
+static void network_train(NeuralNetwork* net, double* inputs, double* targets) {
+
+    for (int i = 0; i < net->input_count; i++) {
+        net->neurons[net->input_layer[i]].output = inputs[i];
+    }
+
+    for (int i = 0; i < net->hidden_count; i++) {
+        neuron_calculate_output(&net->neurons[net->hidden_layer[i]]);
+    }
+
+    for (int i = 0; i < net->output_count; i++) {
+        neuron_calculate_output(&net->neurons[net->output_layer[i]]);
+    }
+
+    for (int i = 0; i < net->output_count; i++) {
+        neuron_output_train(&net->neurons[net->output_layer[i]], targets[i]);
+    }
+
+    for (int i = 0; i < net->hidden_count; i++) {
+        neuron_hidden_train(&net->neurons[net->hidden_layer[i]]);
+    }
+}
+
+static void network_feed_forward(NeuralNetwork* net, double* inputs) {
+    for (int i = 0; i < net->input_count; i++) {
+        net->neurons[net->input_layer[i]].output = inputs[i];
+    }
+
+    for (int i = 0; i < net->hidden_count; i++) {
+        neuron_calculate_output(&net->neurons[net->hidden_layer[i]]);
+    }
+
+    for (int i = 0; i < net->output_count; i++) {
+        neuron_calculate_output(&net->neurons[net->output_layer[i]]);
+    }
+}
+
+static double network_get_output(NeuralNetwork* net) {
+    return net->neurons[net->output_layer[0]].output;
+}
+
+void NeuralNet_prepare(Benchmark* self) {
+    NeuralNetData* data = (NeuralNetData*)self->data;
+
+    data->result_val = 0;
+    data->sum_outputs = 0.0;
+
+    if (data->xor_net) {
+        network_free(data->xor_net);
+    }
+
+    Helper_reset();
+
+    data->xor_net = network_new(2, 10, 1);
+}
+
+void NeuralNet_run(Benchmark* self, int iteration_id) {
+    NeuralNetData* data = (NeuralNetData*)self->data;
+
+    double inputs_00[2] = {0, 0};
+    double targets_0[1] = {0};
+
+    double inputs_10[2] = {1, 0};
+    double inputs_01[2] = {0, 1};
+    double targets_1[1] = {1};
+
+    double inputs_11[2] = {1, 1};
+
+    network_train(data->xor_net, inputs_00, targets_0);
+    network_train(data->xor_net, inputs_10, targets_1);
+    network_train(data->xor_net, inputs_01, targets_1);
+    network_train(data->xor_net, inputs_11, targets_0);
+}
+
+uint32_t NeuralNet_checksum(Benchmark* self) {
+    NeuralNetData* data = (NeuralNetData*)self->data;
+
+    if (!data->xor_net) {
+        return 0;
+    }
+
+    double inputs_00[2] = {0, 0};
+    double inputs_01[2] = {0, 1};
+    double inputs_10[2] = {1, 0};
+    double inputs_11[2] = {1, 1};
+
+    double sum = 0.0;
+
+    network_feed_forward(data->xor_net, inputs_00);
+    sum += network_get_output(data->xor_net);
+
+    network_feed_forward(data->xor_net, inputs_01);
+    sum += network_get_output(data->xor_net);
+
+    network_feed_forward(data->xor_net, inputs_10);
+    sum += network_get_output(data->xor_net);
+
+    network_feed_forward(data->xor_net, inputs_11);
+    sum += network_get_output(data->xor_net);
+
+    data->sum_outputs = sum;
+
+    return Helper_checksum_f64(sum);
+}
+
+void NeuralNet_cleanup(Benchmark* self) {
+    NeuralNetData* data = (NeuralNetData*)self->data;
+
+    if (data->xor_net) {
+        network_free(data->xor_net);
+        data->xor_net = NULL;
+    }
+}
+
+Benchmark* NeuralNet_create(void) {
+    Benchmark* bench = Benchmark_create("NeuralNet");
+
+    NeuralNetData* data = malloc(sizeof(NeuralNetData));
+    memset(data, 0, sizeof(NeuralNetData));
+
+    bench->data = data;
+
+    bench->prepare = NeuralNet_prepare;
+    bench->run = NeuralNet_run;
+    bench->checksum = NeuralNet_checksum;
+    bench->cleanup = NeuralNet_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    int64_t size_val;
+    int32_t* data;
+    uint32_t result_val;
+} SortBaseData;
+
+static void sort_base_prepare(Benchmark* self, const char* bench_name) {
+    SortBaseData* data = (SortBaseData*)self->data;
+
+    data->size_val = Helper_config_i64(bench_name, "size");
+    if (data->size_val <= 0) {
+        data->size_val = 100000; 
+    }
+
+    data->data = malloc(data->size_val * sizeof(int32_t));
+
+    for (int64_t i = 0; i < data->size_val; i++) {
+        data->data[i] = Helper_next_int(1000000);
+    }
+
+    data->result_val = 0;
+}
+
+static void sort_base_cleanup(SortBaseData* data) {
+    if (data->data) {
+        free(data->data);
+        data->data = NULL;
+    }
+}
+
+typedef struct {
+    SortBaseData base;
+    int32_t* sorted_data; 
+} SortQuickData;
+
+static void sort_quick_quick_sort(int32_t* arr, int64_t low, int64_t high) {
+    if (low >= high) return;
+
+    int32_t pivot = arr[(low + high) / 2];
+    int64_t i = low, j = high;
+
+    while (i <= j) {
+        while (arr[i] < pivot) i++;
+        while (arr[j] > pivot) j--;
+        if (i <= j) {
+            int32_t temp = arr[i];
+            arr[i] = arr[j];
+            arr[j] = temp;
+            i++;
+            j--;
+        }
+    }
+
+    sort_quick_quick_sort(arr, low, j);
+    sort_quick_quick_sort(arr, i, high);
+}
+
+static void sort_quick_test(SortQuickData* data) {
+    if (data->sorted_data) {
+        free(data->sorted_data);
+    }
+
+    data->sorted_data = malloc(data->base.size_val * sizeof(int32_t));
+    memcpy(data->sorted_data, data->base.data, data->base.size_val * sizeof(int32_t));
+
+    sort_quick_quick_sort(data->sorted_data, 0, data->base.size_val - 1);
+}
+
+void SortQuick_prepare(Benchmark* self) {
+    SortQuickData* data = (SortQuickData*)self->data;
+    sort_base_prepare(self, "SortQuick");
+    data->sorted_data = NULL;
+}
+
+void SortQuick_run(Benchmark* self, int iteration_id) {
+    SortQuickData* data = (SortQuickData*)self->data;
+
+    sort_quick_test(data);
+
+    int32_t random_index1 = Helper_next_int((uint32_t)data->base.size_val);
+    int32_t random_index2 = Helper_next_int((uint32_t)data->base.size_val);
+
+    uint32_t iteration_result = (uint32_t)data->base.data[random_index1] + 
+                               (uint32_t)data->sorted_data[random_index2];
+    data->base.result_val = crystal_add((int64_t)data->base.result_val, (int64_t)iteration_result);
+}
+
+uint32_t SortQuick_checksum(Benchmark* self) {
+    SortQuickData* data = (SortQuickData*)self->data;
+    return data->base.result_val;
+}
+
+void SortQuick_cleanup(Benchmark* self) {
+    SortQuickData* data = (SortQuickData*)self->data;
+    sort_base_cleanup(&data->base);
+    if (data->sorted_data) {
+        free(data->sorted_data);
+        data->sorted_data = NULL;
+    }
+}
+
+Benchmark* SortQuick_create(void) {
+    Benchmark* bench = Benchmark_create("SortQuick");
+
+    SortQuickData* data = malloc(sizeof(SortQuickData));
+    memset(data, 0, sizeof(SortQuickData));
+
+    bench->data = data;
+
+    bench->prepare = SortQuick_prepare;
+    bench->run = SortQuick_run;
+    bench->checksum = SortQuick_checksum;
+    bench->cleanup = SortQuick_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    SortBaseData base;
+    int32_t* sorted_data;
+} SortMergeData;
+
+static void sort_merge_merge(int32_t* arr, int32_t* temp, int64_t left, int64_t mid, int64_t right) {
+    for (int64_t i = left; i <= right; i++) {
+        temp[i] = arr[i];
+    }
+
+    int64_t i = left, j = mid + 1, k = left;
+
+    while (i <= mid && j <= right) {
+        if (temp[i] <= temp[j]) {
+            arr[k] = temp[i];
+            i++;
+        } else {
+            arr[k] = temp[j];
+            j++;
+        }
+        k++;
+    }
+
+    while (i <= mid) {
+        arr[k] = temp[i];
+        i++;
+        k++;
+    }
+}
+
+static void sort_merge_merge_sort_helper(int32_t* arr, int32_t* temp, int64_t left, int64_t right) {
+    if (left >= right) return;
+
+    int64_t mid = (left + right) / 2;
+    sort_merge_merge_sort_helper(arr, temp, left, mid);
+    sort_merge_merge_sort_helper(arr, temp, mid + 1, right);
+    sort_merge_merge(arr, temp, left, mid, right);
+}
+
+static void sort_merge_merge_sort_inplace(int32_t* arr, int64_t size) {
+    int32_t* temp = malloc(size * sizeof(int32_t));
+    sort_merge_merge_sort_helper(arr, temp, 0, size - 1);
+    free(temp);
+}
+
+static void sort_merge_test(SortMergeData* data) {
+    if (data->sorted_data) {
+        free(data->sorted_data);
+    }
+
+    data->sorted_data = malloc(data->base.size_val * sizeof(int32_t));
+    memcpy(data->sorted_data, data->base.data, data->base.size_val * sizeof(int32_t));
+
+    sort_merge_merge_sort_inplace(data->sorted_data, data->base.size_val);
+}
+
+void SortMerge_prepare(Benchmark* self) {
+    SortMergeData* data = (SortMergeData*)self->data;
+    sort_base_prepare(self, "SortMerge");
+    data->sorted_data = NULL;
+}
+
+void SortMerge_run(Benchmark* self, int iteration_id) {
+    SortMergeData* data = (SortMergeData*)self->data;
+
+    sort_merge_test(data);
+
+    int32_t random_index1 = Helper_next_int((uint32_t)data->base.size_val);
+    int32_t random_index2 = Helper_next_int((uint32_t)data->base.size_val);
+
+    uint32_t iteration_result = (uint32_t)data->base.data[random_index1] + 
+                               (uint32_t)data->sorted_data[random_index2];
+    data->base.result_val = crystal_add((int64_t)data->base.result_val, (int64_t)iteration_result);
+}
+
+uint32_t SortMerge_checksum(Benchmark* self) {
+    SortMergeData* data = (SortMergeData*)self->data;
+    return data->base.result_val;
+}
+
+void SortMerge_cleanup(Benchmark* self) {
+    SortMergeData* data = (SortMergeData*)self->data;
+    sort_base_cleanup(&data->base);
+    if (data->sorted_data) {
+        free(data->sorted_data);
+        data->sorted_data = NULL;
+    }
+}
+
+Benchmark* SortMerge_create(void) {
+    Benchmark* bench = Benchmark_create("SortMerge");
+
+    SortMergeData* data = malloc(sizeof(SortMergeData));
+    memset(data, 0, sizeof(SortMergeData));
+
+    bench->data = data;
+
+    bench->prepare = SortMerge_prepare;
+    bench->run = SortMerge_run;
+    bench->checksum = SortMerge_checksum;
+    bench->cleanup = SortMerge_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    SortBaseData base;
+    int32_t* sorted_data;
+} SortSelfData;
+
+static int sort_self_compare(const void* a, const void* b) {
+    int32_t ia = *(const int32_t*)a;
+    int32_t ib = *(const int32_t*)b;
+    return (ia > ib) - (ia < ib);
+}
+
+static void sort_self_test(SortSelfData* data) {
+    if (data->sorted_data) {
+        free(data->sorted_data);
+    }
+
+    data->sorted_data = malloc(data->base.size_val * sizeof(int32_t));
+    memcpy(data->sorted_data, data->base.data, data->base.size_val * sizeof(int32_t));
+
+    qsort(data->sorted_data, (size_t)data->base.size_val, sizeof(int32_t), sort_self_compare);
+}
+
+void SortSelf_prepare(Benchmark* self) {
+    SortSelfData* data = (SortSelfData*)self->data;
+    sort_base_prepare(self, "SortSelf");
+    data->sorted_data = NULL;
+}
+
+void SortSelf_run(Benchmark* self, int iteration_id) {
+    SortSelfData* data = (SortSelfData*)self->data;
+
+    sort_self_test(data);
+
+    int32_t random_index1 = Helper_next_int((uint32_t)data->base.size_val);
+    int32_t random_index2 = Helper_next_int((uint32_t)data->base.size_val);
+
+    uint32_t iteration_result = (uint32_t)data->base.data[random_index1] + 
+                               (uint32_t)data->sorted_data[random_index2];
+    data->base.result_val = crystal_add((int64_t)data->base.result_val, (int64_t)iteration_result);
+}
+
+uint32_t SortSelf_checksum(Benchmark* self) {
+    SortSelfData* data = (SortSelfData*)self->data;
+    return data->base.result_val;
+}
+
+void SortSelf_cleanup(Benchmark* self) {
+    SortSelfData* data = (SortSelfData*)self->data;
+    sort_base_cleanup(&data->base);
+    if (data->sorted_data) {
+        free(data->sorted_data);
+        data->sorted_data = NULL;
+    }
+}
+
+Benchmark* SortSelf_create(void) {
+    Benchmark* bench = Benchmark_create("SortSelf");
+
+    SortSelfData* data = malloc(sizeof(SortSelfData));
+    memset(data, 0, sizeof(SortSelfData));
+
+    bench->data = data;
+
+    bench->prepare = SortSelf_prepare;
+    bench->run = SortSelf_run;
+    bench->checksum = SortSelf_checksum;
+    bench->cleanup = SortSelf_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    int vertices;
+    int components;
+    int** adj;
+    int* adj_count;
+    int* adj_capacity;
+} GraphPathGraph;
+
+typedef struct {
+    GraphPathGraph* graph;
+    int* pairs_start;
+    int* pairs_end;
+    int64_t n_pairs;
+    uint32_t result_val;
+} GraphPathBaseData;
+
+static GraphPathGraph* graph_path_graph_new(int vertices, int components) {
+    GraphPathGraph* graph = malloc(sizeof(GraphPathGraph));
+    graph->vertices = vertices;
+    graph->components = components;
+
+    graph->adj = malloc(vertices * sizeof(int*));
+    graph->adj_count = malloc(vertices * sizeof(int));
+    graph->adj_capacity = malloc(vertices * sizeof(int));
+
+    for (int i = 0; i < vertices; i++) {
+        graph->adj_capacity[i] = 4;
+        graph->adj[i] = malloc(graph->adj_capacity[i] * sizeof(int));
+        graph->adj_count[i] = 0;
+    }
+
+    return graph;
+}
+
+static void graph_path_graph_free(GraphPathGraph* graph) {
+    if (!graph) return;
+
+    if (graph->adj) {
+        for (int i = 0; i < graph->vertices; i++) {
+            if (graph->adj[i]) {
+                free(graph->adj[i]);
+            }
+        }
+        free(graph->adj);
+    }
+
+    if (graph->adj_count) free(graph->adj_count);
+    if (graph->adj_capacity) free(graph->adj_capacity);
+
+    free(graph);
+}
+
+static void graph_path_graph_add_edge(GraphPathGraph* graph, int u, int v) {
+    if (graph->adj_count[u] >= graph->adj_capacity[u]) {
+        graph->adj_capacity[u] *= 2;
+        graph->adj[u] = realloc(graph->adj[u], graph->adj_capacity[u] * sizeof(int));
+    }
+    graph->adj[u][graph->adj_count[u]++] = v;
+
+    if (graph->adj_count[v] >= graph->adj_capacity[v]) {
+        graph->adj_capacity[v] *= 2;
+        graph->adj[v] = realloc(graph->adj[v], graph->adj_capacity[v] * sizeof(int));
+    }
+    graph->adj[v][graph->adj_count[v]++] = u;
+}
+
+static void graph_path_graph_generate_random(GraphPathGraph* graph) {
+    int component_size = graph->vertices / graph->components;
+
+    for (int c = 0; c < graph->components; c++) {
+        int start_idx = c * component_size;
+        int end_idx = (c == graph->components - 1) ? graph->vertices : (c + 1) * component_size;
+
+        for (int i = start_idx + 1; i < end_idx; i++) {
+            int parent = start_idx + Helper_next_int(i - start_idx);
+            graph_path_graph_add_edge(graph, i, parent);
+        }
+
+        int extra_edges = component_size * 2;
+        for (int e = 0; e < extra_edges; e++) {
+            int u = start_idx + Helper_next_int(end_idx - start_idx);
+            int v = start_idx + Helper_next_int(end_idx - start_idx);
+            if (u != v) graph_path_graph_add_edge(graph, u, v);
+        }
+    }
+}
+
+static void graph_path_base_prepare(Benchmark* self, const char* bench_name, GraphPathBaseData* data) {
+    data->n_pairs = Helper_config_i64(bench_name, "pairs");
+    if (data->n_pairs <= 0) {
+        data->n_pairs = 100; 
+    }
+
+    int64_t vertices = Helper_config_i64(bench_name, "vertices");
+    if (vertices <= 0) {
+        vertices = data->n_pairs * 10; 
+    }
+
+    int components = vertices / 10000 > 10 ? vertices / 10000 : 10;
+
+    data->graph = graph_path_graph_new((int)vertices, components);
+    graph_path_graph_generate_random(data->graph);
+
+    data->pairs_start = malloc(data->n_pairs * sizeof(int));
+    data->pairs_end = malloc(data->n_pairs * sizeof(int));
+
+    int component_size = vertices / 10;
+    for (int64_t i = 0; i < data->n_pairs; i++) {
+        if (Helper_next_int(100) < 70) {
+            int component = Helper_next_int(10);
+            int start = component * component_size + Helper_next_int(component_size);
+            int end;
+            do {
+                end = component * component_size + Helper_next_int(component_size);
+            } while (end == start);
+            data->pairs_start[i] = start;
+            data->pairs_end[i] = end;
+        } else {
+            int c1 = Helper_next_int(10);
+            int c2;
+            do {
+                c2 = Helper_next_int(10);
+            } while (c2 == c1);
+            int start = c1 * component_size + Helper_next_int(component_size);
+            int end = c2 * component_size + Helper_next_int(component_size);
+            data->pairs_start[i] = start;
+            data->pairs_end[i] = end;
+        }
+    }
+
+    data->result_val = 0;
+}
+
+static void graph_path_base_cleanup(GraphPathBaseData* data) {
+    if (data->graph) {
+        graph_path_graph_free(data->graph);
+        data->graph = NULL;
+    }
+    if (data->pairs_start) {
+        free(data->pairs_start);
+        data->pairs_start = NULL;
+    }
+    if (data->pairs_end) {
+        free(data->pairs_end);
+        data->pairs_end = NULL;
+    }
+}
+
+typedef struct {
+    GraphPathBaseData base;
+} GraphPathBFSData;
+
+static int graph_path_bfs_search(GraphPathGraph* graph, int start, int target) {
+    if (start == target) return 0;
+
+    int* queue = malloc(graph->vertices * 2 * sizeof(int));
+    uint8_t* visited = calloc(graph->vertices, sizeof(uint8_t));
+
+    int front = 0, rear = 0;
+
+    visited[start] = 1;
+    queue[rear++] = start;
+    queue[rear++] = 0;
+
+    while (front < rear) {
+        int v = queue[front++];
+        int dist = queue[front++];
+
+        for (int i = 0; i < graph->adj_count[v]; i++) {
+            int neighbor = graph->adj[v][i];
+
+            if (neighbor == target) {
+                free(queue);
+                free(visited);
+                return dist + 1;
+            }
+
+            if (!visited[neighbor]) {
+                visited[neighbor] = 1;
+                queue[rear++] = neighbor;
+                queue[rear++] = dist + 1;
+            }
+        }
+    }
+
+    free(queue);
+    free(visited);
+    return -1;
+}
+
+void GraphPathBFS_prepare(Benchmark* self) {
+    GraphPathBFSData* data = (GraphPathBFSData*)self->data;
+    graph_path_base_prepare(self, "GraphPathBFS", &data->base);
+}
+
+void GraphPathBFS_run(Benchmark* self, int iteration_id) {
+    GraphPathBFSData* data = (GraphPathBFSData*)self->data;
+
+    int64_t total_length = 0;
+    for (int64_t i = 0; i < data->base.n_pairs; i++) {
+        int path_len = graph_path_bfs_search(data->base.graph, 
+                                           data->base.pairs_start[i], 
+                                           data->base.pairs_end[i]);
+        total_length += path_len;
+    }
+
+    data->base.result_val = crystal_add((int64_t)data->base.result_val, total_length);
+}
+
+uint32_t GraphPathBFS_checksum(Benchmark* self) {
+    GraphPathBFSData* data = (GraphPathBFSData*)self->data;
+    return data->base.result_val;
+}
+
+void GraphPathBFS_cleanup(Benchmark* self) {
+    GraphPathBFSData* data = (GraphPathBFSData*)self->data;
+    graph_path_base_cleanup(&data->base);
+}
+
+Benchmark* GraphPathBFS_create(void) {
+    Benchmark* bench = Benchmark_create("GraphPathBFS");
+
+    GraphPathBFSData* data = malloc(sizeof(GraphPathBFSData));
+    memset(data, 0, sizeof(GraphPathBFSData));
+
+    bench->data = data;
+
+    bench->prepare = GraphPathBFS_prepare;
+    bench->run = GraphPathBFS_run;
+    bench->checksum = GraphPathBFS_checksum;
+    bench->cleanup = GraphPathBFS_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    GraphPathBaseData base;
+} GraphPathDFSData;
+
+typedef struct {
+    int vertex;
+    int distance;
+} DFSStackItem;
+
+static int graph_path_dfs_search(GraphPathGraph* graph, int start, int target) {
+    if (start == target) return 0;
+
+    uint8_t* visited = calloc(graph->vertices, sizeof(uint8_t));
+    DFSStackItem* stack = malloc(graph->vertices * 2 * sizeof(DFSStackItem));
+    int stack_top = -1;
+    int best_path = INT_MAX;
+
+    stack[++stack_top] = (DFSStackItem){start, 0};
+
+    while (stack_top >= 0) {
+        DFSStackItem current = stack[stack_top--];
+        int v = current.vertex;
+        int dist = current.distance;
+
+        if (visited[v] || dist >= best_path) continue;
+        visited[v] = 1;
+
+        for (int i = 0; i < graph->adj_count[v]; i++) {
+            int neighbor = graph->adj[v][i];
+            if (neighbor == target) {
+                if (dist + 1 < best_path) {
+                    best_path = dist + 1;
+                }
+            } else if (!visited[neighbor]) {
+                stack[++stack_top] = (DFSStackItem){neighbor, dist + 1};
+            }
+        }
+    }
+
+    free(visited);
+    free(stack);
+    return (best_path == INT_MAX) ? -1 : best_path;
+}
+
+void GraphPathDFS_prepare(Benchmark* self) {
+    GraphPathDFSData* data = (GraphPathDFSData*)self->data;
+    graph_path_base_prepare(self, "GraphPathDFS", &data->base);
+}
+
+void GraphPathDFS_run(Benchmark* self, int iteration_id) {
+    GraphPathDFSData* data = (GraphPathDFSData*)self->data;
+
+    int64_t total_length = 0;
+    for (int64_t i = 0; i < data->base.n_pairs; i++) {
+        int path_len = graph_path_dfs_search(data->base.graph, 
+                                           data->base.pairs_start[i], 
+                                           data->base.pairs_end[i]);
+        total_length += path_len;
+    }
+
+    data->base.result_val = crystal_add((int64_t)data->base.result_val, total_length);
+}
+
+uint32_t GraphPathDFS_checksum(Benchmark* self) {
+    GraphPathDFSData* data = (GraphPathDFSData*)self->data;
+    return data->base.result_val;
+}
+
+void GraphPathDFS_cleanup(Benchmark* self) {
+    GraphPathDFSData* data = (GraphPathDFSData*)self->data;
+    graph_path_base_cleanup(&data->base);
+}
+
+Benchmark* GraphPathDFS_create(void) {
+    Benchmark* bench = Benchmark_create("GraphPathDFS");
+
+    GraphPathDFSData* data = malloc(sizeof(GraphPathDFSData));
+    memset(data, 0, sizeof(GraphPathDFSData));
+
+    bench->data = data;
+
+    bench->prepare = GraphPathDFS_prepare;
+    bench->run = GraphPathDFS_run;
+    bench->checksum = GraphPathDFS_checksum;
+    bench->cleanup = GraphPathDFS_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    GraphPathBaseData base;
+} GraphPathDijkstraData;
+
+static int graph_path_dijkstra_search(GraphPathGraph* graph, int start, int target) {
+    if (start == target) return 0;
+
+    int* dist = malloc(graph->vertices * sizeof(int));
+    uint8_t* visited = calloc(graph->vertices, sizeof(uint8_t));
+
+    for (int i = 0; i < graph->vertices; i++) {
+        dist[i] = INT_MAX / 2;
+    }
+    dist[start] = 0;
+
+    for (int iteration = 0; iteration < graph->vertices; iteration++) {
+        int u = -1;
+        int min_dist = INT_MAX / 2;
+
+        for (int v = 0; v < graph->vertices; v++) {
+            if (!visited[v] && dist[v] < min_dist) {
+                min_dist = dist[v];
+                u = v;
+            }
+        }
+
+        if (u == -1 || min_dist == INT_MAX / 2 || u == target) {
+            int result = (u == target) ? min_dist : -1;
+            free(dist);
+            free(visited);
+            return result;
+        }
+
+        visited[u] = 1;
+
+        for (int i = 0; i < graph->adj_count[u]; i++) {
+            int v = graph->adj[u][i];
+            if (dist[u] + 1 < dist[v]) {
+                dist[v] = dist[u] + 1;
+            }
+        }
+    }
+
+    free(dist);
+    free(visited);
+    return -1;
+}
+
+void GraphPathDijkstra_prepare(Benchmark* self) {
+    GraphPathDijkstraData* data = (GraphPathDijkstraData*)self->data;
+    graph_path_base_prepare(self, "GraphPathDijkstra", &data->base);
+}
+
+void GraphPathDijkstra_run(Benchmark* self, int iteration_id) {
+    GraphPathDijkstraData* data = (GraphPathDijkstraData*)self->data;
+
+    int64_t total_length = 0;
+    for (int64_t i = 0; i < data->base.n_pairs; i++) {
+        int path_len = graph_path_dijkstra_search(data->base.graph, 
+                                                data->base.pairs_start[i], 
+                                                data->base.pairs_end[i]);
+        total_length += path_len;
+    }
+
+    data->base.result_val = crystal_add((int64_t)data->base.result_val, total_length);
+}
+
+uint32_t GraphPathDijkstra_checksum(Benchmark* self) {
+    GraphPathDijkstraData* data = (GraphPathDijkstraData*)self->data;
+    return data->base.result_val;
+}
+
+void GraphPathDijkstra_cleanup(Benchmark* self) {
+    GraphPathDijkstraData* data = (GraphPathDijkstraData*)self->data;
+    graph_path_base_cleanup(&data->base);
+}
+
+Benchmark* GraphPathDijkstra_create(void) {
+    Benchmark* bench = Benchmark_create("GraphPathDijkstra");
+
+    GraphPathDijkstraData* data = malloc(sizeof(GraphPathDijkstraData));
+    memset(data, 0, sizeof(GraphPathDijkstraData));
+
+    bench->data = data;
+
+    bench->prepare = GraphPathDijkstra_prepare;
+    bench->run = GraphPathDijkstra_run;
+    bench->checksum = GraphPathDijkstra_checksum;
+    bench->cleanup = GraphPathDijkstra_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    uint8_t* data;
+    int64_t size_val;
+    uint32_t result_val;
+} BufferHashBaseData;
+
+static void buffer_hash_base_prepare(Benchmark* self, const char* bench_name, BufferHashBaseData* data) {
+    data->size_val = Helper_config_i64(bench_name, "size");
+    if (data->size_val <= 0) {
+        data->size_val = 1000000; 
+    }
+
+    data->data = malloc(data->size_val * sizeof(uint8_t));
+
+    for (int64_t i = 0; i < data->size_val; i++) {
+        data->data[i] = (uint8_t)Helper_next_int(256);
+    }
+
+    data->result_val = 0;
+}
+
+static void buffer_hash_base_cleanup(BufferHashBaseData* data) {
+    if (data->data) {
+        free(data->data);
+        data->data = NULL;
+    }
+}
+
+typedef struct {
+    BufferHashBaseData base;
+} BufferHashSHA256Data;
+
+static uint32_t buffer_hash_sha256_digest(uint8_t* data, int64_t size) {
+    uint32_t hashes[8] = {
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+        0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+    };
+
+    for (int64_t i = 0; i < size; i++) {
+        uint32_t hash_idx = (uint32_t)(i % 8);
+        uint32_t* hash = &hashes[hash_idx];
+
+        uint32_t temp = (*hash << 5) + *hash;  
+        temp = temp + data[i];  
+        *hash = temp;
+
+        temp = *hash + (*hash << 10);  
+        *hash = temp ^ (*hash >> 6);
+    }
+
+    uint8_t result[32];
+    for (int i = 0; i < 8; i++) {
+        result[i * 4] = (hashes[i] >> 24) & 0xFF;
+        result[i * 4 + 1] = (hashes[i] >> 16) & 0xFF;
+        result[i * 4 + 2] = (hashes[i] >> 8) & 0xFF;
+        result[i * 4 + 3] = hashes[i] & 0xFF;
+    }
+
+    return (uint32_t)result[0] |
+           ((uint32_t)result[1] << 8) |
+           ((uint32_t)result[2] << 16) |
+           ((uint32_t)result[3] << 24);
+}
+
+void BufferHashSHA256_prepare(Benchmark* self) {
+    BufferHashSHA256Data* data = (BufferHashSHA256Data*)self->data;
+    buffer_hash_base_prepare(self, "BufferHashSHA256", &data->base);
+}
+
+void BufferHashSHA256_run(Benchmark* self, int iteration_id) {
+    BufferHashSHA256Data* data = (BufferHashSHA256Data*)self->data;
+
+    uint32_t hash_result = buffer_hash_sha256_digest(data->base.data, data->base.size_val);
+
+    data->base.result_val = (data->base.result_val + hash_result) & 0xFFFFFFFFu;
+}
+
+uint32_t BufferHashSHA256_checksum(Benchmark* self) {
+    BufferHashSHA256Data* data = (BufferHashSHA256Data*)self->data;
+    return data->base.result_val;
+}
+
+void BufferHashSHA256_cleanup(Benchmark* self) {
+    BufferHashSHA256Data* data = (BufferHashSHA256Data*)self->data;
+    buffer_hash_base_cleanup(&data->base);
+}
+
+Benchmark* BufferHashSHA256_create(void) {
+    Benchmark* bench = Benchmark_create("BufferHashSHA256");
+
+    BufferHashSHA256Data* data = malloc(sizeof(BufferHashSHA256Data));
+    memset(data, 0, sizeof(BufferHashSHA256Data));
+
+    bench->data = data;
+
+    bench->prepare = BufferHashSHA256_prepare;
+    bench->run = BufferHashSHA256_run;
+    bench->checksum = BufferHashSHA256_checksum;
+    bench->cleanup = BufferHashSHA256_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    BufferHashBaseData base;
+} BufferHashCRC32Data;
+
+static uint32_t buffer_hash_crc32_digest(uint8_t* data, int64_t size) {
+    uint32_t crc = 0xFFFFFFFFu;
+
+    for (int64_t i = 0; i < size; i++) {
+        crc = crc ^ data[i];
+        for (int j = 0; j < 8; j++) {
+            if (crc & 1) {
+                crc = (crc >> 1) ^ 0xEDB88320u;
+            } else {
+                crc = crc >> 1;
+            }
+        }
+    }
+    return crc ^ 0xFFFFFFFFu;
+}
+
+void BufferHashCRC32_prepare(Benchmark* self) {
+    BufferHashCRC32Data* data = (BufferHashCRC32Data*)self->data;
+    buffer_hash_base_prepare(self, "BufferHashCRC32", &data->base);
+}
+
+void BufferHashCRC32_run(Benchmark* self, int iteration_id) {
+    BufferHashCRC32Data* data = (BufferHashCRC32Data*)self->data;
+
+    uint32_t crc_result = buffer_hash_crc32_digest(data->base.data, data->base.size_val);
+
+    data->base.result_val += crc_result;
+}
+
+uint32_t BufferHashCRC32_checksum(Benchmark* self) {
+    BufferHashCRC32Data* data = (BufferHashCRC32Data*)self->data;
+    return data->base.result_val;
+}
+
+void BufferHashCRC32_cleanup(Benchmark* self) {
+    BufferHashCRC32Data* data = (BufferHashCRC32Data*)self->data;
+    buffer_hash_base_cleanup(&data->base);
+}
+
+Benchmark* BufferHashCRC32_create(void) {
+    Benchmark* bench = Benchmark_create("BufferHashCRC32");
+
+    BufferHashCRC32Data* data = malloc(sizeof(BufferHashCRC32Data));
+    memset(data, 0, sizeof(BufferHashCRC32Data));
+
+    bench->data = data;
+
+    bench->prepare = BufferHashCRC32_prepare;
+    bench->run = BufferHashCRC32_run;
+    bench->checksum = BufferHashCRC32_checksum;
+    bench->cleanup = BufferHashCRC32_cleanup;
+
+    return bench;
+}
+
+typedef struct CacheNode {
+    char* key;
+    char* value;
+    int64_t timestamp;
+    struct CacheNode* prev;
+    struct CacheNode* next;
+    UT_hash_handle hh;  
+} CacheNode;
+
+typedef struct {
+    CacheNode* head;
+    CacheNode* tail;
+    CacheNode* hash_table;  
+    size_t capacity;
+    size_t size;
+    int64_t time;
+} CacheSimulationCache;
+
+typedef struct {
+    uint32_t result_val;
+    int64_t values_size;
+    int64_t cache_size;
+    int64_t hits;
+    int64_t misses;
+    CacheSimulationCache* cache;
+} CacheSimulationData;
+
+static CacheSimulationCache* cache_simulation_cache_new(size_t capacity) {
+    CacheSimulationCache* cache = malloc(sizeof(CacheSimulationCache));
+    cache->head = NULL;
+    cache->tail = NULL;
+    cache->hash_table = NULL;
+    cache->capacity = capacity;
+    cache->size = 0;
+    cache->time = 0;
+    return cache;
+}
+
+static void cache_simulation_cache_move_to_front(CacheSimulationCache* cache, CacheNode* node) {
+    if (node == cache->head) return;
+
+    if (node->prev) node->prev->next = node->next;
+    if (node->next) node->next->prev = node->prev;
+
+    if (node == cache->tail) cache->tail = node->prev;
+
+    node->prev = NULL;
+    node->next = cache->head;
+    if (cache->head) cache->head->prev = node;
+    cache->head = node;
+    if (!cache->tail) cache->tail = node;
+}
+
+static CacheNode* cache_simulation_cache_get(CacheSimulationCache* cache, const char* key) {
+    CacheNode* node = NULL;
+    HASH_FIND_STR(cache->hash_table, key, node);
+
+    if (node) {
+        cache_simulation_cache_move_to_front(cache, node);
+        node->timestamp = ++cache->time;
+        return node;
+    }
+    return NULL;
+}
+
+static void cache_simulation_cache_remove_oldest(CacheSimulationCache* cache) {
+    if (!cache->tail) return;
+
+    CacheNode* oldest = cache->tail;
+
+    HASH_DEL(cache->hash_table, oldest);
+
+    if (oldest->prev) oldest->prev->next = oldest->next;
+    if (oldest->next) oldest->next->prev = oldest->prev;
+
+    if (cache->head == oldest) cache->head = oldest->next;
+    if (cache->tail == oldest) cache->tail = oldest->prev;
+
+    free(oldest->key);
+    free(oldest->value);
+    free(oldest);
+
+    cache->size--;
+}
+
+static void cache_simulation_cache_put(CacheSimulationCache* cache, const char* key, const char* value) {
+    CacheNode* node = NULL;
+    HASH_FIND_STR(cache->hash_table, key, node);
+
+    if (node) {
+
+        free(node->value);
+        node->value = strdup(value);
+        cache_simulation_cache_move_to_front(cache, node);
+        node->timestamp = ++cache->time;
+        return;
+    }
+
+    if (cache->size >= cache->capacity) {
+        cache_simulation_cache_remove_oldest(cache);
+    }
+
+    node = malloc(sizeof(CacheNode));
+    node->key = strdup(key);
+    node->value = strdup(value);
+    node->timestamp = ++cache->time;
+    node->prev = NULL;
+    node->next = NULL;
+
+    HASH_ADD_STR(cache->hash_table, key, node);
+
+    node->next = cache->head;
+    if (cache->head) cache->head->prev = node;
+    cache->head = node;
+    if (!cache->tail) cache->tail = node;
+
+    cache->size++;
+}
+
+static void cache_simulation_cache_free(CacheSimulationCache* cache) {
+    CacheNode *node, *tmp;
+    HASH_ITER(hh, cache->hash_table, node, tmp) {
+        HASH_DEL(cache->hash_table, node);
+        free(node->key);
+        free(node->value);
+        free(node);
+    }
+    free(cache);
+}
+
+void CacheSimulation_prepare(Benchmark* self) {
+    CacheSimulationData* data = (CacheSimulationData*)self->data;
+
+    data->values_size = Helper_config_i64(self->name, "values");
+    if (data->values_size <= 0) {
+        data->values_size = 2000; 
+    }
+
+    data->cache_size = Helper_config_i64(self->name, "size");
+    if (data->cache_size <= 0) {
+        data->cache_size = 1000; 
+    }
+
+    data->result_val = 5432; 
+    data->hits = 0;
+    data->misses = 0;
+    data->cache = cache_simulation_cache_new((size_t)data->cache_size);
+}
+
+void CacheSimulation_run(Benchmark* self, int iteration_id) {
+    CacheSimulationData* data = (CacheSimulationData*)self->data;
+
+    char key_buf[32];
+    snprintf(key_buf, sizeof(key_buf), "item_%u", Helper_next_int((uint32_t)data->values_size));
+
+    if (cache_simulation_cache_get(data->cache, key_buf)) {
+        data->hits++;
+        char value_buf[32];
+        snprintf(value_buf, sizeof(value_buf), "updated_%d", iteration_id);
+        cache_simulation_cache_put(data->cache, key_buf, value_buf);
+    } else {
+        data->misses++;
+        char value_buf[32];
+        snprintf(value_buf, sizeof(value_buf), "new_%d", iteration_id);
+        cache_simulation_cache_put(data->cache, key_buf, value_buf);
+    }
+}
+
+uint32_t CacheSimulation_checksum(Benchmark* self) {
+    CacheSimulationData* data = (CacheSimulationData*)self->data;
+
+    uint32_t final_result = data->result_val;
+    final_result = crystal_shl((int64_t)final_result, 5) + (uint32_t)data->hits;
+    final_result = crystal_shl((int64_t)final_result, 5) + (uint32_t)data->misses;
+    final_result = crystal_shl((int64_t)final_result, 5) + (uint32_t)data->cache->size;
+
+    return final_result;
+}
+
+void CacheSimulation_cleanup(Benchmark* self) {
+    CacheSimulationData* data = (CacheSimulationData*)self->data;
+
+    if (data->cache) {
+        cache_simulation_cache_free(data->cache);
+        data->cache = NULL;
+    }
+}
+
+Benchmark* CacheSimulation_create(void) {
+    Benchmark* bench = Benchmark_create("CacheSimulation");
+
+    CacheSimulationData* data = malloc(sizeof(CacheSimulationData));
+    memset(data, 0, sizeof(CacheSimulationData));
+
+    bench->data = data;
+
+    bench->prepare = CacheSimulation_prepare;
+    bench->run = CacheSimulation_run;
+    bench->checksum = CacheSimulation_checksum;
+    bench->cleanup = CacheSimulation_cleanup;
+
+    return bench;
+}
+
+typedef enum {
+    AST_NUMBER,
+    AST_VARIABLE,
+    AST_BINARY_OP,
+    AST_ASSIGNMENT
+} AST_NodeType;
+
+typedef struct AST_Node AST_Node;
+typedef struct AST_BinaryOp AST_BinaryOp;
+typedef struct AST_Assignment AST_Assignment;
+
+struct AST_BinaryOp {
+    char op;
+    AST_Node* left;
+    AST_Node* right;
+};
+
+struct AST_Assignment {
+    char* var_name;
+    AST_Node* expr;
+};
+
+struct AST_Node {
+    AST_NodeType type;
+    union {
+        int64_t number_value;
+        char* variable_name;
+        AST_BinaryOp* binary_op;
+        AST_Assignment* assignment;
+    } data;
+};
+
+typedef struct {
+    AST_Node** expressions;
+    int64_t expressions_count;
+    int64_t expressions_capacity;
+    uint32_t result_val;
+    char* text;
+    int64_t operations;
+} CalculatorAstData;
+
+static AST_Node* ast_node_new_number(int64_t value) {
+    AST_Node* node = malloc(sizeof(AST_Node));
+    node->type = AST_NUMBER;
+    node->data.number_value = value;
+    return node;
+}
+
+static AST_Node* ast_node_new_variable(const char* name) {
+    AST_Node* node = malloc(sizeof(AST_Node));
+    node->type = AST_VARIABLE;
+    node->data.variable_name = strdup(name);
+    return node;
+}
+
+static AST_Node* ast_node_new_binary_op(char op, AST_Node* left, AST_Node* right) {
+    AST_BinaryOp* binary_op = malloc(sizeof(AST_BinaryOp));
+    binary_op->op = op;
+    binary_op->left = left;
+    binary_op->right = right;
+
+    AST_Node* node = malloc(sizeof(AST_Node));
+    node->type = AST_BINARY_OP;
+    node->data.binary_op = binary_op;
+    return node;
+}
+
+static AST_Node* ast_node_new_assignment(const char* var_name, AST_Node* expr) {
+    AST_Assignment* assignment = malloc(sizeof(AST_Assignment));
+    assignment->var_name = strdup(var_name);
+    assignment->expr = expr;
+
+    AST_Node* node = malloc(sizeof(AST_Node));
+    node->type = AST_ASSIGNMENT;
+    node->data.assignment = assignment;
+    return node;
+}
+
+static void ast_node_free(AST_Node* node) {
+    if (!node) return;
+
+    switch (node->type) {
+        case AST_VARIABLE:
+            free(node->data.variable_name);
+            break;
+        case AST_BINARY_OP:
+            if (node->data.binary_op) {
+                ast_node_free(node->data.binary_op->left);
+                ast_node_free(node->data.binary_op->right);
+                free(node->data.binary_op);
+            }
+            break;
+        case AST_ASSIGNMENT:
+            if (node->data.assignment) {
+                free(node->data.assignment->var_name);
+                ast_node_free(node->data.assignment->expr);
+                free(node->data.assignment);
+            }
+            break;
+        default:
+            break;
+    }
+    free(node);
+}
+
+typedef struct {
+    const char* input;
+    size_t pos;
+    char current_char;
+} CalculatorAstParser;
+
+static AST_Node* calculator_ast_parser_parse_expression(CalculatorAstParser* parser);
+
+static void calculator_ast_parser_init(CalculatorAstParser* parser, const char* input) {
+    parser->input = input;
+    parser->pos = 0;
+    parser->current_char = input[0];
+}
+
+static void calculator_ast_parser_advance(CalculatorAstParser* parser) {
+    parser->pos++;
+    parser->current_char = parser->input[parser->pos];
+}
+
+static void calculator_ast_parser_skip_whitespace(CalculatorAstParser* parser) {
+    while (parser->current_char && isspace((unsigned char)parser->current_char)) {
+        calculator_ast_parser_advance(parser);
+    }
+}
+
+static AST_Node* calculator_ast_parser_parse_number(CalculatorAstParser* parser) {
+    int64_t value = 0;
+    while (parser->current_char && isdigit((unsigned char)parser->current_char)) {
+        value = value * 10 + (parser->current_char - '0');
+        calculator_ast_parser_advance(parser);
+    }
+    return ast_node_new_number(value);
+}
+
+static AST_Node* calculator_ast_parser_parse_variable(CalculatorAstParser* parser) {
+    size_t start = parser->pos;
+    while (parser->current_char && 
+           (isalpha((unsigned char)parser->current_char) || 
+            isdigit((unsigned char)parser->current_char))) {
+        calculator_ast_parser_advance(parser);
+    }
+
+    size_t len = parser->pos - start;
+    char* var_name = malloc(len + 1);
+    strncpy(var_name, parser->input + start, len);
+    var_name[len] = '\0';
+
+    calculator_ast_parser_skip_whitespace(parser);
+
+    if (parser->current_char == '=') {
+        calculator_ast_parser_advance(parser);
+        AST_Node* expr = calculator_ast_parser_parse_expression(parser);
+        AST_Node* node = ast_node_new_assignment(var_name, expr);
+        free(var_name);
+        return node;
+    }
+
+    AST_Node* node = ast_node_new_variable(var_name);
+    free(var_name);
+    return node;
+}
+
+static AST_Node* calculator_ast_parser_parse_factor(CalculatorAstParser* parser) {
+    calculator_ast_parser_skip_whitespace(parser);
+
+    if (!parser->current_char) {
+        return ast_node_new_number(0);
+    }
+
+    if (isdigit((unsigned char)parser->current_char)) {
+        return calculator_ast_parser_parse_number(parser);
+    }
+
+    if (isalpha((unsigned char)parser->current_char)) {
+        return calculator_ast_parser_parse_variable(parser);
+    }
+
+    if (parser->current_char == '(') {
+        calculator_ast_parser_advance(parser);
+        AST_Node* node = calculator_ast_parser_parse_expression(parser);
+        calculator_ast_parser_skip_whitespace(parser);
+        if (parser->current_char == ')') {
+            calculator_ast_parser_advance(parser);
+        }
+        return node;
+    }
+
+    return ast_node_new_number(0);
+}
+
+static AST_Node* calculator_ast_parser_parse_term(CalculatorAstParser* parser) {
+    AST_Node* node = calculator_ast_parser_parse_factor(parser);
+
+    while (1) {
+        calculator_ast_parser_skip_whitespace(parser);
+        if (!parser->current_char) break;
+
+        if (parser->current_char == '*' || parser->current_char == '/' || parser->current_char == '%') {
+            char op = parser->current_char;
+            calculator_ast_parser_advance(parser);
+            AST_Node* right = calculator_ast_parser_parse_factor(parser);
+            node = ast_node_new_binary_op(op, node, right);
+        } else {
+            break;
+        }
+    }
+
+    return node;
+}
+
+static AST_Node* calculator_ast_parser_parse_expression(CalculatorAstParser* parser) {
+    AST_Node* node = calculator_ast_parser_parse_term(parser);
+
+    while (1) {
+        calculator_ast_parser_skip_whitespace(parser);
+        if (!parser->current_char) break;
+
+        if (parser->current_char == '+' || parser->current_char == '-') {
+            char op = parser->current_char;
+            calculator_ast_parser_advance(parser);
+            AST_Node* right = calculator_ast_parser_parse_term(parser);
+            node = ast_node_new_binary_op(op, node, right);
+        } else {
+            break;
+        }
+    }
+
+    return node;
+}
+
+static void calculator_ast_parser_parse_all(CalculatorAstParser* parser, CalculatorAstData* data) {
+    data->expressions_count = 0;
+
+    while (parser->current_char) {
+        calculator_ast_parser_skip_whitespace(parser);
+        if (!parser->current_char) break;
+
+        if (data->expressions_count >= data->expressions_capacity) {
+            data->expressions_capacity = data->expressions_capacity ? data->expressions_capacity * 2 : 16;
+            data->expressions = realloc(data->expressions, data->expressions_capacity * sizeof(AST_Node*));
+        }
+
+        data->expressions[data->expressions_count++] = calculator_ast_parser_parse_expression(parser);
+    }
+}
+
+static char* calculator_ast_generate_random_program(int64_t operations) {
+    size_t capacity = operations * 100;
+    char* result = malloc(capacity);
+    size_t len = 0;
+
+    len += snprintf(result + len, capacity - len, "v0 = 1\n");
+    for (int i = 0; i < 10; i++) {
+        len += snprintf(result + len, capacity - len, "v%d = v%d + %d\n", i + 1, i, i + 1);
+    }
+
+    for (int64_t i = 0; i < operations; i++) {
+        int v = (int)(i + 10);
+
+        len += snprintf(result + len, capacity - len, "v%d = v%d + ", v, v - 1);
+
+        switch (Helper_next_int(10)) {
+            case 0:
+                len += snprintf(result + len, capacity - len, 
+                               "(v%d / 3) * 4 - %ld / (3 + (18 - v%d)) %% v%d + 2 * ((9 - v%d) * (v%d + 7))",
+                               v - 1, i, v - 2, v - 3, v - 6, v - 5);
+                break;
+            case 1:
+                len += snprintf(result + len, capacity - len,
+                               "v%d + (v%d + v%d) * v%d - (v%d / v%d)",
+                               v - 1, v - 2, v - 3, v - 4, v - 5, v - 6);
+                break;
+            case 2:
+                len += snprintf(result + len, capacity - len, "(3789 - (((v%d)))) + 1", v - 7);
+                break;
+            case 3:
+                len += snprintf(result + len, capacity - len, "4/2 * (1-3) + v%d/v%d", v - 9, v - 5);
+                break;
+            case 4:
+                len += snprintf(result + len, capacity - len, "1+2+3+4+5+6+v%d", v - 1);
+                break;
+            case 5:
+                len += snprintf(result + len, capacity - len, "(99999 / v%d)", v - 3);
+                break;
+            case 6:
+                len += snprintf(result + len, capacity - len, "0 + 0 - v%d", v - 8);
+                break;
+            case 7:
+                len += snprintf(result + len, capacity - len, "((((((((((v%d)))))))))) * 2", v - 6);
+                break;
+            case 8:
+                len += snprintf(result + len, capacity - len, "%ld * (v%d%%6)%%7", i, v - 1);
+                break;
+            case 9:
+                len += snprintf(result + len, capacity - len, "(1)/(0-v%d) + (v%d)", v - 5, v - 7);
+                break;
+        }
+        len += snprintf(result + len, capacity - len, "\n");
+    }
+
+    result[len] = '\0';
+    return result;
+}
+
+void CalculatorAst_prepare(Benchmark* self) {
+    CalculatorAstData* data = (CalculatorAstData*)self->data;
+
+    data->operations = Helper_config_i64(self->name, "operations");
+    if (data->operations <= 0) {
+        data->operations = 1000; 
+    }
+
+    data->text = calculator_ast_generate_random_program(data->operations);
+    data->expressions = NULL;
+    data->expressions_count = 0;
+    data->expressions_capacity = 0;
+    data->result_val = 0;
+}
+
+void CalculatorAst_run(Benchmark* self, int iteration_id) {
+    CalculatorAstData* data = (CalculatorAstData*)self->data;
+
+    CalculatorAstParser parser;
+    calculator_ast_parser_init(&parser, data->text);
+
+    if (data->expressions) {
+        for (int64_t i = 0; i < data->expressions_count; i++) {
+            ast_node_free(data->expressions[i]);
+        }
+        free(data->expressions);
+        data->expressions = NULL;
+        data->expressions_count = 0;
+        data->expressions_capacity = 0;
+    }
+
+    calculator_ast_parser_parse_all(&parser, data);
+
+    uint32_t iteration_result = (uint32_t)data->expressions_count;
+
+    if (data->expressions_count > 0 && 
+        data->expressions[data->expressions_count - 1]->type == AST_ASSIGNMENT) {
+        AST_Node* last = data->expressions[data->expressions_count - 1];
+        iteration_result += Helper_checksum_string(last->data.assignment->var_name);
+    }
+
+    data->result_val = crystal_add((int64_t)data->result_val, (int64_t)iteration_result);
+}
+
+uint32_t CalculatorAst_checksum(Benchmark* self) {
+    CalculatorAstData* data = (CalculatorAstData*)self->data;
+    return data->result_val;
+}
+
+void CalculatorAst_cleanup(Benchmark* self) {
+    CalculatorAstData* data = (CalculatorAstData*)self->data;
+
+    if (data->text) {
+        free(data->text);
+        data->text = NULL;
+    }
+
+    if (data->expressions) {
+        for (int64_t i = 0; i < data->expressions_count; i++) {
+            ast_node_free(data->expressions[i]);
+        }
+        free(data->expressions);
+        data->expressions = NULL;
+    }
+}
+
+Benchmark* CalculatorAst_create(void) {
+    Benchmark* bench = Benchmark_create("CalculatorAst");
+
+    CalculatorAstData* data = malloc(sizeof(CalculatorAstData));
+    memset(data, 0, sizeof(CalculatorAstData));
+
+    bench->data = data;
+
+    bench->prepare = CalculatorAst_prepare;
+    bench->run = CalculatorAst_run;
+    bench->checksum = CalculatorAst_checksum;
+    bench->cleanup = CalculatorAst_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    char* name;                
+    int64_t value;             
+    UT_hash_handle hh;         
+} VariableEntry;
+
+typedef struct {
+    VariableEntry* variables_hash;
+} CalculatorInterpreterContext;
+
+static CalculatorInterpreterContext* calculator_interpreter_context_new(void) {
+    CalculatorInterpreterContext* ctx = malloc(sizeof(CalculatorInterpreterContext));
+    ctx->variables_hash = NULL;
+    return ctx;
+}
+
+static void calculator_interpreter_context_free(CalculatorInterpreterContext* ctx) {
+    VariableEntry *entry, *tmp;
+
+    HASH_ITER(hh, ctx->variables_hash, entry, tmp) {
+        free(entry->name);
+        HASH_DEL(ctx->variables_hash, entry);
+        free(entry);
+    }
+
+    free(ctx);
+}
+
+static int64_t* calculator_interpreter_context_get(CalculatorInterpreterContext* ctx, const char* name) {
+    VariableEntry* entry = NULL;
+    HASH_FIND_STR(ctx->variables_hash, name, entry);
+    return entry ? &entry->value : NULL;
+}
+
+static void calculator_interpreter_context_set(CalculatorInterpreterContext* ctx, const char* name, int64_t value) {
+    VariableEntry* entry = NULL;
+    HASH_FIND_STR(ctx->variables_hash, name, entry);
+
+    if (entry) {
+        entry->value = value;
+    } else {
+        entry = malloc(sizeof(VariableEntry));
+        entry->name = strdup(name);
+        entry->value = value;
+        HASH_ADD_KEYPTR(hh, ctx->variables_hash, entry->name, strlen(entry->name), entry);
+    }
+}
+
+static int64_t calculator_interpreter_simple_div(int64_t a, int64_t b) {
+    if (b == 0) return 0;
+    if ((a >= 0 && b > 0) || (a < 0 && b < 0)) {
+        return a / b;
+    } else {
+        int64_t abs_a = a >= 0 ? a : -a;
+        int64_t abs_b = b >= 0 ? b : -b;
+        return -(abs_a / abs_b);
+    }
+}
+
+static int64_t calculator_interpreter_simple_mod(int64_t a, int64_t b) {
+    if (b == 0) return 0;
+    return a - calculator_interpreter_simple_div(a, b) * b;
+}
+
+static int64_t calculator_interpreter_evaluate(AST_Node* node, CalculatorInterpreterContext* ctx) {
+    switch (node->type) {
+        case AST_NUMBER:
+            return node->data.number_value;
+
+        case AST_VARIABLE: {
+            int64_t* value = calculator_interpreter_context_get(ctx, node->data.variable_name);
+            return value ? *value : 0;
+        }
+
+        case AST_BINARY_OP: {
+            AST_BinaryOp* binop = node->data.binary_op;
+            int64_t left = calculator_interpreter_evaluate(binop->left, ctx);
+            int64_t right = calculator_interpreter_evaluate(binop->right, ctx);
+
+            switch (binop->op) {
+                case '+': return left + right;
+                case '-': return left - right;
+                case '*': return left * right;
+                case '/': return calculator_interpreter_simple_div(left, right);
+                case '%': return calculator_interpreter_simple_mod(left, right);
+                default: return 0;
+            }
+        }
+
+        case AST_ASSIGNMENT: {
+            AST_Assignment* assign = node->data.assignment;
+            int64_t value = calculator_interpreter_evaluate(assign->expr, ctx);
+            calculator_interpreter_context_set(ctx, assign->var_name, value);
+            return value;
+        }
+    }
+    return 0;
+}
+
+typedef struct {
+    CalculatorAstData ast_data;
+    uint32_t result_val;
+    AST_Node** cached_expressions;
+    int64_t cached_expressions_count;
+} CalculatorInterpreterData;
+
+void CalculatorInterpreter_prepare(Benchmark* self) {
+    CalculatorInterpreterData* data = (CalculatorInterpreterData*)self->data;
+
+    data->ast_data.operations = Helper_config_i64(self->name, "operations");
+    if (data->ast_data.operations <= 0) {
+        data->ast_data.operations = 1000;
+    }
+
+    data->ast_data.text = calculator_ast_generate_random_program(data->ast_data.operations);
+    data->ast_data.expressions = NULL;
+    data->ast_data.expressions_count = 0;
+    data->ast_data.expressions_capacity = 0;
+
+    CalculatorAstParser parser;
+    calculator_ast_parser_init(&parser, data->ast_data.text);
+    calculator_ast_parser_parse_all(&parser, &data->ast_data);
+
+    data->cached_expressions = malloc(data->ast_data.expressions_count * sizeof(AST_Node*));
+    data->cached_expressions_count = data->ast_data.expressions_count;
+
+    for (int64_t i = 0; i < data->ast_data.expressions_count; i++) {
+
+        data->cached_expressions[i] = data->ast_data.expressions[i];
+    }
+
+    data->result_val = 0;
+}
+
+void CalculatorInterpreter_run(Benchmark* self, int iteration_id) {
+    CalculatorInterpreterData* data = (CalculatorInterpreterData*)self->data;
+
+    CalculatorInterpreterContext* ctx = calculator_interpreter_context_new();
+    int64_t iteration_result = 0;
+
+    for (int64_t i = 0; i < data->cached_expressions_count; i++) {
+        iteration_result = calculator_interpreter_evaluate(data->cached_expressions[i], ctx);
+    }
+
+    calculator_interpreter_context_free(ctx);
+
+    data->result_val = crystal_add((int64_t)data->result_val, iteration_result);
+}
+
+uint32_t CalculatorInterpreter_checksum(Benchmark* self) {
+    CalculatorInterpreterData* data = (CalculatorInterpreterData*)self->data;
+    return data->result_val;
+}
+
+void CalculatorInterpreter_cleanup(Benchmark* self) {
+    CalculatorInterpreterData* data = (CalculatorInterpreterData*)self->data;
+
+    if (data->ast_data.text) {
+        free(data->ast_data.text);
+        data->ast_data.text = NULL;
+    }
+
+    if (data->cached_expressions) {
+        free(data->cached_expressions);
+        data->cached_expressions = NULL;
+    }
+
+    if (data->ast_data.expressions) {
+        for (int64_t i = 0; i < data->ast_data.expressions_count; i++) {
+            ast_node_free(data->ast_data.expressions[i]);
+        }
+        free(data->ast_data.expressions);
+        data->ast_data.expressions = NULL;
+    }
+}
+
+Benchmark* CalculatorInterpreter_create(void) {
+    Benchmark* bench = Benchmark_create("CalculatorInterpreter");
+
+    CalculatorInterpreterData* data = malloc(sizeof(CalculatorInterpreterData));
+    memset(data, 0, sizeof(CalculatorInterpreterData));
+
+    bench->data = data;
+
+    bench->prepare = CalculatorInterpreter_prepare;
+    bench->run = CalculatorInterpreter_run;
+    bench->checksum = CalculatorInterpreter_checksum;
+    bench->cleanup = CalculatorInterpreter_cleanup;
+
+    return bench;
+}
+
+typedef enum {
+    CELL_DEAD,
+    CELL_ALIVE
+} CellState;
+
+typedef struct {
+    CellState** cells;
+    CellState** next_cells;  
+    int width;
+    int height;
+} GameOfLifeGrid;
+
+typedef struct {
+    uint32_t result_val;
+    int64_t width_val;
+    int64_t height_val;
+    GameOfLifeGrid grid;
+} GameOfLifeData;
+
+static inline uint32_t fnv1a_hash(uint32_t hash, uint32_t value) {
+    const uint32_t FNV_OFFSET_BASIS = 2166136261UL;
+    const uint32_t FNV_PRIME = 16777619UL;
+
+    if (hash == 0) hash = FNV_OFFSET_BASIS;
+    hash ^= value;
+    hash *= FNV_PRIME;
+    return hash;
+}
+
+static void game_of_life_grid_init(GameOfLifeGrid* grid, int width, int height) {
+    grid->width = width;
+    grid->height = height;
+
+    grid->cells = malloc(height * sizeof(CellState*));
+    for (int y = 0; y < height; y++) {
+        grid->cells[y] = malloc(width * sizeof(CellState));
+        memset(grid->cells[y], 0, width * sizeof(CellState));
+    }
+
+    grid->next_cells = malloc(height * sizeof(CellState*));
+    for (int y = 0; y < height; y++) {
+        grid->next_cells[y] = malloc(width * sizeof(CellState));
+    }
+}
+
+static void game_of_life_grid_free(GameOfLifeGrid* grid) {
+    for (int y = 0; y < grid->height; y++) {
+        free(grid->cells[y]);
+        free(grid->next_cells[y]);
+    }
+    free(grid->cells);
+    free(grid->next_cells);
+}
+
+static inline int game_of_life_count_neighbors(GameOfLifeGrid* grid, int x, int y) {
+    int count = 0;
+    int width = grid->width;
+    int height = grid->height;
+
+    int y_prev = (y == 0) ? height - 1 : y - 1;
+    int y_next = (y == height - 1) ? 0 : y + 1;
+    int x_prev = (x == 0) ? width - 1 : x - 1;
+    int x_next = (x == width - 1) ? 0 : x + 1;
+
+    count += grid->cells[y_prev][x_prev] == CELL_ALIVE;
+    count += grid->cells[y_prev][x] == CELL_ALIVE;
+    count += grid->cells[y_prev][x_next] == CELL_ALIVE;
+    count += grid->cells[y][x_prev] == CELL_ALIVE;
+    count += grid->cells[y][x_next] == CELL_ALIVE;
+    count += grid->cells[y_next][x_prev] == CELL_ALIVE;
+    count += grid->cells[y_next][x] == CELL_ALIVE;
+    count += grid->cells[y_next][x_next] == CELL_ALIVE;
+
+    return count;
+}
+
+static void game_of_life_next_generation(GameOfLifeGrid* grid) {
+    int width = grid->width;
+    int height = grid->height;
+
+    CellState** cells = grid->cells;
+    CellState** next_cells = grid->next_cells;
+
+    for (int y = 0; y < height; y++) {
+        CellState* row = cells[y];
+        CellState* next_row = next_cells[y];
+
+        for (int x = 0; x < width; x++) {
+            int neighbors = game_of_life_count_neighbors(grid, x, y);
+            CellState current = row[x];
+            CellState next_state = CELL_DEAD;
+
+            if (current == CELL_ALIVE) {
+                next_state = (neighbors == 2 || neighbors == 3) ? CELL_ALIVE : CELL_DEAD;
+            } else {
+                next_state = (neighbors == 3) ? CELL_ALIVE : CELL_DEAD;
+            }
+
+            next_row[x] = next_state;
+        }
+    }
+
+    CellState** temp = grid->cells;
+    grid->cells = grid->next_cells;
+    grid->next_cells = temp;
+}
+
+static uint32_t game_of_life_grid_hash(GameOfLifeGrid* grid) {
+    uint32_t hash = 0;
+
+    for (int y = 0; y < grid->height; y++) {
+        CellState* row = grid->cells[y];
+        for (int x = 0; x < grid->width; x++) {
+            uint32_t alive = row[x] == CELL_ALIVE;
+            hash = fnv1a_hash(hash, alive);
+        }
+    }
+
+    return hash;
+}
+
+void GameOfLife_prepare(Benchmark* self) {
+    GameOfLifeData* data = (GameOfLifeData*)self->data;
+
+    data->width_val = Helper_config_i64(self->name, "w");
+    data->height_val = Helper_config_i64(self->name, "h");
+
+    if (data->width_val <= 0) data->width_val = 256;
+    if (data->height_val <= 0) data->height_val = 256;
+
+    game_of_life_grid_init(&data->grid, (int)data->width_val, (int)data->height_val);
+
+    for (int y = 0; y < data->grid.height; y++) {
+        for (int x = 0; x < data->grid.width; x++) {
+            if (Helper_next_float(1.0) < 0.1) {
+                data->grid.cells[y][x] = CELL_ALIVE;
+            }
+        }
+    }
+
+    data->result_val = 0;
+}
+
+void GameOfLife_run(Benchmark* self, int iteration_id) {
+    GameOfLifeData* data = (GameOfLifeData*)self->data;
+    game_of_life_next_generation(&data->grid);
+}
+
+uint32_t GameOfLife_checksum(Benchmark* self) {
+    GameOfLifeData* data = (GameOfLifeData*)self->data;
+    return game_of_life_grid_hash(&data->grid);
+}
+
+void GameOfLife_cleanup(Benchmark* self) {
+    GameOfLifeData* data = (GameOfLifeData*)self->data;
+    game_of_life_grid_free(&data->grid);
+}
+
+Benchmark* GameOfLife_create(void) {
+    Benchmark* bench = Benchmark_create("GameOfLife");
+
+    GameOfLifeData* data = malloc(sizeof(GameOfLifeData));
+    memset(data, 0, sizeof(GameOfLifeData));
+
+    bench->data = data;
+    bench->prepare = GameOfLife_prepare;
+    bench->run = GameOfLife_run;
+    bench->checksum = GameOfLife_checksum;
+    bench->cleanup = GameOfLife_cleanup;
+
+    return bench;
+}
+
+typedef enum {
+    MAZE_CELL_WALL,
+    MAZE_CELL_PATH
+} MazeCellType;
+
+typedef struct {
+    MazeCellType** cells;
+    int width;
+    int height;
+} MazeGeneratorGrid;
+
+typedef struct {
+    uint32_t result_val;
+    int64_t width_val;
+    int64_t height_val;
+    MazeGeneratorGrid grid;
+} MazeGeneratorData;
+
+static void maze_generator_divide(MazeGeneratorGrid* grid, int x1, int y1, int x2, int y2) {
+    int width = x2 - x1;
+    int height = y2 - y1;
+
+    if (width < 2 || height < 2) return;
+
+    int width_for_wall = width - 2 > 0 ? width - 2 : 0;
+    int height_for_wall = height - 2 > 0 ? height - 2 : 0;
+    int width_for_hole = width - 1 > 0 ? width - 1 : 0;
+    int height_for_hole = height - 1 > 0 ? height - 1 : 0;
+
+    if (width_for_wall == 0 || height_for_wall == 0 ||
+        width_for_hole == 0 || height_for_hole == 0) {
+        return;
+    }
+
+    if (width > height) {
+
+        int wall_range = width_for_wall / 2 > 0 ? width_for_wall / 2 : 1;
+        int wall_offset = wall_range > 0 ? Helper_next_int(wall_range) * 2 : 0;
+        int wall_x = x1 + 2 + wall_offset;
+
+        int hole_range = height_for_hole / 2 > 0 ? height_for_hole / 2 : 1;
+        int hole_offset = hole_range > 0 ? Helper_next_int(hole_range) * 2 : 0;
+        int hole_y = y1 + 1 + hole_offset;
+
+        if (wall_x > x2 || hole_y > y2) return;
+
+        for (int y = y1; y <= y2; y++) {
+            if (y != hole_y) {
+                grid->cells[y][wall_x] = MAZE_CELL_WALL;
+            }
+        }
+
+        maze_generator_divide(grid, x1, y1, wall_x - 1, y2);
+        maze_generator_divide(grid, wall_x + 1, y1, x2, y2);
+    } else {
+
+        int wall_range = height_for_wall / 2 > 0 ? height_for_wall / 2 : 1;
+        int wall_offset = wall_range > 0 ? Helper_next_int(wall_range) * 2 : 0;
+        int wall_y = y1 + 2 + wall_offset;
+
+        int hole_range = width_for_hole / 2 > 0 ? width_for_hole / 2 : 1;
+        int hole_offset = hole_range > 0 ? Helper_next_int(hole_range) * 2 : 0;
+        int hole_x = x1 + 1 + hole_offset;
+
+        if (wall_y > y2 || hole_x > x2) return;
+
+        for (int x = x1; x <= x2; x++) {
+            if (x != hole_x) {
+                grid->cells[wall_y][x] = MAZE_CELL_WALL;
+            }
+        }
+
+        maze_generator_divide(grid, x1, y1, x2, wall_y - 1);
+        maze_generator_divide(grid, x1, wall_y + 1, x2, y2);
+    }
+}
+
+static void maze_generator_add_random_paths(MazeGeneratorGrid* grid) {
+    int num_extra_paths = (grid->width * grid->height) / 20; 
+
+    for (int i = 0; i < num_extra_paths; i++) {
+        int x = Helper_next_int(grid->width - 2) + 1; 
+        int y = Helper_next_int(grid->height - 2) + 1;
+
+        if (grid->cells[y][x] == MAZE_CELL_WALL &&
+            x > 0 && grid->cells[y][x - 1] == MAZE_CELL_WALL &&
+            x + 1 < grid->width && grid->cells[y][x + 1] == MAZE_CELL_WALL &&
+            y > 0 && grid->cells[y - 1][x] == MAZE_CELL_WALL &&
+            y + 1 < grid->height && grid->cells[y + 1][x] == MAZE_CELL_WALL) {
+            grid->cells[y][x] = MAZE_CELL_PATH;
+        }
+    }
+}
+
+static bool maze_generator_is_connected(MazeGeneratorGrid* grid, int start_x, int start_y, int goal_x, int goal_y) {
+    if (start_x >= grid->width || start_y >= grid->height ||
+        goal_x >= grid->width || goal_y >= grid->height) {
+        return false;
+    }
+
+    int* stack_x = malloc(grid->width * grid->height * sizeof(int));
+    int* stack_y = malloc(grid->width * grid->height * sizeof(int));
+    int stack_top = 0;
+
+    bool** visited = malloc(grid->height * sizeof(bool*));
+    for (int i = 0; i < grid->height; i++) {
+        visited[i] = calloc(grid->width, sizeof(bool));
+    }
+
+    visited[start_y][start_x] = true;
+    stack_x[stack_top] = start_x;
+    stack_y[stack_top] = start_y;
+    stack_top++;
+
+    int directions[4][2] = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
+
+    while (stack_top > 0) {
+        stack_top--;
+        int x = stack_x[stack_top];
+        int y = stack_y[stack_top];
+
+        if (x == goal_x && y == goal_y) {
+
+            for (int i = 0; i < grid->height; i++) {
+                free(visited[i]);
+            }
+            free(visited);
+            free(stack_x);
+            free(stack_y);
+            return true;
+        }
+
+        for (int d = 0; d < 4; d++) {
+            int nx = x + directions[d][0];
+            int ny = y + directions[d][1];
+
+            if (nx >= 0 && nx < grid->width && ny >= 0 && ny < grid->height &&
+                !visited[ny][nx] && grid->cells[ny][nx] == MAZE_CELL_PATH) {
+                visited[ny][nx] = true;
+                stack_x[stack_top] = nx;
+                stack_y[stack_top] = ny;
+                stack_top++;
+            }
+        }
+    }
+
+    for (int i = 0; i < grid->height; i++) {
+        free(visited[i]);
+    }
+    free(visited);
+    free(stack_x);
+    free(stack_y);
+
+    return false;
+}
+
+static void maze_generator_generate_walkable_maze(MazeGeneratorGrid* grid) {
+
+    for (int y = 0; y < grid->height; y++) {
+        for (int x = 0; x < grid->width; x++) {
+            grid->cells[y][x] = MAZE_CELL_WALL;
+        }
+    }
+
+    if (grid->width < 5 || grid->height < 5) {
+
+        for (int x = 0; x < grid->width; x++) {
+            grid->cells[grid->height / 2][x] = MAZE_CELL_PATH;
+        }
+        return;
+    }
+
+    maze_generator_divide(grid, 0, 0, grid->width - 1, grid->height - 1);
+
+    maze_generator_add_random_paths(grid);
+
+    int start_x = 1, start_y = 1;
+    int goal_x = grid->width - 2, goal_y = grid->height - 2;
+
+    if (!maze_generator_is_connected(grid, start_x, start_y, goal_x, goal_y)) {
+
+        for (int x = 0; x < grid->width; x++) {
+            for (int y = 0; y < grid->height; y++) {
+                if (x == 1 || y == 1 || x == grid->width - 2 || y == grid->height - 2) {
+                    grid->cells[y][x] = MAZE_CELL_PATH;
+                }
+            }
+        }
+    }
+}
+
+static uint32_t maze_generator_grid_hash(MazeGeneratorGrid* grid) {
+    uint32_t hash = 2166136261UL; 
+    const uint32_t FNV_PRIME = 16777619UL;
+
+    for (int y = 0; y < grid->height; y++) {
+        for (int x = 0; x < grid->width; x++) {
+            if (grid->cells[y][x] == MAZE_CELL_PATH) {
+                uint32_t j_squared = (uint32_t)(x * x);
+                hash ^= j_squared;
+                hash *= FNV_PRIME;
+            }
+        }
+    }
+
+    return hash;
+}
+
+void MazeGenerator_prepare(Benchmark* self) {
+    MazeGeneratorData* data = (MazeGeneratorData*)self->data;
+
+    data->width_val = Helper_config_i64(self->name, "w");
+    data->height_val = Helper_config_i64(self->name, "h");
+
+    if (data->width_val <= 0) data->width_val = 100;
+    if (data->height_val <= 0) data->height_val = 100;
+
+    data->grid.width = (int)data->width_val;
+    data->grid.height = (int)data->height_val;
+    data->grid.cells = malloc(data->grid.height * sizeof(MazeCellType*));
+
+    for (int y = 0; y < data->grid.height; y++) {
+        data->grid.cells[y] = malloc(data->grid.width * sizeof(MazeCellType));
+    }
+
+    data->result_val = 0;
+}
+
+void MazeGenerator_run(Benchmark* self, int iteration_id) {
+    MazeGeneratorData* data = (MazeGeneratorData*)self->data;
+
+    maze_generator_generate_walkable_maze(&data->grid);
+}
+
+uint32_t MazeGenerator_checksum(Benchmark* self) {
+    MazeGeneratorData* data = (MazeGeneratorData*)self->data;
+
+    return maze_generator_grid_hash(&data->grid);
+}
+
+void MazeGenerator_cleanup(Benchmark* self) {
+    MazeGeneratorData* data = (MazeGeneratorData*)self->data;
+
+    if (data->grid.cells) {
+        for (int y = 0; y < data->grid.height; y++) {
+            free(data->grid.cells[y]);
+        }
+        free(data->grid.cells);
+    }
+}
+
+Benchmark* MazeGenerator_create(void) {
+    Benchmark* bench = Benchmark_create("MazeGenerator");
+
+    MazeGeneratorData* data = malloc(sizeof(MazeGeneratorData));
+    memset(data, 0, sizeof(MazeGeneratorData));
+
+    bench->data = data;
+
+    bench->prepare = MazeGenerator_prepare;
+    bench->run = MazeGenerator_run;
+    bench->checksum = MazeGenerator_checksum;
+    bench->cleanup = MazeGenerator_cleanup;
+
+    return bench;
+}
+
+typedef struct {
+    int* path;  
+    int path_length;  
+    int nodes_explored;
+} AStarPathResult;
+
+typedef struct {
+    int x;
+    int y;
+    int f_score;
+} AStarNode;
+
+typedef struct {
+    AStarNode* data;
+    int size;
+    int capacity;
+} AStarBinaryHeap;
+
+typedef struct {
+    int* g_scores;      
+    int* came_from;     
+    int width;
+    int height;
+    int size;           
+} AStarCache;
+
+static AStarCache astar_cache = {0};
+
+static void astar_cache_init(int width, int height) {
+    int new_size = width * height;
+
+    if (astar_cache.g_scores != NULL && astar_cache.width == width && 
+        astar_cache.height == height && astar_cache.size == new_size) {
+        return; 
+    }
+
+    if (astar_cache.g_scores != NULL) {
+        free(astar_cache.g_scores);
+        free(astar_cache.came_from);
+    }
+
+    astar_cache.width = width;
+    astar_cache.height = height;
+    astar_cache.size = new_size;
+
+    astar_cache.g_scores = malloc(new_size * sizeof(int));
+    astar_cache.came_from = malloc(new_size * sizeof(int));
+}
+
+static void astar_cache_cleanup(void) {
+    if (astar_cache.g_scores != NULL) {
+        free(astar_cache.g_scores);
+        free(astar_cache.came_from);
+        astar_cache.g_scores = NULL;
+        astar_cache.came_from = NULL;
+        astar_cache.width = 0;
+        astar_cache.height = 0;
+        astar_cache.size = 0;
+    }
+}
+
+static int astar_node_compare(const AStarNode* a, const AStarNode* b) {
+    if (a->f_score != b->f_score) return a->f_score < b->f_score ? -1 : 1;
+    if (a->y != b->y) return a->y < b->y ? -1 : 1;
+    return a->x < b->x ? -1 : 1;
+}
+
+static AStarBinaryHeap* astar_binary_heap_new(int initial_capacity) {
+    AStarBinaryHeap* heap = malloc(sizeof(AStarBinaryHeap));
+    heap->data = malloc(initial_capacity * sizeof(AStarNode));
+    heap->size = 0;
+    heap->capacity = initial_capacity;
+    return heap;
+}
+
+static void astar_binary_heap_free(AStarBinaryHeap* heap) {
+    if (!heap) return;
+    free(heap->data);
+    free(heap);
+}
+
+static void astar_binary_heap_swap(AStarBinaryHeap* heap, int i, int j) {
+    AStarNode temp = heap->data[i];
+    heap->data[i] = heap->data[j];
+    heap->data[j] = temp;
+}
+
+static void astar_binary_heap_sift_up(AStarBinaryHeap* heap, int index) {
+    while (index > 0) {
+        int parent = (index - 1) >> 1;
+        if (astar_node_compare(&heap->data[index], &heap->data[parent]) >= 0) break;
+        astar_binary_heap_swap(heap, index, parent);
+        index = parent;
+    }
+}
+
+static void astar_binary_heap_sift_down(AStarBinaryHeap* heap, int index) {
+    while (1) {
+        int left = (index << 1) + 1;
+        int right = left + 1;
+        int smallest = index;
+
+        if (left < heap->size) {
+            if (astar_node_compare(&heap->data[left], &heap->data[smallest]) < 0) {
+                smallest = left;
+            }
+        }
+
+        if (right < heap->size) {
+            if (astar_node_compare(&heap->data[right], &heap->data[smallest]) < 0) {
+                smallest = right;
+            }
+        }
+
+        if (smallest == index) break;
+
+        astar_binary_heap_swap(heap, index, smallest);
+        index = smallest;
+    }
+}
+
+static void astar_binary_heap_push(AStarBinaryHeap* heap, AStarNode node) {
+    if (heap->size >= heap->capacity) {
+        heap->capacity = heap->capacity * 2;
+        heap->data = realloc(heap->data, heap->capacity * sizeof(AStarNode));
+    }
+
+    heap->data[heap->size] = node;
+    astar_binary_heap_sift_up(heap, heap->size);
+    heap->size++;
+}
+
+static AStarNode astar_binary_heap_pop(AStarBinaryHeap* heap) {
+    if (heap->size == 0) {
+        AStarNode null_node = {0, 0, 0};
+        return null_node;
+    }
+
+    AStarNode result = heap->data[0];
+    heap->size--;
+
+    if (heap->size > 0) {
+        heap->data[0] = heap->data[heap->size];
+        astar_binary_heap_sift_down(heap, 0);
+    }
+
+    return result;
+}
+
+static bool astar_binary_heap_empty(AStarBinaryHeap* heap) {
+    return heap->size == 0;
+}
+
+static inline int astar_manhattan_distance(int a_x, int a_y, int b_x, int b_y) {
+    int dx = a_x > b_x ? a_x - b_x : b_x - a_x;
+    int dy = a_y > b_y ? a_y - b_y : b_y - a_y;
+    return dx + dy;
+}
+
+static inline int astar_pack_coords(int x, int y, int width) {
+    return y * width + x;
+}
+
+static inline void astar_unpack_coords(int packed, int width, int* x, int* y) {
+    *x = packed % width;
+    *y = packed / width;
+}
+
+static AStarPathResult astar_find_path(bool** maze_grid, int width, int height, 
+                                       int start_x, int start_y, int goal_x, int goal_y) {
+    AStarPathResult result = {NULL, 0, 0};
+
+    if (!maze_grid || width <= 0 || height <= 0) {
+        return result;
+    }
+
+    int* g_scores = astar_cache.g_scores;
+    int* came_from = astar_cache.came_from;
+
+    for (int i = 0; i < astar_cache.size; i++) {
+        g_scores[i] = INT_MAX;
+        came_from[i] = -1;
+    }
+
+    AStarBinaryHeap* open_set = astar_binary_heap_new(width * height);
+
+    int start_idx = astar_pack_coords(start_x, start_y, width);
+    g_scores[start_idx] = 0;
+
+    astar_binary_heap_push(open_set, (AStarNode){
+        .x = start_x,
+        .y = start_y,
+        .f_score = astar_manhattan_distance(start_x, start_y, goal_x, goal_y)
+    });
+
+    static const int directions[4][2] = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
+
+    while (!astar_binary_heap_empty(open_set)) {
+        AStarNode current = astar_binary_heap_pop(open_set);
+        result.nodes_explored++;
+
+        if (current.x == goal_x && current.y == goal_y) {
+
+            int x = current.x;
+            int y = current.y;
+
+            int path_count = 0;
+            while (x != start_x || y != start_y) {
+                path_count++;
+                int idx = astar_pack_coords(x, y, width);
+                int packed = came_from[idx];
+                if (packed == -1) break;
+                astar_unpack_coords(packed, width, &x, &y);
+            }
+            path_count++; 
+
+            if (path_count > 0) {
+                result.path = malloc(path_count * 2 * sizeof(int));
+                result.path_length = path_count;
+
+                x = goal_x;
+                y = goal_y;
+                int write_idx = (path_count - 1) * 2;
+
+                while (write_idx >= 0) {
+                    result.path[write_idx] = x;
+                    result.path[write_idx + 1] = y;
+
+                    if (x == start_x && y == start_y) {
+                        break;
+                    }
+
+                    int idx = astar_pack_coords(x, y, width);
+                    int packed = came_from[idx];
+                    astar_unpack_coords(packed, width, &x, &y);
+                    write_idx -= 2;
+                }
+            }
+            break;
+        }
+
+        int current_idx = astar_pack_coords(current.x, current.y, width);
+        int current_g = g_scores[current_idx];
+
+        for (int d = 0; d < 4; d++) {
+            int nx = current.x + directions[d][0];
+            int ny = current.y + directions[d][1];
+
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+            if (!maze_grid[ny][nx]) continue;
+
+            int tentative_g = current_g + 1000;
+            int neighbor_idx = astar_pack_coords(nx, ny, width);
+
+            if (tentative_g < g_scores[neighbor_idx]) {
+
+                came_from[neighbor_idx] = current_idx;
+                g_scores[neighbor_idx] = tentative_g;
+
+                int f_score = tentative_g + astar_manhattan_distance(nx, ny, goal_x, goal_y);
+                astar_binary_heap_push(open_set, (AStarNode){nx, ny, f_score});
+            }
+        }
+    }
+
+    astar_binary_heap_free(open_set);
+    return result;
+}
+
+typedef struct {
+    uint32_t result_val;
+    int64_t width_val;
+    int64_t height_val;
+    int start_x;
+    int start_y;
+    int goal_x;
+    int goal_y;
+    bool** maze_grid;
+} AStarPathfinderData;
+
+static void free_maze_grid(bool** grid, int height) {
+    if (!grid) return;
+    for (int i = 0; i < height; i++) {
+        free(grid[i]);
+    }
+    free(grid);
+}
+
+static void astar_path_result_free(AStarPathResult* result) {
+    if (result->path) {
+        free(result->path);
+        result->path = NULL;
+    }
+    result->path_length = 0;
+    result->nodes_explored = 0;
+}
+
+void AStarPathfinder_prepare(Benchmark* self) {
+    AStarPathfinderData* data = (AStarPathfinderData*)self->data;
+
+    data->width_val = Helper_config_i64(self->name, "w");
+    data->height_val = Helper_config_i64(self->name, "h");
+
+    if (data->width_val <= 0) data->width_val = 100;
+    if (data->height_val <= 0) data->height_val = 100;
+
+    data->start_x = 1;
+    data->start_y = 1;
+    data->goal_x = (int)data->width_val - 2;
+    data->goal_y = (int)data->height_val - 2;
+
+    MazeGeneratorGrid maze_grid;
+    maze_grid.width = (int)data->width_val;
+    maze_grid.height = (int)data->height_val;
+
+    maze_grid.cells = malloc(maze_grid.height * sizeof(MazeCellType*));
+    for (int y = 0; y < maze_grid.height; y++) {
+        maze_grid.cells[y] = malloc(maze_grid.width * sizeof(MazeCellType));
+    }
+
+    maze_generator_generate_walkable_maze(&maze_grid);
+
+    data->maze_grid = malloc(maze_grid.height * sizeof(bool*));
+    for (int y = 0; y < maze_grid.height; y++) {
+        data->maze_grid[y] = malloc(maze_grid.width * sizeof(bool));
+        for (int x = 0; x < maze_grid.width; x++) {
+            data->maze_grid[y][x] = (maze_grid.cells[y][x] == MAZE_CELL_PATH);
+        }
+    }
+
+    for (int y = 0; y < maze_grid.height; y++) {
+        free(maze_grid.cells[y]);
+    }
+    free(maze_grid.cells);
+
+    astar_cache_init((int)data->width_val, (int)data->height_val);
+
+    data->result_val = 0;
+}
+
+void AStarPathfinder_run(Benchmark* self, int iteration_id) {
+    AStarPathfinderData* data = (AStarPathfinderData*)self->data;
+
+    AStarPathResult result = astar_find_path(data->maze_grid, 
+                                            (int)data->width_val, (int)data->height_val,
+                                            data->start_x, data->start_y,
+                                            data->goal_x, data->goal_y);
+
+    uint32_t local_result = 0;
+
+    local_result = result.path_length;
+
+    local_result = (local_result << 5) + result.nodes_explored;
+
+    data->result_val += local_result;
+
+    astar_path_result_free(&result);
+}
+
+uint32_t AStarPathfinder_checksum(Benchmark* self) {
+    AStarPathfinderData* data = (AStarPathfinderData*)self->data;
+    return data->result_val;
+}
+
+void AStarPathfinder_cleanup(Benchmark* self) {
+    AStarPathfinderData* data = (AStarPathfinderData*)self->data;
+
+    if (data->maze_grid) {
+        free_maze_grid(data->maze_grid, (int)data->height_val);
+        data->maze_grid = NULL;
+    }
+}
+
+Benchmark* AStarPathfinder_create(void) {
+    Benchmark* bench = Benchmark_create("AStarPathfinder");
+
+    AStarPathfinderData* data = malloc(sizeof(AStarPathfinderData));
+    memset(data, 0, sizeof(AStarPathfinderData));
+
+    bench->data = data;
+
+    bench->prepare = AStarPathfinder_prepare;
+    bench->run = AStarPathfinder_run;
+    bench->checksum = AStarPathfinder_checksum;
+    bench->cleanup = AStarPathfinder_cleanup;
+
+    return bench;
+}
+
+__attribute__((destructor))
+static void astar_global_cleanup(void) {
+    astar_cache_cleanup();
+}
+
+typedef struct {
+    uint8_t* transformed;
+    size_t transformed_size;
+    size_t original_idx;
+} BWTResult;
+
+typedef struct HuffmanNode {
+    int frequency;
+    uint8_t byte_val;
+    bool is_leaf;
+    struct HuffmanNode* left;
+    struct HuffmanNode* right;
+} HuffmanNode;
+
+typedef struct {
+    int code_lengths[256];
+    int codes[256];
+} HuffmanCodes;
+
+typedef struct {
+    uint8_t* data;
+    size_t data_size;
+    int bit_count;
+} EncodedResult;
+
+typedef struct {
+    BWTResult bwt_result;
+    int frequencies[256];
+    uint8_t* encoded_bits;
+    size_t encoded_bits_size;
+    int original_bit_count;
+} CompressedData;
+
+typedef struct {
+    int64_t size_val;
+    uint8_t* test_data;
+    size_t test_data_size;
+    uint32_t result_val;
+    CompressedData compressed;
+} CompressionData;
+
+typedef struct {
+    int64_t size_val;
+    uint8_t* test_data;
+    size_t test_data_size;
+    CompressedData compressed_data;
+    uint8_t* decompressed;
+    size_t decompressed_size;
+    uint32_t result_val;
+} DecompressionData;
+
+static BWTResult bwt_transform(uint8_t* input, size_t n) {
+    BWTResult result = {0};
+
+    if (n == 0 || !input) {
+        return result;
+    }
+
+    uint8_t* doubled = malloc(n * 2);
+    if (!doubled) return result;
+    memcpy(doubled, input, n);
+    memcpy(doubled + n, input, n);
+
+    size_t* sa = malloc(sizeof(size_t) * n);
+    if (!sa) {
+        free(doubled);
+        return result;
+    }
+
+    for (size_t i = 0; i < n; i++) {
+        sa[i] = i;
+    }
+
+    size_t* temp_buffer = malloc(sizeof(size_t) * n);
+    size_t bucket_counts[256] = {0};
+
+    if (!temp_buffer) {
+        free(doubled);
+        free(sa);
+        return result;
+    }
+
+    for (size_t i = 0; i < n; i++) {
+        bucket_counts[input[sa[i]]]++;
+    }
+
+    size_t bucket_starts[256];
+    size_t sum = 0;
+    for (int i = 0; i < 256; i++) {
+        bucket_starts[i] = sum;
+        sum += bucket_counts[i];
+    }
+
+    for (size_t i = 0; i < n; i++) {
+        uint8_t c = input[sa[i]];
+        temp_buffer[bucket_starts[c]++] = sa[i];
+    }
+
+    memcpy(sa, temp_buffer, sizeof(size_t) * n);
+
+    if (n > 1) {
+        int* rank = malloc(sizeof(int) * n);
+        if (!rank) {
+            free(doubled);
+            free(sa);
+            free(temp_buffer);
+            return result;
+        }
+
+        int current_rank = 0;
+        uint8_t prev_char = input[sa[0]];
+
+        for (size_t i = 0; i < n; i++) {
+            size_t idx = sa[i];
+            uint8_t curr_char = input[idx];
+            if (curr_char != prev_char) {
+                current_rank++;
+                prev_char = curr_char;
+            }
+            rank[idx] = current_rank;
+        }
+
+        size_t k = 1;
+        while (k < n) {
+            struct Pair { int first, second; };
+            struct Pair* pairs = malloc(sizeof(struct Pair) * n);
+            if (!pairs) {
+                free(rank);
+                free(doubled);
+                free(sa);
+                free(temp_buffer);
+                return result;
+            }
+
+            for (size_t i = 0; i < n; i++) {
+                pairs[i].first = rank[i];
+                pairs[i].second = rank[(i + k) % n];
+            }
+
+            int* count = calloc(n + 1, sizeof(int));
+            if (!count) {
+                free(pairs);
+                free(rank);
+                free(doubled);
+                free(sa);
+                free(temp_buffer);
+                return result;
+            }
+
+            for (size_t i = 0; i < n; i++) {
+                count[pairs[sa[i]].second]++;
+            }
+
+            for (int i = 1; i <= n; i++) {
+                count[i] += count[i - 1];
+            }
+
+            memcpy(temp_buffer, sa, sizeof(size_t) * n);
+            for (int i = n - 1; i >= 0; i--) {
+                int key = pairs[temp_buffer[i]].second;
+                sa[--count[key]] = temp_buffer[i];
+            }
+
+            memset(count, 0, (n + 1) * sizeof(int));
+
+            for (size_t i = 0; i < n; i++) {
+                count[pairs[sa[i]].first]++;
+            }
+
+            for (int i = 1; i <= n; i++) {
+                count[i] += count[i - 1];
+            }
+
+            memcpy(temp_buffer, sa, sizeof(size_t) * n);
+            for (int i = n - 1; i >= 0; i--) {
+                int key = pairs[temp_buffer[i]].first;
+                sa[--count[key]] = temp_buffer[i];
+            }
+
+            int* new_rank = malloc(sizeof(int) * n);
+            if (!new_rank) {
+                free(count);
+                free(pairs);
+                free(rank);
+                free(doubled);
+                free(sa);
+                free(temp_buffer);
+                return result;
+            }
+
+            new_rank[sa[0]] = 0;
+            for (size_t i = 1; i < n; i++) {
+                struct Pair prev_pair = pairs[sa[i - 1]];
+                struct Pair curr_pair = pairs[sa[i]];
+                new_rank[sa[i]] = new_rank[sa[i - 1]] + 
+                    (prev_pair.first != curr_pair.first || prev_pair.second != curr_pair.second ? 1 : 0);
+            }
+
+            free(count);
+            free(pairs);
+            free(rank);
+            rank = new_rank;
+            k *= 2;
+        }
+
+        free(rank);
+    }
+
+    result.transformed = malloc(n);
+    result.transformed_size = n;
+    result.original_idx = 0;
+
+    if (!result.transformed) {
+        free(doubled);
+        free(sa);
+        free(temp_buffer);
+        return result;
+    }
+
+    for (size_t i = 0; i < n; i++) {
+        size_t suffix = sa[i];
+        if (suffix == 0) {
+            result.transformed[i] = input[n - 1];
+            result.original_idx = i;
+        } else {
+            result.transformed[i] = input[suffix - 1];
+        }
+    }
+
+    free(doubled);
+    free(sa);
+    free(temp_buffer);
+
+    return result;
+}
+
+static uint8_t* bwt_inverse(BWTResult* bwt_result, size_t* result_size) {
+    uint8_t* bwt = bwt_result->transformed;
+    size_t n = bwt_result->transformed_size;
+
+    if (n == 0) {
+        *result_size = 0;
+        return NULL;
+    }
+
+    int counts[256] = {0};
+    for (size_t i = 0; i < n; i++) {
+        counts[bwt[i]]++;
+    }
+
+    int positions[256];
+    int total = 0;
+    for (int i = 0; i < 256; i++) {
+        positions[i] = total;
+        total += counts[i];
+    }
+
+    size_t* next = malloc(sizeof(size_t) * n);
+    if (!next) {
+        *result_size = 0;
+        return NULL;
+    }
+
+    int temp_counts[256] = {0};
+
+    for (size_t i = 0; i < n; i++) {
+        int byte_idx = bwt[i];
+        int pos = positions[byte_idx] + temp_counts[byte_idx];
+        next[pos] = i;
+        temp_counts[byte_idx]++;
+    }
+
+    uint8_t* result = malloc(n);
+    if (!result) {
+        free(next);
+        *result_size = 0;
+        return NULL;
+    }
+
+    size_t idx = bwt_result->original_idx;
+
+    for (size_t i = 0; i < n; i++) {
+        idx = next[idx];
+        result[i] = bwt[idx];
+    }
+
+    free(next);
+    *result_size = n;
+    return result;
+}
+
+static int compare_huffman_nodes(const void* a, const void* b) {
+    HuffmanNode* node_a = *(HuffmanNode**)a;
+    HuffmanNode* node_b = *(HuffmanNode**)b;
+    return node_a->frequency - node_b->frequency;
+}
+
+static HuffmanNode* build_huffman_tree(int frequencies[256]) {
+    HuffmanNode** nodes = malloc(sizeof(HuffmanNode*) * 256);
+    if (!nodes) return NULL;
+
+    int node_count = 0;
+
+    for (int i = 0; i < 256; i++) {
+        if (frequencies[i] > 0) {
+            HuffmanNode* node = malloc(sizeof(HuffmanNode));
+            if (!node) {
+                for (int j = 0; j < node_count; j++) free(nodes[j]);
+                free(nodes);
+                return NULL;
+            }
+            node->frequency = frequencies[i];
+            node->byte_val = i;
+            node->is_leaf = true;
+            node->left = NULL;
+            node->right = NULL;
+            nodes[node_count++] = node;
+        }
+    }
+
+    if (node_count == 0) {
+        free(nodes);
+        return NULL;
+    }
+
+    if (node_count == 1) {
+        HuffmanNode* root = malloc(sizeof(HuffmanNode));
+        if (!root) {
+            free(nodes[0]);
+            free(nodes);
+            return NULL;
+        }
+        root->frequency = nodes[0]->frequency;
+        root->byte_val = 0;
+        root->is_leaf = false;
+        root->left = nodes[0];
+
+        root->right = malloc(sizeof(HuffmanNode));
+        if (!root->right) {
+            free(root);
+            free(nodes[0]);
+            free(nodes);
+            return NULL;
+        }
+        root->right->frequency = 0;
+        root->right->byte_val = 0;
+        root->right->is_leaf = true;
+        root->right->left = NULL;
+        root->right->right = NULL;
+
+        free(nodes);
+        return root;
+    }
+
+    qsort(nodes, node_count, sizeof(HuffmanNode*), compare_huffman_nodes);
+
+    while (node_count > 1) {
+        HuffmanNode* left = nodes[0];
+        HuffmanNode* right = nodes[1];
+
+        HuffmanNode* parent = malloc(sizeof(HuffmanNode));
+        if (!parent) {
+            for (int i = 0; i < node_count; i++) free(nodes[i]);
+            free(nodes);
+            return NULL;
+        }
+
+        parent->frequency = left->frequency + right->frequency;
+        parent->byte_val = 0;
+        parent->is_leaf = false;
+        parent->left = left;
+        parent->right = right;
+
+        nodes[0] = parent;
+        for (int i = 1; i < node_count - 1; i++) {
+            nodes[i] = nodes[i + 1];
+        }
+        node_count--;
+
+        qsort(nodes, node_count, sizeof(HuffmanNode*), compare_huffman_nodes);
+    }
+
+    HuffmanNode* root = nodes[0];
+    free(nodes);
+    return root;
+}
+
+static void build_huffman_codes(HuffmanNode* node, int code, int length, HuffmanCodes* huffman_codes) {
+    if (!node) return;
+
+    if (node->is_leaf) {
+        int idx = node->byte_val;
+        huffman_codes->code_lengths[idx] = length;
+        huffman_codes->codes[idx] = code;
+    } else {
+        if (node->left) {
+            build_huffman_codes(node->left, code << 1, length + 1, huffman_codes);
+        }
+        if (node->right) {
+            build_huffman_codes(node->right, (code << 1) | 1, length + 1, huffman_codes);
+        }
+    }
+}
+
+static void free_huffman_tree(HuffmanNode* node) {
+    if (!node) return;
+    if (!node->is_leaf) {
+        free_huffman_tree(node->left);
+        free_huffman_tree(node->right);
+    }
+    free(node);
+}
+
+static EncodedResult huffman_encode(uint8_t* data, size_t data_size, HuffmanCodes* huffman_codes) {
+    EncodedResult result = {0};
+
+    if (!data || data_size == 0 || !huffman_codes) {
+        return result;
+    }
+
+    size_t max_size = data_size * 4;
+    result.data = malloc(max_size);
+    if (!result.data) {
+        return result;
+    }
+
+    result.data_size = 0;
+    result.bit_count = 0;
+
+    uint8_t current_byte = 0;
+    int bit_pos = 0;
+
+    for (size_t i = 0; i < data_size; i++) {
+        int idx = data[i];
+        int code = huffman_codes->codes[idx];
+        int length = huffman_codes->code_lengths[idx];
+
+        if (length <= 0) continue;
+
+        for (int j = length - 1; j >= 0; j--) {
+            if ((code & (1 << j)) != 0) {
+                current_byte |= (1 << (7 - bit_pos));
+            }
+            bit_pos++;
+            result.bit_count++;
+
+            if (bit_pos == 8) {
+                result.data[result.data_size++] = current_byte;
+                current_byte = 0;
+                bit_pos = 0;
+            }
+        }
+    }
+
+    if (bit_pos > 0) {
+        result.data[result.data_size++] = current_byte;
+    }
+
+    return result;
+}
+
+static uint8_t* huffman_decode(uint8_t* encoded, size_t encoded_size, HuffmanNode* root, int bit_count, size_t* result_size) {
+    if (!root || bit_count <= 0 || !encoded) {
+        *result_size = 0;
+        return NULL;
+    }
+
+    size_t max_size = bit_count;
+    uint8_t* result = malloc(max_size);
+    if (!result) {
+        *result_size = 0;
+        return NULL;
+    }
+
+    size_t result_idx = 0;
+    HuffmanNode* current_node = root;
+    int bits_processed = 0;
+    size_t byte_index = 0;
+
+    while (bits_processed < bit_count && byte_index < encoded_size) {
+        uint8_t byte_val = encoded[byte_index++];
+
+        for (int bit_pos = 7; bit_pos >= 0 && bits_processed < bit_count; bit_pos--) {
+            int bit = (byte_val >> bit_pos) & 1;
+            bits_processed++;
+
+            current_node = bit ? current_node->right : current_node->left;
+
+            if (!current_node) break;
+
+            if (current_node->is_leaf) {
+                result[result_idx++] = current_node->byte_val;
+                current_node = root;
+            }
+        }
+    }
+
+    *result_size = result_idx;
+    return result;
+}
+
+static CompressedData compress_data(uint8_t* data, size_t data_size) {
+    CompressedData result = {0};
+
+    if (!data || data_size == 0) {
+        return result;
+    }
+
+    memset(result.frequencies, 0, sizeof(result.frequencies));
+
+    result.bwt_result = bwt_transform(data, data_size);
+    if (!result.bwt_result.transformed) {
+        return result;
+    }
+
+    for (size_t i = 0; i < result.bwt_result.transformed_size; i++) {
+        result.frequencies[result.bwt_result.transformed[i]]++;
+    }
+
+    HuffmanNode* huffman_tree = build_huffman_tree(result.frequencies);
+    if (!huffman_tree) {
+        free(result.bwt_result.transformed);
+        result.bwt_result.transformed = NULL;
+        return result;
+    }
+
+    HuffmanCodes huffman_codes = {0};
+    build_huffman_codes(huffman_tree, 0, 0, &huffman_codes);
+
+    EncodedResult encoded = huffman_encode(
+        result.bwt_result.transformed,
+        result.bwt_result.transformed_size,
+        &huffman_codes
+    );
+
+    result.encoded_bits = encoded.data;
+    result.encoded_bits_size = encoded.data_size;
+    result.original_bit_count = encoded.bit_count;
+
+    free_huffman_tree(huffman_tree);
+    return result;
+}
+
+static uint8_t* decompress_data(CompressedData* compressed, size_t* result_size) {
+    if (!compressed || !compressed->encoded_bits) {
+        *result_size = 0;
+        return NULL;
+    }
+
+    HuffmanNode* huffman_tree = build_huffman_tree(compressed->frequencies);
+    if (!huffman_tree) {
+        *result_size = 0;
+        return NULL;
+    }
+
+    uint8_t* decoded = huffman_decode(
+        compressed->encoded_bits,
+        compressed->encoded_bits_size,
+        huffman_tree,
+        compressed->original_bit_count,
+        result_size
+    );
+
+    if (!decoded) {
+        free_huffman_tree(huffman_tree);
+        *result_size = 0;
+        return NULL;
+    }
+
+    BWTResult bwt_result;
+    bwt_result.transformed = decoded;
+    bwt_result.transformed_size = *result_size;
+    bwt_result.original_idx = compressed->bwt_result.original_idx;
+
+    uint8_t* final_result = bwt_inverse(&bwt_result, result_size);
+
+    free_huffman_tree(huffman_tree);
+    free(decoded);
+    return final_result;
+}
+
+static void free_compressed_data(CompressedData* compressed) {
+    if (compressed) {
+        free(compressed->bwt_result.transformed);
+        free(compressed->encoded_bits);
+    }
+}
+
+static uint8_t* generate_test_data(int64_t size, size_t* data_size) {
+    const char* pattern = "ABRACADABRA";
+    size_t pattern_len = strlen(pattern);
+
+    uint8_t* data = malloc(size);
+    if (!data) {
+        *data_size = 0;
+        return NULL;
+    }
+
+    *data_size = size;
+
+    for (int64_t i = 0; i < size; i++) {
+        data[i] = pattern[i % pattern_len];
+    }
+
+    return data;
+}
+
+void Compression_prepare(Benchmark* self) {
+    CompressionData* data = (CompressionData*)self->data;
+    data->size_val = Helper_config_i64(self->name, "size");
+    if (data->size_val == 0) data->size_val = 1000;
+
+    if (data->test_data) {
+        free(data->test_data);
+        data->test_data = NULL;
+    }
+
+    data->test_data = generate_test_data(data->size_val, &data->test_data_size);
+    data->result_val = 0;
+}
+
+void Compression_run(Benchmark* self, int iteration_id) {
+    CompressionData* data = (CompressionData*)self->data;
+
+    CompressedData compressed = compress_data(data->test_data, data->test_data_size);
+
+    if (compressed.encoded_bits) {
+
+        data->result_val = (data->result_val + (uint32_t)compressed.encoded_bits_size) & 0xFFFFFFFFu;
+
+        if (compressed.bwt_result.transformed) {
+            free(compressed.bwt_result.transformed);
+        }
+        if (compressed.encoded_bits) {
+            free(compressed.encoded_bits);
+        }
+
+    }
+}
+
+void Compression_cleanup(Benchmark* self) {
+    CompressionData* data = (CompressionData*)self->data;
+
+    if (data->test_data) {
+        free(data->test_data);
+        data->test_data = NULL;
+    }
+
+    free(data);
+    self->data = NULL;  
+}
+
+uint32_t Compression_checksum(Benchmark* self) {
+    CompressionData* data = (CompressionData*)self->data;
+    return data->result_val;
+}
+
+Benchmark* Compression_create(void) {
+    Benchmark* bench = Benchmark_create("BWTHuffEncode");
+
+    CompressionData* data = malloc(sizeof(CompressionData));
+    memset(data, 0, sizeof(CompressionData));
+    data->size_val = 0;
+    data->test_data = NULL;
+    data->test_data_size = 0;
+    data->result_val = 0;
+
+    bench->data = data;
+    bench->prepare = Compression_prepare;
+    bench->run = Compression_run;
+    bench->checksum = Compression_checksum;
+    bench->cleanup = Compression_cleanup;
+
+    return bench;
+}
+
+void Decompression_prepare(Benchmark* self) {
+    DecompressionData* data = (DecompressionData*)self->data;
+    data->size_val = Helper_config_i64(self->name, "size");
+    if (data->size_val == 0) data->size_val = 1000;
+
+    free(data->test_data);
+    data->test_data = generate_test_data(data->size_val, &data->test_data_size);
+    data->result_val = 0;
+
+    if (data->compressed_data.encoded_bits) {
+        free(data->compressed_data.bwt_result.transformed);
+        free(data->compressed_data.encoded_bits);
+    }
+    memset(&data->compressed_data, 0, sizeof(CompressedData));
+
+    free(data->decompressed);
+    data->decompressed = NULL;
+    data->decompressed_size = 0;
+
+    data->compressed_data = compress_data(data->test_data, data->test_data_size);
+}
+
+void Decompression_run(Benchmark* self, int iteration_id) {
+    DecompressionData* data = (DecompressionData*)self->data;
+
+    size_t decompressed_size;
+    uint8_t* decompressed = decompress_data(&data->compressed_data, &decompressed_size);
+
+    if (decompressed) {
+        data->decompressed = decompressed;
+        data->decompressed_size = decompressed_size;
+
+        data->result_val = (data->result_val + (uint32_t)decompressed_size) & 0xFFFFFFFFu;
+    }
+}
+
+uint32_t Decompression_checksum(Benchmark* self) {
+    DecompressionData* data = (DecompressionData*)self->data;
+    uint32_t result = data->result_val;
+
+    if (data->decompressed && data->test_data && data->test_data_size > 0) {
+        if (data->decompressed_size == data->test_data_size) {
+            if (memcmp(data->decompressed, data->test_data, data->test_data_size) == 0) {
+                result = (result + 1000000) & 0xFFFFFFFFu;
+            }
+        }
+    }
+
+    return result;
+}
+
+void Decompression_cleanup(Benchmark* self) {
+    DecompressionData* data = (DecompressionData*)self->data;
+
+    if (data->test_data) {
+        free(data->test_data);
+        data->test_data = NULL;
+    }
+
+    if (data->compressed_data.encoded_bits) {
+        free(data->compressed_data.encoded_bits);
+        data->compressed_data.encoded_bits = NULL;
+    }
+    if (data->compressed_data.bwt_result.transformed) {
+        free(data->compressed_data.bwt_result.transformed);
+        data->compressed_data.bwt_result.transformed = NULL;
+    }
+
+    if (data->decompressed) {
+        free(data->decompressed);
+        data->decompressed = NULL;
+    }
+
+    free(data);
+    self->data = NULL;  
+}
+
+Benchmark* Decompression_create(void) {
+    Benchmark* bench = Benchmark_create("BWTHuffDecode");
+
+    DecompressionData* data = malloc(sizeof(DecompressionData));
+    memset(data, 0, sizeof(DecompressionData));
+    data->size_val = 0;
+    data->test_data = NULL;
+    data->test_data_size = 0;
+    data->decompressed = NULL;
+    data->decompressed_size = 0;
+    data->result_val = 0;
+    memset(&data->compressed_data, 0, sizeof(CompressedData));
+
+    bench->data = data;
+    bench->prepare = Decompression_prepare;
+    bench->run = Decompression_run;
+    bench->checksum = Decompression_checksum;
+    bench->cleanup = Decompression_cleanup;
+
+    return bench;
+}
+
+void register_all_benchmarks(void) {
+    Benchmark_register("Pidigits", Pidigits_create);
+    Benchmark_register("Binarytrees", Binarytrees_create);
+    Benchmark_register("BrainfuckArray", BrainfuckArray_create);
+    Benchmark_register("BrainfuckRecursion", BrainfuckRecursion_create);
+    Benchmark_register("Fannkuchredux", Fannkuchredux_create);
+    Benchmark_register("Fasta", Fasta_create);
+    Benchmark_register("Knuckeotide", Knuckeotide_create);
+    Benchmark_register("Mandelbrot", Mandelbrot_create);
+    Benchmark_register("Matmul1T", Matmul_create);
+    Benchmark_register("Matmul4T", Matmul4T_create);
+    Benchmark_register("Matmul8T", Matmul8T_create);
+    Benchmark_register("Matmul16T", Matmul16T_create);
+    Benchmark_register("Nbody", Nbody_create);
+    Benchmark_register("RegexDna", RegexDna_create);
+    Benchmark_register("Revcomp", Revcomp_create);
+    Benchmark_register("Spectralnorm", Spectralnorm_create);
+    Benchmark_register("Base64Encode", Base64Encode_create);
+    Benchmark_register("Base64Decode", Base64Decode_create);
+    Benchmark_register("JsonGenerate", JsonGenerate_create);
+    Benchmark_register("JsonParseDom", JsonParseDom_create);
+    Benchmark_register("JsonParseMapping", JsonParseMapping_create);
+    Benchmark_register("Primes", Primes_create);
+    Benchmark_register("Noise", Noise_create);
+    Benchmark_register("TextRaytracer", TextRaytracer_create);
+    Benchmark_register("NeuralNet", NeuralNet_create);
+    Benchmark_register("SortQuick", SortQuick_create);
+    Benchmark_register("SortMerge", SortMerge_create);
+    Benchmark_register("SortSelf", SortSelf_create);
+    Benchmark_register("GraphPathBFS", GraphPathBFS_create);
+    Benchmark_register("GraphPathDFS", GraphPathDFS_create);
+    Benchmark_register("GraphPathDijkstra", GraphPathDijkstra_create);
+    Benchmark_register("BufferHashSHA256", BufferHashSHA256_create);
+    Benchmark_register("BufferHashCRC32", BufferHashCRC32_create);
+    Benchmark_register("CacheSimulation", CacheSimulation_create);
+    Benchmark_register("CalculatorAst", CalculatorAst_create);
+    Benchmark_register("CalculatorInterpreter", CalculatorInterpreter_create);
+    Benchmark_register("GameOfLife", GameOfLife_create);
+    Benchmark_register("MazeGenerator", MazeGenerator_create);
+    Benchmark_register("AStarPathfinder", AStarPathfinder_create);
+    Benchmark_register("BWTHuffEncode", Compression_create);
+    Benchmark_register("BWTHuffDecode", Decompression_create);
+}
+
+int main(int argc, char* argv[]) {
+
+    struct timespec start_time;
+    clock_gettime(CLOCK_REALTIME, &start_time);
+    printf("start: %ld\n", start_time.tv_sec * 1000 + start_time.tv_nsec / 1000000);
+
+    const char* config_file = argc > 1 ? argv[1] : "../test.js";
+    Helper_load_config(config_file);
+
+    register_all_benchmarks();
+
+    const char* single_bench = argc > 2 ? argv[2] : NULL;
+    Benchmark_all(single_bench);
+
+    Helper_free_config();
+
+    if (benchmark_factories) {
+        free(benchmark_factories);
+        benchmark_factories = NULL;
+        benchmark_factories_count = 0;
+        benchmark_factories_capacity = 0;
+    }
+
+    FILE* f = fopen("/tmp/recompile_marker", "w");
+    if (f) {
+        fprintf(f, "RECOMPILE_MARKER_0");
+        fclose(f);
+    }
+
+    return 0;
+}

@@ -1,0 +1,15 @@
+FROM benchmarks:base
+
+# ============================================
+# Установка .NET SDK
+# ============================================
+
+ARG version
+
+# Добавляем репозиторий Microsoft
+RUN wget https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb \
+    && dpkg -i packages-microsoft-prod.deb \
+    && rm packages-microsoft-prod.deb
+
+RUN apt install -y --no-install-recommends dotnet-sdk-$version libbrotli-dev \
+    && apt clean

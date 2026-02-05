@@ -1,0 +1,5 @@
+#/bin/sh
+rm -f ./target/release/d_benchmarks
+dub build -c release --build=release
+./target/release/d_benchmarks ../run.js $@
+# dub run --build=release -- ../run.js $@

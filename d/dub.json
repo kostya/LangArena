@@ -1,0 +1,116 @@
+{
+    "name": "d_benchmarks",
+    "targetType": "executable",
+    "dependencies": {
+		"gmp-d": {
+            "repository": "git+https://github.com/kostya/gmp-d.git",
+            "version": "~main"
+        },
+        "asdf": "~>0.8.0"
+    },
+    "configurations": [
+        {
+            "name": "release",
+            "buildOptions": ["releaseMode", "optimize"],
+            "targetPath": "target/release"
+        },
+        {
+            "name": "release-ldc",
+            "targetName": "d_benchmarks_ldc_release",
+            "targetPath": "target/release",
+            "buildOptions": ["releaseMode", "optimize"],
+            "versions": ["noBoundsCheck"]
+        },
+        {
+            "name": "release-gdc",
+            "targetName": "d_benchmarks_gdc_release",
+            "targetPath": "target/release",
+            "buildOptions": ["releaseMode", "optimize"],
+            "versions": ["noBoundsCheck"]
+        },
+        {
+            "name": "release-dmd",
+            "targetName": "d_benchmarks_dmd_release",
+            "targetPath": "target/release",
+            "buildOptions": ["releaseMode", "optimize"],
+            "versions": ["noBoundsCheck"]
+        },
+        {
+            "name": "perf-ldc",
+            "targetName": "d_benchmarks_ldc_perf",
+            "targetPath": "target/release",
+            "buildOptions": ["releaseMode", "optimize"],
+            "dflags-ldc": [
+                "--boundscheck=off",
+                "--disable-asserts",
+                "-mcpu=native",
+                "-O3"
+            ],
+            "versions": ["noBoundsCheck"]
+        },
+        {
+            "name": "perf-gdc",
+            "targetName": "d_benchmarks_gdc_perf",
+            "targetPath": "target/release",
+            "buildOptions": ["releaseMode", "optimize"],
+            "dflags-gdc": [
+                "-march=native",
+                "-mtune=native",
+                "-O3",
+                "-fno-bounds-check",
+                "-funroll-loops"
+            ],
+            "versions": ["noBoundsCheck"]
+        },
+		{
+            "name": "perf-dmd",
+            "targetName": "d_benchmarks_dmd_perf",
+            "targetPath": "target/release",
+            "buildOptions": ["releaseMode", "optimize"],
+            "dflags-dmd": [
+                "-boundscheck=off",
+                "-mcpu=avx2",
+                "-checkaction=context"
+            ],
+            "versions": ["noBoundsCheck"]
+        },
+		{
+            "name": "maxperf-ldc",
+            "targetName": "d_benchmarks_ldc_maxperf",
+            "targetPath": "target/release",
+            "buildOptions": ["releaseMode", "optimize"],
+            "dflags-ldc": [
+                "--boundscheck=off",
+                "--disable-asserts",
+                "--disable-preconditions",
+                "-mcpu=native",
+                "-O5",
+                "-Hkeep-all-bodies",
+			    "-enable-unsafe-fp-math",
+    			"-enable-no-nans-fp-math",
+    			"-enable-no-infs-fp-math"
+            ],
+            "versions": ["noBoundsCheck"]
+        },
+        {
+            "name": "maxperf-gdc",
+            "targetName": "d_benchmarks_gdc_maxperf",
+            "targetPath": "target/release",
+            "buildOptions": ["releaseMode", "optimize"],
+            "dflags-gdc": [
+                "-ffast-math",
+                "-funroll-all-loops",
+                "-march=native",
+                "-mtune=native",
+                "-Ofast",
+                "-fno-bounds-check",
+                "-fno-stack-protector",
+                "-fomit-frame-pointer"
+            ],
+            "versions": ["noBoundsCheck"]
+        }, {
+            "name": "debug",
+            "targetPath": "target/debug"
+        }
+    ]
+}

@@ -1,0 +1,15 @@
+FROM benchmarks:base
+
+# ============================================
+# Установка GCC
+# ============================================
+
+ARG version
+
+RUN apt install -y --no-install-recommends \
+    gcc-$version \
+    g++-$version \
+    && apt clean
+
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$version $version \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-$version $version

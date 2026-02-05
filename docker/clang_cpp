@@ -1,0 +1,4 @@
+FROM benchmarks:base_clang
+
+RUN apt install -y --no-install-recommends libre2-dev \
+    && apt clean

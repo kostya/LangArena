@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22 fill=%22%23ffd700%22>🏆</text></svg>">
+    
+    <title>LangArena - Programming Languages Benchmark Comparison</title>
+    <meta name="description" content="Comprehensive benchmark comparison of 10+ programming languages (C, Rust, C++, Go, Java, Zig, etc.) across 40+ tests. Compare runtime performance, memory usage, compile times, and code expressiveness.">
+    <meta name="keywords" content="programming languages benchmark, performance comparison, C vs Rust, Go vs Java, runtime benchmarks, memory usage, compile time, code expressiveness">
+    <link rel="canonical" href="https://kostya.github.io/LangArena/" />
+    
+    <meta property="og:title" content="LangArena 🏆 - Programming Languages Benchmark Comparison">
+    <meta property="og:description" content="Benchmark comparison of C, Rust, C++, Go, Java, Kotlin, C#, Swift, Crystal, TypeScript, Zig, D, V, Julia, Nim">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://kostya.github.io/LangArena/">
+    <!-- <meta property="og:image" content="https://yourdomain.com/og-image.png"> -->
+    
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="LangArena 🏆 - Programming Languages Benchmark">
+    <meta name="twitter:description" content="Real benchmark data comparing 10+ programming languages">
+    
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Dataset",
+      "name": "LangArena Programming Languages Benchmark",
+      "description": "Comprehensive performance benchmark comparing multiple programming languages across runtime speed, memory usage, compile time, and code expressiveness.",
+      "url": "https://kostya.github.io/LangArena/",
+      "keywords": ["benchmark", "programming languages", "performance", "C", "Rust", "C++", "Go", "Java", "Kotlin", "C#", "Swift", "TypeScript", "Crystal"],
+      "license": "https://github.com/kostya/LangArena",
+      "creator": {
+        "@type": "Person",
+        "name": "Kostya",
+        "url": "https://github.com/kostya"
+      },
+      "datePublished": "2026-01-22",
+      "dateModified": "2026-01-22",
+      "measurement": [
+        {
+          "@type": "QuantitativeValue",
+          "name": "Total Runtime Score",
+          "unitCode": "SEC",
+          "value": "Best: C/Clang (42.47s), Rust (44.53s), C++/Clang++ (47.0s)"
+        },
+        {
+          "@type": "QuantitativeValue",
+          "name": "Languages Compared",
+          "unitCode": "QTY",
+          "value": "10"
+        },
+        {
+          "@type": "QuantitativeValue",
+          "name": "Benchmark Tests",
+          "unitCode": "QTY",
+          "value": "40"
+        }
+      ]
+    }
+    </script>
+    
+    <link rel="stylesheet" href="styles.css">
+    <script src="jquery-4.0.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js"></script>
+</head>
+<body>    
+    <div class="container">
+    <div class="header">
+        <h1>🏆 LangArena</h1>
+        <div style="margin-top: 15px; display: flex; gap: 30px; opacity: 0.9;">
+            <span id=results-update-date><strong>Update date:</strong> XXXX-XX-XX</span>
+            <span id="resutls-arch"><strong>Architecture:</strong> XXXX</span>
+            <span id="resutls-pc"><strong>Pc:</strong> XXXX</span>
+            <span id="results-tests-count"><strong>Tests:</strong> XX</span>
+            <span id="results-runs-count"><strong>Configurations:</strong> XX</span>
+            <span id="results-langs-count"><strong>Languages:</strong> XX</span>
+        </div>
+        <div class="github-link">
+            📍 GitHub: <a href="https://github.com/kostya/LangArena" target="_blank">github.com/kostya/LangArena</a>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>🏆 Total Points</h3>
+            <ul id=main_legend_total style="list-style: none; padding: 0; margin: 0;"></ul>
+        </div>
+        
+        <div class="stat-card">
+            <h3>🚀 Best runtime</h3>
+            <ul id=main_legend_runtime style="list-style: none; padding: 0; margin: 0;"></ul>
+        </div>
+        
+        <div class="stat-card">
+            <h3>🏅 Wins</h3>
+            <ul id=main_legend_wins style="list-style: none; padding: 0; margin: 0;"></ul>
+        </div>
+        
+        <div class="stat-card">
+            <h3>🛠️ Compile Time</h3>
+            <ul id=main_legend_compile_time style="list-style: none; padding: 0; margin: 0;"></ul>
+        </div>
+
+        <div class="stat-card">
+            <h3>✨ Expressiveness</h3>
+            <ul id=main_legend_expressiveness style="list-style: none; padding: 0; margin: 0;"></ul>
+        </div>
+    </div>    
+
+    <noscript>
+        <div class="noscript-content" style="background: #f5f5f5; padding: 20px; margin: 20px 0; border-radius: 8px;">
+            <h2>LangArena Benchmark Results</h2>
+            <p><strong>Latest benchmark date:</strong> 2026-01-22</p>
+            <p><strong>Architecture:</strong> x86_64-linux-gnu</p>
+            <p><strong>Benchmark summary:</strong> Comparison of 10 programming languages across 40 performance tests.</p>
+            
+            <h3>Top Performers:</h3>
+            <ul>
+                <li><strong>C/Clang</strong> - Best overall performance (42.47s total runtime)</li>
+                <li><strong>Rust</strong> - Second best (44.53s total runtime)</li>
+                <li><strong>C++/Clang++</strong> - Third best (47.0s total runtime)</li>
+                <li><strong>Crystal</strong> - Most expressive code (+43.7% better than average)</li>
+                <li><strong>Go</strong> - Fastest compile time (0.965s)</li>
+            </ul>
+            
+            <h3>Tested Languages:</h3>
+            <p>C, C++, Rust, Go, Crystal, C#, Swift, Java, Kotlin, TypeScript</p>
+            
+            <h3>Benchmark Categories:</h3>
+            <ul>
+                <li>Runtime Performance (40 tests including Pidigits, Binarytrees, Fasta, etc.)</li>
+                <li>Memory Usage</li>
+                <li>Compile Time & Binary Size</li>
+                <li>Code Expressiveness (lines of code, boilerplate)</li>
+                <li>Hacked configurations with optimization flags</li>
+            </ul>
+            
+            <p><em>Enable JavaScript to view interactive tables and detailed comparison charts.</em></p>
+        </div>
+    </noscript>
+
+    <div class="tabs">
+        <button class="tab" id=overview_tab onclick="changeTab('overview_tab')">Overview</button>
+        <button class="tab active" id=runtime_tab onclick="changeTab('runtime_tab')">Runtime</button>
+        <button class="tab" id=memory_tab_rel onclick="changeTab('memory_tab_rel')">Runtime Score</button>      
+        <button class="tab" id=memory_tab onclick="changeTab('memory_tab')">Memory</button>        
+        <button class="tab" id=source_tab onclick="changeTab('source_tab')">Source Code</button>
+        <button class="tab" id=compile_tab onclick="changeTab('compile_tab')">Compile</button>
+
+        <button class="tab" id=ranking_tab onclick="changeTab('ranking_tab')">Rankings</button>
+        <button class="tab" id=awards_tab onclick="changeTab('awards_tab')">Score</button>
+
+        <button class="tab" id=versions_tab onclick="changeTab('versions_tab')">Versions</button>
+        <button class="tab" id=analys_tab onclick="changeTab('analys_tab')">AI Analysis</button>
+        <button class="tab" id=hacking_tab onclick="changeTab('hacking_tab')">Hacking</button>
+        <button class="tab" id=prev_run_tab onclick="changeTab('prev_run_tab')">PrevRun</button>
+        <button class="tab" id=history_tab onclick="changeTab('history_tab')">History</button>
+    </div>
+    <div id="results" class="tab-content active">
+        <!-- JavaScript загрузит контент сюда -->
+    </div>
+    <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "120edbba80084bc797ced71d68b64c5d"}'></script><!-- End Cloudflare Web Analytics -->    
+</body>
+</html>

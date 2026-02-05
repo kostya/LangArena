@@ -1,0 +1,3 @@
+#!/bin/sh
+
+zig build fast-run -- ../test.js "$@"

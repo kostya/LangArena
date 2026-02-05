@@ -1,0 +1,19 @@
+FROM benchmarks:base
+
+# ============================================
+# Установка Crystal
+# ============================================
+RUN apt install -y --no-install-recommends \
+    libyaml-dev \
+    libevent-dev \
+    libpcre3-dev \
+    && apt clean
+
+ARG version
+ARG arch
+RUN if [ "$arch" = "amd64" ] || [ "$arch" = "" ]; then export ARCH="linux-x86_64"; else export ARCH="linux-aarch64"; fi && \
+    wget --progress=dot:giga -O - \
+    https://github.com/crystal-lang/crystal/releases/download/$version/crystal-$version-1-$ARCH.tar.gz \
+    | tar -xz
+RUN ln -sf /opt/crystal-$version-1/bin/crystal /usr/local/bin/crystal
+ENV PATH="/opt/crystal-$version-1/bin:${PATH}"
