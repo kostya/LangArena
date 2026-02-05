@@ -1020,7 +1020,7 @@ RUNS = [
     version_cmd: "dotnet --version",
     dir: "/src/fsharp",
     container: "fsharp",
-    group: :prod,        
+    group: :hack,        
     deps_cmd: "dotnet restore",
   ),
 
