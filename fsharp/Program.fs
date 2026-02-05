@@ -19,7 +19,6 @@ module BenchmarkRunner =
         let mutable ok = 0
         let mutable fails = 0
 
-        // ЯВНЫЙ СПИСОК - все типы уже определены к этому моменту
         let benchmarks = [
             Pidigits() :> Benchmark
             Binarytrees() :> Benchmark
@@ -142,7 +141,6 @@ let main argv =
         if argv.Length > 1 then Some argv.[1]
         else None
 
-    // Вызываем наш метод из модуля
     BenchmarkRunner.All(singleBench)
 
     0
