@@ -11,7 +11,7 @@
 IS_VERBOSE = ENV["VERBOSE"] == "1" # show docker commands
 IS_RUN_PROD = ENV["PROD"] == "1" # use only prod runs
 IS_RUN_TEST = ENV["TEST"] == "1" # use test.js for testing, faster
-IS_LOG_CRASH = ENV["LOG_CRASH"] == "1" # log instead of crash
+IS_LOG_CRASH = true # ENV["LOG_CRASH"] == "1" # log instead of crash
 IS_ONE_RUN_PER_LANG = ENV["BY_LANG"] == "1" # run only one run for each language
 IS_NO_BUILD = ENV["NO_BUILD"] == "1" # not test build stage
 IS_NO_DEPS = ENV["NO_DEPS"] == "1" # not test deps stage
