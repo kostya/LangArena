@@ -10,11 +10,12 @@ import std.range;
 import benchmark;
 import benchmarks.fasta;
 import helper;
+import core.atomic;
 
 class Revcomp : Benchmark {
 private:
     string input;
-    uint checksumVal;
+    shared uint checksumVal;
 
     string revcomp(string seq) {
 
@@ -74,10 +75,10 @@ public:
 
     override void run(int iterationId) {
         string resultStr = revcomp(input);
-        checksumVal += Helper.checksum(resultStr);
+        atomicOp!"+="(checksumVal, Helper.checksum(resultStr));
     }
 
     override uint checksum() {
-        return checksumVal;
+      return atomicLoad(checksumVal);
     }
 }
