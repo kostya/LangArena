@@ -7,7 +7,7 @@ import org.json.JSONObject
 class JsonGenerate : Benchmark() {
     var n: Long = 0
     private lateinit var data: List<Map<String, Any>>
-    private lateinit var text: String
+    public lateinit var text: String
     private var resultVal: Long = 0
 
     init {

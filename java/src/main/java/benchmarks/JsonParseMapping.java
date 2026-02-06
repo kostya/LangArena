@@ -34,29 +34,7 @@ public class JsonParseMapping extends Benchmark {
         generator.n = (int) configVal("coords");
         generator.prepare();
         generator.run(0);
-
-        try {
-            var dataField = JsonGenerate.class.getDeclaredField("data");
-            dataField.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> data = (List<Map<String, Object>>) dataField.get(generator);
-
-            JSONArray jsonArray = new JSONArray();
-            for (Map<String, Object> coord : data) {
-                JSONObject obj = new JSONObject();
-                obj.put("x", Double.parseDouble(coord.get("x").toString()));
-                obj.put("y", Double.parseDouble(coord.get("y").toString()));
-                obj.put("z", Double.parseDouble(coord.get("z").toString()));
-                jsonArray.put(obj);
-            }
-
-            JSONObject jsonObject = new JSONObject();
-            jsonObject.put("coordinates", jsonArray);
-            text = jsonObject.toString();
-
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        text = generator.getText();
     }
 
     private Coord calc(String text) {

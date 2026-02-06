@@ -15,23 +15,7 @@ class JsonParseMapping : Benchmark() {
         generator.n = configVal("coords")
         generator.prepare()
         generator.run(0)
-
-        val dataField = generator::class.java.getDeclaredField("data")
-        dataField.isAccessible = true
-        val data = dataField.get(generator) as List<Map<String, Any>>
-
-        val jsonArray = JSONArray()
-        for (coord in data) {
-            val obj = JSONObject()
-            obj.put("x", coord["x"])
-            obj.put("y", coord["y"])
-            obj.put("z", coord["z"])
-            jsonArray.put(obj)
-        }
-
-        val jsonObject = JSONObject()
-        jsonObject.put("coordinates", jsonArray)
-        text = jsonObject.toString()
+        text = generator.text
     }
 
     private fun calc(text: String): Coord {
