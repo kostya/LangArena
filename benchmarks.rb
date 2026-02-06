@@ -1868,6 +1868,10 @@ RESULTS["compile-time-incremental"] = {}
 RESULTS["version"] = {}
 RESULTS["start-duration"] = {}
 
+unless ARGV[0]
+  File.open("/tmp/log_crash.txt", "w") { |f| f.push "started #{Time.now}" }
+end
+
 def write_results
   unless ARGV[0]
     # write result on every step, because it can crash somewhere
