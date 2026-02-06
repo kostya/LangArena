@@ -5,9 +5,9 @@
     "iterations": 100
   },
   "Binarytrees": {
-    "checksum": 4293657736,
+    "checksum": 4294181560,
     "depth": 12,
-    "iterations": 100
+    "iterations": 60
   },
   "BrainfuckArray": {
     "checksum": 954437102,
@@ -74,14 +74,14 @@
     "iterations": 200
   },
   "Revcomp": {
-    "checksum": 471521784,
-    "n": 150000,
+    "checksum": 1125863152,
+    "n": 100000,
     "iterations": 500
   },
   "Spectralnorm": {
     "checksum": 1052198219,
-    "size": 1500,
-    "iterations": 150
+    "size": 1200,
+    "iterations": 132
   },
   "Base64Encode": {
     "checksum": 3062447189,
@@ -101,7 +101,7 @@
   },
   "JsonGenerate": {
     "checksum": 120,
-    "coords": 50000,
+    "coords": 20000,
     "iterations": 100
   },
   "JsonParseDom": {
@@ -115,9 +115,9 @@
     "iterations": 100
   },
   "Noise": {
-    "checksum": 511727888,
+    "checksum": 1166030192,
     "size": 256,
-    "iterations": 2000
+    "iterations": 1200
   },
   "TextRaytracer": {
     "checksum": 2761140480,
@@ -130,18 +130,18 @@
     "iterations": 1100000
   },
   "SortQuick": {
-    "checksum": 120187621,
-    "size": 200000,
+    "checksum": 118065786,
+    "size": 150000,
     "iterations": 100
   },
   "SortMerge": {
-    "checksum": 120187621,
-    "size": 200000,
+    "checksum": 118065786,
+    "size": 150000,
     "iterations": 100
   },
   "SortSelf": {
-    "checksum": 120187621,
-    "size": 200000,
+    "checksum": 118065786,
+    "size": 150000,
     "iterations": 100
   },
   "GraphPathBFS": {
@@ -189,10 +189,10 @@
     "iterations": 100
   },
   "GameOfLife": {
-    "checksum": 361547601,
-    "w": 256,
-    "h": 256,
-    "iterations": 5000
+    "checksum": 1260701099,
+    "w": 1000,
+    "h": 1000,
+    "iterations": 220
   },
   "MazeGenerator": {
     "checksum": 3685250329,
