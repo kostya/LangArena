@@ -20,9 +20,6 @@ method prepare(self: JsonGenerate) =
   self.resultVal = 0
 
 method run(self: JsonGenerate, iteration_id: int) =
-
-  reset()
-
   let data = generateJsonData(self.n)
 
   self.resultJson = data.toJson()

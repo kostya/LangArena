@@ -117,10 +117,7 @@ pub const JsonGenerate = struct {
             }
 
             var buffer: [128]u8 = undefined;
-            const formatted = std.fmt.bufPrint(&buffer,
-                "{{\"x\":{d:.8},\"y\":{d:.8},\"z\":{d:.8},\"name\":\"{s}\",\"opts\":{{\"1\":[1,true]}}}}",
-                .{ entry.x, entry.y, entry.z, entry.name }
-            ) catch return;
+            const formatted = std.fmt.bufPrint(&buffer, "{{\"x\":{d:.8},\"y\":{d:.8},\"z\":{d:.8},\"name\":\"{s}\",\"opts\":{{\"1\":[1,true]}}}}", .{ entry.x, entry.y, entry.z, entry.name }) catch return;
 
             self.result_str.appendSlice(allocator, formatted) catch return;
         }
@@ -129,7 +126,8 @@ pub const JsonGenerate = struct {
 
         // Проверяем как в C++ версии и увеличиваем result_val
         if (self.result_str.items.len >= 15 and
-            std.mem.startsWith(u8, self.result_str.items, "{\"coordinates\":")) {
+            std.mem.startsWith(u8, self.result_str.items, "{\"coordinates\":"))
+        {
             self.result_val +%= 1; // &+= в C++
         }
     }

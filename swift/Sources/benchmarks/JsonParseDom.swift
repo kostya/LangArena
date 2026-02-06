@@ -37,8 +37,6 @@ final class JsonParseDom: BenchmarkProtocol {
                 let coordX = coord["x"] as? Double ?? 0
                 let coordY = coord["y"] as? Double ?? 0
                 let coordZ = coord["z"] as? Double ?? 0
-                _ = coord["name"] as? String ?? ""
-                _ = coord["opts"] as? [String: Any]
                 x += coordX
                 y += coordY
                 z += coordZ
