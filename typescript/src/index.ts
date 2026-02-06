@@ -2619,7 +2619,7 @@ export class TextRaytracer extends Benchmark {
   }
 
   checksum(): number {
-    return this.resultValue;
+    return this.resultValue >>> 0;
   }
 }
 
