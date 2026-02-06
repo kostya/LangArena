@@ -1401,25 +1401,26 @@ RUNS = [
     deps_cmd: "mvn dependency:resolve; mvn dependency:resolve-plugins",
   ),
 
-  # GraalVM Native Image (AOT)
-  Run.new(
-    name: "Java/GraalVM/Native",
-    build_cmd: <<~CMD.chomp,
-      mvn package -Pgraalvm-native \
-        -DskipTests \
-        -Dmaven.test.skip=true \
-        -Dnative.buildArgs="--no-fallback --gc=serial -O3"
-    CMD
-    binary_name: "./target/benchmarks-native",
-    run_cmd: <<~CMD.chomp,
-      ./target/benchmarks-native -Xmx12g
-    CMD
-    version_cmd: "native-image --version",
-    dir: "/src/java",
-    container: "graalvm",
-    group: :hack,
-    deps_cmd: "mvn dependency:resolve; mvn dependency:resolve-plugins",
-  ),
+  # Disable because of compile bug with fastjson2
+  # # GraalVM Native Image (AOT)
+  # Run.new(
+  #   name: "Java/GraalVM/Native",
+  #   build_cmd: <<~CMD.chomp,
+  #     mvn package -Pgraalvm-native \
+  #       -DskipTests \
+  #       -Dmaven.test.skip=true \
+  #       -Dnative.buildArgs="--no-fallback --gc=serial -O3"
+  #   CMD
+  #   binary_name: "./target/benchmarks-native",
+  #   run_cmd: <<~CMD.chomp,
+  #     ./target/benchmarks-native -Xmx12g
+  #   CMD
+  #   version_cmd: "native-image --version",
+  #   dir: "/src/java",
+  #   container: "graalvm",
+  #   group: :hack,
+  #   deps_cmd: "mvn dependency:resolve; mvn dependency:resolve-plugins",
+  # ),
 
   # No effect
   # # Дополнительный вариант: GraalVM Native с максимальными оптимизациями
@@ -1544,17 +1545,18 @@ RUNS = [
 
   # =============== KOTLIN + GRAALVM NATIVE ===============
 
-  Run.new(
-    name: "Kotlin/GraalVM/Native",
-    build_cmd: "/src/kotlin/build-kotlin-native.sh",
-    binary_name: "/src/kotlin/build/native/benchmarks",
-    run_cmd: "/src/kotlin/build/native/benchmarks -Xmx8g",
-    version_cmd: "kotlin -version",
-    dir: "/src/kotlin",
-    container: "kotlin-graalvm",
-    group: :hack,
-    deps_cmd: "./gradlew --no-daemon dependencies",
-  ),
+  # Disable because of compile bug with fastjson2
+  # Run.new(
+  #   name: "Kotlin/GraalVM/Native",
+  #   build_cmd: "/src/kotlin/build-kotlin-native.sh",
+  #   binary_name: "/src/kotlin/build/native/benchmarks",
+  #   run_cmd: "/src/kotlin/build/native/benchmarks -Xmx8g",
+  #   version_cmd: "kotlin -version",
+  #   dir: "/src/kotlin",
+  #   container: "kotlin-graalvm",
+  #   group: :hack,
+  #   deps_cmd: "./gradlew --no-daemon dependencies",
+  # ),
 
   # No effect
   # Run.new(
