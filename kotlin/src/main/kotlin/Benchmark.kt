@@ -69,8 +69,6 @@ abstract class Benchmark {
                     className != "BufferHashBenchmark" && 
                     className != "GraphPathBenchmark") {
 
-                    print("$className: ")
-
                     Helper.reset()
 
                     bench.prepare()
@@ -89,6 +87,7 @@ abstract class Benchmark {
                     Thread.sleep(1)  
                     System.gc()
 
+                    print("$className: ")
                     if (bench.checksum().toLong() == bench.expectedChecksum()) {
                         print("OK ")
                         ok++

@@ -81,8 +81,6 @@ public abstract class Benchmark {
                 continue;
             }
 
-            System.out.print(className + ": ");
-
             Helper.reset();
 
             bench.prepare();
@@ -103,6 +101,7 @@ public abstract class Benchmark {
 
             long check = bench.checksum() & 0xFFFFFFFFL;
             long expected = bench.expectedChecksum();
+            System.out.print(className + ": ");
             if (check == expected) {
                 System.out.print("OK ");
                 ok++;
