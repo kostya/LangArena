@@ -1586,6 +1586,19 @@ RUNS = [
   #   deps_cmd: "./gradlew --no-daemon dependencies",
   # ),
 
+  # ======================================= Dart ======================================================
+  Run.new(
+    name: "Dart/AOT", 
+    build_cmd: "dart compile exe bin/main.dart -o target/dart_benchmark",
+    binary_name: "target/dart_benchmark",
+    run_cmd: "./target/dart_benchmark", 
+    version_cmd: "dart --version",
+    dir: "/src/dart",
+    container: "dart",   
+    group: :prod, 
+    deps_cmd: "dart pub get",
+  ),
+
   # ======================================= TypeScript ======================================================
 
   # TypeScript - дефолтная компиляция
