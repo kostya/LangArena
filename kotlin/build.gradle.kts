@@ -7,7 +7,14 @@ repositories {
 }
 
 dependencies {
-    // Будущие зависимости здесь
+    // Fastjson2 для Kotlin
+    implementation("com.alibaba.fastjson2:fastjson2-kotlin:2.0.60")
+    
+    // Kotlin stdlib и reflect (требуется для fastjson2-kotlin)
+    implementation("org.jetbrains.kotlin:kotlin-stdlib")
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    
+    // Оригинальные зависимости
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
     implementation("org.json:json:20251224")
@@ -115,7 +122,12 @@ tasks.register<JavaExec>("runRelease") {
         "-XX:MaxInlineSize=325",  // Максимальный размер для инлайнинга
         "-XX:FreqInlineSize=325",  // Размер для частых методов
         
-        // 10. Профилирование JIT (можно убрать для чистого запуска)
+        // 10. Флаги для fastjson2 (чтобы убрать warnings)
+        "--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED",
+        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+        "-Dsun.misc.Unsafe.allowMemoryAccess=true",
+        
+        // 11. Профилирование JIT (можно убрать для чистого запуска)
         // "-XX:+PrintCompilation",  // Показывает что JIT компилирует
         // "-XX:+PrintInlining",     // Показывает инлайнинг
     )
@@ -154,7 +166,11 @@ tasks.register<JavaExec>("runBenchmark") {
         "-XX:+AlwaysPreTouch",
         "-XX:+UseNUMA",
         "-XX:+DisableExplicitGC",
-        "-Djava.security.egd=file:/dev/./urandom"
+        "-Djava.security.egd=file:/dev/./urandom",
+        // Флаги для fastjson2
+        "--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED",
+        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+        "-Dsun.misc.Unsafe.allowMemoryAccess=true"
     )
     
     // Минимизируем всё кроме производительности

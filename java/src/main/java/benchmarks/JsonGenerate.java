@@ -1,7 +1,7 @@
 package benchmarks;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 import java.util.*;
 
 public class JsonGenerate extends Benchmark {
@@ -49,7 +49,7 @@ public class JsonGenerate extends Benchmark {
     public void run(int iterationId) {
         JSONArray jsonArray = new JSONArray();
         for (Map<String, Object> coord : data) {
-            jsonArray.put(coord);
+            jsonArray.add(coord);
         }
 
         JSONObject jsonObject = new JSONObject();

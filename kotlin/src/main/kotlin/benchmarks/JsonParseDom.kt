@@ -1,8 +1,8 @@
-package benchmarks
+package benchmarks;
 
-import Benchmark
-import org.json.JSONArray
-import org.json.JSONObject
+import Benchmark;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 
 class JsonParseDom : Benchmark() {
     private lateinit var text: String
@@ -20,21 +20,21 @@ class JsonParseDom : Benchmark() {
     }
 
     private fun calc(text: String): Triple<Double, Double, Double> {
-        val json = JSONObject(text)
+        val json = JSONObject.parseObject(text)
         val coordinates = json.getJSONArray("coordinates")
 
         var x = 0.0
         var y = 0.0
         var z = 0.0
 
-        for (i in 0 until coordinates.length()) {
+        for (i in 0 until coordinates.size) { 
             val coord = coordinates.getJSONObject(i)
-            x += coord.getDouble("x")
-            y += coord.getDouble("y")
-            z += coord.getDouble("z")
+            x += coord.getDoubleValue("x")
+            y += coord.getDoubleValue("y")
+            z += coord.getDoubleValue("z")
         }
 
-        val len = coordinates.length().toDouble()
+        val len = coordinates.size.toDouble() 
         return Triple(x / len, y / len, z / len)
     }
 

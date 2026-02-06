@@ -1,8 +1,7 @@
 package benchmarks
 
 import Benchmark
-import org.json.JSONArray
-import org.json.JSONObject
+import com.alibaba.fastjson2.*
 
 data class Coord(val x: Double, val y: Double, val z: Double)
 
@@ -19,22 +18,26 @@ class JsonParseMapping : Benchmark() {
     }
 
     private fun calc(text: String): Coord {
-        val json = JSONObject(text)
-        val coordinates = json.getJSONArray("coordinates")
+
+        val data = text.into<CoordinatesData>()
+        val coordinates = data.coordinates
 
         var x = 0.0
         var y = 0.0
         var z = 0.0
 
-        for (i in 0 until coordinates.length()) {
-            val coord = coordinates.getJSONObject(i)
-            x += coord.getDouble("x")
-            y += coord.getDouble("y")
-            z += coord.getDouble("z")
+        for (coord in coordinates) {
+            x += coord.x
+            y += coord.y
+            z += coord.z
         }
 
-        val len = coordinates.length().toDouble()
+        val len = coordinates.size.toDouble()
         return Coord(x / len, y / len, z / len)
+    }
+
+    class CoordinatesData {
+        var coordinates: List<Coord> = emptyList()
     }
 
     override fun run(iterationId: Int) {

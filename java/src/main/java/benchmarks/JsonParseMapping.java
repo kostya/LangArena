@@ -1,32 +1,24 @@
 package benchmarks;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-import java.util.*;
+import com.alibaba.fastjson2.JSON;
+import java.util.List;
 
 public class JsonParseMapping extends Benchmark {
 
-    static class Coord {
-        double x, y, z;
+    public static class Coordinate {
+        public double x;
+        public double y;
+        public double z;
 
-        Coord(double x, double y, double z) {
-            this.x = x;
-            this.y = y;
-            this.z = z;
-        }
+        public Coordinate() {}
     }
 
-    static class Coordinates {
-        List<Coord> coordinates = new ArrayList<>();
+    public static class CoordinatesData {
+        public List<Coordinate> coordinates;
     }
 
     private String text;
-    private long resultVal;
-
-    @Override
-    public String name() {
-        return "JsonParseMapping";
-    }
+    private long resultVal = 0;
 
     @Override
     public void prepare() {
@@ -37,31 +29,37 @@ public class JsonParseMapping extends Benchmark {
         text = generator.getText();
     }
 
-    private Coord calc(String text) {
-        JSONObject json = new JSONObject(text);
-        JSONArray coordinates = json.getJSONArray("coordinates");
+    private double[] calc(String text) {
+        CoordinatesData data = JSON.parseObject(text, CoordinatesData.class);
+        List<Coordinate> coords = data.coordinates;
 
         double x = 0.0, y = 0.0, z = 0.0;
+        int size = coords.size();
 
-        for (int i = 0; i < coordinates.length(); i++) {
-            JSONObject coord = coordinates.getJSONObject(i);
-            x += coord.getDouble("x");
-            y += coord.getDouble("y");
-            z += coord.getDouble("z");
+        for (int i = 0; i < size; i++) {
+            Coordinate c = coords.get(i);
+            x += c.x;
+            y += c.y;
+            z += c.z;
         }
 
-        double len = coordinates.length();
-        return new Coord(x / len, y / len, z / len);
+        double len = size;
+        return new double[]{x / len, y / len, z / len};
     }
 
     @Override
     public void run(int iterationId) {
-        Coord coord = calc(text);
-        resultVal += ((int)Helper.checksumF64(coord.x) + (int)Helper.checksumF64(coord.y) + (int)Helper.checksumF64(coord.z)) & 0xFFFFFFFFL;
+        double[] result = calc(text);
+        resultVal += ((int)Helper.checksumF64(result[0]) + (int)Helper.checksumF64(result[1]) + (int)Helper.checksumF64(result[2])) & 0xFFFFFFFFL;
     }
 
     @Override
     public long checksum() {
         return resultVal;
+    }
+
+    @Override
+    public String name() {
+        return "JsonParseMapping";
     }
 }

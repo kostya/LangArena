@@ -1,7 +1,7 @@
 package benchmarks;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 
 public class JsonParseDom extends Benchmark {
     private String text;
@@ -18,30 +18,23 @@ public class JsonParseDom extends Benchmark {
         generator.n = (int) configVal("coords");
         generator.prepare();
         generator.run(0);
-
-        try {
-            var textField = JsonGenerate.class.getDeclaredField("text");
-            textField.setAccessible(true);
-            text = (String) textField.get(generator);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        text = generator.getText();
     }
 
     private double[] calc(String text) {
-        JSONObject json = new JSONObject(text);
+        JSONObject json = JSONObject.parseObject(text);
         JSONArray coordinates = json.getJSONArray("coordinates");
 
         double x = 0.0, y = 0.0, z = 0.0;
 
-        for (int i = 0; i < coordinates.length(); i++) {
+        for (int i = 0; i < coordinates.size(); i++) {
             JSONObject coord = coordinates.getJSONObject(i);
-            x += coord.getDouble("x");
-            y += coord.getDouble("y");
-            z += coord.getDouble("z");
+            x += coord.getDoubleValue("x");
+            y += coord.getDoubleValue("y");
+            z += coord.getDoubleValue("z");
         }
 
-        double len = coordinates.length();
+        double len = coordinates.size();
         return new double[]{x / len, y / len, z / len};
     }
 
