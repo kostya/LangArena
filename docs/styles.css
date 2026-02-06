@@ -169,6 +169,7 @@ body {
 .lang_v { background: #3069c1; color: white; }
 .lang_julia { background: #fd4137; color: white; }
 .lang_nim { background: #16bad5; color: white; }
+.lang_fsharp { background: #16deff; color: white; }
 
 .results-table .lang_c { background: #3498db; color: white; }
 .results-table .lang_cpp { background: #2ecc71; color: white; }
@@ -186,7 +187,7 @@ body {
 .results-table .lang_v { background: #3069c1; color: white; }
 .results-table .lang_julia { background: #fd4137; color: white; }
 .results-table .lang_nim { background: #16bad5; color: white; }
-
+.results-table .lang_fsharp { background: #16deff; color: white; }
 /* ================================ Выделение цветом ячеек по результату (всего 10 градиентов) ====================================  */
 td.speed_0 { background: #1b5e20e3; font-weight: bold; color: white; } /* best */
 td.speed_1 { background: #4caf50aa; }

@@ -239,6 +239,7 @@ function overview_tab($results) {
       <span class="language-tag">V</span>
       <span class="language-tag">Julia</span>
       <span class="language-tag">Nim</span>
+      <span class="language-tag">F#</span>
     </div>
     <p class="language-note">Languages like Python, Ruby, or PHP are intentionally excluded to maintain a focused comparison within a similar performance bracket.</p>
   </div>

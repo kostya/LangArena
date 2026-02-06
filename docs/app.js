@@ -390,7 +390,8 @@ function lang_color(lang) {
         'd': '#24366c',
         'v': '#3069c1',
         'julia': '#fd4137',
-        'nim': '#16bad5'
+        'nim': '#16bad5',
+        'fsharp': '#16deff'
     };
     return colorMap[key] || '#95a5a6';
 }
