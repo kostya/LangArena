@@ -1,8 +1,8 @@
 {
   "Pidigits": {
-    "checksum": 1814470413,
+    "checksum": 3205646197,
     "amount": 1000,
-    "iterations": 100
+    "iterations": 120
   },
   "Binarytrees": {
     "checksum": 4294181560,
@@ -84,9 +84,9 @@
     "iterations": 132
   },
   "Base64Encode": {
-    "checksum": 3062447189,
+    "checksum": 3516658482,
     "size": 500000,
-    "iterations": 4000
+    "iterations": 5000
   },
   "Base64Decode": {
     "checksum": 1329134018,
