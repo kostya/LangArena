@@ -27,3 +27,10 @@ if [ ! -f "target/libbase64.o" ]; then
   cd -
   cp deps/base64/lib/libbase64.o target/
 fi
+
+if [ ! -f "target/yyjson.o" ]; then
+  cd deps/yyjson/src/
+  gcc -O3 -march=native -c yyjson.c
+  cd -
+  cp deps/yyjson/src/yyjson.o target/
+fi

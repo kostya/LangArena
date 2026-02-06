@@ -3890,102 +3890,121 @@ Benchmark* Primes_create(void) {
     return bench;
 }
 
-typedef struct {
-    double x, y, z;
-    char* name;
-} JsonCoordinate;
+#include <yyjson.h>
 
 typedef struct {
-    int64_t n;
-    JsonCoordinate* coordinates;
-    char* result_str;
-    size_t result_capacity;
-    size_t result_length;
+    yyjson_mut_doc* doc;      // Mutable документ yyjson
+    char* result_str;         // Сгенерированная JSON строка
     uint32_t result_val;
+    int64_t n;
+    int prepared;
 } JsonGenerateData;
 
-static void JsonGenerate_grow_result(JsonGenerateData* self, size_t needed) {
-    size_t new_capacity = self->result_capacity;
-    while (self->result_length + needed >= new_capacity) {
-        new_capacity = new_capacity ? new_capacity * 2 : 1024;
-    }
-    if (new_capacity > self->result_capacity) {
-        self->result_str = realloc(self->result_str, new_capacity);
-        self->result_capacity = new_capacity;
-    }
-}
+// Статическая строка для экономии памяти
+static const char* INFO_STR = "some info";
 
-static void JsonGenerate_append(JsonGenerateData* self, const char* str) {
-    size_t len = strlen(str);
-    JsonGenerate_grow_result(self, len + 1);
-    memcpy(self->result_str + self->result_length, str, len);
-    self->result_length += len;
-    self->result_str[self->result_length] = '\0';
-}
-
-static void JsonGenerate_append_double(JsonGenerateData* self, double value) {
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "%.8f", value);
-    JsonGenerate_append(self, buffer);
+static double round_to_8_digits(double value) {
+    return round(value * 1e8) / 1e8;
 }
 
 void JsonGenerate_prepare(Benchmark* self) {
     JsonGenerateData* data = (JsonGenerateData*)self->data;
-
-    data->coordinates = malloc(data->n * sizeof(JsonCoordinate));
-
-    for (int64_t i = 0; i < data->n; i++) {
-        JsonCoordinate* coord = &data->coordinates[i];
-
-        coord->x = custom_round(Helper_next_float(1.0), 8);
-        coord->y = custom_round(Helper_next_float(1.0), 8);
-        coord->z = custom_round(Helper_next_float(1.0), 8);
-
-        char name_buffer[64];
-        snprintf(name_buffer, sizeof(name_buffer), "%.7f %u", 
-                Helper_next_float(1.0), Helper_next_int(10000));
-        coord->name = strdup(name_buffer);
+    
+    // Освобождаем старый документ если есть
+    if (data->doc) {
+        yyjson_mut_doc_free(data->doc);
+        data->doc = NULL;
     }
-
-    data->result_str = NULL;
-    data->result_capacity = 0;
-    data->result_length = 0;
+    
+    // Освобождаем старую строку
+    if (data->result_str) {
+        free(data->result_str);
+        data->result_str = NULL;
+    }
+    
     data->result_val = 0;
+    data->prepared = 1;
 }
 
 void JsonGenerate_run(Benchmark* self, int iteration_id) {
     JsonGenerateData* data = (JsonGenerateData*)self->data;
-
-    data->result_length = 0;
+    
+    // Освобождаем предыдущий результат
     if (data->result_str) {
-        data->result_str[0] = '\0';
+        free(data->result_str);
+        data->result_str = NULL;
     }
-
-    JsonGenerate_append(data, "{\"coordinates\":[");
-
+    
+    // Создаем новый mutable документ
+    yyjson_mut_doc* doc = yyjson_mut_doc_new(NULL);
+    if (!doc) return;
+    
+    // Создаем корневой объект
+    yyjson_mut_val* root = yyjson_mut_obj(doc);
+    yyjson_mut_doc_set_root(doc, root);
+    
+    // Создаем массив coordinates
+    yyjson_mut_val* coordinates = yyjson_mut_arr(doc);
+    yyjson_mut_obj_add(root, 
+                       yyjson_mut_str(doc, "coordinates"), 
+                       coordinates);
+    
+    // Добавляем координаты
     for (int64_t i = 0; i < data->n; i++) {
-        if (i > 0) JsonGenerate_append(data, ",");
-
-        JsonCoordinate* coord = &data->coordinates[i];
-
-        JsonGenerate_append(data, "{");
-        JsonGenerate_append(data, "\"x\":");
-        JsonGenerate_append_double(data, coord->x);
-        JsonGenerate_append(data, ",\"y\":");
-        JsonGenerate_append_double(data, coord->y);
-        JsonGenerate_append(data, ",\"z\":");
-        JsonGenerate_append_double(data, coord->z);
-        JsonGenerate_append(data, ",\"name\":\"");
-        JsonGenerate_append(data, coord->name);
-        JsonGenerate_append(data, "\",\"opts\":{\"1\":[1,true]}");
-        JsonGenerate_append(data, "}");
+        // Создаем объект координаты
+        yyjson_mut_val* coord = yyjson_mut_obj(doc);
+        
+        // Добавляем поля x, y, z
+        yyjson_mut_obj_add(coord, 
+                          yyjson_mut_str(doc, "x"),
+                          yyjson_mut_real(doc, round_to_8_digits(Helper_next_float(1.0))));
+        
+        yyjson_mut_obj_add(coord, 
+                          yyjson_mut_str(doc, "y"),
+                          yyjson_mut_real(doc, round_to_8_digits(Helper_next_float(1.0))));
+        
+        yyjson_mut_obj_add(coord, 
+                          yyjson_mut_str(doc, "z"),
+                          yyjson_mut_real(doc, round_to_8_digits(Helper_next_float(1.0))));
+        
+        // Добавляем name
+        char name_buf[64];
+        snprintf(name_buf, sizeof(name_buf), "%.7f %u", 
+                Helper_next_float(1.0), Helper_next_int(10000));
+        
+        yyjson_mut_obj_add(coord, 
+                          yyjson_mut_str(doc, "name"),
+                          yyjson_mut_strcpy(doc, name_buf));
+        
+        // Добавляем opts
+        yyjson_mut_val* opts = yyjson_mut_obj(doc);
+        yyjson_mut_val* arr = yyjson_mut_arr(doc);
+        yyjson_mut_arr_add_uint(doc, arr, 1);
+        yyjson_mut_arr_add_bool(doc, arr, true);
+        yyjson_mut_obj_add(opts, yyjson_mut_str(doc, "1"), arr);
+        yyjson_mut_obj_add(coord, yyjson_mut_str(doc, "opts"), opts);
+        
+        // Добавляем координату в массив
+        yyjson_mut_arr_append(coordinates, coord);
     }
-
-    JsonGenerate_append(data, "],\"info\":\"some info\"}");
-
-    if (data->result_length >= 15 && strncmp(data->result_str, "{\"coordinates\":", 15) == 0) {
+    
+    // Добавляем info поле
+    yyjson_mut_obj_add(root, 
+                       yyjson_mut_str(doc, "info"),
+                       yyjson_mut_str(doc, INFO_STR));
+    
+    // Конвертируем в JSON строку (без форматирования, минифицированный)
+    data->result_str = yyjson_mut_write(doc, 0, NULL);
+    
+    // Проверяем как в оригинале
+    if (data->result_str && 
+        strlen(data->result_str) >= 15 && 
+        strncmp(data->result_str, "{\"coordinates\":", 15) == 0) {
         data->result_val = crystal_add((int64_t)data->result_val, 1);
     }
+    
+    // Сохраняем документ для следующего использования или очистки
+    data->doc = doc;
 }
 
 uint32_t JsonGenerate_checksum(Benchmark* self) {
@@ -3995,16 +4014,15 @@ uint32_t JsonGenerate_checksum(Benchmark* self) {
 
 void JsonGenerate_cleanup(Benchmark* self) {
     JsonGenerateData* data = (JsonGenerateData*)self->data;
-
-    if (data->coordinates) {
-        for (int64_t i = 0; i < data->n; i++) {
-            free(data->coordinates[i].name);
-        }
-        free(data->coordinates);
+    
+    if (data->doc) {
+        yyjson_mut_doc_free(data->doc);
+        data->doc = NULL;
     }
-
+    
     if (data->result_str) {
         free(data->result_str);
+        data->result_str = NULL;
     }
 }
 
@@ -4013,16 +4031,26 @@ Benchmark* JsonGenerate_create(void) {
 
     JsonGenerateData* data = malloc(sizeof(JsonGenerateData));
     memset(data, 0, sizeof(JsonGenerateData));
+    
+    // Получаем количество координат из конфигурации
+    data->n = Helper_config_i64(bench->name, "coords");
+    if (data->n <= 0) {
+        data->n = 1000; // дефолтное значение
+    }
 
     bench->data = data;
-    data->n = Helper_config_i64(bench->name, "coords");
-
     bench->prepare = JsonGenerate_prepare;
     bench->run = JsonGenerate_run;
     bench->checksum = JsonGenerate_checksum;
     bench->cleanup = JsonGenerate_cleanup;
 
     return bench;
+}
+
+// Функция для получения результата (нужна для parseMapping)
+char* JsonGenerate_get_result(Benchmark* self) {
+    JsonGenerateData* data = (JsonGenerateData*)self->data;
+    return data->result_str ? strdup(data->result_str) : NULL;
 }
 
 typedef struct {
@@ -4032,13 +4060,11 @@ typedef struct {
 } JsonParseDomData;
 
 static char* generate_json_for_parsing(int64_t coords_count) {
-
     Benchmark* json_gen_bench = JsonGenerate_create();
     JsonGenerateData* gen_data = (JsonGenerateData*)json_gen_bench->data;
 
     gen_data->n = coords_count;
     json_gen_bench->prepare(json_gen_bench);
-
     json_gen_bench->run(json_gen_bench, 0);
 
     char* json_text = strdup(gen_data->result_str);
@@ -4065,39 +4091,52 @@ void JsonParseDom_prepare(Benchmark* self) {
 void JsonParseDom_run(Benchmark* self, int iteration_id) {
     JsonParseDomData* data = (JsonParseDomData*)self->data;
 
-    cJSON* root = cJSON_Parse(data->json_text);
-    if (!root) {
-        return; 
+    // Используем yyjson для парсинга
+    yyjson_doc* doc = yyjson_read(data->json_text, strlen(data->json_text), 0);
+    if (!doc) {
+        return;
     }
 
-    cJSON* coordinates = cJSON_GetObjectItem(root, "coordinates");
-    if (!coordinates || !cJSON_IsArray(coordinates)) {
-        cJSON_Delete(root);
+    yyjson_val* root = yyjson_doc_get_root(doc);
+    if (!root) {
+        yyjson_doc_free(doc);
+        return;
+    }
+
+    // Получаем массив coordinates
+    yyjson_val* coordinates = yyjson_obj_get(root, "coordinates");
+    if (!coordinates || !yyjson_is_arr(coordinates)) {
+        yyjson_doc_free(doc);
         return;
     }
 
     double x_sum = 0.0, y_sum = 0.0, z_sum = 0.0;
-    int64_t len = 0;
+    size_t len = 0;
 
-    cJSON* coord_item = NULL;
-    cJSON_ArrayForEach(coord_item, coordinates) {
-        cJSON* x_item = cJSON_GetObjectItem(coord_item, "x");
-        cJSON* y_item = cJSON_GetObjectItem(coord_item, "y");
-        cJSON* z_item = cJSON_GetObjectItem(coord_item, "z");
+    // Итерация по массиву через yyjson
+    yyjson_val* coord;
+    size_t idx, max;
+    yyjson_arr_foreach(coordinates, idx, max, coord) {
+        if (!yyjson_is_obj(coord)) continue;
 
-        if (x_item && y_item && z_item && 
-            cJSON_IsNumber(x_item) && 
-            cJSON_IsNumber(y_item) && 
-            cJSON_IsNumber(z_item)) {
+        // Получаем значения x, y, z
+        yyjson_val* x_val = yyjson_obj_get(coord, "x");
+        yyjson_val* y_val = yyjson_obj_get(coord, "y");
+        yyjson_val* z_val = yyjson_obj_get(coord, "z");
 
-            x_sum += x_item->valuedouble;
-            y_sum += y_item->valuedouble;
-            z_sum += z_item->valuedouble;
+        if (x_val && y_val && z_val && 
+            yyjson_is_num(x_val) && 
+            yyjson_is_num(y_val) && 
+            yyjson_is_num(z_val)) {
+
+            x_sum += yyjson_get_num(x_val);
+            y_sum += yyjson_get_num(y_val);
+            z_sum += yyjson_get_num(z_val);
             len++;
         }
     }
 
-    cJSON_Delete(root);
+    yyjson_doc_free(doc);
 
     if (len > 0) {
         double x_avg = x_sum / len;
@@ -4159,42 +4198,51 @@ void JsonParseMapping_prepare(Benchmark* self) {
 }
 
 void JsonParseMapping_run(Benchmark* self, int iteration_id) {
-
     JsonParseMappingData* data = (JsonParseMappingData*)self->data;
 
-    cJSON* root = cJSON_Parse(data->json_text);
-    if (!root) {
+    // Используем yyjson для парсинга
+    yyjson_doc* doc = yyjson_read(data->json_text, strlen(data->json_text), 0);
+    if (!doc) {
         return;
     }
 
-    cJSON* coordinates = cJSON_GetObjectItem(root, "coordinates");
-    if (!coordinates || !cJSON_IsArray(coordinates)) {
-        cJSON_Delete(root);
+    yyjson_val* root = yyjson_doc_get_root(doc);
+    if (!root) {
+        yyjson_doc_free(doc);
+        return;
+    }
+
+    // Получаем массив coordinates
+    yyjson_val* coordinates = yyjson_obj_get(root, "coordinates");
+    if (!coordinates || !yyjson_is_arr(coordinates)) {
+        yyjson_doc_free(doc);
         return;
     }
 
     double x_sum = 0.0, y_sum = 0.0, z_sum = 0.0;
-    int64_t len = 0;
+    size_t len = 0;
 
-    cJSON* coord_item = NULL;
-    cJSON_ArrayForEach(coord_item, coordinates) {
-        cJSON* x_item = cJSON_GetObjectItem(coord_item, "x");
-        cJSON* y_item = cJSON_GetObjectItem(coord_item, "y");
-        cJSON* z_item = cJSON_GetObjectItem(coord_item, "z");
+    // Быстрая итерация по массиву
+    yyjson_val* coord;
+    size_t idx, max;
+    yyjson_arr_foreach(coordinates, idx, max, coord) {
+        if (!yyjson_is_obj(coord)) continue;
 
-        if (x_item && y_item && z_item && 
-            cJSON_IsNumber(x_item) && 
-            cJSON_IsNumber(y_item) && 
-            cJSON_IsNumber(z_item)) {
+        // Прямой доступ к полям x, y, z
+        yyjson_val* x_val = yyjson_obj_get(coord, "x");
+        yyjson_val* y_val = yyjson_obj_get(coord, "y");
+        yyjson_val* z_val = yyjson_obj_get(coord, "z");
 
-            x_sum += x_item->valuedouble;
-            y_sum += y_item->valuedouble;
-            z_sum += z_item->valuedouble;
+        if (x_val && y_val && z_val) {
+            // Получаем значения как числа (автоматическая конвертация)
+            x_sum += yyjson_get_num(x_val);
+            y_sum += yyjson_get_num(y_val);
+            z_sum += yyjson_get_num(z_val);
             len++;
         }
     }
 
-    cJSON_Delete(root);
+    yyjson_doc_free(doc);
 
     if (len > 0) {
         double x_avg = x_sum / len;
