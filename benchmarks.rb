@@ -1589,7 +1589,7 @@ RUNS = [
   # ======================================= Dart ======================================================
   Run.new(
     name: "Dart/AOT", 
-    build_cmd: "dart compile exe bin/main.dart -o target/dart_benchmark",
+    build_cmd: "dart compile exe main.dart -o target/dart_benchmark",
     binary_name: "target/dart_benchmark",
     run_cmd: "./target/dart_benchmark", 
     version_cmd: "dart --version",
