@@ -71,6 +71,7 @@ LANG_MASKS = {
   'nim' => ['./nim', ['.nim'], ['target']],
   'fsharp' => ['./fsharp', ['.fs'], ['bin', 'obj']],
   'dart' => ['./dart', ['.dart'], ['target']],
+  'python' => ['./python', ['.py'], ['__pycache__']],
 }
 
 def check_source_files(verbose = false)
@@ -228,7 +229,15 @@ module ClearComments
     when 'julia'
       content.gsub!(/#[^\n]*/, '')
       content.gsub!(/#=[\s\S]*?=#/m, '')
+
+    when 'python'
+      # Удаляем тройные кавычки (многострочные строки/комментарии)
+      content.gsub!(/"""[^"]*(?:"(?!""))?[^"]*"""/m, '')
+      content.gsub!(/'''[^']*(?:'(?!''))?[^']*'''/m, '')
       
+      # Удаляем однострочные комментарии
+      content.gsub!(/#[^\n]*/, '')
+                
     when 'nim'
       content.gsub!(/#[^\n]*/, '')
       content.gsub!(/#\[[\s\S]*?\]\#/m, '')
