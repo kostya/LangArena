@@ -71,6 +71,7 @@ LANG_MASKS = {
   'nim' => ['./nim', ['.nim'], ['target']],
   'fsharp' => ['./fsharp', ['.fs'], ['bin', 'obj']],
   'dart' => ['./dart', ['.dart'], ['target']],
+  'python' => ['./python', ['.py'], ['__pycache__']],
 }
 
 def check_source_files(verbose = false)
@@ -228,7 +229,15 @@ module ClearComments
     when 'julia'
       content.gsub!(/#[^\n]*/, '')
       content.gsub!(/#=[\s\S]*?=#/m, '')
+
+    when 'python'
+      # Удаляем тройные кавычки (многострочные строки/комментарии)
+      content.gsub!(/"""[^"]*(?:"(?!""))?[^"]*"""/m, '')
+      content.gsub!(/'''[^']*(?:'(?!''))?[^']*'''/m, '')
       
+      # Удаляем однострочные комментарии
+      content.gsub!(/#[^\n]*/, '')
+                
     when 'nim'
       content.gsub!(/#[^\n]*/, '')
       content.gsub!(/#\[[\s\S]*?\]\#/m, '')
@@ -1800,6 +1809,21 @@ RUNS = [
     group: :hack,
     deps_cmd: "deno cache --quiet src/index.ts",
   ),
+
+  # ======================================= Python ======================================================
+
+  Run.new(
+    name: "Python/PYPY", 
+    build_cmd: "echo 1",
+    binary_name: "main.py",
+    run_cmd: "pypy3 main.py", 
+    version_cmd: "pypy3 --version",
+    dir: "/src/python",
+    container: "pypy",   
+    group: :prod, 
+    deps_cmd: "echo 1",
+  ),
+
 ]
 
 run_names = {}

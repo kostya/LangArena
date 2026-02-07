@@ -722,3 +722,15 @@ services:
       - PUB_CACHE=/root/.pub-cache
     depends_on:
       - base
+
+  pypy:
+    <<: *shared
+    image: benchmarks:pypy
+    working_dir: /src/python
+    build:
+      dockerfile: docker/pypy
+    volumes:
+      - .:/src
+      - ./cache/build/pypy/pycache:/src/python/__pycache__
+    depends_on:
+      - base

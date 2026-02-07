@@ -1,0 +1,4 @@
+FROM benchmarks:base
+
+RUN apt install -y --no-install-recommends pypy3 \
+    && apt clean
