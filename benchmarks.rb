@@ -1809,6 +1809,21 @@ RUNS = [
     group: :hack,
     deps_cmd: "deno cache --quiet src/index.ts",
   ),
+
+  # ======================================= Python ======================================================
+
+  Run.new(
+    name: "Python/PYPY", 
+    build_cmd: "",
+    binary_name: "main.py",
+    run_cmd: "pypy3 main.py", 
+    version_cmd: "pypy3 --version",
+    dir: "/src/python",
+    container: "pypy",   
+    group: :prod, 
+    deps_cmd: "echo 1",
+  ),
+
 ]
 
 run_names = {}
