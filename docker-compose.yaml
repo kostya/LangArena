@@ -685,3 +685,40 @@ services:
       - CC=clang
     depends_on:
       - base_clang
+
+  dart:
+    <<: *shared
+    image: benchmarks:dart
+    working_dir: /src/dart
+    build:
+      dockerfile: docker/dart
+    volumes:
+      - .:/src
+      
+      # ============= DEPS (НЕ очищаем) =============
+      # Pub cache (пакеты Dart)
+      - ./cache/deps/dart/pub-cache:/root/.pub-cache
+      
+      # ============= BUILD (очищаем для cold compile) =============
+      # Скомпилированные файлы
+      - ./cache/build/dart/target:/src/dart/target
+      
+      # Build cache Dart
+      - ./cache/build/dart/build:/root/.dart/build
+      
+      # Dart tool cache
+      - ./cache/build/dart/tool-cache:/root/.dart/tool-cache
+      
+      # Dart анализатор cache
+      - ./cache/build/dart/analyzer:/root/.dart/analyzer
+      
+      # Dart compile cache
+      - ./cache/build/dart/compile-cache:/root/.dart/compile-cache
+      
+      # Kernel cache для JIT/AOT
+      - ./cache/build/dart/kernel:/root/.dart/kernel-cache
+      
+    environment:
+      - PUB_CACHE=/root/.pub-cache
+    depends_on:
+      - base
