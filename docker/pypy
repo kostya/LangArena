@@ -1,4 +1,4 @@
 FROM benchmarks:base
 
-RUN apt install -y --no-install-recommends pypy3 pypy3-pip \
+RUN apt install -y --no-install-recommends pypy3 \
     && apt clean
