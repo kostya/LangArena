@@ -52,6 +52,10 @@ class Gen
     end
 	end
 
+  def all_langs
+    @langs.map { |l| _to_lang(l) } 
+  end
+
   def check_missing
     @tests.each do |test|
       @runs_all.each do |run|
@@ -293,12 +297,16 @@ This table compares how concisely different programming languages express the sa
   def compile(runs = @runs_prod)
     m = []
     runs.each do |run|
-      m << [run,
-        format_float(@j['compile-time-cold'][run]),
-        format_float(@j['compile-memory-cold'][run]),
-        format_float(@j['compile-time-incremental'][run]),
-        format_float(@j['compile-memory-incremental'][run]),
-        format_float(@j['binary-size-kb'][run] / 1024.0)]
+      a = []
+      a << run
+      p run
+      a << format_float(@j['compile-time-cold'][run])
+      a << format_float(@j['compile-memory-cold'][run])
+      a << format_float(@j['compile-time-incremental'][run])
+      a << format_float(@j['compile-memory-incremental'][run])
+      a << format_float(@j['binary-size-kb'][run] / 1024.0)
+      p a
+      m << a
     end
 
     m.sort_by! do |line|
@@ -843,6 +851,7 @@ DESC
       'langs_count': @langs.size,
       'runs_prod_count': @runs_prod.size,
       'tests_count': @j['tests'].size,
+      'langs': all_langs,
 
       'runtime_table': runtime_table,
       'runtime_table_rel': runtime_table_rel,
@@ -873,6 +882,12 @@ DESC
   def _lang_for(run)
     v = run.downcase.split('/').first
     v.gsub("++", "pp").gsub("#", "sharp").gsub("go", "golang")
+  end
+
+  def _to_lang(run)
+    v = run.downcase.split('/').first
+    v = v.gsub("pp", "++").gsub("sharp", "#").gsub("golang", "go")
+    v.capitalize
   end
 
   def _best_lang_run(runs = @runs_prod) # return {"lang" => "best run"}

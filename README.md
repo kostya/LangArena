@@ -1,7 +1,7 @@
 ## LangArena: A Balanced Programming Language Benchmark Suite
 ---
 
-**LangArena** is a collection of **41 diverse benchmarks** designed for a **realistic, apples-to-apples comparison** of programming language performance. The goal is not to find the ultimate winner in micro-optimizations, but to evaluate how well each language's compiler or runtime optimizes clean, idiomatic, production-style code.
+**LangArena** is a collection of **41 diverse benchmarks** designed for a **realistic, apples-to-apples comparison** of programming language performance. The goal is not to find the ultimate winner in micro-optimizations, but to evaluate how well each language's compiler or runtime optimizes clean and readable code.
 
 ### Results Page
 
@@ -25,6 +25,7 @@ Not all algorithms could be implemented identically across all languages — sim
 *   **Algorithmic Consistency:** The same core algorithm is implemented across all languages for each task to ensure a fair comparison.
 *   **No "Hacks":** Low-level tricks, impractical compiler flags (e.g., bounds check disabling), or non-standard libraries are intentionally avoided.
 *   **Pull Requests Welcome:** While consistency is key, improvements that maintain the philosophy and fix suboptimal implementations are encouraged.
+* **Testing Language "Muscle"**: Benchmarks like matrix multiplication use naive implementations intentionally. We're not measuring how fast a language can call a C library (like BLAS via numpy), but how efficiently it handles the fundamental computational pattern of nested loops over double arrays. This predicts performance in future tasks where no pre-built library exists — you'll be writing similar loops yourself.
 
 ### Benchmarking Methodology
 
@@ -45,7 +46,7 @@ The benchmarks cover common practical tasks:
 
 ### Evaluated Languages
 The suite currently focuses on **compiled and high-performance managed languages**:
-`C`, `C++`, `Crystal`, `Rust`, `Go`, `Swift`, `C#`, `Java`, `Kotlin`, `TypeScript`, `Zig`, `D`, `V`, `Julia`, `Nim`, `F#`.
+`C`, `C++`, `Crystal`, `Rust`, `Go`, `Swift`, `C#`, `Java`, `Kotlin`, `TypeScript`, `Zig`, `D`, `V`, `Julia`, `Nim`, `F#`, `Dart`.
 
 Languages like Python, Ruby, or PHP are intentionally excluded to maintain a focused comparison within a similar performance bracket.
 
@@ -54,6 +55,9 @@ This suite is also a practical tool for:
 
 *   **Compiler Tracking:** Monitor performance regressions/improvements across compiler versions.
 *   **New Language Evaluation:** Get a standardized "score" to position a new language against established ones.
+
+### Hardware
+AMD Ryzen 7 3800X 8-Core Processor 78GB (x86_64-linux-gnu)
 
 # Running
 

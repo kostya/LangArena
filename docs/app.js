@@ -74,11 +74,16 @@ function changeTab(tabId, group_lang_option_checked = false) {
 
 function UpdateData(data) {
     document.getElementById('results-update-date').innerHTML = '<strong>Update date:</strong> ' + window.Data.date;
-    document.getElementById('resutls-arch').innerHTML = '<strong>Architecture:</strong> ' + window.Data.arch;
-    document.getElementById('resutls-pc').innerHTML = '<strong>Pc:</strong> ' + window.Data.pc;
-    document.getElementById('results-tests-count').innerHTML = '<strong>Tests:</strong> ' + window.Data.tests_count;
-    document.getElementById('results-runs-count').innerHTML = '<strong>Configurations:</strong> ' + window.Data.runs_prod_count;
-    document.getElementById('results-langs-count').innerHTML = '<strong>Languages:</strong> ' + window.Data.langs_count;
+    langs_str = '';
+    for (const lang of window.Data.langs) {
+        langs_str += `<span class="language-badge lang_${run_name_to_lang_class_name(lang)}">${lang}</span>`;
+    }
+    document.getElementById('resutls-langs').innerHTML = '<strong>Participating Languages:</strong> <span class=part_langs>' + langs_str + '</span>';
+    // document.getElementById('resutls-arch').innerHTML = '<strong>Architecture:</strong> ' + window.Data.arch;
+    // document.getElementById('resutls-pc').innerHTML = '<strong>Pc:</strong> ' + window.Data.pc;
+    // document.getElementById('results-tests-count').innerHTML = '<strong>Tests:</strong> ' + window.Data.tests_count;
+    // document.getElementById('results-runs-count').innerHTML = '<strong>Configurations:</strong> ' + window.Data.runs_prod_count;
+    // document.getElementById('results-langs-count').innerHTML = '<strong>Languages:</strong> ' + window.Data.langs_count;
 
     const medals = ["🥇", "🥈", "🥉"];
     
@@ -391,7 +396,9 @@ function lang_color(lang) {
         'v': '#3069c1',
         'julia': '#fd4137',
         'nim': '#16bad5',
-        'fsharp': '#16deff'
+        'fsharp': '#16deff',
+        'dart': '#02569B',
+        'python': '#306998'
     };
     return colorMap[key] || '#95a5a6';
 }

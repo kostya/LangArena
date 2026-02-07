@@ -152,7 +152,7 @@ function overview_tab($results) {
   <h1 class="title">LangArena: A Balanced Programming Language Benchmark Suite</h1>
   
   <div class="intro">
-    <strong>LangArena</strong> is a collection of <span class="highlight">41 diverse benchmarks</span> designed for a <span class="highlight">realistic, apples-to-apples comparison</span> of programming language performance. The goal is not to find the ultimate winner in micro-optimizations, but to evaluate how well each language's compiler or runtime optimizes clean, idiomatic, production-style code.
+    <strong>LangArena</strong> is a collection of <span class="highlight">41 diverse benchmarks</span> designed for a <span class="highlight">realistic, apples-to-apples comparison</span> of programming language performance. The goal is not to find the ultimate winner in micro-optimizations, but to evaluate how well each language's compiler or runtime optimizes clean and readable code.
   </div>
   
   <div class="section">
@@ -178,6 +178,7 @@ function overview_tab($results) {
       <li><strong>Algorithmic Consistency:</strong> The same core algorithm is implemented across all languages for each task to ensure a fair comparison.</li>
       <li><strong>No "Hacks":</strong> Low-level tricks, impractical compiler flags (e.g., bounds check disabling), or non-standard libraries are intentionally avoided.</li>
       <li><strong>Pull Requests Welcome:</strong> While consistency is key, improvements that maintain the philosophy and fix suboptimal implementations are encouraged.</li>
+      <li><strong>Testing Language "Muscle"</strong>: Benchmarks like matrix multiplication use naive implementations intentionally. We're not measuring how fast a language can call a C library (like BLAS via numpy), but how efficiently it handles the fundamental computational pattern of nested loops over double arrays. This predicts performance in future tasks where no pre-built library exists — you'll be writing similar loops yourself.</li>
     </ul>
   </div>
   
@@ -240,6 +241,7 @@ function overview_tab($results) {
       <span class="language-tag">Julia</span>
       <span class="language-tag">Nim</span>
       <span class="language-tag">F#</span>
+      <span class="language-tag">Dart</span>
     </div>
     <p class="language-note">Languages like Python, Ruby, or PHP are intentionally excluded to maintain a focused comparison within a similar performance bracket.</p>
   </div>
@@ -258,6 +260,12 @@ function overview_tab($results) {
       </div>
     </div>
   </div>
+
+  <div class="section">
+    <h2 class="section-title">Hardware</h2>
+    <p>AMD Ryzen 7 3800X 8-Core Processor 78GB (x86_64-linux-gnu)</p>
+  </div>
+
 </div>
     `);
 }
