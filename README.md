@@ -46,7 +46,7 @@ The benchmarks cover common practical tasks:
 
 ### Evaluated Languages
 The suite currently focuses on **compiled and high-performance managed languages**:
-`C`, `C++`, `Crystal`, `Rust`, `Go`, `Swift`, `C#`, `Java`, `Kotlin`, `TypeScript`, `Zig`, `D`, `V`, `Julia`, `Nim`, `F#`, `Dart`.
+`C`, `C++`, `Crystal`, `Rust`, `Go`, `Swift`, `C#`, `Java`, `Kotlin`, `TypeScript`, `Zig`, `D`, `V`, `Julia`, `Nim`, `F#`, `Dart`, `Python`.
 
 Languages like Python, Ruby, or PHP are intentionally excluded to maintain a focused comparison within a similar performance bracket.
 
