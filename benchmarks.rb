@@ -1869,7 +1869,7 @@ RESULTS["version"] = {}
 RESULTS["start-duration"] = {}
 
 unless ARGV[0]
-  File.open("/tmp/log_crash.txt", "w") { |f| f.push "started #{Time.now}" }
+  File.open("/tmp/log_crash.txt", "w") { |f| f.puts "started #{Time.now}" }
 end
 
 def write_results
