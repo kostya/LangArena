@@ -1814,7 +1814,7 @@ RUNS = [
 
   Run.new(
     name: "Python/PYPY", 
-    build_cmd: "",
+    build_cmd: "echo 1",
     binary_name: "main.py",
     run_cmd: "pypy3 main.py", 
     version_cmd: "pypy3 --version",
