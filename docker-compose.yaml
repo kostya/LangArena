@@ -730,6 +730,7 @@ services:
     build:
       dockerfile: docker/pypy
     volumes:
+      - .:/src
       - ./cache/build/pypy/pycache:/src/python/__pycache__
     depends_on:
       - base
