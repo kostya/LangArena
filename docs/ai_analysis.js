@@ -1,7 +1,7 @@
 function ai_analys($results) {
     $results.append(`
 <div class="benchmark-analysis">
-<h1>Comprehensive Benchmark Analysis (2026-02-07) - Updated</h1>
+<h1>AI Analysis of provided benchmark data (2026-02-07) - Updated</h1>
 <p><strong>Test Environment:</strong> 2026-02-07 | x86_64-linux-gnu | AMD Ryzen 7 3800X 8-Core | 78GB RAM</p>
 <p><strong>Scope:</strong> 18 languages, 41 benchmarks, 28 configurations</p>
 <p><strong>New Additions:</strong> Python/PYPY, Dart/AOT, more hacking configurations</p>
