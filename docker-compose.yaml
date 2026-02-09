@@ -734,3 +734,33 @@ services:
       - ./cache/build/pypy/pycache:/src/python/__pycache__
     depends_on:
       - base
+
+  odin:
+    <<: *shared
+    image: benchmarks:odin
+    working_dir: /src/odin
+    build:
+      dockerfile: docker/odin
+      args:
+        # https://github.com/odin-lang/Odin/releases
+        version: "2026-02"
+    volumes:
+      - .:/src
+      
+      # ============= DEPS (НЕ очищаем) =============
+      # Odin сборки и кэши
+      - ./cache/deps/odin/odin-cache:/root/.odin
+      - ./cache/deps/odin/shared:/root/.local/share/odin
+      
+      # ============= BUILD (очищаем для cold compile) =============
+      # Кэш компилятора Odin
+      - ./cache/build/odin/build-cache:/root/.odin/build-cache
+      # Логи и результаты бенчмарков
+      - ./cache/build/odin/target:/src/odin/target
+        
+    environment:
+      # Указываем где хранить кэш Odin
+      - ODIN_ROOT=/root/.odin
+      - ODIN_PATH=/root/.odin
+    depends_on:
+      - base

@@ -72,6 +72,7 @@ LANG_MASKS = {
   'fsharp' => ['./fsharp', ['.fs'], ['bin', 'obj']],
   'dart' => ['./dart', ['.dart'], ['target']],
   'python' => ['./python', ['.py'], ['__pycache__']],
+  'odin' => ['./odin', ['.odin'], ['target']],
 }
 
 def check_source_files(verbose = false)
@@ -164,7 +165,7 @@ module ClearComments
     content = File.read(filepath, encoding: 'utf-8')
     
     case lang
-    when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 'fsharp', 'dart'
+    when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 'fsharp', 'dart', 'odin'
       # Обычные C-подобные языки
       content.gsub!(/\/\*[\s\S]*?\*\//m, '')
       content.gsub!(/\/\/[^\n]*/, '')
@@ -649,6 +650,90 @@ RUNS = [
     container: "zig",
     group: :hack,
     deps_cmd: "zig libc",
+  ),
+
+  # ======================================= Odin ======================================================
+
+  Run.new(
+    name: "Odin/Default", 
+    build_cmd: <<-BUILD,
+    odin build . \
+      -o:speed \
+      -out:target/bin_odin \
+      -collection:benchmark=./benchmark \
+      -opt:2 \
+      -no-threaded-checker \
+      -disable-assert \
+      -keep-temp-files:false
+    BUILD
+    binary_name: "target/bin_odin",
+    run_cmd: "target/bin_odin", 
+    version_cmd: "odin version",
+    dir: "/src/odin",
+    container: "odin",
+    group: :prod,
+    deps_cmd: "mkdir -p target",
+  ),
+
+  Run.new(
+    name: "Odin/Opt", 
+    build_cmd: <<-BUILD,
+    odin build . \
+      -o:speed \
+      -out:target/bin_odin_optimized \
+      -collection:benchmark=./benchmark \
+      -opt:3 \
+      -microarch:native \
+      -target:host \
+      -no-threaded-checker \
+      -disable-assert \
+      -no-bounds-check \
+      -no-crt \
+      -keep-temp-files:false \
+      -build-mode:optimized
+    BUILD
+    binary_name: "target/bin_odin_optimized",
+    run_cmd: "target/bin_odin_optimized", 
+    version_cmd: "odin version",
+    dir: "/src/odin",
+    container: "odin",
+    group: :hack,
+    deps_cmd: "mkdir -p target",
+  ),
+
+  Run.new(
+    name: "Odin/MaxPerf", 
+    build_cmd: <<-BUILD,
+      odin build . \
+        -o:speed \
+        -out:target/bin_odin_maxperf \
+        -collection:benchmark=./benchmark \
+        -opt:3 \
+        -microarch:native \
+        -target:host \
+        -no-threaded-checker \
+        -disable-assert \
+        -no-bounds-check \
+        -no-crt \
+        -no-type-assert \
+        -vet:extra \
+        -strict-style \
+        -no-thread-local \
+        -relocatable:false \
+        -build-mode:max_perf \
+        -llvm:-O3 \
+        -llvm:-march=native \
+        -llvm:-mtune=native \
+        -llvm:-flto=thin \
+        -llvm:-fomit-frame-pointer
+    BUILD
+    binary_name: "target/bin_odin_maxperf",
+    run_cmd: "target/bin_odin_maxperf", 
+    version_cmd: "odin version",
+    dir: "/src/odin",
+    container: "odin",
+    group: :hack,
+    deps_cmd: "mkdir -p target",
   ),
 
   # ======================================= crystal ======================================================
