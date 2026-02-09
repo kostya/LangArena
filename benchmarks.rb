@@ -1605,7 +1605,7 @@ RUNS = [
     dir: "/src/dart",
     container: "dart",   
     group: :prod, 
-    deps_cmd: "dart pub get",
+    deps_cmd: "true",
   ),
 
   # ======================================= TypeScript ======================================================
@@ -1814,14 +1814,14 @@ RUNS = [
 
   Run.new(
     name: "Python/PYPY", 
-    build_cmd: "echo 1",
+    build_cmd: "true",
     binary_name: "main.py",
     run_cmd: "pypy3 main.py", 
     version_cmd: "pypy3 --version",
     dir: "/src/python",
     container: "pypy",   
     group: :prod, 
-    deps_cmd: "echo 1",
+    deps_cmd: "true",
   ),
 
 ]

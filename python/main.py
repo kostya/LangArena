@@ -3767,5 +3767,9 @@ def main():
         print(f'Failed to run benchmarks: {e}')
         sys.exit(1)
 
+    with open("/tmp/recompile_marker", "w") as file:
+        file.write("RECOMPILE_MARKER_0")
+        
+
 if __name__ == '__main__':
     main()

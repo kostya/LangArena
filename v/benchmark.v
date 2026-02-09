@@ -74,8 +74,6 @@ pub fn run_benchmarks(mut benchmarks []&IBenchmark, single_bench string) {
 		println('Summary: ${summary_time:.4f}s, ${ok + fails}, ${ok}, ${fails}')
 	}
 
-	os.write_file('/tmp/recompile_marker', 'RECOMPILE_MARKER_0') or {}
-
 	if fails > 0 {
 		exit(1)
 	}

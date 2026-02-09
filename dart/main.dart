@@ -4649,4 +4649,7 @@ Future<void> main(List<String> args) async {
     print('Failed to run benchmarks: $error');
     exit(1);
   }
+
+  final file = File('/tmp/recompile_marker');
+  file.writeAsStringSync('RECOMPILE_MARKER_0');
 }
