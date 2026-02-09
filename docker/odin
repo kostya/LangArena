@@ -1,4 +1,4 @@
-FROM benchmarks:base
+FROM benchmarks:base_clang
 
 ARG version
 RUN wget --progress=dot:giga -O - \
