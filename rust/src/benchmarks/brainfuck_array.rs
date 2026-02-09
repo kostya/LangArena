@@ -17,16 +17,12 @@ impl BrainfuckArray {
     }
 
     fn run_program(&self, source: &str) -> Option<u32> {
-
         let commands = Self::parse_commands(source)?;
-
         let jumps = Self::build_jump_array(&commands)?;
-
         Self::interpret(&commands, &jumps).ok()
     }
 
     fn parse_commands(source: &str) -> Option<Vec<u8>> {
-
         Some(source
             .bytes()
             .filter(|c| c.is_ascii())
@@ -37,7 +33,6 @@ impl BrainfuckArray {
     }
 
     fn build_jump_array(commands: &[u8]) -> Option<Vec<usize>> {
-
         let mut jumps = vec![0; commands.len()];
         let mut stack = Vec::new();
 
@@ -61,7 +56,6 @@ impl BrainfuckArray {
     }
 
     fn interpret(commands: &[u8], jumps: &[usize]) -> Result<u32, &'static str> {
-
         let mut tape = vec![0u8; 30000];
         let mut tape_ptr = 0;
         let mut pc = 0;

@@ -14,7 +14,6 @@ pub const BrainfuckArray = struct {
         pos: usize,
 
         pub fn init(allocator: std.mem.Allocator) !Tape {
-
             const tape = try allocator.alloc(u8, 30000);
             @memset(tape, 0);
 
@@ -33,19 +32,16 @@ pub const BrainfuckArray = struct {
         }
 
         pub fn inc(self: *Tape) void {
-
             self.tape[self.pos] +%= 1;
         }
 
         pub fn dec(self: *Tape) void {
-
             self.tape[self.pos] -%= 1;
         }
 
         pub fn advance(self: *Tape, allocator: std.mem.Allocator) !void {
             self.pos += 1;
             if (self.pos >= self.tape.len) {
-
                 const new_len = self.tape.len * 2;
                 const new_tape = try allocator.realloc(self.tape, new_len);
                 @memset(new_tape[self.tape.len..], 0);
@@ -62,11 +58,10 @@ pub const BrainfuckArray = struct {
 
     const Program = struct {
         commands: []u8,
-        jumps: []usize, 
+        jumps: []usize,
         allocator: std.mem.Allocator,
 
         pub fn init(allocator: std.mem.Allocator, text: []const u8) !Program {
-
             var commands_list = std.ArrayList(u8).initCapacity(allocator, text.len) catch return error.OutOfMemory;
             defer commands_list.deinit(allocator);
 
@@ -129,17 +124,16 @@ pub const BrainfuckArray = struct {
                     '[' => {
                         if (tape.get() == 0) {
                             pc = self.jumps[pc];
-                            continue; 
+                            continue;
                         }
                     },
                     ']' => {
                         if (tape.get() != 0) {
                             pc = self.jumps[pc];
-                            continue; 
+                            continue;
                         }
                     },
                     '.' => {
-
                         result = (result << 2) +% tape.get();
                     },
                     else => {},
