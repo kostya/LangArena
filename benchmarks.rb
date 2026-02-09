@@ -652,66 +652,6 @@ RUNS = [
     deps_cmd: "zig libc",
   ),
 
-  # ======================================= Odin ======================================================
-
-  Run.new(
-    name: "Odin/Default", 
-    build_cmd: <<-BUILD,
-    odin build . \
-      -o:speed \
-      -out:target/bin_odin \
-      -collection:benchmark=./benchmark
-    BUILD
-    binary_name: "target/bin_odin",
-    run_cmd: "target/bin_odin", 
-    version_cmd: "odin version",
-    dir: "/src/odin",
-    container: "odin",
-    group: :prod,
-    deps_cmd: "mkdir -p target",
-  ),
-
-  Run.new(
-    name: "Odin/Opt", 
-    build_cmd: <<-BUILD,
-      odin build . \
-        -o:speed \
-        -out:target/bin_odin_optimized \
-        -collection:benchmark=./benchmark \
-        -microarch:native \
-        -no-threaded-checker \
-        -no-bounds-check
-    BUILD
-    binary_name: "target/bin_odin_optimized",
-    run_cmd: "target/bin_odin_optimized", 
-    version_cmd: "odin version",
-    dir: "/src/odin",
-    container: "odin",
-    group: :hack,
-    deps_cmd: "mkdir -p target",
-  ),
-
-  Run.new(
-    name: "Odin/MaxPerf", 
-    build_cmd: <<-BUILD,
-      odin build . \
-        -o:aggressive \
-        -out:target/bin_odin_maxperf \
-        -collection:benchmark=./benchmark \
-        -microarch:native \
-        -disable-assert \
-        -no-bounds-check \
-        -use-single-module
-    BUILD
-    binary_name: "target/bin_odin_maxperf",
-    run_cmd: "target/bin_odin_maxperf", 
-    version_cmd: "odin version",
-    dir: "/src/odin",
-    container: "odin",
-    group: :hack,
-    deps_cmd: "mkdir -p target",
-  ),
-
   # ======================================= crystal ======================================================
   Run.new(
     name: "Crystal", 
@@ -1387,6 +1327,66 @@ RUNS = [
   #   group: :hack,
   #   deps_cmd: "swift package resolve",
   # ),
+
+  # ======================================= Odin ======================================================
+
+  Run.new(
+    name: "Odin/Default", 
+    build_cmd: <<-BUILD,
+    odin build . \
+      -o:speed \
+      -out:target/bin_odin \
+      -collection:benchmark=./benchmark
+    BUILD
+    binary_name: "target/bin_odin",
+    run_cmd: "target/bin_odin", 
+    version_cmd: "odin version",
+    dir: "/src/odin",
+    container: "odin",
+    group: :prod,
+    deps_cmd: "mkdir -p target",
+  ),
+
+  Run.new(
+    name: "Odin/Opt", 
+    build_cmd: <<-BUILD,
+      odin build . \
+        -o:speed \
+        -out:target/bin_odin_optimized \
+        -collection:benchmark=./benchmark \
+        -microarch:native \
+        -no-threaded-checker \
+        -no-bounds-check
+    BUILD
+    binary_name: "target/bin_odin_optimized",
+    run_cmd: "target/bin_odin_optimized", 
+    version_cmd: "odin version",
+    dir: "/src/odin",
+    container: "odin",
+    group: :hack,
+    deps_cmd: "mkdir -p target",
+  ),
+
+  Run.new(
+    name: "Odin/MaxPerf", 
+    build_cmd: <<-BUILD,
+      odin build . \
+        -o:aggressive \
+        -out:target/bin_odin_maxperf \
+        -collection:benchmark=./benchmark \
+        -microarch:native \
+        -disable-assert \
+        -no-bounds-check \
+        -use-single-module
+    BUILD
+    binary_name: "target/bin_odin_maxperf",
+    run_cmd: "target/bin_odin_maxperf", 
+    version_cmd: "odin version",
+    dir: "/src/odin",
+    container: "odin",
+    group: :hack,
+    deps_cmd: "mkdir -p target",
+  ),
     
   # ======================================= Java ======================================================
   # Java - базовый (без оптимизаций)
