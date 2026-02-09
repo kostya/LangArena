@@ -31,7 +31,6 @@
     </dependencies>
 
     <profiles>
-        <!-- 1. Java без оптимизаций (дефолтный) -->
         <profile>
             <id>java-plain</id>
             <activation>
@@ -63,7 +62,6 @@
             </build>
         </profile>
 
-        <!-- 2. Java с максимальными оптимизациями -->
         <profile>
             <id>java-optimized</id>
             <build>
@@ -100,7 +98,6 @@
             </build>
         </profile>
 
-        <!-- 3. GraalVM JIT с оптимизациями -->
         <profile>
             <id>graalvm-jit</id>
             <build>
@@ -129,7 +126,6 @@
             </build>
         </profile>
 
-        <!-- 4. GraalVM Native Image -->
         <profile>
             <id>graalvm-native</id>
             <build>
@@ -175,18 +171,15 @@
 
     <build>
         <plugins>
-            <!-- Установка флагов JVM для каждого профиля -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.1.0</version>
                 <configuration>
-                    <!-- Общие флаги -->
                     <argLine>-Dfile.encoding=UTF-8</argLine>
                 </configuration>
             </plugin>
             
-            <!-- Assembly plugin для создания fat JAR -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>

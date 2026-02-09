@@ -148,7 +148,7 @@ export class Helper {
             throw new Error('Deno environment not properly detected');
           }
         } catch (denoError: any) {
-          console.error(`❌ Deno error loading ${configFile}:`, denoError?.message || denoError);
+          console.error(`Deno error loading ${configFile}:`, denoError?.message || denoError);
           const denoGlobal = (globalThis as any).Deno;
           if (denoGlobal && typeof denoGlobal.exit === 'function') {
             denoGlobal.exit(1);
@@ -165,7 +165,7 @@ export class Helper {
           const filePath = path.resolve(process.cwd(), configFile);
           content = fs.readFileSync(filePath, 'utf-8');
         } catch (nodeError: any) {
-          console.error(`❌ Node.js error loading ${configFile}:`, nodeError?.message || nodeError);
+          console.error(`Node.js error loading ${configFile}:`, nodeError?.message || nodeError);
           // @ts-ignore
           process.exit(1);
         }
@@ -175,12 +175,12 @@ export class Helper {
           const file = Bun.file(configFile);
           content = await file.text();
         } catch (bunError: any) {
-          console.error(`❌ Bun error loading ${configFile}:`, bunError?.message || bunError);
+          console.error(`Bun error loading ${configFile}:`, bunError?.message || bunError);
           // @ts-ignore
           process.exit(1);
         }
       } else {
-        console.error(`❌ Unknown environment, cannot load config: ${configFile}`);
+        console.error(`Unknown environment, cannot load config: ${configFile}`);
         return;
       }
 
@@ -189,7 +189,7 @@ export class Helper {
       (Helper as any).CONFIG = config;
 
     } catch (error: any) {
-      console.error(`❌ Error loading config file ${configFile}:`, error?.message || error);
+      console.error(`Error loading config file ${configFile}:`, error?.message || error);
 
       try {
         if (isDeno) {

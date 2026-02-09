@@ -371,7 +371,7 @@ LD_FLAGS_MAX = " -flto=full #{IS_MACOS ? "-Wl,-dead_strip -Wl,-S" : "-Wl,-O3 -Wl
 
 CXXFLAGS_PROD = C_FLAGS_PROD + " -std=c++20 -Wold-style-cast -Woverloaded-virtual"
 CXXFLAGS_ENH = C_FLAGS_ENH + " -std=c++20 -Wsuggest-override -Wduplicated-cond"
-CXXFLAGS_MAX = C_FLAGS_MAX + " -std=c++20" # ⚠️ Опасные флаги! -fno-rtti -fno-exception
+CXXFLAGS_MAX = C_FLAGS_MAX + " -std=c++20"
 
 C_INCLUDE_FLAGS = " -Ideps/base64/include/ -I/usr/include/ -Ideps/yyjson/src -Ideps/cJSON -L/opt/homebrew/lib -I/opt/homebrew/include/"
 C_LINK_FLAGS = " -lgmp target/cJSON.o target/libbase64.o target/yyjson.o -lm -lpcre2-8 -lpthread"

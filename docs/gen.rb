@@ -640,10 +640,8 @@ DESC
     min_memory = h.min_by { |k, v| v }[1]
 
     up_header << "AvgMemory, Mb"
-    # up_header << "AvgMemory vs Fastest"
     h.each do |run, mem|
       result[_lang_for run] << format_float(mem)
-      # result[_lang_for run] << format_float(mem / min_memory)
     end
 
     # wins/looses count
@@ -683,10 +681,8 @@ DESC
     min = h.min_by { |k, v| v }[1]
 
     up_header << "Compile Time Inc, s"
-    # up_header << "Compile Time vs Fastest"
     runs.each do |run|
       result[_lang_for run] << format_float(@j['compile-time-incremental'][run])
-      # result[_lang_for run] << format_float(@j['compile-time-cold'][run] / min)
     end
 
     # compile memory
@@ -700,7 +696,6 @@ DESC
     # up_header << "Compile Memory vs Fastest"
     runs.each do |run|
       result[_lang_for run] << format_float(@j['compile-memory-incremental'][run])
-      # result[_lang_for run] << format_float(@j['compile-mem-mb'][run] / min)
     end
 
     # binary size

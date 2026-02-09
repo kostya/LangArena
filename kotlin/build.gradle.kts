@@ -7,14 +7,11 @@ repositories {
 }
 
 dependencies {
-    // Fastjson2 для Kotlin
     implementation("com.alibaba.fastjson2:fastjson2-kotlin:2.0.60")
     
-    // Kotlin stdlib и reflect (требуется для fastjson2-kotlin)
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     
-    // Оригинальные зависимости
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
     implementation("org.json:json:20251224")
@@ -31,7 +28,6 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     }
 }
 
-// Fat JAR
 tasks.register<Jar>("fatJar") {
     archiveBaseName.set("benchmarks")
     
@@ -51,15 +47,12 @@ tasks.register<Jar>("fatJar") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-// Задачи запуска
 tasks.register<JavaExec>("runDebug") {
     group = "application"
     description = "Run in debug mode"
     
     mainClass.set("MainKt")
     classpath = sourceSets.main.get().runtimeClasspath
-    
-    // environment("DEBUG", "1")
     
     if (project.hasProperty("args")) {
         args((project.property("args") as String).split(" "))
@@ -73,12 +66,9 @@ tasks.register<JavaExec>("runRelease") {
     mainClass.set("MainKt")
     classpath = sourceSets.main.get().runtimeClasspath
     
-    // ВСЕ оптимизации для бенчмарков
     jvmArgs = listOf(
-        // 1. Режим JVM
         "-server",
         
-        // 2. Сборщик мусора (G1 с агрессивными настройками)
         "-XX:+UseG1GC",
         "-XX:MaxGCPauseMillis=10",
         "-XX:G1HeapRegionSize=8M",
@@ -89,63 +79,39 @@ tasks.register<JavaExec>("runRelease") {
         "-XX:G1MixedGCCountTarget=8",
         "-XX:InitiatingHeapOccupancyPercent=45",
         
-        // 3. Память (предварительное выделение)
-        "-Xms4g",  // Начальная куча 4GB
-        "-Xmx4g",  // Максимальная куча 4GB
-        "-Xss2m",  // Размер стека потока
-        "-XX:+AlwaysPreTouch",  // Предварительное выделение всей памяти
+        "-Xms4g",
+        "-Xmx4g",
+        "-Xss2m",
+        "-XX:+AlwaysPreTouch",
         
-        // 4. JIT компиляция (максимальная оптимизация)
         "-XX:+OptimizeStringConcat",
         "-XX:+UseCompressedOops",
         "-XX:+UseCompressedClassPointers",
         
-        // 5. Библиотеки
-        "-Dsun.zip.disableMemoryMapping=true",  // Быстрее ZIP
-        "-Djava.security.egd=file:/dev/./urandom",  // Быстрый random
+        "-Dsun.zip.disableMemoryMapping=true",
+        "-Djava.security.egd=file:/dev/./urandom",
         
-        // 6. Отключаем всё лишнее
-        "-XX:+DisableExplicitGC",  // Игнорируем System.gc()
-        "-XX:+UseNUMA",  // Оптимизация для многоядерных систем
-        "-XX:AutoBoxCacheMax=20000",  // Кэш для autoboxing
+        "-XX:+DisableExplicitGC",
+        "-XX:+UseNUMA",
+        "-XX:AutoBoxCacheMax=20000",
         
-        // 7. Для Linux/Unix
-        "-XX:+PerfDisableSharedMem",  // Отключаем shared memory для perf
-        "-XX:+UseLargePages",  // Используем large pages (если настроено)
-        "-XX:+UseTransparentHugePages",  // Transparent huge pages
+        "-XX:+PerfDisableSharedMem",
+        "-XX:+UseLargePages",
+        "-XX:+UseTransparentHugePages",
         
-        // 8. Оптимизация циклов
         "-XX:+UseCountedLoopSafepoints",
         "-XX:LoopUnrollLimit=100",
         
-        // 9. Инлайнинг
-        "-XX:MaxInlineSize=325",  // Максимальный размер для инлайнинга
-        "-XX:FreqInlineSize=325",  // Размер для частых методов
+        "-XX:MaxInlineSize=325",
+        "-XX:FreqInlineSize=325",
         
-        // 10. Флаги для fastjson2 (чтобы убрать warnings)
         "--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED",
         "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
         "-Dsun.misc.Unsafe.allowMemoryAccess=true",
-        
-        // 11. Профилирование JIT (можно убрать для чистого запуска)
-        // "-XX:+PrintCompilation",  // Показывает что JIT компилирует
-        // "-XX:+PrintInlining",     // Показывает инлайнинг
     )
-    
-    // Опционально: если система поддерживает
-    // "-XX:UseAVX=3",  // AVX инструкции если CPU поддерживает
-    // "-XX:+UseAES",   // AES инструкции если есть
-    
+        
     if (project.hasProperty("args")) {
         args((project.property("args") as String).split(" "))
-    }
-    
-    doFirst {
-        println("🚀 MAXIMUM OPTIMIZATION MODE for benchmarks")
-        println("   JVM: Server mode with all optimizations")
-        println("   GC: G1 with 10ms target pause")
-        println("   Memory: 4GB heap pre-allocated")
-        println("   JIT: Aggressive inlining and optimization")
     }
 }
 
@@ -156,24 +122,21 @@ tasks.register<JavaExec>("runBenchmark") {
     mainClass.set("MainKt")
     classpath = sourceSets.main.get().runtimeClasspath
     
-    // Минимум флагов для чистого измерения
     jvmArgs = listOf(
         "-server",
         "-XX:+UseG1GC",
-        "-XX:MaxGCPauseMillis=1",  // Супер агрессивный GC
+        "-XX:MaxGCPauseMillis=1",
         "-Xms4g",
         "-Xmx4g",
         "-XX:+AlwaysPreTouch",
         "-XX:+UseNUMA",
         "-XX:+DisableExplicitGC",
         "-Djava.security.egd=file:/dev/./urandom",
-        // Флаги для fastjson2
         "--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED",
         "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
         "-Dsun.misc.Unsafe.allowMemoryAccess=true"
     )
     
-    // Минимизируем всё кроме производительности
     environment.remove("DEBUG")
     
     if (project.hasProperty("args")) {

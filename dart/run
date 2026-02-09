@@ -3,15 +3,3 @@ mkdir -p target
 rm -f target/dart_run
 dart compile exe main.dart -o target/dart_run
 target/dart_run ../run.js $@
-
-# Компиляция в нативный код
-#dart compile exe helper.dart -o benchmark_runner
-
-# Запуск сконфигурированного бенчмарка
-#./benchmark_runner ../test.json
-
-# Запуск конкретного теста
-#./benchmark_runner ../test.json binarytrees
-
-# С оптимизациями и отключенной проверкой assert
-#dart compile exe --no-source-maps --optimization-level=3 helper.dart -o benchmark_runner

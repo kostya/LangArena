@@ -1,5 +1,4 @@
 function changeTab(tabId, group_lang_option_checked = false) {
-    // $('.tab-content').removeClass('active');
     $('.tabs .tab').removeClass('active');
     $(`#${tabId}`).addClass('active');
 

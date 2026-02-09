@@ -117,7 +117,7 @@ class Helper:
             with open(config_path, 'r') as f:
                 Helper._config = json.load(f)
         except Exception as e:
-            print(f'❌ Error loading config file {config_file}: {e}')
+            print(f'Error loading config file {config_file}: {e}')
             sys.exit(1)
 
     @staticmethod

@@ -156,7 +156,7 @@ function overview_tab($results) {
   </div>
   
   <div class="section">
-    <h2 class="section-title">🔧 Origin & Approach</h2>
+    <h2 class="section-title">Origin & Approach</h2>
     <p>The suite started with my original implementation in Crystal. AI tools assisted in translating it to other languages. Throughout this process, I reviewed and edited the implementation for semantic correctness and logical consistency to ensure idiomatic accuracy and fair benchmarking.</p>
     <p>Not all algorithms could be implemented identically across all languages — simply because the languages are too different (this is particularly true for base64 and JSON tests). However, I made every effort to make the implementations as similar as possible to each other.</p>
     <p><strong>Handling Library Differences</strong>: To address performance differences stemming from varying standard library implementations, I created a special tab in the results — Runtime Score. This metric normalizes execution times (seconds) into a 0–100 scoring system, where 50 represents the average performance across all languages. The overall Runtime Score is calculated as the average across all benchmarks. This approach reduces the impact of outliers and ensures a fair overall assessment: a language that excels in most tasks but struggles with one particular library implementation (like JSON parsing) isn't severely penalized. It reflects the real-world scenario where developers use a mix of algorithms and libraries.</p>
@@ -172,7 +172,7 @@ function overview_tab($results) {
   </div>
   
   <div class="section">
-    <h2 class="section-title">🎯 Core Philosophy</h2>
+    <h2 class="section-title">Core Philosophy</h2>
     <ul class="philosophy-list">
       <li><strong>Realistic Code:</strong> Benchmarks reflect how an average developer would solve a problem, using standard libraries and idiomatic constructs.</li>
       <li><strong>Algorithmic Consistency:</strong> The same core algorithm is implemented across all languages for each task to ensure a fair comparison.</li>
@@ -183,12 +183,12 @@ function overview_tab($results) {
   </div>
   
   <div class="section">
-    <h2 class="section-title">🔬 Benchmarking Methodology</h2>
+    <h2 class="section-title">Benchmarking Methodology</h2>
     <p>Each benchmark's execution time is measured in isolation, with data preparation excluded from timing. The suite includes a separate warmup phase for JIT-based languages (C#, Java, Julia, etc.) to allow compilation and optimization before measurements begin. This ensures fair comparisons by measuring steady-state performance where applicable, while still capturing cold-start characteristics for AOT-compiled languages. All benchmarks produce verifiable checksums to ensure algorithmic correctness across implementations.</p>
   </div>
 
   <div class="section">
-    <h2 class="section-title">📊 Benchmark Categories</h2>
+    <h2 class="section-title">Benchmark Categories</h2>
     <p>The benchmarks cover common practical tasks:</p>
     <div class="category-list">
       <div class="category-item">
@@ -222,7 +222,7 @@ function overview_tab($results) {
   </div>
   
   <div class="section">
-    <h2 class="section-title">🌍 Evaluated Languages</h2>
+    <h2 class="section-title">Evaluated Languages</h2>
     <p>The suite currently focuses on <strong>compiled and high-performance managed languages</strong>:</p>
     <div class="languages">
       <span class="language-tag">C</span>
@@ -248,7 +248,7 @@ function overview_tab($results) {
   </div>
   
   <div class="section">
-    <h2 class="section-title">🚀 Beyond Just Ranking</h2>
+    <h2 class="section-title">Beyond Just Ranking</h2>
     <p>This suite is also a practical tool for:</p>
     <div class="uses-list">
       <div class="use-card">

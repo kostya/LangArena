@@ -1,9 +1,5 @@
 FROM benchmarks:base
 
-# ============================================
-# Установка Java
-# ============================================
-
 ARG version
 
 RUN apt install -y --no-install-recommends openjdk-$version-jdk-headless \
@@ -12,7 +8,6 @@ RUN apt install -y --no-install-recommends openjdk-$version-jdk-headless \
 ENV JAVA_HOME="/usr/lib/jvm/java-$version-openjdk-amd64"
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
-# устанавливаем Maven вручную (лучший вариант)
 ARG mavenversion
 
 RUN wget https://dlcdn.apache.org/maven/maven-3/$mavenversion/binaries/apache-maven-$mavenversion-bin.tar.gz && \

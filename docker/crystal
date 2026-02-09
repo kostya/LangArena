@@ -1,8 +1,5 @@
 FROM benchmarks:base
 
-# ============================================
-# Установка Crystal
-# ============================================
 RUN apt install -y --no-install-recommends \
     libyaml-dev \
     libevent-dev \

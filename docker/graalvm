@@ -1,11 +1,5 @@
 FROM benchmarks:base
 
-# ============================================
-# Установка GraalVM
-# ============================================
-
-# Устанавливаем переменные для GraalVM
-
 ARG version
 
 ENV GRAALVM_VERSION="$version"
@@ -19,7 +13,6 @@ ENV PATH="${GRAALVM_HOME}/bin:${PATH}"
 
 # RUN ${GRAALVM_HOME}/bin/gu install native-image
 
-# устанавливаем Maven вручную (лучший вариант)
 ARG mavenversion
 
 RUN wget https://dlcdn.apache.org/maven/maven-3/$mavenversion/binaries/apache-maven-$mavenversion-bin.tar.gz && \

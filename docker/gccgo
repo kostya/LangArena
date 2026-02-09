@@ -1,9 +1,5 @@
 FROM benchmarks:base_gcc
 
-# ============================================
-# Установка GCCGo
-# ============================================
-
 ARG version
 RUN apt install -y --no-install-recommends gccgo-$version \
     && apt clean

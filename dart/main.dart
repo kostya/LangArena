@@ -103,7 +103,7 @@ class Helper {
       _config = jsonDecode(content) as Map<String, dynamic>;
 
     } catch (error) {
-      print('❌ Error loading config file $configFile: $error');
+      print('Error loading config file $configFile: $error');
       exit(1);
     }
   }

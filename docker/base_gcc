@@ -1,9 +1,5 @@
 FROM benchmarks:base
 
-# ============================================
-# Установка GCC
-# ============================================
-
 ARG version
 
 RUN apt install -y --no-install-recommends \

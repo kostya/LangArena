@@ -1,8 +1,5 @@
 FROM benchmarks:base
 
-# ============================================
-# Установка Swift
-# ============================================
 RUN apt install -y --no-install-recommends \
     libcurl4-openssl-dev \
     libedit2 \

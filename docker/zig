@@ -1,9 +1,5 @@
 FROM benchmarks:base
 
-# ============================================
-# Установка Zig
-# ============================================
-
 RUN apt install -y --no-install-recommends \
     llvm-20-dev \
     clang-20 \
