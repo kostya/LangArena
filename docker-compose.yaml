@@ -743,7 +743,7 @@ services:
       dockerfile: docker/odin
       args:
         # https://github.com/odin-lang/Odin/releases
-        version: "2026-02"
+        version: "2026-01"
     volumes:
       - .:/src
       
