@@ -743,24 +743,18 @@ services:
       dockerfile: docker/odin
       args:
         # https://github.com/odin-lang/Odin/releases
-        version: "2026-01"
+        version: "2026-02"
     volumes:
       - .:/src
       
       # ============= DEPS (НЕ очищаем) =============
-      # Odin сборки и кэши
-      - ./cache/deps/odin/odin-cache:/root/.odin
-      - ./cache/deps/odin/shared:/root/.local/share/odin
       
       # ============= BUILD (очищаем для cold compile) =============
-      # Кэш компилятора Odin
-      - ./cache/build/odin/build-cache:/root/.odin/build-cache
-      # Логи и результаты бенчмарков
       - ./cache/build/odin/target:/src/odin/target
         
     environment:
       # Указываем где хранить кэш Odin
-      - ODIN_ROOT=/root/.odin
-      - ODIN_PATH=/root/.odin
+      - ODIN_ROOT=/opt/odin
+      - ODIN_PATH=/opt/odin
     depends_on:
       - base
