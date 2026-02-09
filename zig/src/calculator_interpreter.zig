@@ -17,7 +17,6 @@ pub const CalculatorInterpreter = struct {
         .prepare = prepareImpl,
     };
 
-    // Интерпретатор
     const Interpreter = struct {
         variables: std.StringHashMap(i64),
 
@@ -103,7 +102,6 @@ pub const CalculatorInterpreter = struct {
     pub fn deinit(self: *CalculatorInterpreter) void {
         const allocator = self.allocator;
 
-        // Освобождаем AST выражения
         for (self.ast_expressions.items) |expr| {
             freeNode(allocator, expr);
         }
@@ -119,29 +117,22 @@ pub const CalculatorInterpreter = struct {
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *CalculatorInterpreter = @ptrCast(@alignCast(ptr));
 
-        // Освобождаем старые AST выражения
         for (self.ast_expressions.items) |expr| {
             freeNode(self.allocator, expr);
         }
         self.ast_expressions.clearAndFree(self.allocator);
 
-        // Создаем CalculatorAst для парсинга
         var ast_calculator = CalculatorAst.init(self.allocator, self.helper) catch return;
         defer ast_calculator.deinit();
 
-        // Устанавливаем operations как в C++ версии
         ast_calculator.operations = self.operations;
 
-        // Подготавливаем и запускаем парсинг
         var benchmark = ast_calculator.asBenchmark();
         benchmark.prepare();
         benchmark.run(0);
 
-        // В C++: ast.swap(const_cast<std::vector<CalculatorAst::Node>&>(ca.expressions));
-        // В Zig: просто перемещаем владение списком
         self.ast_expressions = ast_calculator.expressions;
 
-        // Очищаем expressions в ast_calculator чтобы избежать двойного освобождения
         ast_calculator.expressions = .{};
     }
 
@@ -170,7 +161,6 @@ pub const CalculatorInterpreter = struct {
     }
 };
 
-// Функция для освобождения узла AST
 fn freeNode(allocator: std.mem.Allocator, node: *CalculatorAst.Node) void {
     switch (node.*) {
         .number => {},

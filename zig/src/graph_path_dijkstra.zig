@@ -5,10 +5,10 @@ const Helper = @import("helper.zig").Helper;
 pub const GraphPathDijkstra = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    graph: std.ArrayList(std.ArrayList(usize)), // Изменено на ArrayList
-    pairs: std.ArrayList([2]usize), // Изменено на ArrayList
+    graph: std.ArrayList(std.ArrayList(usize)), 
+    pairs: std.ArrayList([2]usize), 
     result_val: u32,
-    prepared: bool, // Добавлено
+    prepared: bool, 
 
     const vtable = Benchmark.VTable{
         .prepare = prepareImpl,
@@ -59,7 +59,6 @@ pub const GraphPathDijkstra = struct {
             const vertices = @as(usize, @intCast(vertices_val));
             const comps = @max(@as(usize, 10), vertices / 10000);
 
-            // Очищаем старый граф
             for (self.graph.items) |*neighbors| {
                 neighbors.deinit(allocator);
             }
@@ -67,7 +66,6 @@ pub const GraphPathDijkstra = struct {
             self.pairs.clearAndFree(allocator);
             self.result_val = 0;
 
-            // Инициализируем списки смежности
             self.graph.ensureTotalCapacity(allocator, vertices) catch return;
             for (0..vertices) |_| {
                 self.graph.append(allocator, .{}) catch return;
@@ -75,7 +73,6 @@ pub const GraphPathDijkstra = struct {
 
             const component_size = vertices / comps;
 
-            // Генерируем граф
             for (0..comps) |c| {
                 const start_idx = c * component_size;
                 const end_idx = if (c == comps - 1) vertices else (c + 1) * component_size;
@@ -98,7 +95,6 @@ pub const GraphPathDijkstra = struct {
                 }
             }
 
-            // Генерируем пары
             const pairs_count = @as(usize, @intCast(pairs_val));
             self.pairs.ensureTotalCapacity(allocator, pairs_count) catch return;
 
@@ -131,19 +127,16 @@ pub const GraphPathDijkstra = struct {
         }
     }
 
-    // Алгоритм Дейкстры (как в C++ версии)
     fn dijkstraShortestPath(self: *const GraphPathDijkstra, start: usize, target: usize, allocator: std.mem.Allocator) i32 {
         if (start == target) return 0;
 
         const vertices = self.graph.items.len;
         const INF = std.math.maxInt(i32) / 2;
 
-        // dist как в C++: std::vector<int> dist(graph->vertices, INF)
         const dist = allocator.alloc(i32, vertices) catch return -1;
         defer allocator.free(dist);
         @memset(dist, INF);
 
-        // visited как в C++: std::vector<uint8_t> visited(graph->vertices, 0)
         const visited = allocator.alloc(u8, vertices) catch return -1;
         defer allocator.free(visited);
         @memset(visited, 0);
@@ -154,7 +147,6 @@ pub const GraphPathDijkstra = struct {
             var u: i32 = -1;
             var min_dist: i32 = INF;
 
-            // Находим вершину с минимальным dist
             for (0..vertices) |v| {
                 if (visited[v] == 0 and dist[v] < min_dist) {
                     min_dist = dist[v];
@@ -168,7 +160,6 @@ pub const GraphPathDijkstra = struct {
 
             visited[@as(usize, @intCast(u))] = 1;
 
-            // Обновляем расстояния до соседей
             for (self.graph.items[@as(usize, @intCast(u))].items) |v| {
                 const new_dist = dist[@as(usize, @intCast(u))] + 1;
                 if (new_dist < dist[v]) {
@@ -186,7 +177,6 @@ pub const GraphPathDijkstra = struct {
 
         var total_length: i32 = 0;
 
-        // Используем arena для временных аллокаций
         var arena = std.heap.ArenaAllocator.init(allocator);
         defer arena.deinit();
         const arena_allocator = arena.allocator();

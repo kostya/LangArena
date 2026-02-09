@@ -7,7 +7,7 @@ pub const Base64Encode = struct {
     helper: *Helper,
     input: []const u8,
     encoded: []const u8,
-    encoded_from_run: []const u8,  // Добавляем поле для результатов из run
+    encoded_from_run: []const u8,  
     result_val: u32,
 
     const vtable = Benchmark.VTable{
@@ -34,21 +34,20 @@ pub const Base64Encode = struct {
             .helper = helper,
             .input = input_str,
             .encoded = encoded_result,
-            .encoded_from_run = &.{},  // Инициализируем пустым срезом
+            .encoded_from_run = &.{},  
             .result_val = 0,
         };
         return self;
     }
 
     pub fn deinit(self: *Base64Encode) void {
-        // Освобождаем память, выделенную для encoded_from_run
+
         if (self.encoded_from_run.len > 0) {
             const buf_len = std.base64.standard.Encoder.calcSize(self.input.len);
             const buf = self.encoded_from_run.ptr[0..buf_len];
             self.allocator.free(buf);
         }
 
-        // Освобождаем оригинальные буферы
         self.allocator.free(self.input);
         const encoded_buf_len = std.base64.standard.Encoder.calcSize(self.input.len);
         const encoded_buf = self.encoded.ptr[0..encoded_buf_len];
@@ -66,14 +65,12 @@ pub const Base64Encode = struct {
 
         const encode_buf_size = encoder.calcSize(self.input.len);
 
-        // Освобождаем предыдущий результат, если он есть
         if (self.encoded_from_run.len > 0) {
             const prev_buf_len = std.base64.standard.Encoder.calcSize(self.input.len);
             const prev_buf = self.encoded_from_run.ptr[0..prev_buf_len];
             self.allocator.free(prev_buf);
         }
 
-        // Выделяем память и кодируем
         const encode_buf = self.allocator.alloc(u8, encode_buf_size) catch {
             self.result_val = 0;
             self.encoded_from_run = &.{};
@@ -82,10 +79,8 @@ pub const Base64Encode = struct {
 
         const encoded_result = encoder.encode(encode_buf, self.input);
 
-        // Сохраняем результат кодирования
         self.encoded_from_run = encoded_result;
 
-        // Увеличиваем result_val как в C++ версии
         self.result_val +%= @as(u32, @intCast(encoded_result.len));
     }
 
@@ -93,15 +88,11 @@ pub const Base64Encode = struct {
         const self: *Base64Encode = @ptrCast(@alignCast(ptr));
         var result_buf: [256]u8 = undefined;
 
-        // Берем первые 4 символа из input строки
         const first_four_input = if (self.input.len >= 4) self.input[0..4] else self.input;
 
-        // В C++ версии checksum использует str2, которая создается в run()
-        // В Zig нам нужно использовать encoded_from_run (аналог str2)
         const actual_encoded = if (self.encoded_from_run.len > 0) self.encoded_from_run else self.encoded;
         const first_four_encoded = if (actual_encoded.len >= 4) actual_encoded[0..4] else actual_encoded;
 
-        // Формируем строку как в C++ версии
         const result_str = std.fmt.bufPrint(
             &result_buf,
             "encode {s}... to {s}...: {}",

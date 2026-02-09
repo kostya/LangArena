@@ -100,7 +100,6 @@ pub const NeuralNet = struct {
                 try self.output_layer.append(allocator, i);
             }
 
-            // input -> hidden
             for (self.input_layer.items) |source_idx| {
                 for (self.hidden_layer.items) |dest_idx| {
                     const synapse_idx = self.synapses.items.len;
@@ -119,7 +118,6 @@ pub const NeuralNet = struct {
                 }
             }
 
-            // hidden -> output
             for (self.hidden_layer.items) |source_idx| {
                 for (self.output_layer.items) |dest_idx| {
                     const synapse_idx = self.synapses.items.len;

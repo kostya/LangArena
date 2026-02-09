@@ -11,9 +11,8 @@ pub const RegexDna = struct {
     ilen: i32,
     clen: i32,
 
-    // PCRE2 структуры
-    compiled_patterns: [9]?*anyopaque, // pcre2_code_8*
-    match_data: [9]?*anyopaque, // pcre2_match_data_8*
+    compiled_patterns: [9]?*anyopaque, 
+    match_data: [9]?*anyopaque, 
 
     const PATTERNS = [_][]const u8{
         "agggtaaa|tttaccct",
@@ -52,7 +51,6 @@ pub const RegexDna = struct {
         const self = try allocator.create(RegexDna);
         errdefer allocator.destroy(self);
 
-        // Инициализируем массивы как null
         var compiled_patterns: [9]?*anyopaque = undefined;
         var match_data: [9]?*anyopaque = undefined;
         @memset(&compiled_patterns, null);
@@ -75,7 +73,6 @@ pub const RegexDna = struct {
     pub fn deinit(self: *RegexDna) void {
         const allocator = self.allocator;
 
-        // Освобождаем PCRE2 ресурсы
         for (0..9) |i| {
             if (self.match_data[i]) |md| {
                 pcre2_match_data_free_8(@ptrCast(md));
@@ -98,32 +95,27 @@ pub const RegexDna = struct {
         const self: *RegexDna = @ptrCast(@alignCast(ptr));
         const allocator = self.allocator;
 
-        // Очищаем предыдущие данные
         self.seq.clearAndFree(allocator);
         self.result_str.clearAndFree(allocator);
 
-        // Создаем Fasta как в C++ версии
         var fasta = Fasta.init(allocator, self.helper) catch return;
         defer fasta.deinit();
 
-        // Устанавливаем n из конфига
         const n_val = self.helper.config_i64("RegexDna", "n");
         fasta.n = n_val;
 
-        // Получаем benchmark и запускаем prepare + run
         var fasta_bench = fasta.asBenchmark();
         fasta_bench.prepare();
-        fasta_bench.run(0); // Запускаем одну итерацию
+        fasta_bench.run(0); 
 
         const fasta_result = fasta.getResult();
 
-        // Парсим результат Fasta как в C++ версии
         var lines = std.mem.splitSequence(u8, fasta_result, "\n");
         self.ilen = 0;
         self.seq.clearRetainingCapacity();
 
         while (lines.next()) |line| {
-            // Пропускаем пустую строку в конце
+
             if (line.len == 0 and lines.peek() == null) {
                 break;
             }
@@ -137,9 +129,8 @@ pub const RegexDna = struct {
 
         self.clen = @as(i32, @intCast(self.seq.items.len));
 
-        // Компилируем PCRE2 паттерны
         for (PATTERNS, 0..) |pattern, i| {
-            // Освобождаем предыдущие ресурсы
+
             if (self.match_data[i]) |md| {
                 pcre2_match_data_free_8(@ptrCast(md));
                 self.match_data[i] = null;
@@ -152,7 +143,6 @@ pub const RegexDna = struct {
             var error_number: c_int = 0;
             var error_offset: usize = 0;
 
-            // Компилируем паттерн
             const re = pcre2_compile_8(
                 @ptrCast(pattern.ptr),
                 pattern.len,
@@ -166,10 +156,8 @@ pub const RegexDna = struct {
                 continue;
             }
 
-            // JIT компиляция
             _ = pcre2_jit_compile_8(@ptrCast(re), PCRE2_JIT_COMPLETE);
 
-            // Создаем match data
             const md = pcre2_match_data_create_from_pattern_8(@ptrCast(re), null);
             if (md == null) {
                 pcre2_code_free_8(@ptrCast(re));
@@ -181,7 +169,6 @@ pub const RegexDna = struct {
         }
     }
 
-    // Подсчет вхождений с PCRE2
     fn countPattern(self: *RegexDna, pattern_idx: usize) usize {
         const re_ptr = self.compiled_patterns[pattern_idx] orelse return 0;
         const md_ptr = self.match_data[pattern_idx] orelse return 0;
@@ -229,21 +216,17 @@ pub const RegexDna = struct {
         const self: *RegexDna = @ptrCast(@alignCast(ptr));
         const allocator = self.allocator;
 
-        // Подсчет паттернов с PCRE2
         for (PATTERNS, 0..) |pattern, i| {
             const count = self.countPattern(i);
 
-            // Формируем строку
             var buf: [128]u8 = undefined;
             const line = std.fmt.bufPrint(&buf, "{s} {d}\n", .{pattern, count}) catch continue;
             self.result_str.appendSlice(allocator, line) catch continue;
         }
 
-        // Замена символов
         const seq = self.seq.items;
         var seq2 = std.ArrayList(u8){};
 
-        // Используем arena для seq2
         var arena = std.heap.ArenaAllocator.init(allocator);
         defer arena.deinit();
         const arena_allocator = arena.allocator();
@@ -265,7 +248,6 @@ pub const RegexDna = struct {
             }
         }
 
-        // Добавляем статистику
         var buf2: [64]u8 = undefined;
         const stats = std.fmt.bufPrint(&buf2, "\n{d}\n{d}\n{d}\n", .{
             self.ilen,
@@ -287,17 +269,14 @@ pub const RegexDna = struct {
     }
 };
 
-// ============ PCRE2 Константы ============
 const PCRE2_UTF = 0x00080000;
 const PCRE2_NO_UTF_CHECK = 0x40000000;
 const PCRE2_JIT_COMPLETE = 0x00000001;
 const PCRE2_ERROR_NOMATCH = -1;
 
-// ============ PCRE2 Типы ============
 const PCRE2_CODE = opaque {};
 const PCRE2_MATCH_DATA = opaque {};
 
-// ============ PCRE2 Функции ============
 extern "c" fn pcre2_compile_8(
     pattern: [*c]const u8,
     length: usize,
@@ -335,7 +314,6 @@ extern "c" fn pcre2_get_ovector_pointer_8(
     match_data: ?*PCRE2_MATCH_DATA,
 ) [*c]usize;
 
-// JIT match функция (если доступна)
 extern "c" fn pcre2_jit_match_8(
     code: *const PCRE2_CODE,
     subject: [*c]const u8,

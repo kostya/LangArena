@@ -8,7 +8,6 @@ pub const Binarytrees = struct {
     n: i64,
     result_val: u32,
 
-    // Пул памяти для одного дерева
     const TreeNodePool = struct {
         buffer: []TreeNode,
         index: usize = 0,
@@ -43,13 +42,11 @@ pub const Binarytrees = struct {
         }
     };
 
-    // Узел дерева с "ленивой" инициализацией
     const TreeNode = struct {
         item: i32,
         left: ?*TreeNode,
         right: ?*TreeNode,
 
-        // Создаёт дерево рекурсивно, используя пул
         pub fn create(pool: *TreeNodePool, item: i32, depth: i32) *TreeNode {
             const node = pool.allocNode(item);
 
@@ -106,16 +103,14 @@ pub const Binarytrees = struct {
         const max_depth = @max(min_depth + 2, @as(i32, @intCast(self.n)));
         const stretch_depth = max_depth + 1;
 
-        // 1. Создаём пул под максимальное дерево (stretch_depth)
         const max_nodes_for_depth = @as(usize, @intCast((@as(u32, 1) << @as(u5, @intCast(stretch_depth + 1))) - 1));
         var main_pool = TreeNodePool.init(self.allocator, max_nodes_for_depth) catch return;
         defer main_pool.deinit(self.allocator);
 
-        // 2. Stretch tree (используем пул, потом сбрасываем)
         {
             const stretch_tree = TreeNode.create(&main_pool, 0, stretch_depth);
             self.result_val +%= @as(u32, @bitCast(stretch_tree.check()));
-            main_pool.reset(); // Сброс пула = "удаление" дерева
+            main_pool.reset(); 
         }
 
         var depth = min_depth;
@@ -124,14 +119,13 @@ pub const Binarytrees = struct {
 
             var i: i32 = 1;
             while (i <= iterations) : (i += 1) {
-                // 3. Tree1
+
                 {
                     const tree1 = TreeNode.create(&main_pool, i, depth);
                     self.result_val +%= @as(u32, @bitCast(tree1.check()));
                     main_pool.reset();
                 }
 
-                // 4. Tree2
                 {
                     const tree2 = TreeNode.create(&main_pool, -i, depth);
                     self.result_val +%= @as(u32, @bitCast(tree2.check()));

@@ -17,7 +17,6 @@ pub const Revcomp = struct {
         .deinit = deinitImpl,
     };
 
-    // Таблица замены (compile-time)
     const complement_table: [256]u8 = init: {
         @setEvalBranchQuota(10000);
         var table: [256]u8 = undefined;
@@ -63,23 +62,18 @@ pub const Revcomp = struct {
         return Benchmark.init(self, &vtable, self.helper, "Revcomp");
     }
 
-    // Оптимизированная версия - один проход
     fn revcompFast(seq: []const u8, allocator: std.mem.Allocator) ![]u8 {
         const len = seq.len;
         const lines = (len + 59) / 60;
         const total_size = len + lines;
 
-        // Одна аллокация
         var result = try allocator.alloc(u8, total_size);
         var pos: usize = 0;
 
-        // Обрабатываем блоками по 60 с конца
         var start = len;
         while (start > 0) {
             const chunk_start = if (start >= 60) start - 60 else 0;
-            // const chunk_size = start - chunk_start;
 
-            // Обрабатываем блок в обратном порядке
             var i: usize = start;
             while (i > chunk_start) {
                 i -= 1;
@@ -93,12 +87,10 @@ pub const Revcomp = struct {
             start = chunk_start;
         }
 
-        // Убираем последний \n если нужно
         if (len % 60 == 0 and len > 0) {
             pos -= 1;
         }
 
-        // Возвращаем слайс правильного размера
         return result[0..pos];
     }
 
@@ -118,10 +110,9 @@ pub const Revcomp = struct {
 
         const fasta_result = fasta.getResult();
 
-        // Ручной парсинг для скорости
         var i: usize = 0;
         while (i < fasta_result.len) {
-            // Находим конец строки
+
             var line_end = i;
             while (line_end < fasta_result.len and fasta_result[line_end] != '\n') {
                 line_end += 1;
@@ -137,7 +128,7 @@ pub const Revcomp = struct {
                 }
             }
 
-            i = line_end + 1; // Пропускаем \n
+            i = line_end + 1; 
         }
     }
 

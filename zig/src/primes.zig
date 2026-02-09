@@ -8,7 +8,7 @@ pub const Primes = struct {
     helper: *Helper,
     n: i64,
     prefix: i64,
-    result_val: u32, // Изменено на u32 как в C++
+    result_val: u32, 
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
@@ -16,7 +16,6 @@ pub const Primes = struct {
         .deinit = deinitImpl,
     };
 
-    // Узел префиксного дерева
     const Node = struct {
         children: [10]?*Node = [_]?*Node{null} ** 10,
         is_terminal: bool = false,
@@ -43,7 +42,7 @@ pub const Primes = struct {
             .helper = helper,
             .n = n,
             .prefix = prefix,
-            .result_val = 5432, // Начальное значение как в C++ версии
+            .result_val = 5432, 
         };
         return self;
     }
@@ -56,7 +55,6 @@ pub const Primes = struct {
         return Benchmark.init(self, &vtable, self.helper, "Primes");
     }
 
-    // Оптимизированное решето Эратосфена
     fn generatePrimes(self: *Primes) !std.ArrayListUnmanaged(i32) {
         const limit = @as(i32, @intCast(self.n));
 
@@ -100,7 +98,6 @@ pub const Primes = struct {
         return primes;
     }
 
-    // Построение префиксного дерева
     fn buildTrie(self: *Primes, primes: []const i32) !*Node {
         const root = try self.allocator.create(Node);
         root.* = Node{};
@@ -127,7 +124,6 @@ pub const Primes = struct {
         return root;
     }
 
-    // Поиск по префиксу с BFS
     fn findPrimesWithPrefix(self: *Primes, root: *Node, prefix: i64) !std.ArrayListUnmanaged(i32) {
         var buffer: [12]u8 = undefined;
         const prefix_str = try std.fmt.bufPrint(&buffer, "{d}", .{prefix});
@@ -175,22 +171,18 @@ pub const Primes = struct {
         const self: *Primes = @ptrCast(@alignCast(ptr));
         _ = iteration_id;
 
-        // 1. Генерация простых чисел
         var primes = self.generatePrimes() catch return;
         defer primes.deinit(self.allocator);
 
-        // 2. Построение префиксного дерева
         const trie = self.buildTrie(primes.items) catch return;
         defer {
             trie.deinit(self.allocator);
             self.allocator.destroy(trie);
         }
 
-        // 3. Поиск по префиксу
         var results = self.findPrimesWithPrefix(trie, self.prefix) catch return;
         defer results.deinit(self.allocator);
 
-        // 4. Вычисление результата как в C++
         self.result_val += @as(u32, @intCast(results.items.len));
         for (results.items) |prime| {
             self.result_val +%= @as(u32, @intCast(prime));

@@ -5,7 +5,7 @@ const Helper = @import("helper.zig").Helper;
 pub const SortSelf = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    data: std.ArrayList(i32), // Изменено на ArrayList
+    data: std.ArrayList(i32), 
     result_val: u32,
 
     const vtable = Benchmark.VTable{
@@ -42,14 +42,12 @@ pub const SortSelf = struct {
         const self: *SortSelf = @ptrCast(@alignCast(ptr));
         const allocator = self.allocator;
 
-        // Очищаем данные
         self.data.clearAndFree(allocator);
         self.result_val = 0;
 
         const size_val = self.helper.config_i64("SortSelf", "size");
         const size = @as(usize, @intCast(size_val));
 
-        // Заполняем данными
         self.data.ensureTotalCapacity(allocator, size) catch return;
         self.helper.reset();
 
@@ -59,13 +57,11 @@ pub const SortSelf = struct {
         }
     }
 
-    // Функция сортировки как в C++ версии
     fn testSort(self: *SortSelf, allocator: std.mem.Allocator) ![]i32 {
-        // Копируем данные
+
         const arr = try allocator.alloc(i32, self.data.items.len);
         @memcpy(arr, self.data.items);
 
-        // Сортируем (std.sort.pdq как аналог std::sort)
         if (arr.len > 0) {
             std.sort.pdq(i32, arr, {}, std.sort.asc(i32));
         }
@@ -78,18 +74,15 @@ pub const SortSelf = struct {
         const allocator = self.allocator;
         const data = self.data.items;
 
-        // Используем arena для временных аллокаций
         var arena = std.heap.ArenaAllocator.init(allocator);
         defer arena.deinit();
         const arena_allocator = arena.allocator();
 
-        // 1. Добавляем случайный элемент из исходных данных
         if (data.len > 0) {
             const idx1 = @as(usize, @intCast(self.helper.nextInt(@as(i32, @intCast(data.len)))));
             self.result_val +%= @as(u32, @intCast(data[idx1]));
         }
 
-        // 2. Сортируем и добавляем случайный элемент из отсортированных данных
         const sorted = self.testSort(arena_allocator) catch return;
         if (sorted.len > 0) {
             const idx2 = @as(usize, @intCast(self.helper.nextInt(@as(i32, @intCast(sorted.len)))));

@@ -8,7 +8,7 @@ pub const Noise = struct {
     helper: *Helper,
     size_val: i64,
     result_val: u32,
-    n2d: ?Noise2DContext, // Добавлено поле для хранения контекста
+    n2d: ?Noise2DContext, 
 
     const Vec2 = struct {
         x: f64,
@@ -26,12 +26,10 @@ pub const Noise = struct {
                 .permutations = .{},
             };
 
-            // Проверяем что size степень двойки
             if (size_int & (size_int - 1) != 0) {
                 return error.InvalidSize;
             }
 
-            // Заполняем градиенты и permutations
             self.rgradients.ensureTotalCapacity(allocator, size_int) catch return error.OutOfMemory;
             self.permutations.ensureTotalCapacity(allocator, size_int) catch return error.OutOfMemory;
 
@@ -44,7 +42,6 @@ pub const Noise = struct {
                 self.permutations.appendAssumeCapacity(@as(i32, @intCast(i)));
             }
 
-            // Перемешиваем permutations
             for (0..size_int) |_| {
                 const a = @as(usize, @intCast(helper.nextInt(@as(i32, @intCast(size_int)))));
                 const b = @as(usize, @intCast(helper.nextInt(@as(i32, @intCast(size_int)))));
@@ -101,7 +98,7 @@ pub const Noise = struct {
         }
     };
 
-    const SYM = [6]u32{ ' ', 0x2591, 0x2592, 0x2593, 0x2588, 0x2588 }; // ░▒▓█
+    const SYM = [6]u32{ ' ', 0x2591, 0x2592, 0x2593, 0x2588, 0x2588 }; 
 
     const vtable = Benchmark.VTable{
         .prepare = prepareImpl,
@@ -110,7 +107,6 @@ pub const Noise = struct {
         .deinit = deinitImpl,
     };
 
-    // Вспомогательные функции
     fn lerp(a: f64, b: f64, v: f64) f64 {
         return a + (b - a) * v;
     }
@@ -149,17 +145,14 @@ pub const Noise = struct {
         const self: *Noise = @ptrCast(@alignCast(ptr));
         const allocator = self.allocator;
 
-        // Очищаем предыдущие данные
         self.result_val = 0;
         if (self.n2d) |*n2d| {
             n2d.deinit(allocator);
             self.n2d = null;
         }
 
-        // Получаем размер
         self.size_val = self.helper.config_i64("Noise", "size");
 
-        // Создаем контекст шума как в C++ версии
         const n2d = Noise2DContext.init(allocator, self.helper, self.size_val) catch return;
         self.n2d = n2d;
     }
@@ -178,7 +171,6 @@ pub const Noise = struct {
             return;
         }
 
-        // Вычисляем значения для текущей итерации
         const y_offset: f64 = @as(f64, @floatFromInt(iteration_id * 128));
 
         for (0..size) |y| {

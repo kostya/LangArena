@@ -7,7 +7,7 @@ pub const Mandelbrot = struct {
     helper: *Helper,
     w: i64,
     h: i64,
-    result_bin: std.ArrayList(u8),  // Для накопления результатов как в C++
+    result_bin: std.ArrayList(u8),  
 
     const ITER: i32 = 50;
     const LIMIT: f64 = 2.0;
@@ -31,7 +31,7 @@ pub const Mandelbrot = struct {
             .helper = helper,
             .w = w,
             .h = h,
-            .result_bin = std.ArrayList(u8){},  // Инициализируем пустым
+            .result_bin = std.ArrayList(u8){},  
         };
 
         return self;
@@ -48,7 +48,7 @@ pub const Mandelbrot = struct {
 
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *Mandelbrot = @ptrCast(@alignCast(ptr));
-        // Очищаем результат при подготовке
+
         self.result_bin.clearAndFree(self.allocator);
     }
 
@@ -61,7 +61,6 @@ pub const Mandelbrot = struct {
             return;
         }
 
-        // Добавляем заголовок в каждом run как в C++
         var header_buf: [64]u8 = undefined;
         const header_str = std.fmt.bufPrint(&header_buf, "P4\n{d} {d}\n", .{ w, h }) catch return;
         self.result_bin.appendSlice(self.allocator, header_str) catch return;
@@ -123,7 +122,7 @@ pub const Mandelbrot = struct {
 
     fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *Mandelbrot = @ptrCast(@alignCast(ptr));
-        // Возвращаем checksum всех накопленных данных как в C++
+
         return self.helper.checksumBytes(self.result_bin.items);
     }
 

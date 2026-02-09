@@ -25,7 +25,7 @@ pub const JsonGenerate = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*JsonGenerate {
-        // Получаем n из конфигурации
+
         const n = helper.config_i64("JsonGenerate", "coords");
 
         const self = try allocator.create(JsonGenerate);
@@ -44,7 +44,7 @@ pub const JsonGenerate = struct {
     }
 
     pub fn deinit(self: *JsonGenerate) void {
-        // Освобождаем все скопированные строки имен
+
         for (self.data.items) |entry| {
             self.allocator.free(entry.name);
         }
@@ -61,7 +61,6 @@ pub const JsonGenerate = struct {
         const self: *JsonGenerate = @ptrCast(@alignCast(ptr));
         const allocator = self.allocator;
 
-        // Очищаем старые данные
         for (self.data.items) |entry| {
             allocator.free(entry.name);
         }
@@ -71,7 +70,6 @@ pub const JsonGenerate = struct {
 
         const n_usize = @as(usize, @intCast(self.n));
 
-        // Заполняем данные как в C++ prepare()
         self.data.ensureTotalCapacity(allocator, n_usize) catch return;
 
         for (0..n_usize) |_| {
@@ -85,7 +83,6 @@ pub const JsonGenerate = struct {
                 self.helper.nextInt(10000),
             }) catch "0.0000000 0";
 
-            // Копируем строку
             const name_copy = allocator.dupe(u8, name) catch return;
 
             self.data.append(allocator, .{
@@ -104,13 +101,10 @@ pub const JsonGenerate = struct {
         const self: *JsonGenerate = @ptrCast(@alignCast(ptr));
         const allocator = self.allocator;
 
-        // Очищаем строку для новой итерации
         self.result_str.clearRetainingCapacity();
 
-        // Начинаем JSON
         self.result_str.appendSlice(allocator, "{\"coordinates\":[") catch return;
 
-        // Генерируем JSON из подготовленных данных
         for (self.data.items, 0..) |entry, i| {
             if (i > 0) {
                 self.result_str.append(allocator, ',') catch return;
@@ -124,11 +118,10 @@ pub const JsonGenerate = struct {
 
         self.result_str.appendSlice(allocator, "],\"info\":\"some info\"}") catch return;
 
-        // Проверяем как в C++ версии и увеличиваем result_val
         if (self.result_str.items.len >= 15 and
             std.mem.startsWith(u8, self.result_str.items, "{\"coordinates\":"))
         {
-            self.result_val +%= 1; // &+= в C++
+            self.result_val +%= 1; 
         }
     }
 

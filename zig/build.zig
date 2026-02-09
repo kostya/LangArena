@@ -3,7 +3,6 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
 
-    // === DEBUG ===
     const debug_module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
@@ -18,9 +17,6 @@ pub fn build(b: *std.Build) void {
     debug_exe.linkSystemLibrary("pcre2-8");
     b.installArtifact(debug_exe);
 
-    // === РЕЛИЗНЫЕ КОНФИГУРАЦИИ ===
-
-    // 1. Zig (стандартный безопасный)
     const zig_module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
@@ -34,7 +30,6 @@ pub fn build(b: *std.Build) void {
     zig_exe.linkSystemLibrary("gmp");
     zig_exe.linkSystemLibrary("pcre2-8");
 
-    // 2. Zig/Unchecked (без проверок)
     const unchecked_module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
@@ -48,7 +43,6 @@ pub fn build(b: *std.Build) void {
     unchecked_exe.linkSystemLibrary("gmp");
     unchecked_exe.linkSystemLibrary("pcre2-8");
 
-    // 3. Zig/MaxPerf (пока такой же как unchecked, без флагов)
     const maxperf_module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
@@ -62,7 +56,6 @@ pub fn build(b: *std.Build) void {
     maxperf_exe.linkSystemLibrary("gmp");
     maxperf_exe.linkSystemLibrary("pcre2-8");
 
-    // === ШАГИ СБОРКИ ===
     const build_zig_step = b.step("build-zig", "Build standard Zig release (safe)");
     const install_zig = b.addInstallArtifact(zig_exe, .{});
     build_zig_step.dependOn(&install_zig.step);
@@ -75,7 +68,6 @@ pub fn build(b: *std.Build) void {
     const install_maxperf = b.addInstallArtifact(maxperf_exe, .{});
     build_maxperf_step.dependOn(&install_maxperf.step);
 
-    // === ШАГИ ЗАПУСКА ===
     const run_zig_step = b.step("run-zig", "Run standard Zig release (safe)");
     const run_zig_cmd = b.addRunArtifact(zig_exe);
     run_zig_step.dependOn(&run_zig_cmd.step);
@@ -88,7 +80,6 @@ pub fn build(b: *std.Build) void {
     const run_maxperf_cmd = b.addRunArtifact(maxperf_exe);
     run_maxperf_step.dependOn(&run_maxperf_cmd.step);
 
-    // === КОМАНДЫ ДЕБАГА ===
     const run_step = b.step("run", "Run debug mode");
     const run_cmd = b.addRunArtifact(debug_exe);
     run_step.dependOn(&run_cmd.step);
@@ -99,7 +90,6 @@ pub fn build(b: *std.Build) void {
     fast_run_step.dependOn(&fast_run_cmd.step);
     fast_run_cmd.step.dependOn(&debug_exe.step);
 
-    // === LEGACY ===
     const legacy_module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
@@ -121,7 +111,6 @@ pub fn build(b: *std.Build) void {
     const legacy_run_cmd = b.addRunArtifact(legacy_exe);
     legacy_run_step.dependOn(&legacy_run_cmd.step);
 
-    // === ПЕРЕДАЧА АРГУМЕНТОВ ===
     if (b.args) |args| {
         run_cmd.addArgs(args);
         fast_run_cmd.addArgs(args);

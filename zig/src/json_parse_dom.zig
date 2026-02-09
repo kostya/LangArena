@@ -44,25 +44,20 @@ pub const JsonParseDom = struct {
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *JsonParseDom = @ptrCast(@alignCast(ptr));
 
-        // Освобождаем старый текст
         if (self.text.len > 0) {
             self.allocator.free(self.text);
             self.text = "";
         }
 
-        // Создаем JsonGenerate как в C++ версии
         var jg = JsonGenerate.init(self.allocator, self.helper) catch return;
         defer jg.deinit();
 
-        // Устанавливаем количество координат
         jg.n = self.helper.config_i64("JsonParseDom", "coords");
 
-        // Вызываем prepare и run как в C++
         var benchmark = jg.asBenchmark();
         benchmark.prepare();
         benchmark.run(0);
 
-        // Получаем результат и копируем его
         const result = jg.get_result();
         if (result.len > 0) {
             self.text = self.allocator.dupe(u8, result) catch "";
@@ -78,7 +73,6 @@ pub const JsonParseDom = struct {
             return;
         }
 
-        // Парсим JSON с помощью std.json.parseFromSlice
         var parsed = std.json.parseFromSlice(
             std.json.Value,
             self.allocator,
@@ -89,7 +83,6 @@ pub const JsonParseDom = struct {
 
         const root = parsed.value;
 
-        // Ищем координаты
         if (root != .object) {
             return;
         }
@@ -145,7 +138,6 @@ pub const JsonParseDom = struct {
         const avg_y = y_sum / len;
         const avg_z = z_sum / len;
 
-        // Вычисляем контрольную сумму как в C++
         self.result_val +%= self.helper.checksumFloat(avg_x);
         self.result_val +%= self.helper.checksumFloat(avg_y);
         self.result_val +%= self.helper.checksumFloat(avg_z);

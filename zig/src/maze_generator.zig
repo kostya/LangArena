@@ -29,7 +29,7 @@ pub const MazeGenerator = struct {
             const actual_width = if (width < 5) 5 else width;
             const actual_height = if (height < 5) 5 else height;
             const cells = try allocator.alloc(Cell, @as(usize, @intCast(actual_width * actual_height)));
-            @memset(cells, Cell.wall); // Все стены как в старой версии
+            @memset(cells, Cell.wall); 
 
             return Maze{
                 .width = actual_width,
@@ -77,14 +77,12 @@ pub const MazeGenerator = struct {
             }
         }
 
-        // divide как в старой реализации (с @max)
         fn divide(self: *Maze, x1: i32, y1: i32, x2: i32, y2: i32) void {
             const width = x2 - x1;
             const height = y2 - y1;
 
             if (width < 2 or height < 2) return;
 
-            // Используем @max как в старой реализации
             const width_for_wall = @max(width - 2, 0);
             const height_for_wall = @max(height - 2, 0);
             const width_for_hole = @max(width - 1, 0);
@@ -94,7 +92,7 @@ pub const MazeGenerator = struct {
                 width_for_hole == 0 or height_for_hole == 0) return;
 
             if (width > height) {
-                // Вертикальная стена как в старой реализации
+
                 const wall_range = @max(@divTrunc(width_for_wall, 2), 1);
                 const wall_offset = if (wall_range > 0) self.helper.nextInt(@as(i32, @intCast(wall_range))) * 2 else 0;
                 const wall_x = x1 + 2 + wall_offset;
@@ -103,10 +101,8 @@ pub const MazeGenerator = struct {
                 const hole_offset = if (hole_range > 0) self.helper.nextInt(@as(i32, @intCast(hole_range))) * 2 else 0;
                 const hole_y = y1 + 1 + hole_offset;
 
-                // Проверка границ как в старой реализации
                 if (wall_x > x2 or hole_y > y2) return;
 
-                // Рисуем стену с отверстием
                 var y = y1;
                 while (y <= y2) : (y += 1) {
                     if (y != hole_y) {
@@ -114,11 +110,10 @@ pub const MazeGenerator = struct {
                     }
                 }
 
-                // Рекурсивно делим
                 if (wall_x > x1 + 1) self.divide(x1, y1, wall_x - 1, y2);
                 if (wall_x + 1 < x2) self.divide(wall_x + 1, y1, x2, y2);
             } else {
-                // Горизонтальная стена как в старой реализации
+
                 const wall_range = @max(@divTrunc(height_for_wall, 2), 1);
                 const wall_offset = if (wall_range > 0) self.helper.nextInt(@as(i32, @intCast(wall_range))) * 2 else 0;
                 const wall_y = y1 + 2 + wall_offset;
@@ -127,10 +122,8 @@ pub const MazeGenerator = struct {
                 const hole_offset = if (hole_range > 0) self.helper.nextInt(@as(i32, @intCast(hole_range))) * 2 else 0;
                 const hole_x = x1 + 1 + hole_offset;
 
-                // Проверка границ как в старой реализации
                 if (wall_y > y2 or hole_x > x2) return;
 
-                // Рисуем стену с отверстием
                 var x = x1;
                 while (x <= x2) : (x += 1) {
                     if (x != hole_x) {
@@ -138,13 +131,11 @@ pub const MazeGenerator = struct {
                     }
                 }
 
-                // Рекурсивно делим
                 if (wall_y > y1 + 1) self.divide(x1, y1, x2, wall_y - 1);
                 if (wall_y + 1 < y2) self.divide(x1, wall_y + 1, x2, y2);
             }
         }
 
-        // isConnected как в TypeScript версии (BFS с очередью)
         fn isConnected(self: *const Maze, start_x: i32, start_y: i32, goal_x: i32, goal_y: i32) bool {
             if (start_x < 0 or start_x >= self.width or start_y < 0 or start_y >= self.height or
                 goal_x < 0 or goal_x >= self.width or goal_y < 0 or goal_y >= self.height) {
@@ -173,7 +164,6 @@ pub const MazeGenerator = struct {
                     return true;
                 }
 
-                // Проверяем соседние клетки
                 if (y > 0 and self.get(x, y - 1) == Cell.path) {
                     const idx = @as(usize, @intCast((y - 1) * self.width + x));
                     if (!visited[idx]) {
@@ -211,7 +201,7 @@ pub const MazeGenerator = struct {
         }
 
         fn generate(self: *Maze) void {
-            // Как в TypeScript версии
+
             if (self.width < 5 or self.height < 5) {
                 const mid_y = @divTrunc(self.height, 2);
                 var x: i32 = 0;
@@ -221,9 +211,8 @@ pub const MazeGenerator = struct {
                 return;
             }
 
-            // Сначала рекурсивное деление
             self.divide(0, 0, self.width - 1, self.height - 1);
-            // Затем добавляем случайные пути
+
             self.addRandomPaths();
         }
 
@@ -250,14 +239,13 @@ pub const MazeGenerator = struct {
         defer maze.deinit();
         maze.generate();
 
-        // Проверка связанности как в TypeScript
         const start_x: i32 = 1;
         const start_y: i32 = 1;
         const goal_x = width - 2;
         const goal_y = height - 2;
 
         if (!maze.isConnected(start_x, start_y, goal_x, goal_y)) {
-            // Делаем границы проходимыми
+
             var x: i32 = 0;
             while (x < width) : (x += 1) {
                 var y: i32 = 0;
@@ -272,7 +260,6 @@ pub const MazeGenerator = struct {
         return maze.toBoolGrid();
     }
 
-    // Остальной код остается без изменений
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*MazeGenerator {
         const w = helper.config_i64("MazeGenerator", "w");
         const h = helper.config_i64("MazeGenerator", "h");

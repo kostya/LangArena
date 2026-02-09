@@ -28,7 +28,7 @@ pub const Helper = struct {
     }
 
     pub fn deinit(self: *Helper) void {
-        // Освобождаем память JSON парсера
+
         if (self.config_parsed) |*parsed| {
             parsed.deinit();
         }
@@ -38,16 +38,15 @@ pub const Helper = struct {
         self.last = INIT;
     }
 
-    // Функция для получения положительного остатка как в C++/C#/Rust
     fn positiveMod(a: i32, b: i32) i32 {
         const rem = @rem(a, b);
         return if (rem < 0) rem + b else rem;
     }
 
     pub fn nextInt(self: *Helper, max: i32) i32 {
-        // Используем wrapping операции как в C++ для эмуляции 32-bit переполнения
+
         self.last = positiveMod(self.last *% IA +% IC, IM);
-        // Формула как в C++/Rust: (last * max / IM) с использованием float
+
         return @intFromFloat(@as(f64, @floatFromInt(self.last)) * @as(f64, @floatFromInt(max)) / @as(f64, @floatFromInt(IM)));
     }
 
@@ -56,12 +55,11 @@ pub const Helper = struct {
     }
 
     pub fn nextFloat(self: *Helper, max: f64) f64 {
-        // Точная формула как в C++/C#/Rust
+
         self.last = positiveMod(self.last *% IA +% IC, IM);
         return max * @as(f64, @floatFromInt(self.last)) / @as(f64, @floatFromInt(IM));
     }
 
-    // Хеш-функция (аналогичная Crystal/C++ версии)
     pub fn checksumString(_: *Helper, v: []const u8) u32 {
         var hash: u32 = 5381;
         for (v) |byte| {
@@ -91,16 +89,13 @@ pub const Helper = struct {
         const file = try std.fs.cwd().openFile(actual_filename, .{});
         defer file.close();
 
-        // Читаем весь файл
         const content = try file.readToEndAlloc(self.allocator, std.math.maxInt(usize));
         defer self.allocator.free(content);
 
-        // Освобождаем предыдущий конфиг если был
         if (self.config_parsed) |*parsed| {
             parsed.deinit();
         }
 
-        // Используем новый API для парсинга JSON
         const parsed = try std.json.parseFromSlice(
             std.json.Value,
             self.allocator,
@@ -108,12 +103,10 @@ pub const Helper = struct {
             .{ .ignore_unknown_fields = true }
         );
 
-        // Сохраняем парсер, чтобы он управлял памятью
         self.config_parsed = parsed;
         self.config = parsed.value;
     }
 
-    // Методы для доступа к конфигурации (как в Crystal)
     pub fn config_i64(self: *Helper, class_name: []const u8, field_name: []const u8) i64 {
         if (self.config == .object) {
             if (self.config.object.get(class_name)) |class_config| {
@@ -150,22 +143,6 @@ pub const Helper = struct {
         return "";
     }
 
-    // pub fn getInput(self: *Helper, bench_name: []const u8) ?[]const u8 {
-    //     return self.config_s(bench_name, "input");
-    // }
-
-    // pub fn getExpect(self: *Helper, bench_name: []const u8) ?i64 {
-    //     return self.config_i64(bench_name, "checksum");
-    // }
-
-    // pub fn getInputInt(self: *Helper, bench_name: []const u8) i32 {
-    //     if (self.getInput(bench_name)) |input_str| {
-    //         return std.fmt.parseInt(i32, input_str, 10) catch 0;
-    //     }
-    //     return 0;
-    // }
-
-    // Дополнительные методы для совместимости с C++ версией
     pub fn next_int(self: *Helper, max: i32) i32 {
         return self.nextInt(max);
     }

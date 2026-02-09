@@ -8,7 +8,7 @@ pub const TextRaytracer = struct {
     helper: *Helper,
     w: i32,
     h: i32,
-    result_val: u32, // Изменено на u32
+    result_val: u32, 
 
     const Vector = struct {
         x: f64,
@@ -244,7 +244,7 @@ pub const TextRaytracer = struct {
                     pixel = LUT[idx];
                 }
 
-                self.result_val +%= pixel; // &+= эквивалент как в C++
+                self.result_val +%= pixel; 
             }
         }
     }

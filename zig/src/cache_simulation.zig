@@ -12,20 +12,17 @@ pub const CacheSimulation = struct {
     hits: u32,
     misses: u32,
 
-    // Node для DoublyLinkedList
     const CacheNode = struct {
         key: []const u8,
         next: ?*CacheNode = null,
         prev: ?*CacheNode = null,
     };
 
-    // Внутренняя структура для map
     const CacheEntry = struct {
         value: []const u8,
         node: *CacheNode,
     };
 
-    // FastLRUCache implementation
     const FastLRUCache = struct {
         allocator: std.mem.Allocator,
         capacity: usize,
@@ -48,21 +45,19 @@ pub const CacheSimulation = struct {
         }
 
         fn deinit(self: *FastLRUCache) void {
-            // Освобождаем все узлы
+
             var current = self.lru_head;
             while (current) |node| {
                 const next = node.next;
-                self.allocator.free(node.key); // Освобождаем ключ
+                self.allocator.free(node.key); 
                 self.allocator.destroy(node);
                 current = next;
             }
 
-            // НЕ освобождаем ключи здесь - они уже освобождены выше
-            // Освобождаем только значения из map
             var iter = self.map.iterator();
             while (iter.next()) |entry| {
-                self.allocator.free(entry.value_ptr.value); // Освобождаем только значение
-                // Ключ НЕ освобождаем - он уже освобожден в цикле узлов
+                self.allocator.free(entry.value_ptr.value); 
+
             }
             self.map.deinit();
         }
@@ -101,7 +96,7 @@ pub const CacheSimulation = struct {
 
         fn get(self: *FastLRUCache, key: []const u8) bool {
             if (self.map.getPtr(key)) |entry| {
-                // Move to front (most recent)
+
                 self.removeNode(entry.node);
                 self.prependNode(entry.node);
                 return true;
@@ -111,18 +106,16 @@ pub const CacheSimulation = struct {
 
         fn put(self: *FastLRUCache, key: []const u8, value: []const u8) !void {
             if (self.map.getPtr(key)) |entry| {
-                // Update existing
+
                 self.removeNode(entry.node);
                 self.prependNode(entry.node);
 
-                // Free old value, allocate new
                 self.allocator.free(entry.value);
                 const value_copy = try self.allocator.dupe(u8, value);
                 entry.value = value_copy;
                 return;
             }
 
-            // Remove oldest if at capacity
             if (self.size >= self.capacity) {
                 if (self.lru_tail) |oldest| {
                     if (self.map.fetchRemove(oldest.key)) |old_entry| {
@@ -135,7 +128,6 @@ pub const CacheSimulation = struct {
                 }
             }
 
-            // Insert new
             const key_copy = try self.allocator.dupe(u8, key);
             errdefer self.allocator.free(key_copy);
 
@@ -204,21 +196,17 @@ pub const CacheSimulation = struct {
         const self: *CacheSimulation = @ptrCast(@alignCast(ptr));
         const allocator = self.allocator;
 
-        // Очищаем старый кэш
         if (self.cache) |*cache| {
             cache.deinit();
             self.cache = null;
         }
 
-        // Получаем конфигурацию
         self.values_size = self.helper.config_i64("CacheSimulation", "values");
         self.cache_size = self.helper.config_i64("CacheSimulation", "size");
 
-        // Сбрасываем счетчики
         self.hits = 0;
         self.misses = 0;
 
-        // Создаем новый LRU кэш
         const cache = FastLRUCache.init(allocator, @as(usize, @intCast(self.cache_size))) catch return;
         self.cache = cache;
     }
@@ -234,17 +222,16 @@ pub const CacheSimulation = struct {
         var key_buf: [32]u8 = undefined;
         var val_buf: [32]u8 = undefined;
 
-        // Генерируем ключ
         const key_num = self.helper.nextInt(@as(i32, @intCast(self.values_size)));
         const key = std.fmt.bufPrint(&key_buf, "item_{}", .{key_num}) catch return;
 
         if (cache.get(key)) {
-            // Hit - обновляем значение
+
             self.hits += 1;
             const value = std.fmt.bufPrint(&val_buf, "updated_{}", .{iteration_id}) catch return;
             cache.put(key, value) catch return;
         } else {
-            // Miss - добавляем новое значение
+
             self.misses += 1;
             const value = std.fmt.bufPrint(&val_buf, "new_{}", .{iteration_id}) catch return;
             cache.put(key, value) catch return;
@@ -254,7 +241,6 @@ pub const CacheSimulation = struct {
     fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *CacheSimulation = @ptrCast(@alignCast(ptr));
 
-        // Формула как в C++ версии
         var final_result: u32 = self.result_val;
         final_result = (final_result << 5) + self.hits;
         final_result = (final_result << 5) + self.misses;

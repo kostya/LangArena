@@ -47,7 +47,6 @@ pub const Pidigits = struct {
         const n = self.nn;
         if (n <= 0) return;
 
-        // ТОЧНАЯ КОПИЯ алгоритма из C++ с GMP
         var ns: c.mpz_t = undefined;
         var a: c.mpz_t = undefined;
         var t: c.mpz_t = undefined;
@@ -80,7 +79,6 @@ pub const Pidigits = struct {
             c.mpz_clear(&dq);
         }
 
-        // Инициализация как в C++
         c.mpz_set_ui(&ns, 0);
         c.mpz_set_ui(&a, 0);
         c.mpz_set_ui(&n_val, 1);
@@ -96,48 +94,38 @@ pub const Pidigits = struct {
         while (true) {
             k += 1;
 
-            // t = n * 2
             c.mpz_mul_ui(&t, &n_val, 2);
 
-            // n *= k
             c.mpz_mul_ui(&n_val, &n_val, @as(c_ulong, @intCast(k)));
 
             k1 += 2;
 
-            // a = (a + t) * k1
             c.mpz_add(&a, &a, &t);
             c.mpz_mul_ui(&a, &a, @as(c_ulong, @intCast(k1)));
 
-            // d *= k1
             c.mpz_mul_ui(&d, &d, @as(c_ulong, @intCast(k1)));
 
-            // if (a >= n)
             if (c.mpz_cmp(&a, &n_val) >= 0) {
-                // temp = n * 3 + a
+
                 c.mpz_mul_ui(&temp, &n_val, 3);
                 c.mpz_add(&temp, &temp, &a);
 
-                // q = temp / d
                 c.mpz_tdiv_q(&q, &temp, &d);
 
-                // u = temp % d + n
                 c.mpz_tdiv_r(&u, &temp, &d);
                 c.mpz_add(&u, &u, &n_val);
 
-                // if (d > u)
                 if (c.mpz_cmp(&d, &u) > 0) {
-                    // ns = ns * 10 + q
+
                     c.mpz_mul_ui(&ns, &ns, 10);
                     c.mpz_add(&ns, &ns, &q);
 
                     i += 1;
 
-                    // Получаем цифру q (0-9)
                     const q_digit = @as(u8, @intCast(c.mpz_get_ui(&q)));
                     digit_buffer[buf_idx] = '0' + q_digit;
                     buf_idx += 1;
 
-                    // Каждые 10 цифр выводим строку
                     if (buf_idx == 10) {
                         self.result_str.appendSlice(self.allocator, digit_buffer[0..10]) catch return;
                         self.result_str.appendSlice(self.allocator, "\t:") catch return;
@@ -152,18 +140,15 @@ pub const Pidigits = struct {
 
                     if (i >= n) break;
 
-                    // a = (a - (d * q)) * 10
                     c.mpz_mul(&dq, &d, &q);
                     c.mpz_sub(&a, &a, &dq);
                     c.mpz_mul_ui(&a, &a, 10);
 
-                    // n *= 10
                     c.mpz_mul_ui(&n_val, &n_val, 10);
                 }
             }
         }
 
-        // Оставшиеся цифры
         if (buf_idx > 0) {
             const ns_cstr = c.mpz_get_str(null, 10, &ns);
             defer std.c.free(ns_cstr);

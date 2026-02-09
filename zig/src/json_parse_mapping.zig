@@ -44,25 +44,20 @@ pub const JsonParseMapping = struct {
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *JsonParseMapping = @ptrCast(@alignCast(ptr));
 
-        // Освобождаем старый текст
         if (self.text.len > 0) {
             self.allocator.free(self.text);
             self.text = "";
         }
 
-        // Создаем JsonGenerate как в C++ версии
         var jg = JsonGenerate.init(self.allocator, self.helper) catch return;
         defer jg.deinit();
 
-        // Устанавливаем количество координат
         jg.n = self.helper.config_i64("JsonParseMapping", "coords");
 
-        // Вызываем prepare и run как в C++
         var benchmark = jg.asBenchmark();
         benchmark.prepare();
         benchmark.run(0);
 
-        // Получаем результат и копируем его
         const result = jg.get_result();
         if (result.len > 0) {
             self.text = self.allocator.dupe(u8, result) catch "";
@@ -78,7 +73,6 @@ pub const JsonParseMapping = struct {
             return;
         }
 
-        // Парсим с маппингом на структуру, игнорируя неизвестные поля
         const Coord = struct {
             x: f64,
             y: f64,
@@ -91,7 +85,7 @@ pub const JsonParseMapping = struct {
 
         var parsed = std.json.parseFromSlice(JsonData, self.allocator, json_text, .{
             .ignore_unknown_fields = true,
-            // .allow_trailing_data = true, // Этой опции нет в Zig 0.15.2
+
         }) catch return;
         defer parsed.deinit();
 
@@ -115,13 +109,11 @@ pub const JsonParseMapping = struct {
         const avg_y = y_sum / len;
         const avg_z = z_sum / len;
 
-        // ТОЧНО как в C++: result_val += Helper::checksum_f64(avg.x) + Helper::checksum_f64(avg.y) + Helper::checksum_f64(avg.z);
         const sum1 = self.helper.checksumFloat(avg_x);
         const sum2 = self.helper.checksumFloat(avg_y);
         const sum3 = self.helper.checksumFloat(avg_z);
         const total = sum1 +% sum2 +% sum3;
 
-        // &+= эквивалент
         self.result_val +%= total;
     }
 

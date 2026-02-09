@@ -7,7 +7,7 @@ pub const GraphPathBFS = struct {
     helper: *Helper,
     graph: Graph,
     pairs: std.ArrayList([2]usize),
-    result_val: u32, // Изменено на u32 как в C++
+    result_val: u32, 
     prepared: bool,
 
     const Graph = struct {
@@ -112,11 +112,9 @@ pub const GraphPathBFS = struct {
             const vertices_val = self.helper.config_i64("GraphPathBFS", "vertices");
             const comps = @max(@as(usize, 10), @as(usize, @intCast(vertices_val)) / 10000);
 
-            // Создаем граф
             self.graph = Graph.init(allocator, @as(usize, @intCast(vertices_val)), comps) catch return;
             self.graph.generateRandom(allocator, self.helper) catch return;
 
-            // Генерируем пары
             const pairs_count = @as(usize, @intCast(pairs_val));
             self.pairs.ensureTotalCapacity(allocator, pairs_count) catch return;
 
@@ -124,7 +122,7 @@ pub const GraphPathBFS = struct {
 
             for (0..pairs_count) |_| {
                 if (self.helper.nextInt(100) < 70) {
-                    // В одной компоненте
+
                     const component = @as(usize, @intCast(self.helper.nextInt(10)));
                     const start = component * component_size_for_pairs + @as(usize, @intCast(self.helper.nextInt(@as(i32, @intCast(component_size_for_pairs)))));
                     var end: usize = undefined;
@@ -134,7 +132,7 @@ pub const GraphPathBFS = struct {
                     }
                     self.pairs.appendAssumeCapacity(.{ start, end });
                 } else {
-                    // В разных компонентах
+
                     const c1 = @as(usize, @intCast(self.helper.nextInt(10)));
                     var c2: usize = undefined;
                     while (true) {
@@ -184,12 +182,10 @@ pub const GraphPathBFS = struct {
 
         var total_length: i32 = 0;
 
-        // Используем arena для временных аллокаций
         var arena = std.heap.ArenaAllocator.init(allocator);
         defer arena.deinit();
         const arena_allocator = arena.allocator();
 
-        // Предварительно аллоцировать visited и queue
         const visited = arena_allocator.alloc(u8, self.graph.vertices) catch return;
         var queue = std.ArrayList([2]i32){};
         defer queue.deinit(arena_allocator);
@@ -200,7 +196,6 @@ pub const GraphPathBFS = struct {
             total_length += length;
         }
 
-        // Сложение с переполнением как в C++ (&+=)
         self.result_val +%= @as(u32, @intCast(total_length));
     }
 

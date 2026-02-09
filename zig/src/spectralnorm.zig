@@ -92,11 +92,9 @@ pub const Spectralnorm = struct {
         const self: *Spectralnorm = @ptrCast(@alignCast(ptr));
         const size = @as(usize, @intCast(self.size_val));
 
-        // Очищаем старые данные
         self.u.clearAndFree(self.allocator);
         self.v.clearAndFree(self.allocator);
 
-        // Инициализируем как в C++ версии
         self.u.ensureTotalCapacity(self.allocator, size) catch return;
         self.v.ensureTotalCapacity(self.allocator, size) catch return;
 
@@ -122,14 +120,12 @@ pub const Spectralnorm = struct {
         defer arena.deinit();
         const arena_allocator = arena.allocator();
 
-        // Как в C++ версии: одна итерация power-метода
         const v_new = Spectralnorm.eval_AtA_times_u(arena_allocator, self.u.items) catch return;
         defer arena_allocator.free(v_new);
 
         const u_new = Spectralnorm.eval_AtA_times_u(arena_allocator, v_new) catch return;
         defer arena_allocator.free(u_new);
 
-        // Обновляем векторы как в C++ версии
         self.u.clearRetainingCapacity();
         self.v.clearRetainingCapacity();
 

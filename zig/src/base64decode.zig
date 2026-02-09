@@ -7,7 +7,7 @@ pub const Base64Decode = struct {
     helper: *Helper,
     encoded: []const u8,
     decoded: []u8,
-    decoded_from_run: []u8,  // Добавляем поле для результатов из run
+    decoded_from_run: []u8,  
     result_val: u32,
 
     const vtable = Benchmark.VTable{
@@ -53,23 +53,21 @@ pub const Base64Decode = struct {
             .helper = helper,
             .encoded = encoded_result,
             .decoded = decoded_buf,
-            .decoded_from_run = &.{},  // Инициализируем пустым срезом
+            .decoded_from_run = &.{},  
             .result_val = 0,
         };
         return self;
     }
 
     pub fn deinit(self: *Base64Decode) void {
-        // Освобождаем память, выделенную для decoded_from_run
+
         if (self.decoded_from_run.len > 0) {
             self.allocator.free(self.decoded_from_run);
         }
 
-        // Освобождаем encoded буфер
         const encoded_buf = self.encoded.ptr[0..std.base64.standard.Encoder.calcSize(self.decoded.len)];
         self.allocator.free(encoded_buf);
 
-        // Освобождаем decoded буфер
         self.allocator.free(self.decoded);
         self.allocator.destroy(self);
     }
@@ -85,18 +83,15 @@ pub const Base64Decode = struct {
         const self: *Base64Decode = @ptrCast(@alignCast(ptr));
         const decoder = std.base64.standard.Decoder;
 
-        // Вычисляем размер декодированного результата
         const decode_buf_size = decoder.calcSizeForSlice(self.encoded) catch {
             self.result_val = 0;
             return;
         };
 
-        // Освобождаем предыдущий результат, если он есть
         if (self.decoded_from_run.len > 0) {
             self.allocator.free(self.decoded_from_run);
         }
 
-        // Выделяем память и декодируем
         const decode_buf = self.allocator.alloc(u8, decode_buf_size) catch {
             self.result_val = 0;
             self.decoded_from_run = &.{};
@@ -110,10 +105,8 @@ pub const Base64Decode = struct {
             return;
         };
 
-        // Сохраняем результат декодирования
         self.decoded_from_run = decode_buf;
 
-        // Увеличиваем result_val как в C++ версии
         self.result_val +%= @as(u32, @intCast(decode_buf_size));
     }
 
@@ -121,15 +114,11 @@ pub const Base64Decode = struct {
         const self: *Base64Decode = @ptrCast(@alignCast(ptr));
         var result_buf: [256]u8 = undefined;
 
-        // Берем первые 4 символа из encoded строки
         const first_four_encoded = if (self.encoded.len >= 4) self.encoded[0..4] else self.encoded;
 
-        // В C++ версии checksum использует str3, которая создается в run()
-        // В Zig нам нужно использовать decoded_from_run (аналог str3)
         const actual_decoded = if (self.decoded_from_run.len > 0) self.decoded_from_run else self.decoded;
         const first_four_decoded = if (actual_decoded.len >= 4) actual_decoded[0..4] else actual_decoded;
 
-        // Формируем строку как в C++ версии
         const result_str = std.fmt.bufPrint(
             &result_buf,
             "decode {s}... to {s}...: {}",

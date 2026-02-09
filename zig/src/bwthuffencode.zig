@@ -38,25 +38,21 @@ pub const BWTHuffEncode = struct {
         var sa = try allocator.alloc(usize, n);
         errdefer allocator.free(sa);
 
-        // Инициализация суффиксного массива
         for (0..n) |i| {
             sa[i] = i;
         }
 
-        // Сортировка по первому символу
         std.sort.block(usize, sa, data, struct {
             fn lessThan(data_ptr: []const u8, a: usize, b: usize) bool {
                 return data_ptr[a] < data_ptr[b];
             }
         }.lessThan);
 
-        // Если больше одного элемента, сортируем дальше
         if (n > 1) {
             var rank = try allocator.alloc(i32, n * 2);
             defer allocator.free(rank);
             @memset(rank[n..], -1);
 
-            // Инициализация рангов
             var current_rank: i32 = 0;
             rank[sa[0]] = current_rank;
             for (1..n) |i| {
@@ -68,7 +64,7 @@ pub const BWTHuffEncode = struct {
 
             var k: usize = 1;
             while (k < n) {
-                // Создаем структуру для захвата k
+
                 const SortContext = struct {
                     rank_ptr: []i32,
                     k: usize,
@@ -87,7 +83,6 @@ pub const BWTHuffEncode = struct {
                 const context = SortContext{ .rank_ptr = rank, .k = k };
                 std.sort.block(usize, sa, context, SortContext.lessThan);
 
-                // Пересчет рангов
                 var new_rank = try allocator.alloc(i32, n);
                 defer allocator.free(new_rank);
 
@@ -109,7 +104,6 @@ pub const BWTHuffEncode = struct {
                     new_rank[curr] = current_rank;
                 }
 
-                // Копируем новые ранги в первую половину
                 @memcpy(rank[0..n], new_rank[0..n]);
                 k *= 2;
             }
@@ -155,16 +149,13 @@ pub const BWTHuffEncode = struct {
     };
 
     pub fn buildHuffmanTree(frequencies: []const u32, allocator: std.mem.Allocator) !*HuffmanNode {
-        // Используем ArenaAllocator для дерева, как в старой рабочей версии
+
         var arena = std.heap.ArenaAllocator.init(allocator);
         const arena_allocator = arena.allocator();
-
-        // Не defer arena.deinit() - память будет освобождена когда дерево перестанет использоваться
 
         var heap = std.ArrayList(*HuffmanNode).empty;
         defer heap.deinit(arena_allocator);
 
-        // Создаем листья через arena_allocator
         for (0..256) |i| {
             if (frequencies[i] > 0) {
                 const node = try arena_allocator.create(HuffmanNode);
@@ -179,7 +170,6 @@ pub const BWTHuffEncode = struct {
             }
         }
 
-        // Если только один символ - добавляем фиктивный узел как в C++ версии
         if (heap.items.len == 1) {
             const leaf = heap.orderedRemove(0);
             const dummy = try arena_allocator.create(HuffmanNode);
@@ -200,12 +190,9 @@ pub const BWTHuffEncode = struct {
                 .right = dummy,
             };
 
-            // Возвращаем arena вместе с корнем (arena будет жить пока дерево используется)
-            // В вызывающем коде нужно будет освободить arena когда дерево больше не нужно
             return root;
         }
 
-        // Сортируем по частоте
         std.sort.block(*HuffmanNode, heap.items, {}, struct {
             fn lessThan(context: void, a: *HuffmanNode, b: *HuffmanNode) bool {
                 _ = context;
@@ -213,7 +200,6 @@ pub const BWTHuffEncode = struct {
             }
         }.lessThan);
 
-        // Строим дерево
         while (heap.items.len > 1) {
             const left = heap.orderedRemove(0);
             const right = heap.orderedRemove(0);
@@ -239,7 +225,7 @@ pub const BWTHuffEncode = struct {
 
     fn buildHuffmanCodes(node: *HuffmanNode, code: u32, length: u8, codes: *HuffmanCodes) void {
         if (node.is_leaf) {
-            // Игнорируем фиктивный символ (byte_val == 0) - как в C++
+
             if (length > 0 or node.byte_val != 0) {
                 codes.code_lengths[node.byte_val] = length;
                 codes.codes[node.byte_val] = code;
@@ -255,7 +241,7 @@ pub const BWTHuffEncode = struct {
     }
 
     fn huffmanEncode(data: []const u8, codes: *const HuffmanCodes, allocator: std.mem.Allocator) !EncodedResult {
-        // Вычисляем общее количество бит
+
         var total_bits: u32 = 0;
         for (data) |byte| {
             total_bits += codes.code_lengths[byte];
@@ -280,7 +266,7 @@ pub const BWTHuffEncode = struct {
                 const bits_to_write_u8 = @min(remaining_bits, 8 - bit_pos);
                 const bits_to_write = @as(u5, @intCast(bits_to_write_u8));
                 const shift_u8 = remaining_bits - bits_to_write_u8;
-                const shift = @as(u5, @intCast(shift_u8)); // Приводим shift к u5
+                const shift = @as(u5, @intCast(shift_u8)); 
 
                 const mask = (@as(u32, 1) << bits_to_write) - 1;
                 const bits = (code_remaining >> shift) & mask;
@@ -321,35 +307,30 @@ pub const BWTHuffEncode = struct {
     };
 
     pub fn compress(data: []const u8, allocator: std.mem.Allocator) !CompressedData {
-        // Шаг 1: BWT преобразование
-        var bwt_result = try bwtTransform(data, allocator);
-        defer bwt_result.deinit(allocator); // Всегда освобождаем после использования
 
-        // Шаг 2: Вычисление частот
+        var bwt_result = try bwtTransform(data, allocator);
+        defer bwt_result.deinit(allocator); 
+
         var frequencies: [256]u32 = [_]u32{0} ** 256;
         for (bwt_result.transformed) |byte| {
             frequencies[byte] += 1;
         }
 
-        // Шаг 3: Построение дерева Хаффмана с ArenaAllocator
         var tree_arena = std.heap.ArenaAllocator.init(allocator);
-        defer tree_arena.deinit(); // Всегда освобождаем arena
+        defer tree_arena.deinit(); 
         const tree_allocator = tree_arena.allocator();
 
         const huffman_tree = try buildHuffmanTree(&frequencies, tree_allocator);
 
-        // Шаг 4: Построение кодов Хаффмана
         var huffman_codes = HuffmanCodes{
             .code_lengths = [_]u8{0} ** 256,
             .codes = [_]u32{0} ** 256,
         };
         buildHuffmanCodes(huffman_tree, 0, 0, &huffman_codes);
 
-        // Шаг 5: Кодирование Хаффманом
         var encoded = try huffmanEncode(bwt_result.transformed, &huffman_codes, allocator);
-        defer encoded.deinit(allocator); // Всегда освобождаем после использования
+        defer encoded.deinit(allocator); 
 
-        // Шаг 6: Копируем данные для возврата (берем владение)
         const bwt_copy = try allocator.dupe(u8, bwt_result.transformed);
         const encoded_copy = try allocator.dupe(u8, encoded.data);
 
@@ -415,7 +396,6 @@ pub const BWTHuffEncode = struct {
         var compressed = compress(self.test_data, self.allocator) catch return;
         defer compressed.deinit(self.allocator);
 
-        // Добавляем размер сжатых данных как в C++ версии
         self.result_val +%= @as(u32, @intCast(compressed.encoded_bits.len));
     }
 

@@ -164,7 +164,7 @@ module ClearComments
     content = File.read(filepath, encoding: 'utf-8')
     
     case lang
-    when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 'fsharp', 'dart'
+    when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 'fsharp', 'dart', 'zig'
       # Обычные C-подобные языки
       content.gsub!(/\/\*[\s\S]*?\*\//m, '')
       content.gsub!(/\/\/[^\n]*/, '')

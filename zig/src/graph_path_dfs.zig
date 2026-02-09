@@ -5,10 +5,10 @@ const Helper = @import("helper.zig").Helper;
 pub const GraphPathDFS = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    graph: std.ArrayList(std.ArrayList(usize)), // Изменено на ArrayList
-    pairs: std.ArrayList([2]usize), // Изменено на ArrayList
+    graph: std.ArrayList(std.ArrayList(usize)), 
+    pairs: std.ArrayList([2]usize), 
     result_val: u32,
-    prepared: bool, // Добавлено
+    prepared: bool, 
 
     const vtable = Benchmark.VTable{
         .prepare = prepareImpl,
@@ -59,7 +59,6 @@ pub const GraphPathDFS = struct {
             const vertices = @as(usize, @intCast(vertices_val));
             const comps = @max(@as(usize, 10), vertices / 10000);
 
-            // Очищаем старый граф
             for (self.graph.items) |*neighbors| {
                 neighbors.deinit(allocator);
             }
@@ -67,7 +66,6 @@ pub const GraphPathDFS = struct {
             self.pairs.clearAndFree(allocator);
             self.result_val = 0;
 
-            // Инициализируем списки смежности
             self.graph.ensureTotalCapacity(allocator, vertices) catch return;
             for (0..vertices) |_| {
                 self.graph.append(allocator, .{}) catch return;
@@ -75,7 +73,6 @@ pub const GraphPathDFS = struct {
 
             const component_size = vertices / comps;
 
-            // Генерируем граф
             for (0..comps) |c| {
                 const start_idx = c * component_size;
                 const end_idx = if (c == comps - 1) vertices else (c + 1) * component_size;
@@ -98,7 +95,6 @@ pub const GraphPathDFS = struct {
                 }
             }
 
-            // Генерируем пары
             const pairs_count = @as(usize, @intCast(pairs_val));
             self.pairs.ensureTotalCapacity(allocator, pairs_count) catch return;
 
@@ -131,18 +127,15 @@ pub const GraphPathDFS = struct {
         }
     }
 
-    // DFS для поиска кратчайшего пути (как в C++ версии)
     fn dfsFindPath(self: *const GraphPathDFS, start: usize, target: usize, allocator: std.mem.Allocator) i32 {
         if (start == target) return 0;
 
         const vertices = self.graph.items.len;
 
-        // visited как вектор байтов (uint8_t) как в C++
         const visited = allocator.alloc(u8, vertices) catch return -1;
         defer allocator.free(visited);
         @memset(visited, 0);
 
-        // stack как в C++: std::stack<std::pair<int, int>>
         var stack = std.ArrayList([2]i32){};
         defer stack.deinit(allocator);
 
@@ -152,7 +145,7 @@ pub const GraphPathDFS = struct {
         stack.append(allocator, .{ @as(i32, @intCast(start)), 0 }) catch return -1;
 
         while (stack.items.len > 0) {
-            // pop() возвращает optional, разворачиваем
+
             const current_opt = stack.pop();
             const current = current_opt orelse break;
             const vertex = current[0];
@@ -182,7 +175,6 @@ pub const GraphPathDFS = struct {
 
         var total_length: i32 = 0;
 
-        // Используем arena для временных аллокаций DFS
         var arena = std.heap.ArenaAllocator.init(allocator);
         defer arena.deinit();
         const arena_allocator = arena.allocator();

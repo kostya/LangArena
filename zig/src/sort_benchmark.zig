@@ -29,23 +29,4 @@ pub const SortBenchmark = struct {
     pub fn deinit(self: *SortBenchmark) void {
         self.data.deinit(self.allocator);
     }
-
-    pub fn checkNElements(self: *SortBenchmark, arr: []const i32, n_check: usize) ![]const u8 {
-        var buffer = std.ArrayList(u8){};
-        defer buffer.deinit(self.allocator);
-        const writer = buffer.writer(self.allocator);
-        try writer.writeAll("[");
-        const step = if (arr.len / n_check == 0) 1 else arr.len / n_check;
-        var index: usize = 0;
-        while (index < arr.len) {
-            const slice = arr[index..@min(index + 1, arr.len)];
-            if (slice.len > 0) {
-                try writer.print("{}:{},", .{ index, slice[0] });
-            }
-            index += step;
-        }
-        try writer.writeAll("]\n");
-        const result = try self.allocator.dupe(u8, buffer.items);
-        return result;
-    }
 };

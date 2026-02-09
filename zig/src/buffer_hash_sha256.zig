@@ -59,7 +59,6 @@ pub const BufferHashSHA256 = struct {
     fn simpleSHA256(data: []const u8) [32]u8 {
         var result: [32]u8 = undefined;
 
-        // Упрощенный алгоритм хеширования
         var hashes = [8]u32{
             0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
             0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
@@ -76,7 +75,6 @@ pub const BufferHashSHA256 = struct {
             hashes[hash_idx] = hash;
         }
 
-        // Форматируем результат
         for (0..8) |i| {
             result[i * 4] = @as(u8, @truncate(hashes[i] >> 24));
             result[i * 4 + 1] = @as(u8, @truncate(hashes[i] >> 16));

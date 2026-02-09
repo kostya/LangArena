@@ -1,6 +1,5 @@
 const std = @import("std");
 
-// Импортируем базовые модули
 const benchmark = @import("benchmark.zig");
 const Helper = @import("helper.zig").Helper;
 
@@ -15,9 +14,8 @@ pub fn main() !void {
     var helper = try Helper.init(allocator);
     defer helper.deinit();
 
-    // Получаем аргументы командной строки
     var args = std.process.args();
-    _ = args.next(); // Пропускаем имя программы
+    _ = args.next(); 
 
     const config_path = args.next() orelse "test.js";
     try helper.loadConfig(config_path);

@@ -136,7 +136,6 @@ pub fn createBenchInfo(
     };
 }
 
-// Вспомогательная функция для сравнения строк без учета регистра
 fn toLower(str: []const u8, buffer: []u8) []const u8 {
     for (str, 0..) |c, i| {
         buffer[i] = std.ascii.toLower(c);
@@ -144,7 +143,6 @@ fn toLower(str: []const u8, buffer: []u8) []const u8 {
     return buffer[0..str.len];
 }
 
-// ========== РЕГИСТРАЦИЯ БЕНЧМАРКОВ ==========
 pub const all_benchmarks_list = blk: {
     const list = &[_]BenchInfo{
         createBenchInfo("Pidigits", @import("pidigits.zig").Pidigits),
@@ -272,11 +270,9 @@ pub fn runAllBenchmarks(
         fails,
     });
 
-    // Запись результатов в файл (исправлено для Zig 0.15)
     const results_file = try std.fs.cwd().createFile("/tmp/results.js", .{});
     defer results_file.close();
 
-    // Правильное создание Writer в Zig 0.15
     var buffer: [8192]u8 = undefined;
     var fba = std.io.fixedBufferStream(&buffer);
     var writer = fba.writer();
@@ -296,7 +292,6 @@ pub fn runAllBenchmarks(
     try writer.writeAll("}");
     try writer.writeAll("\n");
 
-    // Записываем буфер в файл
     try results_file.writeAll(fba.getWritten());
 
     if (fails > 0) {
