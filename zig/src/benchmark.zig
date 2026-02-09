@@ -210,6 +210,10 @@ pub fn runAllBenchmarks(
     var ok: u32 = 0;
     var fails: u32 = 0;
 
+    var buffer: [1024]u8 = undefined;
+    var stdout_wrapper = std.fs.File.stdout().writer(&buffer);
+    const stdout = &stdout_wrapper.interface;
+
     for (all_benchmarks_list) |bench_info| {
         const bench_name = bench_info.name;
 
@@ -252,29 +256,34 @@ pub fn runAllBenchmarks(
         const expected_checksum = @as(u32, @intCast(helper.config_i64(bench_name, "checksum")));
 
         if (actual_checksum == expected_checksum) {
-            std.debug.print("OK ", .{});
+            try stdout.print("OK ", .{});
+            try stdout.flush();
             ok += 1;
         } else {
-            std.debug.print("ERR[actual={}, expected={}] ", .{ actual_checksum, expected_checksum });
+            try stdout.print("ERR[actual={}, expected={}] ", .{ actual_checksum, expected_checksum });
+            try stdout.flush();
+
             fails += 1;
         }
 
-        std.debug.print("in {d:.3}s\n", .{time_delta});
+        try stdout.print("in {d:.3}s\n", .{time_delta});
+        try stdout.flush();
         summary_time += time_delta;
     }
 
-    std.debug.print("\nSummary: {d:.4}fs, {}, {}, {}\n", .{
+    try stdout.print("\nSummary: {d:.4}fs, {}, {}, {}\n", .{
         summary_time,
         ok + fails,
         ok,
         fails,
     });
+    try stdout.flush();
 
     const results_file = try std.fs.cwd().createFile("/tmp/results.js", .{});
     defer results_file.close();
 
-    var buffer: [8192]u8 = undefined;
-    var fba = std.io.fixedBufferStream(&buffer);
+    var buffer2: [8192]u8 = undefined;
+    var fba = std.io.fixedBufferStream(&buffer2);
     var writer = fba.writer();
 
     try writer.print("{{", .{});
