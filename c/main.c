@@ -3931,6 +3931,11 @@ void JsonGenerate_run(Benchmark* self, int iteration_id) {
         data->result_str = NULL;
     }
 
+    if (data->doc) {
+        yyjson_mut_doc_free(data->doc);
+        data->doc = NULL;
+    }
+    
     yyjson_mut_doc* doc = yyjson_mut_doc_new(NULL);
     if (!doc) return;
 
