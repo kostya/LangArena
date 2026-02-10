@@ -1437,16 +1437,19 @@ typedef struct {
     uint32_t result_val;
 } FannkuchreduxData;
 
-static void fannkuchredux_swap(int* a, int* b) {
+static inline void fannkuchredux_swap(int* a, int* b) {
     int temp = *a;
     *a = *b;
     *b = temp;
 }
 
 static void fannkuchredux_calculate(int n, int* checksum, int* max_flips) {
-    int* perm1 = malloc(n * sizeof(int));
-    int* perm = malloc(n * sizeof(int));
-    int* count = malloc(n * sizeof(int));
+
+    int perm1[32];
+    int perm[32];
+    int count[32];
+
+    if (n > 32) n = 32;
 
     for (int i = 0; i < n; i++) perm1[i] = i;
 
@@ -1480,10 +1483,7 @@ static void fannkuchredux_calculate(int n, int* checksum, int* max_flips) {
 
         while (1) {
             if (r == n) {
-                free(perm1);
-                free(perm);
-                free(count);
-                return;
+                return; 
             }
 
             int perm0 = perm1[0];
@@ -8232,7 +8232,7 @@ void Decompression_run(Benchmark* self, int iteration_id) {
         free(data->decompressed);
         data->decompressed = NULL;
     }
-    
+
     size_t decompressed_size;
     uint8_t* decompressed = decompress_data(&data->compressed_data, &decompressed_size);
 

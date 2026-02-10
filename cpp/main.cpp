@@ -646,11 +646,14 @@ private:
     uint32_t result_val;
 
     std::pair<int, int> fannkuchredux(int n) {
-        std::vector<int> perm1(n);
+        int perm1[32];  
+        int perm[32];
+        int count[32];
+
+        if (n > 32) n = 32;
+
         for (int i = 0; i < n; i++) perm1[i] = i;
 
-        std::vector<int> perm(n);
-        std::vector<int> count(n);
         int maxFlipsCount = 0, permCount = 0, checksum = 0;
         int r = n;
 
@@ -660,7 +663,9 @@ private:
                 r--;
             }
 
-            std::copy(perm1.begin(), perm1.end(), perm.begin());
+            for (int i = 0; i < n; i++) {
+                perm[i] = perm1[i];
+            }
             int flipsCount = 0;
 
             int k = perm[0];
