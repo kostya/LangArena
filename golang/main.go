@@ -460,11 +460,11 @@ func NewTape() *Tape {
 func (t *Tape) Get() byte { return t.tape[t.pos] }
 
 func (t *Tape) Inc() {
-	t.tape[t.pos] = t.tape[t.pos] + 1 
+	t.tape[t.pos] = t.tape[t.pos] + 1
 }
 
 func (t *Tape) Dec() {
-	t.tape[t.pos] = t.tape[t.pos] - 1 
+	t.tape[t.pos] = t.tape[t.pos] - 1
 }
 
 func (t *Tape) Advance() {
@@ -482,7 +482,7 @@ func (t *Tape) Devance() {
 
 type Program struct {
 	commands []byte
-	jumps    []int 
+	jumps    []int
 }
 
 func NewProgram(text string) *Program {
@@ -530,12 +530,12 @@ func (p *Program) Run() int64 {
 		case '[':
 			if tape.Get() == 0 {
 				pc = p.jumps[pc]
-				continue 
+				continue
 			}
 		case ']':
 			if tape.Get() != 0 {
 				pc = p.jumps[pc]
-				continue 
+				continue
 			}
 		case '.':
 
@@ -1628,7 +1628,7 @@ func (r *Revcomp) revcomp(seq string) string {
 	}
 
 	var result strings.Builder
-	result.Grow(n + (n / 60) + 1) 
+	result.Grow(n + (n / 60) + 1)
 
 	for i := 0; i < n; i += 60 {
 		end := i + 60
@@ -3694,8 +3694,8 @@ const (
 type Grid struct {
 	width  int
 	height int
-	cells  []Cell 
-	buffer []Cell 
+	cells  []Cell
+	buffer []Cell
 }
 
 func NewGrid(width, height int) *Grid {
@@ -3898,11 +3898,11 @@ func (m *Maze) get(x, y int) PCell {
 }
 
 func (m *Maze) add_random_paths() {
-	num_extra_paths := (m.width * m.height) / 20 
+	num_extra_paths := (m.width * m.height) / 20
 
 	for i := 0; i < num_extra_paths; i++ {
-		x := 1 + NextInt(m.width-2)  
-		y := 1 + NextInt(m.height-2) 
+		x := 1 + NextInt(m.width-2)
+		y := 1 + NextInt(m.height-2)
 
 		if m.get(x, y) == Wall &&
 			m.get(x-1, y) == Wall &&
@@ -4113,7 +4113,7 @@ func (m *MazeGenerator) grid_checksum(grid [][]bool) uint32 {
 	for i := 0; i < len(grid); i++ {
 		row := grid[i]
 		for j := 0; j < len(row); j++ {
-			if row[j] { 
+			if row[j] {
 				j_squared := uint32(j * j)
 				hasher = (hasher ^ j_squared) * prime
 			}
@@ -4139,7 +4139,7 @@ type AStarPathfinder struct {
 	result         uint32
 
 	gScoresCache  []int
-	cameFromCache []int 
+	cameFromCache []int
 
 	directions [4][2]int
 }
@@ -4255,7 +4255,7 @@ func (a *AStarPathfinder) findPath() ([][2]int, int) {
 		fScore: a.distance(a.startX, a.startY, a.goalX, a.goalY),
 	})
 
-	directions := a.directions 
+	directions := a.directions
 	nodesExplored := 0
 
 	maxPathLen := width + height
@@ -4267,7 +4267,7 @@ func (a *AStarPathfinder) findPath() ([][2]int, int) {
 
 		if current.X == a.goalX && current.Y == a.goalY {
 
-			path = path[:0] 
+			path = path[:0]
 			x, y := current.X, current.Y
 
 			for x != a.startX || y != a.startY {
@@ -4660,7 +4660,7 @@ func huffmanDecodeCompression(encoded []byte, root *CompressionHuffmanNode, bitC
 
 type CompressionCompressedData struct {
 	bwtResult        CompressionBWTResult
-	frequencies      []int 
+	frequencies      []int
 	encodedBits      []byte
 	originalBitCount int
 }
@@ -4668,7 +4668,7 @@ type CompressionCompressedData struct {
 func compressData(data []byte) CompressionCompressedData {
 	bwtResult := compressionBWTTransform(data)
 
-	frequencies := make([]int, 256) 
+	frequencies := make([]int, 256)
 	for _, b := range bwtResult.transformed {
 		frequencies[b]++
 	}
