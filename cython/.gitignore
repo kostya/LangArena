@@ -1,3 +1,4 @@
 build/
 py_env/
 *.so
+*.c
