@@ -138,9 +138,6 @@ public:
 thread_local int64_t Helper::last = 42;
 
 class Benchmark {
-protected:
-    double time_delta = 0.0;
-
 public:
     virtual ~Benchmark() = default;
     virtual void run(int iteration_id) = 0;
@@ -183,8 +180,6 @@ public:
     int64_t expected_checksum() const {
         return config_val("checksum");
     }
-
-    void set_time_delta(double delta) { time_delta = delta; }
 
     static void all(const std::string& single_bench = "");
 };
@@ -4448,7 +4443,6 @@ void Benchmark::all(const std::string& single_bench) {
         auto end = std::chrono::steady_clock::now();
 
         std::chrono::duration<double> duration = end - start;
-        bench->set_time_delta(duration.count());
         results[name] = duration.count();
 
         if (bench->checksum() == bench->expected_checksum()) {
