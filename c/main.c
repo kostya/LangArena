@@ -3935,7 +3935,7 @@ void JsonGenerate_run(Benchmark* self, int iteration_id) {
         yyjson_mut_doc_free(data->doc);
         data->doc = NULL;
     }
-    
+
     yyjson_mut_doc* doc = yyjson_mut_doc_new(NULL);
     if (!doc) return;
 
@@ -8228,6 +8228,11 @@ void Decompression_prepare(Benchmark* self) {
 void Decompression_run(Benchmark* self, int iteration_id) {
     DecompressionData* data = (DecompressionData*)self->data;
 
+    if (data->decompressed) {
+        free(data->decompressed);
+        data->decompressed = NULL;
+    }
+    
     size_t decompressed_size;
     uint8_t* decompressed = decompress_data(&data->compressed_data, &decompressed_size);
 
