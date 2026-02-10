@@ -25,9 +25,9 @@ public class Fannkuchredux extends Benchmark {
     }
 
     private Result fannkuchredux(int n) {
-        int[] perm1 = new int[n];
-        int[] perm = new int[n];
-        int[] count = new int[n];
+        int[] perm1 = new int[32];
+        int[] perm = new int[32];
+        int[] count = new int[32];
 
         for (int i = 0; i < n; i++) {
             perm1[i] = i;

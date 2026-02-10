@@ -746,9 +746,11 @@ class Fannkuchredux extends Benchmark {
   }
 
   (int, int) _fannkuchredux(int n) {
-    final perm1 = List<int>.generate(n, (i) => i);
-    final perm = List<int>.filled(n, 0);
-    final count = List<int>.filled(n, 0);
+    final perm1 = Int32List(n);
+    for (int i = 0; i < n; i++) perm1[i] = i;
+
+    final perm = Int32List(n);
+    final count = Int32List(n);
 
     int maxFlipsCount = 0;
     int permCount = 0;

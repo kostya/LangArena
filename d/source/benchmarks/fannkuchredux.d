@@ -18,11 +18,15 @@ protected:
     override string className() const { return "Fannkuchredux"; }
 
     auto fannkuchreduxImpl(int n) {
-        int[] perm1 = new int[n];
-        foreach (i; 0 .. n) perm1[i] = i;
+        int[32] perm1_static;
+        int[32] perm_static;
+        int[32] count_static;
 
-        int[] perm = new int[n];
-        int[] count = new int[n];
+        int[] perm1 = perm1_static[0..n];
+        int[] perm = perm_static[0..n];
+        int[] count = count_static[0..n];
+
+        foreach (i; 0 .. n) perm1[i] = i;
         int maxFlipsCount = 0, permCount = 0, checksum = 0;
         int r = n;
 

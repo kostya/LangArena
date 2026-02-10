@@ -24,13 +24,13 @@ pub fn (b Fannkuchredux) name() string {
 }
 
 fn fannkuchredux_impl(n int) (int, int) {
-	mut perm1 := []int{len: n}
-	for i in 0 .. n {
-		perm1[i] = i
-	}
+    mut perm1 := [32]int{}
+    mut perm := [32]int{}
+    mut count := [32]int{}
 
-	mut perm := []int{len: n}
-	mut count := []int{len: n}
+    for i in 0 .. n {
+        perm1[i] = i
+    }
 	mut max_flips_count := 0
 	mut perm_count := 0
 	mut checksum := 0

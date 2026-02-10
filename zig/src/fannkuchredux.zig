@@ -37,46 +37,46 @@ pub const Fannkuchredux = struct {
         return Benchmark.init(self, &vtable, self.helper, "Fannkuchredux");
     }
 
-    inline fn fannkuchredux(n: i32) struct { checksum: i32, max_flips: i32 } {
-        var perm1: [16]i32 = undefined;
-        var perm: [16]i32 = undefined;
-        var count: [16]i32 = undefined;
+    pub fn fannkuchredux(n: i32) struct { checksum: i32, max_flips: i32 } {
+        const n_usize: usize = @as(usize, @intCast(n));
 
-        var i: i32 = 0;
-        while (i < n) : (i += 1) {
-            perm1[@as(usize, @intCast(i))] = i;
-            perm[@as(usize, @intCast(i))] = 0;
-            count[@as(usize, @intCast(i))] = 0;
+        var perm1: [32]i32 = undefined;
+        var perm: [32]i32 = undefined;
+        var count: [32]i32 = undefined;
+
+        for (0..n_usize) |i| {
+            perm1[i] = @as(i32, @intCast(i));
         }
+        @memset(perm[0..n_usize], 0);
+        @memset(count[0..n_usize], 0);
 
         var max_flips: i32 = 0;
         var perm_count: i32 = 0;
         var checksum: i32 = 0;
-        var r = n;
+        var r: i32 = n;
 
         while (true) {
+
             while (r > 1) {
                 count[@as(usize, @intCast(r - 1))] = r;
                 r -= 1;
             }
 
-            i = 0;
-            while (i < n) : (i += 1) {
-                perm[@as(usize, @intCast(i))] = perm1[@as(usize, @intCast(i))];
-            }
+            @memcpy(perm[0..n_usize], perm1[0..n_usize]);
 
             var flips_count: i32 = 0;
             var k = perm[0];
 
             while (k != 0) {
-                const k2 = (k + 1) >> 1;
-                var i_local: i32 = 0;
 
-                while (i_local < k2) : (i_local += 1) {
-                    const j = k - i_local;
+                var i_local: i32 = 0;
+                var j = k;
+                while (i_local < j) {
                     const temp = perm[@as(usize, @intCast(i_local))];
                     perm[@as(usize, @intCast(i_local))] = perm[@as(usize, @intCast(j))];
                     perm[@as(usize, @intCast(j))] = temp;
+                    i_local += 1;
+                    j -= 1;
                 }
 
                 flips_count += 1;
@@ -87,11 +87,7 @@ pub const Fannkuchredux = struct {
                 max_flips = flips_count;
             }
 
-            if ((perm_count & 1) == 0) {
-                checksum += flips_count;
-            } else {
-                checksum -= flips_count;
-            }
+            checksum += if ((perm_count & 1) == 0) flips_count else -flips_count;
 
             while (true) {
                 if (r == n) {
@@ -99,14 +95,15 @@ pub const Fannkuchredux = struct {
                 }
 
                 const perm0 = perm1[0];
-                i = 0;
-                while (i < r) : (i += 1) {
-                    perm1[@as(usize, @intCast(i))] = perm1[@as(usize, @intCast(i + 1))];
-                }
-                perm1[@as(usize, @intCast(r))] = perm0;
 
-                count[@as(usize, @intCast(r))] -= 1;
-                if (count[@as(usize, @intCast(r))] > 0) break;
+                const r_usize = @as(usize, @intCast(r));
+                for (0..r_usize) |i_shift| {
+                    perm1[i_shift] = perm1[i_shift + 1];
+                }
+                perm1[r_usize] = perm0;
+
+                count[r_usize] -= 1;
+                if (count[r_usize] > 0) break;
                 r += 1;
             }
 

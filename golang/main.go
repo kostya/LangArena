@@ -708,13 +708,12 @@ func (f *Fannkuchredux) Prepare() {
 }
 
 func (f *Fannkuchredux) fannkuchredux(n int) (int, int) {
-	perm1 := make([]int, n)
+	var perm1 [32]int
 	for i := range perm1 {
-		perm1[i] = i
+	    perm1[i] = i
 	}
-
-	perm := make([]int, n)
-	count := make([]int, n)
+	perm := [32]int{}
+	count := [32]int{}
 	maxFlipsCount := 0
 	permCount := 0
 	checksum := 0

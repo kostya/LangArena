@@ -14,9 +14,9 @@ final class Fannkuchredux: BenchmarkProtocol {
     }
 
     private func fannkuchredux(_ n: Int) -> Result {
-        var perm1 = Array(0..<32)
-        var perm = Array(0..<32)
-        var count = Array(0..<32)
+        var perm1 = ContiguousArray(0..<n)
+        var perm = ContiguousArray(repeating: 0, count: n)
+        var count = ContiguousArray(repeating: 0, count: n)
         var maxFlipsCount = 0
         var permCount = 0
         var checksum = 0

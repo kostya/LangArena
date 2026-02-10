@@ -27,9 +27,7 @@ class Fannkuchredux : Benchmark() {
                 r -= 1
             }
 
-            for (i in 0 until n) {
-                perm[i] = perm1[i]
-            }
+            System.arraycopy(perm1, 0, perm, 0, n) 
 
             var flipsCount = 0
             var k = perm[0]

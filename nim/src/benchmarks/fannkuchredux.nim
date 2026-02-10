@@ -16,12 +16,13 @@ method prepare(self: Fannkuchredux) =
   self.resultVal = 0
 
 proc fannkuchredux(n: int): (int, int) =
-  var perm1 = newSeq[int](n)
+  var 
+    perm1: array[32, int]
+    perm: array[32, int]
+    count: array[32, int]
+
   for i in 0..<n:
     perm1[i] = i
-
-  var perm = newSeq[int](n)
-  var count = newSeq[int](n)
   var maxFlipsCount = 0
   var permCount = 0
   var checksum = 0

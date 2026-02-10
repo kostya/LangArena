@@ -906,9 +906,11 @@ export class Fannkuchredux extends Benchmark {
   }
 
   private fannkuchredux(n: number): [number, number] {
-    const perm1: number[] = Array.from({ length: n }, (_, i) => i);
-    const perm: number[] = new Array(n).fill(0);
-    const count: number[] = new Array(n).fill(0);
+    const perm1 = new Int32Array(n);
+    for (let i = 0; i < n; ++i) perm1[i] = i;
+
+    const perm = new Int32Array(n);
+    const count = new Int32Array(n);
 
     let maxFlipsCount = 0;
     let permCount = 0;

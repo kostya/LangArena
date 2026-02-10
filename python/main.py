@@ -3769,7 +3769,6 @@ def main():
 
     with open("/tmp/recompile_marker", "w") as file:
         file.write("RECOMPILE_MARKER_0")
-        
 
 if __name__ == '__main__':
     main()

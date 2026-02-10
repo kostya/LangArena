@@ -15,9 +15,9 @@ name(b::Fannkuchredux)::String = "Fannkuchredux"
 function run(b::Fannkuchredux, iteration_id::Int64)
     n = Int32(b.n)
 
-    perm1 = MVector{16, Int32}(undef)
-    perm = MVector{16, Int32}(undef)
-    count = MVector{16, Int32}(undef)
+    perm1 = MVector{32, Int32}(undef)
+    perm = MVector{32, Int32}(undef)
+    count = MVector{32, Int32}(undef)
 
     i = Int32(0)
     while i < n
