@@ -1,0 +1,4 @@
+#!/bin/bash
+sh build.sh
+python3 run.py ../test.js $@
+
