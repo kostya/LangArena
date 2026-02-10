@@ -49,7 +49,6 @@ module Helper
   end
 
   def self.checksum(v : String) : UInt32
-
     hash = 5381_u32
     v.each_byte do |byte|
       hash = ((hash << 5) &+ hash) &+ byte
@@ -58,7 +57,6 @@ module Helper
   end
 
   def self.checksum(v : Bytes) : UInt32
-
     hash = 5381_u32
     v.each do |byte|
       hash = ((hash << 5) &+ hash) &+ byte
@@ -319,7 +317,6 @@ class BrainfuckArray < Benchmark
   end
 
   private def parse_commands(source : String) : Array(Char)?
-
     source.chars
       .select(&.ascii?)
       .select { |c| "+-<>[].,".includes?(c) }
@@ -377,7 +374,6 @@ class BrainfuckArray < Benchmark
           next
         end
       when '.'
-
         result <<= 2
         result &+= tape[tape_ptr]
       end
@@ -903,7 +899,6 @@ class Matmul16T < Matmul4T
 end
 
 class Nbody < Benchmark
-
   SOLAR_MASS    = 4 * Math::PI**2
   DAYS_PER_YEAR = 365.24
 
@@ -1423,9 +1418,7 @@ class JsonParseMapping < Benchmark
 end
 
 class Primes < Benchmark
-
   class Node
-
     property children : Array(Node | Nil)
     property terminal : Bool
 
@@ -1467,7 +1460,6 @@ class Primes < Benchmark
     end
 
     def to_list : Array(Int32)
-
       capacity = (@limit / Math.log(@limit)).to_i rescue @limit // 10
       result = Array(Int32).new(capacity)
 
@@ -1516,7 +1508,6 @@ class Primes < Benchmark
   end
 
   private def find_primes_with_prefix(trie : Node, prefix : Int32) : Array(Int32)
-
     node = trie
     prefix_value = 0
     temp_prefix = prefix
@@ -1570,7 +1561,6 @@ class Primes < Benchmark
   end
 
   def run(iteration_id)
-
     primes = Sieve.new(@n.to_i32).calculate.to_list
 
     trie = generate_trie(primes)
@@ -1592,7 +1582,6 @@ class Primes < Benchmark
 end
 
 class Noise < Benchmark
-
   record Vec2, x : Float64, y : Float64
 
   @[AlwaysInline]
@@ -1698,7 +1687,6 @@ class Noise < Benchmark
 end
 
 class TextRaytracer < Benchmark
-
   record Vector, x : Float64, y : Float64, z : Float64 do
     @[AlwaysInline]
     def scale(s)
@@ -1858,7 +1846,6 @@ class TextRaytracer < Benchmark
 end
 
 class NeuralNet < Benchmark
-
   class Synapse
     property weight : Float64
     property prev_weight : Float64
@@ -2089,7 +2076,6 @@ class SortMerge < SortBenchmark
   end
 
   private def merge(arr, temp, left, mid, right)
-
     (left..right).each do |i|
       temp[i] = arr[i]
     end
@@ -2114,7 +2100,6 @@ class SortMerge < SortBenchmark
       i += 1
       k += 1
     end
-
   end
 end
 
@@ -2159,7 +2144,6 @@ class GraphPathBenchmark < Benchmark
           add_edge(u, v) unless u == v
         end
       end
-
     end
 
     def same_component?(u, v)
@@ -2183,9 +2167,7 @@ class GraphPathBenchmark < Benchmark
     component_size = @graph.vertices // 10
 
     n.times do |i|
-
       if Helper.next_int(100) < 70
-
         component = Helper.next_int(10)
         start = component * component_size + Helper.next_int(component_size)
 
@@ -2197,7 +2179,6 @@ class GraphPathBenchmark < Benchmark
           end
         end
       else
-
         c1 = Helper.next_int(10)
         c2 = Helper.next_int(10)
         while c2 == c1
@@ -2296,7 +2277,6 @@ class GraphPathDFS < GraphPathBenchmark
 
       @graph.adj[v].each do |neighbor|
         if neighbor == target
-
           if dist + 1 < best_path
             best_path = dist + 1
           end
@@ -2349,7 +2329,6 @@ class GraphPathDijkstra < GraphPathBenchmark
       end
 
       if u == -1 || min_dist == INF || u == target
-
         result = (u == target) ? min_dist : -1
 
         return result
@@ -2381,7 +2360,6 @@ class BufferHashBenchmark < Benchmark
   end
 
   def prepare
-
     @data.size.times { |i| @data[i] = Helper.next_int(256).to_u8 }
   end
 
@@ -2425,7 +2403,6 @@ class BufferHashSHA256 < BufferHashBenchmark
   end
 
   def test : UInt32
-
     bytes = SimpleSHA256.digest(@data)
     ptr = bytes.to_unsafe.as(Pointer(UInt32))
     ptr.value
@@ -2434,7 +2411,6 @@ end
 
 class BufferHashCRC32 < BufferHashBenchmark
   def test : UInt32
-
     crc = 0xFFFFFFFFu32
 
     @data.each do |byte|
@@ -2483,7 +2459,6 @@ class CacheSimulation < Benchmark
 
     def put(key : K, value : V)
       if node = @cache[key]?
-
         node.value = value
         move_to_front(node)
         return
@@ -2507,7 +2482,6 @@ class CacheSimulation < Benchmark
     end
 
     private def move_to_front(node : Node(K, V))
-
       return if node == @head
 
       if node.prev
@@ -2584,7 +2558,6 @@ class CacheSimulation < Benchmark
 end
 
 class CalculatorAst < Benchmark
-
   class Node
   end
 
@@ -2893,7 +2866,6 @@ class CalculatorInterpreter < Benchmark
 end
 
 class GameOfLife < Benchmark
-
   DEAD  = 0_u8
   ALIVE = 1_u8
 
@@ -3040,7 +3012,6 @@ class GameOfLife < Benchmark
   end
 
   def prepare
-
     width = @width
     height = @height
     grid = @grid
@@ -3108,7 +3079,6 @@ class MazeGenerator < Benchmark
     end
 
     private def add_random_paths
-
       num_extra_paths = (@width * @height) // 20
 
       num_extra_paths.times do
@@ -3137,7 +3107,6 @@ class MazeGenerator < Benchmark
                 width_for_hole == 0 || height_for_hole == 0
 
       if width > height
-
         wall_range = {width_for_wall // 2, 1}.max
         wall_offset = wall_range > 0 ? (Helper.next_int(wall_range)) * 2 : 0
         wall_x = x1 + 2 + wall_offset
@@ -3155,7 +3124,6 @@ class MazeGenerator < Benchmark
         divide(x1, y1, wall_x - 1, y2) if wall_x > x1 + 1
         divide(wall_x + 1, y1, x2, y2) if wall_x + 1 < x2
       else
-
         wall_range = {height_for_wall // 2, 1}.max
         wall_offset = wall_range > 0 ? (Helper.next_int(wall_range)) * 2 : 0
         wall_y = y1 + 2 + wall_offset
@@ -3296,7 +3264,6 @@ class AStarPathfinder < Benchmark
     include Comparable(Node)
 
     def <=>(other : Node) : Int32
-
       cmp = f_score <=> other.f_score
       return cmp unless cmp == 0
 
@@ -3480,7 +3447,6 @@ class AStarPathfinder < Benchmark
 end
 
 class BWTHuffEncode < Benchmark
-
   struct BWTResult
     property transformed : Bytes
     property original_idx : Int32
@@ -3510,7 +3476,6 @@ class BWTHuffEncode < Benchmark
     end
 
     if n > 1
-
       rank = Array.new(n, 0)
       current_rank = 0
       prev_char = input[sa[0]]
@@ -3525,7 +3490,6 @@ class BWTHuffEncode < Benchmark
 
       k = 1
       while k < n
-
         pairs = Array.new(n) { |i| {rank[i], rank[(i + k) % n]} }
 
         sa.sort! do |a, b|
@@ -3618,7 +3582,6 @@ class BWTHuffEncode < Benchmark
   end
 
   class PriorityQueue
-
     @heap : Array(HuffmanNode)
 
     def initialize
@@ -3753,7 +3716,6 @@ class BWTHuffEncode < Benchmark
   end
 
   private def huffman_encode(data : Bytes, huffman_codes : HuffmanCodes) : EncodedResult
-
     result = Bytes.new(data.size * 2)
     current_byte = 0_u8
     bit_pos = 0
@@ -3810,7 +3772,6 @@ class BWTHuffEncode < Benchmark
 
         if current_node.is_leaf
           if current_node.byte_val != 0
-
             if result_idx >= result.size
               new_size = result.size * 2
               new_result = Bytes.new(new_size)
@@ -3840,7 +3801,6 @@ class BWTHuffEncode < Benchmark
   end
 
   private def compress(data : Bytes) : CompressedData
-
     bwt_result = bwt_transform(data)
 
     frequencies = Array.new(256, 0)
@@ -3864,7 +3824,6 @@ class BWTHuffEncode < Benchmark
   end
 
   private def decompress(compressed : CompressedData) : Bytes
-
     huffman_tree = build_huffman_tree(compressed.frequencies)
 
     decoded = huffman_decode(
