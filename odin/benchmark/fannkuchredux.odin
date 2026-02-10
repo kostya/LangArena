@@ -9,16 +9,14 @@ Fannkuchredux :: struct {
 }
 
 fannkuchredux_run :: proc(n: int) -> (checksum: int, max_flips: int) {
-    perm1 := make([]int, n)
-    defer delete(perm1)
+    n := min(n, 32)
+    perm1: [32]int
+    perm: [32]int
+    count: [32]int
+
     for i in 0..<n {
         perm1[i] = i
     }
-
-    perm := make([]int, n)
-    defer delete(perm)
-    count := make([]int, n)
-    defer delete(count)
 
     max_flips = 0
     perm_count := 0
@@ -31,10 +29,13 @@ fannkuchredux_run :: proc(n: int) -> (checksum: int, max_flips: int) {
             r -= 1
         }
 
-        copy(perm, perm1)
-        flips_count := 0
+        for i in 0..<n {
+            perm[i] = perm1[i]
+        }
 
+        flips_count := 0
         k := perm[0]
+
         for k != 0 {
             k2 := (k + 1) >> 1
             for i in 0..<k2 {
