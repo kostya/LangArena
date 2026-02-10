@@ -930,7 +930,7 @@ class Mandelbrot(Benchmark):
                     bit_num = 0
 
     def checksum(self) -> int:
-        return Helper.checksum_bytes(self._result_bytes)
+        return Helper.checksum_bytes(bytes(self._result_bytes))
 
 class MatmulBase(Benchmark):
     def __init__(self):
