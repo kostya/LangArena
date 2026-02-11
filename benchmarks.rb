@@ -66,6 +66,7 @@ LANG_MASKS = {
   'fsharp' => ['./fsharp', ['.fs'], ['bin', 'obj']],
   'dart' => ['./dart', ['.dart'], ['target']],
   'python' => ['./python', ['.py'], ['__pycache__']],
+  'clojure' => ['./clojure', ['.clj'], ['.cpcache']],
 }
 
 def check_source_files(verbose = false)
@@ -214,7 +215,15 @@ module ClearComments
       content.gsub!(/'''[^']*(?:'(?!''))?[^']*'''/m, '')
       
       content.gsub!(/#[^\n]*/, '')
-                
+        
+    when 'clojure'
+      content.gsub!(/;[^\n]*/, '')
+
+      content.gsub!(/#_\([^()]*(?:\([^()]*\)[^()]*)*\)/m, '')
+      content.gsub!(/#_[^\s;()]+/, '')
+      
+      content.gsub!(/^[ \t]+$/, '')
+
     when 'nim'
       content.gsub!(/#[^\n]*/, '')
       content.gsub!(/#\[[\s\S]*?\]\#/m, '')

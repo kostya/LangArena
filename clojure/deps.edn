@@ -1,0 +1,4 @@
+{:paths ["src"]
+ :deps {cheshire/cheshire {:mvn/version "5.11.0"}}
+ :aliases {:run {:main-opts ["-m" "main"]
+                 :exec-fn main/-main}}}
