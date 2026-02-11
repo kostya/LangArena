@@ -2,7 +2,7 @@ x-shared: &shared
   tty: true
   stdin_open: true
   volumes:
-    - .:/src  # ← ЭТО ПРАВИЛЬНО для честных бенчмарков
+    - .:/src
   working_dir: /src
   shm_size: '4gb'
   deploy:
@@ -17,7 +17,7 @@ services:
   base:
     <<: *shared
     image: benchmarks:base
-    build: 
+    build:
       dockerfile: docker/base
 
   crystal:
@@ -27,14 +27,14 @@ services:
     build:
       dockerfile: docker/crystal
       args:
-        # https://github.com/crystal-lang/crystal/releases
+
         version: 1.19.1
     volumes:
       - .:/src
-      # Dependencies (shards) - НЕ очищаем
-      - ./cache/deps/crystal/lib:/usr/local/crystal/lib  # Установленные shards
-      - ./cache/deps/crystal/shards:/root/.cache/shards  # Кэш скачанных shards
-      # Build cache - очищаем для cold compile
+
+      - ./cache/deps/crystal/lib:/usr/local/crystal/lib
+      - ./cache/deps/crystal/shards:/root/.cache/shards
+
       - ./cache/build/crystal/target:/src/crystal/target
       - ./cache/build/crystal/cache:/root/.cache/crystal
     depends_on:
@@ -47,61 +47,56 @@ services:
     build:
       dockerfile: docker/rust
       args:
-        # https://github.com/rust-lang/rust/releases/
+
         version: 1.93.0
     volumes:
       - .:/src
-      # Dependencies cache - НЕ очищаем
+
       - ./cache/deps/rust/registry:/root/.cargo/registry
       - ./cache/deps/rust/git:/root/.cargo/git
-      # Build cache - очищаем для cold compile
+
       - ./cache/build/rust/target:/src/rust/target
     depends_on:
       - base
 
   zig:
-    <<: *shared  
+    <<: *shared
     image: benchmarks:zig
     working_dir: /src/zig
-    build: 
+    build:
       dockerfile: docker/zig
       args:
-        # https://ziglang.org/download/
+
         version: 0.15.2
     volumes:
       - .:/src
-      
-      # ============= ЗАВИСИМОСТИ =============
-      # Zig глобальный кэш (если будешь использовать zig fetch)
-      - ./cache/deps/zig/global:/root/.cache/zig      
-      
-      # ============= БИЛД КЭШ =============
-      # Основной кэш сборки Zig (ОЧИЩАЕМ для cold compile)
+
+      - ./cache/deps/zig/global:/root/.cache/zig
+
       - ./cache/build/zig/build-cache:/src/zig/.zig-cache
       - ./cache/build/zig/out:/src/zig/zig-out
       - ./cache/build/zig/build:/src/zig/zig-build
       - ./cache/build/zig/local:/root/.local/share/zig
-      
-      # Временные файлы компиляции
+
       - ./cache/build/zig/tmp:/tmp/zig-cache
-      
+
     environment:
-      # Настраиваем пути к кэшам
+
       - ZIG_GLOBAL_CACHE_DIR=/root/.cache/zig
       - ZIG_LOCAL_CACHE_DIR=/root/.local/share/zig
       - ZIG_BUILD_CACHE_DIR=/src/zig/.zig-cache
-      
+
     depends_on:
       - base
 
   base_clang:
-    <<: *shared  
+    <<: *shared
     image: benchmarks:base_clang
     working_dir: /src
-    build: 
+    build:
       dockerfile: docker/base_clang
       args:
-        # https://github.com/llvm/llvm-project/releases
+
         version: 21
     depends_on:
       - base
@@ -110,7 +105,7 @@ services:
     <<: *shared
     image: benchmarks:clang_c
     working_dir: /src/c
-    build: 
+    build:
       dockerfile: docker/clang_c
     volumes:
       - .:/src
@@ -123,7 +118,7 @@ services:
     <<: *shared
     image: benchmarks:clang_cpp
     working_dir: /src/cpp
-    build: 
+    build:
       dockerfile: docker/clang_cpp
     volumes:
       - .:/src
@@ -139,18 +134,18 @@ services:
     build:
       dockerfile: docker/dotnet
       args:
-        # https://dotnet.microsoft.com/en-us/download/dotnet
+
         version: "10.0"
     volumes:
       - .:/src
-      # Dependencies cache - НЕ очищаем
+
       - ./cache/deps/dotnet/nuget:/root/.nuget/packages
       - ./cache/deps/dotnet/sdk:/root/.dotnet/sdk
       - ./cache/deps/dotnet/tools:/root/.dotnet/tools
-      # Build cache - очищаем для cold compile
+
       - ./cache/build/dotnet/obj:/src/csharp/obj
       - ./cache/build/dotnet/bin:/src/csharp/bin
-      - ./cache/build/dotnet/packages:/src/csharp/packages  # Local packages
+      - ./cache/build/dotnet/packages:/src/csharp/packages
     environment:
       - DOTNET_CLI_TELEMETRY_OPTOUT=1
       - DOTNET_NOLOGO=1
@@ -165,14 +160,14 @@ services:
       dockerfile: docker/fsharp
     volumes:
       - .:/src
-      # Dependencies cache - НЕ очищаем
+
       - ./cache/deps/fsharp/nuget:/root/.nuget/packages
       - ./cache/deps/fsharp/sdk:/root/.dotnet/sdk
       - ./cache/deps/fsharp/tools:/root/.dotnet/tools
-      # Build cache - очищаем для cold compile
+
       - ./cache/build/fsharp/obj:/src/fsharp/obj
       - ./cache/build/fsharp/bin:/src/fsharp/bin
-      - ./cache/build/fsharp/packages:/src/fsharp/packages  # Local packages
+      - ./cache/build/fsharp/packages:/src/fsharp/packages
     environment:
       - DOTNET_CLI_TELEMETRY_OPTOUT=1
       - DOTNET_NOLOGO=1
@@ -180,42 +175,42 @@ services:
       - dotnet
 
   base_gcc:
-    <<: *shared  
+    <<: *shared
     image: benchmarks:base_gcc
     working_dir: /src
-    build: 
+    build:
       dockerfile: docker/base_gcc
       args:
-        # https://gcc.gnu.org/releases.html
+
         version: "14"
     depends_on:
-      - base      
+      - base
 
   gcc_c:
     <<: *shared
     image: benchmarks:gcc_c
     working_dir: /src/c
-    build: 
+    build:
       dockerfile: docker/gcc_c
     volumes:
       - .:/src
       - ./cache/deps/gcc_c/deps:/src/c/deps
       - ./cache/build/gcc_c/target:/src/c/target
     depends_on:
-      - base_gcc 
+      - base_gcc
 
   gcc_cpp:
     <<: *shared
     image: benchmarks:gcc_cpp
     working_dir: /src/cpp
-    build: 
+    build:
       dockerfile: docker/gcc_cpp
     volumes:
       - .:/src
       - ./cache/deps/gcc_cpp/deps:/src/cpp/deps
       - ./cache/build/gcc_cpp/target:/src/cpp/target
     depends_on:
-      - base_gcc 
+      - base_gcc
 
   gccgo:
     <<: *shared
@@ -227,7 +222,7 @@ services:
         version: "14"
     volumes:
       - .:/src
-      - ./cache/build/gccgo/build:/tmp/go-build  # GCCGO build cache
+      - ./cache/build/gccgo/build:/tmp/go-build
       - ./cache/build/gccgo/target:/src/golang/target
     depends_on:
       - base_gcc
@@ -239,22 +234,22 @@ services:
     build:
       dockerfile: docker/golang
       args:
-        # https://go.dev/dl/
+
         version: "1.25.6"
     volumes:
       - .:/src
-      # Dependencies cache - НЕ очищаем
+
       - ./cache/deps/go/mod-cache:/go/pkg/mod
-      - ./cache/deps/go/sumdb:/go/pkg/sumdb  # Добавил checksum DB
-      # Build cache - очищаем для cold compile
+      - ./cache/deps/go/sumdb:/go/pkg/sumdb
+
       - ./cache/build/go/build-cache:/root/.cache/go-build
-      - ./cache/build/go/bin-cache:/go/bin  # Скомпилированные бинарники
+      - ./cache/build/go/bin-cache:/go/bin
       - ./cache/build/go/target:/src/golang/target
     environment:
       - GOCACHE=/root/.cache/go-build
-      - GOMODCACHE=/go/pkg/mod   
+      - GOMODCACHE=/go/pkg/mod
     depends_on:
-      - base     
+      - base
 
   swift:
     <<: *shared
@@ -263,43 +258,36 @@ services:
     build:
       dockerfile: docker/swift
       args:
-        # https://github.com/swiftlang/swift/releases
+
         version: "6.2.3"
     volumes:
       - .:/src
-      
-      # ============= DEPS (НЕ очищаем) =============
-      # Кэш пакетов SPM (metadata)
+
       - ./cache/deps/swift/package-cache:/root/.swiftpm/package-cache
-      
-      # СКАЧАННЫЕ репозитории зависимостей
+
       - ./cache/deps/swift/checkouts:/src/swift/.build/checkouts
-      
-      # Клонированные git репозитории
+
       - ./cache/deps/swift/repositories:/src/swift/.build/repositories
-      
-      # ============= BUILD (очищаем) =============
-      # Скомпилированные артефакты
+
       - ./cache/build/swift/artifacts:/src/swift/.build/artifacts
-      
-      # Swift compiler cache
+
       - ./cache/build/swift/cache:/root/.cache/swift
-      
+
     environment:
       - SWIFT_PACKAGE_CACHE_DIR=/root/.swiftpm/package-cache
     depends_on:
-      - base     
+      - base
 
   nodejs:
-    <<: *shared  
+    <<: *shared
     image: benchmarks:nodejs
-    build: 
+    build:
       dockerfile: docker/nodejs
       args:
-        # https://nodejs.org/en/about/previous-releases
+
         version: "25.x"
     depends_on:
-      - base   
+      - base
 
   java:
     <<: *shared
@@ -308,19 +296,19 @@ services:
     build:
       dockerfile: docker/java
       args:
-        # https://www.java.com/releases/
+
         version: "25"
         mavenversion: 3.9.12
     volumes:
       - .:/src
-      # Dependencies cache - НЕ очищаем
-      - ./cache/deps/java/maven:/root/.m2/repository  # Только repository
-      - ./cache/deps/java/maven-wrapper:/root/.m2/wrapper  # Maven wrapper dist
-      # Build cache - очищаем для cold compile
+
+      - ./cache/deps/java/maven:/root/.m2/repository
+      - ./cache/deps/java/maven-wrapper:/root/.m2/wrapper
+
       - ./cache/build/java/target:/src/java/target
-      - ./cache/build/java/maven-build:/root/.m2/build-cache  # Maven build cache
+      - ./cache/build/java/maven-build:/root/.m2/build-cache
     depends_on:
-      - base   
+      - base
 
   kotlin:
     <<: *shared
@@ -329,31 +317,24 @@ services:
     build:
       dockerfile: docker/kotlin
       args:
-        # https://kotlinlang.org/docs/releases.html        
+
         version: "2.3.0"
-        # https://gradle.org/releases/
+
         gradleversion: 9.2.1
     volumes:
       - .:/src
-      
-      # ============= DEPS (НЕ очищаем) =============
-      # Зависимости
+
       - ./cache/deps/kotlin/gradle-modules:/root/.gradle/caches/modules-2
       - ./cache/deps/kotlin/gradle-wrapper:/root/.gradle/wrapper/dists
       - ./cache/deps/kotlin/maven:/root/.m2/repository
-      
-      # Gradle системные кэши
+
       - ./cache/deps/kotlin/gradle-build:/root/.gradle/caches/build-cache-1
       - ./cache/deps/kotlin/gradle-transforms:/root/.gradle/caches/transforms-3
-      
-      # Daemon логи (можно в deps или не мапить вообще)
+
       - ./cache/deps/kotlin/daemon:/root/.gradle/daemon
-      
-      # ============= BUILD (очищаем для cold) =============
-      # Артефакты проекта
+
       - ./cache/build/kotlin/build:/src/kotlin/build
-      
-      # Kotlin compiler cache
+
       - ./cache/build/kotlin/kotlin-cache:/root/.kotlin
     depends_on:
       - java
@@ -365,17 +346,17 @@ services:
     build:
       dockerfile: docker/graalvm
       args:
-        # https://www.graalvm.org/release-notes/
+
         version: "25.0.1"
         mavenversion: 3.9.12
     volumes:
       - .:/src
-      # Dependencies cache - НЕ очищаем
+
       - ./cache/deps/graalvm/maven-graalvm:/root/.m2/repository
-      # Build cache - очищаем для cold compile
+
       - ./cache/build/graalvm/target:/src/java/target
       - ./cache/build/graalvm/native:/root/.cache/graalvm
-      - ./cache/build/graalvm/jvmci:/root/.cache/jvmci  # JVMCI cache       
+      - ./cache/build/graalvm/jvmci:/root/.cache/jvmci
     depends_on:
       - base
 
@@ -386,31 +367,24 @@ services:
     build:
       dockerfile: docker/kotlin-graalvm
       args:
-        # https://kotlinlang.org/docs/releases.html
+
         version: "2.3.0"
-        # https://gradle.org/releases/
+
         gradleversion: 9.2.1
     volumes:
       - .:/src
-      
-      # ============= DEPS (НЕ очищаем) =============
-      # Зависимости
+
       - ./cache/deps/kotlin/gradle-modules:/root/.gradle/caches/modules-2
       - ./cache/deps/kotlin/gradle-wrapper:/root/.gradle/wrapper/dists
       - ./cache/deps/kotlin/maven:/root/.m2/repository
-      
-      # Gradle системные кэши
+
       - ./cache/deps/kotlin/gradle-build:/root/.gradle/caches/build-cache-1
       - ./cache/deps/kotlin/gradle-transforms:/root/.gradle/caches/transforms-3
-      
-      # Daemon логи (можно в deps или не мапить вообще)
+
       - ./cache/deps/kotlin/daemon:/root/.gradle/daemon
-      
-      # ============= BUILD (очищаем для cold) =============
-      # Артефакты проекта
+
       - ./cache/build/kotlin/build:/src/kotlin/build
-      
-      # Kotlin compiler cache
+
       - ./cache/build/kotlin/kotlin-cache:/root/.kotlin
     depends_on:
       - graalvm
@@ -422,17 +396,17 @@ services:
     build:
       dockerfile: docker/typescript
       args:
-        # https://www.npmjs.com/package/typescript
+
         version: "5.9.3"
     volumes:
       - .:/src
-      # Dependencies cache - НЕ очищаем
+
       - ./cache/deps/typescript/npm-cache:/root/.npm
-      - ./cache/deps/typescript/npm-packages-global:/usr/local/lib/node_modules  # Global packages
+      - ./cache/deps/typescript/npm-packages-global:/usr/local/lib/node_modules
       - ./cache/deps/typescript/node-modules:/src/typescript/node_modules
-      # Build cache - очищаем для cold compile      
+
       - ./cache/build/typescript/target:/src/typescript/target
-      - ./cache/build/typescript/cache:/root/.cache/typescript  # TS compiler cache
+      - ./cache/build/typescript/cache:/root/.cache/typescript
     environment:
       - npm_config_cache=/root/.npm
     depends_on:
@@ -446,11 +420,11 @@ services:
       dockerfile: docker/typescript-deno
     volumes:
       - .:/src
-      # Dependencies cache - НЕ очищаем
+
       - ./cache/deps/deno/cache:/root/.cache/deno
-      # Build cache - очищаем для cold compile
+
       - ./cache/build/deno/target:/src/typescript/target
-      - ./cache/build/deno/gen:/src/typescript/.deno  # Generated files
+      - ./cache/build/deno/gen:/src/typescript/.deno
     environment:
       - DENO_DIR=/root/.cache/deno
       - DENO_NO_UPDATE_CHECK=1
@@ -464,22 +438,21 @@ services:
     build:
       dockerfile: docker/typescript-bun
       args:
-        # https://bun.com/
+
         version: "1.3.8"
     volumes:
       - .:/src
-      # Dependencies cache - НЕ очищаем
+
       - ./cache/deps/bun/cache:/root/.bun/install/cache
       - ./cache/deps/bun/node-modules:/src/typescript/node_modules
-      # Build cache - очищаем для cold compile      
+
       - ./cache/build/bun/target:/src/typescript/target
-      - ./cache/build/bun/build-cache:/root/.bun/build-cache  # Bun's build cache
+      - ./cache/build/bun/build-cache:/root/.bun/build-cache
     environment:
       - BUN_INSTALL_CACHE_DIR=/root/.bun/install/cache
     depends_on:
       - base
-  
-  # ======================================= D ======================================================
+
   dmd:
     <<: *shared
     image: benchmarks:dmd
@@ -487,13 +460,13 @@ services:
     build:
       dockerfile: docker/dmd
       args:
-        # #https://github.com/dlang/dmd/releases
+
         version: "2.112.1"
     volumes:
       - .:/src
-      # Dependencies cache - НЕ очищаем
+
       - ./cache/deps/d/dub-packages:/root/.dub/packages
-      # Build cache - очищаем для cold compile
+
       - ./cache/build/dmd/target:/src/d/target
       - ./cache/build/dmd/.dub:/src/d/.dub
       - ./cache/build/dmd/dub-cache:/root/.dub/cache
@@ -509,17 +482,17 @@ services:
     build:
       dockerfile: docker/ldc
       args:
-        # https://github.com/ldc-developers/ldc/releases
+
         version: "1.41.0"
     volumes:
       - .:/src
-      # Dependencies cache - НЕ очищаем
+
       - ./cache/deps/d/dub-packages:/root/.dub/packages
-      # Build cache - очищаем для cold compile
+
       - ./cache/build/ldc/target:/src/d/target
       - ./cache/build/ldc/.dub:/src/d/.dub
       - ./cache/build/ldc/dub-cache:/root/.dub/cache
-      # LDC-specific caches
+
       - ./cache/build/ldc/ldc-cache:/root/.cache/ldc
     environment:
       - DUB_HOME=/root/.dub
@@ -536,9 +509,9 @@ services:
         version: "14"
     volumes:
       - .:/src
-      # Dependencies cache - НЕ очищаем
+
       - ./cache/deps/d/dub-packages:/root/.dub/packages
-      # Build cache - очищаем для cold compile
+
       - ./cache/build/gdc/target:/src/d/target
       - ./cache/build/gdc/.dub:/src/d/.dub
       - ./cache/build/gdc/dub-cache:/root/.dub/cache
@@ -554,15 +527,15 @@ services:
     build:
       dockerfile: docker/v_gcc
       args:
-        # https://github.com/vlang/v/releases
+
         version: "weekly.2026.05"
     volumes:
       - .:/src
-      # V dependencies cache (modules, etc.)
+
       - ./cache/deps/v_gcc/modules:/root/.vmodules
-      # Build cache - очищаем для cold compile
+
       - ./cache/build/v_gcc/target:/src/v/target
-      # GCC specific caches (precompiled headers, etc.)
+
       - ./cache/build/v_gcc/gcc_cache:/root/.cache/gcc
     depends_on:
       - base_gcc
@@ -574,15 +547,15 @@ services:
     build:
       dockerfile: docker/v_clang
       args:
-        # https://github.com/vlang/v/releases
+
         version: "weekly.2026.05"
     volumes:
       - .:/src
-      # V dependencies cache (modules, etc.)
+
       - ./cache/deps/v_clang/modules:/root/.vmodules
-      # Build cache - очищаем для cold compile
+
       - ./cache/build/v_clang/target:/src/v/target
-      # Clang specific caches
+
       - ./cache/build/v_clang/clang_cache:/root/.cache/clang
     depends_on:
       - base_clang
@@ -594,46 +567,34 @@ services:
     build:
       dockerfile: docker/julia
       args:
-        # https://github.com/JuliaLang/julia/releases
+
         version: "1.12.4"
     volumes:
       - .:/src
-      
-      # ============= DEPS (НЕ очищаем) =============
-      # Установленные пакеты Julia
+
       - ./cache/deps/julia/packages:/root/.julia/packages
-      
-      # Registry Julia (индекс пакетов)
+
       - ./cache/deps/julia/registries:/root/.julia/registries
-      
-      # Compiled package cache (precompiled sysimages)
+
       - ./cache/deps/julia/compiled:/root/.julia/compiled
-      
-      # Artifacts (бинарные зависимости пакетов)
+
       - ./cache/deps/julia/artifacts:/root/.julia/artifacts
-      
-      # Conda зависимости (если пакеты используют PyCall)
+
       - ./cache/deps/julia/conda:/root/.julia/conda
-      
-      # ============= BUILD (очищаем для cold) =============
-      # Скомпилированные файлы проекта
+
       - ./cache/build/julia/target:/src/julia/target
-      
-      # Временные файлы компиляции
+
       - ./cache/build/julia/tmp:/tmp/julia-root
-      
-      # Cache для PackageCompiler (если используется)
+
       - ./cache/build/julia/packagecompiler:/root/.julia/packagecompiler
-      
-      # Depot cache (системный кэш Julia)
+
       - ./cache/build/julia/depot:/root/.julia/depot
-      
+
     environment:
-      # Пути к кэшам Julia
+
       - JULIA_DEPOT_PATH=/root/.julia
       - JULIA_PKG_SERVER=https://pkg.julialang.org
 
-  # ======================================= Nim ======================================================
   nim_gcc:
     <<: *shared
     image: benchmarks:nim_gcc
@@ -641,18 +602,18 @@ services:
     build:
       dockerfile: docker/nim_gcc
       args:
-        # https://nim-lang.org
+
         version: "2.2.6"
     volumes:
       - .:/src
-      # Nimble packages cache - НЕ очищаем
+
       - ./cache/deps/nim_gcc/nimble:/root/.nimble
       - ./cache/deps/nim_gcc/nimble-pkgs:/root/.nimble/pkgs
-      # Build cache - очищаем для cold compile
+
       - ./cache/build/nim_gcc/target:/src/nim/target
       - ./cache/build/nim_gcc/nimcache:/src/nim/nimcache
       - ./cache/build/nim_gcc/cache:/root/.cache/nim
-      # GCC specific caches
+
       - ./cache/build/nim_gcc/gcc_cache:/root/.cache/gcc
     environment:
       - NIMBLE_DIR=/root/.nimble
@@ -667,18 +628,18 @@ services:
     build:
       dockerfile: docker/nim_clang
       args:
-        # https://nim-lang.org
+
         version: "2.2.6"
     volumes:
       - .:/src
-      # Nimble packages cache - НЕ очищаем
+
       - ./cache/deps/nim_clang/nimble:/root/.nimble
       - ./cache/deps/nim_clang/nimble-pkgs:/root/.nimble/pkgs
-      # Build cache - очищаем для cold compile
+
       - ./cache/build/nim_clang/target:/src/nim/target
       - ./cache/build/nim_clang/nimcache:/src/nim/nimcache
       - ./cache/build/nim_clang/cache:/root/.cache/nim
-      # Clang specific caches
+
       - ./cache/build/nim_clang/clang_cache:/root/.cache/clang
     environment:
       - NIMBLE_DIR=/root/.nimble
@@ -694,30 +655,21 @@ services:
       dockerfile: docker/dart
     volumes:
       - .:/src
-      
-      # ============= DEPS (НЕ очищаем) =============
-      # Pub cache (пакеты Dart)
+
       - ./cache/deps/dart/pub-cache:/root/.pub-cache
-      
-      # ============= BUILD (очищаем для cold compile) =============
-      # Скомпилированные файлы
+
       - ./cache/build/dart/target:/src/dart/target
-      
-      # Build cache Dart
+
       - ./cache/build/dart/build:/root/.dart/build
-      
-      # Dart tool cache
+
       - ./cache/build/dart/tool-cache:/root/.dart/tool-cache
-      
-      # Dart анализатор cache
+
       - ./cache/build/dart/analyzer:/root/.dart/analyzer
-      
-      # Dart compile cache
+
       - ./cache/build/dart/compile-cache:/root/.dart/compile-cache
-      
-      # Kernel cache для JIT/AOT
+
       - ./cache/build/dart/kernel:/root/.dart/kernel-cache
-      
+
     environment:
       - PUB_CACHE=/root/.pub-cache
     depends_on:

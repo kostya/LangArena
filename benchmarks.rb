@@ -26,14 +26,8 @@ IS_MACOS = RUBY_PLATFORM =~ /darwin/
 START_TIME = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
 
 def dotnet_runtime
-  # .NET сам знает свою платформу
   output = `docker compose run --rm -q dotnet dotnet --info | grep RID`.strip
-  if output =~ /RID:\s*(\S+)/
-    $1  # например: osx-x64, linux-x64
-  else
-    # fallback
-    "linux-x64"
-  end
+  output =~ /RID:\s*(\S+)/ ? $1 : "linux-x64"
 end
 
 DOTNET_RUNTIME = dotnet_runtime
@@ -75,7 +69,6 @@ LANG_MASKS = {
 }
 
 def check_source_files(verbose = false)
-  #!/usr/bin/env ruby
   require 'find'
   require 'zlib'
   require 'json'
@@ -92,11 +85,9 @@ def check_source_files(verbose = false)
     Find.find(path) do |file_path|
       next unless File.file?(file_path)
       
-      # Проверяем расширение файла
       ext = File.extname(file_path).downcase
       next unless exts.include?(ext)
       
-      # Проверяем исключения
       skip = false
       exclude_dirs.each do |exclude|
         if file_path.include?(exclude)
@@ -106,7 +97,6 @@ def check_source_files(verbose = false)
       end
       next if skip
       
-      # Получаем относительный путь
       relative_path = file_path.gsub(/^#{Regexp.escape(path)}\/?/, '')
       files << relative_path
     end
@@ -121,7 +111,6 @@ def check_source_files(verbose = false)
       files.each { |f| puts "  #{f}" }
     end
     
-    # Считаем размеры
     total_bytes = 0
     content = ''
     
@@ -133,7 +122,6 @@ def check_source_files(verbose = false)
         total_bytes += data.bytesize
         content << data
       rescue => e
-        # Игнорируем ошибки чтения файлов
       end
     end
     
@@ -165,12 +153,10 @@ module ClearComments
     
     case lang
     when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 'fsharp', 'dart', 'zig'
-      # Обычные C-подобные языки
       content.gsub!(/\/\*[\s\S]*?\*\//m, '')
       content.gsub!(/\/\/[^\n]*/, '')
       
     when 'typescript'
-      # TypeScript - специальная обработка для @ts-ignore
       content.gsub!(/\/\*[\s\S]*?\*\//m, '')
       
       content.gsub!(/(\/\/\s*@ts-ignore)[^\n]*/) do |match|
@@ -182,19 +168,14 @@ module ClearComments
       end
       
     when 'crystal'
-      # Удаляем многострочные комментарии
       content.gsub!(/^=begin[\s\S]*?^=end/m, '')
-      
-      # Удаляем однострочные комментарии, но не трогаем интерполяцию строк
-      # Используем более сложный паттерн для пропуска #{...}
+    
       lines = content.lines.map do |line|
-        # Ищем позицию #, которая не является частью #{...}
         comment_pos = -1
         in_string = false
         string_char = nil
         
         line.chars.each_with_index do |char, i|
-          # Отслеживаем строки
           if char == '"' || char == "'" || char == '`'
             if !in_string
               in_string = true
@@ -205,11 +186,9 @@ module ClearComments
             end
           end
           
-          # Нашли # вне строки
           if !in_string && char == '#' && (i == 0 || line[i-1] != '\\')
-            # Проверяем, не является ли это началом интерполяции
             if i + 1 < line.length && line[i+1] == '{'
-              next # это интерполяция, пропускаем
+              next
             else
               comment_pos = i
               break
@@ -231,11 +210,9 @@ module ClearComments
       content.gsub!(/#=[\s\S]*?=#/m, '')
 
     when 'python'
-      # Удаляем тройные кавычки (многострочные строки/комментарии)
       content.gsub!(/"""[^"]*(?:"(?!""))?[^"]*"""/m, '')
       content.gsub!(/'''[^']*(?:'(?!''))?[^']*'''/m, '')
       
-      # Удаляем однострочные комментарии
       content.gsub!(/#[^\n]*/, '')
                 
     when 'nim'
@@ -243,35 +220,28 @@ module ClearComments
       content.gsub!(/#\[[\s\S]*?\]\#/m, '')
     end
     
-    # Убираем пробелы/табы в полностью пустых строках
     content.gsub!(/^[ \t]+$/, '')
     
-    # Удаляем множественные пустые строки подряд, оставляя максимум одну
     while content.gsub!(/\n\n\n+/, "\n\n")
     end
     
-    # Удаляем пустую строку в начале файла
     content.sub!(/\A\n+/, '')
     
-    # Удаляем пустую строку в конце файла
     content.sub!(/\n+\z/, '')
     
     File.write(filepath, content, encoding: 'utf-8')
     puts "Обработан: #{filepath}"
   end
 
-  # Функция для обработки всех файлов
   def self.process_all_files(lang_masks)
     lang_masks.each do |lang, config|
       dir, exts, excludes = config
       
       puts "Обрабатываю язык: #{lang}"
       
-      # Находим все файлы с нужными расширениями
       pattern = "#{dir}/**/*{#{exts.join(',')}}"
       files = Dir.glob(pattern, File::FNM_DOTMATCH)
       
-      # Исключаем директории из excludes
       files.reject! do |file|
         excludes.any? { |exclude| file.include?(exclude) }
       end
@@ -298,7 +268,7 @@ class Run
     @binary_name = binary_name
     @run_cmd = run_cmd
     @version_cmd = version_cmd
-    @group = group # :prod or :hack
+    @group = group # ONLY :prod or :hack
     @deps_cmd = deps_cmd
     if @group == :hack
       @name += "-Hack"
@@ -666,7 +636,6 @@ RUNS = [
 
   # ======================================= D ======================================================
 
-  # Release сборки (базовые оптимизации)
   Run.new(
     name: "D/DMD",
     build_cmd: "dub build --compiler=dmd -c release-dmd --build=release",
@@ -679,7 +648,6 @@ RUNS = [
     deps_cmd: "dub fetch",
   ),
 
-  # Perf сборки (оптимальный баланс)
   Run.new(
     name: "D/DMD/Perf",
     build_cmd: "dub build --compiler=dmd -c perf-dmd --build=release",
@@ -766,8 +734,6 @@ RUNS = [
 
   # ======================================= V ======================================================
 
-  # ==================== GCC BACKEND ====================
-  # 1. GCC Release (стандартный прод)
   Run.new(
     name: "V/GCC", 
     build_cmd: "v -enable-globals -cc gcc -prod -o target/v_gcc .",
@@ -780,7 +746,6 @@ RUNS = [
     deps_cmd: "v install",
   ),
 
-  # 2. GCC Perf (оптимизации)
   Run.new(
     name: "V/GCC/Perf", 
     build_cmd: "v -enable-globals -cc gcc -prod -cflags '-O3 -march=native -flto' -o target/v_gcc_perf .",
@@ -794,7 +759,6 @@ RUNS = [
   ),
 
   # Many crashes
-  # # 3. GCC MaxPerf (все оптимизации)
   # Run.new(
   #   name: "V/GCC/MaxPerf", 
   #   build_cmd: "v -enable-globals -cc gcc -prod -prealloc -cflags '-Ofast -march=native -flto -funroll-loops -ffast-math' -o target/v_gcc_max .", # -no-bounds-checking
@@ -808,7 +772,6 @@ RUNS = [
   # ),
 
   # Not compiles
-  # # 4. GCC Autofree (альтернативная память)
   # Run.new(
   #   name: "V/GCC/Autofree", 
   #   build_cmd: "v -enable-globals -cc gcc -prod -autofree -o target/v_gcc_autofree .",
@@ -821,9 +784,6 @@ RUNS = [
   #   deps_cmd: "v install",
   # ),
 
-  # ==================== CLANG BACKEND ====================
-
-  # 5. Clang Release (стандартный прод)
   Run.new(
     name: "V/Clang", 
     build_cmd: "v -enable-globals -cc clang -prod -o target/v_clang .",
@@ -836,7 +796,6 @@ RUNS = [
     deps_cmd: "v install",
   ),
 
-  # 6. Clang Perf (оптимизации)
   Run.new(
     name: "V/Clang/Perf", 
     build_cmd: "v -enable-globals -cc clang -prod -cflags '-O3 -march=native -flto' -o target/v_clang_perf .",
@@ -850,7 +809,6 @@ RUNS = [
   ),
 
   # Many crashes
-  # # 7. Clang MaxPerf (все оптимизации)
   # Run.new(
   #   name: "V/Clang/MaxPerf", 
   #   build_cmd: "v -enable-globals -cc clang -prod -prealloc -cflags '-Ofast -march=native -flto -funroll-loops -ffast-math' -o target/v_clang_max .",  # -no-bounds-checking
@@ -864,7 +822,6 @@ RUNS = [
   # ),
 
   # Not compiles
-  # # 8. Clang Autofree (альтернативная память)
   # Run.new(
   #   name: "V/Clang/Autofree", 
   #   build_cmd: "v -enable-globals -cc clang -prod -autofree -o target/v_clang_autofree .",
@@ -878,6 +835,7 @@ RUNS = [
   # ),
 
   # ======================================= Go ======================================================
+  
   Run.new(
     name: "Go", 
     build_cmd: "go build -o target/bin_go main.go", 
@@ -887,7 +845,7 @@ RUNS = [
     dir: "/src/golang",
     container: "golang",
     group: :prod,
-    deps_cmd: "mkdir -p target", # go mod download
+    deps_cmd: "mkdir -p target",
   ),
   Run.new(
     name: "Go/Opt", 
@@ -925,7 +883,7 @@ RUNS = [
   ),
 
   # ======================================= C# ======================================================
-  # Базовый JIT (для разработки) - БЫСТРЫЙ СТАРТ, СРЕДНЯЯ ПРОИЗВОДИТЕЛЬНОСТЬ
+
   Run.new(
     name: "C#/JIT", 
     build_cmd: "dotnet build -c Release",
@@ -938,7 +896,6 @@ RUNS = [
     deps_cmd: "dotnet restore",
   ),
 
-  # AOT Native (максимальная скорость выполнения) - ИСПРАВЛЕННЫЙ
   Run.new(
     name: "C#/AOT",
     build_cmd: <<~CMD.chomp,
@@ -959,7 +916,6 @@ RUNS = [
     deps_cmd: "dotnet restore",
   ),
 
-  # Self-Contained JIT (портируемый) - ДОЛГО ЗАПУСКАЕТСЯ
   Run.new(
     name: "C#/SC-JIT",
     build_cmd: "dotnet publish -c Release --self-contained true --runtime #{DOTNET_RUNTIME} -p:PublishTrimmed=true -p:InvariantGlobalization=true -o ./bin/sc-jit",
@@ -972,7 +928,6 @@ RUNS = [
     deps_cmd: "dotnet restore",
   ),
 
-  # Self-Contained AOT (максимум всего) - САМЫЙ МЕДЛЕННЫЙ СТАРТ, САМЫЙ БЫСТРЫЙ ВЫПОЛНЕНИЕ
   Run.new(
     name: "C#/SC-AOT",
     build_cmd: <<~CMD.chomp,
@@ -996,7 +951,6 @@ RUNS = [
     deps_cmd: "dotnet restore",      
   ),
 
-  # ReadyToRun (компромисс) - ХОРОШИЙ БАЛАНС
   Run.new(
     name: "C#/R2R",
     build_cmd: "dotnet publish -c Release -p:PublishReadyToRun=true -p:PublishTrimmed=true -p:InvariantGlobalization=true -o ./bin/r2r",
@@ -1009,7 +963,6 @@ RUNS = [
     deps_cmd: "dotnet restore", 
   ),
 
-  # Экстремальный AOT профиль
   Run.new(
     name: "C#/AOT-EXTREME",
     build_cmd: <<~CMD.chomp,
@@ -1036,7 +989,7 @@ RUNS = [
   ),  
 
   # ======================================= F# ======================================================
-  # Базовый JIT (для разработки) - БЫСТРЫЙ СТАРТ, СРЕДНЯЯ ПРОИЗВОДИТЕЛЬНОСТЬ
+  
   Run.new(
     name: "F#/JIT", 
     build_cmd: "dotnet build -c Release",
@@ -1050,7 +1003,6 @@ RUNS = [
   ),
 
   # JSON Bug run
-  # # AOT Native (максимальная скорость выполнения) - ИСПРАВЛЕННЫЙ
   # Run.new(
   #   name: "F#/AOT",
   #   build_cmd: "dotnet publish -c Release -p:PublishAOT=true -p:InvariantGlobalization=true -o ./bin/aot",
@@ -1065,7 +1017,6 @@ RUNS = [
 
   # ======================================= Nim ======================================================
 
-  # Nim/GCC - дефолтный релиз (стандартный прод) - ОДИН ИЗ 2 PROD
   Run.new(
     name: "Nim/GCC", 
     build_cmd: "nim c --threads:on -d:release --cc:gcc --opt:speed --out:target/bin_benchmarks_gcc src/benchmarks.nim",
@@ -1078,7 +1029,6 @@ RUNS = [
     deps_cmd: "nimble refresh",
   ),
 
-  # Nim/GCC с оптимизациями (аналог ENH)
   Run.new(
     name: "Nim/GCC/Perf", 
     build_cmd: "nim c --threads:on -d:release -d:danger --cc:gcc --opt:speed --passC:'-O3 -march=native' --passL:'-flto' --out:target/bin_benchmarks_gcc_perf src/benchmarks.nim",
@@ -1091,7 +1041,6 @@ RUNS = [
     deps_cmd: "sh deps.sh",
   ),
 
-  # Nim/GCC максимальные оптимизации (аналог MaxPerf)
   Run.new(
     name: "Nim/GCC/MaxPerf", 
     build_cmd: "nim c --threads:on -d:release -d:danger --cc:gcc --opt:speed --boundChecks:off --passC:'-Ofast -march=native' --passL:'-flto -static' --out:target/bin_benchmarks_gcc_max src/benchmarks.nim",
@@ -1104,7 +1053,6 @@ RUNS = [
     deps_cmd: "sh deps.sh",
   ),
 
-  # Nim/GCC прод сборка с ARC GC
   Run.new(
     name: "Nim/GCC/ARC", 
     build_cmd: "nim c --threads:on -d:release --cc:gcc --gc:arc --opt:speed --out:target/bin_benchmarks_gcc_arc src/benchmarks.nim",
@@ -1118,7 +1066,6 @@ RUNS = [
   ),
 
   # Default is ORC?
-  # # Nim/GCC прод сборка с ORC GC
   # Run.new(
   #   name: "Nim/GCC/ORC", 
   #   build_cmd: "nim c --threads:on -d:release --cc:gcc --gc:orc --opt:speed --out:target/bin_benchmarks_gcc_orc src/benchmarks.nim",
@@ -1131,7 +1078,6 @@ RUNS = [
   #   deps_cmd: "sh deps.sh",
   # ),
 
-  # Nim/Clang - дефолтный релиз (стандартный прод) - ВТОРОЙ ИЗ 2 PROD
   Run.new(
     name: "Nim/Clang", 
     build_cmd: "nim c --threads:on -d:release --cc:clang --opt:speed --out:target/bin_benchmarks_clang src/benchmarks.nim",
@@ -1144,7 +1090,6 @@ RUNS = [
     deps_cmd: "sh deps.sh",
   ),
 
-  # Nim/Clang с оптимизации (аналог ENH)
   Run.new(
     name: "Nim/Clang/Perf", 
     build_cmd: "nim c --threads:on -d:release -d:danger --cc:clang --opt:speed --passC:'-O3 -march=native' --passL:'-flto=thin' --out:target/bin_benchmarks_clang_perf src/benchmarks.nim",
@@ -1157,7 +1102,6 @@ RUNS = [
     deps_cmd: "sh deps.sh",
   ),
 
-  # Nim/Clang максимальные оптимизации (аналог MaxPerf)
   Run.new(
     name: "Nim/Clang/MaxPerf", 
     build_cmd: "nim c --threads:on -d:release -d:danger --cc:clang --opt:speed --boundChecks:off --passC:'-Ofast -march=native' --passL:'-flto=full -static' --out:target/bin_benchmarks_clang_max src/benchmarks.nim",
@@ -1170,7 +1114,6 @@ RUNS = [
     deps_cmd: "sh deps.sh",
   ),
 
-  # Nim/Clang прод сборка с ARC GC
   Run.new(
     name: "Nim/Clang/ARC", 
     build_cmd: "nim c --threads:on -d:release --cc:clang --gc:arc --opt:speed --out:target/bin_benchmarks_clang_arc src/benchmarks.nim",
@@ -1184,7 +1127,6 @@ RUNS = [
   ),
 
   # Default is ORC?
-  # # Nim/Clang прод сборка с ORC GC
   # Run.new(
   #   name: "Nim/Clang/ORC", 
   #   build_cmd: "nim c --threads:on -d:release --cc:clang --gc:orc --opt:speed --out:target/bin_benchmarks_clang_orc src/benchmarks.nim",
@@ -1199,7 +1141,6 @@ RUNS = [
 
   # ======================================= Julia ======================================================
   
-  # Julia - базовый (стандартные оптимизации)
   Run.new(
     name: "Julia/Default", 
     build_cmd: "true",  # Julia не требует сборки
@@ -1212,7 +1153,6 @@ RUNS = [
     deps_cmd: "julia --project=. -e \"using Pkg; Pkg.instantiate()\"",
   ),
   
-  # Julia с оптимизациями компиляции
   Run.new(
     name: "Julia/Opt", 
     build_cmd: "true",
@@ -1225,7 +1165,6 @@ RUNS = [
     deps_cmd: "julia --project=. -e \"using Pkg; Pkg.instantiate()\"",
   ),
   
-  # Julia с максимальными оптимизациями
   Run.new(
     name: "Julia/Max", 
     build_cmd: "true",
@@ -1238,7 +1177,6 @@ RUNS = [
     deps_cmd: "julia --project=. -e \"using Pkg; Pkg.instantiate()\"",
   ),
   
-  # Julia с PackageCompiler (системный образ)
   Run.new(
     name: "Julia/AOT", 
     build_cmd: <<~CMD.chomp,
@@ -1259,7 +1197,7 @@ RUNS = [
   ),
 
   # ======================================= Swift ======================================================
-  # Базовый (стандартный релиз)
+
   Run.new(
     name: "Swift", 
     build_cmd: "swift build -c release -Xswiftc -O",
@@ -1273,7 +1211,6 @@ RUNS = [
   ),
   
   # Swift too slow, minimize configs
-  # # WMO (лучшая безопасная оптимизация)
   # Run.new(
   #   name: "Swift/WMO", 
   #   build_cmd: "swift build -c release -Xswiftc -O -Xswiftc -whole-module-optimization",
@@ -1286,7 +1223,6 @@ RUNS = [
   #   deps_cmd: "swift package resolve",
   # ),
   
-  # Unchecked (без проверок безопасности)
   Run.new(
     name: "Swift/Unchecked", 
     build_cmd: "swift build -c release -Xswiftc -Ounchecked",
@@ -1300,7 +1236,6 @@ RUNS = [
   ),
   
   # Swift too slow, minimize configs
-  # # WMO + Unchecked (максимум без LLVM оптимизаций)
   # Run.new(
   #   name: "Swift/WMO+Unchecked", 
   #   build_cmd: "swift build -c release -Xswiftc -O -Xswiftc -whole-module-optimization -Xswiftc -enforce-exclusivity=unchecked",
@@ -1314,7 +1249,6 @@ RUNS = [
   # ),
   
   # Swift too slow, minimize configs
-  # # MaxPerf (исправленный)
   # Run.new(
   #   name: "Swift/MaxPerf", 
   #   build_cmd: "swift build -c release -Xswiftc -Ounchecked -Xswiftc -whole-module-optimization -Xswiftc -enforce-exclusivity=unchecked -Xswiftc -cross-module-optimization",
@@ -1328,7 +1262,6 @@ RUNS = [
   # ),
     
   # ======================================= Java ======================================================
-  # Java - базовый (без оптимизаций)
   Run.new(
     name: "Java/OpenJDK",
     build_cmd: <<~CMD.chomp,
@@ -1351,7 +1284,6 @@ RUNS = [
     deps_cmd: "mvn dependency:resolve; mvn dependency:resolve-plugins",
   ),
 
-  # Java с максимальными оптимизациями
   Run.new(
     name: "Java/OpenJDK/Opt",
     build_cmd: <<~CMD.chomp,
@@ -1383,7 +1315,6 @@ RUNS = [
     deps_cmd: "mvn dependency:resolve; mvn dependency:resolve-plugins",
   ),
 
-  # GraalVM JIT с оптимизациями
   Run.new(
     name: "Java/GraalVM/JIT",
     build_cmd: <<~CMD.chomp,
@@ -1412,7 +1343,6 @@ RUNS = [
   ),
 
   # Disable because of compile bug with fastjson2
-  # # GraalVM Native Image (AOT)
   # Run.new(
   #   name: "Java/GraalVM/Native",
   #   build_cmd: <<~CMD.chomp,
@@ -1433,7 +1363,6 @@ RUNS = [
   # ),
 
   # No effect
-  # # Дополнительный вариант: GraalVM Native с максимальными оптимизациями
   # Run.new(
   #   name: "Java/GraalVM/Native/Max",
   #   build_cmd: <<~CMD.chomp,
@@ -1468,7 +1397,6 @@ RUNS = [
 
   # ======================================= Kotlin ======================================================
 
-  # Kotlin - базовый (минимальные оптимизации)
   Run.new(
     name: "Kotlin/JVM/Default",
     build_cmd: "./gradlew fatJar --no-daemon -q",
@@ -1481,7 +1409,6 @@ RUNS = [
     deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
-  # Kotlin - агрессивные оптимизации
   Run.new(
     name: "Kotlin/JVM/Opt",
     build_cmd: "./gradlew fatJar --no-daemon -q",
@@ -1506,7 +1433,6 @@ RUNS = [
     deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
-  # Kotlin - максимальные оптимизации
   Run.new(
     name: "Kotlin/JVM/Max",
     build_cmd: "./gradlew fatJar --no-daemon -q",
@@ -1531,7 +1457,6 @@ RUNS = [
     deps_cmd: "./gradlew --no-daemon dependencies",
   ),
 
-  # Kotlin + GraalVM JIT
   Run.new(
     name: "Kotlin/GraalVM/JIT",
     build_cmd: "./gradlew fatJar --no-daemon -q",
@@ -1582,7 +1507,6 @@ RUNS = [
   # ),
 
   # No effect
-  # # Опционально: с разными уровнями оптимизаций
   # Run.new(
   #   name: "Kotlin/GraalVM/Native/Fast",
   #   build_cmd: "/src/kotlin/build-kotlin-native.sh '-O2' benchmarks-fast",
@@ -1596,6 +1520,7 @@ RUNS = [
   # ),
 
   # ======================================= Dart ======================================================
+  
   Run.new(
     name: "Dart/AOT", 
     build_cmd: "dart compile exe main.dart -o target/dart_benchmark",
@@ -1610,7 +1535,6 @@ RUNS = [
 
   # ======================================= TypeScript ======================================================
 
-  # TypeScript - дефолтная компиляция
   Run.new(
     name: "TypeScript/Node/Default",
     build_cmd: <<~CMD.chomp,
@@ -1625,7 +1549,6 @@ RUNS = [
     deps_cmd: "npm ci",
   ),
 
-  # TypeScript с оптимизациями Node.js (исправленный)
   Run.new(
     name: "TypeScript/Node/Opt",
     build_cmd: "sh -c 'npm ci --silent && npm run build:run --silent'",
@@ -1645,7 +1568,6 @@ RUNS = [
   ),
 
   # No effect
-  # # TypeScript с максимальными оптимизациями (проверенные флаги)
   # Run.new(
   #   name: "TypeScript/Node/Max",
   #   build_cmd: "sh -c 'npm ci --silent && npm run build:run --silent'",
@@ -1667,7 +1589,6 @@ RUNS = [
   # ),
 
   # No effect
-  # # TypeScript с турбофан оптимизациями
   # Run.new(
   #   name: "TypeScript/Node/Turbo",
   #   build_cmd: "sh -c 'npm ci --silent && npm run build:run --silent'",
@@ -1687,7 +1608,6 @@ RUNS = [
   #   deps_cmd: "npm ci",
   # ),
 
-  # TypeScript с Bun (компиляция на лету)
   Run.new(
     name: "TypeScript/Bun/JIT",
     build_cmd: "true",
@@ -1700,7 +1620,6 @@ RUNS = [
     deps_cmd: "bun install",
   ),
 
-  # TypeScript с Bun (скомпилированный)
   Run.new(
     name: "TypeScript/Bun/Compiled",
     build_cmd: <<~CMD.chomp,
@@ -1715,7 +1634,6 @@ RUNS = [
     deps_cmd: "bun install",
   ),
 
-  # Deno - дефолтный запуск с кэшированием зависимостей
   Run.new(
     name: "TypeScript/Deno/Default",
     build_cmd: "true",
@@ -1733,7 +1651,6 @@ RUNS = [
     deps_cmd: "deno cache --quiet src/index.ts",
   ),
 
-  # Deno с AOT компиляцией (оптимизированный)
   Run.new(
     name: "TypeScript/Deno/Compiled",
     build_cmd: <<~CMD.chomp,
@@ -1753,7 +1670,6 @@ RUNS = [
   ),
 
   # No effect
-  # # Deno с оптимизациями V8
   # Run.new(
   #   name: "TypeScript/Deno/Opt",
   #   build_cmd: "true",
@@ -1772,7 +1688,6 @@ RUNS = [
   # ),
 
   # No effect
-  # # Deno с максимальными оптимизациями V8
   # Run.new(
   #   name: "TypeScript/Deno/Max",
   #   build_cmd: "true",
@@ -1791,7 +1706,6 @@ RUNS = [
   #   deps_cmd: "deno cache --quiet src/index.ts",
   # ),
 
-  # Deno с JIT-оптимизациями и кэшированием кода
   Run.new(
     name: "TypeScript/Deno/Turbo",
     build_cmd: "true",
@@ -1912,7 +1826,6 @@ end
 
 def write_results
   unless ARGV[0]
-    # write result on every step, because it can crash somewhere
     File.write("./results/#{RESULTS["date"]}-#{RESULTS["uname-name"]}.js", JSON.pretty_generate(RESULTS))  
   end
 end
