@@ -5,8 +5,6 @@ import java.util.*;
 import java.util.Locale;
 
 public abstract class Benchmark {
-    protected double timeDelta = 0.0;
-
     public abstract void run(int iterationId);
     public abstract long checksum();
 
@@ -53,10 +51,6 @@ public abstract class Benchmark {
         return configVal("checksum");
     }
 
-    public void setTimeDelta(double delta) {
-        timeDelta = delta;
-    }
-
     private static final List<Supplier<Benchmark>> benchmarkFactories = new ArrayList<>();
 
     public static void registerBenchmark(Supplier<Benchmark> factory) {
@@ -92,7 +86,6 @@ public abstract class Benchmark {
             bench.runAll();
             double timeDelta = (System.nanoTime() - startTime) / 1_000_000_000.0;
 
-            bench.setTimeDelta(timeDelta);
             results.put(className, timeDelta);
 
             System.gc();
