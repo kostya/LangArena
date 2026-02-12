@@ -1,5 +1,4 @@
 use super::super::{Benchmark, helper};
-use crate::config_i64;
 use crate::benchmarks::sort_benchmark::SortBenchmark;
 
 pub struct SortQuick {

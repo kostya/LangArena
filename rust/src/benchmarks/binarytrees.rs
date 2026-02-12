@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::Benchmark;
 use super::super::config_i64;
 
 struct TreeNode {

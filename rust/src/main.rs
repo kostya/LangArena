@@ -2,8 +2,6 @@ mod helper;
 mod benchmarks;
 
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 use std::sync::OnceLock;
 use std::time::Instant;
 use std::fs;

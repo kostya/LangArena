@@ -1,5 +1,4 @@
 use super::super::{Benchmark, helper};
-use crate::config_i64;
 
 const SOLAR_MASS: f64 = 4.0 * std::f64::consts::PI * std::f64::consts::PI;
 const DAYS_PER_YEAR: f64 = 365.24;

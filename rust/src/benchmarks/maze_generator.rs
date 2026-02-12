@@ -247,7 +247,7 @@ impl MazeGenerator {
         let mut hasher: u32 = 2166136261;      
         let prime: u32 = 16777619;             
 
-        for (i, row) in grid.iter().enumerate() {
+        for (_i, row) in grid.iter().enumerate() {
             for (j, &cell) in row.iter().enumerate() {
                 if cell {  
                     let j_squared = (j * j) as u32;

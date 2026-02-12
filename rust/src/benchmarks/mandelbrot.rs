@@ -1,6 +1,5 @@
 use super::super::{Benchmark, helper};
 use crate::config_i64;
-use std::io::Write;
 
 const ITER: i32 = 50;
 const LIMIT: f64 = 2.0;
@@ -33,7 +32,7 @@ impl Benchmark for Mandelbrot {
         let w = self.w as usize;
         let h = self.h as usize;
 
-        let mut header = format!("P4\n{} {}\n", w, h);
+        let header = format!("P4\n{} {}\n", w, h);
         self.result_bin.extend_from_slice(header.as_bytes());
 
         let mut bit_num = 0;

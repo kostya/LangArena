@@ -1,6 +1,6 @@
 use std::collections::{BinaryHeap, HashMap};
 use std::cmp::Ordering;
-use super::super::{Benchmark, helper};
+use super::super::Benchmark;
 use crate::config_i64;
 
 #[derive(Debug, Clone)]

@@ -1,4 +1,4 @@
-use crate::{Benchmark, helper};
+use crate::Benchmark;
 use crate::config_i64;
 
 pub struct Fannkuchredux {

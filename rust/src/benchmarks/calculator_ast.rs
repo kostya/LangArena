@@ -1,6 +1,5 @@
 use super::super::{Benchmark, helper};
 use crate::config_i64;
-use std::collections::HashMap;
 
 #[derive(Clone)]
 pub enum Node {

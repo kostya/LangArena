@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::Benchmark;
 use crate::config_s;
 
 pub struct BrainfuckArray {

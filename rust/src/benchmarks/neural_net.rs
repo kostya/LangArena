@@ -1,5 +1,4 @@
 use super::super::{Benchmark, helper};
-use crate::config_i64;
 
 #[derive(Clone)]
 struct Synapse {

@@ -1,5 +1,4 @@
-use super::super::{Benchmark, helper};
-use crate::config_i64;
+use super::super::Benchmark;
 use crate::benchmarks::graph_path_benchmark::GraphPathBenchmark;
 use std::collections::VecDeque;
 

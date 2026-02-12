@@ -1,5 +1,4 @@
-use super::super::{Benchmark, helper};
-use crate::config_i64;
+use super::super::Benchmark;
 use crate::benchmarks::buffer_hash_benchmark::BufferHashBenchmark;
 
 fn crc32(data: &[u8]) -> u32 {

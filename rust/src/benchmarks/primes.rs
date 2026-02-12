@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::Benchmark;
 use crate::config_i64;
 use std::collections::VecDeque;
 

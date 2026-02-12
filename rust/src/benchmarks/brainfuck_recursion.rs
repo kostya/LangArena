@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::Benchmark;
 use super::super::config_s;
 
 #[derive(Clone)]
@@ -133,7 +133,7 @@ impl Benchmark for BrainfuckRecursion {
 
     fn warmup(&mut self) {
         let prepare_iters = self.warmup_iterations();
-        for i in 0..prepare_iters {
+        for _i in 0..prepare_iters {
             self._run(&self.warmup_text);
         }
     }

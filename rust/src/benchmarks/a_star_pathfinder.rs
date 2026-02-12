@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::Benchmark;
 use crate::config_i64;
 use super::maze_generator::Maze;
 use std::cmp::Ordering;
