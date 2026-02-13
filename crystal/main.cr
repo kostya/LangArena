@@ -695,6 +695,7 @@ class Knuckeotide < Benchmark
   end
 
   def checksum : UInt32
+    puts "'#{@result.to_s}'"
     Helper.checksum(@result.to_s)
   end
 end
