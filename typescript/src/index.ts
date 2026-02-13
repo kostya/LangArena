@@ -603,11 +603,11 @@ export class Binarytrees extends Benchmark {
 }
 
 class Tape {
-  private tape: number[];
+  private tape: Uint8Array;
   private pos: number;
 
   constructor() {
-    this.tape = new Array(30000).fill(0);
+    this.tape = new Uint8Array(30000);
     this.pos = 0;
   }
 
@@ -616,19 +616,19 @@ class Tape {
   }
 
   inc(): void {
-
     this.tape[this.pos] = (this.tape[this.pos] + 1) & 255;
   }
 
   dec(): void {
-
     this.tape[this.pos] = (this.tape[this.pos] - 1) & 255;
   }
 
   advance(): void {
     this.pos++;
     if (this.pos >= this.tape.length) {
-      this.tape.push(0);
+      const newTape = new Uint8Array(this.tape.length + 1);
+      newTape.set(this.tape);
+      this.tape = newTape;
     }
   }
 
@@ -640,28 +640,29 @@ class Tape {
 }
 
 class Program {
-  private commands: string;
+  private commands: Uint8Array;
   private jumps: number[];
 
   constructor(text: string) {
 
-    const filteredChars: string[] = [];
-    for (const char of text) {
-      if ('[]<>+-,.'.includes(char)) {
-        filteredChars.push(char);
+    const valid = new Set(['[', ']', '<', '>', '+', '-', ',', '.']);
+    const bytes: number[] = [];
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (valid.has(c)) {
+        bytes.push(c.charCodeAt(0));
       }
     }
 
-    this.commands = filteredChars.join('');
-
+    this.commands = new Uint8Array(bytes);
     this.jumps = new Array(this.commands.length).fill(0);
     const stack: number[] = [];
 
     for (let i = 0; i < this.commands.length; i++) {
       const cmd = this.commands[i];
-      if (cmd === '[') {
+      if (cmd === 91) { 
         stack.push(i);
-      } else if (cmd === ']' && stack.length > 0) {
+      } else if (cmd === 93 && stack.length > 0) { 
         const start = stack.pop()!;
         this.jumps[start] = i;
         this.jumps[i] = start;
@@ -673,35 +674,28 @@ class Program {
     let result = 0;
     const tape = new Tape();
     let pc = 0;
+    const commands = this.commands;
+    const jumps = this.jumps;
 
-    while (pc < this.commands.length) {
-      const cmd = this.commands[pc];
+    while (pc < commands.length) {
+      const cmd = commands[pc];
 
       switch (cmd) {
-        case '+':
-          tape.inc();
-          break;
-        case '-':
-          tape.dec();
-          break;
-        case '>':
-          tape.advance();
-          break;
-        case '<':
-          tape.devance();
-          break;
-        case '[':
+        case 43: tape.inc(); break;      
+        case 45: tape.dec(); break;      
+        case 62: tape.advance(); break;  
+        case 60: tape.devance(); break;  
+        case 91: 
           if (tape.get() === 0) {
-            pc = this.jumps[pc];
+            pc = jumps[pc];
           }
           break;
-        case ']':
+        case 93: 
           if (tape.get() !== 0) {
-            pc = this.jumps[pc];
+            pc = jumps[pc];
           }
           break;
-        case '.':
-
+        case 46: 
           result = ((result << 2) + tape.get()) >>> 0;
           break;
       }

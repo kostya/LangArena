@@ -22,11 +22,11 @@ tape_get :: proc(tape: ^Tape) -> u8 {
 }
 
 tape_inc :: proc(tape: ^Tape) {
-    tape.tape[tape.pos] = (tape.tape[tape.pos] + 1) & 255
+    tape.tape[tape.pos] = tape.tape[tape.pos] + 1
 }
 
 tape_dec :: proc(tape: ^Tape) {
-    tape.tape[tape.pos] = (tape.tape[tape.pos] - 1) & 255
+    tape.tape[tape.pos] = tape.tape[tape.pos] - 1
 }
 
 tape_advance :: proc(tape: ^Tape) {
@@ -87,7 +87,7 @@ program_destroy :: proc(program: ^Program) {
 
 program_run :: proc(program: ^Program) -> u32 {
     tape: Tape
-    tape_init(&tape, 30000)
+    tape_init(&tape)
     defer tape_destroy(&tape)
 
     result: u32 = 0

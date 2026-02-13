@@ -16,35 +16,31 @@ pub const BrainfuckArray = struct {
         pub fn init(allocator: std.mem.Allocator) !Tape {
             const tape = try allocator.alloc(u8, 30000);
             @memset(tape, 0);
-
-            return Tape{
-                .tape = tape,
-                .pos = 0,
-            };
+            return Tape{ .tape = tape, .pos = 0 };
         }
 
         pub fn deinit(self: *Tape, allocator: std.mem.Allocator) void {
             allocator.free(self.tape);
         }
 
-        pub fn get(self: *const Tape) u8 {
+        pub inline fn get(self: *const Tape) u8 {
             return self.tape[self.pos];
         }
 
-        pub fn inc(self: *Tape) void {
+        pub inline fn inc(self: *Tape) void {
             self.tape[self.pos] +%= 1;
         }
 
-        pub fn dec(self: *Tape) void {
+        pub inline fn dec(self: *Tape) void {
             self.tape[self.pos] -%= 1;
         }
 
         pub fn advance(self: *Tape, allocator: std.mem.Allocator) !void {
             self.pos += 1;
             if (self.pos >= self.tape.len) {
-                const new_len = self.tape.len * 2;
+                const new_len = self.tape.len + 1; 
                 const new_tape = try allocator.realloc(self.tape, new_len);
-                @memset(new_tape[self.tape.len..], 0);
+                new_tape[self.tape.len] = 0; 
                 self.tape = new_tape;
             }
         }
@@ -113,9 +109,11 @@ pub const BrainfuckArray = struct {
             defer tape.deinit(self.allocator);
 
             var pc: usize = 0;
+            const commands = self.commands;
+            const jumps = self.jumps;
 
-            while (pc < self.commands.len) {
-                const cmd = self.commands[pc];
+            while (pc < commands.len) {
+                const cmd = commands[pc];
                 switch (cmd) {
                     '+' => tape.inc(),
                     '-' => tape.dec(),
@@ -123,13 +121,13 @@ pub const BrainfuckArray = struct {
                     '<' => tape.devance(),
                     '[' => {
                         if (tape.get() == 0) {
-                            pc = self.jumps[pc];
+                            pc = jumps[pc];
                             continue;
                         }
                     },
                     ']' => {
                         if (tape.get() != 0) {
-                            pc = self.jumps[pc];
+                            pc = jumps[pc];
                             continue;
                         }
                     },

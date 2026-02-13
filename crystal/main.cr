@@ -313,7 +313,7 @@ class BrainfuckArray < Benchmark
     jumps = build_jump_array(commands)
     return nil unless jumps
 
-    interpret(commands, jumps)
+    _run(commands, jumps)
   end
 
   private def parse_commands(source : String) : Array(Char)?
@@ -342,44 +342,60 @@ class BrainfuckArray < Benchmark
     stack.empty? ? jumps : nil
   end
 
-  private def interpret(commands : Array(Char), jumps : Array(Int32)) : UInt32?
-    tape = Array.new(30000, 0_u8)
-    tape_ptr = 0
+  struct Tape
+    getter tape = Array(UInt8).new(30000, 0_u8)
+    property pos = 0
+
+    def get
+      @tape[@pos]
+    end
+
+    def inc
+      @tape[@pos] &+= 1
+    end
+
+    def dec
+      @tape[@pos] &-= 1
+    end
+
+    def adv
+      @pos += 1
+      @tape << 0 if @pos >= @tape.size
+    end
+
+    def dev
+      @pos -= 1
+      @pos = 0 if @pos < 0
+    end
+  end
+
+  private def _run(commands : Array(Char), jumps : Array(Int32)) : UInt32?
+    tape = Tape.new
     pc = 0
     result = 0_u32
 
     while pc < commands.size
       case commands[pc]
-      when '+'
-        tape[tape_ptr] &+= 1
-      when '-'
-        tape[tape_ptr] &-= 1
-      when '>'
-        tape_ptr += 1
-        tape << 0 if tape_ptr >= tape.size
-      when '<'
-        tape_ptr = (tape_ptr - 1).clamp(0, Int32::MAX)
+      when '+'; tape.inc
+      when '-'; tape.dec
+      when '>'; tape.adv
+      when '<'; tape.dev
       when '['
-        if tape[tape_ptr] == 0
-          jump_to = jumps[pc]?
-          return nil unless jump_to
-          pc = jump_to
+        if tape.get == 0
+          pc = jumps[pc]
           next
         end
       when ']'
-        if tape[tape_ptr] != 0
-          jump_to = jumps[pc]?
-          return nil unless jump_to
-          pc = jump_to
+        if tape.get != 0
+          pc = jumps[pc]
           next
         end
       when '.'
         result <<= 2
-        result &+= tape[tape_ptr]
+        result &+= tape.get
       end
       pc += 1
     end
-
     result
   rescue
     nil

@@ -12,7 +12,7 @@ class GraphPathDFS : GraphPathBenchmark() {
 
         while (stack.isNotEmpty()) {
             val (v, dist) = stack.removeLast()
-            
+
             if (visited[v] || dist >= bestPath) continue
             visited[v] = true
 

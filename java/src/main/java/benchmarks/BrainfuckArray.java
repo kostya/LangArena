@@ -28,7 +28,7 @@ public class BrainfuckArray extends Benchmark {
             pos++;
             if (pos >= tape.length) {
 
-                byte[] newTape = new byte[tape.length * 2];
+                byte[] newTape = new byte[tape.length + 1];
                 System.arraycopy(tape, 0, newTape, 0, tape.length);
                 tape = newTape;
             }
@@ -47,29 +47,37 @@ public class BrainfuckArray extends Benchmark {
 
         Program(String text) {
 
-            List<Byte> commandList = new ArrayList<>();
-            for (char c : text.toCharArray()) {
+            int cmdCount = 0;
+            for (int i = 0; i < text.length(); i++) {
+                char c = text.charAt(i);
                 if ("[]<>+-,.".indexOf(c) != -1) {
-                    commandList.add((byte)c);
+                    cmdCount++;
                 }
             }
 
-            commands = new byte[commandList.size()];
-            for (int i = 0; i < commandList.size(); i++) {
-                commands[i] = commandList.get(i);
+            commands = new byte[cmdCount];
+            int idx = 0;
+            for (int i = 0; i < text.length(); i++) {
+                char c = text.charAt(i);
+                if ("[]<>+-,.".indexOf(c) != -1) {
+                    commands[idx++] = (byte)c;
+                }
             }
 
             jumps = new int[commands.length];
-            Deque<Integer> stack = new ArrayDeque<>();
+            int[] stack = new int[commands.length];  
+            int sp = 0;  
 
             for (int i = 0; i < commands.length; i++) {
                 byte cmd = commands[i];
                 if (cmd == '[') {
-                    stack.push(i);
-                } else if (cmd == ']' && !stack.isEmpty()) {
-                    int start = stack.pop();
-                    jumps[start] = i;
-                    jumps[i] = start;
+                    stack[sp++] = i;
+                } else if (cmd == ']') {
+                    if (sp > 0) {
+                        int start = stack[--sp];
+                        jumps[start] = i;
+                        jumps[i] = start;
+                    }
                 }
             }
         }
@@ -77,38 +85,33 @@ public class BrainfuckArray extends Benchmark {
         long run() {
             long result = 0L;
             Tape tape = new Tape();
+            byte[] cmds = commands;  
+            int[] jmps = jumps;
             int pc = 0;
 
-            while (pc < commands.length) {
-                switch (commands[pc]) {
-                    case '+':
-                        tape.inc();
-                        break;
-                    case '-':
-                        tape.dec();
-                        break;
-                    case '>':
-                        tape.advance();
-                        break;
-                    case '<':
-                        tape.devance();
-                        break;
-                    case '[':
-                        if (tape.get() == 0) {
-                            pc = jumps[pc];
-                            continue; 
-                        }
-                        break;
-                    case ']':
-                        if (tape.get() != 0) {
-                            pc = jumps[pc];
-                            continue; 
-                        }
-                        break;
-                    case '.':
+            while (pc < cmds.length) {
+                byte cmd = cmds[pc];
 
-                        result = (result << 2) + (tape.get() & 0xFF);
-                        break;
+                if (cmd == '[') {
+                    if (tape.get() == 0) {
+                        pc = jmps[pc];
+                        continue;
+                    }
+                } else if (cmd == ']') {
+                    if (tape.get() != 0) {
+                        pc = jmps[pc];
+                        continue;
+                    }
+                } else {
+                    switch (cmd) {
+                        case '+': tape.inc(); break;
+                        case '-': tape.dec(); break;
+                        case '>': tape.advance(); break;
+                        case '<': tape.devance(); break;
+                        case '.':
+                            result = (result << 2) + (tape.get() & 0xFF);
+                            break;
+                    }
                 }
                 pc++;
             }

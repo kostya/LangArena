@@ -1,7 +1,6 @@
 package benchmarks
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
 class BrainfuckArray extends Benchmark:
   private val programText: String = Helper.configS(name(), "program")
@@ -37,7 +36,8 @@ object BrainfuckArray:
     def advance(): Unit =
       pos += 1
       if pos >= tape.length then
-        val newTape = new Array[Byte](tape.length * 2)
+
+        val newTape = new Array[Byte](tape.length + 1)
         Array.copy(tape, 0, newTape, 0, tape.length)
         tape = newTape
 
@@ -45,41 +45,60 @@ object BrainfuckArray:
       if pos > 0 then pos -= 1
 
   class Program(text: String):
-    private val commands: Array[Byte] =
-      text.toCharArray
-        .filter(c => "[]<>+-,.".indexOf(c) != -1)
-        .map(_.toByte)
-        .toArray
 
-    private val jumps: Array[Int] =
+    private val commands: Array[Byte] = {
+      val chars = text.toCharArray
+      val buffer = new Array[Byte](chars.length)  
+      var count = 0
+
+      for c <- chars do
+        if "[]<>+-,.".indexOf(c) != -1 then
+          buffer(count) = c.toByte
+          count += 1
+
+      val result = new Array[Byte](count)
+      Array.copy(buffer, 0, result, 0, count)
+      result
+    }
+
+    private val jumps: Array[Int] = {
       val arr = new Array[Int](commands.length)
-      val stack = mutable.ArrayDeque.empty[Int]
+      val stack = new Array[Int](commands.length)  
+      var sp = 0  
 
       for i <- commands.indices do
         commands(i).toChar match
-          case '[' => stack.prepend(i)
-          case ']' if stack.nonEmpty =>
-            val start = stack.removeHead()
-            arr(start) = i
-            arr(i) = start
+          case '[' =>
+            stack(sp) = i
+            sp += 1  
+          case ']' =>
+            if sp > 0 then
+              sp -= 1
+              val start = stack(sp)  
+              arr(start) = i
+              arr(i) = start
           case _ =>
+
       arr
+    }
 
     def run(): Long =
       var result: Long = 0L
       val tape = Tape()
       var pc = 0
+      val cmds = commands  
+      val jmps = jumps
 
-      while pc < commands.length do
-        commands(pc).toChar match
+      while pc < cmds.length do
+        cmds(pc).toChar match
           case '+' => tape.inc()
           case '-' => tape.dec()
           case '>' => tape.advance()
           case '<' => tape.devance()
           case '[' =>
-            if tape.get() == 0 then pc = jumps(pc)
+            if tape.get() == 0 then pc = jmps(pc)
           case ']' =>
-            if tape.get() != 0 then pc = jumps(pc)
+            if tape.get() != 0 then pc = jmps(pc)
           case '.' =>
             result = (result << 2) + (tape.get() & 0xFF)
           case _ =>

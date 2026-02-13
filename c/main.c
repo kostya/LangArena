@@ -724,153 +724,180 @@ Benchmark* Binarytrees_create(void) {
 }
 
 typedef struct {
-    uint8_t* tape;
-    int32_t tape_size;
-    int32_t pos;
+    uint8_t* tape;      
+    size_t tape_size;   
+    size_t pos;         
 } BrainfuckArray_Tape;
 
 typedef struct {
-    char* program;          
-    char* warmup_program;   
+    char* program;
+    char* warmup_program;
     int32_t program_length;
     int32_t warmup_length;
-    int32_t* jumps;         
-    int32_t* warmup_jumps;  
+    int32_t* jumps;
+    int32_t* warmup_jumps;
     uint32_t result_val;
 } BrainfuckArrayData;
 
-static BrainfuckArray_Tape* BrainfuckArray_Tape_new(void) {
-    BrainfuckArray_Tape* tape = malloc(sizeof(BrainfuckArray_Tape));
-    tape->tape_size = 30000;  
+static void BrainfuckArray_Tape_init(BrainfuckArray_Tape* tape) {
+    tape->tape_size = 30000;
     tape->tape = calloc(tape->tape_size, sizeof(uint8_t));
     tape->pos = 0;
-    return tape;
 }
 
-static void BrainfuckArray_Tape_free(BrainfuckArray_Tape* tape) {
-    free(tape->tape);
-    free(tape);
-}
-
-static inline uint8_t BrainfuckArray_Tape_get(BrainfuckArray_Tape* tape) {
-    return tape->tape[tape->pos];
-}
-
-static inline void BrainfuckArray_Tape_inc(BrainfuckArray_Tape* tape) {
-    tape->tape[tape->pos] = tape->tape[tape->pos] + 1;  
-}
-
-static inline void BrainfuckArray_Tape_dec(BrainfuckArray_Tape* tape) {
-    tape->tape[tape->pos] = tape->tape[tape->pos] - 1;  
-}
-
-static inline void BrainfuckArray_Tape_advance(BrainfuckArray_Tape* tape) {
-    tape->pos++;
-    if (tape->pos >= tape->tape_size) {
-        tape->tape_size *= 2;
-        tape->tape = realloc(tape->tape, tape->tape_size);
-        memset(tape->tape + tape->tape_size / 2, 0, tape->tape_size / 2);
+static void BrainfuckArray_Tape_destroy(BrainfuckArray_Tape* tape) {
+    if (tape && tape->tape) {
+        free(tape->tape);
+        tape->tape = NULL;
+        tape->tape_size = 0;
+        tape->pos = 0;
     }
 }
 
-static inline void BrainfuckArray_Tape_devance(BrainfuckArray_Tape* tape) {
+static uint8_t BrainfuckArray_Tape_get(const BrainfuckArray_Tape* tape) {
+    return tape->tape[tape->pos];
+}
+
+static void BrainfuckArray_Tape_inc(BrainfuckArray_Tape* tape) {
+    tape->tape[tape->pos]++;
+}
+
+static void BrainfuckArray_Tape_dec(BrainfuckArray_Tape* tape) {
+    tape->tape[tape->pos]--;
+}
+
+static void BrainfuckArray_Tape_advance(BrainfuckArray_Tape* tape) {
+    tape->pos++;
+    if (tape->pos >= tape->tape_size) {
+
+        size_t new_size = tape->tape_size + 1;
+        uint8_t* new_tape = realloc(tape->tape, new_size);
+        if (new_tape) {
+            tape->tape = new_tape;
+            tape->tape[tape->tape_size] = 0;  
+            tape->tape_size = new_size;
+        }
+    }
+}
+
+static void BrainfuckArray_Tape_devance(BrainfuckArray_Tape* tape) {
     if (tape->pos > 0) {
         tape->pos--;
     }
 }
 
-static void BrainfuckArray_parse_program(const char* input, 
-                                         char** program_ptr, 
-                                         int32_t* program_length_ptr,
-                                         int32_t** jumps_ptr) {
-    if (!input || strlen(input) == 0) {
-        *program_ptr = NULL;
-        *program_length_ptr = 0;
-        *jumps_ptr = NULL;
-        return;
+static char* BrainfuckArray_filter_commands(const char* input, int32_t* out_length) {
+    if (!input) {
+        *out_length = 0;
+        return NULL;
     }
 
-    int32_t input_len = strlen(input);
+    size_t input_len = strlen(input);
     char* program = malloc(input_len + 1);
-    int32_t program_pos = 0;
+    if (!program) {
+        *out_length = 0;
+        return NULL;
+    }
 
-    for (int32_t i = 0; i < input_len; i++) {
+    int32_t program_pos = 0;
+    for (size_t i = 0; i < input_len; i++) {
         char c = input[i];
-        if (strchr("[]<>+-,.", c) != NULL) {
+        if (strchr("[]<>+-,.", c)) {
             program[program_pos++] = c;
         }
     }
     program[program_pos] = '\0';
 
-    int32_t* jumps = NULL;
-    if (program_pos > 0) {
-        jumps = malloc(sizeof(int32_t) * program_pos);
-        memset(jumps, 0, sizeof(int32_t) * program_pos);
-
-        int* stack = malloc(sizeof(int) * (program_pos / 2 + 1));
-        int stack_top = -1;
-
-        for (int pc = 0; pc < program_pos; pc++) {
-            char c = program[pc];
-            if (c == '[') {
-                stack[++stack_top] = pc;
-            } else if (c == ']' && stack_top >= 0) {
-                int left = stack[stack_top--];
-                int right = pc;
-                jumps[left] = right;
-                jumps[right] = left;
-            }
-        }
-
-        free(stack);
-    }
-
-    *program_ptr = program;
-    *program_length_ptr = program_pos;
-    *jumps_ptr = jumps;
+    *out_length = program_pos;
+    return program;
 }
 
-static uint32_t BrainfuckArray_execute_program(const char* program, int32_t program_length,
-                                               int32_t* jumps) {
+static int32_t* BrainfuckArray_build_jumps(const char* program, int32_t program_length) {
+    if (!program || program_length == 0) return NULL;
+
+    int32_t* jumps = calloc(program_length, sizeof(int32_t));
+    if (!jumps) return NULL;
+
+    int32_t* stack = malloc(sizeof(int32_t) * (program_length / 2 + 1));
+    if (!stack) {
+        free(jumps);
+        return NULL;
+    }
+
+    int32_t stack_top = -1;
+
+    for (int32_t pc = 0; pc < program_length; pc++) {
+        char c = program[pc];
+        if (c == '[') {
+            stack[++stack_top] = pc;
+        } else if (c == ']') {
+            if (stack_top >= 0) {
+                int32_t left = stack[stack_top--];
+                jumps[left] = pc;
+                jumps[pc] = left;
+            }
+        }
+    }
+
+    free(stack);
+    return jumps;
+}
+
+static uint32_t BrainfuckArray_execute_program(const char* program, 
+                                               int32_t program_length,
+                                               const int32_t* jumps) {
     if (!program || program_length == 0 || !jumps) {
         return 0;
     }
 
-    BrainfuckArray_Tape* tape = BrainfuckArray_Tape_new();
-    int pc = 0;
+    BrainfuckArray_Tape tape;
+    BrainfuckArray_Tape_init(&tape);
+
+    int32_t pc = 0;
     uint32_t result = 0;
 
     while (pc < program_length) {
         char c = program[pc];
         switch (c) {
-            case '+': BrainfuckArray_Tape_inc(tape); break;
-            case '-': BrainfuckArray_Tape_dec(tape); break;
-            case '>': BrainfuckArray_Tape_advance(tape); break;
-            case '<': BrainfuckArray_Tape_devance(tape); break;
-            case '[': {
-                if (BrainfuckArray_Tape_get(tape) == 0) {
+            case '+': 
+                BrainfuckArray_Tape_inc(&tape); 
+                break;
+
+            case '-': 
+                BrainfuckArray_Tape_dec(&tape); 
+                break;
+
+            case '>': 
+                BrainfuckArray_Tape_advance(&tape); 
+                break;
+
+            case '<': 
+                BrainfuckArray_Tape_devance(&tape); 
+                break;
+
+            case '[': 
+                if (BrainfuckArray_Tape_get(&tape) == 0) {
                     pc = jumps[pc];
-                    continue;  
                 }
                 break;
-            }
-            case ']': {
-                if (BrainfuckArray_Tape_get(tape) != 0) {
+
+            case ']': 
+                if (BrainfuckArray_Tape_get(&tape) != 0) {
                     pc = jumps[pc];
-                    continue;  
                 }
                 break;
-            }
-            case '.': {
-                uint8_t value = BrainfuckArray_Tape_get(tape);
-                result = (result << 2) + value;  
+
+            case '.': 
+                result = (result << 2) + BrainfuckArray_Tape_get(&tape);
                 break;
-            }
+
+            default:
+                break;
         }
         pc++;
     }
 
-    BrainfuckArray_Tape_free(tape);
+    BrainfuckArray_Tape_destroy(&tape);
     return result;
 }
 
@@ -880,26 +907,23 @@ void BrainfuckArray_prepare(Benchmark* self) {
     const char* program_text = Helper_config_s(self->name, "program");
     const char* warmup_text = Helper_config_s(self->name, "warmup_program");
 
-    BrainfuckArray_parse_program(program_text, 
-                                &data->program, 
-                                &data->program_length,
-                                &data->jumps);
+    data->program = BrainfuckArray_filter_commands(program_text, &data->program_length);
+    data->jumps = BrainfuckArray_build_jumps(data->program, data->program_length);
 
-    BrainfuckArray_parse_program(warmup_text,
-                                &data->warmup_program,
-                                &data->warmup_length,
-                                &data->warmup_jumps);
+    data->warmup_program = BrainfuckArray_filter_commands(warmup_text, &data->warmup_length);
+    data->warmup_jumps = BrainfuckArray_build_jumps(data->warmup_program, data->warmup_length);
 
     data->result_val = 0;
 }
 
 void BrainfuckArray_warmup(Benchmark* self) {
     BrainfuckArrayData* data = (BrainfuckArrayData*)self->data;
-    int64_t warmup_iters = Helper_config_i64(self->name, "warmup_iterations");
 
+    if (!data->warmup_program || data->warmup_length == 0) return;
+
+    int64_t warmup_iters = Helper_config_i64(self->name, "warmup_iterations");
     if (warmup_iters == 0) {
-        warmup_iters = self->iterations(self);
-        warmup_iters = (int64_t)(warmup_iters * 0.2);
+        warmup_iters = self->iterations(self) / 5;  
         if (warmup_iters < 1) warmup_iters = 1;
     }
 
@@ -917,10 +941,12 @@ void BrainfuckArray_run(Benchmark* self, int iteration_id) {
         data->result_val = 0;
     }
 
-    uint32_t run_result = BrainfuckArray_execute_program(data->program,
-                                                        data->program_length,
-                                                        data->jumps);
-    data->result_val += run_result;
+    if (data->program && data->program_length > 0 && data->jumps) {
+        uint32_t run_result = BrainfuckArray_execute_program(data->program,
+                                                            data->program_length,
+                                                            data->jumps);
+        data->result_val += run_result;
+    }
 }
 
 uint32_t BrainfuckArray_checksum(Benchmark* self) {
@@ -929,39 +955,28 @@ uint32_t BrainfuckArray_checksum(Benchmark* self) {
 }
 
 void BrainfuckArray_cleanup(Benchmark* self) {
+    if (!self || !self->data) return;
+
     BrainfuckArrayData* data = (BrainfuckArrayData*)self->data;
 
-    if (!data) return;
-
-    if (data->program) {
-        free(data->program);
-        data->program = NULL;
-    }
-
-    if (data->jumps) {
-        free(data->jumps);
-        data->jumps = NULL;
-    }
-
-    if (data->warmup_program) {
-        free(data->warmup_program);
-        data->warmup_program = NULL;
-    }
-
-    if (data->warmup_jumps) {
-        free(data->warmup_jumps);
-        data->warmup_jumps = NULL;
-    }
+    free(data->program);
+    free(data->jumps);
+    free(data->warmup_program);
+    free(data->warmup_jumps);
 
     free(data);
-    self->data = NULL;  
+    self->data = NULL;
 }
 
 Benchmark* BrainfuckArray_create(void) {
     Benchmark* bench = Benchmark_create("BrainfuckArray");
+    if (!bench) return NULL;
 
-    BrainfuckArrayData* data = malloc(sizeof(BrainfuckArrayData));
-    memset(data, 0, sizeof(BrainfuckArrayData));
+    BrainfuckArrayData* data = calloc(1, sizeof(BrainfuckArrayData));
+    if (!data) {
+        free(bench);
+        return NULL;
+    }
 
     bench->data = data;
     bench->prepare = BrainfuckArray_prepare;

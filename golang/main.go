@@ -453,8 +453,8 @@ type Tape struct {
 	pos  int
 }
 
-func NewTape() *Tape {
-	return &Tape{tape: make([]byte, 30000), pos: 0}
+func NewTape() Tape {
+	return Tape{tape: make([]byte, 30000), pos: 0}
 }
 
 func (t *Tape) Get() byte { return t.tape[t.pos] }
@@ -489,9 +489,11 @@ func NewProgram(text string) *Program {
 
 	commands := make([]byte, 0, len(text))
 	for i := 0; i < len(text); i++ {
-		char := text[i]
-		if strings.Contains("[]<>+-,.", string(char)) {
-			commands = append(commands, char)
+		c := text[i]
+
+		switch c {
+		case '[', ']', '<', '>', '+', '-', ',', '.':
+			commands = append(commands, c)
 		}
 	}
 
@@ -499,13 +501,16 @@ func NewProgram(text string) *Program {
 	stack := make([]int, 0, len(commands)/2)
 
 	for i, cmd := range commands {
-		if cmd == '[' {
+		switch cmd {
+		case '[':
 			stack = append(stack, i)
-		} else if cmd == ']' && len(stack) > 0 {
-			start := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-			jumps[start] = i
-			jumps[i] = start
+		case ']':
+			if len(stack) > 0 {
+				start := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				jumps[start] = i
+				jumps[i] = start
+			}
 		}
 	}
 
@@ -514,11 +519,13 @@ func NewProgram(text string) *Program {
 
 func (p *Program) Run() int64 {
 	result := int64(0)
-	tape := NewTape()
+	tape := NewTape() 
 	pc := 0
+	cmds := p.commands 
+	jumps := p.jumps
 
-	for pc < len(p.commands) {
-		switch p.commands[pc] {
+	for pc < len(cmds) {
+		switch cmds[pc] {
 		case '+':
 			tape.Inc()
 		case '-':
@@ -529,16 +536,15 @@ func (p *Program) Run() int64 {
 			tape.Devance()
 		case '[':
 			if tape.Get() == 0 {
-				pc = p.jumps[pc]
+				pc = jumps[pc]
 				continue
 			}
 		case ']':
 			if tape.Get() != 0 {
-				pc = p.jumps[pc]
+				pc = jumps[pc]
 				continue
 			}
 		case '.':
-
 			result = (result << 2) + int64(tape.Get())
 		}
 		pc++

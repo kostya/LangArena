@@ -317,63 +317,6 @@ class Binarytrees(Benchmark):
     def checksum(self) -> int:
         return self.result & 0xFFFFFFFF
 
-class BrainfuckProgram:
-    def __init__(self, text: str):
-        self._commands = self._filter_commands(text)
-        self._jumps = [0] * len(self._commands)
-        self._build_jumps()
-
-    @staticmethod
-    def _filter_commands(text: str) -> str:
-
-        buffer = []
-        for char in text:
-            if char in '[]<>+-,.':
-                buffer.append(char)
-        return ''.join(buffer)
-
-    def _build_jumps(self):
-
-        stack = []
-
-        for i, cmd in enumerate(self._commands):
-            if cmd == '[':
-                stack.append(i)
-            elif cmd == ']' and stack:
-                start = stack.pop()
-                self._jumps[start] = i
-                self._jumps[i] = start
-
-    def run(self) -> int:
-
-        result = 0
-        tape = Tape()
-        pc = 0
-
-        while pc < len(self._commands):
-            cmd = self._commands[pc]
-
-            if cmd == '+':
-                tape.inc()
-            elif cmd == '-':
-                tape.dec()
-            elif cmd == '>':
-                tape.advance()
-            elif cmd == '<':
-                tape.devance()
-            elif cmd == '[':
-                if tape.get() == 0:
-                    pc = self._jumps[pc]
-            elif cmd == ']':
-                if tape.get() != 0:
-                    pc = self._jumps[pc]
-            elif cmd == '.':
-                result = ((result << 2) + tape.get()) & 0xFFFFFFFF
-
-            pc += 1
-
-        return result
-
 class Tape:
     def __init__(self, size: int = 30000):
         self._tape = bytearray(size)
@@ -397,6 +340,63 @@ class Tape:
         if self._pos > 0:
             self._pos -= 1
 
+class BrainfuckProgram:
+    def __init__(self, text: str):
+        self._commands = self._filter_commands(text)
+        self._jumps = [0] * len(self._commands)
+        self._build_jumps()
+
+    @staticmethod
+    def _filter_commands(text: str) -> str:
+        valid = set('[]<>+-,.')  
+        buffer = []
+        for char in text:
+            if char in valid:
+                buffer.append(char)
+        return ''.join(buffer)
+
+    def _build_jumps(self):
+        stack = []
+        for i, cmd in enumerate(self._commands):
+            if cmd == '[':
+                stack.append(i)
+            elif cmd == ']' and stack:
+                start = stack.pop()
+                self._jumps[start] = i
+                self._jumps[i] = start
+
+    def run(self) -> int:
+        result = 0
+        tape = Tape()
+        pc = 0
+        commands = self._commands
+        jumps = self._jumps
+        n = len(commands)
+
+        while pc < n:
+            cmd = commands[pc]
+
+            if cmd == '+':
+                tape.inc()
+            elif cmd == '-':
+                tape.dec()
+            elif cmd == '>':
+                tape.advance()
+            elif cmd == '<':
+                tape.devance()
+            elif cmd == '[':
+                if tape.get() == 0:
+                    pc = jumps[pc]
+            elif cmd == ']':
+                if tape.get() != 0:
+                    pc = jumps[pc]
+            elif cmd == '.':
+                result = ((result << 2) + tape.get()) & 0xFFFFFFFF
+
+            pc += 1
+
+        return result
+
 class BrainfuckArray(Benchmark):
     def __init__(self):
         super().__init__()
@@ -411,7 +411,7 @@ class BrainfuckArray(Benchmark):
 
     def warmup(self):
         prepare_iters = self.warmup_iterations
-        for i in range(prepare_iters):
+        for _ in range(prepare_iters):
             BrainfuckProgram(self._warmup_text).run()
 
     def run_benchmark(self, iteration_id: int):

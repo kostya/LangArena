@@ -3,23 +3,33 @@ namespace Benchmarks
 open System
 open System.Collections.Generic
 
-type ArrayTape() =
-    let mutable tape = Array.zeroCreate<byte> 30000
-    let mutable pos = 0
+[<Struct>]
+type ArrayTape =
+    val mutable tape: byte[]
+    val mutable pos: int
 
-    member _.Get() = tape.[pos]
+    new(tape: byte[], pos: int) = 
+        { tape = tape
+          pos = pos }
 
-    member _.Inc() = tape.[pos] <- tape.[pos] + 1uy
+    static member Default() : ArrayTape =
+        ArrayTape(Array.zeroCreate<byte> 30000, 0)
 
-    member _.Dec() = tape.[pos] <- tape.[pos] - 1uy
+    member this.Get() : byte = this.tape.[this.pos]
 
-    member _.Advance() =
-        pos <- pos + 1
-        if pos >= tape.Length then
-            Array.Resize(&tape, tape.Length + 1)  
+    member this.Inc() : unit = 
+        this.tape.[this.pos] <- this.tape.[this.pos] + 1uy
 
-    member _.Devance() =
-        if pos > 0 then pos <- pos - 1
+    member this.Dec() : unit = 
+        this.tape.[this.pos] <- this.tape.[this.pos] - 1uy
+
+    member this.Advance() : unit =
+        this.pos <- this.pos + 1
+        if this.pos >= this.tape.Length then
+            Array.Resize(&this.tape, this.tape.Length + 1)
+
+    member this.Devance() : unit =
+        if this.pos > 0 then this.pos <- this.pos - 1
 
 type BrainfuckArrayProgram(text: string) =
     let commands = ResizeArray<byte>()
@@ -45,8 +55,8 @@ type BrainfuckArrayProgram(text: string) =
 
         jumps <- jumpsArray
 
-    member _.Run() : uint32 =
-        let tape = ArrayTape()
+    member _.RunInternal(commands: ResizeArray<byte>, jumps: int[]) : uint32 =
+        let mutable tape = ArrayTape.Default()
         let mutable pc = 0
         let mutable result = 0u
 
@@ -73,6 +83,8 @@ type BrainfuckArrayProgram(text: string) =
             pc <- pc + 1
 
         result
+
+    member this.Run() : uint32 = this.RunInternal(commands, jumps)
 
 type BrainfuckArray() =
     inherit Benchmark()

@@ -1,4 +1,4 @@
-import std/[strutils, sequtils, strformat]
+import std/[strutils, sequtils]
 import ../benchmark
 import ../helper  
 
@@ -28,14 +28,13 @@ proc devance(self: var Tape) =
     self.pos.dec
 
 proc newProgram(text: string): Program =
-
-  var commands: seq[uint8]
+  var commands: seq[uint8] = @[]
   for c in text:
-    if "[]<>+-.,".contains(c):
+    if c in "[]<>+-.,":
       commands.add(c.uint8)
 
   var jumps = newSeq[int](commands.len)
-  var stack: seq[int]
+  var stack: seq[int] = @[]
 
   for i, cmd in commands:
     if cmd == '['.uint8:
@@ -45,36 +44,33 @@ proc newProgram(text: string): Program =
       jumps[start] = i
       jumps[i] = start
 
-  result = Program(commands: commands, jumps: jumps)
+  Program(commands: commands, jumps: jumps)
 
 proc run(self: Program): int64 =
   var tape = newTape()
   var pc = 0
+  result = 0
 
   while pc < self.commands.len:
     let cmd = self.commands[pc]
-    case cmd
-    of '+'.uint8:
+    if cmd == '+'.uint8:
       tape.inc()
-    of '-'.uint8:
+    elif cmd == '-'.uint8:
       tape.dec()
-    of '>'.uint8:
+    elif cmd == '>'.uint8:
       tape.advance()
-    of '<'.uint8:
+    elif cmd == '<'.uint8:
       tape.devance()
-    of '['.uint8:
+    elif cmd == '['.uint8:
       if tape.get == 0:
         pc = self.jumps[pc]
         continue
-    of ']'.uint8:
+    elif cmd == ']'.uint8:
       if tape.get != 0:
         pc = self.jumps[pc]
         continue
-    of '.'.uint8:
+    elif cmd == '.'.uint8:
       result = (result shl 2) + tape.get.int64
-    else:
-      discard
-
     pc.inc
 
 type
@@ -99,12 +95,12 @@ proc runProgram(text: string): int64 =
 
 method warmup(self: BrainfuckArray) =
   let prepare_iters = self.warmup_iterations
-  for i in 0..<prepare_iters:
+  for _ in 0..<prepare_iters:
     discard runProgram(self.warmupText)
 
 method run(self: BrainfuckArray, iteration_id: int) =
   let run_result = runProgram(self.programText)
-  self.resultVal = self.resultVal + run_result.uint32
+  self.resultVal += run_result.uint32
 
 method checksum(self: BrainfuckArray): uint32 =
   self.resultVal

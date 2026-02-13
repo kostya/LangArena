@@ -358,7 +358,7 @@ class Binarytrees extends Benchmark {
 }
 
 class Tape {
-  final Uint8List _tape = Uint8List(30000);
+  Uint8List _tape = Uint8List(30000);
   int _pos = 0;
 
   int get() => _tape[_pos];
@@ -374,20 +374,23 @@ class Tape {
   void advance() {
     _pos++;
     if (_pos >= _tape.length) {
-      _pos = _tape.length - 1;
+
+      final newTape = Uint8List(_tape.length + 1);
+      newTape.setAll(0, _tape);
+      newTape[_tape.length] = 0;
+      _tape = newTape;
     }
   }
 
   void devance() {
-    _pos--;
-    if (_pos < 0) {
-      _pos = 0;
+    if (_pos > 0) {
+      _pos--;
     }
   }
 }
 
 class BrainfuckProgram {
-  final String _commands;
+  final Uint8List _commands;
   final List<int> _jumps;
 
   BrainfuckProgram(String text) : 
@@ -396,15 +399,14 @@ class BrainfuckProgram {
     _buildJumps();
   }
 
-  static String _filterCommands(String text) {
-    final buffer = StringBuffer();
+  static Uint8List _filterCommands(String text) {
+    final buffer = <int>[];
     for (final char in text.runes) {
-      final ch = String.fromCharCode(char);
-      if ('[]<>+-,.'.contains(ch)) {
-        buffer.write(ch);
+      if ('[]<>+-,.'.contains(String.fromCharCode(char))) {
+        buffer.add(char);
       }
     }
-    return buffer.toString();
+    return Uint8List.fromList(buffer);
   }
 
   void _buildJumps() {
@@ -412,9 +414,9 @@ class BrainfuckProgram {
 
     for (int i = 0; i < _commands.length; i++) {
       final cmd = _commands[i];
-      if (cmd == '[') {
+      if (cmd == 91) { 
         stack.add(i);
-      } else if (cmd == ']' && stack.isNotEmpty) {
+      } else if (cmd == 93 && stack.isNotEmpty) { 
         final start = stack.removeLast();
         _jumps[start] = i;
         _jumps[i] = start;
@@ -426,34 +428,28 @@ class BrainfuckProgram {
     int result = 0;
     final tape = Tape();
     int pc = 0;
+    final commands = _commands;
+    final jumps = _jumps;
 
-    while (pc < _commands.length) {
-      final cmd = _commands[pc];
+    while (pc < commands.length) {
+      final cmd = commands[pc];
 
       switch (cmd) {
-        case '+':
-          tape.inc();
-          break;
-        case '-':
-          tape.dec();
-          break;
-        case '>':
-          tape.advance();
-          break;
-        case '<':
-          tape.devance();
-          break;
-        case '[':
+        case 43: tape.inc(); break;      
+        case 45: tape.dec(); break;      
+        case 62: tape.advance(); break;  
+        case 60: tape.devance(); break;  
+        case 91: 
           if (tape.get() == 0) {
-            pc = _jumps[pc];
+            pc = jumps[pc];
           }
           break;
-        case ']':
+        case 93: 
           if (tape.get() != 0) {
-            pc = _jumps[pc];
+            pc = jumps[pc];
           }
           break;
-        case '.':
+        case 46: 
           result = ((result << 2) + tape.get()) & 0xFFFFFFFF;
           break;
       }
