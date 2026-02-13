@@ -710,7 +710,7 @@ func (f *Fannkuchredux) Prepare() {
 func (f *Fannkuchredux) fannkuchredux(n int) (int, int) {
 	var perm1 [32]int
 	for i := range perm1 {
-	    perm1[i] = i
+		perm1[i] = i
 	}
 	perm := [32]int{}
 	count := [32]int{}
@@ -725,7 +725,7 @@ func (f *Fannkuchredux) fannkuchredux(n int) (int, int) {
 			r--
 		}
 
-		copy(perm, perm1)
+		copy(perm[:], perm1[:])
 		flipsCount := 0
 
 		k := perm[0]
