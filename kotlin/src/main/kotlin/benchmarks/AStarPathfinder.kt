@@ -196,13 +196,9 @@ class AStarPathfinder : Benchmark() {
 
     override fun run(iterationId: Int) {
         val (path, nodesExplored) = findPath()
-
         var localResult: UInt = 0u
-
         localResult = (path?.size ?: 0).toUInt()
-
         localResult = (localResult shl 5) + nodesExplored.toUInt()
-
         resultVal += localResult
     }
 
