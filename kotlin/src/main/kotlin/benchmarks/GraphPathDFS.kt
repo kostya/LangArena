@@ -5,24 +5,22 @@ class GraphPathDFS : GraphPathBenchmark() {
         if (start == target) return 0
 
         val visited = BooleanArray(graph.vertices)
-        val stack = mutableListOf<Pair<Int, Int>>()
+        val stack = ArrayDeque<IntArray>()
         var bestPath = Int.MAX_VALUE
 
-        stack.add(Pair(start, 0))
+        stack.add(intArrayOf(start, 0))
 
         while (stack.isNotEmpty()) {
-            val (v, dist) = stack.removeAt(stack.size - 1)
-
+            val (v, dist) = stack.removeLast()
+            
             if (visited[v] || dist >= bestPath) continue
             visited[v] = true
 
             for (neighbor in graph.adj[v]) {
                 if (neighbor == target) {
-                    if (dist + 1 < bestPath) {
-                        bestPath = dist + 1
-                    }
+                    if (dist + 1 < bestPath) bestPath = dist + 1
                 } else if (!visited[neighbor]) {
-                    stack.add(Pair(neighbor, dist + 1))
+                    stack.add(intArrayOf(neighbor, dist + 1))
                 }
             }
         }
