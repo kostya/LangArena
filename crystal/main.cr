@@ -154,9 +154,9 @@ abstract class Benchmark
 
         Helper.reset
 
-        t = Time.monotonic
+        t = Time.instant
         bench.run_all
-        time_delta = (Time.monotonic - t).to_f
+        time_delta = (Time.instant - t).to_f
 
         results["{{kl.id}}"] = time_delta
 
@@ -695,7 +695,6 @@ class Knuckeotide < Benchmark
   end
 
   def checksum : UInt32
-    puts "'#{@result.to_s}'"
     Helper.checksum(@result.to_s)
   end
 end
