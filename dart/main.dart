@@ -495,25 +495,18 @@ class BrainfuckArray extends Benchmark {
 
 abstract class Op {}
 
-class IncOp extends Op {
-  final int value;
-  IncOp(this.value);
-}
-
-class MoveOp extends Op {
-  final int value;
-  MoveOp(this.value);
-}
-
-class PrintOp extends Op {}
-
-class LoopOp extends Op {
+class IncOp extends Op {}      
+class DecOp extends Op {}      
+class NextOp extends Op {}     
+class PrevOp extends Op {}     
+class PrintOp extends Op {}    
+class LoopOp extends Op {      
   final List<Op> ops;
   LoopOp(this.ops);
 }
 
 class Tape2 {
-  static const int INITIAL_SIZE = 1024;
+  static const int INITIAL_SIZE = 30000;
   Uint8List _tape;
   int _pos = 0;
 
@@ -521,22 +514,26 @@ class Tape2 {
 
   int get() => _tape[_pos];
 
-  void inc(int x) {
-    _tape[_pos] = (_tape[_pos] + x) & 0xFF;
+  void inc() {
+    _tape[_pos] = (_tape[_pos] + 1) & 0xFF;
   }
 
-  void move(int x) {
-    _pos += x;
+  void dec() {
+    _tape[_pos] = (_tape[_pos] - 1) & 0xFF;
+  }
 
+  void next() {
+    _pos++;
     if (_pos >= _tape.length) {
-      final newLength = (_tape.length * 2).clamp(_pos + 1, 1 << 30);
-      final newTape = Uint8List(newLength);
+      final newTape = Uint8List(_tape.length + 1);
       newTape.setRange(0, _tape.length, _tape);
       _tape = newTape;
     }
+  }
 
-    if (_pos < 0) {
-      _pos = 0;
+  void prev() {
+    if (_pos > 0) {
+      _pos--;
     }
   }
 }
@@ -560,9 +557,13 @@ class BrainfuckProgram2 {
           _runOps(op.ops, tape);
         }
       } else if (op is IncOp) {
-        tape.inc(op.value);
-      } else if (op is MoveOp) {
-        tape.move(op.value);
+        tape.inc();
+      } else if (op is DecOp) {
+        tape.dec();
+      } else if (op is NextOp) {
+        tape.next();
+      } else if (op is PrevOp) {
+        tape.prev();
       } else if (op is PrintOp) {
         _resultValue = ((_resultValue << 2) + tape.get()) & 0xFFFFFFFF;
       }
@@ -587,16 +588,16 @@ class BrainfuckProgram2 {
 
       switch (c) {
         case '+':
-          op = IncOp(1);
+          op = IncOp();
           break;
         case '-':
-          op = IncOp(-1);
+          op = DecOp();
           break;
         case '>':
-          op = MoveOp(1);
+          op = NextOp();
           break;
         case '<':
-          op = MoveOp(-1);
+          op = PrevOp();
           break;
         case '.':
           op = PrintOp();
@@ -605,7 +606,7 @@ class BrainfuckProgram2 {
           final parseResult = _parseSequence(chars, i);
           result.add(LoopOp(parseResult.ops));
           i = parseResult.index;
-          break;
+          continue;
         case ']':
           return ParseResult(result, i);
         default:

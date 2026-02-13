@@ -422,50 +422,54 @@ class BrainfuckArray(Benchmark):
         return self._result_value & 0xFFFFFFFF
 
 class Op:
-
     pass
 
 @dataclass
-class IncOp(Op):
-    value: int
-
-@dataclass
-class MoveOp(Op):
-    value: int
-
-@dataclass
-class PrintOp(Op):
+class IncOp(Op):  
     pass
 
 @dataclass
-class LoopOp(Op):
+class DecOp(Op):  
+    pass
+
+@dataclass
+class NextOp(Op):  
+    pass
+
+@dataclass
+class PrevOp(Op):  
+    pass
+
+@dataclass
+class PrintOp(Op):  
+    pass
+
+@dataclass
+class LoopOp(Op):  
     ops: List[Op]
 
 class Tape2:
-    INITIAL_SIZE = 1024
-
     def __init__(self):
-        self._tape = bytearray(self.INITIAL_SIZE)
+        self._tape = bytearray(30000)
         self._pos = 0
 
     def get(self) -> int:
         return self._tape[self._pos]
 
-    def inc(self, x: int):
-        self._tape[self._pos] = (self._tape[self._pos] + x) & 0xFF
+    def inc(self):
+        self._tape[self._pos] = (self._tape[self._pos] + 1) & 0xFF
 
-    def move(self, x: int):
-        self._pos += x
+    def dec(self):
+        self._tape[self._pos] = (self._tape[self._pos] - 1) & 0xFF
 
+    def next(self):
+        self._pos += 1
         if self._pos >= len(self._tape):
-            new_length = max(self._pos + 1, len(self._tape) * 2)
-            new_length = min(new_length, 1 << 30)  
-            new_tape = bytearray(new_length)
-            new_tape[:len(self._tape)] = self._tape
-            self._tape = new_tape
+            self._tape.append(0)
 
-        if self._pos < 0:
-            self._pos = 0
+    def prev(self):
+        if self._pos > 0:
+            self._pos -= 1
 
 class BrainfuckProgram2:
     def __init__(self, code: str):
@@ -479,19 +483,22 @@ class BrainfuckProgram2:
 
     def _run_ops(self, program: List[Op], tape: Tape2):
         for op in program:
-            if isinstance(op, LoopOp):
+            if isinstance(op, IncOp):
+                tape.inc()
+            elif isinstance(op, DecOp):
+                tape.dec()
+            elif isinstance(op, NextOp):
+                tape.next()
+            elif isinstance(op, PrevOp):
+                tape.prev()
+            elif isinstance(op, LoopOp):
                 while tape.get() != 0:
                     self._run_ops(op.ops, tape)
-            elif isinstance(op, IncOp):
-                tape.inc(op.value)
-            elif isinstance(op, MoveOp):
-                tape.move(op.value)
             elif isinstance(op, PrintOp):
                 self._result_value = ((self._result_value << 2) + tape.get()) & 0xFFFFFFFF
 
     @staticmethod
     def _parse_sequence(chars: List[str], index: int):
-
         result = []
         i = index
 
@@ -502,26 +509,24 @@ class BrainfuckProgram2:
             op = None
 
             if c == '+':
-                op = IncOp(1)
+                op = IncOp()
             elif c == '-':
-                op = IncOp(-1)
+                op = DecOp()
             elif c == '>':
-                op = MoveOp(1)
+                op = NextOp()
             elif c == '<':
-                op = MoveOp(-1)
+                op = PrevOp()
             elif c == '.':
                 op = PrintOp()
             elif c == '[':
-
                 parse_result = BrainfuckProgram2._parse_sequence(chars, i)
                 result.append(LoopOp(parse_result[0]))
-                i = parse_result[1]  
-                continue  
+                i = parse_result[1]
+                continue
             elif c == ']':
-
                 return result, i
             else:
-                continue  
+                continue
 
             if op is not None:
                 result.append(op)
@@ -530,10 +535,9 @@ class BrainfuckProgram2:
 
     @staticmethod
     def _parse(code: str) -> List[Op]:
-
         chars = list(code)
         parse_result = BrainfuckProgram2._parse_sequence(chars, 0)
-        return parse_result[0]  
+        return parse_result[0]
 
 class BrainfuckRecursion(Benchmark):
     def __init__(self):

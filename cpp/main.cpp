@@ -447,29 +447,19 @@ public:
 
 class BrainfuckRecursion : public Benchmark {
 private:
-    struct OpInc { 
-        int32_t val; 
-        explicit OpInc(int32_t v) : val(v) {}
-    };
 
-    struct OpMove { 
-        int32_t val; 
-        explicit OpMove(int32_t v) : val(v) {}
-    };
+    struct OpInc {};      
+    struct OpDec {};      
+    struct OpAdvance {};  
+    struct OpDevance {};  
+    struct OpPrint {};    
+    struct OpLoop;        
 
-    struct OpPrint {};
+    using Op = std::variant<OpInc, OpDec, OpAdvance, OpDevance, OpPrint, OpLoop>;
 
     struct OpLoop {
-        std::vector<std::variant<OpInc, OpMove, OpPrint, OpLoop>> ops;
+        std::vector<Op> ops;
     };
-
-    using Op = std::variant<OpInc, OpMove, OpPrint, OpLoop>;
-
-    template<class... Ts>
-    struct overloaded : Ts... { using Ts::operator()...; };
-
-    template<class... Ts>
-    overloaded(Ts...) -> overloaded<Ts...>;
 
     class Tape {
     private:
@@ -477,33 +467,28 @@ private:
         size_t pos = 0;
 
     public:
-        Tape() : tape(1024, 0) {}
+        Tape() : tape(30000, 0) {}
 
-        uint8_t get() { return tape[pos]; }
-        const uint8_t& get() const { return tape[pos]; }
+        uint8_t get() const { return tape[pos]; }
 
-        void inc(int32_t x) { 
-            tape[pos] += x;
+        void inc() { 
+            tape[pos]++; 
         }
 
-        void move(int32_t x) {
-            if (x >= 0) {
-                pos += static_cast<size_t>(x);
-                if (pos >= tape.size()) {
-                    size_t new_size = std::max(tape.size() * 2, pos + 1);
-                    tape.resize(new_size, 0);
-                }
-            } else {
-                int32_t move_left = -x;
-                if (static_cast<size_t>(move_left) > pos) {
-                    size_t needed = static_cast<size_t>(move_left) - pos;
-                    std::vector<uint8_t> new_tape(tape.size() + needed, 0);
-                    std::copy(tape.begin(), tape.end(), new_tape.begin() + needed);
-                    tape = std::move(new_tape);
-                    pos = needed;
-                } else {
-                    pos -= static_cast<size_t>(move_left);
-                }
+        void dec() { 
+            tape[pos]--; 
+        }
+
+        void advance() {
+            pos++;
+            if (pos >= tape.size()) {
+                tape.push_back(0);  
+            }
+        }
+
+        void devance() {
+            if (pos > 0) {
+                pos--;
             }
         }
     };
@@ -511,7 +496,6 @@ private:
     class Program {
     private:
         std::vector<Op> ops;
-        int64_t result_val = 0;
 
         std::vector<Op> parse(std::string::const_iterator& it, 
                              const std::string::const_iterator& end) {
@@ -520,101 +504,64 @@ private:
 
             while (it != end) {
                 char c = *it++;
-
                 switch (c) {
-                    case '+':
-                        res.emplace_back(OpInc{1});
-                        break;
-                    case '-':
-                        res.emplace_back(OpInc{-1});
-                        break;
-                    case '>':
-                        res.emplace_back(OpMove{1});
-                        break;
-                    case '<':
-                        res.emplace_back(OpMove{-1});
-                        break;
-                    case '.':
-                        res.emplace_back(OpPrint{});
-                        break;
+                    case '+': res.emplace_back(OpInc{}); break;
+                    case '-': res.emplace_back(OpDec{}); break;
+                    case '>': res.emplace_back(OpAdvance{}); break;
+                    case '<': res.emplace_back(OpDevance{}); break;
+                    case '.': res.emplace_back(OpPrint{}); break;
                     case '[': {
                         auto loop_ops = parse(it, end);
                         res.emplace_back(OpLoop{std::move(loop_ops)});
                         break;
                     }
-                    case ']':
-                        return res;
-                    default:
-                        break;
+                    case ']': return res;
+                    default: break;
                 }
             }
-
             return res;
         }
 
-        void run_ops(const std::vector<Op>& program, Tape& tape) {
-            std::function<void(const Op&)> execute;
+        struct Visitor {
+            Tape& tape;
+            int64_t& result;
 
-            struct OpVisitor {
-                Tape& tape;
-                int64_t& result_val;
-                std::function<void(const Op&)>& execute_ref;
-
-                void operator()(const OpInc& inc) const {
-                    tape.inc(inc.val);
-                }
-
-                void operator()(const OpMove& move) const {
-                    tape.move(move.val);
-                }
-
-                void operator()(const OpPrint&) const {
-                    result_val = (result_val << 2) + tape.get();
-                }
-
-                void operator()(const OpLoop& loop) const {
-                    while (tape.get() != 0) {
-                        for (const Op& inner_op : loop.ops) {
-                            std::visit(*this, inner_op);
-                        }
+            void operator()(const OpInc&) const { tape.inc(); }
+            void operator()(const OpDec&) const { tape.dec(); }
+            void operator()(const OpAdvance&) const { tape.advance(); }
+            void operator()(const OpDevance&) const { tape.devance(); }
+            void operator()(const OpPrint&) const { 
+                result = (result << 2) + tape.get();
+            }
+            void operator()(const OpLoop& loop) const {
+                while (tape.get() != 0) {
+                    for (const auto& op : loop.ops) {
+                        std::visit(*this, op);
                     }
                 }
-            };
-
-            OpVisitor visitor{tape, result_val, execute};
-
-            execute = [&visitor](const Op& op) {
-                std::visit(visitor, op);
-            };
-
-            for (const Op& op : program) {
-                execute(op);
             }
-        }        
+        };
 
     public:
         explicit Program(const std::string& code) {
             auto it = code.begin();
-            auto end = code.end();
-            ops = parse(it, end);
+            ops = parse(it, code.end());
         }
 
         int64_t run() {
-            result_val = 0;
             Tape tape;
-            run_ops(ops, tape);
-            return result_val;
+            int64_t result = 0;
+            Visitor visitor{tape, result};
+
+            for (const auto& op : ops) {
+                std::visit(visitor, op);
+            }
+            return result;
         }
     };
 
     std::string text;
     uint32_t result_val;
-
-    int64_t _run(const std::string& text) {
-        Program program(text);
-        program.run();
-        return program.run();  
-    }
 
 public:
     BrainfuckRecursion() : result_val(0) {
@@ -627,12 +574,12 @@ public:
         int64_t prepare_iters = warmup_iterations();
         std::string warmup_program = Helper::config_s(name(), "warmup_program");
         for (int64_t i = 0; i < prepare_iters; i++) {
-            _run(warmup_program);
+            Program(warmup_program).run();
         }
     }
 
     void run(int iteration_id) override {
-        result_val += _run(text);  
+        result_val += Program(text).run();
     }
 
     uint32_t checksum() override {

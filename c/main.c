@@ -989,19 +989,20 @@ Benchmark* BrainfuckArray_create(void) {
 }
 
 typedef enum {
-    BrainfuckRecursion_OP_INC,
-    BrainfuckRecursion_OP_MOVE,
-    BrainfuckRecursion_OP_PRINT,
-    BrainfuckRecursion_OP_LOOP
+    BrainfuckRecursion_OP_INC,    
+    BrainfuckRecursion_OP_DEC,    
+    BrainfuckRecursion_OP_RIGHT,  
+    BrainfuckRecursion_OP_LEFT,   
+    BrainfuckRecursion_OP_PRINT,  
+    BrainfuckRecursion_OP_LOOP    
 } BrainfuckRecursion_OpType;
 
 typedef struct BrainfuckRecursion_Op BrainfuckRecursion_Op;
 
 struct BrainfuckRecursion_Op {
     BrainfuckRecursion_OpType type;
-    int32_t value;
-    BrainfuckRecursion_Op* loop_ops;
-    int32_t loop_size;
+    BrainfuckRecursion_Op* loop_ops;  
+    int32_t loop_size;                 
 };
 
 typedef struct BrainfuckRecursion_Tape {
@@ -1010,57 +1011,38 @@ typedef struct BrainfuckRecursion_Tape {
     int32_t pos;
 } BrainfuckRecursion_Tape;
 
-static BrainfuckRecursion_Tape* BrainfuckRecursion_Tape_new(void);
-static uint8_t BrainfuckRecursion_Tape_get(BrainfuckRecursion_Tape* self);
-static void BrainfuckRecursion_Tape_inc(BrainfuckRecursion_Tape* self, int32_t x);
-static void BrainfuckRecursion_Tape_move(BrainfuckRecursion_Tape* self, int32_t x);
-static void BrainfuckRecursion_Tape_free(BrainfuckRecursion_Tape* self);
-static BrainfuckRecursion_Op* BrainfuckRecursion_parse_ops(const char** code, int32_t* ops_count);
-static void BrainfuckRecursion_free_ops(BrainfuckRecursion_Op* ops, int32_t ops_size);
-static void BrainfuckRecursion_run_ops(BrainfuckRecursion_Op* ops, int32_t ops_size, 
-                                      BrainfuckRecursion_Tape* tape, uint32_t* result);
-static uint32_t BrainfuckRecursion_run_program(const char* code);
-
 static BrainfuckRecursion_Tape* BrainfuckRecursion_Tape_new(void) {
     BrainfuckRecursion_Tape* self = malloc(sizeof(BrainfuckRecursion_Tape));
-    self->size = 1024;
+    self->size = 30000;
     self->tape = calloc(self->size, sizeof(uint8_t));
     self->pos = 0;
     return self;
 }
 
 static uint8_t BrainfuckRecursion_Tape_get(BrainfuckRecursion_Tape* self) {
-    return (self->pos < self->size) ? self->tape[self->pos] : 0;
+    return self->tape[self->pos];
 }
 
-static void BrainfuckRecursion_Tape_inc(BrainfuckRecursion_Tape* self, int32_t x) {
-    if (self->pos < self->size) {
-        self->tape[self->pos] += x;
+static void BrainfuckRecursion_Tape_inc(BrainfuckRecursion_Tape* self) {
+    self->tape[self->pos]++;
+}
+
+static void BrainfuckRecursion_Tape_dec(BrainfuckRecursion_Tape* self) {
+    self->tape[self->pos]--;
+}
+
+static void BrainfuckRecursion_Tape_right(BrainfuckRecursion_Tape* self) {
+    self->pos++;
+    if (self->pos >= self->size) {
+        self->size++;
+        self->tape = realloc(self->tape, self->size);
+        self->tape[self->size - 1] = 0;
     }
 }
 
-static void BrainfuckRecursion_Tape_move(BrainfuckRecursion_Tape* self, int32_t x) {
-    if (x > 0) {
-        self->pos += x;
-        while (self->pos >= self->size) {
-            self->size *= 2;
-            self->tape = realloc(self->tape, self->size);
-            memset(self->tape + self->size / 2, 0, self->size / 2);
-        }
-    } else if (x < 0) {
-        int32_t move_left = -x;
-        if (move_left > self->pos) {
-            int32_t needed = move_left - self->pos;
-            int32_t new_size = self->size + needed;
-            uint8_t* new_tape = malloc(new_size);
-            memset(new_tape, 0, needed);
-            memcpy(new_tape + needed, self->tape, self->size);
-            free(self->tape);
-            self->tape = new_tape;
-            self->size = new_size;
-            self->pos += needed;
-        }
-        self->pos -= move_left;
+static void BrainfuckRecursion_Tape_left(BrainfuckRecursion_Tape* self) {
+    if (self->pos > 0) {
+        self->pos--;
     }
 }
 
@@ -1083,35 +1065,30 @@ static BrainfuckRecursion_Op* BrainfuckRecursion_parse_ops(const char** code, in
         switch (**code) {
             case '+':
                 ops[count].type = BrainfuckRecursion_OP_INC;
-                ops[count].value = 1;
                 ops[count].loop_ops = NULL;
                 ops[count].loop_size = 0;
                 count++;
                 break;
             case '-':
-                ops[count].type = BrainfuckRecursion_OP_INC;
-                ops[count].value = -1;
+                ops[count].type = BrainfuckRecursion_OP_DEC;
                 ops[count].loop_ops = NULL;
                 ops[count].loop_size = 0;
                 count++;
                 break;
             case '>':
-                ops[count].type = BrainfuckRecursion_OP_MOVE;
-                ops[count].value = 1;
+                ops[count].type = BrainfuckRecursion_OP_RIGHT;
                 ops[count].loop_ops = NULL;
                 ops[count].loop_size = 0;
                 count++;
                 break;
             case '<':
-                ops[count].type = BrainfuckRecursion_OP_MOVE;
-                ops[count].value = -1;
+                ops[count].type = BrainfuckRecursion_OP_LEFT;
                 ops[count].loop_ops = NULL;
                 ops[count].loop_size = 0;
                 count++;
                 break;
             case '.':
                 ops[count].type = BrainfuckRecursion_OP_PRINT;
-                ops[count].value = 0;
                 ops[count].loop_ops = NULL;
                 ops[count].loop_size = 0;
                 count++;
@@ -1119,10 +1096,13 @@ static BrainfuckRecursion_Op* BrainfuckRecursion_parse_ops(const char** code, in
             case '[':
                 (*code)++;
                 ops[count].type = BrainfuckRecursion_OP_LOOP;
-                ops[count].value = 0;
+                ops[count].loop_ops = NULL;
+                ops[count].loop_size = 0;
+
                 int32_t loop_ops_count = 0;
                 ops[count].loop_ops = BrainfuckRecursion_parse_ops(code, &loop_ops_count);
                 ops[count].loop_size = loop_ops_count;
+
                 count++;
                 continue;
             case ']':
@@ -1156,10 +1136,16 @@ static void BrainfuckRecursion_run_ops(BrainfuckRecursion_Op* ops, int32_t ops_s
         BrainfuckRecursion_Op* op = &ops[i];
         switch (op->type) {
             case BrainfuckRecursion_OP_INC:
-                BrainfuckRecursion_Tape_inc(tape, op->value);
+                BrainfuckRecursion_Tape_inc(tape);
                 break;
-            case BrainfuckRecursion_OP_MOVE:
-                BrainfuckRecursion_Tape_move(tape, op->value);
+            case BrainfuckRecursion_OP_DEC:
+                BrainfuckRecursion_Tape_dec(tape);
+                break;
+            case BrainfuckRecursion_OP_RIGHT:
+                BrainfuckRecursion_Tape_right(tape);
+                break;
+            case BrainfuckRecursion_OP_LEFT:
+                BrainfuckRecursion_Tape_left(tape);
                 break;
             case BrainfuckRecursion_OP_PRINT: {
                 uint8_t value = BrainfuckRecursion_Tape_get(tape);

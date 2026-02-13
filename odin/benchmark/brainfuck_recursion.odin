@@ -6,22 +6,19 @@ import "core:mem"
 
 OpType :: union {
     OpInc,
-    OpMove,
+    OpDec,
+    OpRight,
+    OpLeft,
     OpPrint,
     OpLoop,
 }
 
-OpInc :: struct {
-    val: i32,
-}
-
-OpMove :: struct {
-    val: i32,
-}
-
-OpPrint :: struct {}
-
-OpLoop :: struct {
+OpInc :: struct {}    
+OpDec :: struct {}    
+OpRight :: struct {}  
+OpLeft :: struct {}   
+OpPrint :: struct {}  
+OpLoop :: struct {    
     ops: [dynamic]OpType,
 }
 
@@ -30,7 +27,7 @@ Recursion_Tape :: struct {
     pos: int,
 }
 
-recursion_tape_init :: proc(tape: ^Recursion_Tape, initial_size: int = 1024) {
+recursion_tape_init :: proc(tape: ^Recursion_Tape, initial_size: int = 30000) {
     tape.tape = make([dynamic]u8, initial_size)
     tape.pos = 0
 }
@@ -43,35 +40,24 @@ recursion_tape_get :: proc(tape: ^Recursion_Tape) -> u8 {
     return tape.tape[tape.pos]
 }
 
-recursion_tape_inc :: proc(tape: ^Recursion_Tape, x: i32) {
-    tape.tape[tape.pos] = u8((i32(tape.tape[tape.pos]) + x) % 256)
+recursion_tape_inc :: proc(tape: ^Recursion_Tape) {
+    tape.tape[tape.pos] += 1
 }
 
-recursion_tape_move :: proc(tape: ^Recursion_Tape, x: i32) {
-    if x >= 0 {
-        tape.pos += int(x)
-        for tape.pos >= len(tape.tape) {
-            append(&tape.tape, 0)
-        }
-    } else {
+recursion_tape_dec :: proc(tape: ^Recursion_Tape) {
+    tape.tape[tape.pos] -= 1
+}
 
-        move_left := -x
+recursion_tape_right :: proc(tape: ^Recursion_Tape) {
+    tape.pos += 1
+    if tape.pos >= len(tape.tape) {
+        append(&tape.tape, 0)
+    }
+}
 
-        if int(move_left) > tape.pos {
-
-            needed := int(move_left) - tape.pos
-
-            new_tape := make([dynamic]u8, len(tape.tape) + needed)
-
-            copy(new_tape[needed:], tape.tape[:])
-
-            delete(tape.tape)
-            tape.tape = new_tape
-
-            tape.pos = needed
-        } else {
-            tape.pos -= int(move_left)
-        }
+recursion_tape_left :: proc(tape: ^Recursion_Tape) {
+    if tape.pos > 0 {
+        tape.pos -= 1
     }
 }
 
@@ -97,21 +83,20 @@ recursion_parse :: proc(it: ^int, code: string) -> [dynamic]OpType {
 
         switch c {
         case '+':
-            append(&ops, OpInc{val = 1})
+            append(&ops, OpInc{})
         case '-':
-            append(&ops, OpInc{val = -1})
+            append(&ops, OpDec{})
         case '>':
-            append(&ops, OpMove{val = 1})
+            append(&ops, OpRight{})
         case '<':
-            append(&ops, OpMove{val = -1})
+            append(&ops, OpLeft{})
         case '.':
             append(&ops, OpPrint{})
         case '[':
-
             loop_ops := recursion_parse(it, code)
             append(&ops, OpLoop{ops = loop_ops})
         case ']':
-            return ops  
+            return ops
         }
     }
 
@@ -119,7 +104,6 @@ recursion_parse :: proc(it: ^int, code: string) -> [dynamic]OpType {
 }
 
 recursion_program_destroy :: proc(program: ^Recursion_Program) {
-
     recursion_destroy_ops(program.ops[:])
     delete(program.ops)
 }
@@ -130,7 +114,7 @@ recursion_destroy_ops :: proc(ops: []OpType) {
         case OpLoop:
             recursion_destroy_ops(v.ops[:])
             delete(v.ops)
-        case OpInc, OpMove, OpPrint:
+        case OpInc, OpDec, OpRight, OpLeft, OpPrint:
 
         }
     }
@@ -140,14 +124,15 @@ recursion_run_ops :: proc(program: ^Recursion_Program, ops: []OpType, tape: ^Rec
     for op in ops {
         switch &v in op {
         case OpInc:
-            recursion_tape_inc(tape, v.val)
-
-        case OpMove:
-            recursion_tape_move(tape, v.val)
-
+            recursion_tape_inc(tape)
+        case OpDec:
+            recursion_tape_dec(tape)
+        case OpRight:
+            recursion_tape_right(tape)
+        case OpLeft:
+            recursion_tape_left(tape)
         case OpPrint:
             program.result_val = (program.result_val << 2) + i64(recursion_tape_get(tape))
-
         case OpLoop:
             for recursion_tape_get(tape) != 0 {
                 recursion_run_ops(program, v.ops[:], tape)
@@ -160,7 +145,7 @@ recursion_program_run :: proc(program: ^Recursion_Program) -> i64 {
     program.result_val = 0
 
     tape: Recursion_Tape
-    recursion_tape_init(&tape, 1024)
+    recursion_tape_init(&tape, 30000)
     defer recursion_tape_destroy(&tape)
 
     recursion_run_ops(program, program.ops[:], &tape)
@@ -192,12 +177,10 @@ brainfuckrecursion_checksum :: proc(bench: ^Benchmark) -> u32 {
 }
 
 brainfuckrecursion_prepare :: proc(bench: ^Benchmark) {
-}
-
-brainfuckrecursion_cleanup :: proc(bench: ^Benchmark) {
     bf := cast(^BrainfuckRecursion)bench
-    delete(bf.program_text)
-    delete(bf.warmup_text)
+    bf.program_text = config_string("BrainfuckRecursion", "program")
+    bf.warmup_text = config_string("BrainfuckRecursion", "warmup_program")
+    bf.result_val = 0
 }
 
 brainfuckrecursion_warmup :: proc(bench: ^Benchmark) {
@@ -207,9 +190,15 @@ brainfuckrecursion_warmup :: proc(bench: ^Benchmark) {
     for i in 0..<wi {
         program: Recursion_Program
         recursion_program_init(&program, bf.warmup_text)
-        result := recursion_program_run(&program)
+        recursion_program_run(&program)
         recursion_program_destroy(&program)
     }
+}
+
+brainfuckrecursion_cleanup :: proc(bench: ^Benchmark) {
+    bf := cast(^BrainfuckRecursion)bench
+    delete(bf.program_text)
+    delete(bf.warmup_text)
 }
 
 create_brainfuckrecursion :: proc() -> ^Benchmark {
@@ -220,13 +209,13 @@ create_brainfuckrecursion :: proc() -> ^Benchmark {
     vtable.run = brainfuckrecursion_run
     vtable.checksum = brainfuckrecursion_checksum
     vtable.prepare = brainfuckrecursion_prepare
-    vtable.cleanup = brainfuckrecursion_cleanup
     vtable.warmup = brainfuckrecursion_warmup
+    vtable.cleanup = brainfuckrecursion_cleanup
 
     bf.vtable = vtable
-
-    bf.program_text = config_string(bf.name, "program")
-    bf.warmup_text = config_string(bf.name, "warmup_program")
+    bf.program_text = config_string("BrainfuckRecursion", "program")
+    bf.warmup_text = config_string("BrainfuckRecursion", "warmup_program")
+    bf.result_val = 0
 
     return cast(^Benchmark)bf
 }

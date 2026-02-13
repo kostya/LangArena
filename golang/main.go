@@ -590,10 +590,12 @@ func (b *BrainfuckArray) Checksum() uint32 {
 }
 
 type Op interface{}
-type IncOp struct{ val int32 }
-type MoveOp struct{ val int32 }
-type PrintOp struct{}
-type LoopOp struct{ ops []Op }
+type IncOp struct{}      
+type DecOp struct{}      
+type NextOp struct{}     
+type PrevOp struct{}     
+type PrintOp struct{}    
+type LoopOp struct{ ops []Op }  
 
 type Program2 struct {
 	ops    []Op
@@ -616,13 +618,13 @@ func parseProgram(pos *int, runes []rune) []Op {
 
 		switch c {
 		case '+':
-			res = append(res, IncOp{val: 1})
+			res = append(res, IncOp{})
 		case '-':
-			res = append(res, IncOp{val: -1})
+			res = append(res, DecOp{})
 		case '>':
-			res = append(res, MoveOp{val: 1})
+			res = append(res, NextOp{})
 		case '<':
-			res = append(res, MoveOp{val: -1})
+			res = append(res, PrevOp{})
 		case '.':
 			res = append(res, PrintOp{})
 		case '[':
@@ -636,17 +638,22 @@ func parseProgram(pos *int, runes []rune) []Op {
 }
 
 func (p *Program2) Run() {
-	tape := &Tape2{tape: []byte{0}}
-	p.runOps(p.ops, tape)
+	tape := Tape2{tape: make([]byte, 30000)}
+	p.result = 0
+	p.runOps(p.ops, &tape)
 }
 
 func (p *Program2) runOps(ops []Op, tape *Tape2) {
 	for _, op := range ops {
 		switch o := op.(type) {
 		case IncOp:
-			tape.Inc(o.val)
-		case MoveOp:
-			tape.Move(o.val)
+			tape.Inc()
+		case DecOp:
+			tape.Dec()
+		case NextOp:
+			tape.Next()
+		case PrevOp:
+			tape.Prev()
 		case PrintOp:
 			p.result = (p.result << 2) + int64(tape.Get())
 		case LoopOp:
@@ -659,15 +666,38 @@ func (p *Program2) runOps(ops []Op, tape *Tape2) {
 
 type Tape2 struct {
 	tape []byte
-	pos  int32
+	pos  int
 }
 
-func (t *Tape2) Get() byte   { return t.tape[t.pos] }
-func (t *Tape2) Inc(x int32) { t.tape[t.pos] += byte(x) }
-func (t *Tape2) Move(x int32) {
-	t.pos += x
-	for t.pos >= int32(len(t.tape)) {
+func NewTape2() *Tape2 {
+	return &Tape2{
+		tape: make([]byte, 30000),
+		pos:  0,
+	}
+}
+
+func (t *Tape2) Get() byte {
+	return t.tape[t.pos]
+}
+
+func (t *Tape2) Inc() {
+	t.tape[t.pos]++
+}
+
+func (t *Tape2) Dec() {
+	t.tape[t.pos]--
+}
+
+func (t *Tape2) Next() {
+	t.pos++
+	if t.pos >= len(t.tape) {
 		t.tape = append(t.tape, 0)
+	}
+}
+
+func (t *Tape2) Prev() {
+	if t.pos > 0 {
+		t.pos--
 	}
 }
 
@@ -677,8 +707,13 @@ type BrainfuckRecursion struct {
 	result uint32
 }
 
+func (b *BrainfuckRecursion) Name() string {
+	return "BrainfuckRecursion"
+}
+
 func (b *BrainfuckRecursion) Prepare() {
 	b.text = b.ConfigStr("program")
+	b.result = 0
 }
 
 func (b *BrainfuckRecursion) _Run(text string) int64 {
@@ -696,7 +731,8 @@ func (b *BrainfuckRecursion) Warmup(bench Benchmark) {
 }
 
 func (b *BrainfuckRecursion) Run(iteration_id int) {
-	b.result += uint32(b._Run(b.text))
+	result := b._Run(b.text)
+	b.result = (b.result + uint32(result)) & 0xFFFFFFFF
 }
 
 func (b *BrainfuckRecursion) Checksum() uint32 {

@@ -735,19 +735,26 @@ export class BrainfuckArray extends Benchmark {
   }
 }
 
-type Op = 
-  | { type: 'inc'; val: number }
-  | { type: 'move'; val: number }
-  | { type: 'print' }
-  | Op[];
+const enum OpType {
+  INC,   
+  DEC,   
+  NEXT,  
+  PREV,  
+  PRINT, 
+  LOOP   
+}
+
+type Op = {
+  type: OpType;
+  loop?: Op[];  
+}
 
 class Tape2 {
   private tape: Uint8Array;
   private pos: number;
-  private static readonly INITIAL_SIZE = 1024;
 
   constructor() {
-    this.tape = new Uint8Array(Tape2.INITIAL_SIZE).fill(0);
+    this.tape = new Uint8Array(30000);
     this.pos = 0;
   }
 
@@ -755,22 +762,26 @@ class Tape2 {
     return this.tape[this.pos];
   }
 
-  inc(x: number): void {
-    this.tape[this.pos] += x;
+  inc(): void {
+    this.tape[this.pos]++;
   }
 
-  move(x: number): void {
-    this.pos += x;
+  dec(): void {
+    this.tape[this.pos]--;
+  }
 
+  next(): void {
+    this.pos++;
     if (this.pos >= this.tape.length) {
-      const newLength = Math.max(this.tape.length * 2, this.pos + 1);
-      const newTape = new Uint8Array(newLength);
+      const newTape = new Uint8Array(this.tape.length + 1);
       newTape.set(this.tape);
       this.tape = newTape;
     }
+  }
 
-    if (this.pos < 0) {
-      this.pos = 0;
+  prev(): void {
+    if (this.pos > 0) {
+      this.pos--;
     }
   }
 }
@@ -786,27 +797,32 @@ class Program2 {
 
   run(): number {
     this.runOps(this.ops, new Tape2());
-    return this.resultValue;
+    return this.resultValue >>> 0;
   }
 
   private runOps(program: Op[], tape: Tape2): void {
     for (const op of program) {
-      if (Array.isArray(op)) {
-        while (tape.get() !== 0) {
-          this.runOps(op, tape);
-        }
-      } else {
-        switch (op.type) {
-          case 'inc':
-            tape.inc(op.val);
-            break;
-          case 'move':
-            tape.move(op.val);
-            break;
-          case 'print':
-            this.resultValue = (this.resultValue << 2) + tape.get();
-            break;
-        }
+      switch (op.type) {
+        case OpType.INC:
+          tape.inc();
+          break;
+        case OpType.DEC:
+          tape.dec();
+          break;
+        case OpType.NEXT:
+          tape.next();
+          break;
+        case OpType.PREV:
+          tape.prev();
+          break;
+        case OpType.PRINT:
+          this.resultValue = (this.resultValue << 2) + tape.get();
+          break;
+        case OpType.LOOP:
+          while (tape.get() !== 0) {
+            this.runOps(op.loop!, tape);
+          }
+          break;
       }
     }
   }
@@ -828,23 +844,23 @@ class Program2 {
 
       switch (c) {
         case '+':
-          op = { type: 'inc', val: 1 };
+          op = { type: OpType.INC };
           break;
         case '-':
-          op = { type: 'inc', val: -1 };
+          op = { type: OpType.DEC };
           break;
         case '>':
-          op = { type: 'move', val: 1 };
+          op = { type: OpType.NEXT };
           break;
         case '<':
-          op = { type: 'move', val: -1 };
+          op = { type: OpType.PREV };
           break;
         case '.':
-          op = { type: 'print' };
+          op = { type: OpType.PRINT };
           break;
         case '[':
           const [loopOps, newIndex] = this.parseSequence(chars, i);
-          result.push(loopOps);
+          op = { type: OpType.LOOP, loop: loopOps };
           i = newIndex;
           break;
         case ']':
@@ -882,7 +898,7 @@ export class BrainfuckRecursion extends Benchmark {
 
   run(_iteration_id: number): void {
     const program = new Program2(this.text);
-    this.resultValue += program.run();
+    this.resultValue = (this.resultValue + program.run()) >>> 0;
   }
 
   checksum(): number {

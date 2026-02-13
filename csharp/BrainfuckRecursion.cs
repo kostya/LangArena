@@ -11,37 +11,42 @@ public class BrainfuckRecursion : Benchmark
     }
 
     private interface IOp { }
-    private record struct Inc(int Value) : IOp;
-    private record struct Move(int Value) : IOp;
-    private record struct Print : IOp;
-    private record class Loop(List<IOp> Operations) : IOp;
+    private record struct Inc() : IOp;      
+    private record struct Dec() : IOp;      
+    private record struct Next() : IOp;     
+    private record struct Prev() : IOp;     
+    private record struct Print() : IOp;    
+    private record class Loop(List<IOp> Operations) : IOp;  
 
-    private sealed class Tape
+    private struct Tape
     {
-        private byte[] _tape = new byte[1024];
-        private int _pos = 0;
+        private byte[] _tape;
+        private int _pos;
+
+        public Tape()
+        {
+            _tape = new byte[30000];
+            _pos = 0;
+        }
 
         public byte Get() => _tape[_pos];
 
-        public void Inc(int x) => _tape[_pos] = (byte)(_tape[_pos] + x);
+        public void Inc() => _tape[_pos]++;
 
-        public void Move(int x)
+        public void Dec() => _tape[_pos]--;
+
+        public void Next()
         {
-            _pos += x;
+            _pos++;
+            if (_pos >= _tape.Length)
+            {
+                Array.Resize(ref _tape, _tape.Length + 1);
+            }
+        }
 
-            if (_pos < 0)
-            {
-                int needed = -_pos;
-                byte[] newTape = new byte[_tape.Length + needed];
-                Array.Copy(_tape, 0, newTape, needed, _tape.Length);
-                _tape = newTape;
-                _pos = needed;
-            }
-            else if (_pos >= _tape.Length)
-            {
-                int newSize = Math.Max(_tape.Length * 2, _pos + 1);
-                Array.Resize(ref _tape, newSize);
-            }
+        public void Prev()
+        {
+            if (_pos > 0) _pos--;
         }
     }
 
@@ -68,10 +73,10 @@ public class BrainfuckRecursion : Benchmark
 
                 IOp op = c switch
                 {
-                    '+' => new Inc(1),
-                    '-' => new Inc(-1),
-                    '>' => new Move(1),
-                    '<' => new Move(-1),
+                    '+' => new Inc(),
+                    '-' => new Dec(),
+                    '>' => new Next(),
+                    '<' => new Prev(),
                     '.' => new Print(),
                     '[' => new Loop(Parse(ref index, code)),
                     ']' => null,
@@ -79,7 +84,6 @@ public class BrainfuckRecursion : Benchmark
                 };
 
                 if (op is not null) operations.Add(op);
-
                 if (c == ']') break;
             }
 
@@ -89,6 +93,7 @@ public class BrainfuckRecursion : Benchmark
         public void Run()
         {
             var tape = new Tape();
+            _result = 0;
             RunOperations(_operations, tape);
         }
 
@@ -100,11 +105,14 @@ public class BrainfuckRecursion : Benchmark
 
                 switch (op)
                 {
-                    case Inc inc: tape.Inc(inc.Value); break;
-                    case Move move: tape.Move(move.Value); break;
-                    case Print: _result = ((_result << 2) + tape.Get()); break;
+                    case Inc: tape.Inc(); break;
+                    case Dec: tape.Dec(); break;
+                    case Next: tape.Next(); break;
+                    case Prev: tape.Prev(); break;
+                    case Print: _result = (_result << 2) + tape.Get(); break;
                     case Loop loop:
-                        while (tape.Get() != 0) RunOperations(loop.Operations, tape);
+                        while (tape.Get() != 0) 
+                            RunOperations(loop.Operations, tape);
                         break;
                 }
             }
@@ -121,10 +129,14 @@ public class BrainfuckRecursion : Benchmark
     public override void Warmup()
     {
         long prepareIters = WarmupIterations;
-        for (long i = 0; i < prepareIters; i++) RunProgram(_warmupText);
+        for (long i = 0; i < prepareIters; i++) 
+            RunProgram(_warmupText);
     }
 
-    public override void Run(long IterationId) => _result += RunProgram(_text);
+    public override void Run(long IterationId) 
+    { 
+        _result = (_result + RunProgram(_text)) & 0xFFFFFFFF; 
+    }
 
     public override uint Checksum => _result;
 }

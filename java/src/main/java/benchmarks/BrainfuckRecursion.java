@@ -4,135 +4,98 @@ import java.util.*;
 
 public class BrainfuckRecursion extends Benchmark {
 
-    interface Op {
-        void execute(Tape tape, long[] result);
-    }
+    interface Op {}
 
-    record Dec() implements Op {
-        @Override
-        public void execute(Tape tape, long[] result) {
-            tape.inc(-1);
-        }
-    }
-
-    record Inc() implements Op {
-        @Override
-        public void execute(Tape tape, long[] result) {
-            tape.inc(1);
-        }
-    }
-
-    record Prev() implements Op {
-        @Override
-        public void execute(Tape tape, long[] result) {
-            tape.prev();
-        }
-    }
-
-    record Next() implements Op {
-        @Override
-        public void execute(Tape tape, long[] result) {
-            tape.next();
-        }
-    }
-
-    record Print() implements Op {
-        @Override
-        public void execute(Tape tape, long[] result) {
-            result[0] = (result[0] << 2) + (tape.get() & 0xFF);
-        }
-    }
-
+    static class Inc implements Op {}
+    static class Dec implements Op {}
+    static class Next implements Op {}
+    static class Prev implements Op {}
+    static class Print implements Op {}
     static class Loop implements Op {
-        private final Op[] body;
-
-        Loop(Op[] body) {
-            this.body = body;
-        }
-
-        @Override
-        public void execute(Tape tape, long[] result) {
-            while (tape.get() != 0) {
-                for (Op op : body) {
-                    op.execute(tape, result);
-                }
-            }
-        }
+        Op[] body;
+        Loop(Op[] body) { this.body = body; }
     }
 
     static class Tape {
-        private byte[] tape;
-        private int pos;
+        private byte[] tape = new byte[30000];
+        private int pos = 0;
 
-        Tape() {
-            this.tape = new byte[1];  
-            this.pos = 0;
-        }
-
-        byte get() {
-            return tape[pos];
-        }
-
-        void inc(int x) {
-            tape[pos] += x;  
-        }
-
-        void prev() {
-            pos--;
-        }
+        byte get() { return tape[pos]; }
+        void inc() { tape[pos]++; }
+        void dec() { tape[pos]--; }
 
         void next() {
             pos++;
             if (pos >= tape.length) {
-
-                int newSize = pos * 2;
-                byte[] newTape = new byte[newSize];
+                byte[] newTape = new byte[tape.length + 1];
                 System.arraycopy(tape, 0, newTape, 0, tape.length);
                 tape = newTape;
             }
+        }
+
+        void prev() {
+            if (pos > 0) pos--;
         }
     }
 
     static class Program {
         private final Op[] ops;
+        private long result = 0;
 
         Program(String code) {
-            int[] pos = {0};  
-            List<Op> opsList = new ArrayList<>(code.length() / 2);
-            this.ops = parse(opsList, code, pos).toArray(new Op[0]);
+            int[] pos = {0};
+            List<Op> opsList = parse(code, pos);
+            this.ops = opsList.toArray(new Op[0]);
         }
 
-        private List<Op> parse(List<Op> ops, String code, int[] pos) {
+        private List<Op> parse(String code, int[] pos) {
+            List<Op> list = new ArrayList<>();
+
             while (pos[0] < code.length()) {
                 char c = code.charAt(pos[0]++);
-
                 switch (c) {
-                    case '-': ops.add(new Dec()); break;
-                    case '+': ops.add(new Inc()); break;
-                    case '<': ops.add(new Prev()); break;
-                    case '>': ops.add(new Next()); break;
-                    case '.': ops.add(new Print()); break;
+                    case '+': list.add(new Inc()); break;
+                    case '-': list.add(new Dec()); break;
+                    case '>': list.add(new Next()); break;
+                    case '<': list.add(new Prev()); break;
+                    case '.': list.add(new Print()); break;
                     case '[':
-                        List<Op> loopOps = new ArrayList<>();
-                        parse(loopOps, code, pos);
-                        ops.add(new Loop(loopOps.toArray(new Op[0])));
+                        List<Op> loopList = parse(code, pos);
+                        list.add(new Loop(loopList.toArray(new Op[0])));
                         break;
-                    case ']': return ops;
-                    default: 
+                    case ']':
+                        return list;
                 }
             }
-            return ops;
+            return list;
         }
 
         long run() {
             Tape tape = new Tape();
-            long[] result = {0L};
+            result = 0;
+            execute(ops, tape);
+            return result;
+        }
 
-            for (Op op : ops) {
-                op.execute(tape, result);
+        private void execute(Op[] program, Tape tape) {
+            for (Op op : program) {
+                if (op instanceof Inc) {
+                    tape.inc();
+                } else if (op instanceof Dec) {
+                    tape.dec();
+                } else if (op instanceof Next) {
+                    tape.next();
+                } else if (op instanceof Prev) {
+                    tape.prev();
+                } else if (op instanceof Print) {
+                    result = (result << 2) + (tape.get() & 0xFF);
+                } else if (op instanceof Loop) {
+                    Loop loop = (Loop) op;
+                    while (tape.get() != 0) {
+                        execute(loop.body, tape);
+                    }
+                }
             }
-
-            return result[0];
         }
     }
 
@@ -147,13 +110,10 @@ public class BrainfuckRecursion extends Benchmark {
     }
 
     @Override
-    public String name() {
-        return "BrainfuckRecursion";
-    }
+    public String name() { return "BrainfuckRecursion"; }
 
     private long runProgram(String programText) {
-        Program program = new Program(programText);
-        return program.run();
+        return new Program(programText).run();
     }
 
     @Override
@@ -170,7 +130,5 @@ public class BrainfuckRecursion extends Benchmark {
     }
 
     @Override
-    public long checksum() {
-        return resultVal;
-    }
+    public long checksum() { return resultVal; }
 }

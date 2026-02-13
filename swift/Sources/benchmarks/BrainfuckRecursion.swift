@@ -11,34 +11,45 @@ final class BrainfuckRecursion: BenchmarkProtocol {
     }
 
     enum Op {
-        case inc(Int)
-        case move(Int)
-        case print
-        case loop([Op])
+        case inc      
+        case dec      
+        case next     
+        case prev     
+        case print    
+        case loop([Op]) 
     }
 
-    class Tape {
-        private var tape: [UInt8]
+    struct Tape {  
+        private var tape: [UInt8]  
         private var pos: Int
 
         init() {
-            tape = [0]
+            tape = [UInt8](repeating: 0, count: 30000)
             pos = 0
         }
 
-        func get() -> UInt8 {
+        mutating func get() -> UInt8 {  
             return tape[pos]
         }
 
-        func inc(_ x: Int) {
-            let newValue = Int(tape[pos]) + x
-            tape[pos] = UInt8(newValue & 255)
+        mutating func inc() {
+            tape[pos] &+= 1
         }
 
-        func move(_ x: Int) {
-            pos += x
-            while pos >= tape.count {
+        mutating func dec() {
+            tape[pos] &-= 1
+        }
+
+        mutating func next() {
+            pos += 1
+            if pos >= tape.count {
                 tape.append(0)
+            }
+        }
+
+        mutating func prev() {
+            if pos > 0 {
+                pos -= 1
             }
         }
     }
@@ -53,23 +64,27 @@ final class BrainfuckRecursion: BenchmarkProtocol {
         }
 
         func run() {
-            let tape = Tape()
-            run(ops, tape)
+            var tape = Tape()  
+            run(ops, &tape)    
         }
 
-        private func run(_ program: [Op], _ tape: Tape) {
+        private func run(_ program: [Op], _ tape: inout Tape) {
             for op in program {
                 switch op {
-                case .inc(let value):
-                    tape.inc(value)
-                case .move(let value):
-                    tape.move(value)
-                case .loop(let innerOps):
-                    while tape.get() != 0 {
-                        run(innerOps, tape)
-                    }
+                case .inc:
+                    tape.inc()
+                case .dec:
+                    tape.dec()
+                case .next:
+                    tape.next()
+                case .prev:
+                    tape.prev()
                 case .print:
                     resultVal = (resultVal << 2) + Int64(tape.get())
+                case .loop(let innerOps):
+                    while tape.get() != 0 {
+                        run(innerOps, &tape)
+                    }
                 }
             }
         }
@@ -80,13 +95,13 @@ final class BrainfuckRecursion: BenchmarkProtocol {
                 let op: Op?
                 switch char {
                 case "+":
-                    op = .inc(1)
+                    op = .inc
                 case "-":
-                    op = .inc(-1)
+                    op = .dec
                 case ">":
-                    op = .move(1)
+                    op = .next
                 case "<":
-                    op = .move(-1)
+                    op = .prev
                 case ".":
                     op = .print
                 case "[":

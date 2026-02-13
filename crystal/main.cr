@@ -403,110 +403,125 @@ class BrainfuckArray < Benchmark
 end
 
 class BrainfuckRecursion < Benchmark
-  module Op
-    record Inc, val : Int32
-    record Move, val : Int32
-    record Print
-    alias T = Inc | Move | Print | Array(Op::T)
-  end
 
-  class Tape
+  record Inc
+  record Dec
+  record Advance
+  record Devance
+  record Print
+  alias Op = Inc | Dec | Advance | Devance | Print | Array(Op)
+
+  struct Tape
     def initialize
-      @tape = [0_u8]
+      @tape = Array(UInt8).new(30000, 0_u8)
       @pos = 0
     end
 
-    @[AlwaysInline]
-    def get
+    def get : UInt8
       @tape[@pos]
     end
 
-    @[AlwaysInline]
-    def inc(x)
-      @tape[@pos] += x
+    def inc
+      @tape[@pos] &+= 1
     end
 
-    @[AlwaysInline]
-    def move(x)
-      @pos += x
-      while @pos >= @tape.size
-        @tape << 0
+    def dec
+      @tape[@pos] &-= 1
+    end
+
+    def advance
+      @pos += 1
+      if @pos >= @tape.size
+        @tape << 0_u8
+      end
+    end
+
+    def devance
+      if @pos > 0
+        @pos -= 1
       end
     end
   end
 
   class Program
-    property result
-    @ops : Array(Op::T)
+    @ops : Array(Op)
+    @result : Int64
 
     def initialize(code : String)
-      @ops = parse(code.each_char)
+      it = code.each_char
+      @ops = parse(it)
       @result = 0_i64
+    end
+
+    def result
+      @result
     end
 
     def run
       tape = Tape.new
-      @ops.each { |op| _run(op, tape) }
+      run_ops(@ops, tape)
     end
 
-    def _run(op : Op::Inc, tape)
-      tape.inc(op.val)
-    end
-
-    def _run(op : Op::Move, tape)
-      tape.move(op.val)
-    end
-
-    def _run(ops : Array(Op::T), tape)
-      while tape.get != 0
-        ops.each { |op| _run(op, tape) }
+    def run_ops(ops : Array(Op), tape)
+      ops.each do |op|
+        case op
+        when Inc
+          tape.inc
+        when Dec
+          tape.dec
+        when Advance
+          tape.advance
+        when Devance
+          tape.devance
+        when Print
+          @result = (@result << 2) + tape.get
+        when Array(Op)
+          while tape.get != 0
+            run_ops(op, tape)
+          end
+        end
       end
     end
 
-    def _run(op : Op::Print, tape)
-      @result = (@result << 2) &+ tape.get.chr.ord
-    end
-
-    private def parse(iterator)
-      res = [] of Op::T
-      iterator.each do |c|
-        op = case c
-             when '+'; Op::Inc.new(1)
-             when '-'; Op::Inc.new(-1)
-             when '>'; Op::Move.new(1)
-             when '<'; Op::Move.new(-1)
-             when '.'; Op::Print.new
-             when '['; parse(iterator)
-             when ']'; break
-             else
-             end
-        res << op if op
+    private def parse(it : Iterator(Char))
+      ops = [] of Op
+      it.each do |c|
+        case c
+        when '+'; ops << Inc.new
+        when '-'; ops << Dec.new
+        when '>'; ops << Advance.new
+        when '<'; ops << Devance.new
+        when '.'; ops << Print.new
+        when '['; ops << parse(it)
+        when ']'; break
+        end
       end
-      res
+      ops
     end
   end
 
   @text : String
+  @result : UInt32
 
   def initialize
-    @text = Helper.config_s(self.class.name.to_s, "program")
+    @text = Helper.config_s("BrainfuckRecursion", "program")
     @result = 0_u32
   end
 
   def warmup
     warmup_iterations.times do
-      _run(Helper.config_s(self.class.name.to_s, "warmup_program"))
+      run_text(Helper.config_s("BrainfuckRecursion", "warmup_program"))
     end
   end
 
-  private def _run(text : String)
+  private def run_text(text : String)
     prog = Program.new(text)
     prog.run
     prog.result
   end
 
   def run(iteration_id)
-    @result &+= _run(@text)
+    @result &+= run_text(@text).to_u32!
   end
 
   def checksum : UInt32

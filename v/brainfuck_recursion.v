@@ -3,21 +3,16 @@ module brainfuck_recursion
 import benchmark
 import helper
 
-struct IncOp {
-	val i32
-}
-
-struct MoveOp {
-	val i32
-}
-
-struct PrintOp {}
-
+struct IncOp {}    
+struct DecOp {}    
+struct NextOp {}   
+struct PrevOp {}   
+struct PrintOp {}  
 struct LoopOp {
 	ops []Op
 }
 
-type Op = IncOp | MoveOp | PrintOp | LoopOp
+type Op = IncOp | DecOp | NextOp | PrevOp | PrintOp | LoopOp
 
 struct ParseResult {
 	ops []Op
@@ -34,24 +29,16 @@ fn parse_program(pos int, runes []rune) ParseResult {
 
 		match c {
 			`+` {
-				res << IncOp{
-					val: 1
-				}
+				res << IncOp{}
 			}
 			`-` {
-				res << IncOp{
-					val: -1
-				}
+				res << DecOp{}
 			}
 			`>` {
-				res << MoveOp{
-					val: 1
-				}
+				res << NextOp{}
 			}
 			`<` {
-				res << MoveOp{
-					val: -1
-				}
+				res << PrevOp{}
 			}
 			`.` {
 				res << PrintOp{}
@@ -97,14 +84,24 @@ fn (t Tape) get() u8 {
 	return t.data[t.pos]
 }
 
-fn (mut t Tape) inc(x i32) {
-	t.data[t.pos] = u8(i32(t.data[t.pos]) + x)
+fn (mut t Tape) inc() {
+	t.data[t.pos]++
 }
 
-fn (mut t Tape) move(x i32) {
-	t.pos += int(x)
-	for t.pos >= t.data.len {
+fn (mut t Tape) dec() {
+	t.data[t.pos]--
+}
+
+fn (mut t Tape) next() {
+	t.pos++
+	if t.pos >= t.data.len {
 		t.data << 0
+	}
+}
+
+fn (mut t Tape) prev() {
+	if t.pos > 0 {
+		t.pos--
 	}
 }
 
@@ -112,13 +109,18 @@ fn (mut p Program) run_ops(ops []Op, mut tape Tape) {
 	for op in ops {
 		match op {
 			IncOp {
-				tape.inc(op.val)
+				tape.inc()
 			}
-			MoveOp {
-				tape.move(op.val)
+			DecOp {
+				tape.dec()
+			}
+			NextOp {
+				tape.next()
+			}
+			PrevOp {
+				tape.prev()
 			}
 			PrintOp {
-
 				p.result = (p.result << 2) + i64(tape.get())
 			}
 			LoopOp {

@@ -7,48 +7,26 @@ class BrainfuckRecursion extends Benchmark:
 
   override def name(): String = "BrainfuckRecursion"
 
-  trait Op:
-    def execute(tape: Tape, result: Array[Long]): Unit
-
-  class Dec extends Op:
-    override def execute(tape: Tape, result: Array[Long]): Unit = tape.inc(-1)
-
-  class Inc extends Op:
-    override def execute(tape: Tape, result: Array[Long]): Unit = tape.inc(1)
-
-  class Prev extends Op:
-    override def execute(tape: Tape, result: Array[Long]): Unit = tape.prev()
-
-  class Next extends Op:
-    override def execute(tape: Tape, result: Array[Long]): Unit = tape.next()
-
-  class Print extends Op:
-    override def execute(tape: Tape, result: Array[Long]): Unit =
-      result(0) = (result(0) << 2) + (tape.get() & 0xFF)
-
-  class Loop(val body: Array[Op]) extends Op:
-    override def execute(tape: Tape, result: Array[Long]): Unit =
-      while tape.get() != 0 do
-        var i = 0
-        while i < body.length do
-          body(i).execute(tape, result)
-          i += 1
+  sealed trait Op
+  case object Inc extends Op
+  case object Dec extends Op
+  case object Next extends Op
+  case object Prev extends Op
+  case object Print extends Op
+  case class Loop(body: Array[Op]) extends Op
 
   class Tape:
-    private var tape: Array[Byte] = new Array[Byte](1)
+    private var tape: Array[Byte] = new Array[Byte](30000)
     private var pos: Int = 0
 
     def get(): Byte = tape(pos)
-
-    def inc(x: Int): Unit = tape(pos) = (tape(pos) + x).toByte
-
-    def prev(): Unit = pos -= 1
-
+    def inc(): Unit = tape(pos) = (tape(pos) + 1).toByte
+    def dec(): Unit = tape(pos) = (tape(pos) - 1).toByte
+    def prev(): Unit = if pos > 0 then pos -= 1
     def next(): Unit =
       pos += 1
       if pos >= tape.length then
-        val newSize = pos * 2
-        val newTape = new Array[Byte](newSize)
+        val newTape = new Array[Byte](tape.length + 1)
         System.arraycopy(tape, 0, newTape, 0, tape.length)
         tape = newTape
 
@@ -64,29 +42,42 @@ class BrainfuckRecursion extends Benchmark:
         pos(0) += 1
 
         c match
-          case '-' => ops.add(new Dec())
-          case '+' => ops.add(new Inc())
-          case '<' => ops.add(new Prev())
-          case '>' => ops.add(new Next())
-          case '.' => ops.add(new Print())
+          case '-' => ops.add(Dec)
+          case '+' => ops.add(Inc)
+          case '<' => ops.add(Prev)
+          case '>' => ops.add(Next)
+          case '.' => ops.add(Print)
           case '[' =>
             val loopOps = new java.util.ArrayList[Op]()
             parse(loopOps, code, pos)
-            ops.add(new Loop(loopOps.toArray(Array.empty[Op])))
+            ops.add(Loop(loopOps.toArray(Array.empty[Op])))
           case ']' => return ops
           case _ =>
       ops
 
     def run(): Long =
       val tape = Tape()
-      val result = Array(0L)
+      var result = 0L
+
+      def exec(op: Op): Unit = op match
+        case Inc => tape.inc()
+        case Dec => tape.dec()
+        case Next => tape.next()
+        case Prev => tape.prev()
+        case Print => result = (result << 2) + (tape.get() & 0xFF)
+        case Loop(body) =>
+          while tape.get() != 0 do
+            var i = 0
+            while i < body.length do
+              exec(body(i))
+              i += 1
 
       var i = 0
       while i < ops.length do
-        ops(i).execute(tape, result)
+        exec(ops(i))
         i += 1
 
-      result(0)
+      result & 0xFFFFFFFFL
 
   private def runProgram(programText: String): Long =
     Program(programText).run()
