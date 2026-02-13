@@ -7,11 +7,9 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       "org.json" % "json" % "20231013"
     ),
-    // Для запуска через sbt
     Compile / run / fork := true,
     Compile / run / connectInput := true,
     
-    // Настройки для оптимизации
     scalacOptions ++= Seq(
       "-deprecation",
       "-feature",
@@ -20,5 +18,5 @@ lazy val root = (project in file("."))
     ),
     libraryDependencies ++= Seq(
   		"com.alibaba.fastjson2" % "fastjson2" % "2.0.60"
-	)
+	  )
   )

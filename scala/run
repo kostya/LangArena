@@ -1,3 +1,2 @@
 #!/bin/sh
-#sbt "run ../run.js $@"
 sbt -J-server -J-Xms2g -J-Xmx2g "run ../run.js $@"
