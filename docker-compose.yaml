@@ -664,3 +664,22 @@ services:
       - ./cache/build/pypy/pycache:/src/python/__pycache__
     depends_on:
       - base
+
+  odin:
+    <<: *shared
+    image: benchmarks:odin
+    working_dir: /src/odin
+    build:
+      dockerfile: docker/odin
+      args:
+        # https://github.com/odin-lang/Odin/releases
+        version: "2026-02"
+    volumes:
+      - .:/src
+      
+      - ./cache/build/odin/target:/src/odin/target
+    environment:
+      - ODIN_ROOT=/opt/odin
+      - ODIN_PATH=/opt/odin
+    depends_on:
+      - base

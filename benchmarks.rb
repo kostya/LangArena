@@ -66,6 +66,7 @@ LANG_MASKS = {
   'fsharp' => ['./fsharp', ['.fs'], ['bin', 'obj']],
   'dart' => ['./dart', ['.dart'], ['target']],
   'python' => ['./python', ['.py'], ['__pycache__']],
+  'odin' => ['./odin', ['.odin'], ['target']],
 }
 
 def check_source_files(verbose = false)
@@ -152,7 +153,7 @@ module ClearComments
     content = File.read(filepath, encoding: 'utf-8')
     
     case lang
-    when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 'fsharp', 'dart', 'zig'
+    when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 'fsharp', 'dart', 'zig', 'odin'
       content.gsub!(/\/\*[\s\S]*?\*\//m, '')
       content.gsub!(/\/\/[^\n]*/, '')
       
@@ -1260,6 +1261,66 @@ RUNS = [
   #   group: :hack,
   #   deps_cmd: "swift package resolve",
   # ),
+
+  # ======================================= Odin ======================================================
+
+  Run.new(
+    name: "Odin/Default", 
+    build_cmd: <<-BUILD,
+    odin build . \
+      -o:speed \
+      -out:target/bin_odin \
+      -collection:benchmark=./benchmark
+    BUILD
+    binary_name: "target/bin_odin",
+    run_cmd: "target/bin_odin", 
+    version_cmd: "odin version",
+    dir: "/src/odin",
+    container: "odin",
+    group: :prod,
+    deps_cmd: "mkdir -p target",
+  ),
+
+  Run.new(
+    name: "Odin/Opt", 
+    build_cmd: <<-BUILD,
+      odin build . \
+        -o:speed \
+        -out:target/bin_odin_optimized \
+        -collection:benchmark=./benchmark \
+        -microarch:native \
+        -no-threaded-checker \
+        -no-bounds-check
+    BUILD
+    binary_name: "target/bin_odin_optimized",
+    run_cmd: "target/bin_odin_optimized", 
+    version_cmd: "odin version",
+    dir: "/src/odin",
+    container: "odin",
+    group: :hack,
+    deps_cmd: "mkdir -p target",
+  ),
+
+  Run.new(
+    name: "Odin/MaxPerf", 
+    build_cmd: <<-BUILD,
+      odin build . \
+        -o:aggressive \
+        -out:target/bin_odin_maxperf \
+        -collection:benchmark=./benchmark \
+        -microarch:native \
+        -disable-assert \
+        -no-bounds-check \
+        -use-single-module
+    BUILD
+    binary_name: "target/bin_odin_maxperf",
+    run_cmd: "target/bin_odin_maxperf", 
+    version_cmd: "odin version",
+    dir: "/src/odin",
+    container: "odin",
+    group: :hack,
+    deps_cmd: "mkdir -p target",
+  ),
     
   # ======================================= Java ======================================================
   Run.new(

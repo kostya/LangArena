@@ -1,0 +1,5 @@
+#!/bin/sh
+mkdir -p target
+rm -f target/bin_test
+odin build . -debug -out:target/bin_test -collection:benchmark=./benchmark
+target/bin_test ../test.js $@
