@@ -1520,6 +1520,89 @@ RUNS = [
   #   deps_cmd: "./gradlew --no-daemon dependencies",
   # ),
 
+  # ======================================= SCALA ======================================================
+
+  Run.new(
+    name: "Scala/JVM/Default",
+    build_cmd: "sbt ';clean;assembly'",
+    binary_name: "/src/scala/target/scala-*/benchmarks.jar",
+    run_cmd: "java -Xmx8g -jar $(ls /src/scala/target/scala-*/benchmarks.jar | head -1)",
+    version_cmd: "scala -version",
+    dir: "/src/scala",
+    container: "scala",
+    group: :prod,
+    deps_cmd: "sbt dependencyTree",
+  ),
+
+  Run.new(
+    name: "Scala/JVM/Opt",
+    build_cmd: "sbt ';clean;assembly'",
+    binary_name: "/src/scala/target/scala-*/benchmarks.jar",
+    run_cmd: <<~CMD.chomp,
+      java \
+        -server \
+        -XX:+UseG1GC \
+        -Xms2g \
+        -Xmx2g \
+        -XX:+AlwaysPreTouch \
+        -XX:+UseNUMA \
+        -XX:+OptimizeStringConcat \
+        -XX:+UseCompressedOops \
+        -Xmx8g \
+        -jar $(ls /src/scala/target/scala-*/benchmarks.jar | head -1)
+    CMD
+    version_cmd: "scala -version",
+    dir: "/src/scala",
+    container: "scala",
+    group: :hack,
+    deps_cmd: "sbt dependencyTree",
+  ),
+
+  Run.new(
+    name: "Scala/JVM/Max",
+    build_cmd: "sbt ';clean;assembly'",
+    binary_name: "/src/scala/target/scala-*/benchmarks.jar",
+    run_cmd: <<~CMD.chomp,
+      java \
+        -server \
+        -XX:+UseParallelGC \
+        -Xms4g \
+        -Xmx8g \
+        -XX:+AlwaysPreTouch \
+        -XX:+UseNUMA \
+        -XX:+UseLargePages \
+        -XX:+DisableExplicitGC \
+        -Djava.security.egd=file:/dev/./urandom \
+        -jar $(ls /src/scala/target/scala-*/benchmarks.jar | head -1)
+    CMD
+    version_cmd: "scala -version",
+    dir: "/src/scala",
+    container: "scala",
+    group: :hack,
+    deps_cmd: "sbt dependencyTree",
+  ),
+
+  Run.new(
+    name: "Scala/GraalVM/JIT",
+    build_cmd: "sbt ';clean;assembly'",
+    binary_name: "/src/scala/target/scala-*/benchmarks.jar",
+    run_cmd: <<~CMD.chomp,
+      java \
+        -XX:+UseG1GC \
+        -XX:+EnableJVMCI \
+        -XX:+UseJVMCICompiler \
+        -Djvmci.Compiler=graal \
+        -XX:-TieredCompilation \
+        -Xmx8g \
+        -jar $(ls /src/scala/target/scala-*/benchmarks.jar | head -1)
+    CMD
+    version_cmd: "scala -version",
+    dir: "/src/scala",
+    container: "scala-graalvm",
+    group: :hack,
+    deps_cmd: "sbt dependencyTree",
+  ),
+
   # ======================================= Dart ======================================================
   
   Run.new(
