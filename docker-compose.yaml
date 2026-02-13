@@ -673,9 +673,9 @@ services:
       dockerfile: docker/scala
       args:
         # https://www.scala-lang.org/download/
-        version: "3.5.2"
+        version: "3.8.1"
         # https://github.com/sbt/sbt/releases
-        sbtversion: "1.10.7"
+        sbtversion: "1.12.2"
     volumes:
       - .:/src
 
@@ -699,7 +699,7 @@ services:
         # https://www.scala-lang.org/download/
         version: "3.8.1"
         # https://github.com/sbt/sbt/releases
-        sbtversion: "1.10.7"
+        sbtversion: "1.12.2"
     volumes:
       - .:/src
 
