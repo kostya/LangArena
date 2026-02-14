@@ -1,4 +1,3 @@
-// benchmarks/Coordinate.java
 package benchmarks;
 
 public class Coordinate {

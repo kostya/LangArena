@@ -27,7 +27,6 @@ method prepare(self: Base64Decode) =
   self.resultVal = 0
 
 method run(self: Base64Decode, iteration_id: int) =
-
   try:
     self.str3 = decode(self.str2)
     self.resultVal = self.resultVal + uint32(self.str3.len)

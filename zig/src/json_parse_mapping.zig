@@ -44,11 +44,6 @@ pub const JsonParseMapping = struct {
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *JsonParseMapping = @ptrCast(@alignCast(ptr));
 
-        if (self.text.len > 0) {
-            self.allocator.free(self.text);
-            self.text = "";
-        }
-
         var jg = JsonGenerate.init(self.allocator, self.helper) catch return;
         defer jg.deinit();
 
@@ -85,7 +80,6 @@ pub const JsonParseMapping = struct {
 
         var parsed = std.json.parseFromSlice(JsonData, self.allocator, json_text, .{
             .ignore_unknown_fields = true,
-
         }) catch return;
         defer parsed.deinit();
 

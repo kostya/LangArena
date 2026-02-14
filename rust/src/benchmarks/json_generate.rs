@@ -24,7 +24,7 @@ struct JsonData {
 pub struct JsonGenerate {
     pub(crate) n: i64,
     text: String,
-    data: Vec<Coordinate>,
+    data: JsonData,
     result: u32,
 }
 
@@ -35,7 +35,7 @@ impl JsonGenerate {
         Self {
             n,
             text: String::new(),
-            data: Vec::new(),
+            data: JsonData{coordinates: Vec::new(), info: "some info"},
             result: 0,
         }
     }
@@ -75,16 +75,15 @@ impl Benchmark for JsonGenerate {
                 opts,
             });
         }
-        self.data = data;
+        let json_data = JsonData {
+            coordinates: data,
+            info: "some info",
+        };
+        self.data = json_data;
     }
 
     fn run(&mut self, _iteration_id: i64) {
-        let json_data = JsonData {
-            coordinates: self.data.clone(),
-            info: "some info",
-        };
-
-        self.text = serde_json::to_string(&json_data).unwrap();
+        self.text = serde_json::to_string(&self.data).unwrap();
         if self.text.starts_with("{\"coordinates\":") {
             self.result += 1;
         }

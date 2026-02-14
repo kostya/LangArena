@@ -1764,24 +1764,24 @@ func (s *Spectralnorm) Checksum() uint32 {
 type Base64Encode struct {
 	BaseBenchmark
 	n      int64
-	str    string
+	bytes  []byte
 	str2   string
 	result uint32
 }
 
 func (b *Base64Encode) Prepare() {
 	b.n = b.ConfigVal("size")
-	b.str = strings.Repeat("a", int(b.n))
+	b.bytes = []byte(strings.Repeat("a", int(b.n)))
 }
 
 func (b *Base64Encode) Run(iteration_id int) {
-	b.str2 = base64.StdEncoding.EncodeToString([]byte(b.str))
+	b.str2 = base64.StdEncoding.EncodeToString(b.bytes)
 	b.result += uint32(len(b.str2))
 }
 
 func (b *Base64Encode) Checksum() uint32 {
 	resultStr := fmt.Sprintf("encode %s... to %s...: %d",
-		b.str[:min(4, len(b.str))],
+		string(b.bytes[:min(4, len(b.bytes))]),
 		b.str2[:min(4, len(b.str2))],
 		b.result)
 	return Checksum(resultStr)
@@ -1791,7 +1791,7 @@ type Base64Decode struct {
 	BaseBenchmark
 	n      int64
 	str2   string
-	str3   string
+	bytes  []byte
 	result uint32
 }
 
@@ -1802,15 +1802,14 @@ func (b *Base64Decode) Prepare() {
 }
 
 func (b *Base64Decode) Run(iteration_id int) {
-	decoded, _ := base64.StdEncoding.DecodeString(b.str2)
-	b.str3 = string(decoded)
-	b.result += uint32(len(b.str3))
+	b.bytes, _ = base64.StdEncoding.DecodeString(b.str2)
+	b.result += uint32(len(b.bytes))
 }
 
 func (b *Base64Decode) Checksum() uint32 {
 	resultStr := fmt.Sprintf("decode %s... to %s...: %d",
 		b.str2[:min(4, len(b.str2))],
-		b.str3[:min(4, len(b.str3))],
+		string(b.bytes[:min(4, len(b.bytes))]),
 		b.result)
 	return Checksum(resultStr)
 }
@@ -1989,7 +1988,7 @@ type JsonGenerate struct {
 	BaseBenchmark
 	n      int64
 	data   []Coordinate
-	text   bytes.Buffer
+	text   []byte
 	result uint32
 }
 
@@ -2025,10 +2024,9 @@ func (j *JsonGenerate) Run(iteration_id int) {
 		Info:        "some info",
 	}
 
-	data, _ := json.Marshal(resp)
-	j.text.Write(data)
+	j.text, _ = json.Marshal(resp)
 
-	if len(data) >= 15 && string(data[:15]) == "{\"coordinates\":" {
+	if len(j.text) >= 15 && string(j.text[:15]) == "{\"coordinates\":" {
 		j.result++
 	}
 }
@@ -2039,7 +2037,7 @@ func (j *JsonGenerate) Checksum() uint32 {
 
 type JsonParseDom struct {
 	BaseBenchmark
-	text   string
+	text   []byte
 	result uint32
 }
 
@@ -2048,12 +2046,12 @@ func (j *JsonParseDom) Prepare() {
 	gen.n = j.ConfigVal("coords")
 	gen.Prepare()
 	gen.Run(0)
-	j.text = gen.text.String()
+	j.text = gen.text
 }
 
-func (j *JsonParseDom) calc(text string) (float64, float64, float64) {
+func (j *JsonParseDom) calc() (float64, float64, float64) {
 	var data map[string]interface{}
-	json.Unmarshal([]byte(text), &data)
+	json.Unmarshal(j.text, &data)
 
 	coordinates := data["coordinates"].([]interface{})
 	length := float64(len(coordinates))
@@ -2070,7 +2068,7 @@ func (j *JsonParseDom) calc(text string) (float64, float64, float64) {
 }
 
 func (j *JsonParseDom) Run(iteration_id int) {
-	x, y, z := j.calc(j.text)
+	x, y, z := j.calc()
 	j.result += ChecksumFloat64(x) + ChecksumFloat64(y) + ChecksumFloat64(z)
 }
 
@@ -2080,7 +2078,7 @@ func (j *JsonParseDom) Checksum() uint32 {
 
 type JsonParseMapping struct {
 	BaseBenchmark
-	text   string
+	text   []byte
 	result uint32
 }
 
@@ -2089,10 +2087,10 @@ func (j *JsonParseMapping) Prepare() {
 	gen.n = j.ConfigVal("coords")
 	gen.Prepare()
 	gen.Run(0)
-	j.text = gen.text.String()
+	j.text = gen.text
 }
 
-func (j *JsonParseMapping) calc(text string) (float64, float64, float64) {
+func (j *JsonParseMapping) calc() (float64, float64, float64) {
 	var data struct {
 		Coordinates []struct {
 			X float64 `json:"x"`
@@ -2101,7 +2099,7 @@ func (j *JsonParseMapping) calc(text string) (float64, float64, float64) {
 		} `json:"coordinates"`
 	}
 
-	json.Unmarshal([]byte(text), &data)
+	json.Unmarshal(j.text, &data)
 
 	length := float64(len(data.Coordinates))
 	x, y, z := 0.0, 0.0, 0.0
@@ -2116,7 +2114,7 @@ func (j *JsonParseMapping) calc(text string) (float64, float64, float64) {
 }
 
 func (j *JsonParseMapping) Run(iteration_id int) {
-	x, y, z := j.calc(j.text)
+	x, y, z := j.calc()
 	j.result += ChecksumFloat64(x) + ChecksumFloat64(y) + ChecksumFloat64(z)
 }
 

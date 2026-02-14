@@ -7,6 +7,8 @@ import std.array;
 import std.algorithm;
 import std.base64;
 import std.exception;
+import std.range: repeat;
+import std.array: array;
 import benchmark;
 import helper;
 
@@ -30,27 +32,16 @@ public:
         char[] encodedChars = Base64.encode(strBytes);
         str2 = encodedChars.idup;
 
-        try {
-            str3Bytes = Base64.decode(encodedChars);
-        } catch (Exception e) {
-            str3Bytes = [];
-            stderr.writeln("Base64 decode error: ", e.msg);
-        }
+        str3Bytes = Base64.decode(encodedChars);
     }
 
     override void run(int iterationId) {
-
-        try {
-            str3Bytes = Base64.decode(cast(char[])str2);  
-            resultVal += cast(uint)str3Bytes.length;
-        } catch (Exception e) {
-            resultVal = 0;
-        }
+        str3Bytes = Base64.decode(str2);
+        resultVal += cast(uint)str3Bytes.length;
     }
 
     override uint checksum() {
         string str3 = cast(string)str3Bytes;
-
         string debugStr = "decode " ~ 
             (str2.length > 4 ? str2[0 .. 4] ~ "..." : str2) ~ 
             " to " ~ 

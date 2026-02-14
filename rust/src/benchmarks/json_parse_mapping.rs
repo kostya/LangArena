@@ -14,13 +14,6 @@ struct Coordinates {
     coordinates: Vec<CoordinateData>,
 }
 
-#[derive(Serialize)]
-struct AverageCoordinate {
-    x: f64,
-    y: f64,
-    z: f64,
-}
-
 pub struct JsonParseMapping {
     n: i64,
     text: String,
@@ -38,7 +31,7 @@ impl JsonParseMapping {
         }
     }
 
-    fn calc(&self, text: &str) -> AverageCoordinate {
+    fn calc(&self, text: &str) -> CoordinateData {
         let data: Coordinates = serde_json::from_str(text).unwrap();
         let len = data.coordinates.len() as f64;
 
@@ -52,7 +45,7 @@ impl JsonParseMapping {
             z += coord.z;
         }
 
-        AverageCoordinate {
+        CoordinateData {
             x: x / len,
             y: y / len,
             z: z / len,

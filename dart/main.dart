@@ -1708,7 +1708,6 @@ class Spectralnorm extends Benchmark {
 
 class Base64Encode extends Benchmark {
   late int n;
-  late String _str;
   late Uint8List _bytes;
   late String _str2;
   int _resultValue = 0;
@@ -1718,24 +1717,22 @@ class Base64Encode extends Benchmark {
     final className = runtimeType.toString().split('.').last;
     n = Helper.configI64(className, "size").toInt();
 
-    _str = 'a' * n;
     _bytes = Uint8List(n); 
     for (int i = 0; i < n; i++) {
       _bytes[i] = 0x61;
     }
-
     _str2 = base64Encode(_bytes);
   }
 
   @override
   void runBenchmark(int iterationId) {
-
     _str2 = base64Encode(_bytes);
     _resultValue = (_resultValue + _str2.length) & 0xFFFFFFFF;
   }
 
   @override
   int checksum() {
+    final _str = 'a' * n;
     final output = 'encode ${_str.substring(0, min(4, _str.length))}... '
                   'to ${_str2.substring(0, min(4, _str2.length))}...: $_resultValue';
     return Helper.checksumString(output);
@@ -1753,25 +1750,21 @@ class Base64Decode extends Benchmark {
     final className = runtimeType.toString().split('.').last;
     n = Helper.configI64(className, "size").toInt();
 
-    final bytes = Uint8List(n);
+    _bytes = Uint8List(n); 
     for (int i = 0; i < n; i++) {
-      bytes[i] = 0x61; 
+      _bytes[i] = 0x61;
     }
-
-    _str2 = base64Encode(bytes);
-    _bytes = base64Decode(_str2);
+    _str2 = base64Encode(_bytes);
   }
 
   @override
   void runBenchmark(int iterationId) {
-
     _bytes = base64Decode(_str2);
     _resultValue = (_resultValue + _bytes.length) & 0xFFFFFFFF;
   }
 
   @override
   int checksum() {
-
     final str3 = String.fromCharCodes(_bytes);
     final output = 'decode ${_str2.substring(0, min(4, _str2.length))}... '
                   'to ${str3.substring(0, min(4, str3.length))}...: $_resultValue';

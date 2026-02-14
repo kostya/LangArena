@@ -25,15 +25,11 @@ public:
 
         strBytes = new ubyte[n];
         strBytes[] = cast(ubyte)'a';
-
-        char[] encodedChars = Base64.encode(strBytes);
-        str2 = encodedChars.idup;  
+        str2 = Base64.encode(strBytes).idup;
     }
 
     override void run(int iterationId) {
-
-        char[] encodedChars = Base64.encode(strBytes);
-        str2 = encodedChars.idup;
+        str2 = Base64.encode(strBytes).idup;
         resultVal += cast(uint)str2.length;
     }
 

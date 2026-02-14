@@ -44,11 +44,6 @@ pub const JsonParseDom = struct {
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *JsonParseDom = @ptrCast(@alignCast(ptr));
 
-        if (self.text.len > 0) {
-            self.allocator.free(self.text);
-            self.text = "";
-        }
-
         var jg = JsonGenerate.init(self.allocator, self.helper) catch return;
         defer jg.deinit();
 
@@ -73,12 +68,7 @@ pub const JsonParseDom = struct {
             return;
         }
 
-        var parsed = std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            json_text,
-            .{}
-        ) catch return;
+        var parsed = std.json.parseFromSlice(std.json.Value, self.allocator, json_text, .{}) catch return;
         defer parsed.deinit();
 
         const root = parsed.value;

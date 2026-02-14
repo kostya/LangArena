@@ -3893,8 +3893,7 @@ Benchmark* Primes_create(void) {
 
 #include <yyjson.h>
 
-typedef struct {
-    yyjson_mut_doc* doc;      
+typedef struct {     
     char* result_str;         
     uint32_t result_val;
     int64_t n;
@@ -3909,11 +3908,6 @@ static double round_to_8_digits(double value) {
 
 void JsonGenerate_prepare(Benchmark* self) {
     JsonGenerateData* data = (JsonGenerateData*)self->data;
-
-    if (data->doc) {
-        yyjson_mut_doc_free(data->doc);
-        data->doc = NULL;
-    }
 
     if (data->result_str) {
         free(data->result_str);
@@ -3930,11 +3924,6 @@ void JsonGenerate_run(Benchmark* self, int iteration_id) {
     if (data->result_str) {
         free(data->result_str);
         data->result_str = NULL;
-    }
-
-    if (data->doc) {
-        yyjson_mut_doc_free(data->doc);
-        data->doc = NULL;
     }
 
     yyjson_mut_doc* doc = yyjson_mut_doc_new(NULL);
@@ -3994,7 +3983,7 @@ void JsonGenerate_run(Benchmark* self, int iteration_id) {
         data->result_val = crystal_add((int64_t)data->result_val, 1);
     }
 
-    data->doc = doc;
+    yyjson_mut_doc_free(doc);
 }
 
 uint32_t JsonGenerate_checksum(Benchmark* self) {
@@ -4004,11 +3993,6 @@ uint32_t JsonGenerate_checksum(Benchmark* self) {
 
 void JsonGenerate_cleanup(Benchmark* self) {
     JsonGenerateData* data = (JsonGenerateData*)self->data;
-
-    if (data->doc) {
-        yyjson_mut_doc_free(data->doc);
-        data->doc = NULL;
-    }
 
     if (data->result_str) {
         free(data->result_str);
@@ -4023,9 +4007,6 @@ Benchmark* JsonGenerate_create(void) {
     memset(data, 0, sizeof(JsonGenerateData));
 
     data->n = Helper_config_i64(bench->name, "coords");
-    if (data->n <= 0) {
-        data->n = 1000; 
-    }
 
     bench->data = data;
     bench->prepare = JsonGenerate_prepare;
@@ -4068,9 +4049,6 @@ void JsonParseDom_prepare(Benchmark* self) {
     JsonParseDomData* data = (JsonParseDomData*)self->data;
 
     data->coords_count = Helper_config_i64(self->name, "coords");
-    if (data->coords_count <= 0) {
-        data->coords_count = 1000; 
-    }
 
     data->json_text = generate_json_for_parsing(data->coords_count);
     data->result_val = 0;

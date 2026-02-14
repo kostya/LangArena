@@ -1417,7 +1417,6 @@ class Base64Encode(Benchmark):
     def __init__(self):
         super().__init__()
         self.n = 0
-        self._str = ""
         self._bytes = b""
         self._str2 = ""
         self._result_value = 0
@@ -1426,7 +1425,7 @@ class Base64Encode(Benchmark):
         class_name = self.__class__.__name__
         self.n = Helper.config_i64(class_name, "size")
 
-        self._str = 'a' * self.n
+        _str = 'a' * self.n
         self._bytes = b'a' * self.n
         self._str2 = base64.b64encode(self._bytes).decode('ascii')
 
@@ -1436,7 +1435,8 @@ class Base64Encode(Benchmark):
         self._result_value = (self._result_value + len(encoded)) & 0xFFFFFFFF
 
     def checksum(self) -> int:
-        output = f"encode {self._str[:min(4, len(self._str))]}... "
+        _str = str(self._bytes[0:4], 'utf-8')
+        output = f"encode {_str}... "
         output += f"to {self._str2[:min(4, len(self._str2))]}...: {self._result_value}"
         return Helper.checksum_string(output)
 

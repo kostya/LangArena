@@ -2039,7 +2039,6 @@ export class JsonGenerate extends Benchmark {
   }
 
   prepare(): void {
-    Helper.reset();
     this.data = [];
 
     for (let i = 0; i < this.n; i++) {
@@ -2128,7 +2127,6 @@ interface Coordinate {
 
 interface CoordinatesData {
   coordinates: Coordinate[];
-  info?: string;
 }
 
 export class JsonParseMapping extends Benchmark {
@@ -2803,7 +2801,6 @@ export abstract class SortBenchmark extends Benchmark {
   }
 
   prepare(): void {
-    Helper.reset();
     this.data = [];
     for (let i = 0; i < this.size; i++) {
       this.data.push(Helper.nextInt(1000000));
@@ -3140,7 +3137,6 @@ export abstract class BufferHashBenchmark extends Benchmark {
   }
 
   prepare(): void {
-    Helper.reset();
     for (let i = 0; i < this.data.length; i++) {
       this.data[i] = Helper.nextInt(256);
     }

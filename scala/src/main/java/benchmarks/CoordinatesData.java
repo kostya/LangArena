@@ -1,4 +1,3 @@
-// benchmarks/CoordinatesData.java
 package benchmarks;
 
 import java.util.*;

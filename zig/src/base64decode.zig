@@ -7,7 +7,7 @@ pub const Base64Decode = struct {
     helper: *Helper,
     encoded: []const u8,
     decoded: []u8,
-    decoded_from_run: []u8,  
+    decoded_size: usize,
     result_val: u32,
 
     const vtable = Benchmark.VTable{
@@ -53,22 +53,19 @@ pub const Base64Decode = struct {
             .helper = helper,
             .encoded = encoded_result,
             .decoded = decoded_buf,
-            .decoded_from_run = &.{},  
             .result_val = 0,
+            .decoded_size = decoded_len,
         };
         return self;
     }
 
     pub fn deinit(self: *Base64Decode) void {
-
-        if (self.decoded_from_run.len > 0) {
-            self.allocator.free(self.decoded_from_run);
+        if (self.decoded.len > 0) {
+            self.allocator.free(self.decoded);
         }
 
-        const encoded_buf = self.encoded.ptr[0..std.base64.standard.Encoder.calcSize(self.decoded.len)];
+        const encoded_buf = self.encoded.ptr[0..std.base64.standard.Encoder.calcSize(self.decoded_size)];
         self.allocator.free(encoded_buf);
-
-        self.allocator.free(self.decoded);
         self.allocator.destroy(self);
     }
 
@@ -76,8 +73,7 @@ pub const Base64Decode = struct {
         return Benchmark.init(self, &vtable, self.helper, "Base64Decode");
     }
 
-    fn prepareImpl(_: *anyopaque) void {
-    }
+    fn prepareImpl(_: *anyopaque) void {}
 
     fn runImpl(ptr: *anyopaque, _: i64) void {
         const self: *Base64Decode = @ptrCast(@alignCast(ptr));
@@ -88,24 +84,25 @@ pub const Base64Decode = struct {
             return;
         };
 
-        if (self.decoded_from_run.len > 0) {
-            self.allocator.free(self.decoded_from_run);
+        if (self.decoded.len > 0) {
+            self.allocator.free(self.decoded);
         }
 
         const decode_buf = self.allocator.alloc(u8, decode_buf_size) catch {
             self.result_val = 0;
-            self.decoded_from_run = &.{};
+            self.decoded = &.{};
             return;
         };
 
         decoder.decode(decode_buf, self.encoded) catch {
             self.allocator.free(decode_buf);
             self.result_val = 0;
-            self.decoded_from_run = &.{};
+            self.decoded = &.{};
             return;
         };
 
-        self.decoded_from_run = decode_buf;
+        self.decoded = decode_buf;
+        self.decoded_size = decode_buf_size;
 
         self.result_val +%= @as(u32, @intCast(decode_buf_size));
     }
@@ -116,18 +113,10 @@ pub const Base64Decode = struct {
 
         const first_four_encoded = if (self.encoded.len >= 4) self.encoded[0..4] else self.encoded;
 
-        const actual_decoded = if (self.decoded_from_run.len > 0) self.decoded_from_run else self.decoded;
+        const actual_decoded = self.decoded;
         const first_four_decoded = if (actual_decoded.len >= 4) actual_decoded[0..4] else actual_decoded;
 
-        const result_str = std.fmt.bufPrint(
-            &result_buf,
-            "decode {s}... to {s}...: {}",
-            .{ 
-                if (self.encoded.len > 4) first_four_encoded else first_four_encoded,
-                if (actual_decoded.len > 4) first_four_decoded else first_four_decoded,
-                self.result_val 
-            }
-        ) catch "decode error";
+        const result_str = std.fmt.bufPrint(&result_buf, "decode {s}... to {s}...: {}", .{ if (self.encoded.len > 4) first_four_encoded else first_four_encoded, if (actual_decoded.len > 4) first_four_decoded else first_four_decoded, self.result_val }) catch "decode error";
 
         return self.helper.checksumString(result_str);
     }

@@ -1493,18 +1493,12 @@ public:
     Base64Encode() : result_val(0) {
         int64_t n = config_val("size");
         str = std::string(static_cast<size_t>(n), 'a');
-
-        size_t encoded_len = encode_size(str.size());
-        str2.resize(encoded_len);
-        size_t actual_len = 0;
-        base64_encode(str.data(), str.size(), &str2[0], &actual_len, 0);
-        str2.resize(actual_len);
+        str2 = base64_encode_simple(str);
     }
 
     std::string name() const override { return "Base64Encode"; }    
 
     void run(int iteration_id) override {
-
         str2 = base64_encode_simple(str);
         result_val += str2.size();  
     }
@@ -1558,16 +1552,12 @@ public:
         base64_encode(str.data(), str.size(), &str2[0], &actual_encoded, 0);
         str2.resize(actual_encoded);
 
-        size_t decoded_size = decode_size(str2.size());
-        str3.resize(decoded_size);
-        size_t actual_decoded = b64_decode(&str3[0], str2.data(), str2.size());
-        str3.resize(actual_decoded);
+        str3 = base64_decode_simple(str2);
     }
 
     std::string name() const override { return "Base64Decode"; }    
 
     void run(int iteration_id) override {
-
         str3 = base64_decode_simple(str2);
         result_val += str3.size();  
     }

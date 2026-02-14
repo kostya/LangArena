@@ -11,18 +11,12 @@ import "core:math"
 Coordinate :: struct {
     x, y, z: f64,
     name:    string,
-    opts:    map[string]struct{val: int, flag: bool},
+    opts:    map[string][2]json.Value, 
 }
 
 custom_round :: proc(value: f64, decimals: int) -> f64 {
     multiplier := math.pow_f64(10.0, f64(decimals))
     return math.round(value * multiplier) / multiplier
-}
-
-MarshalCoordinate :: struct {
-    x, y, z: f64,
-    name:    string,
-    opts:    map[string][2]json.Value, 
 }
 
 JsonGenerate :: struct {
@@ -33,25 +27,7 @@ JsonGenerate :: struct {
     coordinates:  [dynamic]Coordinate, 
 }
 
-copy_coordinate_for_marshal :: proc(coord: Coordinate) -> MarshalCoordinate {
-    result: MarshalCoordinate
-    result.x = coord.x
-    result.y = coord.y
-    result.z = coord.z
-    result.name = strings.clone(coord.name)
-
-    result.opts = make(map[string][2]json.Value)
-    for key, value in coord.opts {
-        arr: [2]json.Value
-        arr[0] = i64(value.val)
-        arr[1] = json.Value(value.flag)  
-        result.opts[key] = arr
-    }
-
-    return result
-}
-
-destroy_marshal_coordinate :: proc(coord: ^MarshalCoordinate) {
+destroy_coordinate :: proc(coord: Coordinate) {
     delete(coord.name)
     delete(coord.opts) 
 }
@@ -62,25 +38,13 @@ jsongenerate_run :: proc(bench: ^Benchmark, iteration_id: int) {
     delete(jg.json_data)
     jg.json_data = ""
 
-    marshal_coords := make([dynamic]MarshalCoordinate, 0, len(jg.coordinates))
-    defer {
-        for &coord in marshal_coords {
-            destroy_marshal_coordinate(&coord)
-        }
-        delete(marshal_coords)
-    }
-
-    for coord in jg.coordinates {
-        append(&marshal_coords, copy_coordinate_for_marshal(coord))
-    }
-
     JsonDoc :: struct {
-        coordinates: [dynamic]MarshalCoordinate,
+        coordinates: [dynamic]Coordinate,
         info:        string,
     }
 
     doc := JsonDoc{
-        coordinates = marshal_coords,
+        coordinates = jg.coordinates,
         info        = "some info",
     }
 
@@ -105,8 +69,7 @@ jsongenerate_prepare :: proc(bench: ^Benchmark) {
     jg.json_data = ""
 
     for coord in jg.coordinates {
-        delete(coord.name)
-        delete(coord.opts)
+        destroy_coordinate(coord)
     }
     clear(&jg.coordinates)
 
@@ -124,8 +87,10 @@ jsongenerate_prepare :: proc(bench: ^Benchmark) {
         fmt.sbprintf(&name_builder, "%.7f %d", v1, v2)
         coord.name = strings.clone(strings.to_string(name_builder))
 
-        coord.opts = make(map[string]struct{val: int, flag: bool})
-        coord.opts["1"] = {1, true}
+        arr: [2]json.Value
+        arr[0] = i64(1)
+        arr[1] = json.Value(true)
+        coord.opts["opts"] = arr
 
         append(&jg.coordinates, coord)
     }
@@ -134,6 +99,9 @@ jsongenerate_prepare :: proc(bench: ^Benchmark) {
 jsongenerate_cleanup :: proc(bench: ^Benchmark) {
     jg := cast(^JsonGenerate)bench
 
+    for coord in jg.coordinates {
+        destroy_coordinate(coord)
+    }
     delete(jg.coordinates) 
     delete(jg.json_data)
 }
@@ -163,20 +131,15 @@ JsonParseDom :: struct {
     result_val:     u32,
     size_val:       i64,
     json_text:      string,
-    parsed_value:   json.Value,
 }
 
 jsonparsedom_run :: proc(bench: ^Benchmark, iteration_id: int) {
     jp := cast(^JsonParseDom)bench
 
-    json.destroy_value(jp.parsed_value)
-
     value, parse_err := json.parse(transmute([]u8)jp.json_text, .JSON)
     if parse_err != .None {
-        jp.parsed_value = json.Value{}
         return
     }
-    jp.parsed_value = value
 
     x_sum, y_sum, z_sum: f64 = 0, 0, 0
     len := 0
@@ -236,7 +199,6 @@ jsonparsedom_prepare :: proc(bench: ^Benchmark) {
     jp := cast(^JsonParseDom)bench
     jp.size_val = config_i64(jp.name, "coords")
     jp.result_val = 0
-    jp.parsed_value = json.Value{}
 
     gen_bench := create_jsongenerate()
     defer destroy_bench(gen_bench)
@@ -252,7 +214,6 @@ jsonparsedom_prepare :: proc(bench: ^Benchmark) {
 jsonparsedom_cleanup :: proc(bench: ^Benchmark) {
     jp := cast(^JsonParseDom)bench
     delete(jp.json_text)
-    json.destroy_value(jp.parsed_value)
 }
 
 create_jsonparsedom :: proc() -> ^Benchmark {

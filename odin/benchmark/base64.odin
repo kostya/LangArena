@@ -19,7 +19,6 @@ base64encode_run :: proc(bench: ^Benchmark, iteration_id: int) {
 
     encoded, encode_err := base64.encode(benc.input_data)
     if encode_err != nil {
-
         benc.encoded_str = ""
     } else {
         benc.encoded_str = encoded
