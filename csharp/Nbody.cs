@@ -47,9 +47,9 @@ public class Nbody : Benchmark
             Mass = mass * SOLAR_MASS;
         }
 
-        public void MoveFromI(Planet[] bodies, int nbodies, double dt, int i)
+        public void MoveFromI(Planet[] bodies, double dt, int i)
         {
-            while (i < nbodies)
+            while (i < bodies.Length)
             {
                 Planet b2 = bodies[i];
                 double dx = X - b2.X;
@@ -133,14 +133,13 @@ public class Nbody : Benchmark
 
     public override void Run(long IterationId)
     {
-        int nbodies = _bodies.Length;
-        double dt = 0.01;
-
-        int i = 0;
-        while (i < nbodies)
-        {
-            _bodies[i].MoveFromI(_bodies, nbodies, dt, i + 1);
-            i++;
+        for (int n = 0; n < 1000; n++) {
+            int i = 0;
+            foreach (var body in _bodies)
+            {
+                body.MoveFromI(_bodies, 0.01, i + 1);
+                i++;
+            }
         }
     }
 

@@ -2991,7 +2991,6 @@ typedef struct {
     int64_t size_val;
     double* u;
     double* v;
-    double* w;  
 } SpectralnormData;
 
 void Spectralnorm_prepare(Benchmark* self) {
@@ -3003,7 +3002,6 @@ void Spectralnorm_prepare(Benchmark* self) {
 
     data->u = malloc(data->size_val * sizeof(double));
     data->v = malloc(data->size_val * sizeof(double));
-    data->w = malloc(data->size_val * sizeof(double));
 
     for (int64_t i = 0; i < data->size_val; i++) {
         data->u[i] = 1.0;
@@ -3011,39 +3009,52 @@ void Spectralnorm_prepare(Benchmark* self) {
     }
 }
 
-static double Spectralnorm_eval_A(int64_t i, int64_t j) {
+static double eval_A(int64_t i, int64_t j) {
     return 1.0 / ((i + j) * (i + j + 1.0) / 2.0 + i + 1.0);
 }
 
-static void Spectralnorm_eval_A_times_u(double* u, double* result, int64_t n) {
+static double* eval_A_times_u(const double* u, int64_t n) {
+    double* result = malloc(n * sizeof(double));
     for (int64_t i = 0; i < n; i++) {
         double sum = 0.0;
         for (int64_t j = 0; j < n; j++) {
-            sum += Spectralnorm_eval_A(i, j) * u[j];
+            sum += eval_A(i, j) * u[j];
         }
         result[i] = sum;
     }
+    return result;
 }
 
-static void Spectralnorm_eval_At_times_u(double* u, double* result, int64_t n) {
+static double* eval_At_times_u(const double* u, int64_t n) {
+    double* result = malloc(n * sizeof(double));
     for (int64_t i = 0; i < n; i++) {
         double sum = 0.0;
         for (int64_t j = 0; j < n; j++) {
-            sum += Spectralnorm_eval_A(j, i) * u[j];
+            sum += eval_A(j, i) * u[j];
         }
         result[i] = sum;
     }
+    return result;
 }
 
-static void Spectralnorm_eval_AtA_times_u(double* u, double* result, double* temp, int64_t n) {
-    Spectralnorm_eval_A_times_u(u, temp, n);
-    Spectralnorm_eval_At_times_u(temp, result, n);
+static double* eval_AtA_times_u(const double* u, int64_t n) {
+    double* temp = eval_A_times_u(u, n);
+    double* result = eval_At_times_u(temp, n);
+    free(temp);
+    return result;
 }
 
 void Spectralnorm_run(Benchmark* self, int iteration_id) {
     SpectralnormData* data = (SpectralnormData*)self->data;
-    Spectralnorm_eval_AtA_times_u(data->u, data->v, data->w, data->size_val);
-    Spectralnorm_eval_AtA_times_u(data->v, data->u, data->w, data->size_val);
+
+    double* new_v = eval_AtA_times_u(data->u, data->size_val);
+    double* new_u = eval_AtA_times_u(new_v, data->size_val);
+
+    free(data->u);
+    free(data->v);
+
+    data->u = new_u;
+    data->v = new_v;
 }
 
 uint32_t Spectralnorm_checksum(Benchmark* self) {
@@ -3063,7 +3074,6 @@ void Spectralnorm_cleanup(Benchmark* self) {
     SpectralnormData* data = (SpectralnormData*)self->data;
     if (data->u) free(data->u);
     if (data->v) free(data->v);
-    if (data->w) free(data->w);
 }
 
 Benchmark* Spectralnorm_create(void) {
@@ -3098,7 +3108,6 @@ typedef struct {
 typedef struct {
     int64_t iterations;
     NbodyPlanet* bodies;        
-    NbodyPlanet* working_bodies; 
     int64_t nbodies;
     double energy_before;
 } NbodyData;
@@ -3205,14 +3214,10 @@ void Nbody_prepare(Benchmark* self) {
             1.53796971148509165e+01, -2.59193146099879641e+01, 1.79258772950371181e-01,
             2.68067772490389322e-03, 1.62824170038242295e-03, -9.51592254519715870e-05,
             5.15138902046611451e-05);
-
-        data->working_bodies = malloc(data->nbodies * sizeof(NbodyPlanet));
     }
 
-    memcpy(data->working_bodies, data->bodies, data->nbodies * sizeof(NbodyPlanet));
-
-    Nbody_offset_momentum(data->working_bodies, data->nbodies);
-    data->energy_before = Nbody_energy(data->working_bodies, data->nbodies);
+    Nbody_offset_momentum(data->bodies, data->nbodies);
+    data->energy_before = Nbody_energy(data->bodies, data->nbodies);
 }
 
 void Nbody_run(Benchmark* self, int iteration_id) {
@@ -3221,15 +3226,17 @@ void Nbody_run(Benchmark* self, int iteration_id) {
     double dt = 0.01;
     int nbodies = (int)data->nbodies;
 
-    for (int i = 0; i < nbodies; i++) {
-        Nbody_Planet_move_from_i(data->working_bodies, data->nbodies, dt, i + 1);
+    for (int n = 0; n < 1000; n++) {
+        for (int i = 0; i < nbodies; i++) {
+            Nbody_Planet_move_from_i(data->bodies, data->nbodies, dt, i + 1);
+        }
     }
 }
 
 uint32_t Nbody_checksum(Benchmark* self) {
     NbodyData* data = (NbodyData*)self->data;
 
-    double energy_after = Nbody_energy(data->working_bodies, data->nbodies);
+    double energy_after = Nbody_energy(data->bodies, data->nbodies);
 
     uint32_t checksum_before = Helper_checksum_f64(data->energy_before);
     uint32_t checksum_after = Helper_checksum_f64(energy_after);
@@ -3245,12 +3252,6 @@ void Nbody_cleanup(Benchmark* self) {
             free(data->bodies);
             data->bodies = NULL;
         }
-
-        if (data->working_bodies) {
-            free(data->working_bodies);
-            data->working_bodies = NULL;
-        }
-
     }
 }
 
@@ -5762,7 +5763,7 @@ static uint32_t buffer_hash_sha256_digest(uint8_t* data, int64_t size) {
     };
 
     for (int64_t i = 0; i < size; i++) {
-        uint32_t hash_idx = (uint32_t)(i % 8);
+        uint32_t hash_idx = (uint32_t)(i & 7);
         uint32_t* hash = &hashes[hash_idx];
 
         uint32_t temp = (*hash << 5) + *hash;  

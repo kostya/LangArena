@@ -1418,8 +1418,8 @@ func NewPlanet(x, y, z, vx, vy, vz, mass float64) *Planet {
 	}
 }
 
-func (p *Planet) MoveFromI(bodies []*Planet, nbodies int, dt float64, start int) {
-	for i := start; i < nbodies; i++ {
+func (p *Planet) MoveFromI(bodies []*Planet, dt float64, start int) {
+	for i := start; i < len(bodies); i++ {
 		b2 := bodies[i]
 		dx := p.x - b2.x
 		dy := p.y - b2.y
@@ -1528,14 +1528,10 @@ func (n *Nbody) energy() float64 {
 }
 
 func (n *Nbody) Run(iteration_id int) {
-	nbodies := len(n.body)
-	dt := 0.01
-
-	i := 0
-	for i < nbodies {
-		b := n.body[i]
-		b.MoveFromI(n.body, nbodies, dt, i+1)
-		i++
+	for k := 0; k < 1000; k += 1 {
+		for i, b := range n.body {
+		    b.MoveFromI(n.body, 0.01, i+1)
+		}
 	}
 }
 
@@ -1718,13 +1714,14 @@ func (s *Spectralnorm) evalA_times_u(u []float64) []float64 {
 	n := len(u)
 	v := make([]float64, n)
 
-	for i := 0; i < n; i++ {
+	for i := range v {
 		sum := 0.0
-		for j := 0; j < n; j++ {
-			sum += s.evalA(i, j) * u[j]
+		for j, uj := range u {
+			sum += s.evalA(i, j) * uj
 		}
 		v[i] = sum
 	}
+
 	return v
 }
 
@@ -1732,10 +1729,10 @@ func (s *Spectralnorm) evalAt_times_u(u []float64) []float64 {
 	n := len(u)
 	v := make([]float64, n)
 
-	for i := 0; i < n; i++ {
+	for i := range v {
 		sum := 0.0
-		for j := 0; j < n; j++ {
-			sum += s.evalA(j, i) * u[j]
+		for j, uj := range u {
+			sum += s.evalA(j, i) * uj
 		}
 		v[i] = sum
 	}

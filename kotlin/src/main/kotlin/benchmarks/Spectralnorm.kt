@@ -21,8 +21,8 @@ class Spectralnorm : Benchmark() {
     private fun evalATimesU(u: DoubleArray): DoubleArray {
         return DoubleArray(u.size) { i ->
             var v = 0.0
-            for (j in u.indices) {
-                v += evalA(i, j) * u[j]
+            for ((j, value) in u.withIndex()) {
+                v += evalA(i, j) * value
             }
             v
         }
@@ -31,8 +31,8 @@ class Spectralnorm : Benchmark() {
     private fun evalAtTimesU(u: DoubleArray): DoubleArray {
         return DoubleArray(u.size) { i ->
             var v = 0.0
-            for (j in u.indices) {
-                v += evalA(j, i) * u[j]
+            for ((j, value) in u.withIndex()) {
+                v += evalA(j, i) * value
             }
             v
         }

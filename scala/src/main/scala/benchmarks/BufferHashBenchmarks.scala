@@ -62,9 +62,8 @@ class BufferHashCRC32 extends BufferHashBenchmark:
   override def test(): Long =
     var crc = 0xFFFFFFFFL
 
-    var i = 0
-    while i < data.length do
-      crc = crc ^ (data(i).toLong & 0xFFL)
+    for byte <- data do
+      crc = crc ^ (byte.toLong & 0xFFL)
 
       var j = 0
       while j < 8 do
@@ -73,7 +72,6 @@ class BufferHashCRC32 extends BufferHashBenchmark:
         else
           crc >>> 1
         j += 1
-      i += 1
 
     crc ^ 0xFFFFFFFFL
 

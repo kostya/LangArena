@@ -1178,11 +1178,13 @@ public:
         int nbodies = static_cast<int>(bodies.size());
         double dt = 0.01;
 
-        int i = 0;
-        while (i < nbodies) {
-            Planet& b = bodies[i];
-            b.move_from_i(bodies, nbodies, dt, i + 1);
-            i++;
+        for (int n = 0; n < 1000; n++) {
+            int i = 0;
+            while (i < nbodies) {
+                Planet& b = bodies[i];
+                b.move_from_i(bodies, nbodies, dt, i + 1);
+                i++;
+            }
         }
     }
 
@@ -2833,7 +2835,7 @@ private:
             };
 
             for (size_t i = 0; i < data.size(); i++) {
-                uint32_t hash_idx = i % 8;
+                uint32_t hash_idx = i & 7;
                 uint32_t& hash = hashes[hash_idx];
                 hash = ((hash << 5) + hash) + data[i];
                 hash = (hash + (hash << 10)) ^ (hash >> 6);

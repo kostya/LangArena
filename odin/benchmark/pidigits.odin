@@ -80,14 +80,12 @@ pidigits_run :: proc(bench: ^Benchmark, iteration_id: int) {
 
             cmp2, cmp_err2 := big.cmp(&d, &u)
             if cmp_err2 == nil && cmp2 > 0 {
-
                 big.mul(&ns_temp, &ns, &ten)
                 big.add(&ns, &ns_temp, &t)
 
                 i += 1
 
                 if i % 10 == 0 {
-
                     ns_str, err := big.itoa(&ns, 10)
                     defer delete(ns_str)
 

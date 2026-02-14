@@ -32,13 +32,11 @@ impl Spectralnorm {
 
         let u_slice = u;
 
-        for i in 0..n {
-            let mut sum = 0.0;
-
-            for j in 0..n {
-                sum += self.eval_a(i, j) * u_slice[j];
-            }
-            result[i] = sum;
+        for (i, r) in result.iter_mut().enumerate() {
+            *r = u_slice.iter()
+                .enumerate()
+                .map(|(j, &u)| self.eval_a(i, j) * u)
+                .sum();
         }
 
         result
@@ -50,12 +48,11 @@ impl Spectralnorm {
 
         let u_slice = u;
 
-        for i in 0..n {
-            let mut sum = 0.0;
-            for j in 0..n {
-                sum += self.eval_a(j, i) * u_slice[j];
-            }
-            result[i] = sum;
+        for (i, r) in result.iter_mut().enumerate() {
+            *r = u_slice.iter()
+                .enumerate()
+                .map(|(j, &u)| self.eval_a(j, i) * u)
+                .sum();
         }
 
         result

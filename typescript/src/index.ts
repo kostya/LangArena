@@ -474,7 +474,6 @@ export abstract class Benchmark {
 export class Pidigits extends Benchmark {
   private nn: number;
   private resultBuffer: string[] = [];
-  private resultStr: string = '';
 
   constructor() {
     super();
@@ -532,12 +531,10 @@ export class Pidigits extends Benchmark {
       const line = ns.toString().padStart(remainingDigits, '0') + `\t:${i}\n`;
       this.resultBuffer.push(line);
     }
-
-    this.resultStr = this.resultBuffer.join('');
   }
 
   checksum(): number {
-    return Helper.checksumString(this.resultStr);
+    return Helper.checksumString(this.resultBuffer.join(''));
   }
 }
 
@@ -1705,13 +1702,16 @@ export class Nbody extends Benchmark {
 
   run(_iteration_id: number): void {
     const nbodies = this.bodies.length;
-    const dt = 0.01;
 
-    let i = 0;
-    while (i < nbodies) {
-      const b = this.bodies[i];
-      b.moveFromI(this.bodies, nbodies, dt, i + 1);
-      i++;
+    let j = 0;
+    while (j < 1000) {
+      let i = 0;
+      while (i < nbodies) {
+        const b = this.bodies[i];
+        b.moveFromI(this.bodies, nbodies, 0.01, i + 1);
+        i++;
+      }
+      j++;
     }
   }
 

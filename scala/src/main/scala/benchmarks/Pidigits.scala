@@ -1,12 +1,11 @@
 package benchmarks
 
-import java.io.ByteArrayOutputStream
 import java.math.BigInteger
 import scala.util.Using
 
 class Pidigits extends Benchmark:
   private val nn: Int = configVal("amount").toInt
-  private val result = new ByteArrayOutputStream()
+  private val result = new StringBuilder()
 
   override def name(): String = "Pidigits"
 
@@ -41,8 +40,7 @@ class Pidigits extends Benchmark:
 
           if i % 10 == 0 then
 
-            val line = String.format("%010d\t:%d\n", ns.longValue(), i)
-            result.write(line.getBytes)
+            result.append(String.format("%010d\t:%d%n", ns.longValue(), i))
             ns = BigInteger.ZERO
 
           if i >= nn then ()
@@ -53,9 +51,7 @@ class Pidigits extends Benchmark:
 
     if ns.compareTo(BigInteger.ZERO) > 0 then
 
-      val format = s"%0${nn % 10}d\t:%d\n"
-      val line = String.format(format, ns.longValue(), nn)
-      result.write(line.getBytes)
+      result.append(String.format(s"%0${nn % 10}d\t:%d%n", ns.longValue(), nn))
 
   override def checksum(): Long =
     Helper.checksum(result.toString()) & 0xFFFFFFFFL

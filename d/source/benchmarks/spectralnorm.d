@@ -15,7 +15,7 @@ private:
     double[] u;
     double[] v;
 
-    double evalA(int i, int j) {
+    double evalA(ulong i, ulong j) {
         return 1.0 / ((i + j) * (i + j + 1.0) / 2.0 + i + 1.0);
     }
 
@@ -24,9 +24,7 @@ private:
 
         for (int i = 0; i < u.length; i++) {  
             double sum = 0.0;
-            for (int j = 0; j < u.length; j++) {  
-                sum += evalA(i, j) * u[j];
-            }
+            foreach (j, ref val; u) sum += evalA(i, j) * val;
             v[i] = sum;
         }
 
@@ -38,9 +36,7 @@ private:
 
         for (int i = 0; i < u.length; i++) {  
             double sum = 0.0;
-            for (int j = 0; j < u.length; j++) {  
-                sum += evalA(j, i) * u[j];
-            }
+            foreach (j, ref val; u) sum += evalA(j, i) * val;
             v[i] = sum;
         }
 

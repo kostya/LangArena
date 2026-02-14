@@ -159,13 +159,16 @@ class Nbody extends Benchmark {
 
   override def run(iterationId: Int): Unit = {
     val nbodies = bodies.length
-    val dt = 0.01
 
-    var i = 0
-    while (i < nbodies) {
-      val b = bodies(i)
-      b.moveFromI(bodies, nbodies, dt, i + 1)
-      i += 1
+    var j = 0
+    while (j < 1000) {
+      var i = 0
+      while (i < nbodies) {
+        val b = bodies(i)
+        b.moveFromI(bodies, nbodies, 0.01, i + 1)
+        i += 1
+      }
+      j += 1
     }
   }
 

@@ -662,8 +662,7 @@ class BrainfuckRecursion extends Benchmark {
 
 class Pidigits extends Benchmark {
   late int nn;
-  final List<String> _resultBuffer = [];
-  String _resultStr = '';
+  final StringBuffer _resultBuffer = StringBuffer();
 
   @override
   void prepare() {
@@ -703,7 +702,7 @@ class Pidigits extends Benchmark {
 
           if (i % 10 == 0) {
             final line = ns.toString().padLeft(10, '0') + '\t:${i}\n';
-            _resultBuffer.add(line);
+            _resultBuffer.write(line);
             ns = BigInt.zero;
           }
 
@@ -720,15 +719,13 @@ class Pidigits extends Benchmark {
     if (ns != BigInt.zero && _resultBuffer.isNotEmpty) {
       final remainingDigits = nn % 10 == 0 ? 10 : nn % 10;
       final line = ns.toString().padLeft(remainingDigits, '0') + '\t:${i}\n';
-      _resultBuffer.add(line);
+      _resultBuffer.write(line);
     }
-
-    _resultStr = _resultBuffer.join();
   }
 
   @override
   int checksum() {
-    return Helper.checksumString(_resultStr);
+    return Helper.checksumString(_resultBuffer.toString());
   }
 }
 
@@ -1036,7 +1033,7 @@ class Mandelbrot extends Benchmark {
 
   late int w;
   late int h;
-  final List<int> _resultBytes = [];
+  final BytesBuilder _builder = BytesBuilder();
 
   @override
   void prepare() {
@@ -1048,7 +1045,7 @@ class Mandelbrot extends Benchmark {
   @override
   void runBenchmark(int iterationId) {
     final header = 'P4\n$w $h\n';
-    _resultBytes.addAll(header.codeUnits);
+    _builder.add(header.codeUnits);
 
     int bitNum = 0;
     int byteAcc = 0;
@@ -1079,12 +1076,12 @@ class Mandelbrot extends Benchmark {
         bitNum++;
 
         if (bitNum == 8) {
-          _resultBytes.add(byteAcc);
+          _builder.addByte(byteAcc);
           byteAcc = 0;
           bitNum = 0;
         } else if (x == w - 1) {
           byteAcc <<= (8 - (w % 8));
-          _resultBytes.add(byteAcc);
+          _builder.addByte(byteAcc);
           byteAcc = 0;
           bitNum = 0;
         }
@@ -1094,7 +1091,7 @@ class Mandelbrot extends Benchmark {
 
   @override
   int checksum() {
-    return Helper.checksumBytes(_resultBytes);
+    return Helper.checksumBytes(_builder.toBytes());
   }
 }
 
@@ -1297,8 +1294,8 @@ class Planet {
       vz = vz * DAYS_PER_YEAR,
       mass = mass * SOLAR_MASS;
 
-  void moveFromI(List<Planet> bodies, int nbodies, double dt, int i) {
-    while (i < nbodies) {
+  void moveFromI(List<Planet> bodies, double dt, int i) {
+    while (i < bodies.length) {
       final b2 = bodies[i];
       final dx = x - b2.x;
       final dy = y - b2.y;
@@ -1432,14 +1429,12 @@ class Nbody extends Benchmark {
 
   @override
   void runBenchmark(int iterationId) {
-    final nbodies = bodies.length;
-    const dt = 0.01;
-
-    int i = 0;
-    while (i < nbodies) {
-      final b = bodies[i];
-      b.moveFromI(bodies, nbodies, dt, i + 1);
-      i++;
+    for (int n = 0; n < 1000; n++) {
+      int i = 0;
+      for (var b in bodies) {
+        b.moveFromI(bodies, 0.01, i + 1);
+        i++;
+      }
     }
   }
 
@@ -1657,8 +1652,10 @@ class Spectralnorm extends Benchmark {
 
     for (int i = 0; i < n; i++) {
       double sum = 0.0;
-      for (int j = 0; j < n; j++) {
-        sum += _evalA(i, j) * uVec[j];
+      int j = 0;
+      for (var val in uVec) {
+        sum += _evalA(i, j) * val;
+        j++;
       }
       result[i] = sum;
     }
@@ -1672,8 +1669,10 @@ class Spectralnorm extends Benchmark {
 
     for (int i = 0; i < n; i++) {
       double sum = 0.0;
-      for (int j = 0; j < n; j++) {
-        sum += _evalA(j, i) * uVec[j];
+      int j = 0;
+      for (var val in uVec) {
+        sum += _evalA(j, i) * val;
+        j++;
       }
       result[i] = sum;
     }
@@ -2883,18 +2882,12 @@ class BufferHashCRC32 extends BufferHashBenchmark {
 
     int crc = 0xFFFFFFFF;
 
-    for (int i = 0; i < _data.length; i++) {
-      final byte = _data[i];
-
+    for (final byte in _data) {
       crc ^= byte;
-
       for (int j = 0; j < 8; j++) {
-
         if ((crc & 1) != 0) {
-
           crc = (crc >>> 1) ^ 0xEDB88320;
         } else {
-
           crc = crc >>> 1;
         }
       }

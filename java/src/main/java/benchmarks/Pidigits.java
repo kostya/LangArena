@@ -5,11 +5,11 @@ import java.math.BigInteger;
 
 public class Pidigits extends Benchmark {
     private int nn;
-    private ByteArrayOutputStream result;
+    private StringBuilder result;
 
     public Pidigits() {
         nn = (int) configVal("amount");
-        result = new ByteArrayOutputStream();
+        result = new StringBuilder();
     }
 
     @Override
@@ -51,13 +51,8 @@ public class Pidigits extends Benchmark {
                     i++;
 
                     if (i % 10 == 0) {
-                        String line = String.format("%010d\t:%d\n", 
-                            ns.longValue(), i);
-                        try {
-                            result.write(line.getBytes());
-                        } catch (Exception e) {
-
-                        }
+                        String line = String.format("%010d\t:%d\n", ns.longValue(), i);
+                        result.append(line);
                         ns = BigInteger.ZERO;
                     }
 
@@ -71,13 +66,8 @@ public class Pidigits extends Benchmark {
         }
 
         if (ns.compareTo(BigInteger.ZERO) > 0) {
-            String line = String.format("%0" + (nn % 10) + "d\t:%d\n",
-                ns.longValue(), nn);
-            try {
-                result.write(line.getBytes());
-            } catch (Exception e) {
-
-            }
+            String line = String.format("%0" + (nn % 10) + "d\t:%d\n", ns.longValue(), nn);
+            result.append(line);
         }
     }
 

@@ -568,7 +568,6 @@ class Pidigits(Benchmark):
         super().__init__()
         self.nn = 0
         self._result_buffer = []
-        self._result_str = ""
 
     def prepare(self):
         class_name = self.__class__.__name__
@@ -618,10 +617,8 @@ class Pidigits(Benchmark):
             line = f"{ns:0{remaining_digits}d}\t:{i}\n"
             self._result_buffer.append(line)
 
-        self._result_str = ''.join(self._result_buffer)
-
     def checksum(self) -> int:
-        return Helper.checksum_string(self._result_str)
+        return Helper.checksum_string(''.join(self._result_buffer))
 
 class Fannkuchredux(Benchmark):
     def __init__(self):
@@ -1193,11 +1190,10 @@ class Nbody(Benchmark):
 
     def run_benchmark(self, iteration_id: int):
         nbodies = len(self.bodies)
-        dt = 0.01
 
-        for i in range(nbodies):
-            b = self.bodies[i]
-            b.move_from_i(self.bodies, dt, i + 1)
+        for _ in range(1000):
+            for i in range(nbodies):
+                self.bodies[i].move_from_i(self.bodies, 0.01, i + 1)
 
     def checksum(self) -> int:
         v2 = self._energy()

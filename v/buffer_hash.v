@@ -46,10 +46,10 @@ fn simple_sha256_digest(data []u8) []u8 {
 	hashes[6] = 0x1f83d9ab
 	hashes[7] = 0x5be0cd19
 
-	for i in 0 .. data.len {
+	for i, val in data {
 		hash_idx := i % 8
 		mut hash := hashes[hash_idx]
-		hash = ((hash << 5) + hash) + u32(data[i])
+		hash = ((hash << 5) + hash) + u32(val)
 		hash = (hash + (hash << 10)) ^ (hash >> 6)
 		hashes[hash_idx] = hash
 	}

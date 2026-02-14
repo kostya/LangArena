@@ -38,8 +38,8 @@ fn eval_a_times_u(u []f64) []f64 {
 
 	for i in 0 .. n {
 		mut sum := 0.0
-		for j in 0 .. n {
-			sum += eval_a(i, j) * u[j]
+		for j, val in u {
+			sum += eval_a(i, j) * val
 		}
 		v[i] = sum
 	}
@@ -53,8 +53,8 @@ fn eval_at_times_u(u []f64) []f64 {
 
 	for i in 0 .. n {
 		mut sum := 0.0
-		for j in 0 .. n {
-			sum += eval_a(j, i) * u[j]
+		for j, val in u {
+			sum += eval_a(j, i) * val
 		}
 		v[i] = sum
 	}

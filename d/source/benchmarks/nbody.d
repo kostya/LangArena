@@ -29,8 +29,9 @@ private:
             this.mass = mass * SOLAR_MASS;
         }
 
-        void moveFromI(ref Planet[] bodies, int nbodies, double dt, int start) {
-            for (int i = start; i < nbodies; i++) {
+        void moveFromI(ref Planet[] bodies, double dt, ulong start) {
+            auto len = bodies.length;
+            for (ulong i = start; i < len; i++) {
                 auto b2 = &bodies[i];
                 double dx = x - b2.x;
                 double dy = y - b2.y;
@@ -124,12 +125,10 @@ public:
     }
 
     override void run(int iterationId) {
-        int nbodies = cast(int)bodies.length;
-        double dt = 0.01;
-
-        for (int i = 0; i < nbodies; i++) {
-            auto b = &bodies[i];
-            b.moveFromI(bodies, nbodies, dt, i + 1);
+        for (int n = 0; n < 1000; n++) {
+            foreach (i, ref b; bodies) {
+                b.moveFromI(bodies, 0.01, i + 1);
+            }
         }
     }
 

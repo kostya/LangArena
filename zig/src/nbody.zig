@@ -148,9 +148,13 @@ pub const Nbody = struct {
         const nbodies = self.bodies.len;
         const dt: f64 = 0.01;
 
-        var i: usize = 0;
-        while (i < nbodies) : (i += 1) {
-            self.bodies[i].moveFromI(&self.bodies, nbodies, dt, i + 1);
+        var n: usize = 0;
+        while (n < 1000) {
+            var i: usize = 0;
+            while (i < nbodies) : (i += 1) {
+                self.bodies[i].moveFromI(&self.bodies, nbodies, dt, i + 1);
+            }
+            n += 1;
         }
     }
 

@@ -66,8 +66,9 @@ simple_sha256 :: proc(data: []u8) -> [32]u8 {
         hash_idx := i % 8
         hash := &hashes[hash_idx]
 
-        hash^ = ((hash^ << 5) + hash^) + u32(data[i])
-        hash^ = (hash^ + (hash^ << 10)) ~ (hash^ >> 6)
+        v := hash^
+        v2 := ((v << 5) + v) + u32(data[i])
+        hash^ = (v2 + (v2 << 10)) ~ (v2 >> 6)
     }
 
     result: [32]u8

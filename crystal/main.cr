@@ -949,8 +949,8 @@ class Nbody < Benchmark
       @mass = mass * SOLAR_MASS
     end
 
-    def move_from_i(bodies, nbodies, dt, i)
-      while i < nbodies
+    def move_from_i(bodies, dt, i)
+      while i < bodies.size
         b2 = bodies[i]
         dx = @x - b2.x
         dy = @y - b2.y
@@ -1053,29 +1053,25 @@ class Nbody < Benchmark
 
   def initialize
     @result = 0_u32
-    @body = BODIES
+    @bodies = BODIES
     @v1 = 0_f64
   end
 
   def prepare
-    offset_momentum(@body)
-    @v1 = energy(@body)
+    offset_momentum(@bodies)
+    @v1 = energy(@bodies)
   end
 
   def run(iteration_id)
-    nbodies = @body.size
-    dt = 0.01
-
-    i = 0
-    while i < nbodies
-      b = @body[i]
-      b.move_from_i(@body, nbodies, dt, i + 1)
-      i += 1
+    1000.times do
+      @bodies.each_with_index do |b, i|
+        b.move_from_i(@bodies, 0.01, i + 1)
+      end
     end
   end
 
   def checksum : UInt32
-    v2 = energy(@body)
+    v2 = energy(@bodies)
     (Helper.checksum_f64(@v1) << 5) & Helper.checksum_f64(v2)
   end
 end
@@ -2414,7 +2410,7 @@ class BufferHashSHA256 < BufferHashBenchmark
       ]
 
       data.each_with_index do |byte, i|
-        hash_idx = i % 8
+        hash_idx = i & 7
         hash = hashes[hash_idx]
         hash = ((hash << 5) &+ hash) &+ byte
         hash = (hash &+ (hash << 10)) ^ (hash >> 6)

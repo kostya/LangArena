@@ -65,8 +65,8 @@
     "iterations": 3
   },
   "Nbody": {
-    "checksum": 338796672,
-    "iterations": 100
+    "checksum": 338796608,
+    "iterations": 2
   },
   "RegexDna": {
     "checksum": 2183107957,

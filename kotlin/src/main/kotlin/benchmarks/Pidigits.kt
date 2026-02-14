@@ -28,40 +28,26 @@ class Pidigits : Benchmark() {
 
         while (true) {
             k += 1
-
             t = n.shiftLeft(1)  
-
             n = n.multiply(BigInteger.valueOf(k.toLong()))
-
             k1 = k1.add(BigInteger.valueOf(2))
-
             a = a.add(t).multiply(k1)
-
             d = d.multiply(k1)
-
             if (a >= n) {
-
                 val temp = n.multiply(BigInteger.valueOf(3)).add(a)
                 val divResult = temp.divideAndRemainder(d)
                 t = divResult[0]  
                 u = divResult[1].add(n)  
 
                 if (d > u) {
-
                     ns = ns.multiply(BigInteger.TEN).add(t)
-
                     i += 1
-
                     if (i % 10 == 0) {
-
                         output.append(String.format("%010d\t:%d\n", ns.toLong(), i))
                         ns = BigInteger.ZERO
                     }
-
                     if (i >= nn) break
-
                     a = a.subtract(d.multiply(t)).multiply(BigInteger.TEN)
-
                     n = n.multiply(BigInteger.TEN)
                 }
             }

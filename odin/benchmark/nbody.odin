@@ -116,15 +116,12 @@ nbody_prepare :: proc(bench: ^Benchmark) {
 
 nbody_run :: proc(bench: ^Benchmark, iteration_id: int) {
     nb := cast(^Nbody)bench
-    dt: f64 = 0.01
 
-    i := 0
     nbodies := len(nb.bodies)
-
-    for i < nbodies {
-        b := &nb.bodies[i]
-        move_from_i(b, nb.bodies[:], dt, i + 1)
-        i += 1
+    for j in 0..<1000 {
+        for i in 0..<nbodies {
+           move_from_i(&nb.bodies[i], nb.bodies[:], 0.01, i + 1)
+        }
     }
 }
 

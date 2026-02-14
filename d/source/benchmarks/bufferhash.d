@@ -56,10 +56,12 @@ private:
             0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
         ];
 
-        foreach (i; 0 .. data.length) {
-            uint hashIdx = i % 8;
-            hashes[hashIdx] = ((hashes[hashIdx] << 5) + hashes[hashIdx]) + data[i];
-            hashes[hashIdx] = (hashes[hashIdx] + (hashes[hashIdx] << 10)) ^ (hashes[hashIdx] >> 6);
+        foreach (i, ref d; data) {
+            auto idx = i & 7;
+            uint h = hashes[idx];                    
+            h = ((h << 5) + h) + d;                   
+            h = (h + (h << 10)) ^ (h >> 6);
+            hashes[idx] = h;                          
         }
 
         foreach (i; 0 .. 8) {

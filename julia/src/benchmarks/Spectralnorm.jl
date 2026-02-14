@@ -24,7 +24,7 @@ function eval_A_times_u(u::Vector{Float64})::Vector{Float64}
     n = length(u)
     v = Vector{Float64}(undef, n)
 
-    @inbounds for i in 1:n
+    for i in 1:n
         s = 0.0
         @simd for j in 1:n
             s += eval_A(i-1, j-1) * u[j]  
@@ -39,7 +39,7 @@ function eval_At_times_u(u::Vector{Float64})::Vector{Float64}
     n = length(u)
     v = Vector{Float64}(undef, n)
 
-    @inbounds for i in 1:n
+    for i in 1:n
         s = 0.0
         @simd for j in 1:n
             s += eval_A(j-1, i-1) * u[j]  
