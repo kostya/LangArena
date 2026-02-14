@@ -743,9 +743,8 @@ class Fannkuchredux extends Benchmark {
   }
 
   (int, int) _fannkuchredux(int n) {
-    final perm1 = Int32List(n);
-    for (int i = 0; i < n; i++) perm1[i] = i;
 
+    final perm1 = Int32List(n)..setAll(0, List.generate(n, (i) => i));
     final perm = Int32List(n);
     final count = Int32List(n);
 
@@ -760,58 +759,47 @@ class Fannkuchredux extends Benchmark {
         r -= 1;
       }
 
-      for (int i = 0; i < n; i++) {
-        perm[i] = perm1[i];
-      }
+      perm.setAll(0, perm1);
 
       int flipsCount = 0;
       int k = perm[0];
 
       while (k != 0) {
-        final k2 = (k + 1) ~/ 2;
 
-        for (int i = 0; i < k2; i++) {
-          final j = k - i;
+        var i = 0;
+        var j = k;
+        while (i < j) {
           final temp = perm[i];
           perm[i] = perm[j];
           perm[j] = temp;
+          i++;
+          j--;
         }
 
-        flipsCount += 1;
+        flipsCount++;
         k = perm[0];
       }
 
-      if (flipsCount > maxFlipsCount) {
-        maxFlipsCount = flipsCount;
-      }
-
-      checksum += (permCount % 2 == 0) ? flipsCount : -flipsCount;
+      maxFlipsCount = max(maxFlipsCount, flipsCount);
+      checksum += (permCount & 1) == 0 ? flipsCount : -flipsCount;
 
       while (true) {
         if (r == n) {
           return (checksum, maxFlipsCount);
         }
 
-        final perm0 = perm1[0];
-        for (int i = 0; i < r; i++) {
-          final j = i + 1;
-          final temp = perm1[i];
-          perm1[i] = perm1[j];
-          perm1[j] = temp;
+        final first = perm1[0];
+        for (var i = 0; i < r; i++) {
+          perm1[i] = perm1[i + 1];
         }
+        perm1[r] = first;
 
-        perm1[r] = perm0;
         count[r] -= 1;
-        final cntr = count[r];
-
-        if (cntr > 0) {
-          break;
-        }
-
-        r += 1;
+        if (count[r] > 0) break;
+        r++;
       }
 
-      permCount += 1;
+      permCount++;
     }
   }
 
@@ -822,9 +810,7 @@ class Fannkuchredux extends Benchmark {
   }
 
   @override
-  int checksum() {
-    return _resultValue;
-  }
+  int checksum() => _resultValue;
 }
 
 class Gene {

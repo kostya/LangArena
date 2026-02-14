@@ -33,37 +33,34 @@ final class Fannkuchredux: BenchmarkProtocol {
             var k = perm[0]
 
             while k != 0 {
-                let k2 = (k + 1) / 2
-                for i in 0..<k2 {
-                    let j = k - i
+
+                var i = 0
+                var j = k
+                while i < j {
                     perm.swapAt(i, j)
+                    i += 1
+                    j -= 1
                 }
                 flipsCount += 1
                 k = perm[0]
             }
 
-            if flipsCount > maxFlipsCount {
-                maxFlipsCount = flipsCount
-            }
-
-            if permCount % 2 == 0 {
-                checksum += flipsCount
-            } else {
-                checksum -= flipsCount
-            }
+            maxFlipsCount = max(maxFlipsCount, flipsCount)
+            checksum += (permCount & 1) == 0 ? flipsCount : -flipsCount
 
             while true {
                 if r == n {
                     return Result(checksum: checksum, maxFlipsCount: maxFlipsCount)
                 }
+
                 let perm0 = perm1[0]
                 for i in 0..<r {
                     perm1[i] = perm1[i + 1]
                 }
                 perm1[r] = perm0
+
                 count[r] -= 1
-                let cntr = count[r]
-                if cntr > 0 { break }
+                if count[r] > 0 { break }
                 r += 1
             }
             permCount += 1

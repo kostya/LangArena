@@ -29,32 +29,19 @@ fannkuchredux_run :: proc(n: int) -> (checksum: int, max_flips: int) {
             r -= 1
         }
 
-        for i in 0..<n {
-            perm[i] = perm1[i]
-        }
+        copy(perm[:n], perm1[:n])
 
         flips_count := 0
         k := perm[0]
 
         for k != 0 {
-            k2 := (k + 1) >> 1
-            for i in 0..<k2 {
-                j := k - i
-                perm[i], perm[j] = perm[j], perm[i]
-            }
+            slice.reverse(perm[:k + 1])
             flips_count += 1
             k = perm[0]
         }
 
-        if flips_count > max_flips {
-            max_flips = flips_count
-        }
-
-        if perm_count % 2 == 0 {
-            checksum += flips_count
-        } else {
-            checksum -= flips_count
-        }
+        max_flips = max(max_flips, flips_count)
+        checksum += flips_count if perm_count % 2 == 0 else -flips_count
 
         for {
             if r == n {

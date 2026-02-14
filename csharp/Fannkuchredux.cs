@@ -11,11 +11,13 @@ public class Fannkuchredux : Benchmark
 
     private (int checksum, int maxFlipsCount) FannkuchreduxAlgo(int n)
     {
+
         Span<int> perm1 = stackalloc int[32];
         Span<int> perm = stackalloc int[32];
         Span<int> count = stackalloc int[32];
 
-        for (int i = 0; i < n; i++) perm1[i] = i;
+        for (int i = 0; i < n; i++) 
+            perm1[i] = i;
 
         int maxFlipsCount = 0;
         int permCount = 0;
@@ -31,41 +33,43 @@ public class Fannkuchredux : Benchmark
             }
 
             perm1[..n].CopyTo(perm);
+
             int flipsCount = 0;
+            int k = perm[0];
 
-            while (perm[0] != 0)
+            while (k != 0)
             {
-                int k = perm[0];
-                int k2 = (k + 1) >> 1;
 
-                for (int i = 0; i < k2; i++)
+                int i = 0;
+                int j = k;
+                while (i < j)
                 {
-                    int j = k - i;
                     (perm[i], perm[j]) = (perm[j], perm[i]);
+                    i++;
+                    j--;
                 }
 
                 flipsCount++;
+                k = perm[0];
             }
 
-            if (flipsCount > maxFlipsCount) maxFlipsCount = flipsCount;
-
-            checksum += (permCount % 2 == 0) ? flipsCount : -flipsCount;
+            maxFlipsCount = Math.Max(maxFlipsCount, flipsCount);
+            checksum += (permCount & 1) == 0 ? flipsCount : -flipsCount;
 
             while (true)
             {
-                if (r == n) return (checksum, maxFlipsCount);
+                if (r == n) 
+                    return (checksum, maxFlipsCount);
 
-                int perm0 = perm1[0];
+                int first = perm1[0];
                 for (int i = 0; i < r; i++)
                 {
-                    int j = i + 1;
-                    (perm1[i], perm1[j]) = (perm1[j], perm1[i]);
+                    perm1[i] = perm1[i + 1];
                 }
+                perm1[r] = first;
 
-                perm1[r] = perm0;
-                int cntr = --count[r];
-
-                if (cntr > 0) break;
+                if (--count[r] > 0) 
+                    break;
 
                 r++;
             }
@@ -74,7 +78,7 @@ public class Fannkuchredux : Benchmark
         }
     }
 
-    public override void Run(long IterationId)
+    public override void Run(long iterationId)
     {
         var (checksum, maxFlipsCount) = FannkuchreduxAlgo((int)_n);
         _result += (uint)(checksum * 100 + maxFlipsCount);

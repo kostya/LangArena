@@ -4,7 +4,8 @@ import std.stdio;
 import std.algorithm;
 import std.array;
 import std.conv;
-import std.typecons; 
+import std.typecons;
+import std.range;
 import benchmark;
 import helper;
 
@@ -41,29 +42,31 @@ protected:
 
             int k = perm[0];
             while (k != 0) {
-                int k2 = (k + 1) >> 1;
-                foreach (i; 0 .. k2) {
-                    int j = k - i;
+
+                int i = 0;
+                int j = k;
+                while (i < j) {
                     swap(perm[i], perm[j]);
+                    i++;
+                    j--;
                 }
                 flipsCount++;
                 k = perm[0];
             }
 
-            if (flipsCount > maxFlipsCount) maxFlipsCount = flipsCount;
-            checksum += (permCount % 2 == 0) ? flipsCount : -flipsCount;
+            maxFlipsCount = max(maxFlipsCount, flipsCount);
+            checksum += (permCount & 1) == 0 ? flipsCount : -flipsCount;
 
             while (true) {
                 if (r == n) return tuple(checksum, maxFlipsCount);
 
-                int perm0 = perm1[0];
+                int first = perm1[0];
                 foreach (i; 0 .. r) {
                     perm1[i] = perm1[i + 1];
                 }
-                perm1[r] = perm0;
+                perm1[r] = first;
 
-                count[r]--;
-                if (count[r] > 0) break;
+                if (--count[r] > 0) break;
                 r++;
             }
             permCount++;

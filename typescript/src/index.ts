@@ -916,6 +916,7 @@ export class Fannkuchredux extends Benchmark {
   }
 
   private fannkuchredux(n: number): [number, number] {
+
     const perm1 = new Int32Array(n);
     for (let i = 0; i < n; ++i) perm1[i] = i;
 
@@ -930,61 +931,50 @@ export class Fannkuchredux extends Benchmark {
     while (true) {
       while (r > 1) {
         count[r - 1] = r;
-        r -= 1;
+        r--;
       }
 
-      for (let i = 0; i < n; i++) {
-        perm[i] = perm1[i];
-      }
+      perm.set(perm1);
 
       let flipsCount = 0;
       let k = perm[0];
 
       while (k !== 0) {
-        const k2 = Math.floor((k + 1) / 2);
 
-        for (let i = 0; i < k2; i++) {
-          const j = k - i;
+        let i = 0;
+        let j = k;
+        while (i < j) {
           const temp = perm[i];
           perm[i] = perm[j];
           perm[j] = temp;
+          i++;
+          j--;
         }
 
-        flipsCount += 1;
+        flipsCount++;
         k = perm[0];
       }
 
-      if (flipsCount > maxFlipsCount) {
-        maxFlipsCount = flipsCount;
-      }
-
-      checksum += (permCount % 2 === 0) ? flipsCount : -flipsCount;
+      maxFlipsCount = Math.max(maxFlipsCount, flipsCount);
+      checksum += (permCount & 1) === 0 ? flipsCount : -flipsCount;
 
       while (true) {
         if (r === n) {
           return [checksum, maxFlipsCount];
         }
 
-        const perm0 = perm1[0];
+        const first = perm1[0];
         for (let i = 0; i < r; i++) {
-          const j = i + 1;
-          const temp = perm1[i];
-          perm1[i] = perm1[j];
-          perm1[j] = temp;
+          perm1[i] = perm1[i + 1];
         }
+        perm1[r] = first;
 
-        perm1[r] = perm0;
-        count[r] -= 1;
-        const cntr = count[r];
-
-        if (cntr > 0) {
-          break;
-        }
-
-        r += 1;
+        count[r]--;
+        if (count[r] > 0) break;
+        r++;
       }
 
-      permCount += 1;
+      permCount++;
     }
   }
 

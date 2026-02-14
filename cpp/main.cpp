@@ -593,13 +593,13 @@ private:
     uint32_t result_val;
 
     std::pair<int, int> fannkuchredux(int n) {
-        int perm1[32];  
+        int perm1[32];
         int perm[32];
         int count[32];
 
         if (n > 32) n = 32;
 
-        for (int i = 0; i < n; i++) perm1[i] = i;
+        std::iota(perm1, perm1 + n, 0);
 
         int maxFlipsCount = 0, permCount = 0, checksum = 0;
         int r = n;
@@ -610,33 +610,24 @@ private:
                 r--;
             }
 
-            for (int i = 0; i < n; i++) {
-                perm[i] = perm1[i];
-            }
-            int flipsCount = 0;
+            std::copy(perm1, perm1 + n, perm);
 
+            int flipsCount = 0;
             int k = perm[0];
+
             while (k != 0) {
-                int k2 = (k + 1) >> 1;
-                for (int i = 0; i < k2; i++) {
-                    int j = k - i;
-                    std::swap(perm[i], perm[j]);
-                }
+                std::reverse(perm, perm + k + 1);
                 flipsCount++;
                 k = perm[0];
             }
 
-            if (flipsCount > maxFlipsCount) maxFlipsCount = flipsCount;
+            maxFlipsCount = std::max(maxFlipsCount, flipsCount);
             checksum += (permCount % 2 == 0) ? flipsCount : -flipsCount;
 
             while (true) {
                 if (r == n) return {checksum, maxFlipsCount};
 
-                int perm0 = perm1[0];
-                for (int i = 0; i < r; i++) {
-                    perm1[i] = perm1[i + 1];
-                }
-                perm1[r] = perm0;
+                std::rotate(perm1, perm1 + 1, perm1 + r + 1);
 
                 count[r]--;
                 if (count[r] > 0) break;

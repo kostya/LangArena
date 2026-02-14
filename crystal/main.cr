@@ -535,6 +535,7 @@ class Fannkuchredux < Benchmark
     perm = StaticArray(Int32, 32).new(0)
     count = StaticArray(Int32, 32).new(0)
     maxFlipsCount = permCount = checksum = 0
+    n = 32 if n > 32
     r = n
 
     while true
@@ -550,7 +551,7 @@ class Fannkuchredux < Benchmark
         k2 = (k + 1) >> 1
         (0...k2).each do |i|
           j = k - i
-          perm[i], perm[j] = perm[j], perm[i]
+          perm.swap(i, j)
         end
         flipsCount += 1
       end
@@ -564,7 +565,7 @@ class Fannkuchredux < Benchmark
         perm0 = perm1[0]
         (0...r).each do |i|
           j = i + 1
-          perm1[i], perm1[j] = perm1[j], perm1[i]
+          perm1.swap(i, j)
         end
 
         perm1[r] = perm0
