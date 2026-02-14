@@ -271,7 +271,7 @@ pub fn runAllBenchmarks(
         summary_time += time_delta;
     }
 
-    try stdout.print("\nSummary: {d:.4}fs, {}, {}, {}\n", .{
+    try stdout.print("\nSummary: {d:.4}s, {}, {}, {}\n", .{
         summary_time,
         ok + fails,
         ok,

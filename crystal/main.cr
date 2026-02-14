@@ -403,7 +403,6 @@ class BrainfuckArray < Benchmark
 end
 
 class BrainfuckRecursion < Benchmark
-
   record Inc
   record Dec
   record Advance

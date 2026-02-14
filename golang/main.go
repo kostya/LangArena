@@ -519,9 +519,9 @@ func NewProgram(text string) *Program {
 
 func (p *Program) Run() int64 {
 	result := int64(0)
-	tape := NewTape() 
+	tape := NewTape()
 	pc := 0
-	cmds := p.commands 
+	cmds := p.commands
 	jumps := p.jumps
 
 	for pc < len(cmds) {
@@ -590,12 +590,12 @@ func (b *BrainfuckArray) Checksum() uint32 {
 }
 
 type Op interface{}
-type IncOp struct{}      
-type DecOp struct{}      
-type NextOp struct{}     
-type PrevOp struct{}     
-type PrintOp struct{}    
-type LoopOp struct{ ops []Op }  
+type IncOp struct{}
+type DecOp struct{}
+type NextOp struct{}
+type PrevOp struct{}
+type PrintOp struct{}
+type LoopOp struct{ ops []Op }
 
 type Program2 struct {
 	ops    []Op
