@@ -17,9 +17,7 @@ class SortMerge : SortBenchmark() {
 
     private fun merge(arr: IntArray, temp: IntArray, left: Int, mid: Int, right: Int) {
 
-        for (i in left..right) {
-            temp[i] = arr[i]
-        }
+        System.arraycopy(arr, left, temp, left, right - left + 1)
 
         var i = left      
         var j = mid + 1   

@@ -99,9 +99,7 @@ private:
     }
 
     void merge(ref int[] arr, ref int[] temp, int left, int mid, int right) {
-        foreach (i; left .. right + 1) {
-            temp[i] = arr[i];
-        }
+        temp[left .. right + 1] = arr[left .. right + 1];
 
         int i = left;
         int j = mid + 1;

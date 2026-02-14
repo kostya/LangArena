@@ -8,10 +8,10 @@ pub struct SortMerge {
 impl SortMerge {
     fn merge_sort_inplace(arr: &mut [i32]) {
         let mut temp = vec![0; arr.len()];
-        Self::merge_sort_helper(arr, &mut temp, 0, arr.len() as isize - 1);
+        Self::merge_sort_helper(arr, &mut temp, 0, arr.len() as usize - 1);
     }
 
-    fn merge_sort_helper(arr: &mut [i32], temp: &mut [i32], left: isize, right: isize) {
+    fn merge_sort_helper(arr: &mut [i32], temp: &mut [i32], left: usize, right: usize) {
         if left >= right {
             return;
         }
@@ -22,11 +22,9 @@ impl SortMerge {
         Self::merge(arr, temp, left, mid, right);
     }
 
-    fn merge(arr: &mut [i32], temp: &mut [i32], left: isize, mid: isize, right: isize) {
+    fn merge(arr: &mut [i32], temp: &mut [i32], left: usize, mid: usize, right: usize) {
 
-        for i in left..=right {
-            temp[i as usize] = arr[i as usize];
-        }
+        temp[left..=right].copy_from_slice(&arr[left..=right]);
 
         let mut i = left;    
         let mut j = mid + 1; 

@@ -35,11 +35,7 @@ class SortMerge extends SortBenchmark:
     merge(arr, temp, left, mid, right)
 
   private def merge(arr: Array[Int], temp: Array[Int], left: Int, mid: Int, right: Int): Unit =
-
-    var i = left
-    while i <= right do
-      temp(i) = arr(i)
-      i += 1
+    Array.copy(arr, left, temp, left, right - left + 1)
 
     var l = left      
     var r = mid + 1   

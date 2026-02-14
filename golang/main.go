@@ -2758,9 +2758,7 @@ func (s *SortMerge) mergeSortHelper(arr, temp []int, left, right int) {
 }
 
 func (s *SortMerge) merge(arr, temp []int, left, mid, right int) {
-	for i := left; i <= right; i++ {
-		temp[i] = arr[i]
-	}
+	copy(temp[left:right+1], arr[left:right+1])
 
 	i, j, k := left, mid+1, left
 

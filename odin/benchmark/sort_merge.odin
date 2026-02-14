@@ -17,9 +17,7 @@ merge_sort_helper :: proc(arr, temp: []i32, left, right: int) {
 
 merge :: proc(arr, temp: []i32, left, mid, right: int) {
 
-    for i in left..=right {
-        temp[i] = arr[i]
-    }
+    copy(temp[left:right+1], arr[left:right+1])
 
     i := left
     j := mid + 1

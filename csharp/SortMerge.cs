@@ -26,7 +26,7 @@ public class SortMerge : SortBenchmark
 
     private void Merge(int[] arr, int[] temp, int left, int mid, int right)
     {
-        for (int i = left; i <= right; i++) temp[i] = arr[i];
+        Array.Copy(arr, left, temp, left, right - left + 1);
 
         int iIdx = left;
         int jIdx = mid + 1;
