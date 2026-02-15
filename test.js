@@ -145,21 +145,24 @@
     "iterations": 2
   },
   "GraphPathBFS": {
-    "checksum": 28,
-    "pairs": 10,
+    "checksum": 20,
     "vertices": 100,
+    "jumps": 3,
+    "jump_len": 100,
     "iterations": 3
   },
   "GraphPathDFS": {
     "checksum": 28,
-    "pairs": 10,
     "vertices": 100,
+    "jumps": 3,
+    "jump_len": 100,
     "iterations": 3
   },
-  "GraphPathDijkstra": {
-    "checksum": 28,
-    "pairs": 10,
+  "GraphPathAStar": {
+    "checksum": 36,
     "vertices": 100,
+    "jumps": 3,
+    "jump_len": 100,
     "iterations": 3
   },
   "BufferHashSHA256": {

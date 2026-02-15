@@ -50,7 +50,7 @@ module BenchmarkRunner =
             SortSelf() :> Benchmark
             GraphPathBFS() :> Benchmark
             GraphPathDFS() :> Benchmark
-            GraphPathDijkstra() :> Benchmark
+            GraphPathAStar() :> Benchmark
             BufferHashSHA256() :> Benchmark
             BufferHashCRC32() :> Benchmark
             CacheSimulation() :> Benchmark

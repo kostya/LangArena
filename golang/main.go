@@ -263,7 +263,7 @@ func RunBenchmarks(singleBench string) {
 		&SortSelf{BaseBenchmark: BaseBenchmark{className: "SortSelf"}},
 		&GraphPathBFS{BaseBenchmark: BaseBenchmark{className: "GraphPathBFS"}},
 		&GraphPathDFS{BaseBenchmark: BaseBenchmark{className: "GraphPathDFS"}},
-		&GraphPathDijkstra{BaseBenchmark: BaseBenchmark{className: "GraphPathDijkstra"}},
+		&GraphPathAStar{BaseBenchmark: BaseBenchmark{className: "GraphPathAStar"}},
 		&BufferHashSHA256{BaseBenchmark: BaseBenchmark{className: "BufferHashSHA256"}},
 		&BufferHashCRC32{BaseBenchmark: BaseBenchmark{className: "BufferHashCRC32"}},
 		&CacheSimulation{BaseBenchmark: BaseBenchmark{className: "CacheSimulation"}},
@@ -2815,17 +2815,23 @@ func (s *SortSelf) Checksum() uint32 {
 }
 
 type Graph struct {
-	vertices   int
-	components int
-	adj        [][]int
+	vertices int
+	jumps    int
+	jumpLen  int
+	adj      [][]int
 }
 
-func NewGraph(vertices, components int) *Graph {
+func NewGraph(vertices, jumps, jumpLen int) *Graph {
 	adj := make([][]int, vertices)
 	for i := range adj {
 		adj[i] = make([]int, 0)
 	}
-	return &Graph{vertices: vertices, components: components, adj: adj}
+	return &Graph{
+		vertices: vertices,
+		jumps:    jumps,
+		jumpLen:  jumpLen,
+		adj:      adj,
+	}
 }
 
 func (g *Graph) AddEdge(u, v int) {
@@ -2834,25 +2840,19 @@ func (g *Graph) AddEdge(u, v int) {
 }
 
 func (g *Graph) GenerateRandom() {
-	componentSize := g.vertices / g.components
 
-	for c := 0; c < g.components; c++ {
-		startIdx := c * componentSize
-		endIdx := (c + 1) * componentSize
-		if c == g.components-1 {
-			endIdx = g.vertices
-		}
+	for i := 1; i < g.vertices; i++ {
+		g.AddEdge(i, i-1)
+	}
 
-		for i := startIdx + 1; i < endIdx; i++ {
-			parent := startIdx + NextInt(i-startIdx)
-			g.AddEdge(i, parent)
-		}
+	for v := 0; v < g.vertices; v++ {
+		numJumps := NextInt(g.jumps)
+		for j := 0; j < numJumps; j++ {
+			offset := NextInt(g.jumpLen) - g.jumpLen/2
+			u := v + offset
 
-		for i := 0; i < componentSize*2; i++ {
-			u := startIdx + NextInt(endIdx-startIdx)
-			v := startIdx + NextInt(endIdx-startIdx)
-			if u != v {
-				g.AddEdge(u, v)
+			if u >= 0 && u < g.vertices && u != v {
+				g.AddEdge(v, u)
 			}
 		}
 	}
@@ -2860,49 +2860,17 @@ func (g *Graph) GenerateRandom() {
 
 type GraphPathBFS struct {
 	BaseBenchmark
-	n_pairs int64
-	graph   *Graph
-	pairs   [][2]int
-	result  uint32
+	graph  *Graph
+	result uint32
 }
 
 func (g *GraphPathBFS) Prepare() {
-	g.n_pairs = g.ConfigVal("pairs")
 	vertices := int(g.ConfigVal("vertices"))
-	components := max(10, vertices/10000)
-	g.graph = NewGraph(vertices, components)
+	jumps := int(g.ConfigVal("jumps"))
+	jumpLen := int(g.ConfigVal("jump_len"))
+
+	g.graph = NewGraph(vertices, jumps, jumpLen)
 	g.graph.GenerateRandom()
-	g.pairs = g.generatePairs(int(g.n_pairs))
-}
-
-func (g *GraphPathBFS) generatePairs(n int) [][2]int {
-	pairs := make([][2]int, n)
-	componentSize := g.graph.vertices / 10
-
-	for i := 0; i < n; i++ {
-		if NextInt(100) < 70 {
-			component := NextInt(10)
-			start := component*componentSize + NextInt(componentSize)
-			for {
-				end := component*componentSize + NextInt(componentSize)
-				if end != start {
-					pairs[i] = [2]int{start, end}
-					break
-				}
-			}
-		} else {
-			c1 := NextInt(10)
-			c2 := NextInt(10)
-			for c2 == c1 {
-				c2 = NextInt(10)
-			}
-			start := c1*componentSize + NextInt(componentSize)
-			end := c2*componentSize + NextInt(componentSize)
-			pairs[i] = [2]int{start, end}
-		}
-	}
-
-	return pairs
 }
 
 func (g *GraphPathBFS) bfsShortestPath(start, target int) int {
@@ -2912,7 +2880,6 @@ func (g *GraphPathBFS) bfsShortestPath(start, target int) int {
 
 	visited := make([]byte, g.graph.vertices)
 	queue := [][2]int{{start, 0}}
-
 	visited[start] = 1
 
 	for len(queue) > 0 {
@@ -2935,10 +2902,8 @@ func (g *GraphPathBFS) bfsShortestPath(start, target int) int {
 }
 
 func (g *GraphPathBFS) Run(iteration_id int) {
-	for i := 0; i < len(g.pairs); i += 1 {
-		length := g.bfsShortestPath(g.pairs[i][0], g.pairs[i][1])
-		g.result += uint32(length)
-	}
+	length := g.bfsShortestPath(0, g.graph.vertices-1)
+	g.result += uint32(length)
 }
 
 func (g *GraphPathBFS) Checksum() uint32 {
@@ -2947,49 +2912,17 @@ func (g *GraphPathBFS) Checksum() uint32 {
 
 type GraphPathDFS struct {
 	BaseBenchmark
-	n_pairs int64
-	graph   *Graph
-	pairs   [][2]int
-	result  uint32
+	graph  *Graph
+	result uint32
 }
 
 func (g *GraphPathDFS) Prepare() {
-	g.n_pairs = g.ConfigVal("pairs")
 	vertices := int(g.ConfigVal("vertices"))
-	components := max(10, vertices/10000)
-	g.graph = NewGraph(vertices, components)
+	jumps := int(g.ConfigVal("jumps"))
+	jumpLen := int(g.ConfigVal("jump_len"))
+
+	g.graph = NewGraph(vertices, jumps, jumpLen)
 	g.graph.GenerateRandom()
-	g.pairs = g.generatePairs(int(g.n_pairs))
-}
-
-func (g *GraphPathDFS) generatePairs(n int) [][2]int {
-	pairs := make([][2]int, n)
-	componentSize := g.graph.vertices / 10
-
-	for i := 0; i < n; i++ {
-		if NextInt(100) < 70 {
-			component := NextInt(10)
-			start := component*componentSize + NextInt(componentSize)
-			for {
-				end := component*componentSize + NextInt(componentSize)
-				if end != start {
-					pairs[i] = [2]int{start, end}
-					break
-				}
-			}
-		} else {
-			c1 := NextInt(10)
-			c2 := NextInt(10)
-			for c2 == c1 {
-				c2 = NextInt(10)
-			}
-			start := c1*componentSize + NextInt(componentSize)
-			end := c2*componentSize + NextInt(componentSize)
-			pairs[i] = [2]int{start, end}
-		}
-	}
-
-	return pairs
 }
 
 func (g *GraphPathDFS) dfsFindPath(start, target int) int {
@@ -3028,105 +2961,145 @@ func (g *GraphPathDFS) dfsFindPath(start, target int) int {
 }
 
 func (g *GraphPathDFS) Run(iteration_id int) {
-	for i := 0; i < len(g.pairs); i += 1 {
-		length := g.dfsFindPath(g.pairs[i][0], g.pairs[i][1])
-		g.result += uint32(length)
-	}
+	length := g.dfsFindPath(0, g.graph.vertices-1)
+	g.result += uint32(length)
 }
 
 func (g *GraphPathDFS) Checksum() uint32 {
 	return g.result
 }
 
-type GraphPathDijkstra struct {
-	BaseBenchmark
-	n_pairs int64
-	graph   *Graph
-	pairs   [][2]int
-	result  uint32
+type GraphPriorityQueueItem struct {
+	vertex   int
+	priority int
 }
 
-func (g *GraphPathDijkstra) Prepare() {
-	g.n_pairs = g.ConfigVal("pairs")
-	vertices := int(g.ConfigVal("vertices"))
-	components := max(10, vertices/10000)
-	g.graph = NewGraph(vertices, components)
-	g.graph.GenerateRandom()
-	g.pairs = g.generatePairs(int(g.n_pairs))
+type GraphPriorityQueue struct {
+	items []GraphPriorityQueueItem
 }
 
-func (g *GraphPathDijkstra) generatePairs(n int) [][2]int {
-	pairs := make([][2]int, n)
-	componentSize := g.graph.vertices / 10
-
-	for i := 0; i < n; i++ {
-		if NextInt(100) < 70 {
-			component := NextInt(10)
-			start := component*componentSize + NextInt(componentSize)
-			for {
-				end := component*componentSize + NextInt(componentSize)
-				if end != start {
-					pairs[i] = [2]int{start, end}
-					break
-				}
-			}
-		} else {
-			c1 := NextInt(10)
-			c2 := NextInt(10)
-			for c2 == c1 {
-				c2 = NextInt(10)
-			}
-			start := c1*componentSize + NextInt(componentSize)
-			end := c2*componentSize + NextInt(componentSize)
-			pairs[i] = [2]int{start, end}
-		}
+func NewGraphPriorityQueue(capacity int) *GraphPriorityQueue {
+	return &GraphPriorityQueue{
+		items: make([]GraphPriorityQueueItem, 0, capacity),
 	}
-
-	return pairs
 }
 
-func (g *GraphPathDijkstra) dijkstraShortestPath(start, target int) int {
+func (pq *GraphPriorityQueue) Push(vertex, priority int) {
+	pq.items = append(pq.items, GraphPriorityQueueItem{vertex, priority})
+	pq.siftUp(len(pq.items) - 1)
+}
+
+func (pq *GraphPriorityQueue) Pop() (int, int) {
+	min := pq.items[0]
+	pq.items[0] = pq.items[len(pq.items)-1]
+	pq.items = pq.items[:len(pq.items)-1]
+	pq.siftDown(0)
+	return min.vertex, min.priority
+}
+
+func (pq *GraphPriorityQueue) Len() int {
+	return len(pq.items)
+}
+
+func (pq *GraphPriorityQueue) siftUp(i int) {
+	for i > 0 {
+		parent := (i - 1) / 2
+		if pq.items[parent].priority <= pq.items[i].priority {
+			break
+		}
+		pq.items[parent], pq.items[i] = pq.items[i], pq.items[parent]
+		i = parent
+	}
+}
+
+func (pq *GraphPriorityQueue) siftDown(i int) {
+	n := len(pq.items)
+	for {
+		left := 2*i + 1
+		right := 2*i + 2
+		smallest := i
+
+		if left < n && pq.items[left].priority < pq.items[smallest].priority {
+			smallest = left
+		}
+		if right < n && pq.items[right].priority < pq.items[smallest].priority {
+			smallest = right
+		}
+		if smallest == i {
+			break
+		}
+		pq.items[i], pq.items[smallest] = pq.items[smallest], pq.items[i]
+		i = smallest
+	}
+}
+
+type GraphPathAStar struct {
+	BaseBenchmark
+	graph  *Graph
+	result uint32
+}
+
+func (g *GraphPathAStar) Prepare() {
+	vertices := int(g.ConfigVal("vertices"))
+	jumps := int(g.ConfigVal("jumps"))
+	jumpLen := int(g.ConfigVal("jump_len"))
+
+	g.graph = NewGraph(vertices, jumps, jumpLen)
+	g.graph.GenerateRandom()
+}
+
+func (g *GraphPathAStar) heuristic(v, target int) int {
+	return target - v
+}
+
+func (g *GraphPathAStar) aStarShortestPath(start, target int) int {
 	if start == target {
 		return 0
 	}
 
 	const INF = int(^uint(0) >> 1)
-	dist := make([]int, g.graph.vertices)
-	visited := make([]byte, g.graph.vertices)
+	gScore := make([]int, g.graph.vertices)
+	fScore := make([]int, g.graph.vertices)
+	closed := make([]byte, g.graph.vertices)
 
-	for i := range dist {
-		dist[i] = INF
+	for i := range gScore {
+		gScore[i] = INF
+		fScore[i] = INF
 	}
-	dist[start] = 0
+	gScore[start] = 0
+	fScore[start] = g.heuristic(start, target)
 
-	iteration := 0
-	maxIterations := g.graph.vertices
+	openSet := NewGraphPriorityQueue(g.graph.vertices)
+	inOpenSet := make([]byte, g.graph.vertices)
 
-	for iteration < maxIterations {
-		iteration++
+	openSet.Push(start, fScore[start])
+	inOpenSet[start] = 1
 
-		u := -1
-		minDist := INF
+	for openSet.Len() > 0 {
+		current, _ := openSet.Pop()
+		inOpenSet[current] = 0
 
-		for v := 0; v < g.graph.vertices; v++ {
-			if visited[v] == 0 && dist[v] < minDist {
-				minDist = dist[v]
-				u = v
-			}
+		if current == target {
+			return gScore[current]
 		}
 
-		if u == -1 || minDist == INF || u == target {
-			if u == target {
-				return minDist
+		closed[current] = 1
+
+		for _, neighbor := range g.graph.adj[current] {
+			if closed[neighbor] == 1 {
+				continue
 			}
-			return -1
-		}
 
-		visited[u] = 1
+			tentativeG := gScore[current] + 1
 
-		for _, v := range g.graph.adj[u] {
-			if dist[u] != INF && dist[u]+1 < dist[v] {
-				dist[v] = dist[u] + 1
+			if tentativeG < gScore[neighbor] {
+				gScore[neighbor] = tentativeG
+				fScore[neighbor] = tentativeG + g.heuristic(neighbor, target)
+
+				if inOpenSet[neighbor] == 0 {
+					openSet.Push(neighbor, fScore[neighbor])
+					inOpenSet[neighbor] = 1
+				}
 			}
 		}
 	}
@@ -3134,14 +3107,12 @@ func (g *GraphPathDijkstra) dijkstraShortestPath(start, target int) int {
 	return -1
 }
 
-func (g *GraphPathDijkstra) Run(iteration_id int) {
-	for i := 0; i < len(g.pairs); i += 1 {
-		length := g.dijkstraShortestPath(g.pairs[i][0], g.pairs[i][1])
-		g.result += uint32(length)
-	}
+func (g *GraphPathAStar) Run(iteration_id int) {
+	length := g.aStarShortestPath(0, g.graph.vertices-1)
+	g.result += uint32(length)
 }
 
-func (g *GraphPathDijkstra) Checksum() uint32 {
+func (g *GraphPathAStar) Checksum() uint32 {
 	return g.result
 }
 

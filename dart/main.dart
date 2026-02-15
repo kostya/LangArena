@@ -2630,111 +2630,75 @@ class SortSelf extends SortBenchmark {
 
 class GraphPathGraph {
   final int vertices;
-  final List<List<int>> _adj;
-  final int components;
+  final int jumps;
+  final int jumpLen;
+  final List<List<int>> adj;
 
-  GraphPathGraph(this.vertices, [int components = 10])
-    : components = max(10, min(components, vertices ~/ 10000)),
-      _adj = List.generate(vertices, (_) => []);
+  GraphPathGraph(this.vertices, {this.jumps = 3, this.jumpLen = 100})
+      : adj = List.generate(vertices, (_) => []);
 
   void addEdge(int u, int v) {
-    _adj[u].add(v);
-    _adj[v].add(u);
+    adj[u].add(v);
+    adj[v].add(u);
   }
 
   void generateRandom() {
-    final componentSize = vertices ~/ components;
+    for (int i = 1; i < vertices; i++) {
+      addEdge(i, i - 1);
+    }
 
-    for (int c = 0; c < components; c++) {
-      final startIdx = c * componentSize;
-      final endIdx = c == components - 1 ? vertices : (c + 1) * componentSize;
+    for (int v = 0; v < vertices; v++) {
+      int numJumps = Helper.nextInt(jumps);
+      for (int j = 0; j < numJumps; j++) {
+        int offset = Helper.nextInt(jumpLen) - jumpLen ~/ 2;
+        int u = v + offset;
 
-      for (int i = startIdx + 1; i < endIdx; i++) {
-        final parent = startIdx + Helper.nextInt(i - startIdx);
-        addEdge(i, parent);
-      }
-
-      for (int i = 0; i < componentSize * 2; i++) {
-        final u = startIdx + Helper.nextInt(endIdx - startIdx);
-        final v = startIdx + Helper.nextInt(endIdx - startIdx);
-        if (u != v) {
-          addEdge(u, v);
+        if (u >= 0 && u < vertices && u != v) {
+          addEdge(v, u);
         }
       }
     }
   }
-
-  List<List<int>> getAdjacency() => _adj;
-
-  int getVertices() => vertices;
 }
 
 abstract class GraphPathBenchmark extends Benchmark {
   late GraphPathGraph _graph;
-  late List<(int, int)> _pairs;
-  late int _nPairs;
   int _resultValue = 0;
 
   @override
   void prepare() {
     final className = runtimeType.toString().split('.').last;
     final vertices = Helper.configI64(className, "vertices").toInt();
-    _nPairs = Helper.configI64(className, "pairs").toInt();
+    final jumps = Helper.configI64(className, "jumps").toInt();
+    final jumpLen = Helper.configI64(className, "jump_len").toInt();
 
-    _graph = GraphPathGraph(vertices, max(10, vertices ~/ 10000));
+    _graph = GraphPathGraph(vertices, jumps: jumps, jumpLen: jumpLen);
     _graph.generateRandom();
-    _pairs = _generatePairs(_nPairs);
   }
 
-  List<(int, int)> _generatePairs(int n) {
-    final pairs = <(int, int)>[];
-    final componentSize = _graph.getVertices() ~/ 10;
-
-    for (int i = 0; i < n; i++) {
-      if (Helper.nextInt(100) < 70) {
-
-        final component = Helper.nextInt(10);
-        final start = component * componentSize + Helper.nextInt(componentSize);
-        int end;
-        do {
-          end = component * componentSize + Helper.nextInt(componentSize);
-        } while (end == start);
-        pairs.add((start, end));
-      } else {
-
-        int c1 = Helper.nextInt(10);
-        int c2;
-        do {
-          c2 = Helper.nextInt(10);
-        } while (c2 == c1);
-        final start = c1 * componentSize + Helper.nextInt(componentSize);
-        final end = c2 * componentSize + Helper.nextInt(componentSize);
-        pairs.add((start, end));
-      }
-    }
-
-    return pairs;
+  @override
+  void runBenchmark(int iterationId) {
+    _resultValue = (_resultValue + test()) & 0xFFFFFFFF;
   }
 
   @override
   int checksum() {
     return _resultValue & 0xFFFFFFFF;
   }
+
+  int test();
 }
 
 class GraphPathBFS extends GraphPathBenchmark {
   @override
-  void runBenchmark(int iterationId) {
-    for (final (start, end) in _pairs) {
-      final length = _bfsShortestPath(start, end);
-      _resultValue = (_resultValue + length) & 0xFFFFFFFF;
-    }
+  int test() {
+    return _bfsShortestPath(0, _graph.vertices - 1);
   }
 
   int _bfsShortestPath(int start, int target) {
     if (start == target) return 0;
 
-    final visited = Uint8List(_graph.getVertices());
+    final visited = Uint8List(_graph.vertices);
     final queue = Queue<(int, int)>();
     queue.add((start, 0));
     visited[start] = 1;
@@ -2742,7 +2706,7 @@ class GraphPathBFS extends GraphPathBenchmark {
     while (queue.isNotEmpty) {
       final (v, dist) = queue.removeFirst();
 
-      for (final neighbor in _graph.getAdjacency()[v]) {
+      for (final neighbor in _graph.adj[v]) {
         if (neighbor == target) {
           return dist + 1;
         }
@@ -2760,19 +2724,16 @@ class GraphPathBFS extends GraphPathBenchmark {
 
 class GraphPathDFS extends GraphPathBenchmark {
   @override
-  void runBenchmark(int iterationId) {
-    for (final (start, end) in _pairs) {
-      final length = _dfsFindPath(start, end);
-      _resultValue = (_resultValue + length) & 0xFFFFFFFF;
-    }
+  int test() {
+    return _dfsFindPath(0, _graph.vertices - 1);
   }
 
   int _dfsFindPath(int start, int target) {
     if (start == target) return 0;
 
-    final visited = Uint8List(_graph.getVertices());
+    final visited = Uint8List(_graph.vertices);
     final stack = <(int, int)>[(start, 0)];
-    var bestPath = 0x7FFFFFFFFFFFFFFF; 
+    var bestPath = 0x7FFFFFFFFFFFFFFF;
 
     while (stack.isNotEmpty) {
       final (v, dist) = stack.removeLast();
@@ -2780,7 +2741,7 @@ class GraphPathDFS extends GraphPathBenchmark {
       if (visited[v] == 1 || dist >= bestPath) continue;
       visited[v] = 1;
 
-      for (final neighbor in _graph.getAdjacency()[v]) {
+      for (final neighbor in _graph.adj[v]) {
         if (neighbor == target) {
           if (dist + 1 < bestPath) {
             bestPath = dist + 1;
@@ -2795,47 +2756,64 @@ class GraphPathDFS extends GraphPathBenchmark {
   }
 }
 
-class GraphPathDijkstra extends GraphPathBenchmark {
-  static const int _inf = 0x7FFFFFFF; 
+class PriorityQueueItem implements Comparable<PriorityQueueItem> {
+  final int vertex;
+  final int priority;
+  PriorityQueueItem(this.vertex, this.priority);
 
   @override
-  void runBenchmark(int iterationId) {
-    for (final (start, end) in _pairs) {
-      final length = _dijkstraShortestPath(start, end);
-      _resultValue = (_resultValue + length) & 0xFFFFFFFF;
-    }
+  int compareTo(PriorityQueueItem other) {
+    return priority.compareTo(other.priority);
+  }
+}
+
+class GraphPathAStar extends GraphPathBenchmark {
+  @override
+  int test() {
+    return _aStarShortestPath(0, _graph.vertices - 1);
   }
 
-  int _dijkstraShortestPath(int start, int target) {
+  int _heuristic(int v, int target) => target - v;
+
+  int _aStarShortestPath(int start, int target) {
     if (start == target) return 0;
 
-    final vertices = _graph.getVertices();
-    final dist = List<int>.filled(vertices, _inf);
-    final visited = Uint8List(vertices);
+    final gScore = List<int>.filled(_graph.vertices, 0x7FFFFFFF);
+    final fScore = List<int>.filled(_graph.vertices, 0x7FFFFFFF);
+    final closed = Uint8List(_graph.vertices);
 
-    dist[start] = 0;
-    final maxIterations = vertices;
+    gScore[start] = 0;
+    fScore[start] = _heuristic(start, target);
 
-    for (int iteration = 0; iteration < maxIterations; iteration++) {
-      int u = -1;
-      int minDist = _inf;
+    final openSet = PriorityQueue<PriorityQueueItem>();
+    final inOpenSet = Uint8List(_graph.vertices);
 
-      for (int v = 0; v < vertices; v++) {
-        if (visited[v] == 0 && dist[v] < minDist) {
-          minDist = dist[v];
-          u = v;
-        }
+    openSet.add(PriorityQueueItem(start, fScore[start]));
+    inOpenSet[start] = 1;
+
+    while (openSet.isNotEmpty) {
+      final current = openSet.removeFirst();
+      inOpenSet[current.vertex] = 0;
+
+      if (current.vertex == target) {
+        return gScore[current.vertex];
       }
 
-      if (u == -1 || minDist == _inf || u == target) {
-        return u == target ? minDist : -1;
-      }
+      closed[current.vertex] = 1;
 
-      visited[u] = 1;
+      for (final neighbor in _graph.adj[current.vertex]) {
+        if (closed[neighbor] == 1) continue;
 
-      for (final v in _graph.getAdjacency()[u]) {
-        if (dist[u] + 1 < dist[v]) {
-          dist[v] = dist[u] + 1;
+        final tentativeG = gScore[current.vertex] + 1;
+
+        if (tentativeG < gScore[neighbor]) {
+          gScore[neighbor] = tentativeG;
+          fScore[neighbor] = tentativeG + _heuristic(neighbor, target);
+
+          if (inOpenSet[neighbor] == 0) {
+            openSet.add(PriorityQueueItem(neighbor, fScore[neighbor]));
+            inOpenSet[neighbor] = 1;
+          }
         }
       }
     }
@@ -4579,7 +4557,7 @@ void registerBenchmarks() {
   Benchmark.registerBenchmark(() => SortSelf());
   Benchmark.registerBenchmark(() => GraphPathBFS());
   Benchmark.registerBenchmark(() => GraphPathDFS());
-  Benchmark.registerBenchmark(() => GraphPathDijkstra());
+  Benchmark.registerBenchmark(() => GraphPathAStar());
   Benchmark.registerBenchmark(() => BufferHashSHA256());
   Benchmark.registerBenchmark(() => BufferHashCRC32());
   Benchmark.registerBenchmark(() => CacheSimulation());

@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <memory>
 #include <chrono>
@@ -2546,11 +2547,12 @@ protected:
     class Graph {
     public:
         int vertices;
-        int components;
+        int jumps;
+        int jump_len;
         std::vector<std::vector<int>> adj;
 
-        Graph(int vertices, int components = 10) 
-            : vertices(vertices), components(components), adj(vertices) {}
+        Graph(int vertices, int jumps = 3, int jump_len = 100) 
+            : vertices(vertices), jumps(jumps), jump_len(jump_len), adj(vertices) {}
 
         void add_edge(int u, int v) {
             adj[u].push_back(v);
@@ -2558,79 +2560,36 @@ protected:
         }
 
         void generate_random() {
-            int component_size = vertices / components;
+            for (int i = 1; i < vertices; i++) {
+                add_edge(i, i - 1);
+            }
 
-            for (int c = 0; c < components; c++) {
-                int start_idx = c * component_size;
-                int end_idx = (c == components - 1) ? vertices : (c + 1) * component_size;
+            for (int v = 0; v < vertices; v++) {
+                int num_jumps = Helper::next_int(jumps);
+                for (int j = 0; j < num_jumps; j++) {
+                    int offset = Helper::next_int(jump_len) - jump_len / 2;
+                    int u = v + offset;
 
-                for (int i = start_idx + 1; i < end_idx; i++) {
-                    int parent = start_idx + Helper::next_int(i - start_idx);
-                    add_edge(i, parent);
-                }
-
-                int extra_edges = component_size * 2;
-                for (int e = 0; e < extra_edges; e++) {
-                    int u = start_idx + Helper::next_int(end_idx - start_idx);
-                    int v = start_idx + Helper::next_int(end_idx - start_idx);
-                    if (u != v) add_edge(u, v);
+                    if (u >= 0 && u < vertices && u != v) {
+                        add_edge(v, u);
+                    }
                 }
             }
-        }
-
-        bool same_component(int u, int v) {
-            int component_size = vertices / components;
-            return (u / component_size) == (v / component_size);
         }
     };
 
     std::unique_ptr<Graph> graph;
-    std::vector<std::pair<int, int>> pairs;
-    int64_t n_pairs;
     uint32_t result_val;
 
-    std::vector<std::pair<int, int>> generate_pairs(int n) {
-        std::vector<std::pair<int, int>> result;
-        result.reserve(static_cast<size_t>(n));
-        int component_size = graph->vertices / 10;
-
-        for (int i = 0; i < n; i++) {
-            if (Helper::next_int(100) < 70) {
-                int component = Helper::next_int(10);
-                int start = component * component_size + Helper::next_int(component_size);
-                int end;
-                do {
-                    end = component * component_size + Helper::next_int(component_size);
-                } while (end == start);
-                result.emplace_back(start, end);
-            } else {
-                int c1 = Helper::next_int(10);
-                int c2;
-                do {
-                    c2 = Helper::next_int(10);
-                } while (c2 == c1);
-                int start = c1 * component_size + Helper::next_int(component_size);
-                int end = c2 * component_size + Helper::next_int(component_size);
-                result.emplace_back(start, end);
-            }
-        }
-        return result;
-    }
-
-    GraphPathBenchmark() : result_val(0), n_pairs(0) {
-
-    }
-
 public:
+    GraphPathBenchmark() : result_val(0) {}
+
     void prepare() override {
-        if (n_pairs == 0) {
-            n_pairs = config_val("pairs");
-            int vertices = static_cast<int>(config_val("vertices"));
-            int comps = std::max(10, vertices / 10'000);
-            graph = std::make_unique<Graph>(vertices, comps);
-            graph->generate_random();
-            pairs = generate_pairs(static_cast<int>(n_pairs));
-        }
+        int vertices = static_cast<int>(config_val("vertices"));
+        int jumps = static_cast<int>(config_val("jumps"));
+        int jump_len = static_cast<int>(config_val("jump_len"));
+        graph = std::make_unique<Graph>(vertices, jumps, jump_len);
+        graph->generate_random();
     }
 
     virtual int64_t test() = 0;
@@ -2660,7 +2619,9 @@ private:
             queue.pop();
 
             for (int neighbor : graph->adj[v]) {
-                if (neighbor == target) return dist + 1;
+                if (neighbor == target) {
+                    return dist + 1;
+                }
 
                 if (visited[neighbor] == 0) {
                     visited[neighbor] = 1;
@@ -2678,19 +2639,13 @@ public:
     std::string name() const override { return "GraphPathBFS"; }    
 
     int64_t test() override {
-        int64_t total_length = 0;
-
-        for (const auto& [start, end] : pairs) {
-            total_length += bfs_shortest_path(start, end);
-        }
-
-        return total_length;
+        return bfs_shortest_path(0, graph->vertices - 1);
     }
 };
 
 class GraphPathDFS : public GraphPathBenchmark {
 private:
-    int dfs_find_path(int start, int target) {
+    int dfs_shortest_path(int start, int target) {
         if (start == target) return 0;
 
         std::vector<uint8_t> visited(graph->vertices, 0);
@@ -2726,48 +2681,65 @@ public:
     std::string name() const override { return "GraphPathDFS"; }    
 
     int64_t test() override {
-        int64_t total_length = 0;
-
-        for (const auto& [start, end] : pairs) {
-            total_length += dfs_find_path(start, end);
-        }
-
-        return total_length;
+        return dfs_shortest_path(0, graph->vertices - 1);
     }
 };
 
-class GraphPathDijkstra : public GraphPathBenchmark {
+class GraphPathAStar : public GraphPathBenchmark {
 private:
-    static constexpr int INF = INT_MAX / 2;
+    struct Node {
+        int vertex;
+        int f_score;
 
-    int dijkstra_shortest_path(int start, int target) {
+        bool operator>(const Node& other) const {
+            return f_score > other.f_score;
+        }
+    };
+
+    int heuristic(int v, int target) const {
+        return target - v;
+    }
+
+    int astar_shortest_path(int start, int target) {
         if (start == target) return 0;
 
-        std::vector<int> dist(graph->vertices, INF);
-        std::vector<uint8_t> visited(graph->vertices, 0);
+        std::vector<int> g_score(graph->vertices, INT_MAX);
+        g_score[start] = 0;
 
-        dist[start] = 0;
+        using QueueType = std::priority_queue<Node, std::vector<Node>, std::greater<Node>>;
+        QueueType open_set;
+        open_set.push({start, heuristic(start, target)});
 
-        for (int iteration = 0; iteration < graph->vertices; iteration++) {
-            int u = -1;
-            int min_dist = INF;
+        std::vector<bool> in_open_set(graph->vertices, false);
+        in_open_set[start] = true;
 
-            for (int v = 0; v < graph->vertices; v++) {
-                if (visited[v] == 0 && dist[v] < min_dist) {
-                    min_dist = dist[v];
-                    u = v;
-                }
+        std::vector<bool> closed(graph->vertices, false);
+
+        while (!open_set.empty()) {
+            Node current = open_set.top();
+            open_set.pop();
+
+            if (closed[current.vertex]) continue;
+            closed[current.vertex] = true;
+            in_open_set[current.vertex] = false;
+
+            if (current.vertex == target) {
+                return g_score[current.vertex];
             }
 
-            if (u == -1 || min_dist == INF || u == target) {
-                return (u == target) ? min_dist : -1;
-            }
+            for (int neighbor : graph->adj[current.vertex]) {
+                if (closed[neighbor]) continue;
 
-            visited[u] = 1;
+                int tentative_g = g_score[current.vertex] + 1;
 
-            for (int v : graph->adj[u]) {
-                if (dist[u] + 1 < dist[v]) {
-                    dist[v] = dist[u] + 1;
+                if (tentative_g < g_score[neighbor]) {
+                    g_score[neighbor] = tentative_g;
+                    int f = tentative_g + heuristic(neighbor, target);
+
+                    if (!in_open_set[neighbor]) {
+                        open_set.push({neighbor, f});
+                        in_open_set[neighbor] = true;
+                    }
                 }
             }
         }
@@ -2776,18 +2748,12 @@ private:
     }
 
 public:
-    GraphPathDijkstra() = default;
+    GraphPathAStar() = default;
 
-    std::string name() const override { return "GraphPathDijkstra"; }    
+    std::string name() const override { return "GraphPathAStar"; }
 
     int64_t test() override {
-        int64_t total_length = 0;
-
-        for (const auto& [start, end] : pairs) {
-            total_length += dijkstra_shortest_path(start, end);
-        }
-
-        return total_length;
+        return astar_shortest_path(0, graph->vertices - 1);
     }
 };
 
@@ -4347,7 +4313,7 @@ void Benchmark::all(const std::string& single_bench) {
         {"SortSelf", []() { return std::make_unique<SortSelf>(); }},
         {"GraphPathBFS", []() { return std::make_unique<GraphPathBFS>(); }},
         {"GraphPathDFS", []() { return std::make_unique<GraphPathDFS>(); }},
-        {"GraphPathDijkstra", []() { return std::make_unique<GraphPathDijkstra>(); }},
+        {"GraphPathAStar", []() { return std::make_unique<GraphPathAStar>(); }},
         {"BufferHashSHA256", []() { return std::make_unique<BufferHashSHA256>(); }},
         {"BufferHashCRC32", []() { return std::make_unique<BufferHashCRC32>(); }},
         {"CacheSimulation", []() { return std::make_unique<CacheSimulation>(); }},        

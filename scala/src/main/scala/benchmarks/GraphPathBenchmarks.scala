@@ -2,86 +2,46 @@ package benchmarks
 
 import scala.collection.mutable
 import java.util.ArrayDeque
+import scala.math.max
 
 abstract class GraphPathBenchmark extends Benchmark:
-  protected class Graph(val vertices: Int, components: Int = 10):
+  protected class Graph(val vertices: Int, val jumps: Int = 3, val jumpLen: Int = 100):
     val adj = Array.fill(vertices)(mutable.ArrayBuffer.empty[Int])
-    private val componentsCount = components
 
     def addEdge(u: Int, v: Int): Unit =
       adj(u) += v
       adj(v) += u
 
     def generateRandom(): Unit =
-      val componentSize = vertices / componentsCount
 
-      var c = 0
-      while c < componentsCount do
-        val startIdx = c * componentSize
-        var endIdx = (c + 1) * componentSize
-        if c == componentsCount - 1 then endIdx = vertices
+      var i = 1
+      while i < vertices do
+        addEdge(i, i - 1)
+        i += 1
 
-        var i = startIdx + 1
-        while i < endIdx do
-          val parent = startIdx + Helper.nextInt(i - startIdx)
-          addEdge(i, parent)
-          i += 1
+      var v = 0
+      while v < vertices do
+        val numJumps = Helper.nextInt(jumps)
+        var j = 0
+        while j < numJumps do
+          val offset = Helper.nextInt(jumpLen) - jumpLen / 2
+          val u = v + offset
 
-        var rep = 0
-        while rep < componentSize * 2 do
-          val u = startIdx + Helper.nextInt(endIdx - startIdx)
-          val v = startIdx + Helper.nextInt(endIdx - startIdx)
-          if u != v then addEdge(u, v)
-          rep += 1
-
-        c += 1
-
-    def sameComponent(u: Int, v: Int): Boolean =
-      val componentSize = vertices / componentsCount
-      (u / componentSize) == (v / componentSize)
+          if u >= 0 && u < vertices && u != v then
+            addEdge(v, u)
+          j += 1
+        v += 1
 
   protected var graph: Graph = _
-  protected var pairs: Array[(Int, Int)] = _
   private var resultVal: Long = 0L
-  private var nPairs: Long = 0L
-  private var verticesCount: Long = 0L
 
   override def prepare(): Unit =
-    if nPairs == 0L then
-      nPairs = configVal("pairs")
-      verticesCount = configVal("vertices")
-      val comps = math.max(10, (verticesCount / 10000).toInt)
-      graph = Graph(verticesCount.toInt, comps)
-      graph.generateRandom()
-      pairs = generatePairs(nPairs.toInt)
+    val verticesCount = configVal("vertices").toInt
+    val jumpsCount = configVal("jumps").toInt
+    val jumpLength = configVal("jump_len").toInt
 
-  private def generatePairs(n: Int): Array[(Int, Int)] =
-    val pairsArr = new Array[(Int, Int)](n)
-    val componentSize = graph.vertices / 10
-
-    var i = 0
-    while i < n do
-      if Helper.nextInt(100) < 70 then
-
-        val component = Helper.nextInt(10)
-        val start = component * componentSize + Helper.nextInt(componentSize)
-        var end = 0
-        var found = false
-        while !found do
-          end = component * componentSize + Helper.nextInt(componentSize)
-          if end != start then found = true
-        pairsArr(i) = (start, end)
-      else
-
-        var c1 = Helper.nextInt(10)
-        var c2 = Helper.nextInt(10)
-        while c2 == c1 do c2 = Helper.nextInt(10)
-        val start = c1 * componentSize + Helper.nextInt(componentSize)
-        val end = c2 * componentSize + Helper.nextInt(componentSize)
-        pairsArr(i) = (start, end)
-      i += 1
-
-    pairsArr
+    graph = Graph(verticesCount, jumpsCount, jumpLength)
+    graph.generateRandom()
 
   def test(): Long
 
@@ -117,14 +77,7 @@ class GraphPathBFS extends GraphPathBenchmark:
     -1
 
   override def test(): Long =
-    var totalLength = 0L
-    var i = 0
-    while i < pairs.length do
-      val (start, end) = pairs(i)
-      val length = bfsShortestPath(start, end)
-      totalLength += length
-      i += 1
-    totalLength
+    bfsShortestPath(0, graph.vertices - 1).toLong
 
   override def name(): String = "GraphPathBFS"
 
@@ -132,14 +85,7 @@ class GraphPathDFS extends GraphPathBenchmark:
   override def name(): String = "GraphPathDFS"
 
   override def test(): Long =
-    var totalLength = 0L
-    var i = 0
-    while i < pairs.length do
-      val (start, end) = pairs(i)
-      val length = dfsFindPath(start, end)
-      totalLength += length
-      i += 1
-    totalLength
+    dfsFindPath(0, graph.vertices - 1).toLong
 
   private def dfsFindPath(start: Int, target: Int): Int =
     if start == target then return 0
@@ -169,55 +115,56 @@ class GraphPathDFS extends GraphPathBenchmark:
 
     if bestPath == Int.MaxValue then -1 else bestPath
 
-class GraphPathDijkstra extends GraphPathBenchmark:
-  private val INF = Int.MaxValue / 2
+class GraphPathAStar extends GraphPathBenchmark:
+  private case class Node(vertex: Int, priority: Int) extends Ordered[Node]:
+    override def compare(that: Node): Int = this.priority - that.priority
 
-  private def dijkstraShortestPath(start: Int, target: Int): Int =
+  private def heuristic(v: Int, target: Int): Int = target - v
+
+  private def aStarShortestPath(start: Int, target: Int): Int =
     if start == target then return 0
 
-    val dist = Array.fill(graph.vertices)(INF)
-    val visited = new Array[Boolean](graph.vertices)
+    val gScore = Array.fill(graph.vertices)(Int.MaxValue)
+    val fScore = Array.fill(graph.vertices)(Int.MaxValue)
+    val closed = new Array[Boolean](graph.vertices)
 
-    dist(start) = 0
+    gScore(start) = 0
+    fScore(start) = heuristic(start, target)
 
-    var iteration = 0
-    while iteration < graph.vertices do
+    val openSet = mutable.PriorityQueue[Node]()(Ordering[Node].reverse) 
+    val inOpenSet = new Array[Boolean](graph.vertices)
 
-      var u = -1
-      var minDist = INF
+    openSet.enqueue(Node(start, fScore(start)))
+    inOpenSet(start) = true
 
-      var v = 0
-      while v < graph.vertices do
-        if !visited(v) && dist(v) < minDist then
-          minDist = dist(v)
-          u = v
-        v += 1
+    while openSet.nonEmpty do
+      val current = openSet.dequeue()
+      inOpenSet(current.vertex) = false
 
-      if u == -1 || minDist == INF || u == target then
-        return if u == target then minDist else -1
+      if current.vertex == target then
+        return gScore(current.vertex)
 
-      visited(u) = true
+      closed(current.vertex) = true
 
-      val neighbors = graph.adj(u)
+      val neighbors = graph.adj(current.vertex)
       var i = 0
       while i < neighbors.size do
         val neighbor = neighbors(i)
-        if dist(u) + 1 < dist(neighbor) then
-          dist(neighbor) = dist(u) + 1
-        i += 1
+        if !closed(neighbor) then
+          val tentativeG = gScore(current.vertex) + 1
 
-      iteration += 1
+          if tentativeG < gScore(neighbor) then
+            gScore(neighbor) = tentativeG
+            fScore(neighbor) = tentativeG + heuristic(neighbor, target)
+
+            if !inOpenSet(neighbor) then
+              openSet.enqueue(Node(neighbor, fScore(neighbor)))
+              inOpenSet(neighbor) = true
+        i += 1
 
     -1
 
   override def test(): Long =
-    var totalLength = 0L
-    var i = 0
-    while i < pairs.length do
-      val (start, end) = pairs(i)
-      val length = dijkstraShortestPath(start, end)
-      totalLength += length
-      i += 1
-    totalLength
+    aStarShortestPath(0, graph.vertices - 1).toLong
 
-  override def name(): String = "GraphPathDijkstra"
+  override def name(): String = "GraphPathAStar"

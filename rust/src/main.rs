@@ -130,9 +130,9 @@ fn run_benchmarks(single_bench: Option<&str>) {
     benchmarks.push(Box::new(benchmarks::sort_quick::SortQuick::new()));
     benchmarks.push(Box::new(benchmarks::sort_merge::SortMerge::new()));
     benchmarks.push(Box::new(benchmarks::sort_self::SortSelf::new()));
-    benchmarks.push(Box::new(benchmarks::graph_path_bfs::GraphPathBFS::new()));
-    benchmarks.push(Box::new(benchmarks::graph_path_dfs::GraphPathDFS::new()));
-    benchmarks.push(Box::new(benchmarks::graph_path_dijkstra::GraphPathDijkstra::new()));
+    benchmarks.push(Box::new(benchmarks::graph_path::GraphPathBFS::new()));
+    benchmarks.push(Box::new(benchmarks::graph_path::GraphPathDFS::new()));
+    benchmarks.push(Box::new(benchmarks::graph_path::GraphPathAStar::new()));
     benchmarks.push(Box::new(benchmarks::buffer_hash_sha256::BufferHashSHA256::new()));
     benchmarks.push(Box::new(benchmarks::buffer_hash_crc32::BufferHashCRC32::new()));
     benchmarks.push(Box::new(benchmarks::cache_simulation::CacheSimulation::new()));

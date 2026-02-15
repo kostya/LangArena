@@ -2909,12 +2909,14 @@ export class SortSelf extends SortBenchmark {
 
 export class GraphPathGraph {
   vertices: number;
+  jumps: number;
+  jumpLen: number;
   private adj: number[][];
-  private components: number;
 
-  constructor(vertices: number, components: number = 10) {
+  constructor(vertices: number, jumps: number = 3, jumpLen: number = 100) {
     this.vertices = vertices;
-    this.components = Math.max(10, Math.floor(vertices / 10000));
+    this.jumps = jumps;
+    this.jumpLen = jumpLen;
     this.adj = Array(vertices).fill(0).map(() => []);
   }
 
@@ -2924,22 +2926,19 @@ export class GraphPathGraph {
   }
 
   generateRandom(): void {
-    const componentSize = Math.floor(this.vertices / this.components);
 
-    for (let c = 0; c < this.components; c++) {
-      const startIdx = c * componentSize;
-      const endIdx = c === this.components - 1 ? this.vertices : (c + 1) * componentSize;
+    for (let i = 1; i < this.vertices; i++) {
+      this.addEdge(i, i - 1);
+    }
 
-      for (let i = startIdx + 1; i < endIdx; i++) {
-        const parent = startIdx + Helper.nextInt(i - startIdx);
-        this.addEdge(i, parent);
-      }
+    for (let v = 0; v < this.vertices; v++) {
+      const numJumps = Helper.nextInt(this.jumps);
+      for (let j = 0; j < numJumps; j++) {
+        const offset = Helper.nextInt(this.jumpLen) - Math.floor(this.jumpLen / 2);
+        const u = v + offset;
 
-      for (let i = 0; i < componentSize * 2; i++) {
-        const u = startIdx + Helper.nextInt(endIdx - startIdx);
-        const v = startIdx + Helper.nextInt(endIdx - startIdx);
-        if (u !== v) {
-          this.addEdge(u, v);
+        if (u >= 0 && u < this.vertices && u !== v) {
+          this.addEdge(v, u);
         }
       }
     }
@@ -2956,63 +2955,28 @@ export class GraphPathGraph {
 
 export abstract class GraphPathBenchmark extends Benchmark {
   protected graph!: GraphPathGraph;
-  protected pairs: [number, number][] = [];
-  protected nPairs: number;
   protected resultValue: number = 0;
-
-  constructor() {
-    super();
-    this.nPairs = Number(Helper.configI64(this.constructor.name, "pairs"));
-  }
 
   prepare(): void {
     const vertices = Number(Helper.configI64(this.constructor.name, "vertices"));
-    this.graph = new GraphPathGraph(vertices, Math.max(10, Math.floor(vertices / 10000)));
+    const jumps = Number(Helper.configI64(this.constructor.name, "jumps"));
+    const jumpLen = Number(Helper.configI64(this.constructor.name, "jump_len"));
+
+    this.graph = new GraphPathGraph(vertices, jumps, jumpLen);
     this.graph.generateRandom();
-    this.pairs = this.generatePairs(this.nPairs);
-  }
-
-  protected generatePairs(n: number): [number, number][] {
-    const pairs: [number, number][] = [];
-    const componentSize = Math.floor(this.graph.getVertices() / 10);
-
-    for (let i = 0; i < n; i++) {
-      if (Helper.nextInt(100) < 70) {
-        const component = Helper.nextInt(10);
-        const start = component * componentSize + Helper.nextInt(componentSize);
-        let end: number;
-        do {
-          end = component * componentSize + Helper.nextInt(componentSize);
-        } while (end === start);
-        pairs.push([start, end]);
-      } else {
-        let c1 = Helper.nextInt(10);
-        let c2 = Helper.nextInt(10);
-        while (c2 === c1) {
-          c2 = Helper.nextInt(10);
-        }
-        const start = c1 * componentSize + Helper.nextInt(componentSize);
-        const end = c2 * componentSize + Helper.nextInt(componentSize);
-        pairs.push([start, end]);
-      }
-    }
-
-    return pairs;
   }
 
   abstract run(_iteration_id: number): void;
 
   checksum(): number {
-    return this.resultValue;
+    return this.resultValue >>> 0; 
   }
 }
 
 export class GraphPathBFS extends GraphPathBenchmark {
   run(_iteration_id: number): void {
-    for (const [start, end] of this.pairs) {
-      const length = this.bfsShortestPath(start, end);
-      this.resultValue += length;
-    }
+    const length = this.bfsShortestPath(0, this.graph.getVertices() - 1);
+    this.resultValue += length;
   }
 
   private bfsShortestPath(start: number, target: number): number {
@@ -3021,9 +2985,11 @@ export class GraphPathBFS extends GraphPathBenchmark {
     const visited = new Uint8Array(this.graph.getVertices());
     const queue: [number, number][] = [[start, 0]];
     visited[start] = 1;
+    let head = 0;
 
-    while (queue.length > 0) {
-      const [v, dist] = queue.shift()!;
+    while (head < queue.length) {
+      const [v, dist] = queue[head];
+      head++;
 
       for (const neighbor of this.graph.getAdjacency()[v]) {
         if (neighbor === target) {
@@ -3043,10 +3009,8 @@ export class GraphPathBFS extends GraphPathBenchmark {
 
 export class GraphPathDFS extends GraphPathBenchmark {
   run(_iteration_id: number): void {
-    for (const [start, end] of this.pairs) {
-      const length = this.dfsFindPath(start, end);
-      this.resultValue += length;
-    }
+    const length = this.dfsFindPath(0, this.graph.getVertices() - 1);
+    this.resultValue += length;
   }
 
   private dfsFindPath(start: number, target: number): number {
@@ -3077,46 +3041,101 @@ export class GraphPathDFS extends GraphPathBenchmark {
   }
 }
 
-export class GraphPathDijkstra extends GraphPathBenchmark {
-  private static readonly INF = Number.MAX_SAFE_INTEGER / 2;
-
+export class GraphPathAStar extends GraphPathBenchmark {
   run(_iteration_id: number): void {
-    for (const [start, end] of this.pairs) {
-      const length = this.dijkstraShortestPath(start, end);
-      this.resultValue += length;
-    }
+    const length = this.aStarShortestPath(0, this.graph.getVertices() - 1);
+    this.resultValue += length;
   }
 
-  private dijkstraShortestPath(start: number, target: number): number {
+  private heuristic(v: number, target: number): number {
+    return target - v;
+  }
+
+  private aStarShortestPath(start: number, target: number): number {
     if (start === target) return 0;
 
     const vertices = this.graph.getVertices();
-    const dist = new Array(vertices).fill(GraphPathDijkstra.INF);
-    const visited = new Uint8Array(vertices);
+    const gScore = new Array(vertices).fill(Number.MAX_SAFE_INTEGER);
+    const closed = new Uint8Array(vertices);
 
-    dist[start] = 0;
-    const maxIterations = vertices;
+    gScore[start] = 0;
 
-    for (let iteration = 0; iteration < maxIterations; iteration++) {
-      let u = -1;
-      let minDist = GraphPathDijkstra.INF;
+    const heapVertices: number[] = [];
+    const heapPriorities: number[] = [];
+    const inOpenSet = new Uint8Array(vertices);
 
-      for (let v = 0; v < vertices; v++) {
-        if (visited[v] === 0 && dist[v] < minDist) {
-          minDist = dist[v];
-          u = v;
+    const heapPush = (vertex: number, priority: number) => {
+      let i = heapVertices.length;
+      heapVertices.push(vertex);
+      heapPriorities.push(priority);
+
+      while (i > 0) {
+        const parent = Math.floor((i - 1) / 2);
+        if (heapPriorities[parent] <= heapPriorities[i]) break;
+        [heapVertices[i], heapVertices[parent]] = [heapVertices[parent], heapVertices[i]];
+        [heapPriorities[i], heapPriorities[parent]] = [heapPriorities[parent], heapPriorities[i]];
+        i = parent;
+      }
+    };
+
+    const heapPop = (): number | undefined => {
+      if (heapVertices.length === 0) return undefined;
+
+      const result = heapVertices[0];
+      heapVertices[0] = heapVertices[heapVertices.length - 1];
+      heapPriorities[0] = heapPriorities[heapPriorities.length - 1];
+      heapVertices.pop();
+      heapPriorities.pop();
+
+      let i = 0;
+      const n = heapVertices.length;
+      while (true) {
+        const left = 2 * i + 1;
+        const right = 2 * i + 2;
+        let smallest = i;
+
+        if (left < n && heapPriorities[left] < heapPriorities[smallest]) {
+          smallest = left;
         }
+        if (right < n && heapPriorities[right] < heapPriorities[smallest]) {
+          smallest = right;
+        }
+        if (smallest === i) break;
+
+        [heapVertices[i], heapVertices[smallest]] = [heapVertices[smallest], heapVertices[i]];
+        [heapPriorities[i], heapPriorities[smallest]] = [heapPriorities[smallest], heapPriorities[i]];
+        i = smallest;
       }
 
-      if (u === -1 || minDist === GraphPathDijkstra.INF || u === target) {
-        return u === target ? minDist : -1;
+      return result;
+    };
+
+    heapPush(start, this.heuristic(start, target));
+    inOpenSet[start] = 1;
+
+    while (heapVertices.length > 0) {
+      const current = heapPop()!;
+      inOpenSet[current] = 0;
+
+      if (current === target) {
+        return gScore[current];
       }
 
-      visited[u] = 1;
+      closed[current] = 1;
 
-      for (const v of this.graph.getAdjacency()[u]) {
-        if (dist[u] + 1 < dist[v]) {
-          dist[v] = dist[u] + 1;
+      for (const neighbor of this.graph.getAdjacency()[current]) {
+        if (closed[neighbor]) continue;
+
+        const tentativeG = gScore[current] + 1;
+
+        if (tentativeG < gScore[neighbor]) {
+          gScore[neighbor] = tentativeG;
+          const f = tentativeG + this.heuristic(neighbor, target);
+
+          if (inOpenSet[neighbor] === 0) {
+            heapPush(neighbor, f);
+            inOpenSet[neighbor] = 1;
+          }
         }
       }
     }
@@ -4833,7 +4852,7 @@ Benchmark.registerBenchmark(SortMerge);
 Benchmark.registerBenchmark(SortSelf);
 Benchmark.registerBenchmark(GraphPathBFS);
 Benchmark.registerBenchmark(GraphPathDFS);
-Benchmark.registerBenchmark(GraphPathDijkstra);
+Benchmark.registerBenchmark(GraphPathAStar);
 Benchmark.registerBenchmark(BufferHashSHA256);
 Benchmark.registerBenchmark(BufferHashCRC32);
 Benchmark.registerBenchmark(CacheSimulation);

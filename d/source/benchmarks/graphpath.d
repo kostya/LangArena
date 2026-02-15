@@ -16,13 +16,18 @@ protected:
     class Graph {
     public:
         int vertices;
-        int components;
-        int[][] adj;  
+        int jumps;
+        int jumpLen;
+        int[][] adj;
 
-        this(int vertices, int components = 10) {
+        this(int vertices, int jumps = 3, int jumpLen = 100) {
             this.vertices = vertices;
-            this.components = components;
+            this.jumps = jumps;
+            this.jumpLen = jumpLen;
             adj = new int[][](vertices);
+            foreach (i; 0 .. vertices) {
+                adj[i] = [];
+            }
         }
 
         void addEdge(int u, int v) {
@@ -31,82 +36,39 @@ protected:
         }
 
         void generateRandom() {
-            int componentSize = vertices / components;
+            foreach (i; 1 .. vertices) {
+                addEdge(i, i - 1);
+            }
 
-            foreach (c; 0 .. components) {
-                int startIdx = c * componentSize;
-                int endIdx = (c == components - 1) ? vertices : (c + 1) * componentSize;
+            foreach (v; 0 .. vertices) {
+                int numJumps = Helper.nextInt(jumps);
+                foreach (j; 0 .. numJumps) {
+                    int offset = Helper.nextInt(jumpLen) - jumpLen / 2;
+                    int u = v + offset;
 
-                foreach (i; startIdx + 1 .. endIdx) {
-                    int parent = startIdx + Helper.nextInt(i - startIdx);
-                    addEdge(i, parent);
-                }
-
-                int extraEdges = componentSize * 2;
-                foreach (e; 0 .. extraEdges) {
-                    int u = startIdx + Helper.nextInt(endIdx - startIdx);
-                    int v = startIdx + Helper.nextInt(endIdx - startIdx);
-                    if (u != v) addEdge(u, v);
+                    if (u >= 0 && u < vertices && u != v) {
+                        addEdge(v, u);
+                    }
                 }
             }
-        }
-
-        bool sameComponent(int u, int v) {
-            int componentSize = vertices / components;
-            return (u / componentSize) == (v / componentSize);
         }
     }
 
     Graph graph;
-    Tuple!(int, int)[] pairs;
-    int nPairs;
     uint resultVal;
-
-    Tuple!(int, int)[] generatePairs(int n) {
-        auto result = new Tuple!(int, int)[n];
-        int componentSize = graph.vertices / 10;
-
-        foreach (i; 0 .. n) {
-            if (Helper.nextInt(100) < 70) {
-                int component = Helper.nextInt(10);
-                int start = component * componentSize + Helper.nextInt(componentSize);
-                int end;
-                do {
-                    end = component * componentSize + Helper.nextInt(componentSize);
-                } while (end == start);
-                result[i] = tuple(start, end);
-            } else {
-                int c1 = Helper.nextInt(10);
-                int c2;
-                do {
-                    c2 = Helper.nextInt(10);
-                } while (c2 == c1);
-                int start = c1 * componentSize + Helper.nextInt(componentSize);
-                int end = c2 * componentSize + Helper.nextInt(componentSize);
-                result[i] = tuple(start, end);
-            }
-        }
-        return result;
-    }
 
     this() {
         resultVal = 0;
-        nPairs = 0;
     }
 
-protected:
     abstract long test();
 
-public:
     override void prepare() {
-        if (nPairs == 0) {
-            nPairs = configVal("pairs");
-            int vertices = configVal("vertices");
-            int comps = max(10, vertices / 10_000);
-            graph = new Graph(vertices, comps);
-            graph.generateRandom();
-            pairs = generatePairs(cast(int)nPairs);
-        }
+        int vertices = to!int(configVal("vertices"));
+        int jumps = to!int(configVal("jumps"));
+        int jumpLen = to!int(configVal("jump_len"));
+        graph = new Graph(vertices, jumps, jumpLen);
+        graph.generateRandom();
     }
 
     override void run(int iterationId) {
@@ -152,13 +114,7 @@ protected:
 
 public:
     override long test() {
-        long totalLength = 0;
-
-        foreach (pair; pairs) {
-            totalLength += bfsShortestPath(pair[0], pair[1]);
-        }
-
-        return totalLength;
+        return bfsShortestPath(0, graph.vertices - 1);
     }
 }
 
@@ -167,32 +123,31 @@ private:
     int dfsFindPath(int start, int target) {
         if (start == target) return 0;
 
-        bool[] visited = new bool[graph.vertices];
-        struct Node { int vertex; int distance; }
-        Node[] stack = new Node[graph.vertices];
+        auto visited = new bool[graph.vertices];
+        auto stack = new Tuple!(int, int)[graph.vertices];
         int top = 0;
         int bestPath = int.max;
 
-        stack[top++] = Node(start, 0);
+        stack[top++] = tuple(start, 0);
 
         while (top > 0) {
-            Node current = stack[--top];
+            auto current = stack[--top];
+            int v = current[0];
+            int dist = current[1];
 
-            if (visited[current.vertex] || current.distance >= bestPath) continue;
-            visited[current.vertex] = true;
+            if (visited[v] || dist >= bestPath) continue;
+            visited[v] = true;
 
-            foreach (neighbor; graph.adj[current.vertex]) {
+            foreach (neighbor; graph.adj[v]) {
                 if (neighbor == target) {
-                    if (current.distance + 1 < bestPath) {
-                        bestPath = current.distance + 1;
-                    }
+                    if (dist + 1 < bestPath) bestPath = dist + 1;
                 } else if (!visited[neighbor]) {
-                    stack[top++] = Node(neighbor, current.distance + 1);
+                    stack[top++] = tuple(neighbor, dist + 1);
                 }
             }
         }
 
-        return (bestPath == int.max) ? -1 : bestPath;
+        return bestPath == int.max ? -1 : bestPath;
     }
 
 protected:
@@ -200,49 +155,126 @@ protected:
 
 public:
     override long test() {
-        long totalLength = 0;
-
-        foreach (pair; pairs) {
-            totalLength += dfsFindPath(pair[0], pair[1]);
-        }
-
-        return totalLength;
+        return dfsFindPath(0, graph.vertices - 1);
     }
 }
 
-class GraphPathDijkstra : GraphPathBenchmark {
+class GraphPathAStar : GraphPathBenchmark {
 private:
-    enum INF = int.max / 2;
+    struct PriorityQueueItem {
+        int vertex;
+        int priority;
+    }
 
-    int dijkstraShortestPath(int start, int target) {
+    struct PriorityQueue {
+        PriorityQueueItem[] items;
+        int size;
+
+        static PriorityQueue opCall() {
+            PriorityQueue pq;
+            pq.items = new PriorityQueueItem[16];
+            pq.size = 0;
+            return pq;
+        }
+
+        void push(int vertex, int priority) {
+            if (size >= items.length) {
+                items.length *= 2;
+            }
+
+            int i = size++;
+            while (i > 0) {
+                int parent = (i - 1) / 2;
+                if (items[parent].priority <= priority) break;
+                items[i] = items[parent];
+                i = parent;
+            }
+            items[i] = PriorityQueueItem(vertex, priority);
+        }
+
+        PriorityQueueItem pop() {
+            auto min = items[0];
+            size--;
+
+            if (size > 0) {
+                auto last = items[size];
+                int i = 0;
+
+                while (true) {
+                    int left = 2 * i + 1;
+                    int right = 2 * i + 2;
+                    int smallest = i;
+
+                    if (left < size && items[left].priority < items[smallest].priority)
+                        smallest = left;
+                    if (right < size && items[right].priority < items[smallest].priority)
+                        smallest = right;
+
+                    if (smallest == i) break;
+
+                    items[i] = items[smallest];
+                    i = smallest;
+                }
+
+                items[i] = last;
+            }
+
+            return min;
+        }
+
+        bool empty() const {
+            return size == 0;
+        }
+    }
+
+    int heuristic(int v, int target) {
+        return target - v;
+    }
+
+    int aStarShortestPath(int start, int target) {
         if (start == target) return 0;
 
-        int[] dist = new int[graph.vertices];
+        int[] gScore = new int[graph.vertices];
+        int[] fScore = new int[graph.vertices];
         bool[] visited = new bool[graph.vertices];
 
-        dist[] = INF;
-        dist[start] = 0;
+        foreach (i; 0 .. graph.vertices) {
+            gScore[i] = int.max;
+            fScore[i] = int.max;
+        }
+        gScore[start] = 0;
+        fScore[start] = heuristic(start, target);
 
-        foreach (iteration; 0 .. graph.vertices) {
-            int u = -1;
-            int minDist = INF;
+        auto openSet = PriorityQueue.opCall();
+        openSet.push(start, fScore[start]);
 
-            foreach (v; 0 .. graph.vertices) {
-                if (!visited[v] && dist[v] < minDist) {
-                    minDist = dist[v];
-                    u = v;
-                }
+        bool[] inOpenSet = new bool[graph.vertices];
+        inOpenSet[start] = true;
+
+        while (!openSet.empty()) {
+            auto current = openSet.pop();
+            inOpenSet[current.vertex] = false;
+
+            if (current.vertex == target) {
+                return gScore[current.vertex];
             }
 
-            if (u == -1 || minDist == INF || u == target) {
-                return (u == target) ? minDist : -1;
-            }
+            visited[current.vertex] = true;
 
-            visited[u] = true;
+            foreach (neighbor; graph.adj[current.vertex]) {
+                if (visited[neighbor]) continue;
 
-            foreach (v; graph.adj[u]) {
-                if (dist[u] + 1 < dist[v]) {
-                    dist[v] = dist[u] + 1;
+                int tentativeG = gScore[current.vertex] + 1;
+
+                if (tentativeG < gScore[neighbor]) {
+                    gScore[neighbor] = tentativeG;
+                    int f = tentativeG + heuristic(neighbor, target);
+                    fScore[neighbor] = f;
+
+                    if (!inOpenSet[neighbor]) {
+                        openSet.push(neighbor, f);
+                        inOpenSet[neighbor] = true;
+                    }
                 }
             }
         }
@@ -251,16 +283,10 @@ private:
     }
 
 protected:
-    override string className() const { return "GraphPathDijkstra"; }
+    override string className() const { return "GraphPathAStar"; }
 
 public:
     override long test() {
-        long totalLength = 0;
-
-        foreach (pair; pairs) {
-            totalLength += dijkstraShortestPath(pair[0], pair[1]);
-        }
-
-        return totalLength;
+        return aStarShortestPath(0, graph.vertices - 1);
     }
 }

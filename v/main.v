@@ -82,7 +82,7 @@ fn main() {
 	benchmarks << sorts.new_sortself()
 	benchmarks << graph_paths.new_graphpathbfs()
 	benchmarks << graph_paths.new_graphpathdfs()
-	benchmarks << graph_paths.new_graphpathdijkstra()
+	benchmarks << graph_paths.new_graphpathastar()
 	benchmarks << buffer_hash.new_bufferhashsha256()
 	benchmarks << buffer_hash.new_bufferhashcrc32()
 	benchmarks << cache_simulation.new_cachesimulation()

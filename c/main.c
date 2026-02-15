@@ -5309,7 +5309,8 @@ Benchmark* SortSelf_create(void) {
 
 typedef struct {
     int vertices;
-    int components;
+    int jumps;
+    int jump_len;
     int** adj;
     int* adj_count;
     int* adj_capacity;
@@ -5317,16 +5318,14 @@ typedef struct {
 
 typedef struct {
     GraphPathGraph* graph;
-    int* pairs_start;
-    int* pairs_end;
-    int64_t n_pairs;
     uint32_t result_val;
 } GraphPathBaseData;
 
-static GraphPathGraph* graph_path_graph_new(int vertices, int components) {
+static GraphPathGraph* graph_path_graph_new(int vertices, int jumps, int jump_len) {
     GraphPathGraph* graph = malloc(sizeof(GraphPathGraph));
     graph->vertices = vertices;
-    graph->components = components;
+    graph->jumps = jumps;
+    graph->jump_len = jump_len;
 
     graph->adj = malloc(vertices * sizeof(int*));
     graph->adj_count = malloc(vertices * sizeof(int));
@@ -5346,16 +5345,12 @@ static void graph_path_graph_free(GraphPathGraph* graph) {
 
     if (graph->adj) {
         for (int i = 0; i < graph->vertices; i++) {
-            if (graph->adj[i]) {
-                free(graph->adj[i]);
-            }
+            if (graph->adj[i]) free(graph->adj[i]);
         }
         free(graph->adj);
     }
-
     if (graph->adj_count) free(graph->adj_count);
     if (graph->adj_capacity) free(graph->adj_capacity);
-
     free(graph);
 }
 
@@ -5374,69 +5369,30 @@ static void graph_path_graph_add_edge(GraphPathGraph* graph, int u, int v) {
 }
 
 static void graph_path_graph_generate_random(GraphPathGraph* graph) {
-    int component_size = graph->vertices / graph->components;
+    for (int i = 1; i < graph->vertices; i++) {
+        graph_path_graph_add_edge(graph, i, i - 1);
+    }
 
-    for (int c = 0; c < graph->components; c++) {
-        int start_idx = c * component_size;
-        int end_idx = (c == graph->components - 1) ? graph->vertices : (c + 1) * component_size;
+    for (int v = 0; v < graph->vertices; v++) {
+        int num_jumps = Helper_next_int(graph->jumps);
+        for (int j = 0; j < num_jumps; j++) {
+            int offset = Helper_next_int(graph->jump_len) - graph->jump_len / 2;
+            int u = v + offset;
 
-        for (int i = start_idx + 1; i < end_idx; i++) {
-            int parent = start_idx + Helper_next_int(i - start_idx);
-            graph_path_graph_add_edge(graph, i, parent);
-        }
-
-        int extra_edges = component_size * 2;
-        for (int e = 0; e < extra_edges; e++) {
-            int u = start_idx + Helper_next_int(end_idx - start_idx);
-            int v = start_idx + Helper_next_int(end_idx - start_idx);
-            if (u != v) graph_path_graph_add_edge(graph, u, v);
+            if (u >= 0 && u < graph->vertices && u != v) {
+                graph_path_graph_add_edge(graph, v, u);
+            }
         }
     }
 }
 
 static void graph_path_base_prepare(Benchmark* self, const char* bench_name, GraphPathBaseData* data) {
-    data->n_pairs = Helper_config_i64(bench_name, "pairs");
-    if (data->n_pairs <= 0) {
-        data->n_pairs = 100; 
-    }
+    int vertices = (int)Helper_config_i64(bench_name, "vertices");
+    int jumps = (int)Helper_config_i64(bench_name, "jumps");
+    int jump_len = (int)Helper_config_i64(bench_name, "jump_len");
 
-    int64_t vertices = Helper_config_i64(bench_name, "vertices");
-    if (vertices <= 0) {
-        vertices = data->n_pairs * 10; 
-    }
-
-    int components = vertices / 10000 > 10 ? vertices / 10000 : 10;
-
-    data->graph = graph_path_graph_new((int)vertices, components);
+    data->graph = graph_path_graph_new(vertices, jumps, jump_len);
     graph_path_graph_generate_random(data->graph);
-
-    data->pairs_start = malloc(data->n_pairs * sizeof(int));
-    data->pairs_end = malloc(data->n_pairs * sizeof(int));
-
-    int component_size = vertices / 10;
-    for (int64_t i = 0; i < data->n_pairs; i++) {
-        if (Helper_next_int(100) < 70) {
-            int component = Helper_next_int(10);
-            int start = component * component_size + Helper_next_int(component_size);
-            int end;
-            do {
-                end = component * component_size + Helper_next_int(component_size);
-            } while (end == start);
-            data->pairs_start[i] = start;
-            data->pairs_end[i] = end;
-        } else {
-            int c1 = Helper_next_int(10);
-            int c2;
-            do {
-                c2 = Helper_next_int(10);
-            } while (c2 == c1);
-            int start = c1 * component_size + Helper_next_int(component_size);
-            int end = c2 * component_size + Helper_next_int(component_size);
-            data->pairs_start[i] = start;
-            data->pairs_end[i] = end;
-        }
-    }
-
     data->result_val = 0;
 }
 
@@ -5444,14 +5400,6 @@ static void graph_path_base_cleanup(GraphPathBaseData* data) {
     if (data->graph) {
         graph_path_graph_free(data->graph);
         data->graph = NULL;
-    }
-    if (data->pairs_start) {
-        free(data->pairs_start);
-        data->pairs_start = NULL;
-    }
-    if (data->pairs_end) {
-        free(data->pairs_end);
-        data->pairs_end = NULL;
     }
 }
 
@@ -5462,9 +5410,8 @@ typedef struct {
 static int graph_path_bfs_search(GraphPathGraph* graph, int start, int target) {
     if (start == target) return 0;
 
-    int* queue = malloc(graph->vertices * 2 * sizeof(int));
     uint8_t* visited = calloc(graph->vertices, sizeof(uint8_t));
-
+    int* queue = malloc(graph->vertices * 2 * sizeof(int));
     int front = 0, rear = 0;
 
     visited[start] = 1;
@@ -5477,10 +5424,9 @@ static int graph_path_bfs_search(GraphPathGraph* graph, int start, int target) {
 
         for (int i = 0; i < graph->adj_count[v]; i++) {
             int neighbor = graph->adj[v][i];
-
             if (neighbor == target) {
-                free(queue);
                 free(visited);
+                free(queue);
                 return dist + 1;
             }
 
@@ -5492,8 +5438,8 @@ static int graph_path_bfs_search(GraphPathGraph* graph, int start, int target) {
         }
     }
 
-    free(queue);
     free(visited);
+    free(queue);
     return -1;
 }
 
@@ -5504,16 +5450,8 @@ void GraphPathBFS_prepare(Benchmark* self) {
 
 void GraphPathBFS_run(Benchmark* self, int iteration_id) {
     GraphPathBFSData* data = (GraphPathBFSData*)self->data;
-
-    int64_t total_length = 0;
-    for (int64_t i = 0; i < data->base.n_pairs; i++) {
-        int path_len = graph_path_bfs_search(data->base.graph, 
-                                           data->base.pairs_start[i], 
-                                           data->base.pairs_end[i]);
-        total_length += path_len;
-    }
-
-    data->base.result_val = crystal_add((int64_t)data->base.result_val, total_length);
+    int length = graph_path_bfs_search(data->base.graph, 0, data->base.graph->vertices - 1);
+    data->base.result_val = crystal_add((int64_t)data->base.result_val, length);
 }
 
 uint32_t GraphPathBFS_checksum(Benchmark* self) {
@@ -5528,17 +5466,13 @@ void GraphPathBFS_cleanup(Benchmark* self) {
 
 Benchmark* GraphPathBFS_create(void) {
     Benchmark* bench = Benchmark_create("GraphPathBFS");
-
     GraphPathBFSData* data = malloc(sizeof(GraphPathBFSData));
     memset(data, 0, sizeof(GraphPathBFSData));
-
     bench->data = data;
-
     bench->prepare = GraphPathBFS_prepare;
     bench->run = GraphPathBFS_run;
     bench->checksum = GraphPathBFS_checksum;
     bench->cleanup = GraphPathBFS_cleanup;
-
     return bench;
 }
 
@@ -5546,25 +5480,20 @@ typedef struct {
     GraphPathBaseData base;
 } GraphPathDFSData;
 
-typedef struct {
-    int vertex;
-    int distance;
-} DFSStackItem;
-
 static int graph_path_dfs_search(GraphPathGraph* graph, int start, int target) {
     if (start == target) return 0;
 
     uint8_t* visited = calloc(graph->vertices, sizeof(uint8_t));
-    DFSStackItem* stack = malloc(graph->vertices * 2 * sizeof(DFSStackItem));
+    int* stack = malloc(graph->vertices * 2 * sizeof(int));
     int stack_top = -1;
     int best_path = INT_MAX;
 
-    stack[++stack_top] = (DFSStackItem){start, 0};
+    stack[++stack_top] = start;
+    stack[++stack_top] = 0;
 
     while (stack_top >= 0) {
-        DFSStackItem current = stack[stack_top--];
-        int v = current.vertex;
-        int dist = current.distance;
+        int dist = stack[stack_top--];
+        int v = stack[stack_top--];
 
         if (visited[v] || dist >= best_path) continue;
         visited[v] = 1;
@@ -5572,18 +5501,17 @@ static int graph_path_dfs_search(GraphPathGraph* graph, int start, int target) {
         for (int i = 0; i < graph->adj_count[v]; i++) {
             int neighbor = graph->adj[v][i];
             if (neighbor == target) {
-                if (dist + 1 < best_path) {
-                    best_path = dist + 1;
-                }
+                if (dist + 1 < best_path) best_path = dist + 1;
             } else if (!visited[neighbor]) {
-                stack[++stack_top] = (DFSStackItem){neighbor, dist + 1};
+                stack[++stack_top] = neighbor;
+                stack[++stack_top] = dist + 1;
             }
         }
     }
 
     free(visited);
     free(stack);
-    return (best_path == INT_MAX) ? -1 : best_path;
+    return best_path == INT_MAX ? -1 : best_path;
 }
 
 void GraphPathDFS_prepare(Benchmark* self) {
@@ -5593,16 +5521,8 @@ void GraphPathDFS_prepare(Benchmark* self) {
 
 void GraphPathDFS_run(Benchmark* self, int iteration_id) {
     GraphPathDFSData* data = (GraphPathDFSData*)self->data;
-
-    int64_t total_length = 0;
-    for (int64_t i = 0; i < data->base.n_pairs; i++) {
-        int path_len = graph_path_dfs_search(data->base.graph, 
-                                           data->base.pairs_start[i], 
-                                           data->base.pairs_end[i]);
-        total_length += path_len;
-    }
-
-    data->base.result_val = crystal_add((int64_t)data->base.result_val, total_length);
+    int length = graph_path_dfs_search(data->base.graph, 0, data->base.graph->vertices - 1);
+    data->base.result_val = crystal_add((int64_t)data->base.result_val, length);
 }
 
 uint32_t GraphPathDFS_checksum(Benchmark* self) {
@@ -5617,110 +5537,165 @@ void GraphPathDFS_cleanup(Benchmark* self) {
 
 Benchmark* GraphPathDFS_create(void) {
     Benchmark* bench = Benchmark_create("GraphPathDFS");
-
     GraphPathDFSData* data = malloc(sizeof(GraphPathDFSData));
     memset(data, 0, sizeof(GraphPathDFSData));
-
     bench->data = data;
-
     bench->prepare = GraphPathDFS_prepare;
     bench->run = GraphPathDFS_run;
     bench->checksum = GraphPathDFS_checksum;
     bench->cleanup = GraphPathDFS_cleanup;
-
     return bench;
 }
 
 typedef struct {
     GraphPathBaseData base;
-} GraphPathDijkstraData;
+} GraphPathAStarData;
 
-static int graph_path_dijkstra_search(GraphPathGraph* graph, int start, int target) {
+typedef struct {
+    int vertex;
+    int priority;
+} PriorityQueueItem;
+
+typedef struct {
+    PriorityQueueItem* items;
+    int size;
+    int capacity;
+} PriorityQueue;
+
+static void priority_queue_push(PriorityQueue* pq, int vertex, int priority) {
+    if (pq->size >= pq->capacity) {
+        pq->capacity = pq->capacity == 0 ? 16 : pq->capacity * 2;
+        pq->items = realloc(pq->items, pq->capacity * sizeof(PriorityQueueItem));
+    }
+
+    int i = pq->size++;
+    while (i > 0) {
+        int parent = (i - 1) / 2;
+        if (pq->items[parent].priority <= priority) break;
+        pq->items[i] = pq->items[parent];
+        i = parent;
+    }
+    pq->items[i] = (PriorityQueueItem){vertex, priority};
+}
+
+static PriorityQueueItem priority_queue_pop(PriorityQueue* pq) {
+    PriorityQueueItem min = pq->items[0];
+    pq->size--;
+    if (pq->size > 0) {
+        PriorityQueueItem last = pq->items[pq->size];
+        int i = 0;
+        while (true) {
+            int left = 2 * i + 1;
+            int right = 2 * i + 2;
+            int smallest = i;
+
+            if (left < pq->size && pq->items[left].priority < pq->items[smallest].priority)
+                smallest = left;
+            if (right < pq->size && pq->items[right].priority < pq->items[smallest].priority)
+                smallest = right;
+
+            if (smallest == i) break;
+
+            pq->items[i] = pq->items[smallest];
+            i = smallest;
+        }
+        pq->items[i] = last;
+    }
+    return min;
+}
+
+static int heuristic(int v, int target) {
+    return target - v;
+}
+
+static int graph_path_astar_search(GraphPathGraph* graph, int start, int target) {
     if (start == target) return 0;
 
-    int* dist = malloc(graph->vertices * sizeof(int));
+    int* g_score = malloc(graph->vertices * sizeof(int));
+    int* f_score = malloc(graph->vertices * sizeof(int));
     uint8_t* visited = calloc(graph->vertices, sizeof(uint8_t));
 
     for (int i = 0; i < graph->vertices; i++) {
-        dist[i] = INT_MAX / 2;
+        g_score[i] = INT_MAX;
+        f_score[i] = INT_MAX;
     }
-    dist[start] = 0;
+    g_score[start] = 0;
+    f_score[start] = heuristic(start, target);
 
-    for (int iteration = 0; iteration < graph->vertices; iteration++) {
-        int u = -1;
-        int min_dist = INT_MAX / 2;
+    PriorityQueue open_set = {0};
+    priority_queue_push(&open_set, start, f_score[start]);
 
-        for (int v = 0; v < graph->vertices; v++) {
-            if (!visited[v] && dist[v] < min_dist) {
-                min_dist = dist[v];
-                u = v;
-            }
-        }
+    uint8_t* in_open_set = calloc(graph->vertices, sizeof(uint8_t));
+    in_open_set[start] = 1;
 
-        if (u == -1 || min_dist == INT_MAX / 2 || u == target) {
-            int result = (u == target) ? min_dist : -1;
-            free(dist);
-            free(visited);
+    while (open_set.size > 0) {
+        PriorityQueueItem current_item = priority_queue_pop(&open_set);
+        int current = current_item.vertex;
+        in_open_set[current] = 0;
+
+        if (current == target) {
+            int result = g_score[current];
+            free(g_score); free(f_score); free(visited); free(in_open_set);
+            free(open_set.items);
             return result;
         }
 
-        visited[u] = 1;
+        visited[current] = 1;
 
-        for (int i = 0; i < graph->adj_count[u]; i++) {
-            int v = graph->adj[u][i];
-            if (dist[u] + 1 < dist[v]) {
-                dist[v] = dist[u] + 1;
+        for (int i = 0; i < graph->adj_count[current]; i++) {
+            int neighbor = graph->adj[current][i];
+            if (visited[neighbor]) continue;
+
+            int tentative_g = g_score[current] + 1;
+
+            if (tentative_g < g_score[neighbor]) {
+                g_score[neighbor] = tentative_g;
+                int f = tentative_g + heuristic(neighbor, target);
+                f_score[neighbor] = f;
+
+                if (!in_open_set[neighbor]) {
+                    priority_queue_push(&open_set, neighbor, f);
+                    in_open_set[neighbor] = 1;
+                }
             }
         }
     }
 
-    free(dist);
-    free(visited);
+    free(g_score); free(f_score); free(visited); free(in_open_set);
+    free(open_set.items);
     return -1;
 }
 
-void GraphPathDijkstra_prepare(Benchmark* self) {
-    GraphPathDijkstraData* data = (GraphPathDijkstraData*)self->data;
-    graph_path_base_prepare(self, "GraphPathDijkstra", &data->base);
+void GraphPathAStar_prepare(Benchmark* self) {
+    GraphPathAStarData* data = (GraphPathAStarData*)self->data;
+    graph_path_base_prepare(self, "GraphPathAStar", &data->base);
 }
 
-void GraphPathDijkstra_run(Benchmark* self, int iteration_id) {
-    GraphPathDijkstraData* data = (GraphPathDijkstraData*)self->data;
-
-    int64_t total_length = 0;
-    for (int64_t i = 0; i < data->base.n_pairs; i++) {
-        int path_len = graph_path_dijkstra_search(data->base.graph, 
-                                                data->base.pairs_start[i], 
-                                                data->base.pairs_end[i]);
-        total_length += path_len;
-    }
-
-    data->base.result_val = crystal_add((int64_t)data->base.result_val, total_length);
+void GraphPathAStar_run(Benchmark* self, int iteration_id) {
+    GraphPathAStarData* data = (GraphPathAStarData*)self->data;
+    int length = graph_path_astar_search(data->base.graph, 0, data->base.graph->vertices - 1);
+    data->base.result_val = crystal_add((int64_t)data->base.result_val, length);
 }
 
-uint32_t GraphPathDijkstra_checksum(Benchmark* self) {
-    GraphPathDijkstraData* data = (GraphPathDijkstraData*)self->data;
+uint32_t GraphPathAStar_checksum(Benchmark* self) {
+    GraphPathAStarData* data = (GraphPathAStarData*)self->data;
     return data->base.result_val;
 }
 
-void GraphPathDijkstra_cleanup(Benchmark* self) {
-    GraphPathDijkstraData* data = (GraphPathDijkstraData*)self->data;
+void GraphPathAStar_cleanup(Benchmark* self) {
+    GraphPathAStarData* data = (GraphPathAStarData*)self->data;
     graph_path_base_cleanup(&data->base);
 }
 
-Benchmark* GraphPathDijkstra_create(void) {
-    Benchmark* bench = Benchmark_create("GraphPathDijkstra");
-
-    GraphPathDijkstraData* data = malloc(sizeof(GraphPathDijkstraData));
-    memset(data, 0, sizeof(GraphPathDijkstraData));
-
+Benchmark* GraphPathAStar_create(void) {
+    Benchmark* bench = Benchmark_create("GraphPathAStar");
+    GraphPathAStarData* data = malloc(sizeof(GraphPathAStarData));
+    memset(data, 0, sizeof(GraphPathAStarData));
     bench->data = data;
-
-    bench->prepare = GraphPathDijkstra_prepare;
-    bench->run = GraphPathDijkstra_run;
-    bench->checksum = GraphPathDijkstra_checksum;
-    bench->cleanup = GraphPathDijkstra_cleanup;
-
+    bench->prepare = GraphPathAStar_prepare;
+    bench->run = GraphPathAStar_run;
+    bench->checksum = GraphPathAStar_checksum;
+    bench->cleanup = GraphPathAStar_cleanup;
     return bench;
 }
 
@@ -8313,7 +8288,7 @@ void register_all_benchmarks(void) {
     Benchmark_register("SortSelf", SortSelf_create);
     Benchmark_register("GraphPathBFS", GraphPathBFS_create);
     Benchmark_register("GraphPathDFS", GraphPathDFS_create);
-    Benchmark_register("GraphPathDijkstra", GraphPathDijkstra_create);
+    Benchmark_register("GraphPathAStar", GraphPathAStar_create);
     Benchmark_register("BufferHashSHA256", BufferHashSHA256_create);
     Benchmark_register("BufferHashCRC32", BufferHashCRC32_create);
     Benchmark_register("CacheSimulation", CacheSimulation_create);

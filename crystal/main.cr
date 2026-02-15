@@ -2141,9 +2141,11 @@ end
 class GraphPathBenchmark < Benchmark
   class Graph
     property vertices : Int32
+    property jumps : Int32
+    property jump_len : Int32
     property adj : Array(Array(Int32))
 
-    def initialize(@vertices : Int32, @components : Int32 = 10)
+    def initialize(@vertices : Int32, @jumps : Int32 = 3, @jump_len : Int32 = 100)
       @adj = Array.new(@vertices) { [] of Int32 }
     end
 
@@ -2153,76 +2155,36 @@ class GraphPathBenchmark < Benchmark
     end
 
     def generate_random
-      component_size = @vertices // @components
+      (1...@vertices).each do |i|
+        add_edge(i, i - 1)
+      end
 
-      @components.times do |c|
-        start_idx = c * component_size
-        end_idx = (c + 1) * component_size
-        end_idx = @vertices if c == @components - 1
+      @vertices.times do |v|
+        Helper.next_int(@jumps).times do
+          offset = Helper.next_int(@jump_len) - @jump_len // 2
+          u = v + offset
 
-        (start_idx + 1...end_idx).each do |i|
-          parent = start_idx + Helper.next_int(i - start_idx)
-          add_edge(i, parent)
-        end
-
-        (component_size * 2).times do
-          u = start_idx + Helper.next_int(end_idx - start_idx)
-          v = start_idx + Helper.next_int(end_idx - start_idx)
-          add_edge(u, v) unless u == v
+          if u >= 0 && u < @vertices && u != v
+            add_edge(v, u)
+          end
         end
       end
-    end
-
-    def same_component?(u, v)
-      component_size = @vertices // @components
-      (u // component_size) == (v // component_size)
     end
   end
 
   @graph : Graph
-  @pairs : Array({Int32, Int32})
+  @result = 0_u32
 
-  def initialize(@n_pairs : Int64 = config_val("pairs"))
+  def initialize
     vertices = config_val("vertices").to_i32
-    @graph = Graph.new(vertices, Math.max(10, vertices // 10_000))
-    @pairs = Array({Int32, Int32}).new
-    @result = 0_u32
-  end
-
-  def generate_pairs(n)
-    pairs = Array({Int32, Int32}).new(n)
-    component_size = @graph.vertices // 10
-
-    n.times do |i|
-      if Helper.next_int(100) < 70
-        component = Helper.next_int(10)
-        start = component * component_size + Helper.next_int(component_size)
-
-        loop do
-          _end = component * component_size + Helper.next_int(component_size)
-          if _end != start
-            pairs << {start, _end}
-            break
-          end
-        end
-      else
-        c1 = Helper.next_int(10)
-        c2 = Helper.next_int(10)
-        while c2 == c1
-          c2 = Helper.next_int(10)
-        end
-        start = c1 * component_size + Helper.next_int(component_size)
-        _end = c2 * component_size + Helper.next_int(component_size)
-        pairs << {start, _end}
-      end
-    end
-
-    pairs
+    jumps = config_val("jumps").to_i32
+    jump_len = config_val("jump_len").to_i32
+    @graph = Graph.new(vertices, jumps, jump_len)
   end
 
   def prepare
     @graph.generate_random
-    @pairs = generate_pairs(@n_pairs)
+    total_edges = @graph.adj.sum(&.size) // 2
   end
 
   def test : Int64
@@ -2240,14 +2202,8 @@ end
 
 class GraphPathBFS < GraphPathBenchmark
   def test : Int64
-    total_length = 0_i64
-
-    @pairs.each do |start, _end|
-      length = bfs_shortest_path(start, _end)
-      total_length += length
-    end
-
-    total_length
+    length = bfs_shortest_path(0, @graph.vertices - 1)
+    length.to_i64
   end
 
   private def bfs_shortest_path(start, target)
@@ -2263,7 +2219,10 @@ class GraphPathBFS < GraphPathBenchmark
       v, dist = queue.shift
 
       @graph.adj[v].each do |neighbor|
-        return dist + 1 if neighbor == target
+        if neighbor == target
+
+          return dist + 1
+        end
 
         if visited[neighbor] == 0
           visited[neighbor] = 1
@@ -2278,21 +2237,14 @@ end
 
 class GraphPathDFS < GraphPathBenchmark
   def test : Int64
-    total_length = 0_i64
-
-    @pairs.each do |start, _end|
-      length = dfs_find_path(start, _end)
-      total_length += length
-    end
-
-    total_length
+    length = dfs_shortest_path(0, @graph.vertices - 1)
+    length.to_i64
   end
 
-  private def dfs_find_path(start, target)
+  private def dfs_shortest_path(start, target)
     return 0 if start == target
 
     visited = Bytes.new(@graph.vertices)
-
     stack = [{start, 0}]
     best_path = Int32::MAX
 
@@ -2317,55 +2269,109 @@ class GraphPathDFS < GraphPathBenchmark
   end
 end
 
-class GraphPathDijkstra < GraphPathBenchmark
-  def test : Int64
-    total_length = 0_i64
+class GraphPathAStar < GraphPathBenchmark
+  private class PriorityQueue
+    @heap = Array({Int32, Int32}).new
+    @size : Int32 = 0
 
-    @pairs.each do |start, _end|
-      length = dijkstra_shortest_path(start, _end)
-      total_length += length
+    def empty?
+      @size == 0
     end
 
-    total_length
+    def push(vertex, priority)
+      if @size >= @heap.size
+        @heap << {vertex, priority}
+      else
+        @heap[@size] = {vertex, priority}
+      end
+
+      i = @size
+      @size += 1
+
+      while i > 0
+        parent = (i - 1) // 2
+        break if @heap[parent][1] <= priority
+        @heap[i] = @heap[parent]
+        i = parent
+      end
+      @heap[i] = {vertex, priority}
+    end
+
+    def pop
+      min = @heap[0]
+      @size -= 1
+
+      if @size > 0
+        last = @heap[@size]
+        i = 0
+
+        while true
+          left = 2*i + 1
+          right = 2*i + 2
+          smallest = i
+
+          if left < @size && @heap[left][1] < @heap[smallest][1]
+            smallest = left
+          end
+          if right < @size && @heap[right][1] < @heap[smallest][1]
+            smallest = right
+          end
+
+          break if smallest == i
+
+          @heap[i] = @heap[smallest]
+          i = smallest
+        end
+
+        @heap[i] = last
+      end
+
+      min
+    end
   end
 
-  INF = Int32::MAX // 2
+  def test : Int64
+    astar_shortest_path(0, @graph.vertices - 1).to_i64
+  end
 
-  private def dijkstra_shortest_path(start, target)
+  private def heuristic(v, target)
+    target - v
+  end
+
+  private def astar_shortest_path(start, target)
     return 0 if start == target
 
-    dist = Slice(Int32).new(@graph.vertices, INF)
-    visited = Bytes.new(@graph.vertices)
+    g_score = Array.new(@graph.vertices, Int32::MAX)
+    g_score[start] = 0
 
-    dist[start] = 0
+    open_set = PriorityQueue.new
+    open_set.push(start, heuristic(start, target))
 
-    iteration = 0
-    max_iterations = @graph.vertices
+    in_open_set = Array.new(@graph.vertices, false)
+    in_open_set[start] = true
 
-    max_iterations.times do
-      iteration += 1
+    closed = Array.new(@graph.vertices, false)
 
-      u = -1
-      min_dist = INF
+    while !open_set.empty?
+      current, _ = open_set.pop
+      closed[current] = true
+      in_open_set[current] = false
 
-      @graph.vertices.times do |v|
-        if visited[v] == 0 && dist[v] < min_dist
-          min_dist = dist[v]
-          u = v
-        end
-      end
+      return g_score[current] if current == target
 
-      if u == -1 || min_dist == INF || u == target
-        result = (u == target) ? min_dist : -1
+      @graph.adj[current].each do |neighbor|
+        next if closed[neighbor]
 
-        return result
-      end
+        tentative_g = g_score[current] + 1
 
-      visited[u] = 1
+        if tentative_g < g_score[neighbor]
+          g_score[neighbor] = tentative_g
+          f = tentative_g + heuristic(neighbor, target)
 
-      @graph.adj[u].each do |v|
-        if dist[u] + 1 < dist[v]
-          dist[v] = dist[u] + 1
+          unless in_open_set[neighbor]
+            open_set.push(neighbor, f)
+            in_open_set[neighbor] = true
+          end
         end
       end
     end

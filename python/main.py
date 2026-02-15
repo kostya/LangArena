@@ -2250,33 +2250,29 @@ class SortSelf(SortBenchmark):
         return arr
 
 class GraphPathGraph:
-    def __init__(self, vertices: int, components: int = 10):
+    def __init__(self, vertices: int, jumps: int = 3, jump_len: int = 100):
         self.vertices = vertices
-        self.components = max(10, min(components, vertices // 10000))
+        self.jumps = jumps
+        self.jump_len = jump_len
         self._adj: List[List[int]] = [[] for _ in range(vertices)]
 
     def add_edge(self, u: int, v: int):
-
         self._adj[u].append(v)
         self._adj[v].append(u)
 
     def generate_random(self):
 
-        component_size = self.vertices // self.components
+        for i in range(1, self.vertices):
+            self.add_edge(i, i - 1)
 
-        for c in range(self.components):
-            start_idx = c * component_size
-            end_idx = self.vertices if c == self.components - 1 else (c + 1) * component_size
+        for v in range(self.vertices):
+            num_jumps = Helper.next_int(self.jumps)
+            for _ in range(num_jumps):
+                offset = Helper.next_int(self.jump_len) - self.jump_len // 2
+                u = v + offset
 
-            for i in range(start_idx + 1, end_idx):
-                parent = start_idx + Helper.next_int(i - start_idx)
-                self.add_edge(i, parent)
-
-            for i in range(component_size * 2):
-                u = start_idx + Helper.next_int(end_idx - start_idx)
-                v = start_idx + Helper.next_int(end_idx - start_idx)
-                if u != v:
-                    self.add_edge(u, v)
+                if 0 <= u < self.vertices and u != v:
+                    self.add_edge(v, u)
 
     def get_adjacency(self) -> List[List[int]]:
         return self._adj
@@ -2288,57 +2284,32 @@ class GraphPathBenchmark(Benchmark, ABC):
     def __init__(self):
         super().__init__()
         self._graph: Optional[GraphPathGraph] = None
-        self._pairs: List[Tuple[int, int]] = []
-        self._n_pairs = 0
         self._result_value = 0
 
     def prepare(self):
         class_name = self.__class__.__name__
         vertices = Helper.config_i64(class_name, "vertices")
-        self._n_pairs = Helper.config_i64(class_name, "pairs")
+        jumps = Helper.config_i64(class_name, "jumps")
+        jump_len = Helper.config_i64(class_name, "jump_len")
 
-        self._graph = GraphPathGraph(vertices, max(10, vertices // 10000))
+        self._graph = GraphPathGraph(vertices, jumps, jump_len)
         self._graph.generate_random()
-        self._pairs = self._generate_pairs(self._n_pairs)
 
-    def _generate_pairs(self, n: int) -> List[Tuple[int, int]]:
+    @abstractmethod
+    def test(self) -> int:
+        pass
 
-        pairs = []
-        component_size = self._graph.get_vertices() // 10
-
-        for i in range(n):
-            if Helper.next_int(100) < 70:
-
-                component = Helper.next_int(10)
-                start = component * component_size + Helper.next_int(component_size)
-                end = component * component_size + Helper.next_int(component_size)
-
-                while end == start:
-                    end = component * component_size + Helper.next_int(component_size)
-                pairs.append((start, end))
-            else:
-
-                c1 = Helper.next_int(10)
-                c2 = Helper.next_int(10)
-                while c2 == c1:
-                    c2 = Helper.next_int(10)
-                start = c1 * component_size + Helper.next_int(component_size)
-                end = c2 * component_size + Helper.next_int(component_size)
-                pairs.append((start, end))
-
-        return pairs
+    def run_benchmark(self, iteration_id: int):
+        self._result_value = (self._result_value + self.test()) & 0xFFFFFFFF
 
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
 
 class GraphPathBFS(GraphPathBenchmark):
-    def run_benchmark(self, iteration_id: int):
-        for start, end in self._pairs:
-            length = self._bfs_shortest_path(start, end)
-            self._result_value = (self._result_value + length) & 0xFFFFFFFF
+    def test(self) -> int:
+        return self._bfs_shortest_path(0, self._graph.get_vertices() - 1)
 
     def _bfs_shortest_path(self, start: int, target: int) -> int:
-
         if start == target:
             return 0
 
@@ -2361,19 +2332,16 @@ class GraphPathBFS(GraphPathBenchmark):
         return -1
 
 class GraphPathDFS(GraphPathBenchmark):
-    def run_benchmark(self, iteration_id: int):
-        for start, end in self._pairs:
-            length = self._dfs_find_path(start, end)
-            self._result_value = (self._result_value + length) & 0xFFFFFFFF
+    def test(self) -> int:
+        return self._dfs_find_path(0, self._graph.get_vertices() - 1)
 
     def _dfs_find_path(self, start: int, target: int) -> int:
-
         if start == target:
             return 0
 
         visited = [0] * self._graph.get_vertices()
         stack = [(start, 0)]
-        best_path = 0x7FFFFFFFFFFFFFFF  
+        best_path = 0x7FFFFFFFFFFFFFFF
 
         while stack:
             v, dist = stack.pop()
@@ -2392,43 +2360,54 @@ class GraphPathDFS(GraphPathBenchmark):
 
         return -1 if best_path == 0x7FFFFFFFFFFFFFFF else best_path
 
-class GraphPathDijkstra(GraphPathBenchmark):
-    _INF = 0x7FFFFFFF  
+class GraphPathAStar(GraphPathBenchmark):
+    def test(self) -> int:
+        return self._a_star_shortest_path(0, self._graph.get_vertices() - 1)
 
-    def run_benchmark(self, iteration_id: int):
-        for start, end in self._pairs:
-            length = self._dijkstra_shortest_path(start, end)
-            self._result_value = (self._result_value + length) & 0xFFFFFFFF
+    def _heuristic(self, v: int, target: int) -> int:
+        return target - v
 
-    def _dijkstra_shortest_path(self, start: int, target: int) -> int:
-
+    def _a_star_shortest_path(self, start: int, target: int) -> int:
         if start == target:
             return 0
 
         vertices = self._graph.get_vertices()
-        dist = [self._INF] * vertices
-        visited = [0] * vertices
+        g_score = [0x7FFFFFFF] * vertices
+        f_score = [0x7FFFFFFF] * vertices
+        closed = [0] * vertices
 
-        dist[start] = 0
+        g_score[start] = 0
+        f_score[start] = self._heuristic(start, target)
 
-        for _ in range(vertices):
+        open_set = []
+        in_open_set = [0] * vertices
 
-            u = -1
-            min_dist = self._INF
+        heapq.heappush(open_set, (f_score[start], start))
+        in_open_set[start] = 1
 
-            for v in range(vertices):
-                if visited[v] == 0 and dist[v] < min_dist:
-                    min_dist = dist[v]
-                    u = v
+        while open_set:
+            _, current = heapq.heappop(open_set)
+            in_open_set[current] = 0
 
-            if u == -1 or min_dist == self._INF or u == target:
-                return min_dist if u == target else -1
+            if current == target:
+                return g_score[current]
 
-            visited[u] = 1
+            closed[current] = 1
 
-            for v in self._graph.get_adjacency()[u]:
-                if dist[u] + 1 < dist[v]:
-                    dist[v] = dist[u] + 1
+            for neighbor in self._graph.get_adjacency()[current]:
+                if closed[neighbor]:
+                    continue
+
+                tentative_g = g_score[current] + 1
+
+                if tentative_g < g_score[neighbor]:
+                    g_score[neighbor] = tentative_g
+                    f = tentative_g + self._heuristic(neighbor, target)
+                    f_score[neighbor] = f
+
+                    if not in_open_set[neighbor]:
+                        heapq.heappush(open_set, (f, neighbor))
+                        in_open_set[neighbor] = 1
 
         return -1
 
@@ -3731,7 +3710,7 @@ def register_benchmarks():
     Benchmark.register_benchmark(SortSelf)
     Benchmark.register_benchmark(GraphPathBFS)
     Benchmark.register_benchmark(GraphPathDFS)
-    Benchmark.register_benchmark(GraphPathDijkstra)
+    Benchmark.register_benchmark(GraphPathAStar)
     Benchmark.register_benchmark(BufferHashSHA256)
     Benchmark.register_benchmark(BufferHashCRC32)
     Benchmark.register_benchmark(CacheSimulation)

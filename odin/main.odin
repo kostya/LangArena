@@ -40,7 +40,7 @@ main :: proc() {
     benchmark.register_benchmark_factory(benchmark.create_sortself)
     benchmark.register_benchmark_factory(benchmark.create_graphbfs)
     benchmark.register_benchmark_factory(benchmark.create_graphdfs)
-    benchmark.register_benchmark_factory(benchmark.create_graphdijkstra)
+    benchmark.register_benchmark_factory(benchmark.create_graphastar)
     benchmark.register_benchmark_factory(benchmark.create_buffhashsha256)
     benchmark.register_benchmark_factory(benchmark.create_buffhashcrc32)
     benchmark.register_benchmark_factory(benchmark.create_cachesimulation)

@@ -77,7 +77,7 @@ mixin(registerAllBenchmarks!(
     SortSelf,
     GraphPathBFS,
     GraphPathDFS,
-    GraphPathDijkstra,
+    GraphPathAStar,
     BufferHashSHA256,
     BufferHashCRC32,
     CacheSimulation,

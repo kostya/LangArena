@@ -117,7 +117,7 @@ public abstract class Benchmark
             new SortSelf(),
             new GraphPathBFS(),
             new GraphPathDFS(),
-            new GraphPathDijkstra(),
+            new GraphPathAStar(),
             new BufferHashSHA256(),
             new BufferHashCRC32(),
             new CacheSimulation(),

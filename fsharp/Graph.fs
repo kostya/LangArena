@@ -7,57 +7,32 @@ module GraphAlgorithms =
     [<Literal>]
     let INF = Int32.MaxValue / 2
 
-    type Graph(vertices: int, ?components: int) =
-        let comps = defaultArg components 10
+    type Graph(vertices: int, ?jumps: int, ?jumpLen: int) =
+        let jumpsCount = defaultArg jumps 3
+        let jumpLength = defaultArg jumpLen 100
         let adj = Array.init vertices (fun _ -> ResizeArray<int>())
 
         member _.Vertices = vertices
         member _.Adj = adj
+        member _.Jumps = jumpsCount
+        member _.JumpLen = jumpLength
 
         member this.AddEdge(u, v) =
             adj.[u].Add(v)
             adj.[v].Add(u)
 
         member this.GenerateRandom() =
-            let componentSize = vertices / comps
 
-            for c = 0 to comps - 1 do
-                let startIdx = c * componentSize
-                let endIdx = 
-                    if c = comps - 1 then vertices 
-                    else (c + 1) * componentSize
+            for i = 1 to vertices - 1 do
+                this.AddEdge(i, i - 1)
 
-                for i = startIdx + 1 to endIdx - 1 do
-                    let parent = startIdx + Helper.NextInt(i - startIdx)
-                    this.AddEdge(i, parent)
-
-                for _ = 1 to componentSize * 2 do
-                    let u = startIdx + Helper.NextInt(endIdx - startIdx)
-                    let v = startIdx + Helper.NextInt(endIdx - startIdx)
-                    if u <> v then this.AddEdge(u, v)
-
-    let generatePairs (graph: Graph) (n: int) =
-        let vertices = graph.Vertices
-        let componentSize = vertices / 10
-
-        Array.init n (fun _ ->
-            if Helper.NextInt(100) < 70 then
-                let component = Helper.NextInt(10)
-                let start = component * componentSize + Helper.NextInt(componentSize)
-                let end' = 
-                    let mutable e = component * componentSize + Helper.NextInt(componentSize)
-                    while e = start do e <- component * componentSize + Helper.NextInt(componentSize)
-                    e
-                (start, end')
-            else
-                let c1 = Helper.NextInt(10)
-                let c2 = 
-                    let mutable c = Helper.NextInt(10)
-                    while c = c1 do c <- Helper.NextInt(10)
-                    c
-                let start = c1 * componentSize + Helper.NextInt(componentSize)
-                let end' = c2 * componentSize + Helper.NextInt(componentSize)
-                (start, end'))
+            for v = 0 to vertices - 1 do
+                let numJumps = Helper.NextInt(jumpsCount)
+                for _ = 1 to numJumps do
+                    let offset = Helper.NextInt(jumpLength) - jumpLength / 2
+                    let u = v + offset
+                    if u >= 0 && u < vertices && u <> v then
+                        this.AddEdge(v, u)
 
     module BFS =
         let shortestPath (graph: Graph) start target =
@@ -115,38 +90,52 @@ module GraphAlgorithms =
 
                 if bestPath = INF then -1 else bestPath
 
-    module Dijkstra =
+    module AStar =
+        open System.Collections.Generic
+
+        let heuristic (v: int) (target: int) = target - v
+
         let shortestPath (graph: Graph) start target =
             if start = target then 0
             else
-                let dist = Array.create graph.Vertices INF
-                let visited = Array.zeroCreate<byte> graph.Vertices
+                let gScore = Array.create graph.Vertices INF
+                let fScore = Array.create graph.Vertices INF
+                let closed = Array.zeroCreate<byte> graph.Vertices
 
-                dist.[start] <- 0
-                let maxIterations = graph.Vertices
+                gScore.[start] <- 0
+                fScore.[start] <- heuristic start target
+
+                let openSet = PriorityQueue<int, int>()  
+                let inOpenSet = Array.zeroCreate<byte> graph.Vertices
+
+                openSet.Enqueue(start, fScore.[start])
+                inOpenSet.[start] <- 1uy
 
                 let mutable result = -1
                 let mutable found = false
 
-                for _ = 0 to maxIterations - 1 do
-                    if not found then
-                        let mutable u = -1
-                        let mutable minDist = INF
+                while not found && openSet.Count > 0 do
 
-                        for v = 0 to graph.Vertices - 1 do
-                            if visited.[v] = 0uy && dist.[v] < minDist then
-                                minDist <- dist.[v]
-                                u <- v
+                    let current = openSet.Dequeue()
+                    inOpenSet.[current] <- 0uy
 
-                        if u = -1 || minDist = INF || u = target then
-                            if u = target then result <- minDist
-                            found <- true
-                        else
-                            visited.[u] <- 1uy
+                    if current = target then
+                        result <- gScore.[current]
+                        found <- true
+                    else
+                        closed.[current] <- 1uy
 
-                            for v in graph.Adj.[u] do
-                                if dist.[u] + 1 < dist.[v] then
-                                    dist.[v] <- dist.[u] + 1
+                        for neighbor in graph.Adj.[current] do
+                            if closed.[neighbor] = 0uy then
+                                let tentativeG = gScore.[current] + 1
+
+                                if tentativeG < gScore.[neighbor] then
+                                    gScore.[neighbor] <- tentativeG
+                                    fScore.[neighbor] <- tentativeG + heuristic neighbor target
+
+                                    if inOpenSet.[neighbor] = 0uy then
+                                        openSet.Enqueue(neighbor, fScore.[neighbor])
+                                        inOpenSet.[neighbor] <- 1uy
 
                 result
 
@@ -155,24 +144,19 @@ type GraphPathBenchmark() =
     inherit Benchmark()
 
     let mutable graph: GraphAlgorithms.Graph option = None
-    let mutable pairs: (int * int) array = [||]
     let mutable result = 0u
-    let mutable nPairs = 0L
 
     member _.Graph = match graph with Some g -> g | None -> failwith "Graph not initialized"
-    member _.Pairs = pairs
     member _.UpdateResult value = result <- result + uint32 value
 
     override this.Prepare() =
         let vertices = int (this.ConfigVal("vertices"))
-        let comps = max 10 (vertices / 10000)
+        let jumps = int (this.ConfigVal("jumps"))
+        let jumpLen = int (this.ConfigVal("jump_len"))
 
-        let g = GraphAlgorithms.Graph(vertices, comps)
+        let g = GraphAlgorithms.Graph(vertices, jumps, jumpLen)
         g.GenerateRandom()
         graph <- Some g
-
-        nPairs <- this.ConfigVal("pairs")
-        pairs <- GraphAlgorithms.generatePairs g (int nPairs)
 
         result <- 0u
 
@@ -189,36 +173,18 @@ type GraphPathBFS() =
 
     override this.Test() =
         let graph = this.Graph
-        let mutable total = 0L
-
-        for (start, end') in this.Pairs do
-            let length = GraphAlgorithms.BFS.shortestPath graph start end'
-            total <- total + int64 length
-
-        total
+        GraphAlgorithms.BFS.shortestPath graph 0 (graph.Vertices - 1) |> int64
 
 type GraphPathDFS() =
     inherit GraphPathBenchmark()
 
     override this.Test() =
         let graph = this.Graph
-        let mutable total = 0L
+        GraphAlgorithms.DFS.findPath graph 0 (graph.Vertices - 1) |> int64
 
-        for (start, end') in this.Pairs do
-            let length = GraphAlgorithms.DFS.findPath graph start end'
-            total <- total + int64 length
-
-        total
-
-type GraphPathDijkstra() =
+type GraphPathAStar() =
     inherit GraphPathBenchmark()
 
     override this.Test() =
         let graph = this.Graph
-        let mutable total = 0L
-
-        for (start, end') in this.Pairs do
-            let length = GraphAlgorithms.Dijkstra.shortestPath graph start end'
-            total <- total + int64 length
-
-        total
+        GraphAlgorithms.AStar.shortestPath graph 0 (graph.Vertices - 1) |> int64

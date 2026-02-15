@@ -37,7 +37,7 @@ object Main:
     Benchmark.registerBenchmark(() => new SortSelf())
     Benchmark.registerBenchmark(() => new GraphPathBFS())
     Benchmark.registerBenchmark(() => new GraphPathDFS())
-    Benchmark.registerBenchmark(() => new GraphPathDijkstra())
+    Benchmark.registerBenchmark(() => new GraphPathAStar())
     Benchmark.registerBenchmark(() => new BufferHashSHA256())
     Benchmark.registerBenchmark(() => new BufferHashCRC32())
     Benchmark.registerBenchmark(() => new CacheSimulation())

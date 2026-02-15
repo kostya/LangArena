@@ -36,7 +36,7 @@ func main() {
     BenchmarkManager.register { SortSelf() }
     BenchmarkManager.register { GraphPathBFS() }
     BenchmarkManager.register { GraphPathDFS() }
-    BenchmarkManager.register { GraphPathDijkstra() }
+    BenchmarkManager.register { GraphPathAStar() }
     BenchmarkManager.register { BufferHashSHA256() }
     BenchmarkManager.register { BufferHashCRC32() }
     BenchmarkManager.register { CacheSimulation() }
