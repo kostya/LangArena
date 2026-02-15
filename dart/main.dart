@@ -3112,19 +3112,17 @@ class AssignmentNode extends Node2 {
 class Parser2 {
   final String input;
   int pos = 0;
-  late List<String> chars;
-  String currentChar = '\0';
+  late String currentChar;
   final expressions = <Node2>[];
 
   Parser2(this.input) {
-    chars = input.split('');
-    currentChar = chars.isNotEmpty ? chars[0] : '\0';
+    currentChar = input.isNotEmpty ? input[0] : '\0';
   }
 
   void parse() {
-    while (pos < chars.length) {
+    while (pos < input.length) {
       skipWhitespace();
-      if (pos >= chars.length) break;
+      if (pos >= input.length) break;
 
       final expr = parseExpression();
       expressions.add(expr);
@@ -3134,9 +3132,9 @@ class Parser2 {
   Node2 parseExpression() {
     var node = parseTerm();
 
-    while (pos < chars.length) {
+    while (pos < input.length) {
       skipWhitespace();
-      if (pos >= chars.length) break;
+      if (pos >= input.length) break;
 
       if (currentChar == '+' || currentChar == '-') {
         final op = currentChar;
@@ -3154,9 +3152,9 @@ class Parser2 {
   Node2 parseTerm() {
     var node = parseFactor();
 
-    while (pos < chars.length) {
+    while (pos < input.length) {
       skipWhitespace();
-      if (pos >= chars.length) break;
+      if (pos >= input.length) break;
 
       if (currentChar == '*' || currentChar == '/' || currentChar == '%') {
         final op = currentChar;
@@ -3173,15 +3171,15 @@ class Parser2 {
 
   Node2 parseFactor() {
     skipWhitespace();
-    if (pos >= chars.length) {
+    if (pos >= input.length) {
       return NumberNode(0);
     }
 
     final char = currentChar;
 
-    if (isDigit(char)) {
+    if (_isDigit(char)) {
       return parseNumber();
-    } else if (isLetter(char)) {
+    } else if (_isLetter(char)) {
       return parseVariable();
     } else if (char == '(') {
       advance();
@@ -3198,9 +3196,8 @@ class Parser2 {
 
   NumberNode parseNumber() {
     var value = 0;
-    while (pos < chars.length && isDigit(currentChar)) {
-      final digit = currentChar.codeUnitAt(0) - '0'.codeUnitAt(0);
-      value = value * 10 + digit;
+    while (pos < input.length && _isDigit(currentChar)) {
+      value = value * 10 + (currentChar.codeUnitAt(0) - 48);
       advance();
     }
     return NumberNode(value);
@@ -3208,8 +3205,8 @@ class Parser2 {
 
   Node2 parseVariable() {
     final start = pos;
-    while (pos < chars.length && 
-          (isLetter(currentChar) || isDigit(currentChar))) {
+    while (pos < input.length && 
+          (_isLetter(currentChar) || _isDigit(currentChar))) {
       advance();
     }
 
@@ -3227,27 +3224,28 @@ class Parser2 {
 
   void advance() {
     pos++;
-    if (pos >= chars.length) {
+    if (pos >= input.length) {
       currentChar = '\0';
     } else {
-      currentChar = chars[pos];
+      currentChar = input[pos];
     }
   }
 
   void skipWhitespace() {
-    while (pos < chars.length && isWhitespace(currentChar)) {
+    while (pos < input.length && _isWhitespace(currentChar)) {
       advance();
     }
   }
 
-  bool isDigit(String ch) => ch.codeUnitAt(0) >= 48 && ch.codeUnitAt(0) <= 57;
+  bool _isDigit(String ch) => 
+      ch.codeUnitAt(0) >= 48 && ch.codeUnitAt(0) <= 57;
 
-  bool isLetter(String ch) {
+  bool _isLetter(String ch) {
     final code = ch.codeUnitAt(0);
     return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
   }
 
-  bool isWhitespace(String ch) => 
+  bool _isWhitespace(String ch) => 
       ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
 }
 

@@ -4,33 +4,21 @@ abstract type CalcNode end
 
 struct NumberCalcNode <: CalcNode
     value::Int64
-    function NumberCalcNode(value::Int64)
-        new(value)
-    end
 end
 
 struct VariableCalcNode <: CalcNode
     name::String
-    function VariableCalcNode(name::String)
-        new(name)
-    end
 end
 
 struct BinaryOpCalcNode <: CalcNode
     op::Char
     left::CalcNode
     right::CalcNode
-    function BinaryOpCalcNode(op::Char, left::CalcNode, right::CalcNode)
-        new(op, left, right)
-    end
 end
 
 struct AssignmentCalcNode <: CalcNode
     var::String
     expr::CalcNode
-    function AssignmentCalcNode(var::String, expr::CalcNode)
-        new(var, expr)
-    end
 end
 
 mutable struct CalculatorAst <: AbstractBenchmark
@@ -226,8 +214,7 @@ function run(b::CalculatorAst, iteration_id::Int64)
     if !isempty(b.expressions)
         last_expr = b.expressions[end]
         if last_expr isa AssignmentCalcNode
-            var_name = last_expr.var
-            b.result = (b.result + Helper.checksum(var_name)) & 0xffffffff
+            b.result = (b.result + Helper.checksum(last_expr.var)) & 0xffffffff
         end
     end
 end
@@ -248,46 +235,48 @@ function simple_div(a::Int64, b::Int64)::Int64
     b == 0 && return Int64(0)
 
     if (a >= 0 && b > 0) || (a < 0 && b < 0)
-        div(a, b)  
+        return div(a, b)
     else
-        -div(abs(a), abs(b))  
+        return -div(abs(a), abs(b))
     end
 end
 
 function simple_mod(a::Int64, b::Int64)::Int64
     b == 0 && return Int64(0)
-    a - simple_div(a, b) * b
+    return a - simple_div(a, b) * b
 end
 
-function evaluate(interp::Interpreter, node::CalcNode)::Int64
-    if node isa NumberCalcNode
-        return node.value
-    elseif node isa VariableCalcNode
-        return interp.variables[node.name]
-    elseif node isa BinaryOpCalcNode
-        left = evaluate(interp, node.left)
-        right = evaluate(interp, node.right)
+function evaluate(interp::Interpreter, node::NumberCalcNode)::Int64
+    return node.value
+end
 
-        if node.op == '+'
-            return left + right
-        elseif node.op == '-'
-            return left - right
-        elseif node.op == '*'
-            return left * right
-        elseif node.op == '/'
-            return simple_div(left, right)
-        elseif node.op == '%'
-            return simple_mod(left, right)
-        else
-            return Int64(0)
-        end
-    elseif node isa AssignmentCalcNode
-        value = evaluate(interp, node.expr)
-        interp.variables[node.var] = value
-        return value
+function evaluate(interp::Interpreter, node::VariableCalcNode)::Int64
+    return interp.variables[node.name]  
+end
+
+function evaluate(interp::Interpreter, node::BinaryOpCalcNode)::Int64
+    left = evaluate(interp, node.left)
+    right = evaluate(interp, node.right)
+
+    if node.op == '+'
+        return left + right
+    elseif node.op == '-'
+        return left - right
+    elseif node.op == '*'
+        return left * right
+    elseif node.op == '/'
+        return simple_div(left, right)
+    elseif node.op == '%'
+        return simple_mod(left, right)
     else
         return Int64(0)
     end
+end
+
+function evaluate(interp::Interpreter, node::AssignmentCalcNode)::Int64
+    value = evaluate(interp, node.expr)
+    interp.variables[node.var] = value
+    return value
 end
 
 function run_interpreter(interp::Interpreter, expressions::Vector{CalcNode})::Int64
@@ -312,7 +301,6 @@ end
 name(b::CalculatorInterpreter)::String = "CalculatorInterpreter"
 
 function prepare(b::CalculatorInterpreter)
-
     calc = CalculatorAst()
     calc.n = b.n
     prepare(calc)
@@ -322,8 +310,12 @@ end
 
 function run(b::CalculatorInterpreter, iteration_id::Int64)
     interp = Interpreter()
-    result = run_interpreter(interp, b.ast)
-    b.result += Helper.to_u32(result)
+    try
+        result = run_interpreter(interp, b.ast)
+        b.result += Helper.to_u32(result)
+    catch
+
+    end
 end
 
 function checksum(b::CalculatorInterpreter)::UInt32

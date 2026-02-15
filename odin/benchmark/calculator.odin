@@ -3,8 +3,6 @@ package benchmark
 import "core:fmt"
 import "core:strconv"
 import "core:strings"
-import "core:unicode"
-import "core:unicode/utf8"
 import "core:mem"
 import "core:slice"
 
@@ -17,7 +15,7 @@ Variable :: struct {
 }
 
 BinaryOp :: struct {
-    op:    rune,
+    op:    u8,  
     left:  ^CalcNode,
     right: ^CalcNode,
 }
@@ -41,48 +39,47 @@ CalcNode :: struct {
 Parser :: struct {
     input:         string,
     pos:           int,
-    current_char:  rune,
-    chars:         []rune,
+    current_char:  u8,  
     expressions:   [dynamic]^CalcNode,
 }
 
 parser_init :: proc(p: ^Parser, input_str: string) {
     p.input = input_str
     p.pos = 0
-    p.chars = utf8.string_to_runes(input_str)
     p.expressions = make([dynamic]^CalcNode)
 
-    if len(p.chars) == 0 {
+    if len(p.input) == 0 {
         p.current_char = 0
     } else {
-        p.current_char = p.chars[0]
+        p.current_char = p.input[0]  
     }
 }
 
 parser_destroy :: proc(p: ^Parser) {
-
-    delete(p.chars)
     delete(p.expressions)
 }
 
 parser_advance :: proc(p: ^Parser) {
     p.pos += 1
-    if p.pos >= len(p.chars) {
+    if p.pos >= len(p.input) {
         p.current_char = 0
     } else {
-        p.current_char = p.chars[p.pos]
+        p.current_char = p.input[p.pos]  
     }
 }
 
 parser_skip_whitespace :: proc(p: ^Parser) {
-    for p.current_char != 0 && unicode.is_space(p.current_char) {
+    for p.current_char != 0 && (p.current_char == ' ' || 
+                                 p.current_char == '\t' || 
+                                 p.current_char == '\n' || 
+                                 p.current_char == '\r') {
         parser_advance(p)
     }
 }
 
 parser_parse_number :: proc(p: ^Parser) -> ^CalcNode {
     v: i64 = 0
-    for p.current_char != 0 && unicode.is_digit(p.current_char) {
+    for p.current_char != 0 && p.current_char >= '0' && p.current_char <= '9' {
         v = v * 10 + i64(p.current_char - '0')
         parser_advance(p)
     }
@@ -94,11 +91,14 @@ parser_parse_number :: proc(p: ^Parser) -> ^CalcNode {
 
 parser_parse_variable :: proc(p: ^Parser) -> ^CalcNode {
     start := p.pos
-    for p.current_char != 0 && (unicode.is_letter(p.current_char) || unicode.is_digit(p.current_char)) {
+    for p.current_char != 0 && 
+        ((p.current_char >= 'a' && p.current_char <= 'z') ||
+         (p.current_char >= 'A' && p.current_char <= 'Z') ||
+         (p.current_char >= '0' && p.current_char <= '9')) {
         parser_advance(p)
     }
 
-    var_name := utf8.runes_to_string(p.chars[start:p.pos])
+    var_name := p.input[start:p.pos]  
 
     parser_skip_whitespace(p)
     if p.current_char == '=' {
@@ -108,7 +108,7 @@ parser_parse_variable :: proc(p: ^Parser) -> ^CalcNode {
 
         node := new(CalcNode)
         assign := new(Assignment)
-        assign.var = strings.clone(var_name)
+        assign.var = strings.clone(var_name)  
         assign.expr = expr
         node.data = assign
         return node
@@ -127,11 +127,12 @@ parser_parse_factor :: proc(p: ^Parser) -> ^CalcNode {
         return node
     }
 
-    if unicode.is_digit(p.current_char) {
+    if p.current_char >= '0' && p.current_char <= '9' {
         return parser_parse_number(p)
     }
 
-    if unicode.is_letter(p.current_char) {
+    if (p.current_char >= 'a' && p.current_char <= 'z') ||
+       (p.current_char >= 'A' && p.current_char <= 'Z') {
         return parser_parse_variable(p)
     }
 
@@ -314,10 +315,7 @@ generate_random_program :: proc(n: i64 = 1000) -> string {
     }
 
     temp_result := strings.to_string(builder)
-
     result := strings.clone(temp_result)
-
-    strings.builder_destroy(&builder)
 
     return result
 }
@@ -362,7 +360,6 @@ calculatorast_run :: proc(bench: ^Benchmark, iteration_id: int) {
 
     if len(ca.expressions) > 0 {
         if assign, ok := ca.expressions[len(ca.expressions)-1].data.(^Assignment); ok {
-
             ca.result_val = ca.result_val + checksum_string(assign.var)
         }
     }

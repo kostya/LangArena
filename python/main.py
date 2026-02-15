@@ -2739,10 +2739,10 @@ class CalculatorAst(Benchmark):
         self._text = ''
         self._expressions: List[Node2] = []
         self._result_value = 0
-
-    def prepare(self):
         class_name = self.__class__.__name__
         self.n = Helper.config_i64(class_name, "operations")
+
+    def prepare(self):
         self._text = self._generate_random_program(self.n)
 
     def _generate_random_program(self, n: int) -> str:
@@ -2786,7 +2786,7 @@ class CalculatorAst(Benchmark):
     def run_benchmark(self, iteration_id: int):
         parser = Parser2(self._text)
         parser.parse()
-        self._expressions = parser.expressions.copy()
+        self._expressions = parser.expressions
 
         self._result_value = (self._result_value + len(self._expressions)) & 0xFFFFFFFF
 
@@ -2797,7 +2797,7 @@ class CalculatorAst(Benchmark):
                                      Helper.checksum_string(last_expr.var_name)) & 0xFFFFFFFF
 
     def get_expressions(self) -> List[Node2]:
-        return self._expressions.copy()
+        return self._expressions
 
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
@@ -2910,11 +2910,9 @@ class CalculatorInterpreter(Benchmark):
 
         calculator_ast = CalculatorAst()
         calculator_ast.n = operations
-        text = calculator_ast._generate_random_program(operations)
-
-        parser = Parser2(text)
-        parser.parse()
-        self._ast = parser.expressions.copy()
+        calculator_ast.prepare()
+        calculator_ast.run_benchmark(0)
+        self._ast = calculator_ast.get_expressions()
 
     def run_benchmark(self, iteration_id: int):
         interpreter = Interpreter2()

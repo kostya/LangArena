@@ -106,7 +106,7 @@ function energy(bodies::Vector{Planet})
     e = 0.0
     nbodies = length(bodies)
 
-    @inbounds for i in 1:nbodies
+    for i in 1:nbodies
         b = bodies[i]
         e += 0.5 * b.mass * (b.vx*b.vx + b.vy*b.vy + b.vz*b.vz)
 
@@ -126,7 +126,7 @@ end
 function offset_momentum!(bodies::Vector{Planet})
     px = py = pz = 0.0
 
-    @inbounds for b in bodies
+    for b in bodies
         m = b.mass
         px += b.vx * m
         py += b.vy * m

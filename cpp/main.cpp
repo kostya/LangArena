@@ -3244,6 +3244,10 @@ public:
     uint32_t checksum() override {
         return result_val;
     }
+
+    std::vector<Node> take_ast() { 
+        return std::move(expressions); 
+    }
 };
 
 class CalculatorInterpreter : public Benchmark {
@@ -3333,9 +3337,8 @@ public:
         ca.n = n;
         ca.prepare();
         ca.run(0);
-        ast.swap(const_cast<std::vector<CalculatorAst::Node>&>(
-            reinterpret_cast<const CalculatorAst&>(ca).expressions));
-        }
+        ast = ca.take_ast();
+    }
 
     void run(int iteration_id) override {
         Interpreter interpreter;

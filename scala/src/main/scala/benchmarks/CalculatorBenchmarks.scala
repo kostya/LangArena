@@ -2,7 +2,7 @@ package benchmarks
 
 import scala.collection.mutable.{ArrayBuffer, Map}
 
-class CalculatorAst extends Benchmark {
+class CalculatorAst extends Benchmark:
   sealed trait Node
   case class Number(value: Long) extends Node
   case class Variable(name: String) extends Node
@@ -180,7 +180,6 @@ class CalculatorAst extends Benchmark {
   override def checksum(): Long = resultVal & 0xFFFFFFFFL
 
   override def name(): String = "CalculatorAst"
-}
 
 class CalculatorInterpreter extends Benchmark:
   private var n: Long = 0L

@@ -6417,6 +6417,16 @@ void CalculatorAst_prepare(Benchmark* self) {
 void CalculatorAst_run(Benchmark* self, int iteration_id) {
     CalculatorAstData* data = (CalculatorAstData*)self->data;
 
+    if (data->expressions) {
+        for (int64_t i = 0; i < data->expressions_count; i++) {
+            ast_node_free(data->expressions[i]);  
+        }
+        free(data->expressions);                   
+        data->expressions = NULL;
+        data->expressions_count = 0;
+        data->expressions_capacity = 0;
+    }
+
     CalculatorAstParser parser;
     calculator_ast_parser_init(&parser, data->text);
 
@@ -6583,8 +6593,6 @@ static int64_t calculator_interpreter_evaluate(AST_Node* node, CalculatorInterpr
 typedef struct {
     CalculatorAstData ast_data;
     uint32_t result_val;
-    AST_Node** cached_expressions;
-    int64_t cached_expressions_count;
 } CalculatorInterpreterData;
 
 void CalculatorInterpreter_prepare(Benchmark* self) {
@@ -6604,14 +6612,6 @@ void CalculatorInterpreter_prepare(Benchmark* self) {
     calculator_ast_parser_init(&parser, data->ast_data.text);
     calculator_ast_parser_parse_all(&parser, &data->ast_data);
 
-    data->cached_expressions = malloc(data->ast_data.expressions_count * sizeof(AST_Node*));
-    data->cached_expressions_count = data->ast_data.expressions_count;
-
-    for (int64_t i = 0; i < data->ast_data.expressions_count; i++) {
-
-        data->cached_expressions[i] = data->ast_data.expressions[i];
-    }
-
     data->result_val = 0;
 }
 
@@ -6621,8 +6621,8 @@ void CalculatorInterpreter_run(Benchmark* self, int iteration_id) {
     CalculatorInterpreterContext* ctx = calculator_interpreter_context_new();
     int64_t iteration_result = 0;
 
-    for (int64_t i = 0; i < data->cached_expressions_count; i++) {
-        iteration_result = calculator_interpreter_evaluate(data->cached_expressions[i], ctx);
+    for (int64_t i = 0; i < data->ast_data.expressions_count; i++) {
+        iteration_result = calculator_interpreter_evaluate(data->ast_data.expressions[i], ctx);
     }
 
     calculator_interpreter_context_free(ctx);
@@ -6641,11 +6641,6 @@ void CalculatorInterpreter_cleanup(Benchmark* self) {
     if (data->ast_data.text) {
         free(data->ast_data.text);
         data->ast_data.text = NULL;
-    }
-
-    if (data->cached_expressions) {
-        free(data->cached_expressions);
-        data->cached_expressions = NULL;
     }
 
     if (data->ast_data.expressions) {

@@ -101,7 +101,7 @@ function calc_dom(text::String)::Tuple{Float64, Float64, Float64}
 
     x_sum = y_sum = z_sum = 0.0
 
-    @inbounds for i in 1:len
+    for i in 1:len
         coord = coordinates[i]
         x_sum += coord.x
         y_sum += coord.y

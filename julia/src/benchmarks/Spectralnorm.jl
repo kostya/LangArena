@@ -64,7 +64,7 @@ end
 function checksum(b::Spectralnorm)::UInt32
     vBv = vv = 0.0
 
-    @inbounds for i in 1:b.size
+    for i in 1:b.size
         vBv += b.u[i] * b.v[i]
         vv += b.v[i] * b.v[i]
     end

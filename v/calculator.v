@@ -440,7 +440,7 @@ pub fn (mut b CalculatorInterpreter) prepare() {
 	}
 	ca.prepare()
 	ca.run(0)
-	b.ast = ca.expressions.clone()
+	b.ast = ca.expressions
 }
 
 pub fn (mut b CalculatorInterpreter) run(iteration_id int) {
