@@ -3,91 +3,121 @@ module game_of_life
 import benchmark
 import helper
 
-enum Cell {
-	dead  = 0
-	alive = 1
-}
-
-struct Grid {
-pub:
-	width  int
-	height int
+struct Cell {
 mut:
-	cells  []Cell
-	buffer []Cell
+	alive      bool
+	next_state bool
+	neighbors  []&Cell
 }
 
-fn new_grid(width int, height int) Grid {
-	size := width * height
-	return Grid{
-		width:  width
-		height: height
-		cells:  []Cell{len: size, init: .dead}
-		buffer: []Cell{len: size, init: .dead}
+fn new_cell() &Cell {
+	return &Cell{
+		alive: false
+		next_state: false
+		neighbors: unsafe { []&Cell{} }
 	}
 }
 
-fn (grid Grid) get(x int, y int) Cell {
-	return grid.cells[y * grid.width + x]
+fn (mut cell Cell) add_neighbor(neighbor &Cell) {
+	cell.neighbors << neighbor
 }
 
-fn (mut grid Grid) set(x int, y int, cell Cell) {
-	grid.cells[y * grid.width + x] = cell
-}
-
-fn (grid Grid) count_neighbors(x int, y int) int {
-	width := grid.width
-	height := grid.height
-
-	y_prev := if y == 0 { height - 1 } else { y - 1 }
-	y_next := if y == height - 1 { 0 } else { y + 1 }
-	x_prev := if x == 0 { width - 1 } else { x - 1 }
-	x_next := if x == width - 1 { 0 } else { x + 1 }
-
-	mut count := 0
-	cells := grid.cells
-
-	count += int(cells[y_prev * width + x_prev] == .alive)
-	count += int(cells[y_prev * width + x] == .alive)
-	count += int(cells[y_prev * width + x_next] == .alive)
-	count += int(cells[y * width + x_prev] == .alive)
-	count += int(cells[y * width + x_next] == .alive)
-	count += int(cells[y_next * width + x_prev] == .alive)
-	count += int(cells[y_next * width + x] == .alive)
-	count += int(cells[y_next * width + x_next] == .alive)
-
-	return count
-}
-
-fn (mut grid Grid) next_generation() {
-	width := grid.width
-	height := grid.height
-
-	cells := grid.cells
-	mut buffer := grid.buffer.clone()
-
-	for y in 0 .. height {
-		y_idx := y * width
-
-		for x in 0 .. width {
-			idx := y_idx + x
-
-			neighbors := grid.count_neighbors(x, y)
-
-			current := cells[idx]
-			mut next_state := Cell.dead
-
-			if current == .alive {
-				next_state = if neighbors == 2 || neighbors == 3 { .alive } else { .dead }
-			} else {
-				next_state = if neighbors == 3 { .alive } else { .dead }
-			}
-
-			buffer[idx] = next_state
+fn (mut cell Cell) compute_next_state() {
+	mut alive_neighbors := 0
+	for neighbor in cell.neighbors {
+		if neighbor.alive {
+			alive_neighbors++
 		}
 	}
 
-	grid.cells = buffer
+	if cell.alive {
+		cell.next_state = alive_neighbors == 2 || alive_neighbors == 3
+	} else {
+		cell.next_state = alive_neighbors == 3
+	}
+}
+
+fn (mut cell Cell) update() {
+	cell.alive = cell.next_state
+}
+
+struct Grid {
+mut:
+	width  int
+	height int
+	cells  [][]&Cell
+}
+
+fn new_grid(width int, height int) &Grid {
+	unsafe {
+		mut cells := [][]&Cell{len: height}
+		for y in 0 .. height {
+			cells[y] = []&Cell{len: width}
+		}
+
+		for y in 0 .. height {
+			for x in 0 .. width {
+				cells[y][x] = new_cell()
+			}
+		}
+
+		mut grid := &Grid{
+			width: width
+			height: height
+			cells: cells
+		}
+
+		grid.link_neighbors()
+		return grid
+	}
+}
+
+fn (mut grid Grid) link_neighbors() {
+	for y in 0 .. grid.height {
+		for x in 0 .. grid.width {
+			mut cell := grid.cells[y][x]
+
+			for dy in -1 .. 2 {
+				for dx in -1 .. 2 {
+					if dx == 0 && dy == 0 {
+						continue
+					}
+
+					ny := (y + dy + grid.height) % grid.height
+					nx := (x + dx + grid.width) % grid.width
+
+					cell.add_neighbor(grid.cells[ny][nx])
+				}
+			}
+		}
+	}
+}
+
+fn (mut grid Grid) next_generation() {
+
+	for mut row in grid.cells {
+		for mut cell in row {
+			cell.compute_next_state()
+		}
+	}
+
+	for mut row in grid.cells {
+		for mut cell in row {
+			cell.update()
+		}
+	}
+}
+
+fn (grid Grid) count_alive() int {
+	mut count := 0
+	for row in grid.cells {
+		for cell in row {
+			if cell.alive {
+				count++
+			}
+		}
+	}
+	return count
 }
 
 const fnv_offset_basis = u32(2166136261)
@@ -95,30 +125,29 @@ const fnv_prime = u32(16777619)
 
 fn (grid Grid) compute_hash() u32 {
 	mut hash := fnv_offset_basis
-
-	for i in 0 .. grid.cells.len {
-		alive := u32(grid.cells[i] == .alive)
-		hash = (hash ^ alive) * fnv_prime
+	for row in grid.cells {
+		for cell in row {
+			alive := u32(cell.alive)
+			hash = (hash ^ alive) * fnv_prime
+		}
 	}
-
 	return hash
 }
 
 pub struct GameOfLife {
 	benchmark.BaseBenchmark
 mut:
-	result_val u32
-	width      int
-	height     int
-	grid       Grid
+	width  int
+	height int
+	grid   &Grid
 }
 
 pub fn new_gameoflife() &benchmark.IBenchmark {
 	mut bench := &GameOfLife{
 		BaseBenchmark: benchmark.new_base_benchmark('GameOfLife')
-		result_val:    0
-		width:         0
-		height:        0
+		width: 0
+		height: 0
+		grid: unsafe { nil }
 	}
 	return bench
 }
@@ -132,20 +161,22 @@ pub fn (mut b GameOfLife) prepare() {
 	b.height = int(helper.config_i64('GameOfLife', 'h'))
 	b.grid = new_grid(b.width, b.height)
 
-	for y in 0 .. b.height {
-		for x in 0 .. b.width {
+	for row in b.grid.cells {
+		for cell in row {
 			if helper.next_float(1.0) < 0.1 {
-				b.grid.set(x, y, .alive)
+				unsafe {
+					cell.alive = true
+				}
 			}
 		}
 	}
 }
 
 pub fn (mut b GameOfLife) run(iteration_id int) {
-	_ = iteration_id
 	b.grid.next_generation()
 }
 
 pub fn (b GameOfLife) checksum() u32 {
-	return b.grid.compute_hash()
+	alive := b.grid.count_alive()
+	return b.grid.compute_hash() + u32(alive)
 }

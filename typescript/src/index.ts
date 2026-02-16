@@ -3793,128 +3793,117 @@ export class CalculatorInterpreter extends Benchmark {
   }
 }
 
-enum Cell {
-    Dead,
-    Alive
+class CellObj {
+    alive: boolean = false;
+    nextState: boolean = false;
+    neighbors: CellObj[] = new Array(8);
+    neighborCount: number = 0;
+
+    addNeighbor(cell: CellObj): void {
+        this.neighbors[this.neighborCount++] = cell;
+    }
+
+    computeNextState(): void {
+        let aliveNeighbors = 0;
+        for (let i = 0; i < this.neighborCount; i++) {
+            if (this.neighbors[i].alive) aliveNeighbors++;
+        }
+
+        if (this.alive) {
+            this.nextState = aliveNeighbors === 2 || aliveNeighbors === 3;
+        } else {
+            this.nextState = aliveNeighbors === 3;
+        }
+    }
+
+    update(): void {
+        this.alive = this.nextState;
+    }
 }
 
 class GameOfLifeGrid {
     private width: number;
     private height: number;
-    private cells: Uint8Array;          
-    private buffer: Uint8Array;         
+    private cells: CellObj[][];
 
     constructor(width: number, height: number) {
         this.width = width;
         this.height = height;
-        const size = width * height;
-        this.cells = new Uint8Array(size);
-        this.buffer = new Uint8Array(size);
-    }
 
-    private constructorFromBuffers(width: number, height: number, cells: Uint8Array, buffer: Uint8Array) {
-        this.width = width;
-        this.height = height;
-        this.cells = cells;
-        this.buffer = buffer;
-        return this;
-    }
-
-    static fromBuffers(width: number, height: number, cells: Uint8Array, buffer: Uint8Array): GameOfLifeGrid {
-        const grid = new GameOfLifeGrid(width, height);
-        grid.width = width;
-        grid.height = height;
-        grid.cells = cells;
-        grid.buffer = buffer;
-        return grid;
-    }
-
-    private index(x: number, y: number): number {
-        return y * this.width + x;
-    }
-
-    get(x: number, y: number): Cell {
-        const idx = this.index(x, y);
-        return this.cells[idx] === 1 ? Cell.Alive : Cell.Dead;
-    }
-
-    set(x: number, y: number, cell: Cell): void {
-        const idx = this.index(x, y);
-        this.cells[idx] = cell === Cell.Alive ? 1 : 0;
-    }
-
-    private countNeighbors(x: number, y: number, cells: Uint8Array): number {
-        const width = this.width;
-        const height = this.height;
-
-        const yPrev = y === 0 ? height - 1 : y - 1;
-        const yNext = y === height - 1 ? 0 : y + 1;
-        const xPrev = x === 0 ? width - 1 : x - 1;
-        const xNext = x === width - 1 ? 0 : x + 1;
-
-        let count = 0;
-
-        let idx = yPrev * width;
-        if (cells[idx + xPrev] === 1) count++;
-        if (cells[idx + x] === 1) count++;
-        if (cells[idx + xNext] === 1) count++;
-
-        idx = y * width;
-        if (cells[idx + xPrev] === 1) count++;
-        if (cells[idx + xNext] === 1) count++;
-
-        idx = yNext * width;
-        if (cells[idx + xPrev] === 1) count++;
-        if (cells[idx + x] === 1) count++;
-        if (cells[idx + xNext] === 1) count++;
-
-        return count;
-    }
-
-    nextGeneration(): GameOfLifeGrid {
-        const width = this.width;
-        const height = this.height;
-
-        const cells = this.cells;
-        const buffer = this.buffer;
-
+        this.cells = new Array(height);
         for (let y = 0; y < height; y++) {
-            const yIdx = y * width;
-
+            this.cells[y] = new Array(width);
             for (let x = 0; x < width; x++) {
-                const idx = yIdx + x;
-
-                const neighbors = this.countNeighbors(x, y, cells);
-
-                const current = cells[idx];
-                let nextState = 0;
-
-                if (current === 1) {
-                    nextState = (neighbors === 2 || neighbors === 3) ? 1 : 0;
-                } else {
-                    nextState = neighbors === 3 ? 1 : 0;
-                }
-
-                buffer[idx] = nextState;
+                this.cells[y][x] = new CellObj();
             }
         }
 
-        return GameOfLifeGrid.fromBuffers(width, height, buffer, cells);
+        this.linkNeighbors();
+    }
+
+    private linkNeighbors(): void {
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                const cell = this.cells[y][x];
+
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        if (dx === 0 && dy === 0) continue;
+
+                        const ny = (y + dy + this.height) % this.height;
+                        const nx = (x + dx + this.width) % this.width;
+
+                        cell.addNeighbor(this.cells[ny][nx]);
+                    }
+                }
+            }
+        }
+    }
+
+    nextGeneration(): void {
+
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                this.cells[y][x].computeNextState();
+            }
+        }
+
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                this.cells[y][x].update();
+            }
+        }
+    }
+
+    countAlive(): number {
+        let count = 0;
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                if (this.cells[y][x].alive) count++;
+            }
+        }
+        return count;
     }
 
     computeHash(): number {
-        const FNV_OFFSET_BASIS = 2166136261 >>> 0;  
-        const FNV_PRIME = 16777619 >>> 0;           
+        const FNV_OFFSET_BASIS = 2166136261 >>> 0;
+        const FNV_PRIME = 16777619 >>> 0;
 
         let hasher = FNV_OFFSET_BASIS;
 
-        for (let i = 0; i < this.cells.length; i++) {
-            const alive = this.cells[i];
-            hasher = (hasher ^ alive) >>> 0;
-            hasher = Math.imul(hasher, FNV_PRIME) >>> 0;
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                const alive = this.cells[y][x].alive ? 1 : 0;
+                hasher = (hasher ^ alive) >>> 0;
+                hasher = Math.imul(hasher, FNV_PRIME) >>> 0;
+            }
         }
 
         return hasher >>> 0;
+    }
+
+    getCells(): CellObj[][] {
+        return this.cells;
     }
 }
 
@@ -3931,23 +3920,22 @@ export class GameOfLife extends Benchmark {
     }
 
     prepare(): void {
-
         for (let y = 0; y < this.height; y++) {
-            const yIdx = y * this.width;
             for (let x = 0; x < this.width; x++) {
                 if (Helper.nextFloat() < 0.1) {
-                    this.grid.set(x, y, Cell.Alive);
+                    this.grid.getCells()[y][x].alive = true;
                 }
             }
         }
     }
 
     run(_iteration_id: number): void {
-        this.grid = this.grid.nextGeneration();
+        this.grid.nextGeneration();
     }
 
     checksum(): number {
-        return this.grid.computeHash() >>> 0;
+        const alive = this.grid.countAlive();
+        return (this.grid.computeHash() + alive) >>> 0;
     }
 }
 

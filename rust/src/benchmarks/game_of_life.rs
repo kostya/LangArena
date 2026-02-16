@@ -1,164 +1,149 @@
 use super::super::{Benchmark, helper};
 use crate::config_i64;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum Cell {
-    Dead = 0,
-    Alive = 1,
+struct Cell<'a> {
+    alive: bool,
+    next_state: bool,
+    neighbors: Vec<&'a Cell<'a>>,
 }
 
-impl Cell {
-    #[inline]
-    fn is_alive(&self) -> bool {
-        *self as u8 == 1
+impl<'a> Cell<'a> {
+    fn new(alive: bool) -> Self {
+        Self {
+            alive,
+            next_state: false,
+            neighbors: Vec::with_capacity(8),
+        }
+    }
+
+    fn add_neighbor(&mut self, cell: &'a Cell<'a>) {
+        self.neighbors.push(cell);
+    }
+
+    fn compute_next_state(&mut self) {
+        let alive_neighbors = self.neighbors
+            .iter()
+            .filter(|n| n.alive)
+            .count();
+
+        if self.alive {
+            self.next_state = alive_neighbors == 2 || alive_neighbors == 3
+        } else {
+            self.next_state = alive_neighbors == 3
+        }
+    }
+
+    fn update(&mut self) {
+        self.alive = self.next_state;
     }
 }
 
-#[derive(Clone)]
-pub struct Grid {
+struct Grid<'a> {
     width: usize,
     height: usize,
-    cells: Vec<u8>,           
-    buffer: Vec<u8>,          
+    cells: Vec<Vec<Cell<'a>>>,
 }
 
-impl Grid {
-    pub fn new(width: usize, height: usize) -> Self {
-        let size = width * height;
-        Self {
+impl<'a> Grid<'a> {
+    fn new(width: usize, height: usize) -> Self {
+        let mut grid = Grid {
             width,
             height,
-            cells: vec![0; size],
-            buffer: vec![0; size],
+            cells: Vec::with_capacity(height),
+        };
+
+        for _ in 0..height {
+            let mut row = Vec::with_capacity(width);
+            for _ in 0..width {
+                row.push(Cell::new(false));
+            }
+            grid.cells.push(row);
         }
+
+        grid.link_neighbors();
+        grid
     }
 
-    fn with_buffers(width: usize, height: usize, cells: Vec<u8>, buffer: Vec<u8>) -> Self {
-        Self {
-            width,
-            height,
-            cells,
-            buffer,
-        }
-    }
+    fn link_neighbors(&mut self) {
 
-    #[inline]
-    fn index(&self, x: usize, y: usize) -> usize {
-        y * self.width + x
-    }
+        let cells_ref: Vec<Vec<*const Cell<'a>>> = (0..self.height)
+            .map(|y| {
+                (0..self.width)
+                    .map(|x| &self.cells[y][x] as *const Cell)
+                    .collect()
+            })
+            .collect();
 
-    #[inline]
-    pub fn get(&self, x: usize, y: usize) -> Cell {
-        let idx = self.index(x, y);
-        if self.cells[idx] == 1 {
-            Cell::Alive
-        } else {
-            Cell::Dead
-        }
-    }
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let cell = &mut self.cells[y][x];
 
-    #[inline]
-    pub fn set(&mut self, x: usize, y: usize, cell: Cell) {
-        let idx = self.index(x, y);
-        self.cells[idx] = cell as u8;
-    }
+                for dy in -1..=1 {
+                    for dx in -1..=1 {
+                        if dx == 0 && dy == 0 { continue; }
 
-    #[inline]
-    fn count_neighbors(&self, x: usize, y: usize, cells: &[u8]) -> usize {
-        let width = self.width;
-        let height = self.height;
+                        let ny = ((y as i32 + dy + self.height as i32) % self.height as i32) as usize;
+                        let nx = ((x as i32 + dx + self.width as i32) % self.width as i32) as usize;
 
-        let y_prev = if y == 0 { height - 1 } else { y - 1 };
-        let y_next = if y == height - 1 { 0 } else { y + 1 };
-        let x_prev = if x == 0 { width - 1 } else { x - 1 };
-        let x_next = if x == width - 1 { 0 } else { x + 1 };
-
-        let mut count = 0;
-
-        let mut idx = y_prev * width;
-        if cells[idx + x_prev] == 1 { count += 1; }
-        if cells[idx + x] == 1 { count += 1; }
-        if cells[idx + x_next] == 1 { count += 1; }
-
-        idx = y * width;
-        if cells[idx + x_prev] == 1 { count += 1; }
-        if cells[idx + x_next] == 1 { count += 1; }
-
-        idx = y_next * width;
-        if cells[idx + x_prev] == 1 { count += 1; }
-        if cells[idx + x] == 1 { count += 1; }
-        if cells[idx + x_next] == 1 { count += 1; }
-
-        count
-    }
-
-    pub fn next_generation(&self) -> Self {
-        let width = self.width;
-        let height = self.height;
-
-        let cells = &self.cells;
-
-        let mut new_buffer = self.buffer.clone();
-
-        for y in 0..height {
-            let y_idx = y * width;
-
-            for x in 0..width {
-                let idx = y_idx + x;
-
-                let neighbors = self.count_neighbors(x, y, cells);
-
-                let current = cells[idx];
-                let next_state = match (current, neighbors) {
-                    (1, 2) | (1, 3) => 1,
-                    (1, _) => 0,
-                    (0, 3) => 1,
-                    _ => 0,
-                };
-
-                new_buffer[idx] = next_state;
+                        let neighbor = unsafe { &*cells_ref[ny][nx] };
+                        cell.add_neighbor(neighbor);
+                    }
+                }
             }
         }
-
-        Self::with_buffers(width, height, new_buffer, cells.clone())
     }
 
-    pub fn compute_hash(&self) -> u32 {
+    fn next_generation(&mut self) {
+        self.cells.iter_mut().for_each(|row| {
+            row.iter_mut().for_each(|cell| {
+                cell.compute_next_state();
+            });
+        });
+        self.cells.iter_mut().for_each(|row| {
+            row.iter_mut().for_each(|cell| {
+                cell.update();
+            });
+        });
+    }
+
+    fn count_alive(&self) -> u32 {
+        self.cells
+            .iter()
+            .flat_map(|row| row.iter())
+            .filter(|cell| cell.alive)
+            .count() as u32
+    }
+
+    fn compute_hash(&self) -> u32 {
         const FNV_OFFSET_BASIS: u32 = 2166136261;
         const FNV_PRIME: u32 = 16777619;
 
-        let mut hasher = FNV_OFFSET_BASIS;
-
-        for &cell in &self.cells {
-            let alive = cell as u32;
-
-            hasher ^= alive;
-            hasher = hasher.wrapping_mul(FNV_PRIME);
-        }
-
-        hasher
+        self.cells
+            .iter()
+            .flat_map(|row| row.iter())
+            .fold(FNV_OFFSET_BASIS, |hash, cell| {
+                let alive = if cell.alive { 1_u32 } else { 0_u32 };
+                (hash ^ alive).wrapping_mul(FNV_PRIME)
+            })
     }
 }
 
 pub struct GameOfLife {
-    width_: i32,
-    height_: i32,
-    grid_: Grid,
-    result_val: u32,
+    width: i32,
+    height: i32,
+    grid: Grid<'static>,  
 }
 
 impl GameOfLife {
     pub fn new() -> Self {
-        let width_ = config_i64("GameOfLife", "w") as i32;
-        let height_ = config_i64("GameOfLife", "h") as i32;
-        let grid_ = Grid::new(width_ as usize, height_ as usize);
+        let width = config_i64("GameOfLife", "w") as i32;
+        let height = config_i64("GameOfLife", "h") as i32;
+        let grid = Grid::new(width as usize, height as usize);
 
         Self {
-            width_,
-            height_,
-            grid_,
-            result_val: 0,
+            width,
+            height,
+            grid,
         }
     }
 }
@@ -169,21 +154,21 @@ impl Benchmark for GameOfLife {
     }
 
     fn prepare(&mut self) {
-
-        for y in 0..self.height_ as usize {
-            for x in 0..self.width_ as usize {
+        for y in 0..self.grid.height {
+            for x in 0..self.grid.width {
                 if helper::next_float(1.0) < 0.1 {
-                    self.grid_.set(x, y, Cell::Alive);
+                    self.grid.cells[y][x].alive = true;
                 }
             }
         }
     }
 
     fn run(&mut self, _iteration_id: i64) {
-        self.grid_ = self.grid_.next_generation();
+        self.grid.next_generation();
     }
 
     fn checksum(&self) -> u32 {
-        self.grid_.compute_hash()
+        let alive = self.grid.count_alive();
+        self.grid.compute_hash() + alive
     }
 }

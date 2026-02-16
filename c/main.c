@@ -6643,16 +6643,19 @@ Benchmark* CalculatorInterpreter_create(void) {
     return bench;
 }
 
-typedef enum {
-    CELL_DEAD,
-    CELL_ALIVE
-} CellState;
+typedef struct Cell Cell;
+
+struct Cell {
+    bool alive;
+    bool next_state;
+    Cell** neighbors;
+    int neighbor_count;
+};
 
 typedef struct {
-    CellState** cells;
-    CellState** next_cells;  
     int width;
     int height;
+    Cell*** cells;  
 } GameOfLifeGrid;
 
 typedef struct {
@@ -6672,91 +6675,114 @@ static inline uint32_t fnv1a_hash(uint32_t hash, uint32_t value) {
     return hash;
 }
 
+static Cell* cell_create(void) {
+    Cell* cell = malloc(sizeof(Cell));
+    cell->alive = false;
+    cell->next_state = false;
+    cell->neighbors = malloc(8 * sizeof(Cell*));
+    cell->neighbor_count = 0;
+    return cell;
+}
+
+static void cell_destroy(Cell* cell) {
+    free(cell->neighbors);
+    free(cell);
+}
+
+static void cell_add_neighbor(Cell* cell, Cell* neighbor) {
+    cell->neighbors[cell->neighbor_count++] = neighbor;
+}
+
+static void cell_compute_next_state(Cell* cell) {
+    int alive_neighbors = 0;
+    for (int i = 0; i < cell->neighbor_count; i++) {
+        if (cell->neighbors[i]->alive) {
+            alive_neighbors++;
+        }
+    }
+
+    if (cell->alive) {
+        cell->next_state = (alive_neighbors == 2 || alive_neighbors == 3);
+    } else {
+        cell->next_state = (alive_neighbors == 3);
+    }
+}
+
+static void cell_update(Cell* cell) {
+    cell->alive = cell->next_state;
+}
+
 static void game_of_life_grid_init(GameOfLifeGrid* grid, int width, int height) {
     grid->width = width;
     grid->height = height;
 
-    grid->cells = malloc(height * sizeof(CellState*));
+    grid->cells = malloc(height * sizeof(Cell**));
     for (int y = 0; y < height; y++) {
-        grid->cells[y] = malloc(width * sizeof(CellState));
-        memset(grid->cells[y], 0, width * sizeof(CellState));
+        grid->cells[y] = malloc(width * sizeof(Cell*));
+        for (int x = 0; x < width; x++) {
+            grid->cells[y][x] = cell_create();
+        }
     }
 
-    grid->next_cells = malloc(height * sizeof(CellState*));
     for (int y = 0; y < height; y++) {
-        grid->next_cells[y] = malloc(width * sizeof(CellState));
+        for (int x = 0; x < width; x++) {
+            Cell* cell = grid->cells[y][x];
+
+            for (int dy = -1; dy <= 1; dy++) {
+                for (int dx = -1; dx <= 1; dx++) {
+                    if (dx == 0 && dy == 0) continue;
+
+                    int ny = (y + dy + height) % height;
+                    int nx = (x + dx + width) % width;
+
+                    cell_add_neighbor(cell, grid->cells[ny][nx]);
+                }
+            }
+        }
     }
 }
 
 static void game_of_life_grid_free(GameOfLifeGrid* grid) {
     for (int y = 0; y < grid->height; y++) {
+        for (int x = 0; x < grid->width; x++) {
+            cell_destroy(grid->cells[y][x]);
+        }
         free(grid->cells[y]);
-        free(grid->next_cells[y]);
     }
     free(grid->cells);
-    free(grid->next_cells);
-}
-
-static inline int game_of_life_count_neighbors(GameOfLifeGrid* grid, int x, int y) {
-    int count = 0;
-    int width = grid->width;
-    int height = grid->height;
-
-    int y_prev = (y == 0) ? height - 1 : y - 1;
-    int y_next = (y == height - 1) ? 0 : y + 1;
-    int x_prev = (x == 0) ? width - 1 : x - 1;
-    int x_next = (x == width - 1) ? 0 : x + 1;
-
-    count += grid->cells[y_prev][x_prev] == CELL_ALIVE;
-    count += grid->cells[y_prev][x] == CELL_ALIVE;
-    count += grid->cells[y_prev][x_next] == CELL_ALIVE;
-    count += grid->cells[y][x_prev] == CELL_ALIVE;
-    count += grid->cells[y][x_next] == CELL_ALIVE;
-    count += grid->cells[y_next][x_prev] == CELL_ALIVE;
-    count += grid->cells[y_next][x] == CELL_ALIVE;
-    count += grid->cells[y_next][x_next] == CELL_ALIVE;
-
-    return count;
 }
 
 static void game_of_life_next_generation(GameOfLifeGrid* grid) {
-    int width = grid->width;
-    int height = grid->height;
 
-    CellState** cells = grid->cells;
-    CellState** next_cells = grid->next_cells;
-
-    for (int y = 0; y < height; y++) {
-        CellState* row = cells[y];
-        CellState* next_row = next_cells[y];
-
-        for (int x = 0; x < width; x++) {
-            int neighbors = game_of_life_count_neighbors(grid, x, y);
-            CellState current = row[x];
-            CellState next_state = CELL_DEAD;
-
-            if (current == CELL_ALIVE) {
-                next_state = (neighbors == 2 || neighbors == 3) ? CELL_ALIVE : CELL_DEAD;
-            } else {
-                next_state = (neighbors == 3) ? CELL_ALIVE : CELL_DEAD;
-            }
-
-            next_row[x] = next_state;
+    for (int y = 0; y < grid->height; y++) {
+        for (int x = 0; x < grid->width; x++) {
+            cell_compute_next_state(grid->cells[y][x]);
         }
     }
 
-    CellState** temp = grid->cells;
-    grid->cells = grid->next_cells;
-    grid->next_cells = temp;
+    for (int y = 0; y < grid->height; y++) {
+        for (int x = 0; x < grid->width; x++) {
+            cell_update(grid->cells[y][x]);
+        }
+    }
+}
+
+static int game_of_life_count_alive(GameOfLifeGrid* grid) {
+    int count = 0;
+    for (int y = 0; y < grid->height; y++) {
+        for (int x = 0; x < grid->width; x++) {
+            if (grid->cells[y][x]->alive) count++;
+        }
+    }
+    return count;
 }
 
 static uint32_t game_of_life_grid_hash(GameOfLifeGrid* grid) {
     uint32_t hash = 0;
 
     for (int y = 0; y < grid->height; y++) {
-        CellState* row = grid->cells[y];
         for (int x = 0; x < grid->width; x++) {
-            uint32_t alive = row[x] == CELL_ALIVE;
+            uint32_t alive = (grid->cells[y][x]->alive) ? 1 : 0;
             hash = fnv1a_hash(hash, alive);
         }
     }
@@ -6778,7 +6804,7 @@ void GameOfLife_prepare(Benchmark* self) {
     for (int y = 0; y < data->grid.height; y++) {
         for (int x = 0; x < data->grid.width; x++) {
             if (Helper_next_float(1.0) < 0.1) {
-                data->grid.cells[y][x] = CELL_ALIVE;
+                data->grid.cells[y][x]->alive = true;
             }
         }
     }
@@ -6793,7 +6819,8 @@ void GameOfLife_run(Benchmark* self, int iteration_id) {
 
 uint32_t GameOfLife_checksum(Benchmark* self) {
     GameOfLifeData* data = (GameOfLifeData*)self->data;
-    return game_of_life_grid_hash(&data->grid);
+    int alive = game_of_life_count_alive(&data->grid);
+    return game_of_life_grid_hash(&data->grid) + (uint32_t)alive;
 }
 
 void GameOfLife_cleanup(Benchmark* self) {

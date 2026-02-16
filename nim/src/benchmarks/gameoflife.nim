@@ -1,82 +1,94 @@
-import std/[math, random]
+import std/[math, random, sequtils]
 import ../benchmark
 import ../helper
 
 type
-  Cell = enum
-    Dead, Alive
+  CellObj = object
+    alive: bool
+    nextState: bool
+    neighbors: seq[ref CellObj]
 
-  Grid = object
+  Cell* = ref CellObj
+
+  Grid* = ref object
     width, height: int
-    cells: seq[Cell]
-    buffer: seq[Cell]
+    cells: seq[seq[Cell]]
 
   GameOfLife* = ref object of Benchmark
     resultVal: uint32
     width, height: int32
     grid: Grid
 
+proc newCell(): Cell =
+  new(result)
+  result.alive = false
+  result.nextState = false
+  result.neighbors = @[]
+
+proc addNeighbor(cell: Cell, neighbor: Cell) =
+  cell.neighbors.add(neighbor)
+
+proc computeNextState(cell: Cell) =
+  var aliveNeighbors = 0
+  for n in cell.neighbors:
+    if n.alive:
+      inc aliveNeighbors
+
+  if cell.alive:
+    cell.nextState = aliveNeighbors == 2 or aliveNeighbors == 3
+  else:
+    cell.nextState = aliveNeighbors == 3
+
+proc update(cell: Cell) =
+  cell.alive = cell.nextState
+
 proc newGrid(width, height: int): Grid =
-  let size = width * height
-  result = Grid(
-    width: width,
-    height: height,
-    cells: newSeq[Cell](size),
-    buffer: newSeq[Cell](size)
-  )
+  new(result)
+  result.width = width
+  result.height = height
+  result.cells = newSeqWith(height, newSeqWith(width, newCell()))
 
-proc `[]`(grid: Grid, x, y: int): Cell =
-  grid.cells[y * grid.width + x]
+  for y in 0..<height:
+    for x in 0..<width:
+      let cell = result.cells[y][x]
 
-proc `[]=`(grid: var Grid, x, y: int, cell: Cell) =
-  grid.cells[y * grid.width + x] = cell
+      for dy in -1..1:
+        for dx in -1..1:
+          if dx == 0 and dy == 0:
+            continue
 
-proc countNeighbors(grid: Grid, x, y: int): int =
-  let
-    yPrev = if y == 0: grid.height - 1 else: y - 1
-    yNext = if y == grid.height - 1: 0 else: y + 1
-    xPrev = if x == 0: grid.width - 1 else: x - 1
-    xNext = if x == grid.width - 1: 0 else: x + 1
+          let ny = (y + dy + height) mod height
+          let nx = (x + dx + width) mod width
 
-  var count = 0
-  count += int(grid[xPrev, yPrev] == Alive)
-  count += int(grid[x, yPrev] == Alive)
-  count += int(grid[xNext, yPrev] == Alive)
-  count += int(grid[xPrev, y] == Alive)
-  count += int(grid[xNext, y] == Alive)
-  count += int(grid[xPrev, yNext] == Alive)
-  count += int(grid[x, yNext] == Alive)
-  count += int(grid[xNext, yNext] == Alive)
-  count
+          cell.addNeighbor(result.cells[ny][nx])
 
-proc nextGeneration(grid: var Grid) =
-  for y in 0..<grid.height:
-    let yIdx = y * grid.width
-    for x in 0..<grid.width:
-      let idx = yIdx + x
-      let neighbors = grid.countNeighbors(x, y)
-      let current = grid.cells[idx]
+proc nextGeneration(grid: Grid) =
 
-      var nextState = Dead
-      if current == Alive:
-        nextState = if neighbors == 2 or neighbors == 3: Alive else: Dead
-      else:
-        nextState = if neighbors == 3: Alive else: Dead
+  for row in grid.cells:
+    for cell in row:
+      cell.computeNextState()
 
-      grid.buffer[idx] = nextState
+  for row in grid.cells:
+    for cell in row:
+      cell.update()
 
-  swap(grid.cells, grid.buffer)
+proc countAlive(grid: Grid): uint32 =
+  result = 0
+  for row in grid.cells:
+    for cell in row:
+      if cell.alive:
+        inc result
 
 proc computeHash(grid: Grid): uint32 =
   const
     FNV_OFFSET_BASIS = 2166136261'u32
     FNV_PRIME = 16777619'u32
 
-  var hash = FNV_OFFSET_BASIS
-  for cell in grid.cells:
-    let alive = uint32(cell == Alive)
-    hash = (hash xor alive) * FNV_PRIME
-  hash
+  result = FNV_OFFSET_BASIS
+  for row in grid.cells:
+    for cell in row:
+      let alive = if cell.alive: 1'u32 else: 0'u32
+      result = (result xor alive) * FNV_PRIME
 
 proc newGameOfLife(): Benchmark =
   GameOfLife()
@@ -89,15 +101,16 @@ method prepare(self: GameOfLife) =
   self.grid = newGrid(self.width.int, self.height.int)
   self.resultVal = 0
 
-  for y in 0..<self.height.int:
-    for x in 0..<self.width.int:
+  for row in self.grid.cells:
+    for cell in row:
       if nextFloat() < 0.1:
-        self.grid[x, y] = Alive
+        cell.alive = true
 
 method run(self: GameOfLife, iteration_id: int) =
   self.grid.nextGeneration()
 
 method checksum(self: GameOfLife): uint32 =
-  self.grid.computeHash()
+  let alive = self.grid.countAlive()
+  result = self.grid.computeHash() + alive
 
 registerBenchmark("GameOfLife", newGameOfLife)

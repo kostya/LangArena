@@ -3319,140 +3319,155 @@ public:
 
 class GameOfLife : public Benchmark {
 private:
-    enum class Cell : uint8_t {
-        Dead = 0,
-        Alive = 1
+    class Cell {
+    private:
+        bool alive;
+        bool next_state;
+        std::vector<Cell*> neighbors;
+
+    public:
+        Cell(bool alive = false) : alive(alive), next_state(false) {}
+
+        void add_neighbor(Cell* cell) {
+            neighbors.push_back(cell);
+        }
+
+        void compute_next_state() {
+            int alive_neighbors = 0;
+            for (Cell* neighbor : neighbors) {
+                if (neighbor->alive) alive_neighbors++;
+            }
+
+            if (alive) {
+                next_state = (alive_neighbors == 2 || alive_neighbors == 3);
+            } else {
+                next_state = (alive_neighbors == 3);
+            }
+        }
+
+        void update() {
+            alive = next_state;
+        }
+
+        void set_alive(bool state) {
+            alive = state;
+        }
+
+        bool is_alive() const {
+            return alive;
+        }
     };
 
     class Grid {
     private:
-        int width_;
-        int height_;
-        std::vector<Cell> cells_;      
-        std::vector<Cell> buffer_;     
+        int width;
+        int height;
+        std::vector<std::vector<Cell>> cells;
 
-        int count_neighbors(int x, int y, const std::vector<Cell>& cells) const {
+    public:
+        Grid(int w, int h) : width(w), height(h) {
+            cells.resize(height);
+            for (int y = 0; y < height; ++y) {
+                cells[y].reserve(width);
+                for (int x = 0; x < width; ++x) {
+                    cells[y].emplace_back(false);
+                }
+            }
+            link_neighbors();
+        }
 
-            int y_prev = (y == 0) ? height_ - 1 : y - 1;
-            int y_next = (y == height_ - 1) ? 0 : y + 1;
-            int x_prev = (x == 0) ? width_ - 1 : x - 1;
-            int x_next = (x == width_ - 1) ? 0 : x + 1;
+    private:
+        void link_neighbors() {
+            for (int y = 0; y < height; ++y) {
+                for (int x = 0; x < width; ++x) {
+                    Cell& cell = cells[y][x];
+                    for (int dy = -1; dy <= 1; ++dy) {
+                        for (int dx = -1; dx <= 1; ++dx) {
+                            if (dx == 0 && dy == 0) continue;
 
-            int count = 0;
-            count += static_cast<int>(cells[y_prev * width_ + x_prev] == Cell::Alive);
-            count += static_cast<int>(cells[y_prev * width_ + x] == Cell::Alive);
-            count += static_cast<int>(cells[y_prev * width_ + x_next] == Cell::Alive);
-            count += static_cast<int>(cells[y * width_ + x_prev] == Cell::Alive);
-            count += static_cast<int>(cells[y * width_ + x_next] == Cell::Alive);
-            count += static_cast<int>(cells[y_next * width_ + x_prev] == Cell::Alive);
-            count += static_cast<int>(cells[y_next * width_ + x] == Cell::Alive);
-            count += static_cast<int>(cells[y_next * width_ + x_next] == Cell::Alive);
+                            int ny = (y + dy + height) % height;
+                            int nx = (x + dx + width) % width;
 
-            return count;
+                            cell.add_neighbor(&cells[ny][nx]);
+                        }
+                    }
+                }
+            }
         }
 
     public:
-        Grid(int width, int height) : width_(width), height_(height) {
-            int size = width * height;
-            cells_.resize(size, Cell::Dead);
-            buffer_.resize(size, Cell::Dead);
-        }
-
-        Cell get(int x, int y) const {
-            return cells_[y * width_ + x];
-        }
-
-        void set(int x, int y, Cell cell) {
-            cells_[y * width_ + x] = cell;
-        }
-
-        Grid& next_generation() {
-            const int width = width_;
-            const int height = height_;
-            const int size = width * height;
-
-            const std::vector<Cell>& cells = cells_;
-            std::vector<Cell>& buffer = buffer_;
-
-            for (int y = 0; y < height; ++y) {
-                const int y_idx = y * width;
-
-                for (int x = 0; x < width; ++x) {
-                    const int idx = y_idx + x;
-
-                    int neighbors = count_neighbors(x, y, cells);
-
-                    Cell current = cells[idx];
-                    Cell next_state = Cell::Dead;
-
-                    if (current == Cell::Alive) {
-                        next_state = (neighbors == 2 || neighbors == 3) ? Cell::Alive : Cell::Dead;
-                    } else {
-                        next_state = (neighbors == 3) ? Cell::Alive : Cell::Dead;
-                    }
-
-                    buffer[idx] = next_state;
+        void next_generation() {
+            for (auto& row : cells) {
+                for (auto& cell : row) {
+                    cell.compute_next_state();
                 }
             }
+            for (auto& row : cells) {
+                for (auto& cell : row) {
+                    cell.update();
+                }
+            }
+        }
 
-            std::swap(cells_, buffer_);
-            return *this;
+        std::vector<std::vector<Cell>>& get_cells() {
+            return cells;
+        }
+
+        int count_alive() const {
+            int count = 0;
+            for (const auto& row : cells) {
+                for (const auto& cell : row) {
+                    if (cell.is_alive()) count++;
+                }
+            }
+            return count;
         }
 
         uint32_t compute_hash() const {
             constexpr uint32_t FNV_OFFSET_BASIS = 2166136261UL;
             constexpr uint32_t FNV_PRIME = 16777619UL;
-
             uint32_t hash = FNV_OFFSET_BASIS;
-
-            const Cell* data = cells_.data();
-            const size_t size = cells_.size();
-
-            for (size_t i = 0; i < size; ++i) {
-                uint32_t alive = static_cast<uint32_t>(data[i] == Cell::Alive);
-                hash = (hash ^ alive) * FNV_PRIME;
+            for (const auto& row : cells) {
+                for (const auto& cell : row) {
+                    uint32_t alive = cell.is_alive() ? 1U : 0U;
+                    hash = (hash ^ alive) * FNV_PRIME;
+                }
             }
-
             return hash;
         }
-
-        int width() const { return width_; }
-        int height() const { return height_; }
     };
 
-    uint32_t result_val;
-    int32_t width_;
-    int32_t height_;
-    Grid grid_;
+    int32_t width;
+    int32_t height;
+    Grid grid;
 
 public:
     GameOfLife() : 
-        result_val(0),
-        width_(static_cast<int32_t>(config_val("w"))),
-        height_(static_cast<int32_t>(config_val("h"))),
-        grid_(width_, height_) {
-    }
+        width(static_cast<int32_t>(config_val("w"))),
+        height(static_cast<int32_t>(config_val("h"))),
+        grid(width, height) {}
 
-    std::string name() const override { return "GameOfLife"; }    
+    std::string name() const override { 
+        return "GameOfLife"; 
+    }    
 
     void prepare() override {
-
-        for (int y = 0; y < height_; ++y) {
-            for (int x = 0; x < width_; ++x) {
+        for (auto& row : grid.get_cells()) {
+            for (auto& cell : row) {
                 if (Helper::next_float(1.0) < 0.1) {
-                    grid_.set(x, y, Cell::Alive);
+                    cell.set_alive(true);
                 }
             }
         }
     }
 
     void run(int iteration_id) override {
-
-        grid_.next_generation();
+        grid.next_generation();
     }
 
     uint32_t checksum() override {
-        return grid_.compute_hash();
+        uint32_t alive = static_cast<uint32_t>(grid.count_alive());
+        return grid.compute_hash() + alive;
     }
 };
 

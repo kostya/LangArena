@@ -1,90 +1,89 @@
 package benchmarks
 
 class GameOfLife extends Benchmark:
-  private enum Cell:
-    case DEAD, ALIVE
+  private class CellObj:
+    var alive: Boolean = false
+    var nextState: Boolean = false
+    val neighbors = new Array[CellObj](8)
+    var neighborCount: Int = 0
 
-  private class Grid(width: Int, height: Int):
-    private val w = width
-    private val h = height
-    private val size = w * h
-    private var cells = new Array[Byte](size)
-    private var buffer = new Array[Byte](size)
+    def addNeighbor(cell: CellObj): Unit =
+      neighbors(neighborCount) = cell
+      neighborCount += 1
 
-    private def this(width: Int, height: Int, cells: Array[Byte], buffer: Array[Byte]) =
-      this(width, height)
-      this.cells = cells
-      this.buffer = buffer
+    def computeNextState(): Unit =
+      var aliveNeighbors = 0
+      var i = 0
+      while i < neighborCount do
+        if neighbors(i).alive then aliveNeighbors += 1
+        i += 1
 
-    private def index(x: Int, y: Int): Int = y * w + x
+      nextState = if alive then
+        aliveNeighbors == 2 || aliveNeighbors == 3
+      else
+        aliveNeighbors == 3
 
-    def apply(x: Int, y: Int): Cell =
-      if cells(index(x, y)) == 1.toByte then Cell.ALIVE else Cell.DEAD
+    def update(): Unit =
+      alive = nextState
 
-    def update(x: Int, y: Int, cell: Cell): Unit =
-      cells(index(x, y)) = (if cell == Cell.ALIVE then 1 else 0).toByte
+  private class Grid(val width: Int, val height: Int):
+    private val cells = Array.ofDim[CellObj](height, width)
 
-    private def countNeighbors(x: Int, y: Int, cells: Array[Byte]): Int =
-      val yPrev = if y == 0 then h - 1 else y - 1
-      val yNext = if y == h - 1 then 0 else y + 1
-      val xPrev = if x == 0 then w - 1 else x - 1
-      val xNext = if x == w - 1 then 0 else x + 1
+    for
+      y <- 0 until height
+      x <- 0 until width
+    do cells(y)(x) = new CellObj
 
+    for
+      y <- 0 until height
+      x <- 0 until width
+    do
+      val cell = cells(y)(x)
+      for
+        dy <- -1 to 1
+        dx <- -1 to 1
+        if !(dx == 0 && dy == 0)
+      do
+        val ny = (y + dy + height) % height
+        val nx = (x + dx + width) % width
+        cell.addNeighbor(cells(ny)(nx))
+
+    def nextGeneration(): Unit =
+
+      for
+        y <- 0 until height
+        x <- 0 until width
+      do cells(y)(x).computeNextState()
+
+      for
+        y <- 0 until height
+        x <- 0 until width
+      do cells(y)(x).update()
+
+    def countAlive(): Int =
       var count = 0
-      var idx = yPrev * w
-      if cells(idx + xPrev) == 1.toByte then count += 1
-      if cells(idx + x) == 1.toByte then count += 1
-      if cells(idx + xNext) == 1.toByte then count += 1
-
-      idx = y * w
-      if cells(idx + xPrev) == 1.toByte then count += 1
-      if cells(idx + xNext) == 1.toByte then count += 1
-
-      idx = yNext * w
-      if cells(idx + xPrev) == 1.toByte then count += 1
-      if cells(idx + x) == 1.toByte then count += 1
-      if cells(idx + xNext) == 1.toByte then count += 1
-
+      for
+        y <- 0 until height
+        x <- 0 until width
+      do if cells(y)(x).alive then count += 1
       count
-
-    def nextGeneration(): Grid =
-      val currentCells = cells
-      val nextCells = buffer
-
-      var y = 0
-      while y < h do
-        val yIdx = y * w
-        var x = 0
-        while x < w do
-          val idx = yIdx + x
-          val neighbors = countNeighbors(x, y, currentCells)
-          val current = currentCells(idx)
-
-          val nextState = 
-            if current == 1.toByte && (neighbors == 2 || neighbors == 3) then 1.toByte
-            else if current == 0.toByte && neighbors == 3 then 1.toByte
-            else 0.toByte
-
-          nextCells(idx) = nextState
-          x += 1
-        y += 1
-
-      Grid(w, h, nextCells, currentCells)
 
     def computeHash(): Long =
       val FNV_OFFSET_BASIS = 2166136261L
       val FNV_PRIME = 16777619L
 
       var hasher = FNV_OFFSET_BASIS
-      var i = 0
-      while i < cells.length do
-        val alive = if cells(i) == 1.toByte then 1L else 0L
+      for
+        y <- 0 until height
+        x <- 0 until width
+      do
+        val alive = if cells(y)(x).alive then 1L else 0L
         hasher = (hasher ^ alive) * FNV_PRIME
-        i += 1
 
       hasher & 0xFFFFFFFFL
 
-  private var resultVal: Long = 0L
+    def getCells(): Array[Array[CellObj]] = cells
+
   private val width: Int = configVal("w").toInt
   private val height: Int = configVal("h").toInt
   private var grid: Grid = _
@@ -94,16 +93,16 @@ class GameOfLife extends Benchmark:
   override def prepare(): Unit =
     grid = Grid(width, height)
 
-    var y = 0
-    while y < height do
-      var x = 0
-      while x < width do
-        if Helper.nextFloat() < 0.1f then
-          grid(x, y) = Cell.ALIVE
-        x += 1
-      y += 1
+    for
+      y <- 0 until height
+      x <- 0 until width
+    do
+      if Helper.nextFloat() < 0.1f then
+        grid.getCells()(y)(x).alive = true
 
   override def run(iterationId: Int): Unit =
-    grid = grid.nextGeneration()
+    grid.nextGeneration()
 
-  override def checksum(): Long = grid.computeHash()
+  override def checksum(): Long =
+    val alive = grid.countAlive()
+    (grid.computeHash() + alive) & 0xFFFFFFFFL

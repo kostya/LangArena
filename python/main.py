@@ -2906,83 +2906,75 @@ class CalculatorInterpreter(Benchmark):
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
 
-class Grid:
-    DEAD = 0
-    ALIVE = 1
+class GCell:
+    __slots__ = ('alive', 'next_state', 'neighbors')
 
+    def __init__(self):
+        self.alive = False
+        self.next_state = False
+        self.neighbors: List['GCell'] = []
+
+    def add_neighbor(self, cell: 'GCell'):
+        self.neighbors.append(cell)
+
+    def compute_next_state(self):
+        alive_neighbors = sum(1 for n in self.neighbors if n.alive)
+
+        if self.alive:
+            self.next_state = alive_neighbors in (2, 3)
+        else:
+            self.next_state = (alive_neighbors == 3)
+
+    def update(self):
+        self.alive = self.next_state
+
+class Grid:
     def __init__(self, width: int, height: int):
         self.width = width
         self.height = height
-        size = width * height
-        self.cells = bytearray(size)
-        self.buffer = bytearray(size)
 
-    def _index(self, x: int, y: int) -> int:
-        return y * self.width + x
+        self.cells: List[List[GCell]] = [[GCell() for _ in range(width)] for _ in range(height)]
 
-    def get(self, x: int, y: int) -> int:
-        return self.cells[self._index(x, y)]
+        self._link_neighbors()
 
-    def set(self, x: int, y: int, cell: int):
-        self.cells[self._index(x, y)] = cell
+    def _link_neighbors(self):
+        for y in range(self.height):
+            for x in range(self.width):
+                cell = self.cells[y][x]
 
-    def next_generation(self) -> 'Grid':
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        if dx == 0 and dy == 0:
+                            continue
 
-        w = self.width
-        h = self.height
+                        ny = (y + dy) % self.height
+                        nx = (x + dx) % self.width
 
-        new_grid = Grid(w, h)
-        new_grid.cells, new_grid.buffer = self.buffer, self.cells
+                        cell.add_neighbor(self.cells[ny][nx])
 
-        cells = self.cells
-        buffer = new_grid.cells
+    def next_generation(self):
 
-        for y in range(h):
-            y_idx = y * w
+        for row in self.cells:
+            for cell in row:
+                cell.compute_next_state()
 
-            y_prev = (y - 1) % h
-            y_next = (y + 1) % h
-            y_prev_idx = y_prev * w
-            y_next_idx = y_next * w
+        for row in self.cells:
+            for cell in row:
+                cell.update()
 
-            for x in range(w):
-                idx = y_idx + x
-
-                x_prev = (x - 1) % w
-                x_next = (x + 1) % w
-
-                neighbors = (
-                    cells[y_prev_idx + x_prev] +
-                    cells[y_prev_idx + x] +
-                    cells[y_prev_idx + x_next] +
-                    cells[y_idx + x_prev] +
-                    cells[y_idx + x_next] +
-                    cells[y_next_idx + x_prev] +
-                    cells[y_next_idx + x] +
-                    cells[y_next_idx + x_next]
-                )
-
-                current = cells[idx]
-
-                if current == self.ALIVE:
-                    next_state = self.ALIVE if neighbors in (2, 3) else self.DEAD
-                else:
-                    next_state = self.ALIVE if neighbors == 3 else self.DEAD
-
-                buffer[idx] = next_state
-
-        return new_grid
+    def count_alive(self) -> int:
+        return sum(1 for row in self.cells for cell in row if cell.alive)
 
     def compute_hash(self) -> int:
-
         FNV_OFFSET_BASIS = 2166136261
         FNV_PRIME = 16777619
 
         hash_val = FNV_OFFSET_BASIS
-
-        for cell in self.cells:
-            hash_val = (hash_val ^ cell) * FNV_PRIME
-            hash_val &= 0xFFFFFFFF  
+        for row in self.cells:
+            for cell in row:
+                alive = 1 if cell.alive else 0
+                hash_val = (hash_val ^ alive) * FNV_PRIME
+                hash_val &= 0xFFFFFFFF
 
         return hash_val
 
@@ -3003,13 +2995,14 @@ class GameOfLife(Benchmark):
         for y in range(self.height):
             for x in range(self.width):
                 if Helper.next_float() < 0.1:
-                    self.grid.set(x, y, Grid.ALIVE)
+                    self.grid.cells[y][x].alive = True
 
     def run_benchmark(self, iteration_id: int):
-        self.grid = self.grid.next_generation()
+        self.grid.next_generation()
 
     def checksum(self) -> int:
-        return self.grid.compute_hash()
+        alive = self.grid.count_alive()
+        return self.grid.compute_hash() + alive
 
 class Cell(Enum):
     WALL = 0

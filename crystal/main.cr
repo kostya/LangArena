@@ -2220,7 +2220,6 @@ class GraphPathBFS < GraphPathBenchmark
 
       @graph.adj[v].each do |neighbor|
         if neighbor == target
-
           return dist + 1
         end
 
@@ -2899,135 +2898,81 @@ class CalculatorInterpreter < Benchmark
 end
 
 class GameOfLife < Benchmark
-  DEAD  = 0_u8
-  ALIVE = 1_u8
+  class Cell
+    property alive : Bool
+    property neighbors : Array(Cell)
+    @next_state : Bool
+
+    def initialize(@alive = false)
+      @neighbors = [] of Cell
+      @next_state = false
+    end
+
+    def add_neighbor(cell : Cell)
+      @neighbors << cell
+    end
+
+    def compute_next_state
+      alive_neighbors = @neighbors.count(&.alive)
+
+      @next_state = if @alive
+                      alive_neighbors == 2 || alive_neighbors == 3
+                    else
+                      alive_neighbors == 3
+                    end
+    end
+
+    def update
+      @alive = @next_state
+    end
+  end
 
   class Grid
-    property width : Int32
-    property height : Int32
-
-    @cells : Slice(UInt8)
-    @buffer : Slice(UInt8)
+    getter width : Int32
+    getter height : Int32
+    getter cells : Array(Array(Cell))
 
     def initialize(@width : Int32, @height : Int32)
-      size = @width * @height
-      @cells = Slice(UInt8).new(size, DEAD)
-      @buffer = Slice(UInt8).new(size, DEAD)
+      @cells = Array.new(@height) { Array.new(@width) { Cell.new } }
+      link_neighbors
     end
 
-    private def initialize(@width : Int32, @height : Int32, @cells : Slice(UInt8), @buffer : Slice(UInt8))
+    private def link_neighbors
+      @cells.each_with_index do |column, y|
+        column.each_with_index do |cell, x|
+          (-1..1).each do |dy|
+            (-1..1).each do |dx|
+              next if dx == 0 && dy == 0
+
+              ny = (y + dy + @height) % @height
+              nx = (x + dx + @width) % @width
+
+              cell.add_neighbor(@cells[ny][nx])
+            end
+          end
+        end
+      end
     end
 
-    def self.with_buffers(width : Int32, height : Int32, cells : Slice(UInt8), buffer : Slice(UInt8)) : Grid
-      new(width, height, cells, buffer)
+    def next_generation
+      @cells.each &.each &.compute_next_state
+      @cells.each &.each &.update
     end
 
-    private def index(x, y) : Int32
-      y * @width + x
-    end
-
-    def get(x, y) : UInt8
-      @cells[index(x, y)]
-    end
-
-    def set(x, y, cell : UInt8)
-      @cells[index(x, y)] = cell
-    end
-
-    private def count_neighbors(x, y, cells : Slice(UInt8)) : Int32
-      w = @width
-      h = @height
-
-      y_prev = y == 0 ? h - 1 : y - 1
-      y_next = y == h - 1 ? 0 : y + 1
-      x_prev = x == 0 ? w - 1 : x - 1
-      x_next = x == w - 1 ? 0 : x + 1
-
+    def count_alive : Int32
       count = 0
-
-      idx = y_prev * w
-      count += cells[idx + x_prev].to_i32
-      count += cells[idx + x].to_i32
-      count += cells[idx + x_next].to_i32
-
-      idx = y * w
-      count += cells[idx + x_prev].to_i32
-      count += cells[idx + x_next].to_i32
-
-      idx = y_next * w
-      count += cells[idx + x_prev].to_i32
-      count += cells[idx + x].to_i32
-      count += cells[idx + x_next].to_i32
-
+      cells.each &.each { |cell| count += 1 if cell.alive }
       count
     end
 
-    def next_generation : Grid
-      width = @width
-      height = @height
-
-      cells = @cells
-      buffer = @buffer
-
-      y = 0
-      while y < height
-        y_idx = y * width
-
-        y_prev_idx = (y == 0 ? height - 1 : y - 1) * width
-        y_next_idx = (y == height - 1 ? 0 : y + 1) * width
-
-        x = 0
-        while x < width
-          idx = y_idx + x
-
-          x_prev = x == 0 ? width - 1 : x - 1
-          x_next = x == width - 1 ? 0 : x + 1
-
-          neighbors = 0
-
-          neighbors += cells[y_prev_idx + x_prev].to_i32
-          neighbors += cells[y_prev_idx + x].to_i32
-          neighbors += cells[y_prev_idx + x_next].to_i32
-
-          neighbors += cells[y_idx + x_prev].to_i32
-          neighbors += cells[y_idx + x_next].to_i32
-
-          neighbors += cells[y_next_idx + x_prev].to_i32
-          neighbors += cells[y_next_idx + x].to_i32
-          neighbors += cells[y_next_idx + x_next].to_i32
-
-          current = cells[idx]
-          next_state = DEAD
-
-          if current == ALIVE
-            next_state = (neighbors == 2 || neighbors == 3) ? ALIVE : DEAD
-          elsif neighbors == 3
-            next_state = ALIVE
-          end
-
-          buffer[idx] = next_state
-
-          x += 1
-        end
-
-        y += 1
-      end
-
-      Grid.with_buffers(width, height, buffer, cells)
-    end
-
-    FNV_OFFSET_BASIS = 2166136261_u32
-    FNV_PRIME        =   16777619_u32
-
     def compute_hash : UInt32
-      hash = FNV_OFFSET_BASIS
+      _FNV_OFFSET_BASIS = 2166136261_u32
+      _FNV_PRIME = 16777619_u32
+      hash = _FNV_OFFSET_BASIS
 
-      cells = @cells
-      i = 0
-      while i < cells.size
-        alive = cells[i].to_u32
-        hash = (hash ^ alive) &* FNV_PRIME
-        i += 1
+      cells.each &.each do |cell|
+        alive = cell.alive ? 1_u32 : 0_u32
+        hash = (hash ^ alive) &* _FNV_PRIME
       end
 
       hash
@@ -3044,33 +2989,20 @@ class GameOfLife < Benchmark
     @grid = Grid.new(@width, @height)
   end
 
+  def name : String
+    "GameOfLife"
+  end
+
   def prepare
-    width = @width
-    height = @height
-    grid = @grid
-
-    y = 0
-    while y < height
-      y_idx = y * width
-
-      x = 0
-      while x < width
-        if Helper.next_float(1.0) < 0.1
-          grid.set(x, y, ALIVE)
-        end
-        x += 1
-      end
-
-      y += 1
-    end
+    @grid.cells.each &.each { |cell| cell.alive = true if Helper.next_float(1.0) < 0.1 }
   end
 
   def run(iteration_id)
-    @grid = @grid.next_generation
+    @grid.next_generation
   end
 
   def checksum : UInt32
-    @grid.compute_hash
+    @grid.compute_hash + @grid.count_alive.to_u32
   end
 end
 

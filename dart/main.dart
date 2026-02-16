@@ -3401,101 +3401,90 @@ class CalculatorInterpreter extends Benchmark {
   }
 }
 
-enum Cell {
-  Dead,
-  Alive,
+class CellObj {
+  bool alive = false;
+  bool nextState = false;
+  final neighbors = List<CellObj?>.filled(8, null);
+  int neighborCount = 0;
+
+  void addNeighbor(CellObj neighbor) {
+    neighbors[neighborCount++] = neighbor;
+  }
+
+  void computeNextState() {
+    int aliveNeighbors = 0;
+    for (int i = 0; i < neighborCount; i++) {
+      if (neighbors[i]!.alive) aliveNeighbors++;  
+    }
+
+    if (alive) {
+      nextState = aliveNeighbors == 2 || aliveNeighbors == 3;
+    } else {
+      nextState = aliveNeighbors == 3;
+    }
+  }
+
+  void update() {
+    alive = nextState;
+  }
 }
 
 class GameOfLifeGrid {
   late int width;
   late int height;
-  late Uint8List cells;
-  late Uint8List buffer;
+  late List<List<CellObj>> cells;
 
   GameOfLifeGrid(int width, int height) {
     this.width = width;
     this.height = height;
-    final size = width * height;
-    cells = Uint8List(size);
-    buffer = Uint8List(size);
+
+    cells = List.generate(height, (_) => List.generate(width, (_) => CellObj()));
+
+    _linkNeighbors();
   }
 
-  GameOfLifeGrid._fromBuffers(int width, int height, Uint8List cells, Uint8List buffer) {
-    this.width = width;
-    this.height = height;
-    this.cells = cells;
-    this.buffer = buffer;
-  }
-
-  factory GameOfLifeGrid.fromBuffers(int width, int height, Uint8List cells, Uint8List buffer) {
-    return GameOfLifeGrid._fromBuffers(width, height, cells, buffer);
-  }
-
-  int _index(int x, int y) {
-    return y * width + x;
-  }
-
-  Cell get(int x, int y) {
-    final idx = _index(x, y);
-    return cells[idx] == 1 ? Cell.Alive : Cell.Dead;
-  }
-
-  void setCell(int x, int y, Cell cell) {
-    final idx = _index(x, y);
-    cells[idx] = cell == Cell.Alive ? 1 : 0;
-  }
-
-  int _countNeighbors(int x, int y, Uint8List cells) {
-    final yPrev = y == 0 ? height - 1 : y - 1;
-    final yNext = y == height - 1 ? 0 : y + 1;
-    final xPrev = x == 0 ? width - 1 : x - 1;
-    final xNext = x == width - 1 ? 0 : x + 1;
-
-    int count = 0;
-
-    int idx = yPrev * width;
-    if (cells[idx + xPrev] == 1) count++;
-    if (cells[idx + x] == 1) count++;
-    if (cells[idx + xNext] == 1) count++;
-
-    idx = y * width;
-    if (cells[idx + xPrev] == 1) count++;
-    if (cells[idx + xNext] == 1) count++;
-
-    idx = yNext * width;
-    if (cells[idx + xPrev] == 1) count++;
-    if (cells[idx + x] == 1) count++;
-    if (cells[idx + xNext] == 1) count++;
-
-    return count;
-  }
-
-  GameOfLifeGrid nextGeneration() {
-    final cells = this.cells;
-    final buffer = this.buffer;
-
+  void _linkNeighbors() {
     for (int y = 0; y < height; y++) {
-      final yIdx = y * width;
-
       for (int x = 0; x < width; x++) {
-        final idx = yIdx + x;
+        final cell = cells[y][x];
 
-        final neighbors = _countNeighbors(x, y, cells);
+        for (int dy = -1; dy <= 1; dy++) {
+          for (int dx = -1; dx <= 1; dx++) {
+            if (dx == 0 && dy == 0) continue;
 
-        final current = cells[idx];
-        int nextState = 0;
+            final ny = (y + dy + height) % height;
+            final nx = (x + dx + width) % width;
 
-        if (current == 1) {
-          nextState = (neighbors == 2 || neighbors == 3) ? 1 : 0;
-        } else {
-          nextState = neighbors == 3 ? 1 : 0;
+            cell.addNeighbor(cells[ny][nx]);
+          }
         }
+      }
+    }
+  }
 
-        buffer[idx] = nextState;
+  void nextGeneration() {
+
+    for (final row in cells) {
+      for (final cell in row) {
+        cell.computeNextState();
       }
     }
 
-    return GameOfLifeGrid.fromBuffers(width, height, buffer, cells);
+    for (final row in cells) {
+      for (final cell in row) {
+        cell.update();
+      }
+    }
+  }
+
+  int countAlive() {
+    int count = 0;
+    for (final row in cells) {
+      for (final cell in row) {
+        if (cell.alive) count++;
+      }
+    }
+    return count;
   }
 
   int computeHash() {
@@ -3504,14 +3493,18 @@ class GameOfLifeGrid {
 
     int hasher = FNV_OFFSET_BASIS;
 
-    for (int i = 0; i < cells.length; i++) {
-      final alive = cells[i];
-      hasher = (hasher ^ alive) & 0xFFFFFFFF;
-      hasher = (hasher * FNV_PRIME) & 0xFFFFFFFF;
+    for (final row in cells) {
+      for (final cell in row) {
+        final alive = cell.alive ? 1 : 0;
+        hasher = (hasher ^ alive) & 0xFFFFFFFF;
+        hasher = (hasher * FNV_PRIME) & 0xFFFFFFFF;
+      }
     }
 
     return hasher & 0xFFFFFFFF;
   }
+
+  List<List<CellObj>> getCells() => cells;
 }
 
 class GameOfLife extends Benchmark {
@@ -3528,11 +3521,10 @@ class GameOfLife extends Benchmark {
 
   @override
   void prepare() {
-
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
+    for (final row in grid.getCells()) {
+      for (final cell in row) {
         if (Helper.nextFloat() < 0.1) {
-          grid.setCell(x, y, Cell.Alive);
+          cell.alive = true;
         }
       }
     }
@@ -3540,12 +3532,13 @@ class GameOfLife extends Benchmark {
 
   @override
   void runBenchmark(int iterationId) {
-    grid = grid.nextGeneration();
+    grid.nextGeneration();
   }
 
   @override
   int checksum() {
-    return grid.computeHash() & 0xFFFFFFFF;
+    final alive = grid.countAlive();
+    return (grid.computeHash() + alive) & 0xFFFFFFFF;
   }
 }
 

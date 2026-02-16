@@ -192,9 +192,9 @@
     "iterations": 100
   },
   "GameOfLife": {
-    "checksum": 1611158017,
-    "w": 256,
-    "h": 256,
+    "checksum": 4006235749,
+    "w": 20,
+    "h": 20,
     "iterations": 3
   },
   "MazeGenerator": {

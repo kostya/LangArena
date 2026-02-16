@@ -1,111 +1,146 @@
 package benchmark
 
 import "core:fmt"
+import "core:slice"
 
-Cell :: enum u8 {
-    Dead  = 0,
-    Alive = 1,
+Cell :: struct {
+    alive:      bool,
+    next_state: bool,
+    neighbors:  [dynamic]^Cell,
+}
+
+cell_init :: proc() -> Cell {
+    return Cell{
+        alive = false,
+        next_state = false,
+        neighbors = make([dynamic]^Cell, 0, 8),
+    }
+}
+
+cell_destroy :: proc(cell: ^Cell) {
+    delete(cell.neighbors)
+}
+
+cell_add_neighbor :: proc(cell: ^Cell, neighbor: ^Cell) {
+    append(&cell.neighbors, neighbor)
+}
+
+cell_compute_next_state :: proc(cell: ^Cell) {
+    alive_neighbors := 0
+    for n in cell.neighbors {
+        if n.alive do alive_neighbors += 1
+    }
+
+    if cell.alive {
+        cell.next_state = alive_neighbors == 2 || alive_neighbors == 3
+    } else {
+        cell.next_state = alive_neighbors == 3
+    }
+}
+
+cell_update :: proc(cell: ^Cell) {
+    cell.alive = cell.next_state
 }
 
 Grid :: struct {
     width:  int,
     height: int,
-    cells:  []Cell,
-    buffer: []Cell,
+    cells:  [][]Cell,
 }
 
 grid_init :: proc(width, height: int) -> Grid {
-    size := width * height
-    return Grid{
-        width  = width,
-        height = height,
-        cells  = make([]Cell, size),
-        buffer = make([]Cell, size),
-    }
-}
-
-grid_destroy :: proc(grid: ^Grid) {
-    delete(grid.cells)
-    delete(grid.buffer)
-}
-
-grid_get :: proc(grid: ^Grid, x, y: int) -> Cell {
-    return grid.cells[y * grid.width + x]
-}
-
-grid_set :: proc(grid: ^Grid, x, y: int, cell: Cell) {
-    grid.cells[y * grid.width + x] = cell
-}
-
-count_neighbors :: proc(grid: ^Grid, x, y: int, cells: []Cell) -> int {
-    width, height := grid.width, grid.height
-
-    y_prev := y == 0 ? height - 1 : y - 1
-    y_next := y == height - 1 ? 0 : y + 1
-    x_prev := x == 0 ? width - 1 : x - 1
-    x_next := x == width - 1 ? 0 : x + 1
-
-    count := 0
-    count += int(cells[y_prev * width + x_prev] == Cell.Alive)
-    count += int(cells[y_prev * width + x] == Cell.Alive)
-    count += int(cells[y_prev * width + x_next] == Cell.Alive)
-    count += int(cells[y * width + x_prev] == Cell.Alive)
-    count += int(cells[y * width + x_next] == Cell.Alive)
-    count += int(cells[y_next * width + x_prev] == Cell.Alive)
-    count += int(cells[y_next * width + x] == Cell.Alive)
-    count += int(cells[y_next * width + x_next] == Cell.Alive)
-
-    return count
-}
-
-grid_next_generation :: proc(grid: ^Grid) {
-    width, height := grid.width, grid.height
-    cells := grid.cells
-    buffer := grid.buffer
-
+    cells := make([][]Cell, height)
     for y in 0..<height {
-        y_idx := y * width
-
+        cells[y] = make([]Cell, width)
         for x in 0..<width {
-            idx := y_idx + x
-
-            neighbors := count_neighbors(grid, x, y, cells)
-            current := cells[idx]
-            next_state := Cell.Dead
-
-            if current == Cell.Alive {
-                next_state = (neighbors == 2 || neighbors == 3) ? Cell.Alive : Cell.Dead
-            } else {
-                next_state = (neighbors == 3) ? Cell.Alive : Cell.Dead
-            }
-
-            buffer[idx] = next_state
+            cells[y][x] = cell_init()
         }
     }
 
-    grid.cells, grid.buffer = buffer, cells
+    grid := Grid{
+        width  = width,
+        height = height,
+        cells  = cells,
+    }
+
+    grid_link_neighbors(&grid)
+    return grid
+}
+
+grid_destroy :: proc(grid: ^Grid) {
+    for y in 0..<grid.height {
+        for x in 0..<grid.width {
+            cell_destroy(&grid.cells[y][x])
+        }
+        delete(grid.cells[y])
+    }
+    delete(grid.cells)
+}
+
+grid_link_neighbors :: proc(grid: ^Grid) {
+    for y in 0..<grid.height {
+        for x in 0..<grid.width {
+            cell := &grid.cells[y][x]
+
+            for dy in -1..=1 {
+                for dx in -1..=1 {
+                    if dx == 0 && dy == 0 do continue
+
+                    ny := (y + dy + grid.height) %% grid.height
+                    nx := (x + dx + grid.width) %% grid.width
+
+                    neighbor := &grid.cells[ny][nx]
+                    cell_add_neighbor(cell, neighbor)
+                }
+            }
+        }
+    }
+}
+
+grid_next_generation :: proc(grid: ^Grid) {
+
+    for row in grid.cells {
+        for &cell in row {
+            cell_compute_next_state(&cell)
+        }
+    }
+
+    for row in grid.cells {
+        for &cell in row {
+            cell_update(&cell)
+        }
+    }
+}
+
+grid_count_alive :: proc(grid: ^Grid) -> u32 {
+    count: u32 = 0
+    for row in grid.cells {
+        for cell in row {
+            if cell.alive do count += 1
+        }
+    }
+    return count
 }
 
 grid_compute_hash :: proc(grid: ^Grid) -> u32 {
     FNV_OFFSET_BASIS :: u32(2166136261)
     FNV_PRIME :: u32(16777619)
 
-    hash: u32 = FNV_OFFSET_BASIS
-
-    for cell in grid.cells {
-        alive := u32(cell == Cell.Alive)
-        hash = (hash ~ alive) * FNV_PRIME
+    hash := FNV_OFFSET_BASIS
+    for row in grid.cells {
+        for cell in row {
+            alive := u32(cell.alive ? 1 : 0)
+            hash = (hash ~ alive) * FNV_PRIME
+        }
     }
-
     return hash
 }
 
 GameOfLife :: struct {
     using base: Benchmark,
-    result_val: u32,
-    width:      int,
-    height:     int,
-    grid:       Grid,
+    width:  int,
+    height: int,
+    grid:   Grid,
 }
 
 gameoflife_run :: proc(bench: ^Benchmark, iteration_id: int) {
@@ -115,7 +150,8 @@ gameoflife_run :: proc(bench: ^Benchmark, iteration_id: int) {
 
 gameoflife_checksum :: proc(bench: ^Benchmark) -> u32 {
     gol := cast(^GameOfLife)bench
-    return grid_compute_hash(&gol.grid)
+    alive := grid_count_alive(&gol.grid)
+    return grid_compute_hash(&gol.grid) + alive
 }
 
 gameoflife_prepare :: proc(bench: ^Benchmark) {
@@ -129,7 +165,7 @@ gameoflife_prepare :: proc(bench: ^Benchmark) {
     for y in 0..<gol.height {
         for x in 0..<gol.width {
             if next_float(1.0) < 0.1 {
-                grid_set(&gol.grid, x, y, Cell.Alive)
+                gol.grid.cells[y][x].alive = true
             }
         }
     }
