@@ -847,7 +847,7 @@ RUNS = [
     dir: "/src/golang",
     container: "golang",
     group: :prod,
-    deps_cmd: "mkdir -p target",
+    deps_cmd: "mkdir -p target; go mod download",
   ),
   Run.new(
     name: "Go/Opt", 
@@ -858,7 +858,7 @@ RUNS = [
     dir: "/src/golang",
     container: "golang",
     group: :hack,
-    deps_cmd: "mkdir -p target",
+    deps_cmd: "mkdir -p target; go mod download",
   ),
   Run.new(
     name: "Go/GccGo", 
@@ -869,7 +869,7 @@ RUNS = [
     dir: "/src/golang",
     container: "gccgo",
     group: :hack,
-    deps_cmd: "mkdir -p target",
+    deps_cmd: "mkdir -p target; go mod download",
   ),
 
   Run.new(
@@ -881,7 +881,7 @@ RUNS = [
     dir: "/src/golang",
     container: "gccgo",
     group: :prod,
-    deps_cmd: "mkdir -p target",
+    deps_cmd: "mkdir -p target; go mod download",
   ),
 
   # ======================================= C# ======================================================

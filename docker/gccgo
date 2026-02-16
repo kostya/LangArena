@@ -1,7 +1,7 @@
 FROM benchmarks:base_gcc
 
 ARG version
-RUN apt install -y --no-install-recommends gccgo-$version \
+RUN apt install -y --no-install-recommends gccgo-$version golang \
     && apt clean
 
 run ln -sf /usr/bin/gccgo-$version /usr/bin/gccgo \

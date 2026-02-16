@@ -6,10 +6,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	regexp "github.com/coregx/coregex"
 	"math"
 	"math/big"
 	"os"
-	"regexp"
+
 	"runtime"
 	"sort"
 	"strconv"
@@ -1530,7 +1531,7 @@ func (n *Nbody) energy() float64 {
 func (n *Nbody) Run(iteration_id int) {
 	for k := 0; k < 1000; k += 1 {
 		for i, b := range n.body {
-		    b.MoveFromI(n.body, 0.01, i+1)
+			b.MoveFromI(n.body, 0.01, i+1)
 		}
 	}
 }
@@ -1542,13 +1543,17 @@ func (n *Nbody) Checksum() uint32 {
 
 type RegexDna struct {
 	BaseBenchmark
-	seq    string
-	ilen   int
-	clen   int
-	result strings.Builder
+	seq      string
+	ilen     int
+	clen     int
+	patterns []string
+	regexes  []*regexp.Regexp
+	replacer *strings.Replacer
+	result   strings.Builder
 }
 
 func (r *RegexDna) Prepare() {
+
 	f := &Fasta{BaseBenchmark: BaseBenchmark{className: "RegexDna"}}
 	f.n = r.ConfigVal("n")
 	f.Prepare()
@@ -1570,10 +1575,8 @@ func (r *RegexDna) Prepare() {
 
 	r.seq = seq.String()
 	r.clen = len(r.seq)
-}
 
-func (r *RegexDna) Run(iteration_id int) {
-	patterns := []string{
+	r.patterns = []string{
 		"agggtaaa|tttaccct",
 		"[cgt]gggtaaa|tttaccc[acg]",
 		"a[act]ggtaaa|tttacc[agt]t",
@@ -1585,15 +1588,12 @@ func (r *RegexDna) Run(iteration_id int) {
 		"agggtaa[cgt]|[acg]ttaccct",
 	}
 
-	for _, pattern := range patterns {
-		count := 0
-		re := regexp.MustCompile(pattern)
-		matches := re.FindAllStringIndex(r.seq, -1)
-		count = len(matches)
-		r.result.WriteString(fmt.Sprintf("%s %d\n", pattern, count))
+	r.regexes = make([]*regexp.Regexp, len(r.patterns))
+	for i, pattern := range r.patterns {
+		r.regexes[i] = regexp.MustCompile(pattern)
 	}
 
-	replacer := strings.NewReplacer(
+	r.replacer = strings.NewReplacer(
 		"B", "(c|g|t)",
 		"D", "(a|g|t)",
 		"H", "(a|c|t)",
@@ -1606,8 +1606,18 @@ func (r *RegexDna) Run(iteration_id int) {
 		"W", "(a|t)",
 		"Y", "(c|t)",
 	)
+}
 
-	seq2 := replacer.Replace(r.seq)
+func (r *RegexDna) Run(iteration_id int) {
+
+	for i, pattern := range r.patterns {
+		count := 0
+		matches := r.regexes[i].FindAllStringIndex(r.seq, -1)
+		count = len(matches)
+		r.result.WriteString(fmt.Sprintf("%s %d\n", pattern, count))
+	}
+
+	seq2 := r.replacer.Replace(r.seq)
 	r.result.WriteString(fmt.Sprintf("\n%d\n%d\n%d\n", r.ilen, r.clen, len(seq2)))
 }
 
@@ -3691,156 +3701,156 @@ func (c *CalculatorInterpreter) Checksum() uint32 {
 }
 
 type Cell struct {
-    Alive      bool
-    NextState  bool
-    Neighbors  []*Cell
+	Alive     bool
+	NextState bool
+	Neighbors []*Cell
 }
 
 func NewCell() *Cell {
-    return &Cell{
-        Neighbors: make([]*Cell, 0, 8),
-    }
+	return &Cell{
+		Neighbors: make([]*Cell, 0, 8),
+	}
 }
 
 func (c *Cell) AddNeighbor(neighbor *Cell) {
-    c.Neighbors = append(c.Neighbors, neighbor)
+	c.Neighbors = append(c.Neighbors, neighbor)
 }
 
 func (c *Cell) ComputeNextState() {
-    aliveNeighbors := 0
-    for _, n := range c.Neighbors {
-        if n.Alive {
-            aliveNeighbors++
-        }
-    }
+	aliveNeighbors := 0
+	for _, n := range c.Neighbors {
+		if n.Alive {
+			aliveNeighbors++
+		}
+	}
 
-    if c.Alive {
-        c.NextState = aliveNeighbors == 2 || aliveNeighbors == 3
-    } else {
-        c.NextState = aliveNeighbors == 3
-    }
+	if c.Alive {
+		c.NextState = aliveNeighbors == 2 || aliveNeighbors == 3
+	} else {
+		c.NextState = aliveNeighbors == 3
+	}
 }
 
 func (c *Cell) Update() {
-    c.Alive = c.NextState
+	c.Alive = c.NextState
 }
 
 type Grid struct {
-    width  int
-    height int
-    cells  [][]*Cell
+	width  int
+	height int
+	cells  [][]*Cell
 }
 
 func NewGrid(width, height int) *Grid {
-    cells := make([][]*Cell, height)
-    for y := 0; y < height; y++ {
-        cells[y] = make([]*Cell, width)
-        for x := 0; x < width; x++ {
-            cells[y][x] = NewCell()
-        }
-    }
+	cells := make([][]*Cell, height)
+	for y := 0; y < height; y++ {
+		cells[y] = make([]*Cell, width)
+		for x := 0; x < width; x++ {
+			cells[y][x] = NewCell()
+		}
+	}
 
-    grid := &Grid{
-        width:  width,
-        height: height,
-        cells:  cells,
-    }
-    grid.linkNeighbors()
-    return grid
+	grid := &Grid{
+		width:  width,
+		height: height,
+		cells:  cells,
+	}
+	grid.linkNeighbors()
+	return grid
 }
 
 func (g *Grid) linkNeighbors() {
-    for y := 0; y < g.height; y++ {
-        for x := 0; x < g.width; x++ {
-            cell := g.cells[y][x]
+	for y := 0; y < g.height; y++ {
+		for x := 0; x < g.width; x++ {
+			cell := g.cells[y][x]
 
-            for dy := -1; dy <= 1; dy++ {
-                for dx := -1; dx <= 1; dx++ {
-                    if dx == 0 && dy == 0 {
-                        continue
-                    }
+			for dy := -1; dy <= 1; dy++ {
+				for dx := -1; dx <= 1; dx++ {
+					if dx == 0 && dy == 0 {
+						continue
+					}
 
-                    ny := (y + dy + g.height) % g.height
-                    nx := (x + dx + g.width) % g.width
+					ny := (y + dy + g.height) % g.height
+					nx := (x + dx + g.width) % g.width
 
-                    cell.AddNeighbor(g.cells[ny][nx])
-                }
-            }
-        }
-    }
+					cell.AddNeighbor(g.cells[ny][nx])
+				}
+			}
+		}
+	}
 }
 
 func (g *Grid) NextGeneration() {
 
-    for _, row := range g.cells {
-        for _, cell := range row {
-            cell.ComputeNextState()
-        }
-    }
+	for _, row := range g.cells {
+		for _, cell := range row {
+			cell.ComputeNextState()
+		}
+	}
 
-    for _, row := range g.cells {
-        for _, cell := range row {
-            cell.Update()
-        }
-    }
+	for _, row := range g.cells {
+		for _, cell := range row {
+			cell.Update()
+		}
+	}
 }
 
 func (g *Grid) CountAlive() int {
-    count := 0
-    for _, row := range g.cells {
-        for _, cell := range row {
-            if cell.Alive {
-                count++
-            }
-        }
-    }
-    return count
+	count := 0
+	for _, row := range g.cells {
+		for _, cell := range row {
+			if cell.Alive {
+				count++
+			}
+		}
+	}
+	return count
 }
 
 func (g *Grid) ComputeHash() uint32 {
-    const (
-        FNV_OFFSET_BASIS uint32 = 2166136261
-        FNV_PRIME        uint32 = 16777619
-    )
+	const (
+		FNV_OFFSET_BASIS uint32 = 2166136261
+		FNV_PRIME        uint32 = 16777619
+	)
 
-    hash := FNV_OFFSET_BASIS
-    for _, row := range g.cells {
-        for _, cell := range row {
-            var alive uint32 = 0
-            if cell.Alive {
-                alive = 1
-            }
-            hash = (hash ^ alive) * FNV_PRIME
-        }
-    }
-    return hash
+	hash := FNV_OFFSET_BASIS
+	for _, row := range g.cells {
+		for _, cell := range row {
+			var alive uint32 = 0
+			if cell.Alive {
+				alive = 1
+			}
+			hash = (hash ^ alive) * FNV_PRIME
+		}
+	}
+	return hash
 }
 
 type GameOfLife struct {
-    BaseBenchmark
-    grid *Grid
+	BaseBenchmark
+	grid *Grid
 }
 
 func (g *GameOfLife) Prepare() {
-    width := int(g.ConfigVal("w"))
-    height := int(g.ConfigVal("h"))
-    g.grid = NewGrid(width, height)
+	width := int(g.ConfigVal("w"))
+	height := int(g.ConfigVal("h"))
+	g.grid = NewGrid(width, height)
 
-    for _, row := range g.grid.cells {
-        for _, cell := range row {
-            if NextFloat(1.0) < 0.1 {
-                cell.Alive = true
-            }
-        }
-    }
+	for _, row := range g.grid.cells {
+		for _, cell := range row {
+			if NextFloat(1.0) < 0.1 {
+				cell.Alive = true
+			}
+		}
+	}
 }
 
 func (g *GameOfLife) Run(iterationId int) {
-    g.grid.NextGeneration()
+	g.grid.NextGeneration()
 }
 
 func (g *GameOfLife) Checksum() uint32 {
-    return g.grid.ComputeHash() + uint32(g.grid.CountAlive())
+	return g.grid.ComputeHash() + uint32(g.grid.CountAlive())
 }
 
 type PCell int
