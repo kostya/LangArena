@@ -728,6 +728,6 @@ services:
       - ./cache/deps/scala-graalvm/m2:/root/.m2
 
       - ./cache/build/scala-graalvm/target:/src/scala/target
-      - ./cache/build/scala-graalvm/project:/src/scala/project
+      - ./cache/build/scala-graalvm/project-target:/src/scala/project/target
     depends_on:
       - graalvm
