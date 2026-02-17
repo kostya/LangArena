@@ -1,4 +1,5 @@
 using ..BenchmarkFramework
+using DataStructures: BinaryMinHeap
 
 mutable struct Graph
     vertices::Int32
@@ -168,75 +169,6 @@ function checksum(b::GraphPathDFS)::UInt32
     return b.result
 end
 
-mutable struct PriorityQueue
-    vertices::Vector{Int64}
-    priorities::Vector{Int32}
-    size::Int32
-
-    function PriorityQueue(initial_capacity::Int64=16)
-        vertices = Vector{Int64}(undef, initial_capacity)
-        priorities = Vector{Int32}(undef, initial_capacity)
-        new(vertices, priorities, 0)
-    end
-end
-
-function pq_push!(pq::PriorityQueue, vertex::Int64, priority::Int32)
-    if pq.size >= length(pq.vertices)
-        new_capacity = length(pq.vertices) * 2
-        resize!(pq.vertices, new_capacity)
-        resize!(pq.priorities, new_capacity)
-    end
-
-    pq.size += 1
-    i = pq.size
-    pq.vertices[i] = vertex
-    pq.priorities[i] = priority
-
-    while i > 1
-        parent = i ÷ 2
-        if pq.priorities[parent] <= pq.priorities[i]
-            break
-        end
-        pq.vertices[i], pq.vertices[parent] = pq.vertices[parent], pq.vertices[i]
-        pq.priorities[i], pq.priorities[parent] = pq.priorities[parent], pq.priorities[i]
-        i = parent
-    end
-end
-
-function pq_pop!(pq::PriorityQueue)
-    vertex = pq.vertices[1]
-    pq.vertices[1] = pq.vertices[pq.size]
-    pq.priorities[1] = pq.priorities[pq.size]
-    pq.size -= 1
-
-    i = 1
-    while true
-        left = 2 * i
-        right = left + 1
-        smallest = i
-
-        if left <= pq.size && pq.priorities[left] < pq.priorities[smallest]
-            smallest = left
-        end
-        if right <= pq.size && pq.priorities[right] < pq.priorities[smallest]
-            smallest = right
-        end
-        if smallest == i
-            break
-        end
-
-        pq.vertices[i], pq.vertices[smallest] = pq.vertices[smallest], pq.vertices[i]
-        pq.priorities[i], pq.priorities[smallest] = pq.priorities[smallest], pq.priorities[i]
-        i = smallest
-    end
-
-    return vertex
-end
-
-function pq_isempty(pq::PriorityQueue)
-    return pq.size == 0
-end
-
 mutable struct GraphPathAStar <: AbstractGraphPathBenchmark
     graph::Graph
     result::UInt32
@@ -274,14 +206,14 @@ function a_star_shortest_path(graph::Graph, start::Int64, target::Int64)::Int32
     g_score[start+1] = 0
     f_score[start+1] = heuristic(start, target)
 
-    open_set = PriorityQueue()
+    open_set = BinaryMinHeap{Tuple{Int32, Int64}}()
     in_open_set = falses(graph.vertices)
 
-    pq_push!(open_set, start, f_score[start+1])
+    push!(open_set, (f_score[start+1], start))
     in_open_set[start+1] = true
 
-    while !pq_isempty(open_set)
-        current = pq_pop!(open_set)
+    while !isempty(open_set)
+        f, current = pop!(open_set)
         in_open_set[current+1] = false
 
         if current == target
@@ -299,10 +231,11 @@ function a_star_shortest_path(graph::Graph, start::Int64, target::Int64)::Int32
 
             if tentative_g < g_score[neighbor+1]
                 g_score[neighbor+1] = tentative_g
-                f_score[neighbor+1] = tentative_g + heuristic(Int64(neighbor), target)
+                new_f = tentative_g + heuristic(Int64(neighbor), target)
+                f_score[neighbor+1] = new_f
 
                 if !in_open_set[neighbor+1]
-                    pq_push!(open_set, Int64(neighbor), f_score[neighbor+1])
+                    push!(open_set, (new_f, Int64(neighbor)))
                     in_open_set[neighbor+1] = true
                 end
             end
