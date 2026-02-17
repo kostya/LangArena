@@ -17,8 +17,6 @@ lazy val root = (project in file("."))
       "-unchecked",
       "-Xmax-inlines", "64"
     ),
-    
-    // Настройки assembly
     assembly / assemblyOutputPath := baseDirectory.value / "target" / "benchmark.jar",
     assembly / assemblyMergeStrategy := {
       case PathList("META-INF", xs @ _*) => MergeStrategy.discard
