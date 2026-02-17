@@ -1585,9 +1585,9 @@ RUNS = [
 
   Run.new(
     name: "Scala/JVM/Default",
-    build_cmd: "sbt ';clean;assembly'",
-    binary_name: "/src/scala/target/scala-*/benchmarks.jar",
-    run_cmd: "java -Xmx8g -jar $(ls /src/scala/target/scala-*/benchmarks.jar | head -1)",
+    build_cmd: "sbt 'assembly'",
+    binary_name: "/src/scala/target/benchmark.jar",
+    run_cmd: "java -Xmx8g -jar /src/scala/target/benchmark.jar",
     version_cmd: "scala -version",
     dir: "/src/scala",
     container: "scala",
@@ -1597,8 +1597,8 @@ RUNS = [
 
   Run.new(
     name: "Scala/JVM/Opt",
-    build_cmd: "sbt ';clean;assembly'",
-    binary_name: "/src/scala/target/scala-*/benchmarks.jar",
+    build_cmd: "sbt 'assembly'",
+    binary_name: "/src/scala/target/benchmark.jar",
     run_cmd: <<~CMD.chomp,
       java \
         -server \
@@ -1610,7 +1610,7 @@ RUNS = [
         -XX:+OptimizeStringConcat \
         -XX:+UseCompressedOops \
         -Xmx8g \
-        -jar $(ls /src/scala/target/scala-*/benchmarks.jar | head -1)
+        -jar /src/scala/target/benchmark.jar
     CMD
     version_cmd: "scala -version",
     dir: "/src/scala",
@@ -1621,8 +1621,8 @@ RUNS = [
 
   Run.new(
     name: "Scala/JVM/Max",
-    build_cmd: "sbt ';clean;assembly'",
-    binary_name: "/src/scala/target/scala-*/benchmarks.jar",
+    build_cmd: "sbt 'assembly'",
+    binary_name: "/src/scala/target/benchmark.jar",
     run_cmd: <<~CMD.chomp,
       java \
         -server \
@@ -1634,7 +1634,7 @@ RUNS = [
         -XX:+UseLargePages \
         -XX:+DisableExplicitGC \
         -Djava.security.egd=file:/dev/./urandom \
-        -jar $(ls /src/scala/target/scala-*/benchmarks.jar | head -1)
+        -jar /src/scala/target/benchmark.jar
     CMD
     version_cmd: "scala -version",
     dir: "/src/scala",
@@ -1645,8 +1645,8 @@ RUNS = [
 
   Run.new(
     name: "Scala/GraalVM/JIT",
-    build_cmd: "sbt ';clean;assembly'",
-    binary_name: "/src/scala/target/scala-*/benchmarks.jar",
+    build_cmd: "sbt 'assembly'",
+    binary_name: "/src/scala/target/benchmark.jar",
     run_cmd: <<~CMD.chomp,
       java \
         -XX:+UseG1GC \
@@ -1655,7 +1655,7 @@ RUNS = [
         -Djvmci.Compiler=graal \
         -XX:-TieredCompilation \
         -Xmx8g \
-        -jar $(ls /src/scala/target/scala-*/benchmarks.jar | head -1)
+        -jar /src/scala/target/benchmark.jar
     CMD
     version_cmd: "scala -version",
     dir: "/src/scala",

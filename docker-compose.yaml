@@ -704,7 +704,7 @@ services:
       - ./cache/deps/scala/m2:/root/.m2
 
       - ./cache/build/scala/target:/src/scala/target
-      - ./cache/build/scala/project:/src/scala/project
+      - ./cache/build/scala/project-target:/src/scala/project/target
     depends_on:
       - java
 

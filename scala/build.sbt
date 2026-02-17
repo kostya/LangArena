@@ -5,7 +5,8 @@ lazy val root = (project in file("."))
   .settings(
     name := "scala3-benchmark",
     libraryDependencies ++= Seq(
-      "org.json" % "json" % "20231013"
+      "org.json" % "json" % "20231013",
+      "com.alibaba.fastjson2" % "fastjson2" % "2.0.60"
     ),
     Compile / run / fork := true,
     Compile / run / connectInput := true,
@@ -16,7 +17,11 @@ lazy val root = (project in file("."))
       "-unchecked",
       "-Xmax-inlines", "64"
     ),
-    libraryDependencies ++= Seq(
-  		"com.alibaba.fastjson2" % "fastjson2" % "2.0.60"
-	  )
+    
+    // Настройки assembly
+    assembly / assemblyOutputPath := baseDirectory.value / "target" / "benchmark.jar",
+    assembly / assemblyMergeStrategy := {
+      case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+      case x => MergeStrategy.first
+    }
   )
