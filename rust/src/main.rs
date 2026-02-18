@@ -118,7 +118,7 @@ fn run_benchmarks(single_bench: Option<&str>) {
 
     let benchmark_factories = benchmark_list![
         Pidigits: benchmarks::pidigits::Pidigits,
-        BinaryTrees: benchmarks::binarytrees::Binarytrees,
+        Binarytrees: benchmarks::binarytrees::Binarytrees,
         BrainfuckArray: benchmarks::brainfuck_array::BrainfuckArray,
         BrainfuckRecursion: benchmarks::brainfuck_recursion::BrainfuckRecursion,
         Fannkuchredux: benchmarks::fannkuchredux::Fannkuchredux,
