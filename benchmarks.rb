@@ -17,6 +17,7 @@ IS_NO_BUILD = ENV["NO_BUILD"] == "1" # not test build stage
 IS_NO_DEPS = ENV["NO_DEPS"] == "1" # not test deps stage
 IS_NO_VERSION = ENV["NO_VERSION"] == "1" # not test versions
 IS_CLEAR_COMMENTS = ENV["CLEAR_COMMENTS"] == "1" # start special mode to clear comments
+APPEND_RESULTS = (ENV["APPEND"] && ENV["APPEND"] != "") ? ENV["APPEND"] : nil
 
 require 'json'
 require 'timeout'
@@ -272,9 +273,6 @@ class Run
     @version_cmd = version_cmd
     @group = group # ONLY :prod or :hack
     @deps_cmd = deps_cmd
-    if @group == :hack
-      @name += "-Hack"
-    end
   end
 
   def lang
@@ -1983,31 +1981,37 @@ end
 puts "All tests count: #{TESTS.size} (#{TESTS.join(", ")})"
 puts
 
-RESULTS = {}
-RESULTS["date"] = Time.now.strftime("%Y-%m-%d")
-RESULTS["arch"] = RUBY_PLATFORM
-RESULTS["pc"] = PC
-RESULTS["uname-name"] = `uname -n`.strip
-RESULTS["langs"] = LANGS.sort
-RESULTS["runs"] = {}
-RUNS.each { |run| RESULTS["runs"][run.name] = run.group }
-RESULTS["tests"] = TESTS
-RESULTS["build-cmd"] = {}
-RESULTS["run-cmd"] = {}
-RESULTS["binary-size-kb"] = {}
-RESULTS["compile-memory-cold"] = {}
-RESULTS["compile-memory-incremental"] = {}
-RESULTS["compile-time-cold"] = {}
-RESULTS["compile-time-incremental"] = {}
-RESULTS["version"] = {}
-RESULTS["start-duration"] = {}
+if APPEND_RESULTS
+  f = File.read(APPEND_RESULTS)
+  puts "Use previous results: #{APPEND_RESULTS}"
+  RESULTS = JSON.parse(f)
+else
+  RESULTS = {}
+  RESULTS["date"] = Time.now.strftime("%Y-%m-%d")
+  RESULTS["arch"] = RUBY_PLATFORM
+  RESULTS["pc"] = PC
+  RESULTS["uname-name"] = `uname -n`.strip
+  RESULTS["langs"] = LANGS.sort
+  RESULTS["runs"] = {}
+  RUNS.each { |run| RESULTS["runs"][run.name] = run.group }
+  RESULTS["tests"] = TESTS
+  RESULTS["build-cmd"] = {}
+  RESULTS["run-cmd"] = {}
+  RESULTS["binary-size-kb"] = {}
+  RESULTS["compile-memory-cold"] = {}
+  RESULTS["compile-memory-incremental"] = {}
+  RESULTS["compile-time-cold"] = {}
+  RESULTS["compile-time-incremental"] = {}
+  RESULTS["version"] = {}
+  RESULTS["start-duration"] = {}
+end
 
 unless ARGV[0]
   File.open("/tmp/log_crash.txt", "w") { |f| f.puts "started #{Time.now}" }
 end
 
 def write_results
-  unless ARGV[0]
+  if !ARGV[0] || APPEND_RESULTS
     File.write("./results/#{RESULTS["date"]}-#{RESULTS["uname-name"]}.js", JSON.pretty_generate(RESULTS))  
   end
 end
