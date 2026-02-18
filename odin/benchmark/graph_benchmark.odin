@@ -239,87 +239,85 @@ GraphPathAStar :: struct {
     base: GraphPathBenchmark,
 }
 
-PriorityQueue :: struct {
-    vertices: [dynamic]int,
-    priorities: [dynamic]int,
+GPANode :: struct {
+    vertex: int,
+    f_score: int,
 }
 
-priority_queue_init :: proc(capacity: int = 16) -> PriorityQueue {
+node_greater :: proc(a, b: GPANode) -> bool {
+    return a.f_score > b.f_score
+}
+
+PriorityQueue :: struct {
+    nodes: [dynamic]GPANode,
+}
+
+priority_queue_init :: proc() -> PriorityQueue {
     return PriorityQueue{
-        vertices = make([dynamic]int, 0, capacity),
-        priorities = make([dynamic]int, 0, capacity),
+        nodes = make([dynamic]GPANode),
     }
 }
 
 priority_queue_destroy :: proc(pq: ^PriorityQueue) {
-    delete(pq.vertices)
-    delete(pq.priorities)
+    delete(pq.nodes)
 }
 
-priority_queue_push :: proc(pq: ^PriorityQueue, vertex: int, priority: int) {
-    append(&pq.vertices, vertex)
-    append(&pq.priorities, priority)
+priority_queue_push :: proc(pq: ^PriorityQueue, vertex: int, f_score: int) {
+    append(&pq.nodes, GPANode{vertex, f_score})
+    heapify_up(pq.nodes[:])
+}
 
-    i := len(pq.vertices) - 1
+priority_queue_pop :: proc(pq: ^PriorityQueue) -> GPANode {
+    node := pq.nodes[0]
+    pq.nodes[0] = pq.nodes[len(pq.nodes)-1]
+    pop(&pq.nodes)
+    heapify_down(pq.nodes[:])
+    return node
+}
+
+priority_queue_empty :: proc(pq: ^PriorityQueue) -> bool {
+    return len(pq.nodes) == 0
+}
+
+heapify_up :: proc(nodes: []GPANode) {
+    i := len(nodes) - 1
     for i > 0 {
         parent := (i - 1) / 2
-        if pq.priorities[parent] <= pq.priorities[i] {
+        if nodes[parent].f_score <= nodes[i].f_score {
             break
         }
-        pq.vertices[i], pq.vertices[parent] = pq.vertices[parent], pq.vertices[i]
-        pq.priorities[i], pq.priorities[parent] = pq.priorities[parent], pq.priorities[i]
+        nodes[i], nodes[parent] = nodes[parent], nodes[i]
         i = parent
     }
 }
 
-priority_queue_pop :: proc(pq: ^PriorityQueue) -> (int, bool) {
-    if len(pq.vertices) == 0 {
-        return 0, false
-    }
-
-    result := pq.vertices[0]
-
-    last_idx := len(pq.vertices) - 1
-    pq.vertices[0] = pq.vertices[last_idx]
-    pq.priorities[0] = pq.priorities[last_idx]
-
-    pop(&pq.vertices)
-    pop(&pq.priorities)
-
+heapify_down :: proc(nodes: []GPANode) {
     i := 0
-    n := len(pq.vertices)
+    n := len(nodes)
     for {
-        left := 2 * i + 1
-        right := 2 * i + 2
+        left := 2*i + 1
+        right := 2*i + 2
         smallest := i
 
-        if left < n && pq.priorities[left] < pq.priorities[smallest] {
+        if left < n && nodes[left].f_score < nodes[smallest].f_score {
             smallest = left
         }
-        if right < n && pq.priorities[right] < pq.priorities[smallest] {
+        if right < n && nodes[right].f_score < nodes[smallest].f_score {
             smallest = right
         }
         if smallest == i {
             break
         }
-
-        pq.vertices[i], pq.vertices[smallest] = pq.vertices[smallest], pq.vertices[i]
-        pq.priorities[i], pq.priorities[smallest] = pq.priorities[smallest], pq.priorities[i]
+        nodes[i], nodes[smallest] = nodes[smallest], nodes[i]
         i = smallest
     }
-
-    return result, true
-}
-
-priority_queue_empty :: proc(pq: ^PriorityQueue) -> bool {
-    return len(pq.vertices) == 0
 }
 
 heuristic :: proc(v, target: int) -> int {
     return target - v
 }
 
-a_star_shortest_path :: proc(g: ^Graph, start, target: int) -> int {
+astar_shortest_path :: proc(g: ^Graph, start, target: int) -> int {
     if start == target {
         return 0
     }
@@ -327,47 +325,50 @@ a_star_shortest_path :: proc(g: ^Graph, start, target: int) -> int {
     INF := max(int)
     g_score := make([]int, g.vertices)
     f_score := make([]int, g.vertices)
+    in_open_set := make([]bool, g.vertices)
     closed := make([]bool, g.vertices)
     defer {
         delete(g_score)
         delete(f_score)
+        delete(in_open_set)
         delete(closed)
     }
 
     for i in 0..<g.vertices {
         g_score[i] = INF
         f_score[i] = INF
+        closed[i] = false
+        in_open_set[i] = false
     }
+
     g_score[start] = 0
     f_score[start] = heuristic(start, target)
 
     open_set := priority_queue_init()
     defer priority_queue_destroy(&open_set)
 
-    in_open_set := make([]bool, g.vertices)
-    defer delete(in_open_set)
-
     priority_queue_push(&open_set, start, f_score[start])
     in_open_set[start] = true
 
     for !priority_queue_empty(&open_set) {
-        current, ok := priority_queue_pop(&open_set)
-        if !ok { break }
+        current := priority_queue_pop(&open_set)
 
-        in_open_set[current] = false
+        if closed[current.vertex] {
+            continue
+        }
+        closed[current.vertex] = true
+        in_open_set[current.vertex] = false
 
-        if current == target {
-            return g_score[current]
+        if current.vertex == target {
+            return g_score[current.vertex]
         }
 
-        closed[current] = true
-
-        for neighbor in g.adj[current] {
+        for neighbor in g.adj[current.vertex] {
             if closed[neighbor] {
                 continue
             }
 
-            tentative_g := g_score[current] + 1
+            tentative_g := g_score[current.vertex] + 1
 
             if tentative_g < g_score[neighbor] {
                 g_score[neighbor] = tentative_g
@@ -385,7 +386,7 @@ a_star_shortest_path :: proc(g: ^Graph, start, target: int) -> int {
 }
 
 graphastar_test :: proc(bench: ^GraphPathBenchmark) -> i64 {
-    return i64(a_star_shortest_path(bench.graph, 0, bench.graph.vertices - 1))
+    return i64(astar_shortest_path(bench.graph, 0, bench.graph.vertices - 1))
 }
 
 create_graphastar :: proc() -> ^Benchmark {
