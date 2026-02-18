@@ -48,7 +48,7 @@ class Gen
       if v == "prod"
         @runs_prod << k
       end
-      @runs_all << k
+      @runs_all << k + "-Hack"
     end
 	end
 

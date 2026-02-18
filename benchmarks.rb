@@ -272,9 +272,6 @@ class Run
     @version_cmd = version_cmd
     @group = group # ONLY :prod or :hack
     @deps_cmd = deps_cmd
-    if @group == :hack
-      @name += "-Hack"
-    end
   end
 
   def lang
