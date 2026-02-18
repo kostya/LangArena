@@ -731,3 +731,31 @@ services:
       - ./cache/build/scala-graalvm/project-target:/src/scala/project/target
     depends_on:
       - graalvm
+
+  graalpy:
+    <<: *shared
+    image: benchmarks:graalpy
+    working_dir: /src/python
+    build:
+      dockerfile: docker/graalpy
+      args:
+        # https://github.com/oracle/graalpython/releases
+        version: "25.0.2"
+    volumes:
+      - .:/src
+    depends_on:
+      - java
+
+  graalpy-graalvm:
+    <<: *shared
+    image: benchmarks:graalpy-graalvm
+    working_dir: /src/python
+    build:
+      dockerfile: docker/graalpy-graalvm
+      args:
+        # https://github.com/oracle/graalpython/releases
+        version: "25.0.2"
+    volumes:
+      - .:/src
+    depends_on:
+      - graalvm

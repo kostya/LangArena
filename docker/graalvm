@@ -17,6 +17,7 @@ ARG mavenversion
 
 RUN wget https://dlcdn.apache.org/maven/maven-3/$mavenversion/binaries/apache-maven-$mavenversion-bin.tar.gz && \
     tar -xzf apache-maven-$mavenversion-bin.tar.gz -C /opt && \
-    ln -s /opt/apache-maven-$mavenversion /opt/maven
+    ln -s /opt/apache-maven-$mavenversion /opt/maven \
+    && rm /opt/apache-maven-$mavenversion-bin.tar.gz
 
 ENV PATH="/opt/maven/bin:$PATH"
