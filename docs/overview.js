@@ -243,6 +243,8 @@ function overview_tab($results) {
       <span class="language-tag">F#</span>
       <span class="language-tag">Dart</span>
       <span class="language-tag">Python</span>
+      <span class="language-tag">Odin</span>
+      <span class="language-tag">Scala</span>
     </div>
     <p class="language-note">Languages like Python, Ruby, or PHP are intentionally excluded to maintain a focused comparison within a similar performance bracket.</p>
   </div>

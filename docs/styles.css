@@ -172,6 +172,8 @@ body {
 .lang_fsharp { background: #16deff; color: #002a57; }
 .lang_dart { background: #02569B; color: #13B9FD; }
 .lang_python { background: #306998; color: #FFD43B; }
+.lang_odin { background: #144d35; color: white; }
+.lang_scala { background: #ff0083; color: white; }
 
 .results-table .lang_c { background: #3498db; color: white; }
 .results-table .lang_cpp { background: #2ecc71; color: white; }
@@ -192,6 +194,9 @@ body {
 .results-table .lang_fsharp { background: #16deff; color: #002a57; }
 .results-table .lang_dart { background: #02569B; color: #13B9FD; }
 .results-table .lang_python { background: #306998; color: #FFD43B; }
+.results-table .lang_odin { background: #144d35; color: white; }
+.results-table .lang_scala { background: #ff0083; color: white; }
+
 
 /* ================================ Выделение цветом ячеек по результату (всего 10 градиентов) ====================================  */
 td.speed_0 { background: #1b5e20e3; font-weight: bold; color: white; } /* best */

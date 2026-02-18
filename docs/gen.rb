@@ -374,7 +374,7 @@ This table compares how concisely different programming languages express the sa
     wins = b[:left_header].zip(wins).sort_by { |lang, win| -win }.map { |a, v| [a, "#{v}"] }
 
     ct = _vert(b[:map], b[:up_header].index("Compile Time Inc, s")).map { |s| s =~ /([0-9\.]+)/; $1.to_f.round(1) }
-    ct = b[:left_header].zip(ct).sort_by { |lang, v| v }.map { |a, v| [a, "#{v}s"] }
+    ct = b[:left_header].zip(ct).sort_by { |lang, v| v }.map { |a, v| [a, "#{v}s"] }.reject { |(lang, v)| lang == "python" || lang == "julia" }
 
     exp = _vert(b[:map], b[:up_header].index("Expressiveness")).map { |s| s =~ /([\-0-9\.]+)/; $1.to_f.round(1) }
     exp = b[:left_header].zip(exp).sort_by { |lang, v| -v }.map { |a, v| [a, "#{v}%"] }
@@ -744,11 +744,11 @@ Hacked configs marked with <strong>-Hack</strong> suffix.<br><br>
 DESC
 
       runs.each do |run|
-        desc += "• <strong>#{run}</strong> - #{@j['build-cmd'][run]}; #{@j['run-cmd'] ? @j['run-cmd'][run] : ""}<br>"
+        desc += "• <strong>#{!@runs_prod.include?(run) ? run + "-Hack" : run}</strong> - #{@j['build-cmd'][run]}; #{@j['run-cmd'] ? @j['run-cmd'][run] : ""}<br>"
       end
 
-      res[:up_header].map! do |run|
-        unless @runs_prod.include?(run.includes)
+      res[lang][:up_header].map! do |run|
+        unless @runs_prod.include?(run)
           run + "-Hack"
         else
           run
@@ -757,6 +757,7 @@ DESC
 
       res[lang][:description] = desc
     end
+
     res
   end
 

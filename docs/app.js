@@ -77,7 +77,7 @@ function UpdateData(data) {
     for (const lang of window.Data.langs) {
         langs_str += `<span class="language-badge lang_${run_name_to_lang_class_name(lang)}">${lang}</span>`;
     }
-    document.getElementById('resutls-langs').innerHTML = '<strong>Participating Languages:</strong> <span class=part_langs>' + langs_str + '</span>';
+    document.getElementById('resutls-langs').innerHTML = '<strong>Languages:</strong> <span class=part_langs>' + langs_str + '</span>';
     // document.getElementById('resutls-arch').innerHTML = '<strong>Architecture:</strong> ' + window.Data.arch;
     // document.getElementById('resutls-pc').innerHTML = '<strong>Pc:</strong> ' + window.Data.pc;
     // document.getElementById('results-tests-count').innerHTML = '<strong>Tests:</strong> ' + window.Data.tests_count;
@@ -397,7 +397,9 @@ function lang_color(lang) {
         'nim': '#16bad5',
         'fsharp': '#16deff',
         'dart': '#02569B',
-        'python': '#306998'
+        'python': '#306998',
+        'odin': '#144d35',
+        'scala': '#ff0083'
     };
     return colorMap[key] || '#95a5a6';
 }
