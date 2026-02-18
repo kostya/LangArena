@@ -29,10 +29,7 @@ public class SortMerge extends SortBenchmark {
     }
 
     private void merge(int[] arr, int[] temp, int left, int mid, int right) {
-
-        for (int i = left; i <= right; i++) {
-            temp[i] = arr[i];
-        }
+        System.arraycopy(arr, left, temp, left, right - left + 1);
 
         int i = left;      
         int j = mid + 1;   

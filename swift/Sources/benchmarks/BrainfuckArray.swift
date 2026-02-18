@@ -1,5 +1,151 @@
 import Foundation
 
+struct Tape {
+    private var tape: ContiguousArray<UInt8>
+    private var pos: Int
+
+    init(initialSize: Int = 30000) {
+        self.tape = ContiguousArray<UInt8>(repeating: 0, count: initialSize)
+        self.pos = 0
+    }
+
+    mutating func get() -> UInt8 {
+        return tape[pos]
+    }
+
+    mutating func inc() {
+        tape[pos] = tape[pos] &+ 1
+    }
+
+    mutating func dec() {
+        tape[pos] = tape[pos] &- 1
+    }
+
+    mutating func advance() {
+        pos += 1
+        if pos >= tape.count {
+            tape.append(0)
+        }
+    }
+
+    mutating func devance() {
+        if pos > 0 {
+            pos -= 1
+        }
+    }
+}
+
+extension UInt8 {
+    static let plus = UInt8(ascii: "+")
+    static let minus = UInt8(ascii: "-")
+    static let left = UInt8(ascii: "<")
+    static let right = UInt8(ascii: ">")
+    static let open = UInt8(ascii: "[")
+    static let close = UInt8(ascii: "]")
+    static let output = UInt8(ascii: ".")
+    static let input = UInt8(ascii: ",")
+}
+
+struct Program {
+    private let commands: [UInt8]
+    private let jumps: [Int]
+
+    init?(text: String) {
+        guard let commands = Self.parseCommands(text),
+              let jumps = Self.buildJumpArray(commands) else {
+            return nil
+        }
+
+        self.commands = commands
+        self.jumps = jumps
+    }
+
+    private static func parseCommands(_ source: String) -> [UInt8]? {
+        let validCommands: Set<UInt8> = [
+            .plus, .minus, .left, .right,
+            .open, .close, .output, .input
+        ]
+
+        var commands: [UInt8] = []
+        commands.reserveCapacity(source.utf8.count)
+
+        for ascii in source.utf8 {
+            if validCommands.contains(ascii) {
+                commands.append(ascii)
+            }
+        }
+
+        return commands.isEmpty ? nil : commands
+    }
+
+    private static func buildJumpArray(_ commands: [UInt8]) -> [Int]? {
+        var jumps = [Int](repeating: 0, count: commands.count)
+        var stack: [Int] = []
+
+        for (i, cmd) in commands.enumerated() {
+            if cmd == .open {
+                stack.append(i)
+            } else if cmd == .close {
+                guard let start = stack.popLast() else {
+                    return nil
+                }
+                jumps[start] = i
+                jumps[i] = start
+            }
+        }
+
+        return stack.isEmpty ? jumps : nil
+    }
+
+    func run() -> UInt32? {
+        var tape = Tape()
+        var pc = 0
+        var result: UInt32 = 0
+
+        while pc < commands.count {
+            let cmd = commands[pc]
+
+            switch cmd {
+            case .plus:
+                tape.inc()
+
+            case .minus:
+                tape.dec()
+
+            case .right:
+                tape.advance()
+
+            case .left:
+                tape.devance()
+
+            case .open:
+                if tape.get() == 0 {
+                    pc = jumps[pc]
+                }
+
+            case .close:
+                if tape.get() != 0 {
+                    pc = jumps[pc]
+                }
+
+            case .output:
+                result = result &<< 2
+                result = result &+ UInt32(tape.get())
+
+            case .input:
+                break
+
+            default:
+                break
+            }
+
+            pc += 1
+        }
+
+        return result
+    }
+}
+
 class BrainfuckArray: BenchmarkProtocol {
     private var programText: String
     private var warmupText: String
@@ -33,111 +179,9 @@ class BrainfuckArray: BenchmarkProtocol {
     }
 
     private func runProgram(_ source: String) -> UInt32? {
-
-        guard let commands = parseCommands(source) else {
+        guard let program = Program(text: source) else {
             return nil
         }
-
-        guard let jumps = buildJumpArray(commands) else {
-            return nil
-        }
-
-        return interpret(commands, jumps)
-    }
-
-    private func parseCommands(_ source: String) -> [UInt8]? {
-
-        let validCommands: Set<UInt8> = [43, 45, 60, 62, 91, 93, 46, 44]
-
-        var commands: [UInt8] = []
-        commands.reserveCapacity(source.utf8.count)
-
-        for ascii in source.utf8 {
-            if validCommands.contains(ascii) {
-                commands.append(ascii)
-            }
-        }
-
-        return commands.isEmpty ? nil : commands
-    }
-
-    private func buildJumpArray(_ commands: [UInt8]) -> [Int]? {
-        var jumps = [Int](repeating: 0, count: commands.count)
-        var stack: [Int] = []
-
-        for (i, cmd) in commands.enumerated() {
-            if cmd == 91 { 
-                stack.append(i)
-            } else if cmd == 93 { 
-                guard let start = stack.popLast() else {
-                    return nil 
-                }
-                jumps[start] = i
-                jumps[i] = start
-            }
-        }
-
-        return stack.isEmpty ? jumps : nil
-    }
-
-    private func interpret(_ commands: [UInt8], _ jumps: [Int]) -> UInt32? {
-
-        var tape = [UInt8](repeating: 0, count: 30000)
-        var tapePtr = 0
-        var pc = 0
-        var result: UInt32 = 0
-
-        while pc < commands.count {
-            let cmd = commands[pc]
-
-            switch cmd {
-            case 43: 
-                tape[tapePtr] = tape[tapePtr] &+ 1
-
-            case 45: 
-                tape[tapePtr] = tape[tapePtr] &- 1
-
-            case 62: 
-                tapePtr += 1
-                if tapePtr >= tape.count {
-                    tape.append(0)
-                }
-
-            case 60: 
-                if tapePtr > 0 {
-                    tapePtr -= 1
-                }
-
-            case 91: 
-                if tape[tapePtr] == 0 {
-
-                    guard jumps.indices.contains(pc) else { return nil }
-                    pc = jumps[pc]
-                }
-
-            case 93: 
-                if tape[tapePtr] != 0 {
-
-                    guard jumps.indices.contains(pc) else { return nil }
-                    pc = jumps[pc]
-                }
-
-            case 46: 
-
-                result = result &<< 2
-                result = result &+ UInt32(tape[tapePtr])
-
-            case 44: 
-                break
-
-            default:
-
-                break
-            }
-
-            pc += 1
-        }
-
-        return result
+        return program.run()
     }
 }

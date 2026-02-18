@@ -1,3 +1,5 @@
+using DataStructures
+
 mutable struct BWTHuffEncode <: AbstractBenchmark
     size::Int64
     result::UInt32

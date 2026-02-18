@@ -7,6 +7,106 @@ pub struct BrainfuckArray {
     result_val: u32,
 }
 
+struct Tape {
+    tape: Vec<u8>,
+    pos: usize,
+}
+
+impl Tape {
+    fn new() -> Self {
+        Tape {
+            tape: vec![0; 30000],
+            pos: 0,
+        }
+    }
+
+    fn get(&self) -> u8 {
+        self.tape[self.pos]  
+    }
+
+    fn inc(&mut self) {
+        self.tape[self.pos] = self.tape[self.pos].wrapping_add(1);
+    }
+
+    fn dec(&mut self) {
+        self.tape[self.pos] = self.tape[self.pos].wrapping_sub(1);
+    }
+
+    fn advance(&mut self) {
+        self.pos += 1;
+        if self.pos >= self.tape.len() {
+            self.tape.push(0);
+        }
+    }
+
+    fn devance(&mut self) {
+        if self.pos > 0 {
+            self.pos -= 1;
+        }
+    }
+}
+
+struct Program {
+    commands: Vec<u8>,
+    jumps: Vec<usize>,
+}
+
+impl Program {
+    fn new(text: &str) -> Option<Self> {
+        let commands: Vec<u8> = text
+            .bytes()
+            .filter(|c| matches!(c, b'+' | b'-' | b'>' | b'<' | b'[' | b']' | b'.' | b','))
+            .collect();
+
+        if commands.is_empty() {
+            return None;
+        }
+
+        let mut jumps = vec![0; commands.len()];
+        let mut stack = Vec::new();
+
+        for (i, &cmd) in commands.iter().enumerate() {
+            match cmd {
+                b'[' => stack.push(i),
+                b']' => {
+                    let start = stack.pop()?;
+                    jumps[start] = i;
+                    jumps[i] = start;
+                }
+                _ => {}
+            }
+        }
+
+        if stack.is_empty() {
+            Some(Program { commands, jumps })
+        } else {
+            None
+        }
+    }
+
+    fn run(&self) -> Option<u32> {
+        let mut tape = Tape::new();
+        let mut pc = 0;
+        let mut result = 0u32;
+
+        while let Some(&cmd) = self.commands.get(pc) {
+            match cmd {
+                b'+' => tape.inc(),
+                b'-' => tape.dec(),
+                b'>' => tape.advance(),
+                b'<' => tape.devance(),
+                b'[' => if tape.get() == 0 { pc = self.jumps[pc]; },
+                b']' => if tape.get() != 0 { pc = self.jumps[pc]; },
+                b'.' => result = result.wrapping_shl(2).wrapping_add(tape.get() as u32),
+                _ => return None,
+            }
+            pc += 1;
+        }
+
+        Some(result)
+    }
+}
+
 impl BrainfuckArray {
     pub fn new() -> Self {
         Self {
@@ -17,93 +117,8 @@ impl BrainfuckArray {
     }
 
     fn run_program(&self, source: &str) -> Option<u32> {
-        let commands = Self::parse_commands(source)?;
-        let jumps = Self::build_jump_array(&commands)?;
-        Self::interpret(&commands, &jumps).ok()
-    }
-
-    fn parse_commands(source: &str) -> Option<Vec<u8>> {
-        Some(source
-            .bytes()
-            .filter(|c| c.is_ascii())
-            .filter(|&c| matches!(c, 
-                b'+' | b'-' | b'>' | b'<' | b'[' | b']' | b'.' | b','
-            ))
-            .collect())
-    }
-
-    fn build_jump_array(commands: &[u8]) -> Option<Vec<usize>> {
-        let mut jumps = vec![0; commands.len()];
-        let mut stack = Vec::new();
-
-        for (i, &cmd) in commands.iter().enumerate() {
-            match cmd {
-                b'[' => stack.push(i),
-                b']' => {
-                    let start = stack.pop()?;  
-                    jumps[start] = i;
-                    jumps[i] = start;
-                }
-                _ => {}
-            }
-        }
-
-        if stack.is_empty() {
-            Some(jumps)
-        } else {
-            None
-        }
-    }
-
-    fn interpret(commands: &[u8], jumps: &[usize]) -> Result<u32, &'static str> {
-        let mut tape = vec![0u8; 30000];
-        let mut tape_ptr = 0;
-        let mut pc = 0;
-        let mut result = 0u32;
-
-        while let Some(&cmd) = commands.get(pc) {
-            match cmd {
-                b'+' => {
-
-                    tape[tape_ptr] = tape[tape_ptr].wrapping_add(1);
-                }
-                b'-' => {
-                    tape[tape_ptr] = tape[tape_ptr].wrapping_sub(1);
-                }
-                b'>' => {
-                    tape_ptr += 1;
-                    if tape_ptr >= tape.len() {
-                        tape.push(0);  
-                    }
-                }
-                b'<' => {
-
-                    tape_ptr = tape_ptr.checked_sub(1).unwrap_or(0);
-                }
-                b'[' => {
-                    if tape[tape_ptr] == 0 {
-
-                        pc = *jumps.get(pc).ok_or("Jump index out of bounds")?;
-                    }
-                }
-                b']' => {
-                    if tape[tape_ptr] != 0 {
-                        pc = *jumps.get(pc).ok_or("Jump index out of bounds")?;
-                    }
-                }
-                b'.' => {
-
-                    result = result
-                        .checked_shl(2)
-                        .and_then(|r| r.checked_add(tape[tape_ptr] as u32))
-                        .ok_or("Result overflow")?;
-                }
-                _ => return Err("Invalid command encountered"),
-            }
-            pc += 1;
-        }
-
-        Ok(result)
+        let program = Program::new(source)?;
+        program.run()
     }
 }
 

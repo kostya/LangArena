@@ -28,7 +28,6 @@ public:
     }
 
     override void run(int iterationId) {
-
         string header = "P4\n" ~ to!string(w) ~ " " ~ to!string(h) ~ "\n";
         resultBin ~= cast(ubyte[])header;
 

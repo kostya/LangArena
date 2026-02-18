@@ -132,9 +132,7 @@ public:
         size_t count = 0;
 
         if (coords.kind == Asdf.Kind.array) {
-
             foreach (coord; coords.byElement) {
-
                 x_sum += coord["x"].get!double(0.0);
                 y_sum += coord["y"].get!double(0.0);
                 z_sum += coord["z"].get!double(0.0);

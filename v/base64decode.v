@@ -3,13 +3,14 @@ module base64decode
 import benchmark
 import helper
 import encoding.base64 as b64
+import strings
 
 pub struct Base64Decode {
 	benchmark.BaseBenchmark
 	size_val i64
 mut:
 	encoded    string
-	decoded    string
+	decoded    []byte
 	result_val u32
 }
 
@@ -20,7 +21,7 @@ pub fn new_base64decode() &benchmark.IBenchmark {
 		BaseBenchmark: benchmark.new_base_benchmark('Base64Decode')
 		size_val:      size_val
 		encoded:       ''
-		decoded:       ''
+		decoded:       []
 		result_val:    0
 	}
 
@@ -31,25 +32,10 @@ pub fn (b Base64Decode) name() string {
 	return 'Base64Decode'
 }
 
-fn (mut b Base64Decode) prepare_for_checksum() {
-
-	mut str := ''
-	for _ in 0 .. b.size_val {
-		str += 'a'
-	}
-
-	b.encoded = b64.encode(str.bytes())
-	decoded_bytes := b64.decode(b.encoded)
-	b.decoded = decoded_bytes.bytestr()
-}
-
 pub fn (mut b Base64Decode) run(iteration_id int) {
 	_ = iteration_id
-
-	decoded_bytes := b64.decode(b.encoded)
-	decoded := decoded_bytes.bytestr()
-
-	b.result_val += u32(decoded.len)
+	b.decoded = b64.decode(b.encoded)
+	b.result_val += u32(b.decoded.len)
 }
 
 pub fn (b Base64Decode) checksum() u32 {
@@ -64,10 +50,12 @@ pub fn (b Base64Decode) checksum() u32 {
 
 	desc += ' to '
 
-	if b.decoded.len > 4 {
-		desc += b.decoded[..4] + '...'
+	str3 := b.decoded[0..5].bytestr() 
+
+	if str3.len > 4 {
+		desc += str3[..4] + '...'
 	} else {
-		desc += b.decoded
+		desc += str3
 	}
 
 	desc += ': ${b.result_val}'
@@ -76,6 +64,9 @@ pub fn (b Base64Decode) checksum() u32 {
 }
 
 pub fn (mut b Base64Decode) prepare() {
-	b.prepare_for_checksum()
+	mut str := strings.repeat(`a`, int(b.size_val))
+
+	b.encoded = b64.encode(str.bytes())
+	b.decoded = b64.decode(b.encoded)
 	b.result_val = 0
 }

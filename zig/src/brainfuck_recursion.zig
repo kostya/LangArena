@@ -8,12 +8,11 @@ pub const BrainfuckRecursion = struct {
     text: []const u8,
     result_val: u32,
 
-    const OpType = enum { inc, move, loop, print };
+    const OpType = enum { inc, dec, right, left, print, loop };
 
     const Op = struct {
         op_type: OpType,
-        val: i32 = 0,
-        loop: []const Op = &.{},
+        loop: []const Op = &.{}, 
     };
 
     const Tape = struct {
@@ -21,8 +20,7 @@ pub const BrainfuckRecursion = struct {
         pos: usize = 0,
 
         fn init(allocator: std.mem.Allocator) !Tape {
-            const initial_size = 65536;
-            const data = try allocator.alloc(u8, initial_size);
+            const data = try allocator.alloc(u8, 30000);
             @memset(data, 0);
             return Tape{ .data = data };
         }
@@ -35,29 +33,27 @@ pub const BrainfuckRecursion = struct {
             return self.data[self.pos];
         }
 
-        inline fn inc(self: *Tape, x: i32) void {
-            const current = self.data[self.pos];
-            const new_val = @as(i32, current) + x;
-            self.data[self.pos] = @as(u8, @intCast(new_val & 0xFF));
+        inline fn inc(self: *Tape) void {
+            self.data[self.pos] +%= 1;
         }
 
-        fn move(self: *Tape, allocator: std.mem.Allocator, x: i32) void {
-            if (x >= 0) {
-                const new_pos = self.pos + @as(usize, @intCast(x));
-                if (new_pos >= self.data.len) {
-                    const new_len = @max(self.data.len * 2, new_pos + 1);
-                    const new_data = allocator.realloc(self.data, new_len) catch return;
-                    @memset(new_data[self.data.len..], 0);
-                    self.data = new_data;
-                }
-                self.pos = new_pos;
-            } else {
-                const move_left = @as(usize, @intCast(-x));
-                if (move_left > self.pos) {
-                    self.pos = 0;
-                } else {
-                    self.pos -= move_left;
-                }
+        inline fn dec(self: *Tape) void {
+            self.data[self.pos] -%= 1;
+        }
+
+        fn right(self: *Tape, allocator: std.mem.Allocator) !void {
+            self.pos += 1;
+            if (self.pos >= self.data.len) {
+                const new_len = self.data.len + 1;
+                const new_data = try allocator.realloc(self.data, new_len);
+                new_data[self.data.len] = 0;
+                self.data = new_data;
+            }
+        }
+
+        fn left(self: *Tape) void {
+            if (self.pos > 0) {
+                self.pos -= 1;
             }
         }
     };
@@ -85,22 +81,24 @@ pub const BrainfuckRecursion = struct {
             defer tape.deinit(self.allocator);
 
             var result: u32 = 0;
-            self.runOps(self.ops, &tape, &result);
+            try self.runOps(self.ops, &tape, &result);
             return result;
         }
 
-        fn runOps(self: *Program, ops: []const Op, tape: *Tape, result: *u32) void {
+        fn runOps(self: *Program, ops: []const Op, tape: *Tape, result: *u32) !void {
             for (ops) |op| {
                 switch (op.op_type) {
-                    .inc => tape.inc(op.val),
-                    .move => tape.move(self.allocator, op.val),
-                    .loop => {
-                        while (tape.get() != 0) {
-                            self.runOps(op.loop, tape, result);
-                        }
-                    },
+                    .inc => tape.inc(),
+                    .dec => tape.dec(),
+                    .right => try tape.right(self.allocator),
+                    .left => tape.left(),
                     .print => {
                         result.* = (result.* << 2) +% tape.get();
+                    },
+                    .loop => {
+                        while (tape.get() != 0) {
+                            try self.runOps(op.loop, tape, result);
+                        }
                     },
                 }
             }
@@ -133,10 +131,10 @@ pub const BrainfuckRecursion = struct {
 
         while (iter.next()) |c| {
             switch (c) {
-                '+' => try ops.append(allocator, .{ .op_type = .inc, .val = 1 }),
-                '-' => try ops.append(allocator, .{ .op_type = .inc, .val = -1 }),
-                '>' => try ops.append(allocator, .{ .op_type = .move, .val = 1 }),
-                '<' => try ops.append(allocator, .{ .op_type = .move, .val = -1 }),
+                '+' => try ops.append(allocator, .{ .op_type = .inc }),
+                '-' => try ops.append(allocator, .{ .op_type = .dec }),
+                '>' => try ops.append(allocator, .{ .op_type = .right }),
+                '<' => try ops.append(allocator, .{ .op_type = .left }),
                 '.' => try ops.append(allocator, .{ .op_type = .print }),
                 '[' => {
                     const loop_ops = try parse(allocator, iter);

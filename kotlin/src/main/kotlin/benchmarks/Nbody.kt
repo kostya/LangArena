@@ -25,9 +25,10 @@ class Nbody : Benchmark() {
             var vz: Double = vz * DAYS_PER_YEAR
             var mass: Double = mass * SOLAR_MASS
 
-            fun moveFromI(bodies: List<Planet>, nbodies: Int, dt: Double, i: Int) {
+            fun moveFromI(bodies: List<Planet>, dt: Double, i: Int) {
                 var idx = i
-                while (idx < nbodies) {
+                val size = bodies.size
+                while (idx < size) {
                     val b2 = bodies[idx]
                     val dx = x - b2.x
                     val dy = y - b2.y
@@ -152,14 +153,10 @@ class Nbody : Benchmark() {
     }
 
     override fun run(iterationId: Int) {
-        val nbodies = bodies.size
-        val dt = 0.01
-
-        var i = 0
-        while (i < nbodies) {
-            val b = bodies[i]
-            b.moveFromI(bodies, nbodies, dt, i + 1)
-            i++
+        repeat(1000) {
+            for ((i, b) in bodies.withIndex()) {
+                b.moveFromI(bodies, 0.01, i + 1)
+            }
         }
     }
 

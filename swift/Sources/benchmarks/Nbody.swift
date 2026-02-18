@@ -127,13 +127,16 @@ final class Nbody: BenchmarkProtocol {
 
     func run(iterationId: Int) {
         let nbodies = bodies.count
-        let dt = 0.01
 
-        var i = 0
-        while i < nbodies {
-            let b = bodies[i]
-            b.moveFromI(bodies, nbodies, dt, i + 1)
-            i += 1
+        var j = 0
+        while j < 1000 {
+            var i = 0
+            while i < nbodies {
+                let b = bodies[i]
+                b.moveFromI(bodies, nbodies, 0.01, i + 1)
+                i += 1
+            }
+            j += 1
         }
     }
 

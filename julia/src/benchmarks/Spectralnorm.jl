@@ -14,8 +14,7 @@ end
 
 name(b::Spectralnorm)::String = "Spectralnorm"
 
-@inline function eval_A(i::Int64, j::Int64)::Float64
-
+function eval_A(i::Int64, j::Int64)::Float64
     ij = Float64(i + j)
     return 1.0 / ((ij * (ij + 1.0)) / 2.0 + Float64(i) + 1.0)
 end
@@ -24,9 +23,9 @@ function eval_A_times_u(u::Vector{Float64})::Vector{Float64}
     n = length(u)
     v = Vector{Float64}(undef, n)
 
-    @inbounds for i in 1:n
+    for i in 1:n
         s = 0.0
-        @simd for j in 1:n
+        for j in 1:n
             s += eval_A(i-1, j-1) * u[j]  
         end
         v[i] = s
@@ -39,9 +38,9 @@ function eval_At_times_u(u::Vector{Float64})::Vector{Float64}
     n = length(u)
     v = Vector{Float64}(undef, n)
 
-    @inbounds for i in 1:n
+    for i in 1:n
         s = 0.0
-        @simd for j in 1:n
+        for j in 1:n
             s += eval_A(j-1, i-1) * u[j]  
         end
         v[i] = s
@@ -51,7 +50,6 @@ function eval_At_times_u(u::Vector{Float64})::Vector{Float64}
 end
 
 function eval_AtA_times_u(u::Vector{Float64})::Vector{Float64}
-
     Au = eval_A_times_u(u)
     return eval_At_times_u(Au)
 end
@@ -64,7 +62,7 @@ end
 function checksum(b::Spectralnorm)::UInt32
     vBv = vv = 0.0
 
-    @inbounds for i in 1:b.size
+    for i in 1:b.size
         vBv += b.u[i] * b.v[i]
         vv += b.v[i] * b.v[i]
     end

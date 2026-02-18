@@ -3,23 +3,33 @@ namespace Benchmarks
 open System
 open System.Collections.Generic
 
-type ArrayTape() =
-    let mutable tape = Array.zeroCreate<byte> 30000
-    let mutable pos = 0
+[<Struct>]
+type ArrayTape =
+    val mutable tape: byte[]
+    val mutable pos: int
 
-    member _.Get() = tape.[pos]
+    new(tape: byte[], pos: int) = 
+        { tape = tape
+          pos = pos }
 
-    member _.Inc() = tape.[pos] <- tape.[pos] + 1uy
+    static member Default() : ArrayTape =
+        ArrayTape(Array.zeroCreate<byte> 30000, 0)
 
-    member _.Dec() = tape.[pos] <- tape.[pos] - 1uy
+    member this.Get() : byte = this.tape.[this.pos]
 
-    member _.Advance() =
-        pos <- pos + 1
-        if pos >= tape.Length then
-            Array.Resize(&tape, tape.Length + 1)  
+    member this.Inc() : unit = 
+        this.tape.[this.pos] <- this.tape.[this.pos] + 1uy
 
-    member _.Devance() =
-        if pos > 0 then pos <- pos - 1
+    member this.Dec() : unit = 
+        this.tape.[this.pos] <- this.tape.[this.pos] - 1uy
+
+    member this.Advance() : unit =
+        this.pos <- this.pos + 1
+        if this.pos >= this.tape.Length then
+            Array.Resize(&this.tape, this.tape.Length + 1)
+
+    member this.Devance() : unit =
+        if this.pos > 0 then this.pos <- this.pos - 1
 
 type BrainfuckArrayProgram(text: string) =
     let commands = ResizeArray<byte>()
@@ -45,8 +55,8 @@ type BrainfuckArrayProgram(text: string) =
 
         jumps <- jumpsArray
 
-    member _.Run() : uint32 =
-        let tape = ArrayTape()
+    member _.RunInternal(commands: ResizeArray<byte>, jumps: int[]) : uint32 =
+        let mutable tape = ArrayTape.Default()
         let mutable pc = 0
         let mutable result = 0u
 
@@ -74,6 +84,8 @@ type BrainfuckArrayProgram(text: string) =
 
         result
 
+    member this.Run() : uint32 = this.RunInternal(commands, jumps)
+
 type BrainfuckArray() =
     inherit Benchmark()
 
@@ -99,87 +111,83 @@ type BrainfuckArray() =
         result <- result + program.Run()
 
 type BfOp =
-    | OpInc of int
-    | OpMove of int
-    | OpPrint
-    | OpLoop of BfOp list
+    | OpInc      
+    | OpDec      
+    | OpNext     
+    | OpPrev     
+    | OpPrint    
+    | OpLoop of BfOp list  
 
 type RecTape() =
-    let mutable tape = Array.zeroCreate<byte> 1024
+    let mutable tape = Array.zeroCreate<byte> 30000
     let mutable pos = 0
 
     member _.Get() = tape.[pos]
+    member _.Inc() = tape.[pos] <- tape.[pos] + 1uy
+    member _.Dec() = tape.[pos] <- tape.[pos] - 1uy
 
-    member _.Inc(x: int) = 
-        tape.[pos] <- byte (int tape.[pos] + x)
+    member _.Next() =
+        pos <- pos + 1
+        if pos >= tape.Length then
+            Array.Resize(&tape, pos + 1)
 
-    member _.Move(x: int) =
-        if x >= 0 then
-            pos <- pos + x
-            if pos >= tape.Length then
-                let newSize = max (tape.Length * 2) (pos + 1)
-                Array.Resize(&tape, newSize)
-        else
-            let moveLeft = -x
-            if moveLeft > int pos then
-                let needed = moveLeft - int pos
-                let newTape = Array.zeroCreate<byte> (tape.Length + needed)
-                Array.Copy(tape, 0, newTape, needed, tape.Length)
-                tape <- newTape
-                pos <- needed
-            else
-                pos <- pos - moveLeft
+    member _.Prev() =
+        if pos > 0 then pos <- pos - 1
 
 type BrainfuckRecursionProgram(code: string) =
     let mutable result = 0u
+    let ops = BrainfuckRecursionProgram.Parse(code)
 
-    static member private Parse(it: int byref, code: string) : BfOp list =
-        let rec parseLoop currentPos acc =
-            if currentPos >= code.Length then
-                (List.rev acc, currentPos)
+    static member Parse(code: string) : BfOp list =
+        let rec parseLoop pos =
+            if pos >= code.Length then
+                ([], pos)
             else
-                let c = code.[currentPos]
-                match c with
-                | '+' -> parseLoop (currentPos + 1) (OpInc(1) :: acc)
-                | '-' -> parseLoop (currentPos + 1) (OpInc(-1) :: acc)
-                | '>' -> parseLoop (currentPos + 1) (OpMove(1) :: acc)
-                | '<' -> parseLoop (currentPos + 1) (OpMove(-1) :: acc)
-                | '.' -> parseLoop (currentPos + 1) (OpPrint :: acc)
+                match code.[pos] with
+                | '+' -> 
+                    let (rest, nextPos) = parseLoop (pos + 1)
+                    (OpInc :: rest, nextPos)
+                | '-' -> 
+                    let (rest, nextPos) = parseLoop (pos + 1)
+                    (OpDec :: rest, nextPos)
+                | '>' -> 
+                    let (rest, nextPos) = parseLoop (pos + 1)
+                    (OpNext :: rest, nextPos)
+                | '<' -> 
+                    let (rest, nextPos) = parseLoop (pos + 1)
+                    (OpPrev :: rest, nextPos)
+                | '.' -> 
+                    let (rest, nextPos) = parseLoop (pos + 1)
+                    (OpPrint :: rest, nextPos)
                 | '[' ->
-                    let (innerOps, newPos) = parseLoop (currentPos + 1) []
-                    parseLoop newPos (OpLoop(innerOps) :: acc)
-                | ']' -> (List.rev acc, currentPos + 1)
-                | _ -> parseLoop (currentPos + 1) acc
+                    let (inner, nextPos) = parseLoop (pos + 1)
+                    let (rest, finalPos) = parseLoop nextPos
+                    (OpLoop(inner) :: rest, finalPos)
+                | ']' -> ([], pos + 1)
+                | _ -> parseLoop (pos + 1)
 
-        let (ops, newPos) = parseLoop it []
-        it <- newPos
+        let (ops, _) = parseLoop 0
         ops
 
-    member private this.RunOps(ops: BfOp list, tape: RecTape) =
-        let rec execute op =
-            match op with
-            | OpInc(x) -> tape.Inc(x)
-            | OpMove(x) -> tape.Move(x)
-            | OpPrint -> 
-
-                let r64 = int64 result
-                let v64 = int64 (tape.Get())
-                result <- uint32 ((r64 <<< 2) + v64)
-            | OpLoop(innerOps) ->
-                while tape.Get() <> 0uy do
-                    for innerOp in innerOps do
-                        execute innerOp
-
-        for op in ops do
-            execute op
-
     member this.Run() =
-        let mutable index = 0
-        let ops = BrainfuckRecursionProgram.Parse(&index, code)
         let tape = RecTape()
-        this.RunOps(ops, tape)
+        result <- 0u
 
-    member this.Result = result
+        let rec runOps ops =
+            for op in ops do
+                match op with
+                | OpInc -> tape.Inc()
+                | OpDec -> tape.Dec()
+                | OpNext -> tape.Next()
+                | OpPrev -> tape.Prev()
+                | OpPrint -> 
+                    result <- (result <<< 2) + uint32(tape.Get())
+                | OpLoop(inner) ->
+                    while tape.Get() <> 0uy do
+                        runOps inner
+
+        runOps ops
+        result
 
 type BrainfuckRecursion() =
     inherit Benchmark()
@@ -198,10 +206,8 @@ type BrainfuckRecursion() =
     override this.Warmup() =
         let prepareIters = base.WarmupIterations
         for i in 0L .. prepareIters - 1L do
-            let program = BrainfuckRecursionProgram(warmupText)
-            program.Run() |> ignore
+            BrainfuckRecursionProgram(warmupText).Run() |> ignore
 
     override this.Run(_: int64) =
         let program = BrainfuckRecursionProgram(text)
-        program.Run()
-        result <- result + program.Result
+        result <- result + program.Run()

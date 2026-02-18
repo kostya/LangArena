@@ -11,7 +11,7 @@ struct CoordinatesData: Codable {
 }
 
 final class JsonParseMapping: BenchmarkProtocol {
-    private var jsonData: Data?
+    private var text: String = ""
     private var resultVal: UInt32 = 0
 
     init() {
@@ -27,22 +27,19 @@ final class JsonParseMapping: BenchmarkProtocol {
         let mirror = Mirror(reflecting: generator)
         for child in mirror.children {
             if child.label == "text" {
-                if let jsonString = child.value as? String,
-                   let data = jsonString.data(using: .utf8) {
-                    jsonData = data
-                }
+                text = child.value as? String ?? ""
                 break
             }
         }
     }
 
     private func calcMapping() -> (Double, Double, Double) {
-        guard let jsonData = jsonData else {
+        guard let data = text.data(using: .utf8) else {
             return (0, 0, 0)
         }
 
         do {
-            let decoded = try JSONDecoder().decode(CoordinatesData.self, from: jsonData)
+            let decoded = try JSONDecoder().decode(CoordinatesData.self, from: data)
             let coordinates = decoded.coordinates
             let count = Double(coordinates.count)
 

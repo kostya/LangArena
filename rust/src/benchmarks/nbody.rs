@@ -169,12 +169,14 @@ impl Benchmark for Nbody {
         let nbodies = self.bodies.len();
         let dt = 0.01;
 
-        let mut i = 0;
-        while i < nbodies {
-            let mut b = self.bodies[i].clone();
-            b.move_from_i(&mut self.bodies, nbodies, dt, i + 1);
-            self.bodies[i] = b;
-            i += 1;
+        for _ in 0..1000 {
+            let mut i = 0;
+            while i < nbodies {
+                let mut b = self.bodies[i].clone();
+                b.move_from_i(&mut self.bodies, nbodies, dt, i + 1);
+                self.bodies[i] = b;
+                i += 1;
+            }
         }
     }
 

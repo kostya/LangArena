@@ -16,60 +16,58 @@ class BrainfuckArray : Benchmark() {
         private var tape = ByteArray(30000)
         private var pos = 0
 
-        fun get(): Byte {
-            return tape[pos]
+        private fun ensureCapacity() {
+            if (pos >= tape.size) {
+                tape = tape.copyOf(tape.size + 1)  
+            }
         }
 
+        fun get(): Byte = tape[pos]
+
         fun inc() {
-            tape[pos] = (tape[pos] + 1).toByte() 
+            tape[pos] = (tape[pos] + 1).toByte()
         }
 
         fun dec() {
-            tape[pos] = (tape[pos] - 1).toByte() 
+            tape[pos] = (tape[pos] - 1).toByte()
         }
 
         fun advance() {
-            pos += 1
-            if (pos >= tape.size) {
-
-                val newTape = ByteArray(tape.size * 2)
-                tape.copyInto(newTape)
-                tape = newTape
-            }
+            pos++
+            ensureCapacity()
         }
 
         fun devance() {
-            if (pos > 0) {
-                pos -= 1
-            }
+            if (pos > 0) pos--
         }
     }
 
     class Program(private val text: String) {
         private val commands: ByteArray
-        private val jumps: IntArray 
+        private val jumps: IntArray
 
         init {
 
-            val commandList = mutableListOf<Byte>()
-            text.forEach { char ->
-                if ("[]<>+-,.".contains(char)) {
-                    commandList.add(char.code.toByte())
+            val cmdList = mutableListOf<Byte>()
+            for (c in text) {
+                if (c in "[]<>+-,.") {
+                    cmdList.add(c.code.toByte())
                 }
             }
-
-            commands = commandList.toByteArray()
+            commands = cmdList.toByteArray()
 
             jumps = IntArray(commands.size)
-            val stack = mutableListOf<Int>()
+            val stack = IntArray(commands.size)  
+            var sp = 0  
 
-            commands.forEachIndexed { i, cmdByte ->
-                val cmd = cmdByte.toInt().toChar() 
-                when (cmd) {
-                    '[' -> stack.add(i)
+            for (i in commands.indices) {
+                when (commands[i].toInt().toChar()) {
+                    '[' -> {
+                        stack[sp++] = i  
+                    }
                     ']' -> {
-                        if (stack.isNotEmpty()) {
-                            val start = stack.removeAt(stack.size - 1)
+                        if (sp > 0) {
+                            val start = stack[--sp]  
                             jumps[start] = i
                             jumps[i] = start
                         }
@@ -82,54 +80,37 @@ class BrainfuckArray : Benchmark() {
             var result = 0L
             val tape = Tape()
             var pc = 0
+            val cmds = commands  
+            val jmps = jumps
 
-            while (pc < commands.size) {
-                val cmd = commands[pc].toInt().toChar() 
-                when (cmd) {
+            while (pc < cmds.size) {
+                when (val cmd = cmds[pc].toInt().toChar()) {
                     '+' -> tape.inc()
                     '-' -> tape.dec()
                     '>' -> tape.advance()
                     '<' -> tape.devance()
-                    '[' -> {
-                        if (tape.get().toInt() == 0) {
-                            pc = jumps[pc]
-                            continue 
-                        }
-                    }
-                    ']' -> {
-                        if (tape.get().toInt() != 0) {
-                            pc = jumps[pc]
-                            continue 
-                        }
-                    }
-                    '.' -> {
-
-                        result = (result shl 2) + tape.get().toUByte().toLong()
-                    }
+                    '[' -> if (tape.get() == 0.toByte()) pc = jmps[pc]
+                    ']' -> if (tape.get() != 0.toByte()) pc = jmps[pc]
+                    '.' -> result = (result shl 2) + (tape.get().toUByte().toLong())
                 }
-                pc += 1
+                pc++
             }
-
             return result
         }
     }
 
-    private fun runProgram(text: String): Long {
-        return Program(text).run()
-    }
+    private fun runProgram(text: String): Long = Program(text).run()
 
     override fun warmup() {
-        val prepareIters = warmupIterations()
-        for (i in 0 until prepareIters) {
+        repeat(warmupIterations().toInt()) {
             runProgram(warmupText)
         }
     }
 
     override fun run(iterationId: Int) {
-        resultVal = resultVal.plus(runProgram(programText).toUInt())
+        resultVal += runProgram(programText).toUInt()
     }
 
     override fun checksum(): UInt = resultVal
-
     override fun name(): String = "BrainfuckArray"
 }

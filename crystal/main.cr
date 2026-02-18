@@ -154,9 +154,9 @@ abstract class Benchmark
 
         Helper.reset
 
-        t = Time.monotonic
+        t = Time.instant
         bench.run_all
-        time_delta = (Time.monotonic - t).to_f
+        time_delta = (Time.instant - t).to_f
 
         results["{{kl.id}}"] = time_delta
 
@@ -313,7 +313,7 @@ class BrainfuckArray < Benchmark
     jumps = build_jump_array(commands)
     return nil unless jumps
 
-    interpret(commands, jumps)
+    _run(commands, jumps)
   end
 
   private def parse_commands(source : String) : Array(Char)?
@@ -342,44 +342,60 @@ class BrainfuckArray < Benchmark
     stack.empty? ? jumps : nil
   end
 
-  private def interpret(commands : Array(Char), jumps : Array(Int32)) : UInt32?
-    tape = Array.new(30000, 0_u8)
-    tape_ptr = 0
+  struct Tape
+    getter tape = Array(UInt8).new(30000, 0_u8)
+    property pos = 0
+
+    def get
+      @tape[@pos]
+    end
+
+    def inc
+      @tape[@pos] &+= 1
+    end
+
+    def dec
+      @tape[@pos] &-= 1
+    end
+
+    def adv
+      @pos += 1
+      @tape << 0 if @pos >= @tape.size
+    end
+
+    def dev
+      @pos -= 1
+      @pos = 0 if @pos < 0
+    end
+  end
+
+  private def _run(commands : Array(Char), jumps : Array(Int32)) : UInt32?
+    tape = Tape.new
     pc = 0
     result = 0_u32
 
     while pc < commands.size
       case commands[pc]
-      when '+'
-        tape[tape_ptr] &+= 1
-      when '-'
-        tape[tape_ptr] &-= 1
-      when '>'
-        tape_ptr += 1
-        tape << 0 if tape_ptr >= tape.size
-      when '<'
-        tape_ptr = (tape_ptr - 1).clamp(0, Int32::MAX)
+      when '+'; tape.inc
+      when '-'; tape.dec
+      when '>'; tape.adv
+      when '<'; tape.dev
       when '['
-        if tape[tape_ptr] == 0
-          jump_to = jumps[pc]?
-          return nil unless jump_to
-          pc = jump_to
+        if tape.get == 0
+          pc = jumps[pc]
           next
         end
       when ']'
-        if tape[tape_ptr] != 0
-          jump_to = jumps[pc]?
-          return nil unless jump_to
-          pc = jump_to
+        if tape.get != 0
+          pc = jumps[pc]
           next
         end
       when '.'
         result <<= 2
-        result &+= tape[tape_ptr]
+        result &+= tape.get
       end
       pc += 1
     end
-
     result
   rescue
     nil
@@ -387,110 +403,124 @@ class BrainfuckArray < Benchmark
 end
 
 class BrainfuckRecursion < Benchmark
-  module Op
-    record Inc, val : Int32
-    record Move, val : Int32
-    record Print
-    alias T = Inc | Move | Print | Array(Op::T)
-  end
+  record Inc
+  record Dec
+  record Advance
+  record Devance
+  record Print
+  alias Op = Inc | Dec | Advance | Devance | Print | Array(Op)
 
-  class Tape
+  struct Tape
     def initialize
-      @tape = [0_u8]
+      @tape = Array(UInt8).new(30000, 0_u8)
       @pos = 0
     end
 
-    @[AlwaysInline]
-    def get
+    def get : UInt8
       @tape[@pos]
     end
 
-    @[AlwaysInline]
-    def inc(x)
-      @tape[@pos] += x
+    def inc
+      @tape[@pos] &+= 1
     end
 
-    @[AlwaysInline]
-    def move(x)
-      @pos += x
-      while @pos >= @tape.size
-        @tape << 0
+    def dec
+      @tape[@pos] &-= 1
+    end
+
+    def advance
+      @pos += 1
+      if @pos >= @tape.size
+        @tape << 0_u8
+      end
+    end
+
+    def devance
+      if @pos > 0
+        @pos -= 1
       end
     end
   end
 
   class Program
-    property result
-    @ops : Array(Op::T)
+    @ops : Array(Op)
+    @result : Int64
 
     def initialize(code : String)
-      @ops = parse(code.each_char)
+      it = code.each_char
+      @ops = parse(it)
       @result = 0_i64
+    end
+
+    def result
+      @result
     end
 
     def run
       tape = Tape.new
-      @ops.each { |op| _run(op, tape) }
+      run_ops(@ops, tape)
     end
 
-    def _run(op : Op::Inc, tape)
-      tape.inc(op.val)
-    end
-
-    def _run(op : Op::Move, tape)
-      tape.move(op.val)
-    end
-
-    def _run(ops : Array(Op::T), tape)
-      while tape.get != 0
-        ops.each { |op| _run(op, tape) }
+    def run_ops(ops : Array(Op), tape)
+      ops.each do |op|
+        case op
+        when Inc
+          tape.inc
+        when Dec
+          tape.dec
+        when Advance
+          tape.advance
+        when Devance
+          tape.devance
+        when Print
+          @result = (@result << 2) + tape.get
+        when Array(Op)
+          while tape.get != 0
+            run_ops(op, tape)
+          end
+        end
       end
     end
 
-    def _run(op : Op::Print, tape)
-      @result = (@result << 2) &+ tape.get.chr.ord
-    end
-
-    private def parse(iterator)
-      res = [] of Op::T
-      iterator.each do |c|
-        op = case c
-             when '+'; Op::Inc.new(1)
-             when '-'; Op::Inc.new(-1)
-             when '>'; Op::Move.new(1)
-             when '<'; Op::Move.new(-1)
-             when '.'; Op::Print.new
-             when '['; parse(iterator)
-             when ']'; break
-             else
-             end
-        res << op if op
+    private def parse(it : Iterator(Char))
+      ops = [] of Op
+      it.each do |c|
+        case c
+        when '+'; ops << Inc.new
+        when '-'; ops << Dec.new
+        when '>'; ops << Advance.new
+        when '<'; ops << Devance.new
+        when '.'; ops << Print.new
+        when '['; ops << parse(it)
+        when ']'; break
+        end
       end
-      res
+      ops
     end
   end
 
   @text : String
+  @result : UInt32
 
   def initialize
-    @text = Helper.config_s(self.class.name.to_s, "program")
+    @text = Helper.config_s("BrainfuckRecursion", "program")
     @result = 0_u32
   end
 
   def warmup
     warmup_iterations.times do
-      _run(Helper.config_s(self.class.name.to_s, "warmup_program"))
+      run_text(Helper.config_s("BrainfuckRecursion", "warmup_program"))
     end
   end
 
-  private def _run(text : String)
+  private def run_text(text : String)
     prog = Program.new(text)
     prog.run
     prog.result
   end
 
   def run(iteration_id)
-    @result &+= _run(@text)
+    @result &+= run_text(@text).to_u32!
   end
 
   def checksum : UInt32
@@ -504,6 +534,7 @@ class Fannkuchredux < Benchmark
     perm = StaticArray(Int32, 32).new(0)
     count = StaticArray(Int32, 32).new(0)
     maxFlipsCount = permCount = checksum = 0
+    n = 32 if n > 32
     r = n
 
     while true
@@ -519,7 +550,7 @@ class Fannkuchredux < Benchmark
         k2 = (k + 1) >> 1
         (0...k2).each do |i|
           j = k - i
-          perm[i], perm[j] = perm[j], perm[i]
+          perm.swap(i, j)
         end
         flipsCount += 1
       end
@@ -533,7 +564,7 @@ class Fannkuchredux < Benchmark
         perm0 = perm1[0]
         (0...r).each do |i|
           j = i + 1
-          perm1[i], perm1[j] = perm1[j], perm1[i]
+          perm1.swap(i, j)
         end
 
         perm1[r] = perm0
@@ -918,8 +949,8 @@ class Nbody < Benchmark
       @mass = mass * SOLAR_MASS
     end
 
-    def move_from_i(bodies, nbodies, dt, i)
-      while i < nbodies
+    def move_from_i(bodies, dt, i)
+      while i < bodies.size
         b2 = bodies[i]
         dx = @x - b2.x
         dy = @y - b2.y
@@ -1022,29 +1053,25 @@ class Nbody < Benchmark
 
   def initialize
     @result = 0_u32
-    @body = BODIES
+    @bodies = BODIES
     @v1 = 0_f64
   end
 
   def prepare
-    offset_momentum(@body)
-    @v1 = energy(@body)
+    offset_momentum(@bodies)
+    @v1 = energy(@bodies)
   end
 
   def run(iteration_id)
-    nbodies = @body.size
-    dt = 0.01
-
-    i = 0
-    while i < nbodies
-      b = @body[i]
-      b.move_from_i(@body, nbodies, dt, i + 1)
-      i += 1
+    1000.times do
+      @bodies.each_with_index do |b, i|
+        b.move_from_i(@bodies, 0.01, i + 1)
+      end
     end
   end
 
   def checksum : UInt32
-    v2 = energy(@body)
+    v2 = energy(@bodies)
     (Helper.checksum_f64(@v1) << 5) & Helper.checksum_f64(v2)
   end
 end
@@ -2114,9 +2141,11 @@ end
 class GraphPathBenchmark < Benchmark
   class Graph
     property vertices : Int32
+    property jumps : Int32
+    property jump_len : Int32
     property adj : Array(Array(Int32))
 
-    def initialize(@vertices : Int32, @components : Int32 = 10)
+    def initialize(@vertices : Int32, @jumps : Int32 = 3, @jump_len : Int32 = 100)
       @adj = Array.new(@vertices) { [] of Int32 }
     end
 
@@ -2126,76 +2155,36 @@ class GraphPathBenchmark < Benchmark
     end
 
     def generate_random
-      component_size = @vertices // @components
+      (1...@vertices).each do |i|
+        add_edge(i, i - 1)
+      end
 
-      @components.times do |c|
-        start_idx = c * component_size
-        end_idx = (c + 1) * component_size
-        end_idx = @vertices if c == @components - 1
+      @vertices.times do |v|
+        Helper.next_int(@jumps).times do
+          offset = Helper.next_int(@jump_len) - @jump_len // 2
+          u = v + offset
 
-        (start_idx + 1...end_idx).each do |i|
-          parent = start_idx + Helper.next_int(i - start_idx)
-          add_edge(i, parent)
-        end
-
-        (component_size * 2).times do
-          u = start_idx + Helper.next_int(end_idx - start_idx)
-          v = start_idx + Helper.next_int(end_idx - start_idx)
-          add_edge(u, v) unless u == v
+          if u >= 0 && u < @vertices && u != v
+            add_edge(v, u)
+          end
         end
       end
-    end
-
-    def same_component?(u, v)
-      component_size = @vertices // @components
-      (u // component_size) == (v // component_size)
     end
   end
 
   @graph : Graph
-  @pairs : Array({Int32, Int32})
+  @result = 0_u32
 
-  def initialize(@n_pairs : Int64 = config_val("pairs"))
+  def initialize
     vertices = config_val("vertices").to_i32
-    @graph = Graph.new(vertices, Math.max(10, vertices // 10_000))
-    @pairs = Array({Int32, Int32}).new
-    @result = 0_u32
-  end
-
-  def generate_pairs(n)
-    pairs = Array({Int32, Int32}).new(n)
-    component_size = @graph.vertices // 10
-
-    n.times do |i|
-      if Helper.next_int(100) < 70
-        component = Helper.next_int(10)
-        start = component * component_size + Helper.next_int(component_size)
-
-        loop do
-          _end = component * component_size + Helper.next_int(component_size)
-          if _end != start
-            pairs << {start, _end}
-            break
-          end
-        end
-      else
-        c1 = Helper.next_int(10)
-        c2 = Helper.next_int(10)
-        while c2 == c1
-          c2 = Helper.next_int(10)
-        end
-        start = c1 * component_size + Helper.next_int(component_size)
-        _end = c2 * component_size + Helper.next_int(component_size)
-        pairs << {start, _end}
-      end
-    end
-
-    pairs
+    jumps = config_val("jumps").to_i32
+    jump_len = config_val("jump_len").to_i32
+    @graph = Graph.new(vertices, jumps, jump_len)
   end
 
   def prepare
     @graph.generate_random
-    @pairs = generate_pairs(@n_pairs)
+    total_edges = @graph.adj.sum(&.size) // 2
   end
 
   def test : Int64
@@ -2213,14 +2202,8 @@ end
 
 class GraphPathBFS < GraphPathBenchmark
   def test : Int64
-    total_length = 0_i64
-
-    @pairs.each do |start, _end|
-      length = bfs_shortest_path(start, _end)
-      total_length += length
-    end
-
-    total_length
+    length = bfs_shortest_path(0, @graph.vertices - 1)
+    length.to_i64
   end
 
   private def bfs_shortest_path(start, target)
@@ -2236,7 +2219,9 @@ class GraphPathBFS < GraphPathBenchmark
       v, dist = queue.shift
 
       @graph.adj[v].each do |neighbor|
-        return dist + 1 if neighbor == target
+        if neighbor == target
+          return dist + 1
+        end
 
         if visited[neighbor] == 0
           visited[neighbor] = 1
@@ -2251,21 +2236,14 @@ end
 
 class GraphPathDFS < GraphPathBenchmark
   def test : Int64
-    total_length = 0_i64
-
-    @pairs.each do |start, _end|
-      length = dfs_find_path(start, _end)
-      total_length += length
-    end
-
-    total_length
+    length = dfs_shortest_path(0, @graph.vertices - 1)
+    length.to_i64
   end
 
-  private def dfs_find_path(start, target)
+  private def dfs_shortest_path(start, target)
     return 0 if start == target
 
     visited = Bytes.new(@graph.vertices)
-
     stack = [{start, 0}]
     best_path = Int32::MAX
 
@@ -2290,55 +2268,109 @@ class GraphPathDFS < GraphPathBenchmark
   end
 end
 
-class GraphPathDijkstra < GraphPathBenchmark
-  def test : Int64
-    total_length = 0_i64
+class GraphPathAStar < GraphPathBenchmark
+  private class PriorityQueue
+    @heap = Array({Int32, Int32}).new
+    @size : Int32 = 0
 
-    @pairs.each do |start, _end|
-      length = dijkstra_shortest_path(start, _end)
-      total_length += length
+    def empty?
+      @size == 0
     end
 
-    total_length
+    def push(vertex, priority)
+      if @size >= @heap.size
+        @heap << {vertex, priority}
+      else
+        @heap[@size] = {vertex, priority}
+      end
+
+      i = @size
+      @size += 1
+
+      while i > 0
+        parent = (i - 1) // 2
+        break if @heap[parent][1] <= priority
+        @heap[i] = @heap[parent]
+        i = parent
+      end
+      @heap[i] = {vertex, priority}
+    end
+
+    def pop
+      min = @heap[0]
+      @size -= 1
+
+      if @size > 0
+        last = @heap[@size]
+        i = 0
+
+        while true
+          left = 2*i + 1
+          right = 2*i + 2
+          smallest = i
+
+          if left < @size && @heap[left][1] < @heap[smallest][1]
+            smallest = left
+          end
+          if right < @size && @heap[right][1] < @heap[smallest][1]
+            smallest = right
+          end
+
+          break if smallest == i
+
+          @heap[i] = @heap[smallest]
+          i = smallest
+        end
+
+        @heap[i] = last
+      end
+
+      min
+    end
   end
 
-  INF = Int32::MAX // 2
+  def test : Int64
+    astar_shortest_path(0, @graph.vertices - 1).to_i64
+  end
 
-  private def dijkstra_shortest_path(start, target)
+  private def heuristic(v, target)
+    target - v
+  end
+
+  private def astar_shortest_path(start, target)
     return 0 if start == target
 
-    dist = Slice(Int32).new(@graph.vertices, INF)
-    visited = Bytes.new(@graph.vertices)
+    g_score = Array.new(@graph.vertices, Int32::MAX)
+    g_score[start] = 0
 
-    dist[start] = 0
+    open_set = PriorityQueue.new
+    open_set.push(start, heuristic(start, target))
 
-    iteration = 0
-    max_iterations = @graph.vertices
+    in_open_set = Array.new(@graph.vertices, false)
+    in_open_set[start] = true
 
-    max_iterations.times do
-      iteration += 1
+    closed = Array.new(@graph.vertices, false)
 
-      u = -1
-      min_dist = INF
+    while !open_set.empty?
+      current, _ = open_set.pop
+      closed[current] = true
+      in_open_set[current] = false
 
-      @graph.vertices.times do |v|
-        if visited[v] == 0 && dist[v] < min_dist
-          min_dist = dist[v]
-          u = v
-        end
-      end
+      return g_score[current] if current == target
 
-      if u == -1 || min_dist == INF || u == target
-        result = (u == target) ? min_dist : -1
+      @graph.adj[current].each do |neighbor|
+        next if closed[neighbor]
 
-        return result
-      end
+        tentative_g = g_score[current] + 1
 
-      visited[u] = 1
+        if tentative_g < g_score[neighbor]
+          g_score[neighbor] = tentative_g
+          f = tentative_g + heuristic(neighbor, target)
 
-      @graph.adj[u].each do |v|
-        if dist[u] + 1 < dist[v]
-          dist[v] = dist[u] + 1
+          unless in_open_set[neighbor]
+            open_set.push(neighbor, f)
+            in_open_set[neighbor] = true
+          end
         end
       end
     end
@@ -2383,7 +2415,7 @@ class BufferHashSHA256 < BufferHashBenchmark
       ]
 
       data.each_with_index do |byte, i|
-        hash_idx = i % 8
+        hash_idx = i & 7
         hash = hashes[hash_idx]
         hash = ((hash << 5) &+ hash) &+ byte
         hash = (hash &+ (hash << 10)) ^ (hash >> 6)
@@ -2866,135 +2898,81 @@ class CalculatorInterpreter < Benchmark
 end
 
 class GameOfLife < Benchmark
-  DEAD  = 0_u8
-  ALIVE = 1_u8
+  class Cell
+    property alive : Bool
+    property neighbors : Array(Cell)
+    @next_state : Bool
+
+    def initialize(@alive = false)
+      @neighbors = [] of Cell
+      @next_state = false
+    end
+
+    def add_neighbor(cell : Cell)
+      @neighbors << cell
+    end
+
+    def compute_next_state
+      alive_neighbors = @neighbors.count(&.alive)
+
+      @next_state = if @alive
+                      alive_neighbors == 2 || alive_neighbors == 3
+                    else
+                      alive_neighbors == 3
+                    end
+    end
+
+    def update
+      @alive = @next_state
+    end
+  end
 
   class Grid
-    property width : Int32
-    property height : Int32
-
-    @cells : Slice(UInt8)
-    @buffer : Slice(UInt8)
+    getter width : Int32
+    getter height : Int32
+    getter cells : Array(Array(Cell))
 
     def initialize(@width : Int32, @height : Int32)
-      size = @width * @height
-      @cells = Slice(UInt8).new(size, DEAD)
-      @buffer = Slice(UInt8).new(size, DEAD)
+      @cells = Array.new(@height) { Array.new(@width) { Cell.new } }
+      link_neighbors
     end
 
-    private def initialize(@width : Int32, @height : Int32, @cells : Slice(UInt8), @buffer : Slice(UInt8))
+    private def link_neighbors
+      @cells.each_with_index do |column, y|
+        column.each_with_index do |cell, x|
+          (-1..1).each do |dy|
+            (-1..1).each do |dx|
+              next if dx == 0 && dy == 0
+
+              ny = (y + dy + @height) % @height
+              nx = (x + dx + @width) % @width
+
+              cell.add_neighbor(@cells[ny][nx])
+            end
+          end
+        end
+      end
     end
 
-    def self.with_buffers(width : Int32, height : Int32, cells : Slice(UInt8), buffer : Slice(UInt8)) : Grid
-      new(width, height, cells, buffer)
+    def next_generation
+      @cells.each &.each &.compute_next_state
+      @cells.each &.each &.update
     end
 
-    private def index(x, y) : Int32
-      y * @width + x
-    end
-
-    def get(x, y) : UInt8
-      @cells[index(x, y)]
-    end
-
-    def set(x, y, cell : UInt8)
-      @cells[index(x, y)] = cell
-    end
-
-    private def count_neighbors(x, y, cells : Slice(UInt8)) : Int32
-      w = @width
-      h = @height
-
-      y_prev = y == 0 ? h - 1 : y - 1
-      y_next = y == h - 1 ? 0 : y + 1
-      x_prev = x == 0 ? w - 1 : x - 1
-      x_next = x == w - 1 ? 0 : x + 1
-
+    def count_alive : Int32
       count = 0
-
-      idx = y_prev * w
-      count += cells[idx + x_prev].to_i32
-      count += cells[idx + x].to_i32
-      count += cells[idx + x_next].to_i32
-
-      idx = y * w
-      count += cells[idx + x_prev].to_i32
-      count += cells[idx + x_next].to_i32
-
-      idx = y_next * w
-      count += cells[idx + x_prev].to_i32
-      count += cells[idx + x].to_i32
-      count += cells[idx + x_next].to_i32
-
+      cells.each &.each { |cell| count += 1 if cell.alive }
       count
     end
 
-    def next_generation : Grid
-      width = @width
-      height = @height
-
-      cells = @cells
-      buffer = @buffer
-
-      y = 0
-      while y < height
-        y_idx = y * width
-
-        y_prev_idx = (y == 0 ? height - 1 : y - 1) * width
-        y_next_idx = (y == height - 1 ? 0 : y + 1) * width
-
-        x = 0
-        while x < width
-          idx = y_idx + x
-
-          x_prev = x == 0 ? width - 1 : x - 1
-          x_next = x == width - 1 ? 0 : x + 1
-
-          neighbors = 0
-
-          neighbors += cells[y_prev_idx + x_prev].to_i32
-          neighbors += cells[y_prev_idx + x].to_i32
-          neighbors += cells[y_prev_idx + x_next].to_i32
-
-          neighbors += cells[y_idx + x_prev].to_i32
-          neighbors += cells[y_idx + x_next].to_i32
-
-          neighbors += cells[y_next_idx + x_prev].to_i32
-          neighbors += cells[y_next_idx + x].to_i32
-          neighbors += cells[y_next_idx + x_next].to_i32
-
-          current = cells[idx]
-          next_state = DEAD
-
-          if current == ALIVE
-            next_state = (neighbors == 2 || neighbors == 3) ? ALIVE : DEAD
-          elsif neighbors == 3
-            next_state = ALIVE
-          end
-
-          buffer[idx] = next_state
-
-          x += 1
-        end
-
-        y += 1
-      end
-
-      Grid.with_buffers(width, height, buffer, cells)
-    end
-
-    FNV_OFFSET_BASIS = 2166136261_u32
-    FNV_PRIME        =   16777619_u32
-
     def compute_hash : UInt32
-      hash = FNV_OFFSET_BASIS
+      _FNV_OFFSET_BASIS = 2166136261_u32
+      _FNV_PRIME = 16777619_u32
+      hash = _FNV_OFFSET_BASIS
 
-      cells = @cells
-      i = 0
-      while i < cells.size
-        alive = cells[i].to_u32
-        hash = (hash ^ alive) &* FNV_PRIME
-        i += 1
+      cells.each &.each do |cell|
+        alive = cell.alive ? 1_u32 : 0_u32
+        hash = (hash ^ alive) &* _FNV_PRIME
       end
 
       hash
@@ -3011,33 +2989,20 @@ class GameOfLife < Benchmark
     @grid = Grid.new(@width, @height)
   end
 
+  def name : String
+    "GameOfLife"
+  end
+
   def prepare
-    width = @width
-    height = @height
-    grid = @grid
-
-    y = 0
-    while y < height
-      y_idx = y * width
-
-      x = 0
-      while x < width
-        if Helper.next_float(1.0) < 0.1
-          grid.set(x, y, ALIVE)
-        end
-        x += 1
-      end
-
-      y += 1
-    end
+    @grid.cells.each &.each { |cell| cell.alive = true if Helper.next_float(1.0) < 0.1 }
   end
 
   def run(iteration_id)
-    @grid = @grid.next_generation
+    @grid.next_generation
   end
 
   def checksum : UInt32
-    @grid.compute_hash
+    @grid.compute_hash + @grid.count_alive.to_u32
   end
 end
 

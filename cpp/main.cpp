@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <memory>
 #include <chrono>
@@ -447,29 +448,19 @@ public:
 
 class BrainfuckRecursion : public Benchmark {
 private:
-    struct OpInc { 
-        int32_t val; 
-        explicit OpInc(int32_t v) : val(v) {}
-    };
 
-    struct OpMove { 
-        int32_t val; 
-        explicit OpMove(int32_t v) : val(v) {}
-    };
+    struct OpInc {};      
+    struct OpDec {};      
+    struct OpAdvance {};  
+    struct OpDevance {};  
+    struct OpPrint {};    
+    struct OpLoop;        
 
-    struct OpPrint {};
+    using Op = std::variant<OpInc, OpDec, OpAdvance, OpDevance, OpPrint, OpLoop>;
 
     struct OpLoop {
-        std::vector<std::variant<OpInc, OpMove, OpPrint, OpLoop>> ops;
+        std::vector<Op> ops;
     };
-
-    using Op = std::variant<OpInc, OpMove, OpPrint, OpLoop>;
-
-    template<class... Ts>
-    struct overloaded : Ts... { using Ts::operator()...; };
-
-    template<class... Ts>
-    overloaded(Ts...) -> overloaded<Ts...>;
 
     class Tape {
     private:
@@ -477,33 +468,28 @@ private:
         size_t pos = 0;
 
     public:
-        Tape() : tape(1024, 0) {}
+        Tape() : tape(30000, 0) {}
 
-        uint8_t get() { return tape[pos]; }
-        const uint8_t& get() const { return tape[pos]; }
+        uint8_t get() const { return tape[pos]; }
 
-        void inc(int32_t x) { 
-            tape[pos] += x;
+        void inc() { 
+            tape[pos]++; 
         }
 
-        void move(int32_t x) {
-            if (x >= 0) {
-                pos += static_cast<size_t>(x);
-                if (pos >= tape.size()) {
-                    size_t new_size = std::max(tape.size() * 2, pos + 1);
-                    tape.resize(new_size, 0);
-                }
-            } else {
-                int32_t move_left = -x;
-                if (static_cast<size_t>(move_left) > pos) {
-                    size_t needed = static_cast<size_t>(move_left) - pos;
-                    std::vector<uint8_t> new_tape(tape.size() + needed, 0);
-                    std::copy(tape.begin(), tape.end(), new_tape.begin() + needed);
-                    tape = std::move(new_tape);
-                    pos = needed;
-                } else {
-                    pos -= static_cast<size_t>(move_left);
-                }
+        void dec() { 
+            tape[pos]--; 
+        }
+
+        void advance() {
+            pos++;
+            if (pos >= tape.size()) {
+                tape.push_back(0);  
+            }
+        }
+
+        void devance() {
+            if (pos > 0) {
+                pos--;
             }
         }
     };
@@ -511,7 +497,6 @@ private:
     class Program {
     private:
         std::vector<Op> ops;
-        int64_t result_val = 0;
 
         std::vector<Op> parse(std::string::const_iterator& it, 
                              const std::string::const_iterator& end) {
@@ -520,101 +505,64 @@ private:
 
             while (it != end) {
                 char c = *it++;
-
                 switch (c) {
-                    case '+':
-                        res.emplace_back(OpInc{1});
-                        break;
-                    case '-':
-                        res.emplace_back(OpInc{-1});
-                        break;
-                    case '>':
-                        res.emplace_back(OpMove{1});
-                        break;
-                    case '<':
-                        res.emplace_back(OpMove{-1});
-                        break;
-                    case '.':
-                        res.emplace_back(OpPrint{});
-                        break;
+                    case '+': res.emplace_back(OpInc{}); break;
+                    case '-': res.emplace_back(OpDec{}); break;
+                    case '>': res.emplace_back(OpAdvance{}); break;
+                    case '<': res.emplace_back(OpDevance{}); break;
+                    case '.': res.emplace_back(OpPrint{}); break;
                     case '[': {
                         auto loop_ops = parse(it, end);
                         res.emplace_back(OpLoop{std::move(loop_ops)});
                         break;
                     }
-                    case ']':
-                        return res;
-                    default:
-                        break;
+                    case ']': return res;
+                    default: break;
                 }
             }
-
             return res;
         }
 
-        void run_ops(const std::vector<Op>& program, Tape& tape) {
-            std::function<void(const Op&)> execute;
+        struct Visitor {
+            Tape& tape;
+            int64_t& result;
 
-            struct OpVisitor {
-                Tape& tape;
-                int64_t& result_val;
-                std::function<void(const Op&)>& execute_ref;
-
-                void operator()(const OpInc& inc) const {
-                    tape.inc(inc.val);
-                }
-
-                void operator()(const OpMove& move) const {
-                    tape.move(move.val);
-                }
-
-                void operator()(const OpPrint&) const {
-                    result_val = (result_val << 2) + tape.get();
-                }
-
-                void operator()(const OpLoop& loop) const {
-                    while (tape.get() != 0) {
-                        for (const Op& inner_op : loop.ops) {
-                            std::visit(*this, inner_op);
-                        }
+            void operator()(const OpInc&) const { tape.inc(); }
+            void operator()(const OpDec&) const { tape.dec(); }
+            void operator()(const OpAdvance&) const { tape.advance(); }
+            void operator()(const OpDevance&) const { tape.devance(); }
+            void operator()(const OpPrint&) const { 
+                result = (result << 2) + tape.get();
+            }
+            void operator()(const OpLoop& loop) const {
+                while (tape.get() != 0) {
+                    for (const auto& op : loop.ops) {
+                        std::visit(*this, op);
                     }
                 }
-            };
-
-            OpVisitor visitor{tape, result_val, execute};
-
-            execute = [&visitor](const Op& op) {
-                std::visit(visitor, op);
-            };
-
-            for (const Op& op : program) {
-                execute(op);
             }
-        }        
+        };
 
     public:
         explicit Program(const std::string& code) {
             auto it = code.begin();
-            auto end = code.end();
-            ops = parse(it, end);
+            ops = parse(it, code.end());
         }
 
         int64_t run() {
-            result_val = 0;
             Tape tape;
-            run_ops(ops, tape);
-            return result_val;
+            int64_t result = 0;
+            Visitor visitor{tape, result};
+
+            for (const auto& op : ops) {
+                std::visit(visitor, op);
+            }
+            return result;
         }
     };
 
     std::string text;
     uint32_t result_val;
-
-    int64_t _run(const std::string& text) {
-        Program program(text);
-        program.run();
-        return program.run();  
-    }
 
 public:
     BrainfuckRecursion() : result_val(0) {
@@ -627,12 +575,12 @@ public:
         int64_t prepare_iters = warmup_iterations();
         std::string warmup_program = Helper::config_s(name(), "warmup_program");
         for (int64_t i = 0; i < prepare_iters; i++) {
-            _run(warmup_program);
+            Program(warmup_program).run();
         }
     }
 
     void run(int iteration_id) override {
-        result_val += _run(text);  
+        result_val += Program(text).run();
     }
 
     uint32_t checksum() override {
@@ -646,13 +594,13 @@ private:
     uint32_t result_val;
 
     std::pair<int, int> fannkuchredux(int n) {
-        int perm1[32];  
+        int perm1[32];
         int perm[32];
         int count[32];
 
         if (n > 32) n = 32;
 
-        for (int i = 0; i < n; i++) perm1[i] = i;
+        std::iota(perm1, perm1 + n, 0);
 
         int maxFlipsCount = 0, permCount = 0, checksum = 0;
         int r = n;
@@ -663,33 +611,24 @@ private:
                 r--;
             }
 
-            for (int i = 0; i < n; i++) {
-                perm[i] = perm1[i];
-            }
-            int flipsCount = 0;
+            std::copy(perm1, perm1 + n, perm);
 
+            int flipsCount = 0;
             int k = perm[0];
+
             while (k != 0) {
-                int k2 = (k + 1) >> 1;
-                for (int i = 0; i < k2; i++) {
-                    int j = k - i;
-                    std::swap(perm[i], perm[j]);
-                }
+                std::reverse(perm, perm + k + 1);
                 flipsCount++;
                 k = perm[0];
             }
 
-            if (flipsCount > maxFlipsCount) maxFlipsCount = flipsCount;
+            maxFlipsCount = std::max(maxFlipsCount, flipsCount);
             checksum += (permCount % 2 == 0) ? flipsCount : -flipsCount;
 
             while (true) {
                 if (r == n) return {checksum, maxFlipsCount};
 
-                int perm0 = perm1[0];
-                for (int i = 0; i < r; i++) {
-                    perm1[i] = perm1[i + 1];
-                }
-                perm1[r] = perm0;
+                std::rotate(perm1, perm1 + 1, perm1 + r + 1);
 
                 count[r]--;
                 if (count[r] > 0) break;
@@ -1240,11 +1179,13 @@ public:
         int nbodies = static_cast<int>(bodies.size());
         double dt = 0.01;
 
-        int i = 0;
-        while (i < nbodies) {
-            Planet& b = bodies[i];
-            b.move_from_i(bodies, nbodies, dt, i + 1);
-            i++;
+        for (int n = 0; n < 1000; n++) {
+            int i = 0;
+            while (i < nbodies) {
+                Planet& b = bodies[i];
+                b.move_from_i(bodies, nbodies, dt, i + 1);
+                i++;
+            }
         }
     }
 
@@ -1555,18 +1496,12 @@ public:
     Base64Encode() : result_val(0) {
         int64_t n = config_val("size");
         str = std::string(static_cast<size_t>(n), 'a');
-
-        size_t encoded_len = encode_size(str.size());
-        str2.resize(encoded_len);
-        size_t actual_len = 0;
-        base64_encode(str.data(), str.size(), &str2[0], &actual_len, 0);
-        str2.resize(actual_len);
+        str2 = base64_encode_simple(str);
     }
 
     std::string name() const override { return "Base64Encode"; }    
 
     void run(int iteration_id) override {
-
         str2 = base64_encode_simple(str);
         result_val += str2.size();  
     }
@@ -1620,16 +1555,12 @@ public:
         base64_encode(str.data(), str.size(), &str2[0], &actual_encoded, 0);
         str2.resize(actual_encoded);
 
-        size_t decoded_size = decode_size(str2.size());
-        str3.resize(decoded_size);
-        size_t actual_decoded = b64_decode(&str3[0], str2.data(), str2.size());
-        str3.resize(actual_decoded);
+        str3 = base64_decode_simple(str2);
     }
 
     std::string name() const override { return "Base64Decode"; }    
 
     void run(int iteration_id) override {
-
         str3 = base64_decode_simple(str2);
         result_val += str3.size();  
     }
@@ -2616,11 +2547,12 @@ protected:
     class Graph {
     public:
         int vertices;
-        int components;
+        int jumps;
+        int jump_len;
         std::vector<std::vector<int>> adj;
 
-        Graph(int vertices, int components = 10) 
-            : vertices(vertices), components(components), adj(vertices) {}
+        Graph(int vertices, int jumps = 3, int jump_len = 100) 
+            : vertices(vertices), jumps(jumps), jump_len(jump_len), adj(vertices) {}
 
         void add_edge(int u, int v) {
             adj[u].push_back(v);
@@ -2628,79 +2560,36 @@ protected:
         }
 
         void generate_random() {
-            int component_size = vertices / components;
+            for (int i = 1; i < vertices; i++) {
+                add_edge(i, i - 1);
+            }
 
-            for (int c = 0; c < components; c++) {
-                int start_idx = c * component_size;
-                int end_idx = (c == components - 1) ? vertices : (c + 1) * component_size;
+            for (int v = 0; v < vertices; v++) {
+                int num_jumps = Helper::next_int(jumps);
+                for (int j = 0; j < num_jumps; j++) {
+                    int offset = Helper::next_int(jump_len) - jump_len / 2;
+                    int u = v + offset;
 
-                for (int i = start_idx + 1; i < end_idx; i++) {
-                    int parent = start_idx + Helper::next_int(i - start_idx);
-                    add_edge(i, parent);
-                }
-
-                int extra_edges = component_size * 2;
-                for (int e = 0; e < extra_edges; e++) {
-                    int u = start_idx + Helper::next_int(end_idx - start_idx);
-                    int v = start_idx + Helper::next_int(end_idx - start_idx);
-                    if (u != v) add_edge(u, v);
+                    if (u >= 0 && u < vertices && u != v) {
+                        add_edge(v, u);
+                    }
                 }
             }
-        }
-
-        bool same_component(int u, int v) {
-            int component_size = vertices / components;
-            return (u / component_size) == (v / component_size);
         }
     };
 
     std::unique_ptr<Graph> graph;
-    std::vector<std::pair<int, int>> pairs;
-    int64_t n_pairs;
     uint32_t result_val;
 
-    std::vector<std::pair<int, int>> generate_pairs(int n) {
-        std::vector<std::pair<int, int>> result;
-        result.reserve(static_cast<size_t>(n));
-        int component_size = graph->vertices / 10;
-
-        for (int i = 0; i < n; i++) {
-            if (Helper::next_int(100) < 70) {
-                int component = Helper::next_int(10);
-                int start = component * component_size + Helper::next_int(component_size);
-                int end;
-                do {
-                    end = component * component_size + Helper::next_int(component_size);
-                } while (end == start);
-                result.emplace_back(start, end);
-            } else {
-                int c1 = Helper::next_int(10);
-                int c2;
-                do {
-                    c2 = Helper::next_int(10);
-                } while (c2 == c1);
-                int start = c1 * component_size + Helper::next_int(component_size);
-                int end = c2 * component_size + Helper::next_int(component_size);
-                result.emplace_back(start, end);
-            }
-        }
-        return result;
-    }
-
-    GraphPathBenchmark() : result_val(0), n_pairs(0) {
-
-    }
-
 public:
+    GraphPathBenchmark() : result_val(0) {}
+
     void prepare() override {
-        if (n_pairs == 0) {
-            n_pairs = config_val("pairs");
-            int vertices = static_cast<int>(config_val("vertices"));
-            int comps = std::max(10, vertices / 10'000);
-            graph = std::make_unique<Graph>(vertices, comps);
-            graph->generate_random();
-            pairs = generate_pairs(static_cast<int>(n_pairs));
-        }
+        int vertices = static_cast<int>(config_val("vertices"));
+        int jumps = static_cast<int>(config_val("jumps"));
+        int jump_len = static_cast<int>(config_val("jump_len"));
+        graph = std::make_unique<Graph>(vertices, jumps, jump_len);
+        graph->generate_random();
     }
 
     virtual int64_t test() = 0;
@@ -2730,7 +2619,9 @@ private:
             queue.pop();
 
             for (int neighbor : graph->adj[v]) {
-                if (neighbor == target) return dist + 1;
+                if (neighbor == target) {
+                    return dist + 1;
+                }
 
                 if (visited[neighbor] == 0) {
                     visited[neighbor] = 1;
@@ -2748,19 +2639,13 @@ public:
     std::string name() const override { return "GraphPathBFS"; }    
 
     int64_t test() override {
-        int64_t total_length = 0;
-
-        for (const auto& [start, end] : pairs) {
-            total_length += bfs_shortest_path(start, end);
-        }
-
-        return total_length;
+        return bfs_shortest_path(0, graph->vertices - 1);
     }
 };
 
 class GraphPathDFS : public GraphPathBenchmark {
 private:
-    int dfs_find_path(int start, int target) {
+    int dfs_shortest_path(int start, int target) {
         if (start == target) return 0;
 
         std::vector<uint8_t> visited(graph->vertices, 0);
@@ -2796,48 +2681,65 @@ public:
     std::string name() const override { return "GraphPathDFS"; }    
 
     int64_t test() override {
-        int64_t total_length = 0;
-
-        for (const auto& [start, end] : pairs) {
-            total_length += dfs_find_path(start, end);
-        }
-
-        return total_length;
+        return dfs_shortest_path(0, graph->vertices - 1);
     }
 };
 
-class GraphPathDijkstra : public GraphPathBenchmark {
+class GraphPathAStar : public GraphPathBenchmark {
 private:
-    static constexpr int INF = INT_MAX / 2;
+    struct Node {
+        int vertex;
+        int f_score;
 
-    int dijkstra_shortest_path(int start, int target) {
+        bool operator>(const Node& other) const {
+            return f_score > other.f_score;
+        }
+    };
+
+    int heuristic(int v, int target) const {
+        return target - v;
+    }
+
+    int astar_shortest_path(int start, int target) {
         if (start == target) return 0;
 
-        std::vector<int> dist(graph->vertices, INF);
-        std::vector<uint8_t> visited(graph->vertices, 0);
+        std::vector<int> g_score(graph->vertices, INT_MAX);
+        g_score[start] = 0;
 
-        dist[start] = 0;
+        using QueueType = std::priority_queue<Node, std::vector<Node>, std::greater<Node>>;
+        QueueType open_set;
+        open_set.push({start, heuristic(start, target)});
 
-        for (int iteration = 0; iteration < graph->vertices; iteration++) {
-            int u = -1;
-            int min_dist = INF;
+        std::vector<bool> in_open_set(graph->vertices, false);
+        in_open_set[start] = true;
 
-            for (int v = 0; v < graph->vertices; v++) {
-                if (visited[v] == 0 && dist[v] < min_dist) {
-                    min_dist = dist[v];
-                    u = v;
-                }
+        std::vector<bool> closed(graph->vertices, false);
+
+        while (!open_set.empty()) {
+            Node current = open_set.top();
+            open_set.pop();
+
+            if (closed[current.vertex]) continue;
+            closed[current.vertex] = true;
+            in_open_set[current.vertex] = false;
+
+            if (current.vertex == target) {
+                return g_score[current.vertex];
             }
 
-            if (u == -1 || min_dist == INF || u == target) {
-                return (u == target) ? min_dist : -1;
-            }
+            for (int neighbor : graph->adj[current.vertex]) {
+                if (closed[neighbor]) continue;
 
-            visited[u] = 1;
+                int tentative_g = g_score[current.vertex] + 1;
 
-            for (int v : graph->adj[u]) {
-                if (dist[u] + 1 < dist[v]) {
-                    dist[v] = dist[u] + 1;
+                if (tentative_g < g_score[neighbor]) {
+                    g_score[neighbor] = tentative_g;
+                    int f = tentative_g + heuristic(neighbor, target);
+
+                    if (!in_open_set[neighbor]) {
+                        open_set.push({neighbor, f});
+                        in_open_set[neighbor] = true;
+                    }
                 }
             }
         }
@@ -2846,18 +2748,12 @@ private:
     }
 
 public:
-    GraphPathDijkstra() = default;
+    GraphPathAStar() = default;
 
-    std::string name() const override { return "GraphPathDijkstra"; }    
+    std::string name() const override { return "GraphPathAStar"; }
 
     int64_t test() override {
-        int64_t total_length = 0;
-
-        for (const auto& [start, end] : pairs) {
-            total_length += dijkstra_shortest_path(start, end);
-        }
-
-        return total_length;
+        return astar_shortest_path(0, graph->vertices - 1);
     }
 };
 
@@ -2905,7 +2801,7 @@ private:
             };
 
             for (size_t i = 0; i < data.size(); i++) {
-                uint32_t hash_idx = i % 8;
+                uint32_t hash_idx = i & 7;
                 uint32_t& hash = hashes[hash_idx];
                 hash = ((hash << 5) + hash) + data[i];
                 hash = (hash + (hash << 10)) ^ (hash >> 6);
@@ -3314,6 +3210,10 @@ public:
     uint32_t checksum() override {
         return result_val;
     }
+
+    std::vector<Node> take_ast() { 
+        return std::move(expressions); 
+    }
 };
 
 class CalculatorInterpreter : public Benchmark {
@@ -3403,9 +3303,8 @@ public:
         ca.n = n;
         ca.prepare();
         ca.run(0);
-        ast.swap(const_cast<std::vector<CalculatorAst::Node>&>(
-            reinterpret_cast<const CalculatorAst&>(ca).expressions));
-        }
+        ast = ca.take_ast();
+    }
 
     void run(int iteration_id) override {
         Interpreter interpreter;
@@ -3420,140 +3319,155 @@ public:
 
 class GameOfLife : public Benchmark {
 private:
-    enum class Cell : uint8_t {
-        Dead = 0,
-        Alive = 1
+    class Cell {
+    private:
+        bool alive;
+        bool next_state;
+        std::vector<Cell*> neighbors;
+
+    public:
+        Cell(bool alive = false) : alive(alive), next_state(false) {}
+
+        void add_neighbor(Cell* cell) {
+            neighbors.push_back(cell);
+        }
+
+        void compute_next_state() {
+            int alive_neighbors = 0;
+            for (Cell* neighbor : neighbors) {
+                if (neighbor->alive) alive_neighbors++;
+            }
+
+            if (alive) {
+                next_state = (alive_neighbors == 2 || alive_neighbors == 3);
+            } else {
+                next_state = (alive_neighbors == 3);
+            }
+        }
+
+        void update() {
+            alive = next_state;
+        }
+
+        void set_alive(bool state) {
+            alive = state;
+        }
+
+        bool is_alive() const {
+            return alive;
+        }
     };
 
     class Grid {
     private:
-        int width_;
-        int height_;
-        std::vector<Cell> cells_;      
-        std::vector<Cell> buffer_;     
+        int width;
+        int height;
+        std::vector<std::vector<Cell>> cells;
 
-        int count_neighbors(int x, int y, const std::vector<Cell>& cells) const {
+    public:
+        Grid(int w, int h) : width(w), height(h) {
+            cells.resize(height);
+            for (int y = 0; y < height; ++y) {
+                cells[y].reserve(width);
+                for (int x = 0; x < width; ++x) {
+                    cells[y].emplace_back(false);
+                }
+            }
+            link_neighbors();
+        }
 
-            int y_prev = (y == 0) ? height_ - 1 : y - 1;
-            int y_next = (y == height_ - 1) ? 0 : y + 1;
-            int x_prev = (x == 0) ? width_ - 1 : x - 1;
-            int x_next = (x == width_ - 1) ? 0 : x + 1;
+    private:
+        void link_neighbors() {
+            for (int y = 0; y < height; ++y) {
+                for (int x = 0; x < width; ++x) {
+                    Cell& cell = cells[y][x];
+                    for (int dy = -1; dy <= 1; ++dy) {
+                        for (int dx = -1; dx <= 1; ++dx) {
+                            if (dx == 0 && dy == 0) continue;
 
-            int count = 0;
-            count += static_cast<int>(cells[y_prev * width_ + x_prev] == Cell::Alive);
-            count += static_cast<int>(cells[y_prev * width_ + x] == Cell::Alive);
-            count += static_cast<int>(cells[y_prev * width_ + x_next] == Cell::Alive);
-            count += static_cast<int>(cells[y * width_ + x_prev] == Cell::Alive);
-            count += static_cast<int>(cells[y * width_ + x_next] == Cell::Alive);
-            count += static_cast<int>(cells[y_next * width_ + x_prev] == Cell::Alive);
-            count += static_cast<int>(cells[y_next * width_ + x] == Cell::Alive);
-            count += static_cast<int>(cells[y_next * width_ + x_next] == Cell::Alive);
+                            int ny = (y + dy + height) % height;
+                            int nx = (x + dx + width) % width;
 
-            return count;
+                            cell.add_neighbor(&cells[ny][nx]);
+                        }
+                    }
+                }
+            }
         }
 
     public:
-        Grid(int width, int height) : width_(width), height_(height) {
-            int size = width * height;
-            cells_.resize(size, Cell::Dead);
-            buffer_.resize(size, Cell::Dead);
-        }
-
-        Cell get(int x, int y) const {
-            return cells_[y * width_ + x];
-        }
-
-        void set(int x, int y, Cell cell) {
-            cells_[y * width_ + x] = cell;
-        }
-
-        Grid& next_generation() {
-            const int width = width_;
-            const int height = height_;
-            const int size = width * height;
-
-            const std::vector<Cell>& cells = cells_;
-            std::vector<Cell>& buffer = buffer_;
-
-            for (int y = 0; y < height; ++y) {
-                const int y_idx = y * width;
-
-                for (int x = 0; x < width; ++x) {
-                    const int idx = y_idx + x;
-
-                    int neighbors = count_neighbors(x, y, cells);
-
-                    Cell current = cells[idx];
-                    Cell next_state = Cell::Dead;
-
-                    if (current == Cell::Alive) {
-                        next_state = (neighbors == 2 || neighbors == 3) ? Cell::Alive : Cell::Dead;
-                    } else {
-                        next_state = (neighbors == 3) ? Cell::Alive : Cell::Dead;
-                    }
-
-                    buffer[idx] = next_state;
+        void next_generation() {
+            for (auto& row : cells) {
+                for (auto& cell : row) {
+                    cell.compute_next_state();
                 }
             }
+            for (auto& row : cells) {
+                for (auto& cell : row) {
+                    cell.update();
+                }
+            }
+        }
 
-            std::swap(cells_, buffer_);
-            return *this;
+        std::vector<std::vector<Cell>>& get_cells() {
+            return cells;
+        }
+
+        int count_alive() const {
+            int count = 0;
+            for (const auto& row : cells) {
+                for (const auto& cell : row) {
+                    if (cell.is_alive()) count++;
+                }
+            }
+            return count;
         }
 
         uint32_t compute_hash() const {
             constexpr uint32_t FNV_OFFSET_BASIS = 2166136261UL;
             constexpr uint32_t FNV_PRIME = 16777619UL;
-
             uint32_t hash = FNV_OFFSET_BASIS;
-
-            const Cell* data = cells_.data();
-            const size_t size = cells_.size();
-
-            for (size_t i = 0; i < size; ++i) {
-                uint32_t alive = static_cast<uint32_t>(data[i] == Cell::Alive);
-                hash = (hash ^ alive) * FNV_PRIME;
+            for (const auto& row : cells) {
+                for (const auto& cell : row) {
+                    uint32_t alive = cell.is_alive() ? 1U : 0U;
+                    hash = (hash ^ alive) * FNV_PRIME;
+                }
             }
-
             return hash;
         }
-
-        int width() const { return width_; }
-        int height() const { return height_; }
     };
 
-    uint32_t result_val;
-    int32_t width_;
-    int32_t height_;
-    Grid grid_;
+    int32_t width;
+    int32_t height;
+    Grid grid;
 
 public:
     GameOfLife() : 
-        result_val(0),
-        width_(static_cast<int32_t>(config_val("w"))),
-        height_(static_cast<int32_t>(config_val("h"))),
-        grid_(width_, height_) {
-    }
+        width(static_cast<int32_t>(config_val("w"))),
+        height(static_cast<int32_t>(config_val("h"))),
+        grid(width, height) {}
 
-    std::string name() const override { return "GameOfLife"; }    
+    std::string name() const override { 
+        return "GameOfLife"; 
+    }    
 
     void prepare() override {
-
-        for (int y = 0; y < height_; ++y) {
-            for (int x = 0; x < width_; ++x) {
+        for (auto& row : grid.get_cells()) {
+            for (auto& cell : row) {
                 if (Helper::next_float(1.0) < 0.1) {
-                    grid_.set(x, y, Cell::Alive);
+                    cell.set_alive(true);
                 }
             }
         }
     }
 
     void run(int iteration_id) override {
-
-        grid_.next_generation();
+        grid.next_generation();
     }
 
     uint32_t checksum() override {
-        return grid_.compute_hash();
+        uint32_t alive = static_cast<uint32_t>(grid.count_alive());
+        return grid.compute_hash() + alive;
     }
 };
 
@@ -4414,7 +4328,7 @@ void Benchmark::all(const std::string& single_bench) {
         {"SortSelf", []() { return std::make_unique<SortSelf>(); }},
         {"GraphPathBFS", []() { return std::make_unique<GraphPathBFS>(); }},
         {"GraphPathDFS", []() { return std::make_unique<GraphPathDFS>(); }},
-        {"GraphPathDijkstra", []() { return std::make_unique<GraphPathDijkstra>(); }},
+        {"GraphPathAStar", []() { return std::make_unique<GraphPathAStar>(); }},
         {"BufferHashSHA256", []() { return std::make_unique<BufferHashSHA256>(); }},
         {"BufferHashCRC32", []() { return std::make_unique<BufferHashCRC32>(); }},
         {"CacheSimulation", []() { return std::make_unique<CacheSimulation>(); }},        

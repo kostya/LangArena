@@ -86,10 +86,9 @@ final class JsonGenerate: BenchmarkProtocol {
     }
 
     func run(iterationId: Int) {
-        let jsonArray = data.map { $0 }
         let jsonObject: [String: Any] = [
             "info": "some info",
-            "coordinates": jsonArray
+            "coordinates": data
         ]
 
         if let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: []),

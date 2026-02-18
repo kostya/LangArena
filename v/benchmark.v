@@ -17,53 +17,73 @@ mut:
 	expected_checksum() i64
 }
 
+pub struct BenchmarkInfo {
+pub:
+	name    string
+	creator ?fn () &IBenchmark  
+}
+
 fn warmup(mut bench IBenchmark) {
 	bench.warmup(mut bench)
 }
 
-pub fn run_benchmarks(mut benchmarks []&IBenchmark, single_bench string) {
+pub fn run_benchmarks(factories []BenchmarkInfo, single_bench string) {
 	mut results := map[string]f64{}
 	mut summary_time := 0.0
 	mut ok := 0
 	mut fails := 0
 
-	for mut bench in benchmarks {
-		bench_name := bench.name()
-		if single_bench != '' && !bench.name().to_lower().contains(single_bench.to_lower()) {
+	for factory in factories {
+		bench_name := factory.name
+
+		if single_bench != '' && !bench_name.to_lower().contains(single_bench.to_lower()) {
 			continue
 		}
+
+		if bench_name in ['SortBenchmark', 'BufferHashBenchmark', 'GraphPathBenchmark'] {
+			continue
+		}
+
 		print('${bench_name}: ')
 		os.flush()
 
-		helper.reset()
-		bench.prepare()
-		warmup(mut bench)
+		if creator := factory.creator {
 
-		helper.reset()
+			mut bench := creator()
 
-		start := time.now()
-		iters := bench.iterations()
-		for i in 0 .. iters {
-			bench.run(int(i))
-		}
-		end := time.now()
+			helper.reset()
+			bench.prepare()
+			warmup(mut bench)
 
-		duration := f64(end.unix_nano() - start.unix_nano()) / 1_000_000_000.0
-		results[bench_name] = duration
+			helper.reset()
 
-		actual := bench.checksum()
-		expected := u32(bench.expected_checksum())
+			start := time.now()
+			iters := bench.iterations()
+			for i in 0 .. iters {
+				bench.run(int(i))
+			}
+			end := time.now()
 
-		if actual == expected {
-			print('OK ')
-			ok++
+			duration := f64(end.unix_nano() - start.unix_nano()) / 1_000_000_000.0
+			results[bench_name] = duration
+
+			actual := bench.checksum()
+			expected := u32(bench.expected_checksum())
+
+			if actual == expected {
+				print('OK ')
+				ok++
+			} else {
+				print('ERR[actual=${actual}, expected=${expected}] ')
+				fails++
+			}
+
+			println('in ${duration:.3f}s')
+			summary_time += duration
 		} else {
-			print('ERR[actual=${actual}, expected=${expected}] ')
+			println('ERROR: creator function is nil for ${bench_name}')
 			fails++
 		}
-
-		println('in ${duration:.3f}s')
-		summary_time += duration
 
 		time.sleep(1 * time.millisecond)
 	}

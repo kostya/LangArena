@@ -173,9 +173,9 @@ pub const all_benchmarks_list = blk: {
         createBenchInfo("SortQuick", @import("sort_quick.zig").SortQuick),
         createBenchInfo("SortMerge", @import("sort_merge.zig").SortMerge),
         createBenchInfo("SortSelf", @import("sort_self.zig").SortSelf),
-        createBenchInfo("GraphPathBFS", @import("graph_path_bfs.zig").GraphPathBFS),
-        createBenchInfo("GraphPathDFS", @import("graph_path_dfs.zig").GraphPathDFS),
-        createBenchInfo("GraphPathDijkstra", @import("graph_path_dijkstra.zig").GraphPathDijkstra),
+        createBenchInfo("GraphPathBFS", @import("graph_path.zig").GraphPathBFS),
+        createBenchInfo("GraphPathDFS", @import("graph_path.zig").GraphPathDFS),
+        createBenchInfo("GraphPathAStar", @import("graph_path.zig").GraphPathAStar),
         createBenchInfo("BufferHashSHA256", @import("buffer_hash_sha256.zig").BufferHashSHA256),
         createBenchInfo("BufferHashCRC32", @import("buffer_hash_crc32.zig").BufferHashCRC32),
         createBenchInfo("CacheSimulation", @import("cache_simulation.zig").CacheSimulation),
@@ -271,7 +271,7 @@ pub fn runAllBenchmarks(
         summary_time += time_delta;
     }
 
-    try stdout.print("\nSummary: {d:.4}fs, {}, {}, {}\n", .{
+    try stdout.print("\nSummary: {d:.4}s, {}, {}, {}\n", .{
         summary_time,
         ok + fails,
         ok,

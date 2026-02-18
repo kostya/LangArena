@@ -13,11 +13,15 @@ end
 name(b::BrainfuckArray)::String = "BrainfuckArray"
 
 mutable struct Tape
-    data::Vector{UInt8}
-    pos::Int
+    data::Vector{UInt8}  
+    pos::Int             
 
     function Tape()
-        new(zeros(UInt8, 30000), 1)  
+
+        data = Vector{UInt8}(undef, 30000)
+        fill!(data, 0x00)
+
+        new(data, 1)
     end
 end
 
@@ -36,7 +40,7 @@ end
 function advance!(tape::Tape)
     tape.pos += 1
     if tape.pos > length(tape.data)
-        push!(tape.data, 0x00)
+        push!(tape.data, 0x00)  
     end
 end
 
@@ -47,24 +51,41 @@ function devance!(tape::Tape)
 end
 
 struct Program
-    commands::Vector{Char}
+    commands::Vector{UInt8}  
     jumps::Vector{Int}
 
     function Program(text::String)
 
-        valid_chars = Set("[]<>+-,.")
-        commands = [c for c in text if c in valid_chars]
+        len = length(text)
+        temp = Vector{UInt8}(undef, len)
+        count = 0
 
-        jumps = zeros(Int, length(commands))
-        stack = Int[]
+        for c in text
+            if c in "[]<>+-,."
+                count += 1
+                temp[count] = UInt8(c)
+            end
+        end
 
-        for (i, cmd) in enumerate(commands)
-            if cmd == '['
-                push!(stack, i)
-            elseif cmd == ']' && !isempty(stack)
-                start_idx = pop!(stack)
-                jumps[start_idx] = i
-                jumps[i] = start_idx
+        commands = Vector{UInt8}(undef, count)
+        copyto!(commands, 1, temp, 1, count)
+
+        jumps = zeros(Int, count)
+        stack = Vector{Int}(undef, count)
+        sp = 0
+
+        for i in 1:count
+            cmd = commands[i]
+            if cmd == UInt8('[')
+                sp += 1
+                stack[sp] = i
+            elseif cmd == UInt8(']')
+                if sp > 0
+                    start_idx = stack[sp]
+                    sp -= 1
+                    jumps[start_idx] = i
+                    jumps[i] = start_idx
+                end
             end
         end
 
@@ -74,31 +95,33 @@ end
 
 function run(prog::Program)::Int64
     result = Int64(0)
-    tape = Tape()
-    pc = 1  
+    tape = Tape()  
+    pc = 1
+    cmds = prog.commands
+    jmps = prog.jumps
 
-    while pc <= length(prog.commands)
-        cmd = prog.commands[pc]
+    while pc <= length(cmds)
+        cmd = cmds[pc]
 
-        if cmd == '+'
+        if cmd == UInt8('+')
             inc!(tape)
-        elseif cmd == '-'
+        elseif cmd == UInt8('-')
             dec!(tape)
-        elseif cmd == '>'
+        elseif cmd == UInt8('>')
             advance!(tape)
-        elseif cmd == '<'
+        elseif cmd == UInt8('<')
             devance!(tape)
-        elseif cmd == '['
+        elseif cmd == UInt8('[')
             if get(tape) == 0x00
-                pc = prog.jumps[pc]
-                continue  
+                pc = jmps[pc]
+                continue
             end
-        elseif cmd == ']'
+        elseif cmd == UInt8(']')
             if get(tape) != 0x00
-                pc = prog.jumps[pc]
-                continue  
+                pc = jmps[pc]
+                continue
             end
-        elseif cmd == '.'
+        elseif cmd == UInt8('.')
             result = (result << 2) + Int64(get(tape))
         end
 
@@ -109,13 +132,12 @@ function run(prog::Program)::Int64
 end
 
 function _run(text::String)::Int64
-    prog = Program(text)
-    return run(prog)
+    return run(Program(text))
 end
 
 function warmup(b::BrainfuckArray)
     warmup_iters = warmup_iterations(b)
-    for i in 1:warmup_iters
+    for _ in 1:warmup_iters
         _run(b.warmup_text)
     end
 end

@@ -5,18 +5,20 @@ import helper
 
 struct Graph {
 pub:
-	vertices   int
-	components int
+	vertices int
+	jumps    int
+	jump_len int
 pub mut:
 	adj [][]int
 }
 
-pub fn graph_new(vertices int, components int) &Graph {
+pub fn graph_new(vertices int, jumps int, jump_len int) &Graph {
 	mut adj := [][]int{len: vertices}
 	return &Graph{
-		vertices:   vertices
-		components: components
-		adj:        adj
+		vertices: vertices
+		jumps: jumps
+		jump_len: jump_len
+		adj: adj
 	}
 }
 
@@ -26,31 +28,22 @@ pub fn (mut graph Graph) add_edge(u int, v int) {
 }
 
 pub fn (mut graph Graph) generate_random() {
-	component_size := graph.vertices / graph.components
 
-	for c in 0 .. graph.components {
-		start_idx := c * component_size
-		end_idx := if c == graph.components - 1 { graph.vertices } else { (c + 1) * component_size }
+	for i in 1 .. graph.vertices {
+		graph.add_edge(i, i - 1)
+	}
 
-		for i in start_idx + 1 .. end_idx {
-			parent := start_idx + helper.next_int(i - start_idx)
-			graph.add_edge(i, parent)
-		}
+	for v in 0 .. graph.vertices {
+		num_jumps := helper.next_int(graph.jumps)
+		for _ in 0 .. num_jumps {
+			offset := helper.next_int(graph.jump_len) - graph.jump_len / 2
+			u := v + offset
 
-		extra_edges := component_size * 2
-		for _ in 0 .. extra_edges {
-			u := start_idx + helper.next_int(end_idx - start_idx)
-			v := start_idx + helper.next_int(end_idx - start_idx)
-			if u != v {
-				graph.add_edge(u, v)
+			if u >= 0 && u < graph.vertices && u != v {
+				graph.add_edge(v, u)
 			}
 		}
 	}
-}
-
-pub fn (graph Graph) same_component(u int, v int) bool {
-	component_size := graph.vertices / graph.components
-	return (u / component_size) == (v / component_size)
 }
 
 struct Pair {
@@ -62,8 +55,6 @@ struct GraphPathBenchmark {
 	benchmark.BaseBenchmark
 pub mut:
 	graph   &Graph = unsafe { nil }
-	pairs   []Pair
-	n_pairs i64
 mut:
 	result_val u32
 }
@@ -71,38 +62,8 @@ mut:
 fn new_graph_path_benchmark(class_name string) GraphPathBenchmark {
 	return GraphPathBenchmark{
 		BaseBenchmark: benchmark.new_base_benchmark(class_name)
-		n_pairs:       0
-		result_val:    0
+		result_val: 0
 	}
-}
-
-fn generate_pairs(graph &Graph, n int) []Pair {
-	mut result := []Pair{cap: n}
-	component_size := graph.vertices / 10
-
-	for _ in 0 .. n {
-		if helper.next_int(100) < 70 {
-
-			component := helper.next_int(10)
-			start := component * component_size + helper.next_int(component_size)
-			mut end := start
-			for end == start {
-				end = component * component_size + helper.next_int(component_size)
-			}
-			result << Pair{start, end}
-		} else {
-
-			c1 := helper.next_int(10)
-			mut c2 := c1
-			for c2 == c1 {
-				c2 = helper.next_int(10)
-			}
-			start := c1 * component_size + helper.next_int(component_size)
-			end := c2 * component_size + helper.next_int(component_size)
-			result << Pair{start, end}
-		}
-	}
-	return result
 }
 
 pub struct GraphPathBFS {
@@ -127,7 +88,7 @@ fn bfs_shortest_path(graph &Graph, start int, target int) int {
 
 	mut visited := []u8{len: graph.vertices, init: 0}
 	mut queue := []Pair{}
-	mut head := 0 
+	mut head := 0
 
 	visited[start] = 1
 	queue << Pair{start, 0}
@@ -154,24 +115,18 @@ fn bfs_shortest_path(graph &Graph, start int, target int) int {
 }
 
 pub fn (mut b GraphPathBFS) prepare() {
-	b.n_pairs = int(helper.config_i64('GraphPathBFS', 'pairs'))
-	mut vertices := int(helper.config_i64('GraphPathBFS', 'vertices'))
-	comps := if vertices / 10000 > 10 { vertices / 10000 } else { 10 }
-	b.graph = graph_new(vertices, comps)
+	vertices := int(helper.config_i64('GraphPathBFS', 'vertices'))
+	jumps := int(helper.config_i64('GraphPathBFS', 'jumps'))
+	jump_len := int(helper.config_i64('GraphPathBFS', 'jump_len'))
+
+	b.graph = graph_new(vertices, jumps, jump_len)
 	b.graph.generate_random()
-	b.pairs = generate_pairs(b.graph, int(b.n_pairs))
 }
 
 pub fn (mut b GraphPathBFS) run(iteration_id int) {
 	_ = iteration_id
-	mut total_length := i64(0)
-
-	for pair in b.pairs {
-		length := bfs_shortest_path(b.graph, pair.a, pair.b)
-		total_length += i64(length)
-	}
-
-	b.result_val += u32(total_length)
+	length := bfs_shortest_path(b.graph, 0, b.graph.vertices - 1)
+	b.result_val += u32(length)
 }
 
 pub fn (b GraphPathBFS) checksum() u32 {
@@ -200,7 +155,7 @@ fn dfs_find_path(graph &Graph, start int, target int) int {
 
 	mut visited := []u8{len: graph.vertices, init: 0}
 	mut stack := []Pair{}
-	mut best_path := int(0x7fffffff) 
+	mut best_path := int(0x7fffffff)
 
 	stack << Pair{start, 0}
 
@@ -230,77 +185,157 @@ fn dfs_find_path(graph &Graph, start int, target int) int {
 }
 
 pub fn (mut b GraphPathDFS) prepare() {
-	b.n_pairs = int(helper.config_i64('GraphPathDFS', 'pairs'))
-	mut vertices := int(helper.config_i64('GraphPathDFS', 'vertices'))
+	vertices := int(helper.config_i64('GraphPathDFS', 'vertices'))
+	jumps := int(helper.config_i64('GraphPathDFS', 'jumps'))
+	jump_len := int(helper.config_i64('GraphPathDFS', 'jump_len'))
 
-	comps := if vertices / 10000 > 10 { vertices / 10000 } else { 10 }
-	b.graph = graph_new(vertices, comps)
+	b.graph = graph_new(vertices, jumps, jump_len)
 	b.graph.generate_random()
-	b.pairs = generate_pairs(b.graph, int(b.n_pairs))
 }
 
 pub fn (mut b GraphPathDFS) run(iteration_id int) {
 	_ = iteration_id
-	mut total_length := i64(0)
-
-	for pair in b.pairs {
-		length := dfs_find_path(b.graph, pair.a, pair.b)
-		total_length += i64(length)
-	}
-
-	b.result_val += u32(total_length)
+	length := dfs_find_path(b.graph, 0, b.graph.vertices - 1)
+	b.result_val += u32(length)
 }
 
 pub fn (b GraphPathDFS) checksum() u32 {
 	return b.result_val
 }
 
-pub struct GraphPathDijkstra {
+struct PriorityQueue {
+mut:
+	vertices   []int
+	priorities []int
+	size       int
+}
+
+fn priority_queue_new(capacity int) PriorityQueue {
+	return PriorityQueue{
+		vertices:   []int{len: capacity, init: 0}
+		priorities: []int{len: capacity, init: 0}
+		size:       0
+	}
+}
+
+fn (mut pq PriorityQueue) push(vertex int, priority int) {
+	if pq.size >= pq.vertices.len {
+		pq.vertices << 0
+		pq.priorities << 0
+	}
+
+	mut i := pq.size
+	pq.size++
+	pq.vertices[i] = vertex
+	pq.priorities[i] = priority
+
+	for i > 0 {
+		parent := (i - 1) / 2
+		if pq.priorities[parent] <= pq.priorities[i] {
+			break
+		}
+		pq.vertices[i], pq.vertices[parent] = pq.vertices[parent], pq.vertices[i]
+		pq.priorities[i], pq.priorities[parent] = pq.priorities[parent], pq.priorities[i]
+		i = parent
+	}
+}
+
+fn (mut pq PriorityQueue) pop() ?int {
+	if pq.size == 0 {
+		return none
+	}
+
+	result := pq.vertices[0]
+	pq.size--
+
+	if pq.size > 0 {
+		pq.vertices[0] = pq.vertices[pq.size]
+		pq.priorities[0] = pq.priorities[pq.size]
+
+		mut i := 0
+		for {
+			left := 2 * i + 1
+			right := 2 * i + 2
+			mut smallest := i
+
+			if left < pq.size && pq.priorities[left] < pq.priorities[smallest] {
+				smallest = left
+			}
+			if right < pq.size && pq.priorities[right] < pq.priorities[smallest] {
+				smallest = right
+			}
+			if smallest == i {
+				break
+			}
+			pq.vertices[i], pq.vertices[smallest] = pq.vertices[smallest], pq.vertices[i]
+			pq.priorities[i], pq.priorities[smallest] = pq.priorities[smallest], pq.priorities[i]
+			i = smallest
+		}
+	}
+
+	return result
+}
+
+pub struct GraphPathAStar {
 	GraphPathBenchmark
 }
 
-pub fn new_graphpathdijkstra() &benchmark.IBenchmark {
-	mut bench := &GraphPathDijkstra{
-		GraphPathBenchmark: new_graph_path_benchmark('GraphPathDijkstra')
+pub fn new_graphpathastar() &benchmark.IBenchmark {
+	mut bench := &GraphPathAStar{
+		GraphPathBenchmark: new_graph_path_benchmark('GraphPathAStar')
 	}
 	return bench
 }
 
-pub fn (b GraphPathDijkstra) name() string {
-	return 'GraphPathDijkstra'
+pub fn (b GraphPathAStar) name() string {
+	return 'GraphPathAStar'
 }
 
-fn dijkstra_shortest_path(graph &Graph, start int, target int) int {
+fn heuristic(v int, target int) int {
+	return target - v
+}
+
+fn a_star_shortest_path(graph &Graph, start int, target int) int {
 	if start == target {
 		return 0
 	}
 
-	inf := int(0x3fffffff) 
-	mut dist := []int{len: graph.vertices, init: inf}
-	mut visited := []u8{len: graph.vertices, init: 0}
+	mut g_score := []int{len: graph.vertices, init: int(0x7fffffff)}
+	mut closed := []u8{len: graph.vertices, init: 0}
 
-	dist[start] = 0
+	g_score[start] = 0
 
-	for _ in 0 .. graph.vertices {
-		mut u := -1
-		mut min_dist := inf
+	mut open_set := priority_queue_new(graph.vertices)
+	mut in_open_set := []u8{len: graph.vertices, init: 0}
 
-		for v in 0 .. graph.vertices {
-			if visited[v] == 0 && dist[v] < min_dist {
-				min_dist = dist[v]
-				u = v
+	open_set.push(start, heuristic(start, target))
+	in_open_set[start] = 1
+
+	for {
+		current := open_set.pop() or { break }
+		in_open_set[current] = 0
+
+		if current == target {
+			return g_score[current]
+		}
+
+		closed[current] = 1
+
+		for neighbor in graph.adj[current] {
+			if closed[neighbor] == 1 {
+				continue
 			}
-		}
 
-		if u == -1 || min_dist == inf || u == target {
-			return if u == target { min_dist } else { -1 }
-		}
+			tentative_g := g_score[current] + 1
 
-		visited[u] = 1
+			if tentative_g < g_score[neighbor] {
+				g_score[neighbor] = tentative_g
+				f := tentative_g + heuristic(neighbor, target)
 
-		for v in graph.adj[u] {
-			if dist[u] + 1 < dist[v] {
-				dist[v] = dist[u] + 1
+				if in_open_set[neighbor] == 0 {
+					open_set.push(neighbor, f)
+					in_open_set[neighbor] = 1
+				}
 			}
 		}
 	}
@@ -308,28 +343,21 @@ fn dijkstra_shortest_path(graph &Graph, start int, target int) int {
 	return -1
 }
 
-pub fn (mut b GraphPathDijkstra) prepare() {
-	b.n_pairs = int(helper.config_i64('GraphPathDijkstra', 'pairs'))
-	mut vertices := int(helper.config_i64('GraphPathDijkstra', 'vertices'))
+pub fn (mut b GraphPathAStar) prepare() {
+	vertices := int(helper.config_i64('GraphPathAStar', 'vertices'))
+	jumps := int(helper.config_i64('GraphPathAStar', 'jumps'))
+	jump_len := int(helper.config_i64('GraphPathAStar', 'jump_len'))
 
-	comps := if vertices / 10000 > 10 { vertices / 10000 } else { 10 }
-	b.graph = graph_new(vertices, comps)
+	b.graph = graph_new(vertices, jumps, jump_len)
 	b.graph.generate_random()
-	b.pairs = generate_pairs(b.graph, int(b.n_pairs))
 }
 
-pub fn (mut b GraphPathDijkstra) run(iteration_id int) {
+pub fn (mut b GraphPathAStar) run(iteration_id int) {
 	_ = iteration_id
-	mut total_length := i64(0)
-
-	for pair in b.pairs {
-		length := dijkstra_shortest_path(b.graph, pair.a, pair.b)
-		total_length += i64(length)
-	}
-
-	b.result_val += u32(total_length)
+	length := a_star_shortest_path(b.graph, 0, b.graph.vertices - 1)
+	b.result_val += u32(length)
 }
 
-pub fn (b GraphPathDijkstra) checksum() u32 {
+pub fn (b GraphPathAStar) checksum() u32 {
 	return b.result_val
 }

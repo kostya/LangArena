@@ -1,7 +1,6 @@
 package benchmarks
 
 import Benchmark
-import kotlin.math.absoluteValue
 
 class BrainfuckRecursion : Benchmark() {
     private lateinit var programText: String
@@ -14,33 +13,37 @@ class BrainfuckRecursion : Benchmark() {
     }
 
     sealed class Op {
-        object Dec : Op()
-        object Inc : Op()
-        object Prev : Op()
-        object Next : Op()
-        object Print : Op()
-        data class Loop(val ops: Array<Op>) : Op() 
+        object Inc : Op()      
+        object Dec : Op()      
+        object Next : Op()     
+        object Prev : Op()     
+        object Print : Op()    
+        data class Loop(val ops: Array<Op>) : Op()  
     }
 
     class Tape {
         private var pos = 0
-        private var tape = byteArrayOf(0)
+        private var tape = ByteArray(30000)
 
         fun currentCell(): Byte = tape[pos]
 
-        fun inc(x: Int) {
-            tape[pos] = (tape[pos] + x).toByte()
+        fun inc() {  
+            tape[pos] = (tape[pos] + 1).toByte()
         }
 
-        fun prev() {
-            pos--
+        fun dec() {  
+            tape[pos] = (tape[pos] - 1).toByte()
         }
 
-        fun next() {
+        fun next() {  
             pos++
             if (pos >= tape.size) {
-                tape = tape.copyOf(tape.size * 2)
+                tape = tape.copyOf(tape.size + 1)  
             }
+        }
+
+        fun prev() {  
+            if (pos > 0) pos--
         }
     }
 
@@ -49,7 +52,7 @@ class BrainfuckRecursion : Benchmark() {
         var result: Long = 0L
 
         init {
-            ops = parse(code.byteInputStream().bufferedReader().readText().iterator())
+            ops = parse(code.iterator())
         }
 
         private fun parse(iter: CharIterator): Array<Op> {
@@ -57,10 +60,10 @@ class BrainfuckRecursion : Benchmark() {
             while (iter.hasNext()) {
                 val c = iter.nextChar()
                 val op = when (c) {
-                    '-' -> Op.Dec
                     '+' -> Op.Inc
-                    '<' -> Op.Prev
+                    '-' -> Op.Dec
                     '>' -> Op.Next
+                    '<' -> Op.Prev
                     '.' -> Op.Print
                     '[' -> Op.Loop(parse(iter))
                     ']' -> break
@@ -73,6 +76,7 @@ class BrainfuckRecursion : Benchmark() {
 
         fun run(): Long {
             val tape = Tape()
+            result = 0
             execute(ops, tape)
             return result
         }
@@ -80,12 +84,12 @@ class BrainfuckRecursion : Benchmark() {
         private fun execute(program: Array<Op>, tape: Tape) {
             for (op in program) {
                 when (op) {
-                    is Op.Dec -> tape.inc(-1)
-                    is Op.Inc -> tape.inc(1)
-                    is Op.Prev -> tape.prev()
+                    is Op.Inc -> tape.inc()
+                    is Op.Dec -> tape.dec()
                     is Op.Next -> tape.next()
+                    is Op.Prev -> tape.prev()
                     is Op.Print -> {
-                        val cell = tape.currentCell().toInt().absoluteValue
+                        val cell = tape.currentCell().toInt() and 0xFF
                         result = (result shl 2) + cell
                     }
                     is Op.Loop -> {

@@ -66,7 +66,7 @@
   },
   "Nbody": {
     "checksum": 338799744,
-    "iterations": 20000000
+    "iterations": 20000
   },
   "RegexDna": {
     "checksum": 1111191109,
@@ -145,22 +145,25 @@
     "iterations": 100
   },
   "GraphPathBFS": {
-    "checksum": 307320,
-    "pairs": 950,
-    "vertices": 9500,
-    "iterations": 100
+    "checksum": 50400,
+    "vertices": 500000,
+    "jumps": 20,
+    "jump_len": 1000,
+    "iterations": 40
   },
   "GraphPathDFS": {
-    "checksum": 2968080,
-    "pairs": 550,
-    "vertices": 5500,
-    "iterations": 100
+    "checksum": 22194,
+    "vertices": 500000,
+    "jumps": 20,
+    "jump_len": 1000,
+    "iterations": 15
   },
-  "GraphPathDijkstra": {
-    "checksum": 25920,
-    "pairs": 120,
-    "vertices": 1200,
-    "iterations": 100
+  "GraphPathAStar": {
+    "checksum": 1406400,
+    "vertices": 500000,
+    "jumps": 20,
+    "jump_len": 1000,
+    "iterations": 1000
   },
   "BufferHashSHA256": {
     "checksum": 2844672256,
@@ -189,10 +192,10 @@
     "iterations": 100
   },
   "GameOfLife": {
-    "checksum": 1260701099,
-    "w": 1000,
-    "h": 1000,
-    "iterations": 220
+    "checksum": 3805797673,
+    "w": 500,
+    "h": 500,
+    "iterations": 500
   },
   "MazeGenerator": {
     "checksum": 3685250329,

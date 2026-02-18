@@ -72,7 +72,7 @@ const ALL_BENCHMARKS = [
     ("SortSelf", SortSelf),
     ("GraphPathBFS", GraphPathBFS),
     ("GraphPathDFS", GraphPathDFS),
-    ("GraphPathDijkstra", GraphPathDijkstra),
+    ("GraphPathAStar", GraphPathAStar),
     ("BufferHashSHA256", BufferHashSHA256),
     ("BufferHashCRC32", BufferHashCRC32),
     ("CacheSimulation", CacheSimulation),

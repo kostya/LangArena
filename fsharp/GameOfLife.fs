@@ -2,89 +2,87 @@ namespace Benchmarks
 
 open System
 
-type Cell = Dead = 0uy | Alive = 1uy
+type Cell() =
+    member val Alive = false with get, set
+    member val NextState = false with get, set
+    member val Neighbors = Array.zeroCreate<Cell> 8 with get
+    member val NeighborCount = 0 with get, set
+
+    member this.AddNeighbor(cell: Cell) =
+        this.Neighbors.[this.NeighborCount] <- cell
+        this.NeighborCount <- this.NeighborCount + 1
+
+    member this.ComputeNextState() =
+        let mutable aliveNeighbors = 0
+        for i in 0 .. this.NeighborCount - 1 do
+            if this.Neighbors.[i].Alive then
+                aliveNeighbors <- aliveNeighbors + 1
+
+        this.NextState <-
+            if this.Alive then
+                aliveNeighbors = 2 || aliveNeighbors = 3
+            else
+                aliveNeighbors = 3
+
+    member this.Update() =
+        this.Alive <- this.NextState
 
 type Grid(width: int, height: int) =
-    let size = width * height
-    let mutable cells = Array.zeroCreate<Cell> size
-    let mutable buffer = Array.zeroCreate<Cell> size
+    let cells = Array2D.init height width (fun _ _ -> Cell())
+
+    do
+
+        for y in 0 .. height - 1 do
+            for x in 0 .. width - 1 do
+                let cell = cells.[y, x]
+                for dy in -1 .. 1 do
+                    for dx in -1 .. 1 do
+                        if not (dx = 0 && dy = 0) then
+                            let ny = (y + dy + height) % height
+                            let nx = (x + dx + width) % width
+                            cell.AddNeighbor(cells.[ny, nx])
 
     member _.Width = width
     member _.Height = height
 
-    member private this.Index(x, y) = y * width + x
-
-    member this.Get(x, y) = cells.[this.Index(x, y)]
-
-    member this.Set(x, y, value) = 
-        cells.[this.Index(x, y)] <- value
-
-    member private this.CountNeighbors(x, y, cellsArray: Cell[]) =
-        let yPrev = if y = 0 then height - 1 else y - 1
-        let yNext = if y = height - 1 then 0 else y + 1
-        let xPrev = if x = 0 then width - 1 else x - 1
-        let xNext = if x = width - 1 then 0 else x + 1
-
-        let mutable count = 0
-
-        let idx = yPrev * width
-        if cellsArray.[idx + xPrev] = Cell.Alive then count <- count + 1
-        if cellsArray.[idx + x] = Cell.Alive then count <- count + 1
-        if cellsArray.[idx + xNext] = Cell.Alive then count <- count + 1
-
-        let idx = y * width
-        if cellsArray.[idx + xPrev] = Cell.Alive then count <- count + 1
-        if cellsArray.[idx + xNext] = Cell.Alive then count <- count + 1
-
-        let idx = yNext * width
-        if cellsArray.[idx + xPrev] = Cell.Alive then count <- count + 1
-        if cellsArray.[idx + x] = Cell.Alive then count <- count + 1
-        if cellsArray.[idx + xNext] = Cell.Alive then count <- count + 1
-
-        count
-
-    member this.NextGeneration() : Grid =
+    member this.NextGeneration() =
 
         for y in 0 .. height - 1 do
-            let yIdx = y * width
-
             for x in 0 .. width - 1 do
-                let idx = yIdx + x
+                cells.[y, x].ComputeNextState()
 
-                let neighbors = this.CountNeighbors(x, y, cells)
-                let current = cells.[idx]
-
-                let nextState =
-                    match current with
-                    | Cell.Alive when neighbors = 2 || neighbors = 3 -> Cell.Alive
-                    | Cell.Dead when neighbors = 3 -> Cell.Alive
-                    | _ -> Cell.Dead
-
-                buffer.[idx] <- nextState
-
-        let temp = cells
-        cells <- buffer
-        buffer <- temp
+        for y in 0 .. height - 1 do
+            for x in 0 .. width - 1 do
+                cells.[y, x].Update()
 
         this
 
+    member _.CountAlive() =
+        let mutable count = 0
+        for y in 0 .. height - 1 do
+            for x in 0 .. width - 1 do
+                if cells.[y, x].Alive then
+                    count <- count + 1
+        count
+
     member _.ComputeHash() =
         let mutable hash = 2166136261u
-
-        for i in 0 .. cells.Length - 1 do
-            let alive = if cells.[i] = Cell.Alive then 1u else 0u
-            hash <- (hash ^^^ alive) * 16777619u
-
+        for y in 0 .. height - 1 do
+            for x in 0 .. width - 1 do
+                let alive = if cells.[y, x].Alive then 1u else 0u
+                hash <- (hash ^^^ alive) * 16777619u
         hash
+
+    member _.GetCells() = cells
 
 type GameOfLife() =
     inherit Benchmark()
 
     let mutable grid : Grid option = None
 
-    override this.Checksum = 
+    override this.Checksum =
         match grid with
-        | Some g -> g.ComputeHash()
+        | Some g -> g.ComputeHash() + uint32 (g.CountAlive())
         | None -> 0u
 
     override this.Prepare() =
@@ -96,7 +94,7 @@ type GameOfLife() =
         for y in 0 .. height - 1 do
             for x in 0 .. width - 1 do
                 if Helper.NextFloat(1.0) < 0.1 then
-                    g.Set(x, y, Cell.Alive)
+                    g.GetCells().[y, x].Alive <- true
 
         grid <- Some g
 

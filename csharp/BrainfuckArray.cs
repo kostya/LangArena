@@ -12,24 +12,27 @@ public class BrainfuckArray : Benchmark
         _warmupText = Helper.Config_s(nameof(BrainfuckArray), "warmup_program");
     }
 
-    private class Tape
+    private struct Tape
     {
-        private byte[] _tape = new byte[30000];
-        private int _pos = 0;
+        private byte[] _tape;
+        private int _pos;
+
+        public Tape()
+        {
+            _tape = new byte[30000];
+            _pos = 0;
+        }
 
         public byte Get() => _tape[_pos];
-
-        public void Inc() => _tape[_pos] = (byte)(_tape[_pos] + 1); 
-
-        public void Dec() => _tape[_pos] = (byte)(_tape[_pos] - 1); 
+        public void Inc() => _tape[_pos] = (byte)(_tape[_pos] + 1);
+        public void Dec() => _tape[_pos] = (byte)(_tape[_pos] - 1);
 
         public void Advance()
         {
             _pos += 1;
             if (_pos >= _tape.Length)
             {
-
-                Array.Resize(ref _tape, _tape.Length * 2);
+                Array.Resize(ref _tape, _tape.Length + 1);
             }
         }
 
@@ -41,95 +44,88 @@ public class BrainfuckArray : Benchmark
 
     private class Program
     {
-        private List<byte> _commands = new List<byte>();
-        private int[] _jumps; 
-        private uint _result = 0;
-
-        public uint Result => _result;
+        private List<byte> _commands;
+        private int[] _jumps;
 
         public Program(string text)
         {
-
+            _commands = new List<byte>(text.Length);
             foreach (char c in text)
             {
-                if ("[]<>+-,.".Contains(c))
+                switch (c)
                 {
-                    _commands.Add((byte)c);
+                    case '[': case ']': case '<': case '>':
+                    case '+': case '-': case ',': case '.':
+                        _commands.Add((byte)c);
+                        break;
                 }
             }
 
             _jumps = new int[_commands.Count];
-            Stack<int> stack = new Stack<int>();
+            int[] stack = new int[_commands.Count];
+            int sp = 0;
 
             for (int i = 0; i < _commands.Count; i++)
             {
-                byte cmd = _commands[i];
-                if (cmd == '[')
+                if (_commands[i] == '[')
                 {
-                    stack.Push(i);
+                    stack[sp++] = i;
                 }
-                else if (cmd == ']' && stack.Count > 0)
+                else if (_commands[i] == ']' && sp > 0)
                 {
-                    int start = stack.Pop();
+                    int start = stack[--sp];
                     _jumps[start] = i;
                     _jumps[i] = start;
                 }
             }
         }
 
-        public void Run()
+        public uint Run()
         {
             var tape = new Tape();
             int pc = 0;
+            var commands = _commands;
+            var jumps = _jumps;
+            uint result = 0;
 
-            while (pc < _commands.Count)
+            while (pc < commands.Count)
             {
-                byte cmd = _commands[pc];
+                byte cmd = commands[pc];
 
                 switch (cmd)
                 {
-                    case (byte)'+': 
-                        tape.Inc(); 
-                        break;
-                    case (byte)'-': 
-                        tape.Dec(); 
-                        break;
-                    case (byte)'>': 
-                        tape.Advance(); 
-                        break;
-                    case (byte)'<': 
-                        tape.Devance(); 
-                        break;
+                    case (byte)'+': tape.Inc(); break;
+                    case (byte)'-': tape.Dec(); break;
+                    case (byte)'>': tape.Advance(); break;
+                    case (byte)'<': tape.Devance(); break;
                     case (byte)'[':
                         if (tape.Get() == 0)
                         {
-                            pc = _jumps[pc];
-                            continue; 
+                            pc = jumps[pc];
+                            continue;
                         }
                         break;
                     case (byte)']':
                         if (tape.Get() != 0)
                         {
-                            pc = _jumps[pc];
-                            continue; 
+                            pc = jumps[pc];
+                            continue;
                         }
                         break;
                     case (byte)'.':
-
-                        _result = unchecked((_result << 2) + tape.Get());
+                        result = unchecked((result << 2) + tape.Get());
                         break;
                 }
-
-                pc += 1;
+                pc++;
             }
+
+            return result;
         }
     }
 
     private uint RunProgram(string text)
     {
-        var program = new Program(text);
-        program.Run();
-        return program.Result;
+        return new Program(text).Run();
     }
 
     public override void Warmup()

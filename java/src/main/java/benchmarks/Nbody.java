@@ -28,8 +28,8 @@ public class Nbody extends Benchmark {
             }
         }
 
-        void moveFromI(Planet[] bodies, int nbodies, double dt, int i) {
-            while (i < nbodies) {
+        void moveFromI(Planet[] bodies, double dt, int i) {
+            while (i < bodies.length) {
                 Planet b2 = bodies[i];
                 double dx = x - b2.x;
                 double dy = y - b2.y;
@@ -159,14 +159,10 @@ public class Nbody extends Benchmark {
 
     @Override
     public void run(int iterationId) {
-        int nbodies = bodies.length;
-        double dt = 0.01;
-
-        int i = 0;
-        while (i < nbodies) {
-            Planet b = bodies[i];
-            b.moveFromI(bodies, nbodies, dt, i + 1);
-            i++;
+        for (int n = 0; n < 1000; n++) {
+            for (int i = 0; i < bodies.length; i++) {
+               bodies[i].moveFromI(bodies, 0.01, i + 1);
+            }
         }
     }
 

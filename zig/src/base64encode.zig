@@ -7,7 +7,7 @@ pub const Base64Encode = struct {
     helper: *Helper,
     input: []const u8,
     encoded: []const u8,
-    encoded_from_run: []const u8,  
+    encoded_size: usize,
     result_val: u32,
 
     const vtable = Benchmark.VTable{
@@ -34,24 +34,19 @@ pub const Base64Encode = struct {
             .helper = helper,
             .input = input_str,
             .encoded = encoded_result,
-            .encoded_from_run = &.{},  
+            .encoded_size = encoded_len,
             .result_val = 0,
         };
         return self;
     }
 
     pub fn deinit(self: *Base64Encode) void {
-
-        if (self.encoded_from_run.len > 0) {
-            const buf_len = std.base64.standard.Encoder.calcSize(self.input.len);
-            const buf = self.encoded_from_run.ptr[0..buf_len];
+        if (self.encoded.len > 0) {
+            const buf = self.encoded.ptr[0..self.encoded_size];
             self.allocator.free(buf);
         }
 
         self.allocator.free(self.input);
-        const encoded_buf_len = std.base64.standard.Encoder.calcSize(self.input.len);
-        const encoded_buf = self.encoded.ptr[0..encoded_buf_len];
-        self.allocator.free(encoded_buf);
         self.allocator.destroy(self);
     }
 
@@ -65,21 +60,20 @@ pub const Base64Encode = struct {
 
         const encode_buf_size = encoder.calcSize(self.input.len);
 
-        if (self.encoded_from_run.len > 0) {
-            const prev_buf_len = std.base64.standard.Encoder.calcSize(self.input.len);
-            const prev_buf = self.encoded_from_run.ptr[0..prev_buf_len];
+        if (self.encoded.len > 0) {
+            const prev_buf = self.encoded.ptr[0..self.encoded_size];
             self.allocator.free(prev_buf);
         }
 
         const encode_buf = self.allocator.alloc(u8, encode_buf_size) catch {
             self.result_val = 0;
-            self.encoded_from_run = &.{};
+            self.encoded = &.{};
             return;
         };
 
         const encoded_result = encoder.encode(encode_buf, self.input);
-
-        self.encoded_from_run = encoded_result;
+        self.encoded = encoded_result;
+        self.encoded_size = encode_buf_size;
 
         self.result_val +%= @as(u32, @intCast(encoded_result.len));
     }
@@ -90,18 +84,10 @@ pub const Base64Encode = struct {
 
         const first_four_input = if (self.input.len >= 4) self.input[0..4] else self.input;
 
-        const actual_encoded = if (self.encoded_from_run.len > 0) self.encoded_from_run else self.encoded;
+        const actual_encoded = self.encoded;
         const first_four_encoded = if (actual_encoded.len >= 4) actual_encoded[0..4] else actual_encoded;
 
-        const result_str = std.fmt.bufPrint(
-            &result_buf,
-            "encode {s}... to {s}...: {}",
-            .{ 
-                if (self.input.len > 4) first_four_input else first_four_input,
-                if (actual_encoded.len > 4) first_four_encoded else first_four_encoded,
-                self.result_val 
-            }
-        ) catch "encode error";
+        const result_str = std.fmt.bufPrint(&result_buf, "encode {s}... to {s}...: {}", .{ if (self.input.len > 4) first_four_input else first_four_input, if (actual_encoded.len > 4) first_four_encoded else first_four_encoded, self.result_val }) catch "encode error";
 
         return self.helper.checksumString(result_str);
     }

@@ -6,25 +6,26 @@ import std.array;
 import std.algorithm;
 import std.string;
 import std.range;
-import std.typecons;
-import std.exception;
 import benchmark;
 import helper;
 
 class CalculatorAst : Benchmark {
-public:
 
-    struct Number {
+    abstract class Node {
+
+    }
+
+    class Number : Node {
         long value;
         this(long v) { value = v; }
     }
 
-    struct Variable {
+    class Variable : Node {
         string name;
         this(string n) { name = n; }
     }
 
-    class BinaryOp {
+    class BinaryOp : Node {
         char op;
         Node left;
         Node right;
@@ -36,7 +37,7 @@ public:
         }
     }
 
-    class Assignment {
+    class Assignment : Node {
         string var;
         Node expr;
 
@@ -46,162 +47,75 @@ public:
         }
     }
 
-    abstract class ASTNode {
-
-        abstract string toText() const;
-    }
-
-    class NumberNode : ASTNode {
-        Number value;
-        this(Number n) { value = n; }
-        override string toText() const {
-            return to!string(value.value);
-        }
-    }
-
-    class VariableNode : ASTNode {
-        Variable variable;
-        this(Variable v) { variable = v; }
-        override string toText() const {
-            return variable.name;
-        }
-    }
-
-    class BinaryOpNode : ASTNode {
-        BinaryOp operation;
-        this(BinaryOp b) { operation = b; }
-        override string toText() const {
-            return format("(%s %s %s)", 
-                operation.left.toText(), 
-                operation.op, 
-                operation.right.toText());
-        }
-    }
-
-    class AssignmentNode : ASTNode {
-        Assignment assignment;
-        this(Assignment a) { assignment = a; }
-        override string toText() const {
-            return format("%s = %s", 
-                assignment.var, 
-                assignment.expr.toText());
-        }
-    }
-
-    class Node {
-    private:
-        ASTNode node;
-
-    public:
-        this(Number n) { node = new NumberNode(n); }
-        this(Variable v) { node = new VariableNode(v); }
-        this(BinaryOp b) { node = new BinaryOpNode(b); }
-        this(Assignment a) { node = new AssignmentNode(a); }
-
-        bool isNumber() const { return cast(NumberNode)node !is null; }
-        bool isVariable() const { return cast(VariableNode)node !is null; }
-        bool isBinaryOp() const { return cast(BinaryOpNode)node !is null; }
-        bool isAssignment() const { return cast(AssignmentNode)node !is null; }
-
-        Number getNumber() const { 
-            auto n = cast(NumberNode)node;
-            return n ? n.value : Number(0);
-        }
-
-        Variable getVariable() const { 
-            auto v = cast(VariableNode)node;
-            return v ? v.variable : Variable("");
-        }
-
-        BinaryOp getBinaryOp() const { 
-            auto b = cast(BinaryOpNode)node;
-            return b ? b.operation : null;
-        }
-
-        Assignment getAssignment() const { 
-            auto a = cast(AssignmentNode)node;
-            return a ? a.assignment : null;
-        }
-
-        string toText() const {
-            return node.toText();
-        }
-    }
-
 private:
     class Parser {
     private:
         string input;
         size_t pos;
         char currentChar;
-        char[] chars;
         Node[] expressions;
 
         void advance() {
-            pos += 1;
-            if (pos >= chars.length) {
+            pos++;
+            if (pos >= input.length) {
                 currentChar = '\0';
             } else {
-                currentChar = chars[pos];
+                currentChar = input[pos];
             }
         }
 
         void skipWhitespace() {
-            while (currentChar != '\0' && isWhite(currentChar)) {
+            while (currentChar != '\0' && 
+                   (currentChar == ' ' || currentChar == '\t' || 
+                    currentChar == '\n' || currentChar == '\r')) {
                 advance();
             }
-        }
-
-        bool isWhite(char c) {
-            return c == ' ' || c == '\t' || c == '\n' || c == '\r';
-        }
-
-        bool isDigit(char c) {
-            return c >= '0' && c <= '9';
-        }
-
-        bool isAlpha(char c) {
-            return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
         }
 
         Node parseNumber() {
             long v = 0;
-            while (currentChar != '\0' && isDigit(currentChar)) {
+            while (currentChar != '\0' && currentChar >= '0' && currentChar <= '9') {
                 v = v * 10 + (currentChar - '0');
                 advance();
             }
-            return new Node(Number(v));
+            return new Number(v);
         }
 
         Node parseVariable() {
             size_t start = pos;
             while (currentChar != '\0' && 
-                   (isAlpha(currentChar) || isDigit(currentChar))) {
+                   ((currentChar >= 'a' && currentChar <= 'z') ||
+                    (currentChar >= 'A' && currentChar <= 'Z') ||
+                    (currentChar >= '0' && currentChar <= '9') ||
+                    currentChar == '_')) {
                 advance();
             }
+
             string varName = input[start .. pos];
 
             skipWhitespace();
             if (currentChar == '=') {
                 advance();
                 auto expr = parseExpression();
-                return new Node(new Assignment(varName, expr));
+                return new Assignment(varName, expr);
             }
 
-            return new Node(Variable(varName));
+            return new Variable(varName);
         }
 
         Node parseFactor() {
             skipWhitespace();
             if (currentChar == '\0') {
-                return new Node(Number(0));
+                return new Number(0);
             }
 
-            if (isDigit(currentChar)) {
+            if (currentChar >= '0' && currentChar <= '9') {
                 return parseNumber();
             }
 
-            if (isAlpha(currentChar)) {
+            if ((currentChar >= 'a' && currentChar <= 'z') ||
+                (currentChar >= 'A' && currentChar <= 'Z') ||
+                currentChar == '_') {
                 return parseVariable();
             }
 
@@ -215,7 +129,7 @@ private:
                 return node;
             }
 
-            return new Node(Number(0));
+            return new Number(0);
         }
 
         Node parseTerm() {
@@ -229,7 +143,7 @@ private:
                     char op = currentChar;
                     advance();
                     auto right = parseFactor();
-                    node = new Node(new BinaryOp(op, node, right));
+                    node = new BinaryOp(op, node, right);
                 } else {
                     break;
                 }
@@ -249,7 +163,7 @@ private:
                     char op = currentChar;
                     advance();
                     auto right = parseTerm();
-                    node = new Node(new BinaryOp(op, node, right));
+                    node = new BinaryOp(op, node, right);
                 } else {
                     break;
                 }
@@ -262,12 +176,7 @@ private:
         this(string inputStr) {
             input = inputStr;
             pos = 0;
-            chars = cast(char[])inputStr;
-            if (chars.empty) {
-                currentChar = '\0';
-            } else {
-                currentChar = chars[0];
-            }
+            currentChar = input.length > 0 ? input[0] : '\0';
         }
 
         Node[] parse() {
@@ -283,52 +192,54 @@ private:
 
     uint resultVal;
     string text;
-public:
-    long n;
-private:
-    string generateRandomProgram(long programSize = 1000) {
+    public Node[] expressions;
+
+    string generateRandomProgram(long programSize) {
+        import std.format : format;
         auto app = appender!string();
         app.put("v0 = 1\n");
+
         for (int i = 0; i < 10; i++) {
             int v = i + 1;
-            app.put(format("v%s = v%s + %s\n", v, v - 1, v));
+            app.put(format("v%d = v%d + %d\n", v, v - 1, v));
         }
+
         for (long i = 0; i < programSize; i++) {
             int v = cast(int)(i + 10);
-            app.put(format("v%s = v%s + ", v, v - 1));
+            app.put(format("v%d = v%d + ", v, v - 1));
 
             switch (Helper.nextInt(10)) {
                 case 0:
-                    app.put(format("(v%s / 3) * 4 - %s / (3 + (18 - v%s)) %% v%s + 2 * ((9 - v%s) * (v%s + 7))", 
+                    app.put(format("(v%d / 3) * 4 - %d / (3 + (18 - v%d)) %% v%d + 2 * ((9 - v%d) * (v%d + 7))", 
                         v - 1, i, v - 2, v - 3, v - 6, v - 5));
                     break;
                 case 1:
-                    app.put(format("v%s + (v%s + v%s) * v%s - (v%s / v%s)", 
+                    app.put(format("v%d + (v%d + v%d) * v%d - (v%d / v%d)", 
                         v - 1, v - 2, v - 3, v - 4, v - 5, v - 6));
                     break;
                 case 2:
-                    app.put(format("(3789 - (((v%s)))) + 1", v - 7));
+                    app.put(format("(3789 - (((v%d)))) + 1", v - 7));
                     break;
                 case 3:
-                    app.put(format("4/2 * (1-3) + v%s/v%s", v - 9, v - 5));
+                    app.put(format("4/2 * (1-3) + v%d/v%d", v - 9, v - 5));
                     break;
                 case 4:
-                    app.put(format("1+2+3+4+5+6+v%s", v - 1));
+                    app.put(format("1+2+3+4+5+6+v%d", v - 1));
                     break;
                 case 5:
-                    app.put(format("(99999 / v%s)", v - 3));
+                    app.put(format("(99999 / v%d)", v - 3));
                     break;
                 case 6:
-                    app.put(format("0 + 0 - v%s", v - 8));
+                    app.put(format("0 + 0 - v%d", v - 8));
                     break;
                 case 7:
-                    app.put(format("((((((((((v%s)))))))))) * 2", v - 6));
+                    app.put(format("((((((((((v%d)))))))))) * 2", v - 6));
                     break;
                 case 8:
-                    app.put(format("%s * (v%s%%6)%%7", i, v - 1));
+                    app.put(format("%d * (v%d%%6)%%7", i, v - 1));
                     break;
                 case 9:
-                    app.put(format("(1)/(0-v%s) + (v%s)", v - 5, v - 7));
+                    app.put(format("(1)/(0-v%d) + (v%d)", v - 5, v - 7));
                     break;
                 default:
                     break;
@@ -347,7 +258,7 @@ public:
         n = configVal("operations");
     }
 
-    Node[] expressions;
+    long n;
 
     override void prepare() {
         text = generateRandomProgram(n);
@@ -357,9 +268,10 @@ public:
         auto parser = new Parser(text);
         expressions = parser.parse();
         resultVal += cast(uint)expressions.length;
-        if (!expressions.empty && expressions[$-1].isAssignment()) {
-            auto assign = expressions[$-1].getAssignment();
-            if (assign !is null) {
+
+        if (!expressions.empty) {
+
+            if (auto assign = cast(Assignment)expressions[$-1]) {
                 resultVal += Helper.checksum(assign.var);
             }
         }

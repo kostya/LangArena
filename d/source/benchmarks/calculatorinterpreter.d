@@ -4,9 +4,6 @@ import std.stdio;
 import std.conv;
 import std.array;
 import std.algorithm;
-import std.string;
-import std.math;  
-import std.typecons;
 import benchmark;
 import helper;
 import benchmarks.calculatorast;
@@ -15,14 +12,16 @@ class CalculatorInterpreter : Benchmark {
 private:
     class Interpreter {
     private:
-        long[string] variables;  
+        long[string] variables;
 
         static long simpleDiv(long a, long b) {
             if (b == 0) return 0;
             if ((a >= 0 && b > 0) || (a < 0 && b < 0)) {
                 return a / b;
             } else {
-                return -((a >= 0 ? a : -a) / (b >= 0 ? b : -b));  
+                long absA = a >= 0 ? a : (a == long.min ? long.max : -a);
+                long absB = b >= 0 ? b : (b == long.min ? long.max : -b);
+                return -(absA / absB);
             }
         }
 
@@ -31,23 +30,14 @@ private:
             return a - simpleDiv(a, b) * b;
         }
 
-        long evaluate(ref CalculatorAst.Node node) {
-            if (node.isNumber()) {
-                return node.getNumber().value;
-            } 
-            else if (node.isVariable()) {
-                auto varName = node.getVariable().name;
-
-                if (varName in variables) {
-                    return variables[varName];
-                } else {
-                    return 0;
-                }
+        long evaluate(CalculatorAst.Node node) {
+            if (auto num = cast(CalculatorAst.Number)node) {
+                return num.value;
             }
-            else if (node.isBinaryOp()) {
-                auto binop = node.getBinaryOp();
-                if (binop is null) return 0;
-
+            else if (auto var = cast(CalculatorAst.Variable)node) {
+                return var.name in variables ? variables[var.name] : 0;
+            }
+            else if (auto binop = cast(CalculatorAst.BinaryOp)node) {
                 long left = evaluate(binop.left);
                 long right = evaluate(binop.right);
 
@@ -60,12 +50,9 @@ private:
                     default: return 0;
                 }
             }
-            else if (node.isAssignment()) {
-                auto assign = node.getAssignment();
-                if (assign is null) return 0;
-
+            else if (auto assign = cast(CalculatorAst.Assignment)node) {
                 long value = evaluate(assign.expr);
-                variables[assign.var] = value;  
+                variables[assign.var] = value;
                 return value;
             }
 
@@ -75,16 +62,11 @@ private:
     public:
         long run(CalculatorAst.Node[] expressions) {
             long result = 0;
-            variables = null;  
-
-            foreach (ref expr; expressions) {
+            variables.clear();
+            foreach (expr; expressions) {
                 result = evaluate(expr);
             }
             return result;
-        }
-
-        void clear() {
-            variables = null;
         }
     }
 
@@ -102,12 +84,11 @@ public:
     }
 
     override void prepare() {
-
         auto ca = new CalculatorAst();
         ca.n = n;
         ca.prepare();
         ca.run(0);
-        ast = ca.expressions.dup;  
+        ast = ca.expressions;
     }
 
     override void run(int iterationId) {

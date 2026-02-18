@@ -16,7 +16,6 @@ end
 name(b::BufferHashBenchmark)::String = "BufferHashBenchmark"
 
 function prepare(b::BufferHashBenchmark)
-
     for i in 1:length(b.data)
         b.data[i] = UInt8(Helper.next_int(256))
     end

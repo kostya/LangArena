@@ -263,7 +263,7 @@ func RunBenchmarks(singleBench string) {
 		&SortSelf{BaseBenchmark: BaseBenchmark{className: "SortSelf"}},
 		&GraphPathBFS{BaseBenchmark: BaseBenchmark{className: "GraphPathBFS"}},
 		&GraphPathDFS{BaseBenchmark: BaseBenchmark{className: "GraphPathDFS"}},
-		&GraphPathDijkstra{BaseBenchmark: BaseBenchmark{className: "GraphPathDijkstra"}},
+		&GraphPathAStar{BaseBenchmark: BaseBenchmark{className: "GraphPathAStar"}},
 		&BufferHashSHA256{BaseBenchmark: BaseBenchmark{className: "BufferHashSHA256"}},
 		&BufferHashCRC32{BaseBenchmark: BaseBenchmark{className: "BufferHashCRC32"}},
 		&CacheSimulation{BaseBenchmark: BaseBenchmark{className: "CacheSimulation"}},
@@ -453,8 +453,8 @@ type Tape struct {
 	pos  int
 }
 
-func NewTape() *Tape {
-	return &Tape{tape: make([]byte, 30000), pos: 0}
+func NewTape() Tape {
+	return Tape{tape: make([]byte, 30000), pos: 0}
 }
 
 func (t *Tape) Get() byte { return t.tape[t.pos] }
@@ -489,9 +489,11 @@ func NewProgram(text string) *Program {
 
 	commands := make([]byte, 0, len(text))
 	for i := 0; i < len(text); i++ {
-		char := text[i]
-		if strings.Contains("[]<>+-,.", string(char)) {
-			commands = append(commands, char)
+		c := text[i]
+
+		switch c {
+		case '[', ']', '<', '>', '+', '-', ',', '.':
+			commands = append(commands, c)
 		}
 	}
 
@@ -499,13 +501,16 @@ func NewProgram(text string) *Program {
 	stack := make([]int, 0, len(commands)/2)
 
 	for i, cmd := range commands {
-		if cmd == '[' {
+		switch cmd {
+		case '[':
 			stack = append(stack, i)
-		} else if cmd == ']' && len(stack) > 0 {
-			start := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-			jumps[start] = i
-			jumps[i] = start
+		case ']':
+			if len(stack) > 0 {
+				start := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				jumps[start] = i
+				jumps[i] = start
+			}
 		}
 	}
 
@@ -516,9 +521,11 @@ func (p *Program) Run() int64 {
 	result := int64(0)
 	tape := NewTape()
 	pc := 0
+	cmds := p.commands
+	jumps := p.jumps
 
-	for pc < len(p.commands) {
-		switch p.commands[pc] {
+	for pc < len(cmds) {
+		switch cmds[pc] {
 		case '+':
 			tape.Inc()
 		case '-':
@@ -529,16 +536,15 @@ func (p *Program) Run() int64 {
 			tape.Devance()
 		case '[':
 			if tape.Get() == 0 {
-				pc = p.jumps[pc]
+				pc = jumps[pc]
 				continue
 			}
 		case ']':
 			if tape.Get() != 0 {
-				pc = p.jumps[pc]
+				pc = jumps[pc]
 				continue
 			}
 		case '.':
-
 			result = (result << 2) + int64(tape.Get())
 		}
 		pc++
@@ -584,8 +590,10 @@ func (b *BrainfuckArray) Checksum() uint32 {
 }
 
 type Op interface{}
-type IncOp struct{ val int32 }
-type MoveOp struct{ val int32 }
+type IncOp struct{}
+type DecOp struct{}
+type NextOp struct{}
+type PrevOp struct{}
 type PrintOp struct{}
 type LoopOp struct{ ops []Op }
 
@@ -610,13 +618,13 @@ func parseProgram(pos *int, runes []rune) []Op {
 
 		switch c {
 		case '+':
-			res = append(res, IncOp{val: 1})
+			res = append(res, IncOp{})
 		case '-':
-			res = append(res, IncOp{val: -1})
+			res = append(res, DecOp{})
 		case '>':
-			res = append(res, MoveOp{val: 1})
+			res = append(res, NextOp{})
 		case '<':
-			res = append(res, MoveOp{val: -1})
+			res = append(res, PrevOp{})
 		case '.':
 			res = append(res, PrintOp{})
 		case '[':
@@ -630,17 +638,22 @@ func parseProgram(pos *int, runes []rune) []Op {
 }
 
 func (p *Program2) Run() {
-	tape := &Tape2{tape: []byte{0}}
-	p.runOps(p.ops, tape)
+	tape := Tape2{tape: make([]byte, 30000)}
+	p.result = 0
+	p.runOps(p.ops, &tape)
 }
 
 func (p *Program2) runOps(ops []Op, tape *Tape2) {
 	for _, op := range ops {
 		switch o := op.(type) {
 		case IncOp:
-			tape.Inc(o.val)
-		case MoveOp:
-			tape.Move(o.val)
+			tape.Inc()
+		case DecOp:
+			tape.Dec()
+		case NextOp:
+			tape.Next()
+		case PrevOp:
+			tape.Prev()
 		case PrintOp:
 			p.result = (p.result << 2) + int64(tape.Get())
 		case LoopOp:
@@ -653,15 +666,38 @@ func (p *Program2) runOps(ops []Op, tape *Tape2) {
 
 type Tape2 struct {
 	tape []byte
-	pos  int32
+	pos  int
 }
 
-func (t *Tape2) Get() byte   { return t.tape[t.pos] }
-func (t *Tape2) Inc(x int32) { t.tape[t.pos] += byte(x) }
-func (t *Tape2) Move(x int32) {
-	t.pos += x
-	for t.pos >= int32(len(t.tape)) {
+func NewTape2() *Tape2 {
+	return &Tape2{
+		tape: make([]byte, 30000),
+		pos:  0,
+	}
+}
+
+func (t *Tape2) Get() byte {
+	return t.tape[t.pos]
+}
+
+func (t *Tape2) Inc() {
+	t.tape[t.pos]++
+}
+
+func (t *Tape2) Dec() {
+	t.tape[t.pos]--
+}
+
+func (t *Tape2) Next() {
+	t.pos++
+	if t.pos >= len(t.tape) {
 		t.tape = append(t.tape, 0)
+	}
+}
+
+func (t *Tape2) Prev() {
+	if t.pos > 0 {
+		t.pos--
 	}
 }
 
@@ -671,8 +707,13 @@ type BrainfuckRecursion struct {
 	result uint32
 }
 
+func (b *BrainfuckRecursion) Name() string {
+	return "BrainfuckRecursion"
+}
+
 func (b *BrainfuckRecursion) Prepare() {
 	b.text = b.ConfigStr("program")
+	b.result = 0
 }
 
 func (b *BrainfuckRecursion) _Run(text string) int64 {
@@ -690,7 +731,8 @@ func (b *BrainfuckRecursion) Warmup(bench Benchmark) {
 }
 
 func (b *BrainfuckRecursion) Run(iteration_id int) {
-	b.result += uint32(b._Run(b.text))
+	result := b._Run(b.text)
+	b.result = (b.result + uint32(result)) & 0xFFFFFFFF
 }
 
 func (b *BrainfuckRecursion) Checksum() uint32 {
@@ -709,11 +751,11 @@ func (f *Fannkuchredux) Prepare() {
 
 func (f *Fannkuchredux) fannkuchredux(n int) (int, int) {
 	var perm1 [32]int
-	for i := range perm1 {
+	for i := range perm1[:n] {
 		perm1[i] = i
 	}
-	perm := [32]int{}
-	count := [32]int{}
+	var perm [32]int
+	var count [32]int
 	maxFlipsCount := 0
 	permCount := 0
 	checksum := 0
@@ -725,15 +767,18 @@ func (f *Fannkuchredux) fannkuchredux(n int) (int, int) {
 			r--
 		}
 
-		copy(perm[:], perm1[:])
+		copy(perm[:n], perm1[:n])
 		flipsCount := 0
 
 		k := perm[0]
 		for k != 0 {
-			k2 := (k + 1) >> 1
-			for i := 0; i < k2; i++ {
-				j := k - i
+
+			i := 0
+			j := k
+			for i < j {
 				perm[i], perm[j] = perm[j], perm[i]
+				i++
+				j--
 			}
 			flipsCount++
 			k = perm[0]
@@ -743,7 +788,7 @@ func (f *Fannkuchredux) fannkuchredux(n int) (int, int) {
 			maxFlipsCount = flipsCount
 		}
 
-		if permCount%2 == 0 {
+		if permCount&1 == 0 {
 			checksum += flipsCount
 		} else {
 			checksum -= flipsCount
@@ -754,11 +799,9 @@ func (f *Fannkuchredux) fannkuchredux(n int) (int, int) {
 				return checksum, maxFlipsCount
 			}
 
-			perm0 := perm1[0]
-			for i := 0; i < r; i++ {
-				perm1[i], perm1[i+1] = perm1[i+1], perm1[i]
-			}
-			perm1[r] = perm0
+			first := perm1[0]
+			copy(perm1[:r], perm1[1:r+1])
+			perm1[r] = first
 
 			count[r]--
 			if count[r] > 0 {
@@ -1375,8 +1418,8 @@ func NewPlanet(x, y, z, vx, vy, vz, mass float64) *Planet {
 	}
 }
 
-func (p *Planet) MoveFromI(bodies []*Planet, nbodies int, dt float64, start int) {
-	for i := start; i < nbodies; i++ {
+func (p *Planet) MoveFromI(bodies []*Planet, dt float64, start int) {
+	for i := start; i < len(bodies); i++ {
 		b2 := bodies[i]
 		dx := p.x - b2.x
 		dy := p.y - b2.y
@@ -1485,14 +1528,10 @@ func (n *Nbody) energy() float64 {
 }
 
 func (n *Nbody) Run(iteration_id int) {
-	nbodies := len(n.body)
-	dt := 0.01
-
-	i := 0
-	for i < nbodies {
-		b := n.body[i]
-		b.MoveFromI(n.body, nbodies, dt, i+1)
-		i++
+	for k := 0; k < 1000; k += 1 {
+		for i, b := range n.body {
+		    b.MoveFromI(n.body, 0.01, i+1)
+		}
 	}
 }
 
@@ -1675,13 +1714,14 @@ func (s *Spectralnorm) evalA_times_u(u []float64) []float64 {
 	n := len(u)
 	v := make([]float64, n)
 
-	for i := 0; i < n; i++ {
+	for i := range v {
 		sum := 0.0
-		for j := 0; j < n; j++ {
-			sum += s.evalA(i, j) * u[j]
+		for j, uj := range u {
+			sum += s.evalA(i, j) * uj
 		}
 		v[i] = sum
 	}
+
 	return v
 }
 
@@ -1689,10 +1729,10 @@ func (s *Spectralnorm) evalAt_times_u(u []float64) []float64 {
 	n := len(u)
 	v := make([]float64, n)
 
-	for i := 0; i < n; i++ {
+	for i := range v {
 		sum := 0.0
-		for j := 0; j < n; j++ {
-			sum += s.evalA(j, i) * u[j]
+		for j, uj := range u {
+			sum += s.evalA(j, i) * uj
 		}
 		v[i] = sum
 	}
@@ -1721,24 +1761,24 @@ func (s *Spectralnorm) Checksum() uint32 {
 type Base64Encode struct {
 	BaseBenchmark
 	n      int64
-	str    string
+	bytes  []byte
 	str2   string
 	result uint32
 }
 
 func (b *Base64Encode) Prepare() {
 	b.n = b.ConfigVal("size")
-	b.str = strings.Repeat("a", int(b.n))
+	b.bytes = []byte(strings.Repeat("a", int(b.n)))
 }
 
 func (b *Base64Encode) Run(iteration_id int) {
-	b.str2 = base64.StdEncoding.EncodeToString([]byte(b.str))
+	b.str2 = base64.StdEncoding.EncodeToString(b.bytes)
 	b.result += uint32(len(b.str2))
 }
 
 func (b *Base64Encode) Checksum() uint32 {
 	resultStr := fmt.Sprintf("encode %s... to %s...: %d",
-		b.str[:min(4, len(b.str))],
+		string(b.bytes[:min(4, len(b.bytes))]),
 		b.str2[:min(4, len(b.str2))],
 		b.result)
 	return Checksum(resultStr)
@@ -1748,7 +1788,7 @@ type Base64Decode struct {
 	BaseBenchmark
 	n      int64
 	str2   string
-	str3   string
+	bytes  []byte
 	result uint32
 }
 
@@ -1759,15 +1799,14 @@ func (b *Base64Decode) Prepare() {
 }
 
 func (b *Base64Decode) Run(iteration_id int) {
-	decoded, _ := base64.StdEncoding.DecodeString(b.str2)
-	b.str3 = string(decoded)
-	b.result += uint32(len(b.str3))
+	b.bytes, _ = base64.StdEncoding.DecodeString(b.str2)
+	b.result += uint32(len(b.bytes))
 }
 
 func (b *Base64Decode) Checksum() uint32 {
 	resultStr := fmt.Sprintf("decode %s... to %s...: %d",
 		b.str2[:min(4, len(b.str2))],
-		b.str3[:min(4, len(b.str3))],
+		string(b.bytes[:min(4, len(b.bytes))]),
 		b.result)
 	return Checksum(resultStr)
 }
@@ -1946,7 +1985,7 @@ type JsonGenerate struct {
 	BaseBenchmark
 	n      int64
 	data   []Coordinate
-	text   bytes.Buffer
+	text   []byte
 	result uint32
 }
 
@@ -1982,10 +2021,9 @@ func (j *JsonGenerate) Run(iteration_id int) {
 		Info:        "some info",
 	}
 
-	data, _ := json.Marshal(resp)
-	j.text.Write(data)
+	j.text, _ = json.Marshal(resp)
 
-	if len(data) >= 15 && string(data[:15]) == "{\"coordinates\":" {
+	if len(j.text) >= 15 && string(j.text[:15]) == "{\"coordinates\":" {
 		j.result++
 	}
 }
@@ -1996,7 +2034,7 @@ func (j *JsonGenerate) Checksum() uint32 {
 
 type JsonParseDom struct {
 	BaseBenchmark
-	text   string
+	text   []byte
 	result uint32
 }
 
@@ -2005,12 +2043,12 @@ func (j *JsonParseDom) Prepare() {
 	gen.n = j.ConfigVal("coords")
 	gen.Prepare()
 	gen.Run(0)
-	j.text = gen.text.String()
+	j.text = gen.text
 }
 
-func (j *JsonParseDom) calc(text string) (float64, float64, float64) {
+func (j *JsonParseDom) calc() (float64, float64, float64) {
 	var data map[string]interface{}
-	json.Unmarshal([]byte(text), &data)
+	json.Unmarshal(j.text, &data)
 
 	coordinates := data["coordinates"].([]interface{})
 	length := float64(len(coordinates))
@@ -2027,7 +2065,7 @@ func (j *JsonParseDom) calc(text string) (float64, float64, float64) {
 }
 
 func (j *JsonParseDom) Run(iteration_id int) {
-	x, y, z := j.calc(j.text)
+	x, y, z := j.calc()
 	j.result += ChecksumFloat64(x) + ChecksumFloat64(y) + ChecksumFloat64(z)
 }
 
@@ -2037,7 +2075,7 @@ func (j *JsonParseDom) Checksum() uint32 {
 
 type JsonParseMapping struct {
 	BaseBenchmark
-	text   string
+	text   []byte
 	result uint32
 }
 
@@ -2046,10 +2084,10 @@ func (j *JsonParseMapping) Prepare() {
 	gen.n = j.ConfigVal("coords")
 	gen.Prepare()
 	gen.Run(0)
-	j.text = gen.text.String()
+	j.text = gen.text
 }
 
-func (j *JsonParseMapping) calc(text string) (float64, float64, float64) {
+func (j *JsonParseMapping) calc() (float64, float64, float64) {
 	var data struct {
 		Coordinates []struct {
 			X float64 `json:"x"`
@@ -2058,7 +2096,7 @@ func (j *JsonParseMapping) calc(text string) (float64, float64, float64) {
 		} `json:"coordinates"`
 	}
 
-	json.Unmarshal([]byte(text), &data)
+	json.Unmarshal(j.text, &data)
 
 	length := float64(len(data.Coordinates))
 	x, y, z := 0.0, 0.0, 0.0
@@ -2073,7 +2111,7 @@ func (j *JsonParseMapping) calc(text string) (float64, float64, float64) {
 }
 
 func (j *JsonParseMapping) Run(iteration_id int) {
-	x, y, z := j.calc(j.text)
+	x, y, z := j.calc()
 	j.result += ChecksumFloat64(x) + ChecksumFloat64(y) + ChecksumFloat64(z)
 }
 
@@ -2716,9 +2754,7 @@ func (s *SortMerge) mergeSortHelper(arr, temp []int, left, right int) {
 }
 
 func (s *SortMerge) merge(arr, temp []int, left, mid, right int) {
-	for i := left; i <= right; i++ {
-		temp[i] = arr[i]
-	}
+	copy(temp[left:right+1], arr[left:right+1])
 
 	i, j, k := left, mid+1, left
 
@@ -2779,17 +2815,23 @@ func (s *SortSelf) Checksum() uint32 {
 }
 
 type Graph struct {
-	vertices   int
-	components int
-	adj        [][]int
+	vertices int
+	jumps    int
+	jumpLen  int
+	adj      [][]int
 }
 
-func NewGraph(vertices, components int) *Graph {
+func NewGraph(vertices, jumps, jumpLen int) *Graph {
 	adj := make([][]int, vertices)
 	for i := range adj {
 		adj[i] = make([]int, 0)
 	}
-	return &Graph{vertices: vertices, components: components, adj: adj}
+	return &Graph{
+		vertices: vertices,
+		jumps:    jumps,
+		jumpLen:  jumpLen,
+		adj:      adj,
+	}
 }
 
 func (g *Graph) AddEdge(u, v int) {
@@ -2798,25 +2840,19 @@ func (g *Graph) AddEdge(u, v int) {
 }
 
 func (g *Graph) GenerateRandom() {
-	componentSize := g.vertices / g.components
 
-	for c := 0; c < g.components; c++ {
-		startIdx := c * componentSize
-		endIdx := (c + 1) * componentSize
-		if c == g.components-1 {
-			endIdx = g.vertices
-		}
+	for i := 1; i < g.vertices; i++ {
+		g.AddEdge(i, i-1)
+	}
 
-		for i := startIdx + 1; i < endIdx; i++ {
-			parent := startIdx + NextInt(i-startIdx)
-			g.AddEdge(i, parent)
-		}
+	for v := 0; v < g.vertices; v++ {
+		numJumps := NextInt(g.jumps)
+		for j := 0; j < numJumps; j++ {
+			offset := NextInt(g.jumpLen) - g.jumpLen/2
+			u := v + offset
 
-		for i := 0; i < componentSize*2; i++ {
-			u := startIdx + NextInt(endIdx-startIdx)
-			v := startIdx + NextInt(endIdx-startIdx)
-			if u != v {
-				g.AddEdge(u, v)
+			if u >= 0 && u < g.vertices && u != v {
+				g.AddEdge(v, u)
 			}
 		}
 	}
@@ -2824,49 +2860,17 @@ func (g *Graph) GenerateRandom() {
 
 type GraphPathBFS struct {
 	BaseBenchmark
-	n_pairs int64
-	graph   *Graph
-	pairs   [][2]int
-	result  uint32
+	graph  *Graph
+	result uint32
 }
 
 func (g *GraphPathBFS) Prepare() {
-	g.n_pairs = g.ConfigVal("pairs")
 	vertices := int(g.ConfigVal("vertices"))
-	components := max(10, vertices/10000)
-	g.graph = NewGraph(vertices, components)
+	jumps := int(g.ConfigVal("jumps"))
+	jumpLen := int(g.ConfigVal("jump_len"))
+
+	g.graph = NewGraph(vertices, jumps, jumpLen)
 	g.graph.GenerateRandom()
-	g.pairs = g.generatePairs(int(g.n_pairs))
-}
-
-func (g *GraphPathBFS) generatePairs(n int) [][2]int {
-	pairs := make([][2]int, n)
-	componentSize := g.graph.vertices / 10
-
-	for i := 0; i < n; i++ {
-		if NextInt(100) < 70 {
-			component := NextInt(10)
-			start := component*componentSize + NextInt(componentSize)
-			for {
-				end := component*componentSize + NextInt(componentSize)
-				if end != start {
-					pairs[i] = [2]int{start, end}
-					break
-				}
-			}
-		} else {
-			c1 := NextInt(10)
-			c2 := NextInt(10)
-			for c2 == c1 {
-				c2 = NextInt(10)
-			}
-			start := c1*componentSize + NextInt(componentSize)
-			end := c2*componentSize + NextInt(componentSize)
-			pairs[i] = [2]int{start, end}
-		}
-	}
-
-	return pairs
 }
 
 func (g *GraphPathBFS) bfsShortestPath(start, target int) int {
@@ -2876,7 +2880,6 @@ func (g *GraphPathBFS) bfsShortestPath(start, target int) int {
 
 	visited := make([]byte, g.graph.vertices)
 	queue := [][2]int{{start, 0}}
-
 	visited[start] = 1
 
 	for len(queue) > 0 {
@@ -2899,10 +2902,8 @@ func (g *GraphPathBFS) bfsShortestPath(start, target int) int {
 }
 
 func (g *GraphPathBFS) Run(iteration_id int) {
-	for i := 0; i < len(g.pairs); i += 1 {
-		length := g.bfsShortestPath(g.pairs[i][0], g.pairs[i][1])
-		g.result += uint32(length)
-	}
+	length := g.bfsShortestPath(0, g.graph.vertices-1)
+	g.result += uint32(length)
 }
 
 func (g *GraphPathBFS) Checksum() uint32 {
@@ -2911,49 +2912,17 @@ func (g *GraphPathBFS) Checksum() uint32 {
 
 type GraphPathDFS struct {
 	BaseBenchmark
-	n_pairs int64
-	graph   *Graph
-	pairs   [][2]int
-	result  uint32
+	graph  *Graph
+	result uint32
 }
 
 func (g *GraphPathDFS) Prepare() {
-	g.n_pairs = g.ConfigVal("pairs")
 	vertices := int(g.ConfigVal("vertices"))
-	components := max(10, vertices/10000)
-	g.graph = NewGraph(vertices, components)
+	jumps := int(g.ConfigVal("jumps"))
+	jumpLen := int(g.ConfigVal("jump_len"))
+
+	g.graph = NewGraph(vertices, jumps, jumpLen)
 	g.graph.GenerateRandom()
-	g.pairs = g.generatePairs(int(g.n_pairs))
-}
-
-func (g *GraphPathDFS) generatePairs(n int) [][2]int {
-	pairs := make([][2]int, n)
-	componentSize := g.graph.vertices / 10
-
-	for i := 0; i < n; i++ {
-		if NextInt(100) < 70 {
-			component := NextInt(10)
-			start := component*componentSize + NextInt(componentSize)
-			for {
-				end := component*componentSize + NextInt(componentSize)
-				if end != start {
-					pairs[i] = [2]int{start, end}
-					break
-				}
-			}
-		} else {
-			c1 := NextInt(10)
-			c2 := NextInt(10)
-			for c2 == c1 {
-				c2 = NextInt(10)
-			}
-			start := c1*componentSize + NextInt(componentSize)
-			end := c2*componentSize + NextInt(componentSize)
-			pairs[i] = [2]int{start, end}
-		}
-	}
-
-	return pairs
 }
 
 func (g *GraphPathDFS) dfsFindPath(start, target int) int {
@@ -2992,105 +2961,145 @@ func (g *GraphPathDFS) dfsFindPath(start, target int) int {
 }
 
 func (g *GraphPathDFS) Run(iteration_id int) {
-	for i := 0; i < len(g.pairs); i += 1 {
-		length := g.dfsFindPath(g.pairs[i][0], g.pairs[i][1])
-		g.result += uint32(length)
-	}
+	length := g.dfsFindPath(0, g.graph.vertices-1)
+	g.result += uint32(length)
 }
 
 func (g *GraphPathDFS) Checksum() uint32 {
 	return g.result
 }
 
-type GraphPathDijkstra struct {
-	BaseBenchmark
-	n_pairs int64
-	graph   *Graph
-	pairs   [][2]int
-	result  uint32
+type GraphPriorityQueueItem struct {
+	vertex   int
+	priority int
 }
 
-func (g *GraphPathDijkstra) Prepare() {
-	g.n_pairs = g.ConfigVal("pairs")
-	vertices := int(g.ConfigVal("vertices"))
-	components := max(10, vertices/10000)
-	g.graph = NewGraph(vertices, components)
-	g.graph.GenerateRandom()
-	g.pairs = g.generatePairs(int(g.n_pairs))
+type GraphPriorityQueue struct {
+	items []GraphPriorityQueueItem
 }
 
-func (g *GraphPathDijkstra) generatePairs(n int) [][2]int {
-	pairs := make([][2]int, n)
-	componentSize := g.graph.vertices / 10
-
-	for i := 0; i < n; i++ {
-		if NextInt(100) < 70 {
-			component := NextInt(10)
-			start := component*componentSize + NextInt(componentSize)
-			for {
-				end := component*componentSize + NextInt(componentSize)
-				if end != start {
-					pairs[i] = [2]int{start, end}
-					break
-				}
-			}
-		} else {
-			c1 := NextInt(10)
-			c2 := NextInt(10)
-			for c2 == c1 {
-				c2 = NextInt(10)
-			}
-			start := c1*componentSize + NextInt(componentSize)
-			end := c2*componentSize + NextInt(componentSize)
-			pairs[i] = [2]int{start, end}
-		}
+func NewGraphPriorityQueue(capacity int) *GraphPriorityQueue {
+	return &GraphPriorityQueue{
+		items: make([]GraphPriorityQueueItem, 0, capacity),
 	}
-
-	return pairs
 }
 
-func (g *GraphPathDijkstra) dijkstraShortestPath(start, target int) int {
+func (pq *GraphPriorityQueue) Push(vertex, priority int) {
+	pq.items = append(pq.items, GraphPriorityQueueItem{vertex, priority})
+	pq.siftUp(len(pq.items) - 1)
+}
+
+func (pq *GraphPriorityQueue) Pop() (int, int) {
+	min := pq.items[0]
+	pq.items[0] = pq.items[len(pq.items)-1]
+	pq.items = pq.items[:len(pq.items)-1]
+	pq.siftDown(0)
+	return min.vertex, min.priority
+}
+
+func (pq *GraphPriorityQueue) Len() int {
+	return len(pq.items)
+}
+
+func (pq *GraphPriorityQueue) siftUp(i int) {
+	for i > 0 {
+		parent := (i - 1) / 2
+		if pq.items[parent].priority <= pq.items[i].priority {
+			break
+		}
+		pq.items[parent], pq.items[i] = pq.items[i], pq.items[parent]
+		i = parent
+	}
+}
+
+func (pq *GraphPriorityQueue) siftDown(i int) {
+	n := len(pq.items)
+	for {
+		left := 2*i + 1
+		right := 2*i + 2
+		smallest := i
+
+		if left < n && pq.items[left].priority < pq.items[smallest].priority {
+			smallest = left
+		}
+		if right < n && pq.items[right].priority < pq.items[smallest].priority {
+			smallest = right
+		}
+		if smallest == i {
+			break
+		}
+		pq.items[i], pq.items[smallest] = pq.items[smallest], pq.items[i]
+		i = smallest
+	}
+}
+
+type GraphPathAStar struct {
+	BaseBenchmark
+	graph  *Graph
+	result uint32
+}
+
+func (g *GraphPathAStar) Prepare() {
+	vertices := int(g.ConfigVal("vertices"))
+	jumps := int(g.ConfigVal("jumps"))
+	jumpLen := int(g.ConfigVal("jump_len"))
+
+	g.graph = NewGraph(vertices, jumps, jumpLen)
+	g.graph.GenerateRandom()
+}
+
+func (g *GraphPathAStar) heuristic(v, target int) int {
+	return target - v
+}
+
+func (g *GraphPathAStar) aStarShortestPath(start, target int) int {
 	if start == target {
 		return 0
 	}
 
 	const INF = int(^uint(0) >> 1)
-	dist := make([]int, g.graph.vertices)
-	visited := make([]byte, g.graph.vertices)
+	gScore := make([]int, g.graph.vertices)
+	fScore := make([]int, g.graph.vertices)
+	closed := make([]byte, g.graph.vertices)
 
-	for i := range dist {
-		dist[i] = INF
+	for i := range gScore {
+		gScore[i] = INF
+		fScore[i] = INF
 	}
-	dist[start] = 0
+	gScore[start] = 0
+	fScore[start] = g.heuristic(start, target)
 
-	iteration := 0
-	maxIterations := g.graph.vertices
+	openSet := NewGraphPriorityQueue(g.graph.vertices)
+	inOpenSet := make([]byte, g.graph.vertices)
 
-	for iteration < maxIterations {
-		iteration++
+	openSet.Push(start, fScore[start])
+	inOpenSet[start] = 1
 
-		u := -1
-		minDist := INF
+	for openSet.Len() > 0 {
+		current, _ := openSet.Pop()
+		inOpenSet[current] = 0
 
-		for v := 0; v < g.graph.vertices; v++ {
-			if visited[v] == 0 && dist[v] < minDist {
-				minDist = dist[v]
-				u = v
-			}
+		if current == target {
+			return gScore[current]
 		}
 
-		if u == -1 || minDist == INF || u == target {
-			if u == target {
-				return minDist
+		closed[current] = 1
+
+		for _, neighbor := range g.graph.adj[current] {
+			if closed[neighbor] == 1 {
+				continue
 			}
-			return -1
-		}
 
-		visited[u] = 1
+			tentativeG := gScore[current] + 1
 
-		for _, v := range g.graph.adj[u] {
-			if dist[u] != INF && dist[u]+1 < dist[v] {
-				dist[v] = dist[u] + 1
+			if tentativeG < gScore[neighbor] {
+				gScore[neighbor] = tentativeG
+				fScore[neighbor] = tentativeG + g.heuristic(neighbor, target)
+
+				if inOpenSet[neighbor] == 0 {
+					openSet.Push(neighbor, fScore[neighbor])
+					inOpenSet[neighbor] = 1
+				}
 			}
 		}
 	}
@@ -3098,14 +3107,12 @@ func (g *GraphPathDijkstra) dijkstraShortestPath(start, target int) int {
 	return -1
 }
 
-func (g *GraphPathDijkstra) Run(iteration_id int) {
-	for i := 0; i < len(g.pairs); i += 1 {
-		length := g.dijkstraShortestPath(g.pairs[i][0], g.pairs[i][1])
-		g.result += uint32(length)
-	}
+func (g *GraphPathAStar) Run(iteration_id int) {
+	length := g.aStarShortestPath(0, g.graph.vertices-1)
+	g.result += uint32(length)
 }
 
-func (g *GraphPathDijkstra) Checksum() uint32 {
+func (g *GraphPathAStar) Checksum() uint32 {
 	return g.result
 }
 
@@ -3683,177 +3690,157 @@ func (c *CalculatorInterpreter) Checksum() uint32 {
 	return c.result
 }
 
-type Cell uint8
+type Cell struct {
+    Alive      bool
+    NextState  bool
+    Neighbors  []*Cell
+}
 
-const (
-	Dead Cell = iota
-	Alive
-)
+func NewCell() *Cell {
+    return &Cell{
+        Neighbors: make([]*Cell, 0, 8),
+    }
+}
+
+func (c *Cell) AddNeighbor(neighbor *Cell) {
+    c.Neighbors = append(c.Neighbors, neighbor)
+}
+
+func (c *Cell) ComputeNextState() {
+    aliveNeighbors := 0
+    for _, n := range c.Neighbors {
+        if n.Alive {
+            aliveNeighbors++
+        }
+    }
+
+    if c.Alive {
+        c.NextState = aliveNeighbors == 2 || aliveNeighbors == 3
+    } else {
+        c.NextState = aliveNeighbors == 3
+    }
+}
+
+func (c *Cell) Update() {
+    c.Alive = c.NextState
+}
 
 type Grid struct {
-	width  int
-	height int
-	cells  []Cell
-	buffer []Cell
+    width  int
+    height int
+    cells  [][]*Cell
 }
 
 func NewGrid(width, height int) *Grid {
-	size := width * height
-	return &Grid{
-		width:  width,
-		height: height,
-		cells:  make([]Cell, size),
-		buffer: make([]Cell, size),
-	}
+    cells := make([][]*Cell, height)
+    for y := 0; y < height; y++ {
+        cells[y] = make([]*Cell, width)
+        for x := 0; x < width; x++ {
+            cells[y][x] = NewCell()
+        }
+    }
+
+    grid := &Grid{
+        width:  width,
+        height: height,
+        cells:  cells,
+    }
+    grid.linkNeighbors()
+    return grid
 }
 
-func (g *Grid) idx(x, y int) int {
-	return y*g.width + x
+func (g *Grid) linkNeighbors() {
+    for y := 0; y < g.height; y++ {
+        for x := 0; x < g.width; x++ {
+            cell := g.cells[y][x]
+
+            for dy := -1; dy <= 1; dy++ {
+                for dx := -1; dx <= 1; dx++ {
+                    if dx == 0 && dy == 0 {
+                        continue
+                    }
+
+                    ny := (y + dy + g.height) % g.height
+                    nx := (x + dx + g.width) % g.width
+
+                    cell.AddNeighbor(g.cells[ny][nx])
+                }
+            }
+        }
+    }
 }
 
-func (g *Grid) countNeighbors(x, y int, cells []Cell) int {
+func (g *Grid) NextGeneration() {
 
-	yPrev := y - 1
-	if yPrev < 0 {
-		yPrev = g.height - 1
-	}
-	yNext := y + 1
-	if yNext >= g.height {
-		yNext = 0
-	}
-	xPrev := x - 1
-	if xPrev < 0 {
-		xPrev = g.width - 1
-	}
-	xNext := x + 1
-	if xNext >= g.width {
-		xNext = 0
-	}
+    for _, row := range g.cells {
+        for _, cell := range row {
+            cell.ComputeNextState()
+        }
+    }
 
-	count := 0
-
-	idx := yPrev * g.width
-	if cells[idx+xPrev] == Alive {
-		count++
-	}
-	if cells[idx+x] == Alive {
-		count++
-	}
-	if cells[idx+xNext] == Alive {
-		count++
-	}
-
-	idx = y * g.width
-	if cells[idx+xPrev] == Alive {
-		count++
-	}
-	if cells[idx+xNext] == Alive {
-		count++
-	}
-
-	idx = yNext * g.width
-	if cells[idx+xPrev] == Alive {
-		count++
-	}
-	if cells[idx+x] == Alive {
-		count++
-	}
-	if cells[idx+xNext] == Alive {
-		count++
-	}
-
-	return count
+    for _, row := range g.cells {
+        for _, cell := range row {
+            cell.Update()
+        }
+    }
 }
 
-func (g *Grid) nextGeneration() *Grid {
-	width := g.width
-	height := g.height
-
-	cells := g.cells
-	buffer := g.buffer
-
-	for y := 0; y < height; y++ {
-		yIdx := y * width
-
-		for x := 0; x < width; x++ {
-			idx := yIdx + x
-
-			neighbors := g.countNeighbors(x, y, cells)
-
-			current := cells[idx]
-			var nextState Cell = Dead
-
-			if current == Alive {
-				if neighbors == 2 || neighbors == 3 {
-					nextState = Alive
-				}
-			} else if neighbors == 3 {
-				nextState = Alive
-			}
-
-			buffer[idx] = nextState
-		}
-	}
-
-	return &Grid{
-		width:  width,
-		height: height,
-		cells:  buffer,
-		buffer: cells,
-	}
+func (g *Grid) CountAlive() int {
+    count := 0
+    for _, row := range g.cells {
+        for _, cell := range row {
+            if cell.Alive {
+                count++
+            }
+        }
+    }
+    return count
 }
 
-func (g *Grid) computeHash() uint32 {
-	const (
-		FNV_OFFSET_BASIS uint32 = 2166136261
-		FNV_PRIME        uint32 = 16777619
-	)
+func (g *Grid) ComputeHash() uint32 {
+    const (
+        FNV_OFFSET_BASIS uint32 = 2166136261
+        FNV_PRIME        uint32 = 16777619
+    )
 
-	hash := FNV_OFFSET_BASIS
-	cells := g.cells
-
-	for i := 0; i < len(cells); i++ {
-		alive := uint32(0)
-		if cells[i] == Alive {
-			alive = 1
-		}
-		hash = (hash ^ alive) * FNV_PRIME
-	}
-
-	return hash
+    hash := FNV_OFFSET_BASIS
+    for _, row := range g.cells {
+        for _, cell := range row {
+            var alive uint32 = 0
+            if cell.Alive {
+                alive = 1
+            }
+            hash = (hash ^ alive) * FNV_PRIME
+        }
+    }
+    return hash
 }
 
 type GameOfLife struct {
-	BaseBenchmark
-	width  int
-	height int
-	grid   *Grid
+    BaseBenchmark
+    grid *Grid
 }
 
 func (g *GameOfLife) Prepare() {
-	g.width = int(g.ConfigVal("w"))
-	g.height = int(g.ConfigVal("h"))
-	g.grid = NewGrid(g.width, g.height)
+    width := int(g.ConfigVal("w"))
+    height := int(g.ConfigVal("h"))
+    g.grid = NewGrid(width, height)
 
-	cells := g.grid.cells
-	width := g.width
-
-	for y := 0; y < g.height; y++ {
-		yIdx := y * width
-		for x := 0; x < width; x++ {
-			if NextFloat(1.0) < 0.1 {
-				cells[yIdx+x] = Alive
-			}
-		}
-	}
+    for _, row := range g.grid.cells {
+        for _, cell := range row {
+            if NextFloat(1.0) < 0.1 {
+                cell.Alive = true
+            }
+        }
+    }
 }
 
-func (g *GameOfLife) Run(iteration_id int) {
-	g.grid = g.grid.nextGeneration()
+func (g *GameOfLife) Run(iterationId int) {
+    g.grid.NextGeneration()
 }
 
 func (g *GameOfLife) Checksum() uint32 {
-	return g.grid.computeHash()
+    return g.grid.ComputeHash() + uint32(g.grid.CountAlive())
 }
 
 type PCell int

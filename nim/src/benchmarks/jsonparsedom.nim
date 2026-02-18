@@ -14,7 +14,6 @@ proc newJsonParseDom(): Benchmark =
 method name(self: JsonParseDom): string = "JsonParseDom"
 
 method prepare(self: JsonParseDom) =
-
   let n = self.config_val("coords")
   self.text = getJsonText(n)
   self.resultVal = 0

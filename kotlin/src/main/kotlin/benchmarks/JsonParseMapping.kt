@@ -18,7 +18,6 @@ class JsonParseMapping : Benchmark() {
     }
 
     private fun calc(text: String): Coord {
-
         val data = text.into<CoordinatesData>()
         val coordinates = data.coordinates
 

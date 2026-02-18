@@ -474,7 +474,6 @@ export abstract class Benchmark {
 export class Pidigits extends Benchmark {
   private nn: number;
   private resultBuffer: string[] = [];
-  private resultStr: string = '';
 
   constructor() {
     super();
@@ -532,12 +531,10 @@ export class Pidigits extends Benchmark {
       const line = ns.toString().padStart(remainingDigits, '0') + `\t:${i}\n`;
       this.resultBuffer.push(line);
     }
-
-    this.resultStr = this.resultBuffer.join('');
   }
 
   checksum(): number {
-    return Helper.checksumString(this.resultStr);
+    return Helper.checksumString(this.resultBuffer.join(''));
   }
 }
 
@@ -603,11 +600,11 @@ export class Binarytrees extends Benchmark {
 }
 
 class Tape {
-  private tape: number[];
+  private tape: Uint8Array;
   private pos: number;
 
   constructor() {
-    this.tape = new Array(30000).fill(0);
+    this.tape = new Uint8Array(30000);
     this.pos = 0;
   }
 
@@ -616,19 +613,19 @@ class Tape {
   }
 
   inc(): void {
-
     this.tape[this.pos] = (this.tape[this.pos] + 1) & 255;
   }
 
   dec(): void {
-
     this.tape[this.pos] = (this.tape[this.pos] - 1) & 255;
   }
 
   advance(): void {
     this.pos++;
     if (this.pos >= this.tape.length) {
-      this.tape.push(0);
+      const newTape = new Uint8Array(this.tape.length + 1);
+      newTape.set(this.tape);
+      this.tape = newTape;
     }
   }
 
@@ -640,28 +637,29 @@ class Tape {
 }
 
 class Program {
-  private commands: string;
+  private commands: Uint8Array;
   private jumps: number[];
 
   constructor(text: string) {
 
-    const filteredChars: string[] = [];
-    for (const char of text) {
-      if ('[]<>+-,.'.includes(char)) {
-        filteredChars.push(char);
+    const valid = new Set(['[', ']', '<', '>', '+', '-', ',', '.']);
+    const bytes: number[] = [];
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (valid.has(c)) {
+        bytes.push(c.charCodeAt(0));
       }
     }
 
-    this.commands = filteredChars.join('');
-
+    this.commands = new Uint8Array(bytes);
     this.jumps = new Array(this.commands.length).fill(0);
     const stack: number[] = [];
 
     for (let i = 0; i < this.commands.length; i++) {
       const cmd = this.commands[i];
-      if (cmd === '[') {
+      if (cmd === 91) { 
         stack.push(i);
-      } else if (cmd === ']' && stack.length > 0) {
+      } else if (cmd === 93 && stack.length > 0) { 
         const start = stack.pop()!;
         this.jumps[start] = i;
         this.jumps[i] = start;
@@ -673,35 +671,28 @@ class Program {
     let result = 0;
     const tape = new Tape();
     let pc = 0;
+    const commands = this.commands;
+    const jumps = this.jumps;
 
-    while (pc < this.commands.length) {
-      const cmd = this.commands[pc];
+    while (pc < commands.length) {
+      const cmd = commands[pc];
 
       switch (cmd) {
-        case '+':
-          tape.inc();
-          break;
-        case '-':
-          tape.dec();
-          break;
-        case '>':
-          tape.advance();
-          break;
-        case '<':
-          tape.devance();
-          break;
-        case '[':
+        case 43: tape.inc(); break;      
+        case 45: tape.dec(); break;      
+        case 62: tape.advance(); break;  
+        case 60: tape.devance(); break;  
+        case 91: 
           if (tape.get() === 0) {
-            pc = this.jumps[pc];
+            pc = jumps[pc];
           }
           break;
-        case ']':
+        case 93: 
           if (tape.get() !== 0) {
-            pc = this.jumps[pc];
+            pc = jumps[pc];
           }
           break;
-        case '.':
-
+        case 46: 
           result = ((result << 2) + tape.get()) >>> 0;
           break;
       }
@@ -741,19 +732,26 @@ export class BrainfuckArray extends Benchmark {
   }
 }
 
-type Op = 
-  | { type: 'inc'; val: number }
-  | { type: 'move'; val: number }
-  | { type: 'print' }
-  | Op[];
+const enum OpType {
+  INC,   
+  DEC,   
+  NEXT,  
+  PREV,  
+  PRINT, 
+  LOOP   
+}
+
+type Op = {
+  type: OpType;
+  loop?: Op[];  
+}
 
 class Tape2 {
   private tape: Uint8Array;
   private pos: number;
-  private static readonly INITIAL_SIZE = 1024;
 
   constructor() {
-    this.tape = new Uint8Array(Tape2.INITIAL_SIZE).fill(0);
+    this.tape = new Uint8Array(30000);
     this.pos = 0;
   }
 
@@ -761,22 +759,26 @@ class Tape2 {
     return this.tape[this.pos];
   }
 
-  inc(x: number): void {
-    this.tape[this.pos] += x;
+  inc(): void {
+    this.tape[this.pos]++;
   }
 
-  move(x: number): void {
-    this.pos += x;
+  dec(): void {
+    this.tape[this.pos]--;
+  }
 
+  next(): void {
+    this.pos++;
     if (this.pos >= this.tape.length) {
-      const newLength = Math.max(this.tape.length * 2, this.pos + 1);
-      const newTape = new Uint8Array(newLength);
+      const newTape = new Uint8Array(this.tape.length + 1);
       newTape.set(this.tape);
       this.tape = newTape;
     }
+  }
 
-    if (this.pos < 0) {
-      this.pos = 0;
+  prev(): void {
+    if (this.pos > 0) {
+      this.pos--;
     }
   }
 }
@@ -792,27 +794,32 @@ class Program2 {
 
   run(): number {
     this.runOps(this.ops, new Tape2());
-    return this.resultValue;
+    return this.resultValue >>> 0;
   }
 
   private runOps(program: Op[], tape: Tape2): void {
     for (const op of program) {
-      if (Array.isArray(op)) {
-        while (tape.get() !== 0) {
-          this.runOps(op, tape);
-        }
-      } else {
-        switch (op.type) {
-          case 'inc':
-            tape.inc(op.val);
-            break;
-          case 'move':
-            tape.move(op.val);
-            break;
-          case 'print':
-            this.resultValue = (this.resultValue << 2) + tape.get();
-            break;
-        }
+      switch (op.type) {
+        case OpType.INC:
+          tape.inc();
+          break;
+        case OpType.DEC:
+          tape.dec();
+          break;
+        case OpType.NEXT:
+          tape.next();
+          break;
+        case OpType.PREV:
+          tape.prev();
+          break;
+        case OpType.PRINT:
+          this.resultValue = (this.resultValue << 2) + tape.get();
+          break;
+        case OpType.LOOP:
+          while (tape.get() !== 0) {
+            this.runOps(op.loop!, tape);
+          }
+          break;
       }
     }
   }
@@ -834,23 +841,23 @@ class Program2 {
 
       switch (c) {
         case '+':
-          op = { type: 'inc', val: 1 };
+          op = { type: OpType.INC };
           break;
         case '-':
-          op = { type: 'inc', val: -1 };
+          op = { type: OpType.DEC };
           break;
         case '>':
-          op = { type: 'move', val: 1 };
+          op = { type: OpType.NEXT };
           break;
         case '<':
-          op = { type: 'move', val: -1 };
+          op = { type: OpType.PREV };
           break;
         case '.':
-          op = { type: 'print' };
+          op = { type: OpType.PRINT };
           break;
         case '[':
           const [loopOps, newIndex] = this.parseSequence(chars, i);
-          result.push(loopOps);
+          op = { type: OpType.LOOP, loop: loopOps };
           i = newIndex;
           break;
         case ']':
@@ -888,7 +895,7 @@ export class BrainfuckRecursion extends Benchmark {
 
   run(_iteration_id: number): void {
     const program = new Program2(this.text);
-    this.resultValue += program.run();
+    this.resultValue = (this.resultValue + program.run()) >>> 0;
   }
 
   checksum(): number {
@@ -906,6 +913,7 @@ export class Fannkuchredux extends Benchmark {
   }
 
   private fannkuchredux(n: number): [number, number] {
+
     const perm1 = new Int32Array(n);
     for (let i = 0; i < n; ++i) perm1[i] = i;
 
@@ -920,61 +928,50 @@ export class Fannkuchredux extends Benchmark {
     while (true) {
       while (r > 1) {
         count[r - 1] = r;
-        r -= 1;
+        r--;
       }
 
-      for (let i = 0; i < n; i++) {
-        perm[i] = perm1[i];
-      }
+      perm.set(perm1);
 
       let flipsCount = 0;
       let k = perm[0];
 
       while (k !== 0) {
-        const k2 = Math.floor((k + 1) / 2);
 
-        for (let i = 0; i < k2; i++) {
-          const j = k - i;
+        let i = 0;
+        let j = k;
+        while (i < j) {
           const temp = perm[i];
           perm[i] = perm[j];
           perm[j] = temp;
+          i++;
+          j--;
         }
 
-        flipsCount += 1;
+        flipsCount++;
         k = perm[0];
       }
 
-      if (flipsCount > maxFlipsCount) {
-        maxFlipsCount = flipsCount;
-      }
-
-      checksum += (permCount % 2 === 0) ? flipsCount : -flipsCount;
+      maxFlipsCount = Math.max(maxFlipsCount, flipsCount);
+      checksum += (permCount & 1) === 0 ? flipsCount : -flipsCount;
 
       while (true) {
         if (r === n) {
           return [checksum, maxFlipsCount];
         }
 
-        const perm0 = perm1[0];
+        const first = perm1[0];
         for (let i = 0; i < r; i++) {
-          const j = i + 1;
-          const temp = perm1[i];
-          perm1[i] = perm1[j];
-          perm1[j] = temp;
+          perm1[i] = perm1[i + 1];
         }
+        perm1[r] = first;
 
-        perm1[r] = perm0;
-        count[r] -= 1;
-        const cntr = count[r];
-
-        if (cntr > 0) {
-          break;
-        }
-
-        r += 1;
+        count[r]--;
+        if (count[r] > 0) break;
+        r++;
       }
 
-      permCount += 1;
+      permCount++;
     }
   }
 
@@ -1705,13 +1702,16 @@ export class Nbody extends Benchmark {
 
   run(_iteration_id: number): void {
     const nbodies = this.bodies.length;
-    const dt = 0.01;
 
-    let i = 0;
-    while (i < nbodies) {
-      const b = this.bodies[i];
-      b.moveFromI(this.bodies, nbodies, dt, i + 1);
-      i++;
+    let j = 0;
+    while (j < 1000) {
+      let i = 0;
+      while (i < nbodies) {
+        const b = this.bodies[i];
+        b.moveFromI(this.bodies, nbodies, 0.01, i + 1);
+        i++;
+      }
+      j++;
     }
   }
 
@@ -2039,7 +2039,6 @@ export class JsonGenerate extends Benchmark {
   }
 
   prepare(): void {
-    Helper.reset();
     this.data = [];
 
     for (let i = 0; i < this.n; i++) {
@@ -2128,7 +2127,6 @@ interface Coordinate {
 
 interface CoordinatesData {
   coordinates: Coordinate[];
-  info?: string;
 }
 
 export class JsonParseMapping extends Benchmark {
@@ -2803,7 +2801,6 @@ export abstract class SortBenchmark extends Benchmark {
   }
 
   prepare(): void {
-    Helper.reset();
     this.data = [];
     for (let i = 0; i < this.size; i++) {
       this.data.push(Helper.nextInt(1000000));
@@ -2912,12 +2909,14 @@ export class SortSelf extends SortBenchmark {
 
 export class GraphPathGraph {
   vertices: number;
+  jumps: number;
+  jumpLen: number;
   private adj: number[][];
-  private components: number;
 
-  constructor(vertices: number, components: number = 10) {
+  constructor(vertices: number, jumps: number = 3, jumpLen: number = 100) {
     this.vertices = vertices;
-    this.components = Math.max(10, Math.floor(vertices / 10000));
+    this.jumps = jumps;
+    this.jumpLen = jumpLen;
     this.adj = Array(vertices).fill(0).map(() => []);
   }
 
@@ -2927,22 +2926,19 @@ export class GraphPathGraph {
   }
 
   generateRandom(): void {
-    const componentSize = Math.floor(this.vertices / this.components);
 
-    for (let c = 0; c < this.components; c++) {
-      const startIdx = c * componentSize;
-      const endIdx = c === this.components - 1 ? this.vertices : (c + 1) * componentSize;
+    for (let i = 1; i < this.vertices; i++) {
+      this.addEdge(i, i - 1);
+    }
 
-      for (let i = startIdx + 1; i < endIdx; i++) {
-        const parent = startIdx + Helper.nextInt(i - startIdx);
-        this.addEdge(i, parent);
-      }
+    for (let v = 0; v < this.vertices; v++) {
+      const numJumps = Helper.nextInt(this.jumps);
+      for (let j = 0; j < numJumps; j++) {
+        const offset = Helper.nextInt(this.jumpLen) - Math.floor(this.jumpLen / 2);
+        const u = v + offset;
 
-      for (let i = 0; i < componentSize * 2; i++) {
-        const u = startIdx + Helper.nextInt(endIdx - startIdx);
-        const v = startIdx + Helper.nextInt(endIdx - startIdx);
-        if (u !== v) {
-          this.addEdge(u, v);
+        if (u >= 0 && u < this.vertices && u !== v) {
+          this.addEdge(v, u);
         }
       }
     }
@@ -2959,63 +2955,28 @@ export class GraphPathGraph {
 
 export abstract class GraphPathBenchmark extends Benchmark {
   protected graph!: GraphPathGraph;
-  protected pairs: [number, number][] = [];
-  protected nPairs: number;
   protected resultValue: number = 0;
-
-  constructor() {
-    super();
-    this.nPairs = Number(Helper.configI64(this.constructor.name, "pairs"));
-  }
 
   prepare(): void {
     const vertices = Number(Helper.configI64(this.constructor.name, "vertices"));
-    this.graph = new GraphPathGraph(vertices, Math.max(10, Math.floor(vertices / 10000)));
+    const jumps = Number(Helper.configI64(this.constructor.name, "jumps"));
+    const jumpLen = Number(Helper.configI64(this.constructor.name, "jump_len"));
+
+    this.graph = new GraphPathGraph(vertices, jumps, jumpLen);
     this.graph.generateRandom();
-    this.pairs = this.generatePairs(this.nPairs);
-  }
-
-  protected generatePairs(n: number): [number, number][] {
-    const pairs: [number, number][] = [];
-    const componentSize = Math.floor(this.graph.getVertices() / 10);
-
-    for (let i = 0; i < n; i++) {
-      if (Helper.nextInt(100) < 70) {
-        const component = Helper.nextInt(10);
-        const start = component * componentSize + Helper.nextInt(componentSize);
-        let end: number;
-        do {
-          end = component * componentSize + Helper.nextInt(componentSize);
-        } while (end === start);
-        pairs.push([start, end]);
-      } else {
-        let c1 = Helper.nextInt(10);
-        let c2 = Helper.nextInt(10);
-        while (c2 === c1) {
-          c2 = Helper.nextInt(10);
-        }
-        const start = c1 * componentSize + Helper.nextInt(componentSize);
-        const end = c2 * componentSize + Helper.nextInt(componentSize);
-        pairs.push([start, end]);
-      }
-    }
-
-    return pairs;
   }
 
   abstract run(_iteration_id: number): void;
 
   checksum(): number {
-    return this.resultValue;
+    return this.resultValue >>> 0; 
   }
 }
 
 export class GraphPathBFS extends GraphPathBenchmark {
   run(_iteration_id: number): void {
-    for (const [start, end] of this.pairs) {
-      const length = this.bfsShortestPath(start, end);
-      this.resultValue += length;
-    }
+    const length = this.bfsShortestPath(0, this.graph.getVertices() - 1);
+    this.resultValue += length;
   }
 
   private bfsShortestPath(start: number, target: number): number {
@@ -3024,9 +2985,11 @@ export class GraphPathBFS extends GraphPathBenchmark {
     const visited = new Uint8Array(this.graph.getVertices());
     const queue: [number, number][] = [[start, 0]];
     visited[start] = 1;
+    let head = 0;
 
-    while (queue.length > 0) {
-      const [v, dist] = queue.shift()!;
+    while (head < queue.length) {
+      const [v, dist] = queue[head];
+      head++;
 
       for (const neighbor of this.graph.getAdjacency()[v]) {
         if (neighbor === target) {
@@ -3046,10 +3009,8 @@ export class GraphPathBFS extends GraphPathBenchmark {
 
 export class GraphPathDFS extends GraphPathBenchmark {
   run(_iteration_id: number): void {
-    for (const [start, end] of this.pairs) {
-      const length = this.dfsFindPath(start, end);
-      this.resultValue += length;
-    }
+    const length = this.dfsFindPath(0, this.graph.getVertices() - 1);
+    this.resultValue += length;
   }
 
   private dfsFindPath(start: number, target: number): number {
@@ -3080,46 +3041,101 @@ export class GraphPathDFS extends GraphPathBenchmark {
   }
 }
 
-export class GraphPathDijkstra extends GraphPathBenchmark {
-  private static readonly INF = Number.MAX_SAFE_INTEGER / 2;
-
+export class GraphPathAStar extends GraphPathBenchmark {
   run(_iteration_id: number): void {
-    for (const [start, end] of this.pairs) {
-      const length = this.dijkstraShortestPath(start, end);
-      this.resultValue += length;
-    }
+    const length = this.aStarShortestPath(0, this.graph.getVertices() - 1);
+    this.resultValue += length;
   }
 
-  private dijkstraShortestPath(start: number, target: number): number {
+  private heuristic(v: number, target: number): number {
+    return target - v;
+  }
+
+  private aStarShortestPath(start: number, target: number): number {
     if (start === target) return 0;
 
     const vertices = this.graph.getVertices();
-    const dist = new Array(vertices).fill(GraphPathDijkstra.INF);
-    const visited = new Uint8Array(vertices);
+    const gScore = new Array(vertices).fill(Number.MAX_SAFE_INTEGER);
+    const closed = new Uint8Array(vertices);
 
-    dist[start] = 0;
-    const maxIterations = vertices;
+    gScore[start] = 0;
 
-    for (let iteration = 0; iteration < maxIterations; iteration++) {
-      let u = -1;
-      let minDist = GraphPathDijkstra.INF;
+    const heapVertices: number[] = [];
+    const heapPriorities: number[] = [];
+    const inOpenSet = new Uint8Array(vertices);
 
-      for (let v = 0; v < vertices; v++) {
-        if (visited[v] === 0 && dist[v] < minDist) {
-          minDist = dist[v];
-          u = v;
+    const heapPush = (vertex: number, priority: number) => {
+      let i = heapVertices.length;
+      heapVertices.push(vertex);
+      heapPriorities.push(priority);
+
+      while (i > 0) {
+        const parent = Math.floor((i - 1) / 2);
+        if (heapPriorities[parent] <= heapPriorities[i]) break;
+        [heapVertices[i], heapVertices[parent]] = [heapVertices[parent], heapVertices[i]];
+        [heapPriorities[i], heapPriorities[parent]] = [heapPriorities[parent], heapPriorities[i]];
+        i = parent;
+      }
+    };
+
+    const heapPop = (): number | undefined => {
+      if (heapVertices.length === 0) return undefined;
+
+      const result = heapVertices[0];
+      heapVertices[0] = heapVertices[heapVertices.length - 1];
+      heapPriorities[0] = heapPriorities[heapPriorities.length - 1];
+      heapVertices.pop();
+      heapPriorities.pop();
+
+      let i = 0;
+      const n = heapVertices.length;
+      while (true) {
+        const left = 2 * i + 1;
+        const right = 2 * i + 2;
+        let smallest = i;
+
+        if (left < n && heapPriorities[left] < heapPriorities[smallest]) {
+          smallest = left;
         }
+        if (right < n && heapPriorities[right] < heapPriorities[smallest]) {
+          smallest = right;
+        }
+        if (smallest === i) break;
+
+        [heapVertices[i], heapVertices[smallest]] = [heapVertices[smallest], heapVertices[i]];
+        [heapPriorities[i], heapPriorities[smallest]] = [heapPriorities[smallest], heapPriorities[i]];
+        i = smallest;
       }
 
-      if (u === -1 || minDist === GraphPathDijkstra.INF || u === target) {
-        return u === target ? minDist : -1;
+      return result;
+    };
+
+    heapPush(start, this.heuristic(start, target));
+    inOpenSet[start] = 1;
+
+    while (heapVertices.length > 0) {
+      const current = heapPop()!;
+      inOpenSet[current] = 0;
+
+      if (current === target) {
+        return gScore[current];
       }
 
-      visited[u] = 1;
+      closed[current] = 1;
 
-      for (const v of this.graph.getAdjacency()[u]) {
-        if (dist[u] + 1 < dist[v]) {
-          dist[v] = dist[u] + 1;
+      for (const neighbor of this.graph.getAdjacency()[current]) {
+        if (closed[neighbor]) continue;
+
+        const tentativeG = gScore[current] + 1;
+
+        if (tentativeG < gScore[neighbor]) {
+          gScore[neighbor] = tentativeG;
+          const f = tentativeG + this.heuristic(neighbor, target);
+
+          if (inOpenSet[neighbor] === 0) {
+            heapPush(neighbor, f);
+            inOpenSet[neighbor] = 1;
+          }
         }
       }
     }
@@ -3140,7 +3156,6 @@ export abstract class BufferHashBenchmark extends Benchmark {
   }
 
   prepare(): void {
-    Helper.reset();
     for (let i = 0; i < this.data.length; i++) {
       this.data[i] = Helper.nextInt(256);
     }
@@ -3778,128 +3793,117 @@ export class CalculatorInterpreter extends Benchmark {
   }
 }
 
-enum Cell {
-    Dead,
-    Alive
+class CellObj {
+    alive: boolean = false;
+    nextState: boolean = false;
+    neighbors: CellObj[] = new Array(8);
+    neighborCount: number = 0;
+
+    addNeighbor(cell: CellObj): void {
+        this.neighbors[this.neighborCount++] = cell;
+    }
+
+    computeNextState(): void {
+        let aliveNeighbors = 0;
+        for (let i = 0; i < this.neighborCount; i++) {
+            if (this.neighbors[i].alive) aliveNeighbors++;
+        }
+
+        if (this.alive) {
+            this.nextState = aliveNeighbors === 2 || aliveNeighbors === 3;
+        } else {
+            this.nextState = aliveNeighbors === 3;
+        }
+    }
+
+    update(): void {
+        this.alive = this.nextState;
+    }
 }
 
 class GameOfLifeGrid {
     private width: number;
     private height: number;
-    private cells: Uint8Array;          
-    private buffer: Uint8Array;         
+    private cells: CellObj[][];
 
     constructor(width: number, height: number) {
         this.width = width;
         this.height = height;
-        const size = width * height;
-        this.cells = new Uint8Array(size);
-        this.buffer = new Uint8Array(size);
-    }
 
-    private constructorFromBuffers(width: number, height: number, cells: Uint8Array, buffer: Uint8Array) {
-        this.width = width;
-        this.height = height;
-        this.cells = cells;
-        this.buffer = buffer;
-        return this;
-    }
-
-    static fromBuffers(width: number, height: number, cells: Uint8Array, buffer: Uint8Array): GameOfLifeGrid {
-        const grid = new GameOfLifeGrid(width, height);
-        grid.width = width;
-        grid.height = height;
-        grid.cells = cells;
-        grid.buffer = buffer;
-        return grid;
-    }
-
-    private index(x: number, y: number): number {
-        return y * this.width + x;
-    }
-
-    get(x: number, y: number): Cell {
-        const idx = this.index(x, y);
-        return this.cells[idx] === 1 ? Cell.Alive : Cell.Dead;
-    }
-
-    set(x: number, y: number, cell: Cell): void {
-        const idx = this.index(x, y);
-        this.cells[idx] = cell === Cell.Alive ? 1 : 0;
-    }
-
-    private countNeighbors(x: number, y: number, cells: Uint8Array): number {
-        const width = this.width;
-        const height = this.height;
-
-        const yPrev = y === 0 ? height - 1 : y - 1;
-        const yNext = y === height - 1 ? 0 : y + 1;
-        const xPrev = x === 0 ? width - 1 : x - 1;
-        const xNext = x === width - 1 ? 0 : x + 1;
-
-        let count = 0;
-
-        let idx = yPrev * width;
-        if (cells[idx + xPrev] === 1) count++;
-        if (cells[idx + x] === 1) count++;
-        if (cells[idx + xNext] === 1) count++;
-
-        idx = y * width;
-        if (cells[idx + xPrev] === 1) count++;
-        if (cells[idx + xNext] === 1) count++;
-
-        idx = yNext * width;
-        if (cells[idx + xPrev] === 1) count++;
-        if (cells[idx + x] === 1) count++;
-        if (cells[idx + xNext] === 1) count++;
-
-        return count;
-    }
-
-    nextGeneration(): GameOfLifeGrid {
-        const width = this.width;
-        const height = this.height;
-
-        const cells = this.cells;
-        const buffer = this.buffer;
-
+        this.cells = new Array(height);
         for (let y = 0; y < height; y++) {
-            const yIdx = y * width;
-
+            this.cells[y] = new Array(width);
             for (let x = 0; x < width; x++) {
-                const idx = yIdx + x;
-
-                const neighbors = this.countNeighbors(x, y, cells);
-
-                const current = cells[idx];
-                let nextState = 0;
-
-                if (current === 1) {
-                    nextState = (neighbors === 2 || neighbors === 3) ? 1 : 0;
-                } else {
-                    nextState = neighbors === 3 ? 1 : 0;
-                }
-
-                buffer[idx] = nextState;
+                this.cells[y][x] = new CellObj();
             }
         }
 
-        return GameOfLifeGrid.fromBuffers(width, height, buffer, cells);
+        this.linkNeighbors();
+    }
+
+    private linkNeighbors(): void {
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                const cell = this.cells[y][x];
+
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        if (dx === 0 && dy === 0) continue;
+
+                        const ny = (y + dy + this.height) % this.height;
+                        const nx = (x + dx + this.width) % this.width;
+
+                        cell.addNeighbor(this.cells[ny][nx]);
+                    }
+                }
+            }
+        }
+    }
+
+    nextGeneration(): void {
+
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                this.cells[y][x].computeNextState();
+            }
+        }
+
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                this.cells[y][x].update();
+            }
+        }
+    }
+
+    countAlive(): number {
+        let count = 0;
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                if (this.cells[y][x].alive) count++;
+            }
+        }
+        return count;
     }
 
     computeHash(): number {
-        const FNV_OFFSET_BASIS = 2166136261 >>> 0;  
-        const FNV_PRIME = 16777619 >>> 0;           
+        const FNV_OFFSET_BASIS = 2166136261 >>> 0;
+        const FNV_PRIME = 16777619 >>> 0;
 
         let hasher = FNV_OFFSET_BASIS;
 
-        for (let i = 0; i < this.cells.length; i++) {
-            const alive = this.cells[i];
-            hasher = (hasher ^ alive) >>> 0;
-            hasher = Math.imul(hasher, FNV_PRIME) >>> 0;
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                const alive = this.cells[y][x].alive ? 1 : 0;
+                hasher = (hasher ^ alive) >>> 0;
+                hasher = Math.imul(hasher, FNV_PRIME) >>> 0;
+            }
         }
 
         return hasher >>> 0;
+    }
+
+    getCells(): CellObj[][] {
+        return this.cells;
     }
 }
 
@@ -3916,23 +3920,22 @@ export class GameOfLife extends Benchmark {
     }
 
     prepare(): void {
-
         for (let y = 0; y < this.height; y++) {
-            const yIdx = y * this.width;
             for (let x = 0; x < this.width; x++) {
                 if (Helper.nextFloat() < 0.1) {
-                    this.grid.set(x, y, Cell.Alive);
+                    this.grid.getCells()[y][x].alive = true;
                 }
             }
         }
     }
 
     run(_iteration_id: number): void {
-        this.grid = this.grid.nextGeneration();
+        this.grid.nextGeneration();
     }
 
     checksum(): number {
-        return this.grid.computeHash() >>> 0;
+        const alive = this.grid.countAlive();
+        return (this.grid.computeHash() + alive) >>> 0;
     }
 }
 
@@ -4837,7 +4840,7 @@ Benchmark.registerBenchmark(SortMerge);
 Benchmark.registerBenchmark(SortSelf);
 Benchmark.registerBenchmark(GraphPathBFS);
 Benchmark.registerBenchmark(GraphPathDFS);
-Benchmark.registerBenchmark(GraphPathDijkstra);
+Benchmark.registerBenchmark(GraphPathAStar);
 Benchmark.registerBenchmark(BufferHashSHA256);
 Benchmark.registerBenchmark(BufferHashCRC32);
 Benchmark.registerBenchmark(CacheSimulation);

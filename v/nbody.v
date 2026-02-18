@@ -9,7 +9,7 @@ pub struct Nbody {
 mut:
 	result_val u32
 	v1         f64
-	bodies     []Planet
+	bodies     []&Planet  
 }
 
 struct Planet {
@@ -40,8 +40,8 @@ pub fn (b Nbody) name() string {
 	return 'Nbody'
 }
 
-fn new_planet(x f64, y f64, z f64, vx f64, vy f64, vz f64, mass f64) Planet {
-	return Planet{
+fn new_planet(x f64, y f64, z f64, vx f64, vy f64, vz f64, mass f64) &Planet {
+	return &Planet{
 		x:    x
 		y:    y
 		z:    z
@@ -53,7 +53,6 @@ fn new_planet(x f64, y f64, z f64, vx f64, vy f64, vz f64, mass f64) Planet {
 }
 
 fn (mut b Nbody) initialize_bodies() {
-
 	b.bodies = [
 		new_planet(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0),
 		new_planet(4.84143144246472090e+00, -1.16032004402742839e+00, -1.03622044471123109e-01,
@@ -71,9 +70,8 @@ fn (mut b Nbody) initialize_bodies() {
 	]
 }
 
-fn (mut p Planet) move_from_i(mut bodies []Planet, nbodies int, dt f64, start int) {
-	for i in start .. nbodies {
-		mut b2 := unsafe { &bodies[i] }
+fn (mut p Planet) move_from_i(mut bodies []&Planet, nbodies int, dt f64, start int) {
+	for mut b2 in bodies[start .. nbodies] {
 		dx := p.x - b2.x
 		dy := p.y - b2.y
 		dz := p.z - b2.z
@@ -101,12 +99,12 @@ fn (b Nbody) energy() f64 {
 	nbodies := b.bodies.len
 
 	for i in 0 .. nbodies {
-		planet_i := unsafe { &b.bodies[i] }
+		planet_i := b.bodies[i]
 		e += 0.5 * planet_i.mass * (planet_i.vx * planet_i.vx + planet_i.vy * planet_i.vy +
 			planet_i.vz * planet_i.vz)
 
 		for j in i + 1 .. nbodies {
-			planet_j := unsafe { &b.bodies[j] }
+			planet_j := b.bodies[j]
 			dx := planet_i.x - planet_j.x
 			dy := planet_i.y - planet_j.y
 			dz := planet_i.z - planet_j.z
@@ -123,13 +121,13 @@ fn (mut b Nbody) offset_momentum() {
 	mut pz := 0.0
 
 	for i in 0 .. b.bodies.len {
-		planet := unsafe { &b.bodies[i] }
+		planet := b.bodies[i]
 		px += planet.vx * planet.mass
 		py += planet.vy * planet.mass
 		pz += planet.vz * planet.mass
 	}
 
-	mut sun := unsafe { &b.bodies[0] }
+	mut sun := b.bodies[0]
 	sun.vx = -px / solar_mass
 	sun.vy = -py / solar_mass
 	sun.vz = -pz / solar_mass
@@ -142,20 +140,19 @@ pub fn (mut b Nbody) prepare() {
 
 pub fn (mut b Nbody) run(iteration_id int) {
 	_ = iteration_id
-	nbodies := b.bodies.len
 	dt := 0.01
 
-	mut i := 0
-	for i < nbodies {
-		mut planet := unsafe { &b.bodies[i] }
-		planet.move_from_i(mut b.bodies, nbodies, dt, i + 1)
-		i++
+	mut j := 0
+	for j < 1000 {
+		for i, mut planet in b.bodies {  
+			planet.move_from_i(mut b.bodies, b.bodies.len, dt, i + 1)
+		}
+		j++
 	}
 }
 
 pub fn (b Nbody) checksum() u32 {
 	v2 := b.energy()
-
 	hash1 := helper.checksum_f64(b.v1)
 	hash2 := helper.checksum_f64(v2)
 	return (hash1 << 5) & hash2

@@ -12,11 +12,8 @@ pub struct Base64Encode {
 impl Base64Encode {
     pub fn new() -> Self {
         let n = config_i64("Base64Encode", "size");
-
         let str_data = "a".repeat(n as usize);
-
         let str2_encoded = general_purpose::STANDARD.encode(&str_data);
-
         Self {
             n,
             str_data,
@@ -32,9 +29,8 @@ impl Benchmark for Base64Encode {
     }
 
     fn run(&mut self, _iteration_id: i64) {
-
-        let encoded = general_purpose::STANDARD.encode(&self.str_data);
-        self.result_val = self.result_val.wrapping_add(encoded.len() as u32);
+        self.str2_encoded = general_purpose::STANDARD.encode(&self.str_data);
+        self.result_val = self.result_val.wrapping_add(self.str2_encoded.len() as u32);
     }
 
     fn checksum(&self) -> u32 {

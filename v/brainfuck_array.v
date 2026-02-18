@@ -82,9 +82,11 @@ fn (p BFProgram) run() u32 {
 	mut tape := new_tape()
 	mut result := u32(0)
 	mut pc := 0
+	cmds := p.commands
+	jumps := p.jumps
 
-	for pc < p.commands.len {
-		cmd := p.commands[pc]
+	for pc < cmds.len {
+		cmd := cmds[pc]
 
 		match cmd {
 			`+` {
@@ -101,12 +103,12 @@ fn (p BFProgram) run() u32 {
 			}
 			`[` {
 				if tape.get() == 0 {
-					pc = p.jumps[pc]
+					pc = jumps[pc]
 				}
 			}
 			`]` {
 				if tape.get() != 0 {
-					pc = p.jumps[pc]
+					pc = jumps[pc]
 				}
 			}
 			`.` {

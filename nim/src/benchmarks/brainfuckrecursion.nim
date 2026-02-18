@@ -3,23 +3,22 @@ import ../benchmark
 import ../helper  
 
 type
-  OpInc = object
-    val: int32
-
-  OpMove = object
-    val: int32
-
-  OpPrint = object
-
-  OpLoop = object
+  OpInc = object    
+  OpDec = object    
+  OpRight = object  
+  OpLeft = object   
+  OpPrint = object  
+  OpLoop = object   
     ops: seq[Op]
 
   Op = object
-    case kind: range[0..3]
+    case kind: range[0..5]
     of 0: incOp: OpInc
-    of 1: moveOp: OpMove
-    of 2: printOp: OpPrint
-    of 3: loopOp: OpLoop
+    of 1: decOp: OpDec
+    of 2: rightOp: OpRight
+    of 3: leftOp: OpLeft
+    of 4: printOp: OpPrint
+    of 5: loopOp: OpLoop
 
   Tape = object
     tape: seq[uint8]
@@ -29,31 +28,25 @@ type
     ops: seq[Op]
     resultVal: int64
 
-proc newTape(): Tape =
-  result = Tape(tape: newSeq[uint8](1024), pos: 0)
+proc newTape(initialSize: int = 30000): Tape =
+  result = Tape(tape: newSeq[uint8](initialSize), pos: 0)
 
 proc get(self: var Tape): uint8 = self.tape[self.pos]
 
-proc inc(self: var Tape, x: int32) =
-  self.tape[self.pos] = (self.tape[self.pos].int32 + x).uint8
+proc inc(self: var Tape) =
+  self.tape[self.pos] += 1
 
-proc move(self: var Tape, x: int32) =
-  if x >= 0:
-    self.pos += x.int
-    if self.pos >= self.tape.len:
-      let newSize = max(self.tape.len * 2, self.pos + 1)
-      self.tape.setLen(newSize)
-  else:
-    let moveLeft = -x
-    if moveLeft.int > self.pos:
-      let needed = moveLeft.int - self.pos
-      var newTape = newSeq[uint8](self.tape.len + needed)
-      for i in 0..<self.tape.len:
-        newTape[i + needed] = self.tape[i]
-      self.tape = newTape
-      self.pos = needed
-    else:
-      self.pos -= moveLeft.int
+proc dec(self: var Tape) =
+  self.tape[self.pos] -= 1
+
+proc right(self: var Tape) =
+  self.pos += 1
+  if self.pos >= self.tape.len:
+    self.tape.add(0)
+
+proc left(self: var Tape) =
+  if self.pos > 0:
+    self.pos -= 1
 
 proc parse(it: var int, code: string): seq[Op]
 
@@ -63,28 +56,28 @@ proc parseOp(it: var int, code: string): Op =
 
   case c
   of '+':
-    result = Op(kind: 0, incOp: OpInc(val: 1))
+    result = Op(kind: 0, incOp: OpInc())
   of '-':
-    result = Op(kind: 0, incOp: OpInc(val: -1))
+    result = Op(kind: 1, decOp: OpDec())
   of '>':
-    result = Op(kind: 1, moveOp: OpMove(val: 1))
+    result = Op(kind: 2, rightOp: OpRight())
   of '<':
-    result = Op(kind: 1, moveOp: OpMove(val: -1))
+    result = Op(kind: 3, leftOp: OpLeft())
   of '.':
-    result = Op(kind: 2, printOp: OpPrint())
+    result = Op(kind: 4, printOp: OpPrint())
   of '[':
     let loopOps = parse(it, code)
-    result = Op(kind: 3, loopOp: OpLoop(ops: loopOps))
+    result = Op(kind: 5, loopOp: OpLoop(ops: loopOps))
   of ']':
-    result = Op(kind: 3, loopOp: OpLoop(ops: @[]))  
+    return Op(kind: 5, loopOp: OpLoop(ops: @[]))  
   else:
-    result = Op(kind: 2, printOp: OpPrint())  
+    result = Op(kind: 4, printOp: OpPrint())  
 
 proc parse(it: var int, code: string): seq[Op] =
   var res: seq[Op]
   while it < code.len:
     let op = parseOp(it, code)
-    if op.kind == 3 and op.loopOp.ops.len == 0:  
+    if op.kind == 5 and op.loopOp.ops.len == 0:  
       return res
     res.add(op)
   return res
@@ -93,8 +86,6 @@ proc newProgram(code: string): Program =
   var it = 0
   let ops = parse(it, code)
   result = Program(ops: ops, resultVal: 0)
-
-proc runOps(program: var Program, ops: seq[Op], tape: var Tape)
 
 proc executeOp(program: var Program, op: Op, tape: var Tape)
 
@@ -106,21 +97,22 @@ proc executeLoop(program: var Program, loop: OpLoop, tape: var Tape) =
 proc executeOp(program: var Program, op: Op, tape: var Tape) =
   case op.kind
   of 0:  
-    tape.inc(op.incOp.val)
+    tape.inc()
   of 1:  
-    tape.move(op.moveOp.val)
+    tape.dec()
   of 2:  
-    program.resultVal = (program.resultVal shl 2) + tape.get.int64
+    tape.right()
   of 3:  
+    tape.left()
+  of 4:  
+    program.resultVal = (program.resultVal shl 2) + tape.get().int64
+  of 5:  
     executeLoop(program, op.loopOp, tape)
-
-proc runOps(program: var Program, ops: seq[Op], tape: var Tape) =
-  for op in ops:
-    executeOp(program, op, tape)
 
 proc run(self: var Program): int64 =
   var tape = newTape()
-  runOps(self, self.ops, tape)
+  for op in self.ops:
+    executeOp(self, op, tape)
   result = self.resultVal
 
 type

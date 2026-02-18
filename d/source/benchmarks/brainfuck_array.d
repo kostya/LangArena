@@ -12,21 +12,22 @@ class BrainfuckArray : Benchmark {
 private:
     static struct Tape {
         private ubyte[] tape;
-        private size_t pos = 0;
+        private size_t pos;
 
         this(size_t size) {
             tape = new ubyte[size];
-            tape[] = 0;
+            pos = 0;
         }
 
-        ubyte get() const { return tape[pos]; }
+    @trusted:
+        @property ubyte get() const { return tape[pos]; }
         void inc() { tape[pos]++; }
         void dec() { tape[pos]--; }
 
         void advance() {
             pos++;
             if (pos >= tape.length) {
-                tape ~= 0;
+                tape.length = tape.length + 1;
             }
         }
 
@@ -41,6 +42,7 @@ private:
 
         this(string text) {
 
+            commands.length = 0;
             foreach (c; text) {
                 if ("[]<>+-,.".indexOf(c) != -1) {
                     commands ~= cast(ubyte)c;
@@ -63,9 +65,9 @@ private:
             }
         }
 
-        long run() {
+        long _run(const ubyte[] commands, const size_t[] jumps) {
             long result = 0;
-            auto tape = Tape(30000);
+            auto tape = Tape(30000);  
             size_t pc = 0;
 
             while (pc < commands.length) {
@@ -88,13 +90,17 @@ private:
                         }
                         break;
                     case '.': 
-                        result = (result << 2) + cast(long)tape.get;
+                        result = (result << 2) + tape.get;
                         break;
                     default: break;
                 }
                 pc++;
             }
             return result;
+        }
+
+        long run() {
+            return _run(commands, jumps);
         }
     }
 

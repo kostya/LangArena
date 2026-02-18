@@ -57,35 +57,36 @@ pub const SortQuick = struct {
         }
     }
 
-    fn quickSort(arr: []i32, low: i32, high: i32) void {
+    fn quickSort(arr: []i32, low: usize, high: usize) void {
         if (low >= high) return;
 
-        const mid = @divTrunc(low + high, 2);
-        const pivot = arr[@as(usize, @intCast(mid))];
+        const mid = (high + low) / 2;
+        const pivot = arr[mid];
+
         var i = low;
         var j = high;
 
         while (i <= j) {
-            while (arr[@as(usize, @intCast(i))] < pivot) i += 1;
-            while (arr[@as(usize, @intCast(j))] > pivot) j -= 1;
+            while (arr[i] < pivot) i += 1;
+            while (arr[j] > pivot) j -= 1;
+
             if (i <= j) {
-                std.mem.swap(i32, &arr[@as(usize, @intCast(i))], &arr[@as(usize, @intCast(j))]);
+                std.mem.swap(i32, &arr[i], &arr[j]);
                 i += 1;
-                j -= 1;
+                if (j > 0) j -= 1;
             }
         }
 
-        quickSort(arr, low, j);
-        quickSort(arr, i, high);
+        if (j > low) quickSort(arr, low, j);
+        if (i < high) quickSort(arr, i, high);
     }
 
     fn testSort(self: *SortQuick, allocator: std.mem.Allocator) ![]i32 {
-
         const arr = try allocator.alloc(i32, self.data.items.len);
         @memcpy(arr, self.data.items);
 
         if (arr.len > 0) {
-            quickSort(arr, 0, @as(i32, @intCast(arr.len - 1)));
+            quickSort(arr, 0, arr.len - 1);
         }
 
         return arr;
@@ -101,14 +102,16 @@ pub const SortQuick = struct {
         const arena_allocator = arena.allocator();
 
         if (data.len > 0) {
-            const idx1 = @as(usize, @intCast(self.helper.nextInt(@as(i32, @intCast(data.len)))));
-            self.result_val +%= @as(u32, @intCast(data[idx1]));
+            const idx = self.helper.nextInt(@as(i32, @intCast(data.len)));
+            self.result_val +%= @as(u32, @intCast(data[@as(usize, @intCast(idx))]));
         }
 
         const sorted = self.testSort(arena_allocator) catch return;
+        defer arena_allocator.free(sorted);
+
         if (sorted.len > 0) {
-            const idx2 = @as(usize, @intCast(self.helper.nextInt(@as(i32, @intCast(sorted.len)))));
-            self.result_val +%= @as(u32, @intCast(sorted[idx2]));
+            const idx = self.helper.nextInt(@as(i32, @intCast(sorted.len)));
+            self.result_val +%= @as(u32, @intCast(sorted[@as(usize, @intCast(idx))]));
         }
     }
 

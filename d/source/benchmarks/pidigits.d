@@ -8,7 +8,7 @@ import std.conv;
 class Pidigits : Benchmark {
 private:
     int nn;
-    string resultStr;
+    private Appender!string resultApp;
 
 protected:
     override string className() const { return "Pidigits"; }
@@ -16,7 +16,7 @@ protected:
 public:
     this() {
         nn = configVal("amount");
-        resultStr = "";
+        resultApp = appender!string();
     }
 
     override void run(int iterationId) {
@@ -53,7 +53,7 @@ public:
                         if (nsStr.length < 10) {
                             nsStr = replicate("0", 10 - nsStr.length) ~ nsStr;
                         }
-                        resultStr ~= nsStr ~ "\t:" ~ i.to!string ~ "\n";
+                        resultApp.put(nsStr ~ "\t:" ~ i.to!string ~ "\n");
                         ns = MpZ(0); 
                     }
 
@@ -67,6 +67,6 @@ public:
     }
 
     override uint checksum() {
-        return Helper.checksum(resultStr);
+        return Helper.checksum(resultApp.data);
     }
 }

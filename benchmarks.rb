@@ -17,6 +17,7 @@ IS_NO_BUILD = ENV["NO_BUILD"] == "1" # not test build stage
 IS_NO_DEPS = ENV["NO_DEPS"] == "1" # not test deps stage
 IS_NO_VERSION = ENV["NO_VERSION"] == "1" # not test versions
 IS_CLEAR_COMMENTS = ENV["CLEAR_COMMENTS"] == "1" # start special mode to clear comments
+APPEND_RESULTS = (ENV["APPEND"] && ENV["APPEND"] != "") ? ENV["APPEND"] : nil
 
 require 'json'
 require 'timeout'
@@ -66,6 +67,8 @@ LANG_MASKS = {
   'fsharp' => ['./fsharp', ['.fs'], ['bin', 'obj']],
   'dart' => ['./dart', ['.dart'], ['target']],
   'python' => ['./python', ['.py'], ['__pycache__']],
+  'odin' => ['./odin', ['.odin'], ['target']],
+  'scala' => ['./scala', ['.scala'], ['target', 'project']],
 }
 
 def check_source_files(verbose = false)
@@ -152,7 +155,7 @@ module ClearComments
     content = File.read(filepath, encoding: 'utf-8')
     
     case lang
-    when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 'fsharp', 'dart', 'zig'
+    when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 'fsharp', 'dart', 'zig', 'odin', 'scala'
       content.gsub!(/\/\*[\s\S]*?\*\//m, '')
       content.gsub!(/\/\/[^\n]*/, '')
       
@@ -270,9 +273,6 @@ class Run
     @version_cmd = version_cmd
     @group = group # ONLY :prod or :hack
     @deps_cmd = deps_cmd
-    if @group == :hack
-      @name += "-Hack"
-    end
   end
 
   def lang
@@ -1260,6 +1260,66 @@ RUNS = [
   #   group: :hack,
   #   deps_cmd: "swift package resolve",
   # ),
+
+  # ======================================= Odin ======================================================
+
+  Run.new(
+    name: "Odin/Default", 
+    build_cmd: <<-BUILD,
+    odin build . \
+      -o:speed \
+      -out:target/bin_odin \
+      -collection:benchmark=./benchmark
+    BUILD
+    binary_name: "target/bin_odin",
+    run_cmd: "target/bin_odin", 
+    version_cmd: "odin version",
+    dir: "/src/odin",
+    container: "odin",
+    group: :prod,
+    deps_cmd: "mkdir -p target",
+  ),
+
+  Run.new(
+    name: "Odin/Opt", 
+    build_cmd: <<-BUILD,
+      odin build . \
+        -o:speed \
+        -out:target/bin_odin_optimized \
+        -collection:benchmark=./benchmark \
+        -microarch:native \
+        -no-threaded-checker \
+        -no-bounds-check
+    BUILD
+    binary_name: "target/bin_odin_optimized",
+    run_cmd: "target/bin_odin_optimized", 
+    version_cmd: "odin version",
+    dir: "/src/odin",
+    container: "odin",
+    group: :hack,
+    deps_cmd: "mkdir -p target",
+  ),
+
+  Run.new(
+    name: "Odin/MaxPerf", 
+    build_cmd: <<-BUILD,
+      odin build . \
+        -o:aggressive \
+        -out:target/bin_odin_maxperf \
+        -collection:benchmark=./benchmark \
+        -microarch:native \
+        -disable-assert \
+        -no-bounds-check \
+        -use-single-module
+    BUILD
+    binary_name: "target/bin_odin_maxperf",
+    run_cmd: "target/bin_odin_maxperf", 
+    version_cmd: "odin version",
+    dir: "/src/odin",
+    container: "odin",
+    group: :hack,
+    deps_cmd: "mkdir -p target",
+  ),
     
   # ======================================= Java ======================================================
   Run.new(
@@ -1518,6 +1578,89 @@ RUNS = [
   #   group: :hack,
   #   deps_cmd: "./gradlew --no-daemon dependencies",
   # ),
+
+  # ======================================= SCALA ======================================================
+
+  Run.new(
+    name: "Scala/JVM/Default",
+    build_cmd: "sbt 'assembly'",
+    binary_name: "/src/scala/target/benchmark.jar",
+    run_cmd: "java -Xmx8g -jar /src/scala/target/benchmark.jar",
+    version_cmd: "scala -version",
+    dir: "/src/scala",
+    container: "scala",
+    group: :prod,
+    deps_cmd: "sbt dependencyTree",
+  ),
+
+  Run.new(
+    name: "Scala/JVM/Opt",
+    build_cmd: "sbt 'assembly'",
+    binary_name: "/src/scala/target/benchmark.jar",
+    run_cmd: <<~CMD.chomp,
+      java \
+        -server \
+        -XX:+UseG1GC \
+        -Xms2g \
+        -Xmx2g \
+        -XX:+AlwaysPreTouch \
+        -XX:+UseNUMA \
+        -XX:+OptimizeStringConcat \
+        -XX:+UseCompressedOops \
+        -Xmx8g \
+        -jar /src/scala/target/benchmark.jar
+    CMD
+    version_cmd: "scala -version",
+    dir: "/src/scala",
+    container: "scala",
+    group: :hack,
+    deps_cmd: "sbt dependencyTree",
+  ),
+
+  Run.new(
+    name: "Scala/JVM/Max",
+    build_cmd: "sbt 'assembly'",
+    binary_name: "/src/scala/target/benchmark.jar",
+    run_cmd: <<~CMD.chomp,
+      java \
+        -server \
+        -XX:+UseParallelGC \
+        -Xms4g \
+        -Xmx8g \
+        -XX:+AlwaysPreTouch \
+        -XX:+UseNUMA \
+        -XX:+UseLargePages \
+        -XX:+DisableExplicitGC \
+        -Djava.security.egd=file:/dev/./urandom \
+        -jar /src/scala/target/benchmark.jar
+    CMD
+    version_cmd: "scala -version",
+    dir: "/src/scala",
+    container: "scala",
+    group: :hack,
+    deps_cmd: "sbt dependencyTree",
+  ),
+
+  Run.new(
+    name: "Scala/GraalVM/JIT",
+    build_cmd: "sbt 'assembly'",
+    binary_name: "/src/scala/target/benchmark.jar",
+    run_cmd: <<~CMD.chomp,
+      java \
+        -XX:+UseG1GC \
+        -XX:+EnableJVMCI \
+        -XX:+UseJVMCICompiler \
+        -Djvmci.Compiler=graal \
+        -XX:-TieredCompilation \
+        -Xmx8g \
+        -jar /src/scala/target/benchmark.jar
+    CMD
+    version_cmd: "scala -version",
+    dir: "/src/scala",
+    container: "scala-graalvm",
+    group: :hack,
+    deps_cmd: "sbt dependencyTree",
+  ),
 
   # ======================================= Dart ======================================================
   
@@ -1801,31 +1944,37 @@ end
 puts "All tests count: #{TESTS.size} (#{TESTS.join(", ")})"
 puts
 
-RESULTS = {}
-RESULTS["date"] = Time.now.strftime("%Y-%m-%d")
-RESULTS["arch"] = RUBY_PLATFORM
-RESULTS["pc"] = PC
-RESULTS["uname-name"] = `uname -n`.strip
-RESULTS["langs"] = LANGS.sort
-RESULTS["runs"] = {}
-RUNS.each { |run| RESULTS["runs"][run.name] = run.group }
-RESULTS["tests"] = TESTS
-RESULTS["build-cmd"] = {}
-RESULTS["run-cmd"] = {}
-RESULTS["binary-size-kb"] = {}
-RESULTS["compile-memory-cold"] = {}
-RESULTS["compile-memory-incremental"] = {}
-RESULTS["compile-time-cold"] = {}
-RESULTS["compile-time-incremental"] = {}
-RESULTS["version"] = {}
-RESULTS["start-duration"] = {}
+if APPEND_RESULTS
+  f = File.read(APPEND_RESULTS)
+  puts "Use previous results: #{APPEND_RESULTS}"
+  RESULTS = JSON.parse(f)
+else
+  RESULTS = {}
+  RESULTS["date"] = Time.now.strftime("%Y-%m-%d")
+  RESULTS["arch"] = RUBY_PLATFORM
+  RESULTS["pc"] = PC
+  RESULTS["uname-name"] = `uname -n`.strip
+  RESULTS["langs"] = LANGS.sort
+  RESULTS["runs"] = {}
+  RUNS.each { |run| RESULTS["runs"][run.name] = run.group }
+  RESULTS["tests"] = TESTS
+  RESULTS["build-cmd"] = {}
+  RESULTS["run-cmd"] = {}
+  RESULTS["binary-size-kb"] = {}
+  RESULTS["compile-memory-cold"] = {}
+  RESULTS["compile-memory-incremental"] = {}
+  RESULTS["compile-time-cold"] = {}
+  RESULTS["compile-time-incremental"] = {}
+  RESULTS["version"] = {}
+  RESULTS["start-duration"] = {}
+end
 
 unless ARGV[0]
   File.open("/tmp/log_crash.txt", "w") { |f| f.puts "started #{Time.now}" }
 end
 
 def write_results
-  unless ARGV[0]
+  if !ARGV[0] || APPEND_RESULTS
     File.write("./results/#{RESULTS["date"]}-#{RESULTS["uname-name"]}.js", JSON.pretty_generate(RESULTS))  
   end
 end

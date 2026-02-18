@@ -80,27 +80,11 @@ public class CalculatorInterpreter extends Benchmark {
 
     @Override
     public void prepare() {
-        try {
-
-            CalculatorAst calculator = new CalculatorAst();
-
-            Field nField = CalculatorAst.class.getDeclaredField("n");
-            nField.setAccessible(true);
-            nField.setLong(calculator, n);
-
-            calculator.prepare();
-
-            calculator.run(0);
-
-            Field expressionsField = CalculatorAst.class.getDeclaredField("expressions");
-            expressionsField.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            List<CalculatorAst.Node> expressions = (List<CalculatorAst.Node>) expressionsField.get(calculator);
-            ast = expressions;
-
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to prepare CalculatorInterpreter", e);
-        }
+        CalculatorAst calculator = new CalculatorAst();
+        calculator.n = n;  
+        calculator.prepare();
+        calculator.run(0);
+        ast = calculator.getExpressions();  
     }
 
     @Override

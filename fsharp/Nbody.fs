@@ -28,9 +28,9 @@ type Planet(x: double, y: double, z: double, vx: double, vy: double, vz: double,
     member _.Vz with get() = vzVel and set(v) = vzVel <- v
     member _.Mass = massVal
 
-    member this.MoveFromI(bodies: Planet[], nbodies: int, dt: double, i: int) =
+    member this.MoveFromI(bodies: Planet[], dt: double, i: int) =
         let mutable idx = i
-        while idx < nbodies do
+        while idx < bodies.Length do
             let b2 = bodies.[idx]
             let dx = this.X - b2.X
             let dy = this.Y - b2.Y
@@ -115,10 +115,7 @@ type Nbody() =
         v1 <- energy()
 
     override this.Run(_: int64) =
-        let nbodies = bodies.Length
-        let dt = 0.01
-
-        let mutable i = 0
-        while i < nbodies do
-            bodies.[i].MoveFromI(bodies, nbodies, dt, i + 1)
-            i <- i + 1
+        for т in 1 .. 1000 do
+            bodies |> Array.iteri (fun i body ->
+                body.MoveFromI(bodies, 0.01, i + 1)
+            )

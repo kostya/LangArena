@@ -71,9 +71,8 @@ name(b::Nbody)::String = "Nbody"
 const SOLAR_MASS = 4 * π * π
 const DAYS_PER_YEAR = 365.24
 
-function move_from_i!(b1::Planet, bodies::Vector{Planet}, nbodies::Int, dt::Float64, i::Int)
-    @inbounds while i <= nbodies
-
+function move_from_i!(b1::Planet, bodies::Vector{Planet}, dt::Float64, i::Int)
+    while i <= length(bodies)
         b2 = bodies[i]  
 
         dx = b1.x - b2.x
@@ -107,7 +106,7 @@ function energy(bodies::Vector{Planet})
     e = 0.0
     nbodies = length(bodies)
 
-    @inbounds for i in 1:nbodies
+    for i in 1:nbodies
         b = bodies[i]
         e += 0.5 * b.mass * (b.vx*b.vx + b.vy*b.vy + b.vz*b.vz)
 
@@ -127,7 +126,7 @@ end
 function offset_momentum!(bodies::Vector{Planet})
     px = py = pz = 0.0
 
-    @inbounds for b in bodies
+    for b in bodies
         m = b.mass
         px += b.vx * m
         py += b.vy * m
@@ -146,13 +145,10 @@ function prepare(b::Nbody)
 end
 
 function run(b::Nbody, iteration_id::Int64)
-    bodies = b.bodies
-    nbodies = length(bodies)
-    dt = 0.01
-
-    @inbounds for i in 1:nbodies
-        b1 = bodies[i]
-        move_from_i!(b1, bodies, nbodies, dt, i+1)  
+    for n in 1:1000
+        for (i, b1) in enumerate(b.bodies)
+            move_from_i!(b1, b.bodies, 0.01, i+1)
+        end
     end
 end
 

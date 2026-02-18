@@ -1,19 +1,18 @@
 use super::super::Benchmark;
 use super::super::config_s;
 
-#[derive(Clone)]
 enum Op {
-    Dec,
-    Inc,
-    Prev,
-    Next,
-    Print,
-    Loop(Box<[Op]>),
+    Dec,    
+    Inc,    
+    Prev,   
+    Next,   
+    Print,  
+    Loop(Vec<Op>),  
 }
 
 struct Tape {
     pos: usize,
-    tape: Vec<i32>,
+    tape: Vec<u8>,  
 }
 
 impl Tape {
@@ -24,28 +23,34 @@ impl Tape {
         }
     }
 
-    fn current_cell(&self) -> i32 {
+    fn current_cell(&self) -> u8 {
         self.tape[self.pos]
     }
 
-    fn inc(&mut self, x: i32) {
-        self.tape[self.pos] = self.tape[self.pos].wrapping_add(x);
+    fn inc(&mut self) {
+        self.tape[self.pos] = self.tape[self.pos].wrapping_add(1);
+    }
+
+    fn dec(&mut self) {
+        self.tape[self.pos] = self.tape[self.pos].wrapping_sub(1);
     }
 
     fn prev(&mut self) {
-        self.pos -= 1;
+        if self.pos > 0 {
+            self.pos -= 1;
+        }
     }
 
     fn next(&mut self) {
         self.pos += 1;
         if self.pos >= self.tape.len() {
-            self.tape.resize(self.pos * 2, 0);
+            self.tape.resize(self.pos + 1, 0);  
         }
     }
 }
 
 struct Program {
-    ops: Box<[Op]>,
+    ops: Vec<Op>,
 }
 
 impl Program {
@@ -55,28 +60,26 @@ impl Program {
         }
     }
 
-    fn parse(iter: &mut impl Iterator<Item = u8>) -> Box<[Op]> {
+    fn parse(iter: &mut impl Iterator<Item = u8>) -> Vec<Op> {
         let mut buf = Vec::new();
         while let Some(byte) = iter.next() {
-            let op = match byte {
-                b'-' => Op::Dec,
-                b'+' => Op::Inc,
-                b'<' => Op::Prev,
-                b'>' => Op::Next,
-                b'.' => Op::Print,
-                b'[' => Op::Loop(Self::parse(iter)),
+            match byte {
+                b'-' => buf.push(Op::Dec),
+                b'+' => buf.push(Op::Inc),
+                b'<' => buf.push(Op::Prev),
+                b'>' => buf.push(Op::Next),
+                b'.' => buf.push(Op::Print),
+                b'[' => buf.push(Op::Loop(Self::parse(iter))),
                 b']' => break,
                 _ => continue,
-            };
-            buf.push(op);
+            }
         }
-        buf.into_boxed_slice()
+        buf
     }
 
     fn run(&self) -> i64 {
         let mut tape = Tape::new();
         let mut result = 0i64;
-
         self.execute(&self.ops, &mut tape, &mut result);
         result
     }
@@ -84,17 +87,16 @@ impl Program {
     fn execute(&self, program: &[Op], tape: &mut Tape, result: &mut i64) {
         for op in program {
             match op {
-                Op::Dec => tape.inc(-1),
-                Op::Inc => tape.inc(1),
+                Op::Dec => tape.dec(),
+                Op::Inc => tape.inc(),
                 Op::Prev => tape.prev(),
                 Op::Next => tape.next(),
                 Op::Print => {
-                    let cell = tape.current_cell() as u8;
-                    *result = ((*result << 2) as i64).wrapping_add(cell as i64);
+                    *result = ((*result << 2) as i64).wrapping_add(tape.current_cell() as i64);
                 }
-                Op::Loop(inner_program) => {
+                Op::Loop(inner) => {
                     while tape.current_cell() != 0 {
-                        self.execute(inner_program, tape, result);
+                        self.execute(inner, tape, result);
                     }
                 }
             }
@@ -112,17 +114,11 @@ impl BrainfuckRecursion {
     pub fn new() -> Self {
         let text = config_s("BrainfuckRecursion", "program");
         let warmup_text = config_s("BrainfuckRecursion", "warmup_program");
-
-        Self {
-            text,
-            warmup_text,
-            result_val: 0,
-        }
+        Self { text, warmup_text, result_val: 0 }
     }
 
     fn _run(&self, text: &str) -> i64 {
-        let program = Program::new(text);
-        program.run()
+        Program::new(text).run()
     }
 }
 
@@ -133,7 +129,7 @@ impl Benchmark for BrainfuckRecursion {
 
     fn warmup(&mut self) {
         let prepare_iters = self.warmup_iterations();
-        for _i in 0..prepare_iters {
+        for _ in 0..prepare_iters {
             self._run(&self.warmup_text);
         }
     }

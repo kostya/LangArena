@@ -317,63 +317,6 @@ class Binarytrees(Benchmark):
     def checksum(self) -> int:
         return self.result & 0xFFFFFFFF
 
-class BrainfuckProgram:
-    def __init__(self, text: str):
-        self._commands = self._filter_commands(text)
-        self._jumps = [0] * len(self._commands)
-        self._build_jumps()
-
-    @staticmethod
-    def _filter_commands(text: str) -> str:
-
-        buffer = []
-        for char in text:
-            if char in '[]<>+-,.':
-                buffer.append(char)
-        return ''.join(buffer)
-
-    def _build_jumps(self):
-
-        stack = []
-
-        for i, cmd in enumerate(self._commands):
-            if cmd == '[':
-                stack.append(i)
-            elif cmd == ']' and stack:
-                start = stack.pop()
-                self._jumps[start] = i
-                self._jumps[i] = start
-
-    def run(self) -> int:
-
-        result = 0
-        tape = Tape()
-        pc = 0
-
-        while pc < len(self._commands):
-            cmd = self._commands[pc]
-
-            if cmd == '+':
-                tape.inc()
-            elif cmd == '-':
-                tape.dec()
-            elif cmd == '>':
-                tape.advance()
-            elif cmd == '<':
-                tape.devance()
-            elif cmd == '[':
-                if tape.get() == 0:
-                    pc = self._jumps[pc]
-            elif cmd == ']':
-                if tape.get() != 0:
-                    pc = self._jumps[pc]
-            elif cmd == '.':
-                result = ((result << 2) + tape.get()) & 0xFFFFFFFF
-
-            pc += 1
-
-        return result
-
 class Tape:
     def __init__(self, size: int = 30000):
         self._tape = bytearray(size)
@@ -397,6 +340,63 @@ class Tape:
         if self._pos > 0:
             self._pos -= 1
 
+class BrainfuckProgram:
+    def __init__(self, text: str):
+        self._commands = self._filter_commands(text)
+        self._jumps = [0] * len(self._commands)
+        self._build_jumps()
+
+    @staticmethod
+    def _filter_commands(text: str) -> str:
+        valid = set('[]<>+-,.')  
+        buffer = []
+        for char in text:
+            if char in valid:
+                buffer.append(char)
+        return ''.join(buffer)
+
+    def _build_jumps(self):
+        stack = []
+        for i, cmd in enumerate(self._commands):
+            if cmd == '[':
+                stack.append(i)
+            elif cmd == ']' and stack:
+                start = stack.pop()
+                self._jumps[start] = i
+                self._jumps[i] = start
+
+    def run(self) -> int:
+        result = 0
+        tape = Tape()
+        pc = 0
+        commands = self._commands
+        jumps = self._jumps
+        n = len(commands)
+
+        while pc < n:
+            cmd = commands[pc]
+
+            if cmd == '+':
+                tape.inc()
+            elif cmd == '-':
+                tape.dec()
+            elif cmd == '>':
+                tape.advance()
+            elif cmd == '<':
+                tape.devance()
+            elif cmd == '[':
+                if tape.get() == 0:
+                    pc = jumps[pc]
+            elif cmd == ']':
+                if tape.get() != 0:
+                    pc = jumps[pc]
+            elif cmd == '.':
+                result = ((result << 2) + tape.get()) & 0xFFFFFFFF
+
+            pc += 1
+
+        return result
+
 class BrainfuckArray(Benchmark):
     def __init__(self):
         super().__init__()
@@ -411,7 +411,7 @@ class BrainfuckArray(Benchmark):
 
     def warmup(self):
         prepare_iters = self.warmup_iterations
-        for i in range(prepare_iters):
+        for _ in range(prepare_iters):
             BrainfuckProgram(self._warmup_text).run()
 
     def run_benchmark(self, iteration_id: int):
@@ -422,50 +422,54 @@ class BrainfuckArray(Benchmark):
         return self._result_value & 0xFFFFFFFF
 
 class Op:
-
     pass
 
 @dataclass
-class IncOp(Op):
-    value: int
-
-@dataclass
-class MoveOp(Op):
-    value: int
-
-@dataclass
-class PrintOp(Op):
+class IncOp(Op):  
     pass
 
 @dataclass
-class LoopOp(Op):
+class DecOp(Op):  
+    pass
+
+@dataclass
+class NextOp(Op):  
+    pass
+
+@dataclass
+class PrevOp(Op):  
+    pass
+
+@dataclass
+class PrintOp(Op):  
+    pass
+
+@dataclass
+class LoopOp(Op):  
     ops: List[Op]
 
 class Tape2:
-    INITIAL_SIZE = 1024
-
     def __init__(self):
-        self._tape = bytearray(self.INITIAL_SIZE)
+        self._tape = bytearray(30000)
         self._pos = 0
 
     def get(self) -> int:
         return self._tape[self._pos]
 
-    def inc(self, x: int):
-        self._tape[self._pos] = (self._tape[self._pos] + x) & 0xFF
+    def inc(self):
+        self._tape[self._pos] = (self._tape[self._pos] + 1) & 0xFF
 
-    def move(self, x: int):
-        self._pos += x
+    def dec(self):
+        self._tape[self._pos] = (self._tape[self._pos] - 1) & 0xFF
 
+    def next(self):
+        self._pos += 1
         if self._pos >= len(self._tape):
-            new_length = max(self._pos + 1, len(self._tape) * 2)
-            new_length = min(new_length, 1 << 30)  
-            new_tape = bytearray(new_length)
-            new_tape[:len(self._tape)] = self._tape
-            self._tape = new_tape
+            self._tape.append(0)
 
-        if self._pos < 0:
-            self._pos = 0
+    def prev(self):
+        if self._pos > 0:
+            self._pos -= 1
 
 class BrainfuckProgram2:
     def __init__(self, code: str):
@@ -479,19 +483,22 @@ class BrainfuckProgram2:
 
     def _run_ops(self, program: List[Op], tape: Tape2):
         for op in program:
-            if isinstance(op, LoopOp):
+            if isinstance(op, IncOp):
+                tape.inc()
+            elif isinstance(op, DecOp):
+                tape.dec()
+            elif isinstance(op, NextOp):
+                tape.next()
+            elif isinstance(op, PrevOp):
+                tape.prev()
+            elif isinstance(op, LoopOp):
                 while tape.get() != 0:
                     self._run_ops(op.ops, tape)
-            elif isinstance(op, IncOp):
-                tape.inc(op.value)
-            elif isinstance(op, MoveOp):
-                tape.move(op.value)
             elif isinstance(op, PrintOp):
                 self._result_value = ((self._result_value << 2) + tape.get()) & 0xFFFFFFFF
 
     @staticmethod
     def _parse_sequence(chars: List[str], index: int):
-
         result = []
         i = index
 
@@ -502,26 +509,24 @@ class BrainfuckProgram2:
             op = None
 
             if c == '+':
-                op = IncOp(1)
+                op = IncOp()
             elif c == '-':
-                op = IncOp(-1)
+                op = DecOp()
             elif c == '>':
-                op = MoveOp(1)
+                op = NextOp()
             elif c == '<':
-                op = MoveOp(-1)
+                op = PrevOp()
             elif c == '.':
                 op = PrintOp()
             elif c == '[':
-
                 parse_result = BrainfuckProgram2._parse_sequence(chars, i)
                 result.append(LoopOp(parse_result[0]))
-                i = parse_result[1]  
-                continue  
+                i = parse_result[1]
+                continue
             elif c == ']':
-
                 return result, i
             else:
-                continue  
+                continue
 
             if op is not None:
                 result.append(op)
@@ -530,10 +535,9 @@ class BrainfuckProgram2:
 
     @staticmethod
     def _parse(code: str) -> List[Op]:
-
         chars = list(code)
         parse_result = BrainfuckProgram2._parse_sequence(chars, 0)
-        return parse_result[0]  
+        return parse_result[0]
 
 class BrainfuckRecursion(Benchmark):
     def __init__(self):
@@ -564,7 +568,6 @@ class Pidigits(Benchmark):
         super().__init__()
         self.nn = 0
         self._result_buffer = []
-        self._result_str = ""
 
     def prepare(self):
         class_name = self.__class__.__name__
@@ -614,10 +617,8 @@ class Pidigits(Benchmark):
             line = f"{ns:0{remaining_digits}d}\t:{i}\n"
             self._result_buffer.append(line)
 
-        self._result_str = ''.join(self._result_buffer)
-
     def checksum(self) -> int:
-        return Helper.checksum_string(self._result_str)
+        return Helper.checksum_string(''.join(self._result_buffer))
 
 class Fannkuchredux(Benchmark):
     def __init__(self):
@@ -1189,11 +1190,10 @@ class Nbody(Benchmark):
 
     def run_benchmark(self, iteration_id: int):
         nbodies = len(self.bodies)
-        dt = 0.01
 
-        for i in range(nbodies):
-            b = self.bodies[i]
-            b.move_from_i(self.bodies, dt, i + 1)
+        for _ in range(1000):
+            for i in range(nbodies):
+                self.bodies[i].move_from_i(self.bodies, 0.01, i + 1)
 
     def checksum(self) -> int:
         v2 = self._energy()
@@ -1413,7 +1413,6 @@ class Base64Encode(Benchmark):
     def __init__(self):
         super().__init__()
         self.n = 0
-        self._str = ""
         self._bytes = b""
         self._str2 = ""
         self._result_value = 0
@@ -1422,7 +1421,7 @@ class Base64Encode(Benchmark):
         class_name = self.__class__.__name__
         self.n = Helper.config_i64(class_name, "size")
 
-        self._str = 'a' * self.n
+        _str = 'a' * self.n
         self._bytes = b'a' * self.n
         self._str2 = base64.b64encode(self._bytes).decode('ascii')
 
@@ -1432,7 +1431,8 @@ class Base64Encode(Benchmark):
         self._result_value = (self._result_value + len(encoded)) & 0xFFFFFFFF
 
     def checksum(self) -> int:
-        output = f"encode {self._str[:min(4, len(self._str))]}... "
+        _str = str(self._bytes[0:4], 'utf-8')
+        output = f"encode {_str}... "
         output += f"to {self._str2[:min(4, len(self._str2))]}...: {self._result_value}"
         return Helper.checksum_string(output)
 
@@ -2250,33 +2250,29 @@ class SortSelf(SortBenchmark):
         return arr
 
 class GraphPathGraph:
-    def __init__(self, vertices: int, components: int = 10):
+    def __init__(self, vertices: int, jumps: int = 3, jump_len: int = 100):
         self.vertices = vertices
-        self.components = max(10, min(components, vertices // 10000))
+        self.jumps = jumps
+        self.jump_len = jump_len
         self._adj: List[List[int]] = [[] for _ in range(vertices)]
 
     def add_edge(self, u: int, v: int):
-
         self._adj[u].append(v)
         self._adj[v].append(u)
 
     def generate_random(self):
 
-        component_size = self.vertices // self.components
+        for i in range(1, self.vertices):
+            self.add_edge(i, i - 1)
 
-        for c in range(self.components):
-            start_idx = c * component_size
-            end_idx = self.vertices if c == self.components - 1 else (c + 1) * component_size
+        for v in range(self.vertices):
+            num_jumps = Helper.next_int(self.jumps)
+            for _ in range(num_jumps):
+                offset = Helper.next_int(self.jump_len) - self.jump_len // 2
+                u = v + offset
 
-            for i in range(start_idx + 1, end_idx):
-                parent = start_idx + Helper.next_int(i - start_idx)
-                self.add_edge(i, parent)
-
-            for i in range(component_size * 2):
-                u = start_idx + Helper.next_int(end_idx - start_idx)
-                v = start_idx + Helper.next_int(end_idx - start_idx)
-                if u != v:
-                    self.add_edge(u, v)
+                if 0 <= u < self.vertices and u != v:
+                    self.add_edge(v, u)
 
     def get_adjacency(self) -> List[List[int]]:
         return self._adj
@@ -2288,57 +2284,32 @@ class GraphPathBenchmark(Benchmark, ABC):
     def __init__(self):
         super().__init__()
         self._graph: Optional[GraphPathGraph] = None
-        self._pairs: List[Tuple[int, int]] = []
-        self._n_pairs = 0
         self._result_value = 0
 
     def prepare(self):
         class_name = self.__class__.__name__
         vertices = Helper.config_i64(class_name, "vertices")
-        self._n_pairs = Helper.config_i64(class_name, "pairs")
+        jumps = Helper.config_i64(class_name, "jumps")
+        jump_len = Helper.config_i64(class_name, "jump_len")
 
-        self._graph = GraphPathGraph(vertices, max(10, vertices // 10000))
+        self._graph = GraphPathGraph(vertices, jumps, jump_len)
         self._graph.generate_random()
-        self._pairs = self._generate_pairs(self._n_pairs)
 
-    def _generate_pairs(self, n: int) -> List[Tuple[int, int]]:
+    @abstractmethod
+    def test(self) -> int:
+        pass
 
-        pairs = []
-        component_size = self._graph.get_vertices() // 10
-
-        for i in range(n):
-            if Helper.next_int(100) < 70:
-
-                component = Helper.next_int(10)
-                start = component * component_size + Helper.next_int(component_size)
-                end = component * component_size + Helper.next_int(component_size)
-
-                while end == start:
-                    end = component * component_size + Helper.next_int(component_size)
-                pairs.append((start, end))
-            else:
-
-                c1 = Helper.next_int(10)
-                c2 = Helper.next_int(10)
-                while c2 == c1:
-                    c2 = Helper.next_int(10)
-                start = c1 * component_size + Helper.next_int(component_size)
-                end = c2 * component_size + Helper.next_int(component_size)
-                pairs.append((start, end))
-
-        return pairs
+    def run_benchmark(self, iteration_id: int):
+        self._result_value = (self._result_value + self.test()) & 0xFFFFFFFF
 
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
 
 class GraphPathBFS(GraphPathBenchmark):
-    def run_benchmark(self, iteration_id: int):
-        for start, end in self._pairs:
-            length = self._bfs_shortest_path(start, end)
-            self._result_value = (self._result_value + length) & 0xFFFFFFFF
+    def test(self) -> int:
+        return self._bfs_shortest_path(0, self._graph.get_vertices() - 1)
 
     def _bfs_shortest_path(self, start: int, target: int) -> int:
-
         if start == target:
             return 0
 
@@ -2361,19 +2332,16 @@ class GraphPathBFS(GraphPathBenchmark):
         return -1
 
 class GraphPathDFS(GraphPathBenchmark):
-    def run_benchmark(self, iteration_id: int):
-        for start, end in self._pairs:
-            length = self._dfs_find_path(start, end)
-            self._result_value = (self._result_value + length) & 0xFFFFFFFF
+    def test(self) -> int:
+        return self._dfs_find_path(0, self._graph.get_vertices() - 1)
 
     def _dfs_find_path(self, start: int, target: int) -> int:
-
         if start == target:
             return 0
 
         visited = [0] * self._graph.get_vertices()
         stack = [(start, 0)]
-        best_path = 0x7FFFFFFFFFFFFFFF  
+        best_path = 0x7FFFFFFFFFFFFFFF
 
         while stack:
             v, dist = stack.pop()
@@ -2392,43 +2360,54 @@ class GraphPathDFS(GraphPathBenchmark):
 
         return -1 if best_path == 0x7FFFFFFFFFFFFFFF else best_path
 
-class GraphPathDijkstra(GraphPathBenchmark):
-    _INF = 0x7FFFFFFF  
+class GraphPathAStar(GraphPathBenchmark):
+    def test(self) -> int:
+        return self._a_star_shortest_path(0, self._graph.get_vertices() - 1)
 
-    def run_benchmark(self, iteration_id: int):
-        for start, end in self._pairs:
-            length = self._dijkstra_shortest_path(start, end)
-            self._result_value = (self._result_value + length) & 0xFFFFFFFF
+    def _heuristic(self, v: int, target: int) -> int:
+        return target - v
 
-    def _dijkstra_shortest_path(self, start: int, target: int) -> int:
-
+    def _a_star_shortest_path(self, start: int, target: int) -> int:
         if start == target:
             return 0
 
         vertices = self._graph.get_vertices()
-        dist = [self._INF] * vertices
-        visited = [0] * vertices
+        g_score = [0x7FFFFFFF] * vertices
+        f_score = [0x7FFFFFFF] * vertices
+        closed = [0] * vertices
 
-        dist[start] = 0
+        g_score[start] = 0
+        f_score[start] = self._heuristic(start, target)
 
-        for _ in range(vertices):
+        open_set = []
+        in_open_set = [0] * vertices
 
-            u = -1
-            min_dist = self._INF
+        heapq.heappush(open_set, (f_score[start], start))
+        in_open_set[start] = 1
 
-            for v in range(vertices):
-                if visited[v] == 0 and dist[v] < min_dist:
-                    min_dist = dist[v]
-                    u = v
+        while open_set:
+            _, current = heapq.heappop(open_set)
+            in_open_set[current] = 0
 
-            if u == -1 or min_dist == self._INF or u == target:
-                return min_dist if u == target else -1
+            if current == target:
+                return g_score[current]
 
-            visited[u] = 1
+            closed[current] = 1
 
-            for v in self._graph.get_adjacency()[u]:
-                if dist[u] + 1 < dist[v]:
-                    dist[v] = dist[u] + 1
+            for neighbor in self._graph.get_adjacency()[current]:
+                if closed[neighbor]:
+                    continue
+
+                tentative_g = g_score[current] + 1
+
+                if tentative_g < g_score[neighbor]:
+                    g_score[neighbor] = tentative_g
+                    f = tentative_g + self._heuristic(neighbor, target)
+                    f_score[neighbor] = f
+
+                    if not in_open_set[neighbor]:
+                        heapq.heappush(open_set, (f, neighbor))
+                        in_open_set[neighbor] = 1
 
         return -1
 
@@ -2739,10 +2718,10 @@ class CalculatorAst(Benchmark):
         self._text = ''
         self._expressions: List[Node2] = []
         self._result_value = 0
-
-    def prepare(self):
         class_name = self.__class__.__name__
         self.n = Helper.config_i64(class_name, "operations")
+
+    def prepare(self):
         self._text = self._generate_random_program(self.n)
 
     def _generate_random_program(self, n: int) -> str:
@@ -2786,7 +2765,7 @@ class CalculatorAst(Benchmark):
     def run_benchmark(self, iteration_id: int):
         parser = Parser2(self._text)
         parser.parse()
-        self._expressions = parser.expressions.copy()
+        self._expressions = parser.expressions
 
         self._result_value = (self._result_value + len(self._expressions)) & 0xFFFFFFFF
 
@@ -2797,7 +2776,7 @@ class CalculatorAst(Benchmark):
                                      Helper.checksum_string(last_expr.var_name)) & 0xFFFFFFFF
 
     def get_expressions(self) -> List[Node2]:
-        return self._expressions.copy()
+        return self._expressions
 
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
@@ -2910,11 +2889,9 @@ class CalculatorInterpreter(Benchmark):
 
         calculator_ast = CalculatorAst()
         calculator_ast.n = operations
-        text = calculator_ast._generate_random_program(operations)
-
-        parser = Parser2(text)
-        parser.parse()
-        self._ast = parser.expressions.copy()
+        calculator_ast.prepare()
+        calculator_ast.run_benchmark(0)
+        self._ast = calculator_ast.get_expressions()
 
     def run_benchmark(self, iteration_id: int):
         interpreter = Interpreter2()
@@ -2929,83 +2906,75 @@ class CalculatorInterpreter(Benchmark):
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
 
-class Grid:
-    DEAD = 0
-    ALIVE = 1
+class GCell:
+    __slots__ = ('alive', 'next_state', 'neighbors')
 
+    def __init__(self):
+        self.alive = False
+        self.next_state = False
+        self.neighbors: List['GCell'] = []
+
+    def add_neighbor(self, cell: 'GCell'):
+        self.neighbors.append(cell)
+
+    def compute_next_state(self):
+        alive_neighbors = sum(1 for n in self.neighbors if n.alive)
+
+        if self.alive:
+            self.next_state = alive_neighbors in (2, 3)
+        else:
+            self.next_state = (alive_neighbors == 3)
+
+    def update(self):
+        self.alive = self.next_state
+
+class Grid:
     def __init__(self, width: int, height: int):
         self.width = width
         self.height = height
-        size = width * height
-        self.cells = bytearray(size)
-        self.buffer = bytearray(size)
 
-    def _index(self, x: int, y: int) -> int:
-        return y * self.width + x
+        self.cells: List[List[GCell]] = [[GCell() for _ in range(width)] for _ in range(height)]
 
-    def get(self, x: int, y: int) -> int:
-        return self.cells[self._index(x, y)]
+        self._link_neighbors()
 
-    def set(self, x: int, y: int, cell: int):
-        self.cells[self._index(x, y)] = cell
+    def _link_neighbors(self):
+        for y in range(self.height):
+            for x in range(self.width):
+                cell = self.cells[y][x]
 
-    def next_generation(self) -> 'Grid':
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        if dx == 0 and dy == 0:
+                            continue
 
-        w = self.width
-        h = self.height
+                        ny = (y + dy) % self.height
+                        nx = (x + dx) % self.width
 
-        new_grid = Grid(w, h)
-        new_grid.cells, new_grid.buffer = self.buffer, self.cells
+                        cell.add_neighbor(self.cells[ny][nx])
 
-        cells = self.cells
-        buffer = new_grid.cells
+    def next_generation(self):
 
-        for y in range(h):
-            y_idx = y * w
+        for row in self.cells:
+            for cell in row:
+                cell.compute_next_state()
 
-            y_prev = (y - 1) % h
-            y_next = (y + 1) % h
-            y_prev_idx = y_prev * w
-            y_next_idx = y_next * w
+        for row in self.cells:
+            for cell in row:
+                cell.update()
 
-            for x in range(w):
-                idx = y_idx + x
-
-                x_prev = (x - 1) % w
-                x_next = (x + 1) % w
-
-                neighbors = (
-                    cells[y_prev_idx + x_prev] +
-                    cells[y_prev_idx + x] +
-                    cells[y_prev_idx + x_next] +
-                    cells[y_idx + x_prev] +
-                    cells[y_idx + x_next] +
-                    cells[y_next_idx + x_prev] +
-                    cells[y_next_idx + x] +
-                    cells[y_next_idx + x_next]
-                )
-
-                current = cells[idx]
-
-                if current == self.ALIVE:
-                    next_state = self.ALIVE if neighbors in (2, 3) else self.DEAD
-                else:
-                    next_state = self.ALIVE if neighbors == 3 else self.DEAD
-
-                buffer[idx] = next_state
-
-        return new_grid
+    def count_alive(self) -> int:
+        return sum(1 for row in self.cells for cell in row if cell.alive)
 
     def compute_hash(self) -> int:
-
         FNV_OFFSET_BASIS = 2166136261
         FNV_PRIME = 16777619
 
         hash_val = FNV_OFFSET_BASIS
-
-        for cell in self.cells:
-            hash_val = (hash_val ^ cell) * FNV_PRIME
-            hash_val &= 0xFFFFFFFF  
+        for row in self.cells:
+            for cell in row:
+                alive = 1 if cell.alive else 0
+                hash_val = (hash_val ^ alive) * FNV_PRIME
+                hash_val &= 0xFFFFFFFF
 
         return hash_val
 
@@ -3026,13 +2995,14 @@ class GameOfLife(Benchmark):
         for y in range(self.height):
             for x in range(self.width):
                 if Helper.next_float() < 0.1:
-                    self.grid.set(x, y, Grid.ALIVE)
+                    self.grid.cells[y][x].alive = True
 
     def run_benchmark(self, iteration_id: int):
-        self.grid = self.grid.next_generation()
+        self.grid.next_generation()
 
     def checksum(self) -> int:
-        return self.grid.compute_hash()
+        alive = self.grid.count_alive()
+        return self.grid.compute_hash() + alive
 
 class Cell(Enum):
     WALL = 0
@@ -3733,7 +3703,7 @@ def register_benchmarks():
     Benchmark.register_benchmark(SortSelf)
     Benchmark.register_benchmark(GraphPathBFS)
     Benchmark.register_benchmark(GraphPathDFS)
-    Benchmark.register_benchmark(GraphPathDijkstra)
+    Benchmark.register_benchmark(GraphPathAStar)
     Benchmark.register_benchmark(BufferHashSHA256)
     Benchmark.register_benchmark(BufferHashCRC32)
     Benchmark.register_benchmark(CacheSimulation)

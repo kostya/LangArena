@@ -724,153 +724,180 @@ Benchmark* Binarytrees_create(void) {
 }
 
 typedef struct {
-    uint8_t* tape;
-    int32_t tape_size;
-    int32_t pos;
+    uint8_t* tape;      
+    size_t tape_size;   
+    size_t pos;         
 } BrainfuckArray_Tape;
 
 typedef struct {
-    char* program;          
-    char* warmup_program;   
+    char* program;
+    char* warmup_program;
     int32_t program_length;
     int32_t warmup_length;
-    int32_t* jumps;         
-    int32_t* warmup_jumps;  
+    int32_t* jumps;
+    int32_t* warmup_jumps;
     uint32_t result_val;
 } BrainfuckArrayData;
 
-static BrainfuckArray_Tape* BrainfuckArray_Tape_new(void) {
-    BrainfuckArray_Tape* tape = malloc(sizeof(BrainfuckArray_Tape));
-    tape->tape_size = 30000;  
+static void BrainfuckArray_Tape_init(BrainfuckArray_Tape* tape) {
+    tape->tape_size = 30000;
     tape->tape = calloc(tape->tape_size, sizeof(uint8_t));
     tape->pos = 0;
-    return tape;
 }
 
-static void BrainfuckArray_Tape_free(BrainfuckArray_Tape* tape) {
-    free(tape->tape);
-    free(tape);
-}
-
-static inline uint8_t BrainfuckArray_Tape_get(BrainfuckArray_Tape* tape) {
-    return tape->tape[tape->pos];
-}
-
-static inline void BrainfuckArray_Tape_inc(BrainfuckArray_Tape* tape) {
-    tape->tape[tape->pos] = tape->tape[tape->pos] + 1;  
-}
-
-static inline void BrainfuckArray_Tape_dec(BrainfuckArray_Tape* tape) {
-    tape->tape[tape->pos] = tape->tape[tape->pos] - 1;  
-}
-
-static inline void BrainfuckArray_Tape_advance(BrainfuckArray_Tape* tape) {
-    tape->pos++;
-    if (tape->pos >= tape->tape_size) {
-        tape->tape_size *= 2;
-        tape->tape = realloc(tape->tape, tape->tape_size);
-        memset(tape->tape + tape->tape_size / 2, 0, tape->tape_size / 2);
+static void BrainfuckArray_Tape_destroy(BrainfuckArray_Tape* tape) {
+    if (tape && tape->tape) {
+        free(tape->tape);
+        tape->tape = NULL;
+        tape->tape_size = 0;
+        tape->pos = 0;
     }
 }
 
-static inline void BrainfuckArray_Tape_devance(BrainfuckArray_Tape* tape) {
+static uint8_t BrainfuckArray_Tape_get(const BrainfuckArray_Tape* tape) {
+    return tape->tape[tape->pos];
+}
+
+static void BrainfuckArray_Tape_inc(BrainfuckArray_Tape* tape) {
+    tape->tape[tape->pos]++;
+}
+
+static void BrainfuckArray_Tape_dec(BrainfuckArray_Tape* tape) {
+    tape->tape[tape->pos]--;
+}
+
+static void BrainfuckArray_Tape_advance(BrainfuckArray_Tape* tape) {
+    tape->pos++;
+    if (tape->pos >= tape->tape_size) {
+
+        size_t new_size = tape->tape_size + 1;
+        uint8_t* new_tape = realloc(tape->tape, new_size);
+        if (new_tape) {
+            tape->tape = new_tape;
+            tape->tape[tape->tape_size] = 0;  
+            tape->tape_size = new_size;
+        }
+    }
+}
+
+static void BrainfuckArray_Tape_devance(BrainfuckArray_Tape* tape) {
     if (tape->pos > 0) {
         tape->pos--;
     }
 }
 
-static void BrainfuckArray_parse_program(const char* input, 
-                                         char** program_ptr, 
-                                         int32_t* program_length_ptr,
-                                         int32_t** jumps_ptr) {
-    if (!input || strlen(input) == 0) {
-        *program_ptr = NULL;
-        *program_length_ptr = 0;
-        *jumps_ptr = NULL;
-        return;
+static char* BrainfuckArray_filter_commands(const char* input, int32_t* out_length) {
+    if (!input) {
+        *out_length = 0;
+        return NULL;
     }
 
-    int32_t input_len = strlen(input);
+    size_t input_len = strlen(input);
     char* program = malloc(input_len + 1);
-    int32_t program_pos = 0;
+    if (!program) {
+        *out_length = 0;
+        return NULL;
+    }
 
-    for (int32_t i = 0; i < input_len; i++) {
+    int32_t program_pos = 0;
+    for (size_t i = 0; i < input_len; i++) {
         char c = input[i];
-        if (strchr("[]<>+-,.", c) != NULL) {
+        if (strchr("[]<>+-,.", c)) {
             program[program_pos++] = c;
         }
     }
     program[program_pos] = '\0';
 
-    int32_t* jumps = NULL;
-    if (program_pos > 0) {
-        jumps = malloc(sizeof(int32_t) * program_pos);
-        memset(jumps, 0, sizeof(int32_t) * program_pos);
-
-        int* stack = malloc(sizeof(int) * (program_pos / 2 + 1));
-        int stack_top = -1;
-
-        for (int pc = 0; pc < program_pos; pc++) {
-            char c = program[pc];
-            if (c == '[') {
-                stack[++stack_top] = pc;
-            } else if (c == ']' && stack_top >= 0) {
-                int left = stack[stack_top--];
-                int right = pc;
-                jumps[left] = right;
-                jumps[right] = left;
-            }
-        }
-
-        free(stack);
-    }
-
-    *program_ptr = program;
-    *program_length_ptr = program_pos;
-    *jumps_ptr = jumps;
+    *out_length = program_pos;
+    return program;
 }
 
-static uint32_t BrainfuckArray_execute_program(const char* program, int32_t program_length,
-                                               int32_t* jumps) {
+static int32_t* BrainfuckArray_build_jumps(const char* program, int32_t program_length) {
+    if (!program || program_length == 0) return NULL;
+
+    int32_t* jumps = calloc(program_length, sizeof(int32_t));
+    if (!jumps) return NULL;
+
+    int32_t* stack = malloc(sizeof(int32_t) * (program_length / 2 + 1));
+    if (!stack) {
+        free(jumps);
+        return NULL;
+    }
+
+    int32_t stack_top = -1;
+
+    for (int32_t pc = 0; pc < program_length; pc++) {
+        char c = program[pc];
+        if (c == '[') {
+            stack[++stack_top] = pc;
+        } else if (c == ']') {
+            if (stack_top >= 0) {
+                int32_t left = stack[stack_top--];
+                jumps[left] = pc;
+                jumps[pc] = left;
+            }
+        }
+    }
+
+    free(stack);
+    return jumps;
+}
+
+static uint32_t BrainfuckArray_execute_program(const char* program, 
+                                               int32_t program_length,
+                                               const int32_t* jumps) {
     if (!program || program_length == 0 || !jumps) {
         return 0;
     }
 
-    BrainfuckArray_Tape* tape = BrainfuckArray_Tape_new();
-    int pc = 0;
+    BrainfuckArray_Tape tape;
+    BrainfuckArray_Tape_init(&tape);
+
+    int32_t pc = 0;
     uint32_t result = 0;
 
     while (pc < program_length) {
         char c = program[pc];
         switch (c) {
-            case '+': BrainfuckArray_Tape_inc(tape); break;
-            case '-': BrainfuckArray_Tape_dec(tape); break;
-            case '>': BrainfuckArray_Tape_advance(tape); break;
-            case '<': BrainfuckArray_Tape_devance(tape); break;
-            case '[': {
-                if (BrainfuckArray_Tape_get(tape) == 0) {
+            case '+': 
+                BrainfuckArray_Tape_inc(&tape); 
+                break;
+
+            case '-': 
+                BrainfuckArray_Tape_dec(&tape); 
+                break;
+
+            case '>': 
+                BrainfuckArray_Tape_advance(&tape); 
+                break;
+
+            case '<': 
+                BrainfuckArray_Tape_devance(&tape); 
+                break;
+
+            case '[': 
+                if (BrainfuckArray_Tape_get(&tape) == 0) {
                     pc = jumps[pc];
-                    continue;  
                 }
                 break;
-            }
-            case ']': {
-                if (BrainfuckArray_Tape_get(tape) != 0) {
+
+            case ']': 
+                if (BrainfuckArray_Tape_get(&tape) != 0) {
                     pc = jumps[pc];
-                    continue;  
                 }
                 break;
-            }
-            case '.': {
-                uint8_t value = BrainfuckArray_Tape_get(tape);
-                result = (result << 2) + value;  
+
+            case '.': 
+                result = (result << 2) + BrainfuckArray_Tape_get(&tape);
                 break;
-            }
+
+            default:
+                break;
         }
         pc++;
     }
 
-    BrainfuckArray_Tape_free(tape);
+    BrainfuckArray_Tape_destroy(&tape);
     return result;
 }
 
@@ -880,26 +907,23 @@ void BrainfuckArray_prepare(Benchmark* self) {
     const char* program_text = Helper_config_s(self->name, "program");
     const char* warmup_text = Helper_config_s(self->name, "warmup_program");
 
-    BrainfuckArray_parse_program(program_text, 
-                                &data->program, 
-                                &data->program_length,
-                                &data->jumps);
+    data->program = BrainfuckArray_filter_commands(program_text, &data->program_length);
+    data->jumps = BrainfuckArray_build_jumps(data->program, data->program_length);
 
-    BrainfuckArray_parse_program(warmup_text,
-                                &data->warmup_program,
-                                &data->warmup_length,
-                                &data->warmup_jumps);
+    data->warmup_program = BrainfuckArray_filter_commands(warmup_text, &data->warmup_length);
+    data->warmup_jumps = BrainfuckArray_build_jumps(data->warmup_program, data->warmup_length);
 
     data->result_val = 0;
 }
 
 void BrainfuckArray_warmup(Benchmark* self) {
     BrainfuckArrayData* data = (BrainfuckArrayData*)self->data;
-    int64_t warmup_iters = Helper_config_i64(self->name, "warmup_iterations");
 
+    if (!data->warmup_program || data->warmup_length == 0) return;
+
+    int64_t warmup_iters = Helper_config_i64(self->name, "warmup_iterations");
     if (warmup_iters == 0) {
-        warmup_iters = self->iterations(self);
-        warmup_iters = (int64_t)(warmup_iters * 0.2);
+        warmup_iters = self->iterations(self) / 5;  
         if (warmup_iters < 1) warmup_iters = 1;
     }
 
@@ -917,10 +941,12 @@ void BrainfuckArray_run(Benchmark* self, int iteration_id) {
         data->result_val = 0;
     }
 
-    uint32_t run_result = BrainfuckArray_execute_program(data->program,
-                                                        data->program_length,
-                                                        data->jumps);
-    data->result_val += run_result;
+    if (data->program && data->program_length > 0 && data->jumps) {
+        uint32_t run_result = BrainfuckArray_execute_program(data->program,
+                                                            data->program_length,
+                                                            data->jumps);
+        data->result_val += run_result;
+    }
 }
 
 uint32_t BrainfuckArray_checksum(Benchmark* self) {
@@ -929,39 +955,28 @@ uint32_t BrainfuckArray_checksum(Benchmark* self) {
 }
 
 void BrainfuckArray_cleanup(Benchmark* self) {
+    if (!self || !self->data) return;
+
     BrainfuckArrayData* data = (BrainfuckArrayData*)self->data;
 
-    if (!data) return;
-
-    if (data->program) {
-        free(data->program);
-        data->program = NULL;
-    }
-
-    if (data->jumps) {
-        free(data->jumps);
-        data->jumps = NULL;
-    }
-
-    if (data->warmup_program) {
-        free(data->warmup_program);
-        data->warmup_program = NULL;
-    }
-
-    if (data->warmup_jumps) {
-        free(data->warmup_jumps);
-        data->warmup_jumps = NULL;
-    }
+    free(data->program);
+    free(data->jumps);
+    free(data->warmup_program);
+    free(data->warmup_jumps);
 
     free(data);
-    self->data = NULL;  
+    self->data = NULL;
 }
 
 Benchmark* BrainfuckArray_create(void) {
     Benchmark* bench = Benchmark_create("BrainfuckArray");
+    if (!bench) return NULL;
 
-    BrainfuckArrayData* data = malloc(sizeof(BrainfuckArrayData));
-    memset(data, 0, sizeof(BrainfuckArrayData));
+    BrainfuckArrayData* data = calloc(1, sizeof(BrainfuckArrayData));
+    if (!data) {
+        free(bench);
+        return NULL;
+    }
 
     bench->data = data;
     bench->prepare = BrainfuckArray_prepare;
@@ -974,19 +989,20 @@ Benchmark* BrainfuckArray_create(void) {
 }
 
 typedef enum {
-    BrainfuckRecursion_OP_INC,
-    BrainfuckRecursion_OP_MOVE,
-    BrainfuckRecursion_OP_PRINT,
-    BrainfuckRecursion_OP_LOOP
+    BrainfuckRecursion_OP_INC,    
+    BrainfuckRecursion_OP_DEC,    
+    BrainfuckRecursion_OP_RIGHT,  
+    BrainfuckRecursion_OP_LEFT,   
+    BrainfuckRecursion_OP_PRINT,  
+    BrainfuckRecursion_OP_LOOP    
 } BrainfuckRecursion_OpType;
 
 typedef struct BrainfuckRecursion_Op BrainfuckRecursion_Op;
 
 struct BrainfuckRecursion_Op {
     BrainfuckRecursion_OpType type;
-    int32_t value;
-    BrainfuckRecursion_Op* loop_ops;
-    int32_t loop_size;
+    BrainfuckRecursion_Op* loop_ops;  
+    int32_t loop_size;                 
 };
 
 typedef struct BrainfuckRecursion_Tape {
@@ -995,57 +1011,38 @@ typedef struct BrainfuckRecursion_Tape {
     int32_t pos;
 } BrainfuckRecursion_Tape;
 
-static BrainfuckRecursion_Tape* BrainfuckRecursion_Tape_new(void);
-static uint8_t BrainfuckRecursion_Tape_get(BrainfuckRecursion_Tape* self);
-static void BrainfuckRecursion_Tape_inc(BrainfuckRecursion_Tape* self, int32_t x);
-static void BrainfuckRecursion_Tape_move(BrainfuckRecursion_Tape* self, int32_t x);
-static void BrainfuckRecursion_Tape_free(BrainfuckRecursion_Tape* self);
-static BrainfuckRecursion_Op* BrainfuckRecursion_parse_ops(const char** code, int32_t* ops_count);
-static void BrainfuckRecursion_free_ops(BrainfuckRecursion_Op* ops, int32_t ops_size);
-static void BrainfuckRecursion_run_ops(BrainfuckRecursion_Op* ops, int32_t ops_size, 
-                                      BrainfuckRecursion_Tape* tape, uint32_t* result);
-static uint32_t BrainfuckRecursion_run_program(const char* code);
-
 static BrainfuckRecursion_Tape* BrainfuckRecursion_Tape_new(void) {
     BrainfuckRecursion_Tape* self = malloc(sizeof(BrainfuckRecursion_Tape));
-    self->size = 1024;
+    self->size = 30000;
     self->tape = calloc(self->size, sizeof(uint8_t));
     self->pos = 0;
     return self;
 }
 
 static uint8_t BrainfuckRecursion_Tape_get(BrainfuckRecursion_Tape* self) {
-    return (self->pos < self->size) ? self->tape[self->pos] : 0;
+    return self->tape[self->pos];
 }
 
-static void BrainfuckRecursion_Tape_inc(BrainfuckRecursion_Tape* self, int32_t x) {
-    if (self->pos < self->size) {
-        self->tape[self->pos] += x;
+static void BrainfuckRecursion_Tape_inc(BrainfuckRecursion_Tape* self) {
+    self->tape[self->pos]++;
+}
+
+static void BrainfuckRecursion_Tape_dec(BrainfuckRecursion_Tape* self) {
+    self->tape[self->pos]--;
+}
+
+static void BrainfuckRecursion_Tape_right(BrainfuckRecursion_Tape* self) {
+    self->pos++;
+    if (self->pos >= self->size) {
+        self->size++;
+        self->tape = realloc(self->tape, self->size);
+        self->tape[self->size - 1] = 0;
     }
 }
 
-static void BrainfuckRecursion_Tape_move(BrainfuckRecursion_Tape* self, int32_t x) {
-    if (x > 0) {
-        self->pos += x;
-        while (self->pos >= self->size) {
-            self->size *= 2;
-            self->tape = realloc(self->tape, self->size);
-            memset(self->tape + self->size / 2, 0, self->size / 2);
-        }
-    } else if (x < 0) {
-        int32_t move_left = -x;
-        if (move_left > self->pos) {
-            int32_t needed = move_left - self->pos;
-            int32_t new_size = self->size + needed;
-            uint8_t* new_tape = malloc(new_size);
-            memset(new_tape, 0, needed);
-            memcpy(new_tape + needed, self->tape, self->size);
-            free(self->tape);
-            self->tape = new_tape;
-            self->size = new_size;
-            self->pos += needed;
-        }
-        self->pos -= move_left;
+static void BrainfuckRecursion_Tape_left(BrainfuckRecursion_Tape* self) {
+    if (self->pos > 0) {
+        self->pos--;
     }
 }
 
@@ -1068,35 +1065,30 @@ static BrainfuckRecursion_Op* BrainfuckRecursion_parse_ops(const char** code, in
         switch (**code) {
             case '+':
                 ops[count].type = BrainfuckRecursion_OP_INC;
-                ops[count].value = 1;
                 ops[count].loop_ops = NULL;
                 ops[count].loop_size = 0;
                 count++;
                 break;
             case '-':
-                ops[count].type = BrainfuckRecursion_OP_INC;
-                ops[count].value = -1;
+                ops[count].type = BrainfuckRecursion_OP_DEC;
                 ops[count].loop_ops = NULL;
                 ops[count].loop_size = 0;
                 count++;
                 break;
             case '>':
-                ops[count].type = BrainfuckRecursion_OP_MOVE;
-                ops[count].value = 1;
+                ops[count].type = BrainfuckRecursion_OP_RIGHT;
                 ops[count].loop_ops = NULL;
                 ops[count].loop_size = 0;
                 count++;
                 break;
             case '<':
-                ops[count].type = BrainfuckRecursion_OP_MOVE;
-                ops[count].value = -1;
+                ops[count].type = BrainfuckRecursion_OP_LEFT;
                 ops[count].loop_ops = NULL;
                 ops[count].loop_size = 0;
                 count++;
                 break;
             case '.':
                 ops[count].type = BrainfuckRecursion_OP_PRINT;
-                ops[count].value = 0;
                 ops[count].loop_ops = NULL;
                 ops[count].loop_size = 0;
                 count++;
@@ -1104,10 +1096,13 @@ static BrainfuckRecursion_Op* BrainfuckRecursion_parse_ops(const char** code, in
             case '[':
                 (*code)++;
                 ops[count].type = BrainfuckRecursion_OP_LOOP;
-                ops[count].value = 0;
+                ops[count].loop_ops = NULL;
+                ops[count].loop_size = 0;
+
                 int32_t loop_ops_count = 0;
                 ops[count].loop_ops = BrainfuckRecursion_parse_ops(code, &loop_ops_count);
                 ops[count].loop_size = loop_ops_count;
+
                 count++;
                 continue;
             case ']':
@@ -1141,10 +1136,16 @@ static void BrainfuckRecursion_run_ops(BrainfuckRecursion_Op* ops, int32_t ops_s
         BrainfuckRecursion_Op* op = &ops[i];
         switch (op->type) {
             case BrainfuckRecursion_OP_INC:
-                BrainfuckRecursion_Tape_inc(tape, op->value);
+                BrainfuckRecursion_Tape_inc(tape);
                 break;
-            case BrainfuckRecursion_OP_MOVE:
-                BrainfuckRecursion_Tape_move(tape, op->value);
+            case BrainfuckRecursion_OP_DEC:
+                BrainfuckRecursion_Tape_dec(tape);
+                break;
+            case BrainfuckRecursion_OP_RIGHT:
+                BrainfuckRecursion_Tape_right(tape);
+                break;
+            case BrainfuckRecursion_OP_LEFT:
+                BrainfuckRecursion_Tape_left(tape);
                 break;
             case BrainfuckRecursion_OP_PRINT: {
                 uint8_t value = BrainfuckRecursion_Tape_get(tape);
@@ -2990,7 +2991,6 @@ typedef struct {
     int64_t size_val;
     double* u;
     double* v;
-    double* w;  
 } SpectralnormData;
 
 void Spectralnorm_prepare(Benchmark* self) {
@@ -3002,7 +3002,6 @@ void Spectralnorm_prepare(Benchmark* self) {
 
     data->u = malloc(data->size_val * sizeof(double));
     data->v = malloc(data->size_val * sizeof(double));
-    data->w = malloc(data->size_val * sizeof(double));
 
     for (int64_t i = 0; i < data->size_val; i++) {
         data->u[i] = 1.0;
@@ -3010,39 +3009,52 @@ void Spectralnorm_prepare(Benchmark* self) {
     }
 }
 
-static double Spectralnorm_eval_A(int64_t i, int64_t j) {
+static double eval_A(int64_t i, int64_t j) {
     return 1.0 / ((i + j) * (i + j + 1.0) / 2.0 + i + 1.0);
 }
 
-static void Spectralnorm_eval_A_times_u(double* u, double* result, int64_t n) {
+static double* eval_A_times_u(const double* u, int64_t n) {
+    double* result = malloc(n * sizeof(double));
     for (int64_t i = 0; i < n; i++) {
         double sum = 0.0;
         for (int64_t j = 0; j < n; j++) {
-            sum += Spectralnorm_eval_A(i, j) * u[j];
+            sum += eval_A(i, j) * u[j];
         }
         result[i] = sum;
     }
+    return result;
 }
 
-static void Spectralnorm_eval_At_times_u(double* u, double* result, int64_t n) {
+static double* eval_At_times_u(const double* u, int64_t n) {
+    double* result = malloc(n * sizeof(double));
     for (int64_t i = 0; i < n; i++) {
         double sum = 0.0;
         for (int64_t j = 0; j < n; j++) {
-            sum += Spectralnorm_eval_A(j, i) * u[j];
+            sum += eval_A(j, i) * u[j];
         }
         result[i] = sum;
     }
+    return result;
 }
 
-static void Spectralnorm_eval_AtA_times_u(double* u, double* result, double* temp, int64_t n) {
-    Spectralnorm_eval_A_times_u(u, temp, n);
-    Spectralnorm_eval_At_times_u(temp, result, n);
+static double* eval_AtA_times_u(const double* u, int64_t n) {
+    double* temp = eval_A_times_u(u, n);
+    double* result = eval_At_times_u(temp, n);
+    free(temp);
+    return result;
 }
 
 void Spectralnorm_run(Benchmark* self, int iteration_id) {
     SpectralnormData* data = (SpectralnormData*)self->data;
-    Spectralnorm_eval_AtA_times_u(data->u, data->v, data->w, data->size_val);
-    Spectralnorm_eval_AtA_times_u(data->v, data->u, data->w, data->size_val);
+
+    double* new_v = eval_AtA_times_u(data->u, data->size_val);
+    double* new_u = eval_AtA_times_u(new_v, data->size_val);
+
+    free(data->u);
+    free(data->v);
+
+    data->u = new_u;
+    data->v = new_v;
 }
 
 uint32_t Spectralnorm_checksum(Benchmark* self) {
@@ -3062,7 +3074,6 @@ void Spectralnorm_cleanup(Benchmark* self) {
     SpectralnormData* data = (SpectralnormData*)self->data;
     if (data->u) free(data->u);
     if (data->v) free(data->v);
-    if (data->w) free(data->w);
 }
 
 Benchmark* Spectralnorm_create(void) {
@@ -3097,7 +3108,6 @@ typedef struct {
 typedef struct {
     int64_t iterations;
     NbodyPlanet* bodies;        
-    NbodyPlanet* working_bodies; 
     int64_t nbodies;
     double energy_before;
 } NbodyData;
@@ -3204,14 +3214,10 @@ void Nbody_prepare(Benchmark* self) {
             1.53796971148509165e+01, -2.59193146099879641e+01, 1.79258772950371181e-01,
             2.68067772490389322e-03, 1.62824170038242295e-03, -9.51592254519715870e-05,
             5.15138902046611451e-05);
-
-        data->working_bodies = malloc(data->nbodies * sizeof(NbodyPlanet));
     }
 
-    memcpy(data->working_bodies, data->bodies, data->nbodies * sizeof(NbodyPlanet));
-
-    Nbody_offset_momentum(data->working_bodies, data->nbodies);
-    data->energy_before = Nbody_energy(data->working_bodies, data->nbodies);
+    Nbody_offset_momentum(data->bodies, data->nbodies);
+    data->energy_before = Nbody_energy(data->bodies, data->nbodies);
 }
 
 void Nbody_run(Benchmark* self, int iteration_id) {
@@ -3220,15 +3226,17 @@ void Nbody_run(Benchmark* self, int iteration_id) {
     double dt = 0.01;
     int nbodies = (int)data->nbodies;
 
-    for (int i = 0; i < nbodies; i++) {
-        Nbody_Planet_move_from_i(data->working_bodies, data->nbodies, dt, i + 1);
+    for (int n = 0; n < 1000; n++) {
+        for (int i = 0; i < nbodies; i++) {
+            Nbody_Planet_move_from_i(data->bodies, data->nbodies, dt, i + 1);
+        }
     }
 }
 
 uint32_t Nbody_checksum(Benchmark* self) {
     NbodyData* data = (NbodyData*)self->data;
 
-    double energy_after = Nbody_energy(data->working_bodies, data->nbodies);
+    double energy_after = Nbody_energy(data->bodies, data->nbodies);
 
     uint32_t checksum_before = Helper_checksum_f64(data->energy_before);
     uint32_t checksum_after = Helper_checksum_f64(energy_after);
@@ -3244,12 +3252,6 @@ void Nbody_cleanup(Benchmark* self) {
             free(data->bodies);
             data->bodies = NULL;
         }
-
-        if (data->working_bodies) {
-            free(data->working_bodies);
-            data->working_bodies = NULL;
-        }
-
     }
 }
 
@@ -3892,8 +3894,7 @@ Benchmark* Primes_create(void) {
 
 #include <yyjson.h>
 
-typedef struct {
-    yyjson_mut_doc* doc;      
+typedef struct {     
     char* result_str;         
     uint32_t result_val;
     int64_t n;
@@ -3908,11 +3909,6 @@ static double round_to_8_digits(double value) {
 
 void JsonGenerate_prepare(Benchmark* self) {
     JsonGenerateData* data = (JsonGenerateData*)self->data;
-
-    if (data->doc) {
-        yyjson_mut_doc_free(data->doc);
-        data->doc = NULL;
-    }
 
     if (data->result_str) {
         free(data->result_str);
@@ -3929,11 +3925,6 @@ void JsonGenerate_run(Benchmark* self, int iteration_id) {
     if (data->result_str) {
         free(data->result_str);
         data->result_str = NULL;
-    }
-
-    if (data->doc) {
-        yyjson_mut_doc_free(data->doc);
-        data->doc = NULL;
     }
 
     yyjson_mut_doc* doc = yyjson_mut_doc_new(NULL);
@@ -3993,7 +3984,7 @@ void JsonGenerate_run(Benchmark* self, int iteration_id) {
         data->result_val = crystal_add((int64_t)data->result_val, 1);
     }
 
-    data->doc = doc;
+    yyjson_mut_doc_free(doc);
 }
 
 uint32_t JsonGenerate_checksum(Benchmark* self) {
@@ -4003,11 +3994,6 @@ uint32_t JsonGenerate_checksum(Benchmark* self) {
 
 void JsonGenerate_cleanup(Benchmark* self) {
     JsonGenerateData* data = (JsonGenerateData*)self->data;
-
-    if (data->doc) {
-        yyjson_mut_doc_free(data->doc);
-        data->doc = NULL;
-    }
 
     if (data->result_str) {
         free(data->result_str);
@@ -4022,9 +4008,6 @@ Benchmark* JsonGenerate_create(void) {
     memset(data, 0, sizeof(JsonGenerateData));
 
     data->n = Helper_config_i64(bench->name, "coords");
-    if (data->n <= 0) {
-        data->n = 1000; 
-    }
 
     bench->data = data;
     bench->prepare = JsonGenerate_prepare;
@@ -4067,9 +4050,6 @@ void JsonParseDom_prepare(Benchmark* self) {
     JsonParseDomData* data = (JsonParseDomData*)self->data;
 
     data->coords_count = Helper_config_i64(self->name, "coords");
-    if (data->coords_count <= 0) {
-        data->coords_count = 1000; 
-    }
 
     data->json_text = generate_json_for_parsing(data->coords_count);
     data->result_val = 0;
@@ -5329,7 +5309,8 @@ Benchmark* SortSelf_create(void) {
 
 typedef struct {
     int vertices;
-    int components;
+    int jumps;
+    int jump_len;
     int** adj;
     int* adj_count;
     int* adj_capacity;
@@ -5337,16 +5318,14 @@ typedef struct {
 
 typedef struct {
     GraphPathGraph* graph;
-    int* pairs_start;
-    int* pairs_end;
-    int64_t n_pairs;
     uint32_t result_val;
 } GraphPathBaseData;
 
-static GraphPathGraph* graph_path_graph_new(int vertices, int components) {
+static GraphPathGraph* graph_path_graph_new(int vertices, int jumps, int jump_len) {
     GraphPathGraph* graph = malloc(sizeof(GraphPathGraph));
     graph->vertices = vertices;
-    graph->components = components;
+    graph->jumps = jumps;
+    graph->jump_len = jump_len;
 
     graph->adj = malloc(vertices * sizeof(int*));
     graph->adj_count = malloc(vertices * sizeof(int));
@@ -5366,16 +5345,12 @@ static void graph_path_graph_free(GraphPathGraph* graph) {
 
     if (graph->adj) {
         for (int i = 0; i < graph->vertices; i++) {
-            if (graph->adj[i]) {
-                free(graph->adj[i]);
-            }
+            if (graph->adj[i]) free(graph->adj[i]);
         }
         free(graph->adj);
     }
-
     if (graph->adj_count) free(graph->adj_count);
     if (graph->adj_capacity) free(graph->adj_capacity);
-
     free(graph);
 }
 
@@ -5394,69 +5369,30 @@ static void graph_path_graph_add_edge(GraphPathGraph* graph, int u, int v) {
 }
 
 static void graph_path_graph_generate_random(GraphPathGraph* graph) {
-    int component_size = graph->vertices / graph->components;
+    for (int i = 1; i < graph->vertices; i++) {
+        graph_path_graph_add_edge(graph, i, i - 1);
+    }
 
-    for (int c = 0; c < graph->components; c++) {
-        int start_idx = c * component_size;
-        int end_idx = (c == graph->components - 1) ? graph->vertices : (c + 1) * component_size;
+    for (int v = 0; v < graph->vertices; v++) {
+        int num_jumps = Helper_next_int(graph->jumps);
+        for (int j = 0; j < num_jumps; j++) {
+            int offset = Helper_next_int(graph->jump_len) - graph->jump_len / 2;
+            int u = v + offset;
 
-        for (int i = start_idx + 1; i < end_idx; i++) {
-            int parent = start_idx + Helper_next_int(i - start_idx);
-            graph_path_graph_add_edge(graph, i, parent);
-        }
-
-        int extra_edges = component_size * 2;
-        for (int e = 0; e < extra_edges; e++) {
-            int u = start_idx + Helper_next_int(end_idx - start_idx);
-            int v = start_idx + Helper_next_int(end_idx - start_idx);
-            if (u != v) graph_path_graph_add_edge(graph, u, v);
+            if (u >= 0 && u < graph->vertices && u != v) {
+                graph_path_graph_add_edge(graph, v, u);
+            }
         }
     }
 }
 
 static void graph_path_base_prepare(Benchmark* self, const char* bench_name, GraphPathBaseData* data) {
-    data->n_pairs = Helper_config_i64(bench_name, "pairs");
-    if (data->n_pairs <= 0) {
-        data->n_pairs = 100; 
-    }
+    int vertices = (int)Helper_config_i64(bench_name, "vertices");
+    int jumps = (int)Helper_config_i64(bench_name, "jumps");
+    int jump_len = (int)Helper_config_i64(bench_name, "jump_len");
 
-    int64_t vertices = Helper_config_i64(bench_name, "vertices");
-    if (vertices <= 0) {
-        vertices = data->n_pairs * 10; 
-    }
-
-    int components = vertices / 10000 > 10 ? vertices / 10000 : 10;
-
-    data->graph = graph_path_graph_new((int)vertices, components);
+    data->graph = graph_path_graph_new(vertices, jumps, jump_len);
     graph_path_graph_generate_random(data->graph);
-
-    data->pairs_start = malloc(data->n_pairs * sizeof(int));
-    data->pairs_end = malloc(data->n_pairs * sizeof(int));
-
-    int component_size = vertices / 10;
-    for (int64_t i = 0; i < data->n_pairs; i++) {
-        if (Helper_next_int(100) < 70) {
-            int component = Helper_next_int(10);
-            int start = component * component_size + Helper_next_int(component_size);
-            int end;
-            do {
-                end = component * component_size + Helper_next_int(component_size);
-            } while (end == start);
-            data->pairs_start[i] = start;
-            data->pairs_end[i] = end;
-        } else {
-            int c1 = Helper_next_int(10);
-            int c2;
-            do {
-                c2 = Helper_next_int(10);
-            } while (c2 == c1);
-            int start = c1 * component_size + Helper_next_int(component_size);
-            int end = c2 * component_size + Helper_next_int(component_size);
-            data->pairs_start[i] = start;
-            data->pairs_end[i] = end;
-        }
-    }
-
     data->result_val = 0;
 }
 
@@ -5464,14 +5400,6 @@ static void graph_path_base_cleanup(GraphPathBaseData* data) {
     if (data->graph) {
         graph_path_graph_free(data->graph);
         data->graph = NULL;
-    }
-    if (data->pairs_start) {
-        free(data->pairs_start);
-        data->pairs_start = NULL;
-    }
-    if (data->pairs_end) {
-        free(data->pairs_end);
-        data->pairs_end = NULL;
     }
 }
 
@@ -5482,9 +5410,8 @@ typedef struct {
 static int graph_path_bfs_search(GraphPathGraph* graph, int start, int target) {
     if (start == target) return 0;
 
-    int* queue = malloc(graph->vertices * 2 * sizeof(int));
     uint8_t* visited = calloc(graph->vertices, sizeof(uint8_t));
-
+    int* queue = malloc(graph->vertices * 2 * sizeof(int));
     int front = 0, rear = 0;
 
     visited[start] = 1;
@@ -5497,10 +5424,9 @@ static int graph_path_bfs_search(GraphPathGraph* graph, int start, int target) {
 
         for (int i = 0; i < graph->adj_count[v]; i++) {
             int neighbor = graph->adj[v][i];
-
             if (neighbor == target) {
-                free(queue);
                 free(visited);
+                free(queue);
                 return dist + 1;
             }
 
@@ -5512,8 +5438,8 @@ static int graph_path_bfs_search(GraphPathGraph* graph, int start, int target) {
         }
     }
 
-    free(queue);
     free(visited);
+    free(queue);
     return -1;
 }
 
@@ -5524,16 +5450,8 @@ void GraphPathBFS_prepare(Benchmark* self) {
 
 void GraphPathBFS_run(Benchmark* self, int iteration_id) {
     GraphPathBFSData* data = (GraphPathBFSData*)self->data;
-
-    int64_t total_length = 0;
-    for (int64_t i = 0; i < data->base.n_pairs; i++) {
-        int path_len = graph_path_bfs_search(data->base.graph, 
-                                           data->base.pairs_start[i], 
-                                           data->base.pairs_end[i]);
-        total_length += path_len;
-    }
-
-    data->base.result_val = crystal_add((int64_t)data->base.result_val, total_length);
+    int length = graph_path_bfs_search(data->base.graph, 0, data->base.graph->vertices - 1);
+    data->base.result_val = crystal_add((int64_t)data->base.result_val, length);
 }
 
 uint32_t GraphPathBFS_checksum(Benchmark* self) {
@@ -5548,17 +5466,13 @@ void GraphPathBFS_cleanup(Benchmark* self) {
 
 Benchmark* GraphPathBFS_create(void) {
     Benchmark* bench = Benchmark_create("GraphPathBFS");
-
     GraphPathBFSData* data = malloc(sizeof(GraphPathBFSData));
     memset(data, 0, sizeof(GraphPathBFSData));
-
     bench->data = data;
-
     bench->prepare = GraphPathBFS_prepare;
     bench->run = GraphPathBFS_run;
     bench->checksum = GraphPathBFS_checksum;
     bench->cleanup = GraphPathBFS_cleanup;
-
     return bench;
 }
 
@@ -5566,25 +5480,20 @@ typedef struct {
     GraphPathBaseData base;
 } GraphPathDFSData;
 
-typedef struct {
-    int vertex;
-    int distance;
-} DFSStackItem;
-
 static int graph_path_dfs_search(GraphPathGraph* graph, int start, int target) {
     if (start == target) return 0;
 
     uint8_t* visited = calloc(graph->vertices, sizeof(uint8_t));
-    DFSStackItem* stack = malloc(graph->vertices * 2 * sizeof(DFSStackItem));
+    int* stack = malloc(graph->vertices * 2 * sizeof(int));
     int stack_top = -1;
     int best_path = INT_MAX;
 
-    stack[++stack_top] = (DFSStackItem){start, 0};
+    stack[++stack_top] = start;
+    stack[++stack_top] = 0;
 
     while (stack_top >= 0) {
-        DFSStackItem current = stack[stack_top--];
-        int v = current.vertex;
-        int dist = current.distance;
+        int dist = stack[stack_top--];
+        int v = stack[stack_top--];
 
         if (visited[v] || dist >= best_path) continue;
         visited[v] = 1;
@@ -5592,18 +5501,17 @@ static int graph_path_dfs_search(GraphPathGraph* graph, int start, int target) {
         for (int i = 0; i < graph->adj_count[v]; i++) {
             int neighbor = graph->adj[v][i];
             if (neighbor == target) {
-                if (dist + 1 < best_path) {
-                    best_path = dist + 1;
-                }
+                if (dist + 1 < best_path) best_path = dist + 1;
             } else if (!visited[neighbor]) {
-                stack[++stack_top] = (DFSStackItem){neighbor, dist + 1};
+                stack[++stack_top] = neighbor;
+                stack[++stack_top] = dist + 1;
             }
         }
     }
 
     free(visited);
     free(stack);
-    return (best_path == INT_MAX) ? -1 : best_path;
+    return best_path == INT_MAX ? -1 : best_path;
 }
 
 void GraphPathDFS_prepare(Benchmark* self) {
@@ -5613,16 +5521,8 @@ void GraphPathDFS_prepare(Benchmark* self) {
 
 void GraphPathDFS_run(Benchmark* self, int iteration_id) {
     GraphPathDFSData* data = (GraphPathDFSData*)self->data;
-
-    int64_t total_length = 0;
-    for (int64_t i = 0; i < data->base.n_pairs; i++) {
-        int path_len = graph_path_dfs_search(data->base.graph, 
-                                           data->base.pairs_start[i], 
-                                           data->base.pairs_end[i]);
-        total_length += path_len;
-    }
-
-    data->base.result_val = crystal_add((int64_t)data->base.result_val, total_length);
+    int length = graph_path_dfs_search(data->base.graph, 0, data->base.graph->vertices - 1);
+    data->base.result_val = crystal_add((int64_t)data->base.result_val, length);
 }
 
 uint32_t GraphPathDFS_checksum(Benchmark* self) {
@@ -5637,110 +5537,165 @@ void GraphPathDFS_cleanup(Benchmark* self) {
 
 Benchmark* GraphPathDFS_create(void) {
     Benchmark* bench = Benchmark_create("GraphPathDFS");
-
     GraphPathDFSData* data = malloc(sizeof(GraphPathDFSData));
     memset(data, 0, sizeof(GraphPathDFSData));
-
     bench->data = data;
-
     bench->prepare = GraphPathDFS_prepare;
     bench->run = GraphPathDFS_run;
     bench->checksum = GraphPathDFS_checksum;
     bench->cleanup = GraphPathDFS_cleanup;
-
     return bench;
 }
 
 typedef struct {
     GraphPathBaseData base;
-} GraphPathDijkstraData;
+} GraphPathAStarData;
 
-static int graph_path_dijkstra_search(GraphPathGraph* graph, int start, int target) {
+typedef struct {
+    int vertex;
+    int priority;
+} PriorityQueueItem;
+
+typedef struct {
+    PriorityQueueItem* items;
+    int size;
+    int capacity;
+} PriorityQueue;
+
+static void priority_queue_push(PriorityQueue* pq, int vertex, int priority) {
+    if (pq->size >= pq->capacity) {
+        pq->capacity = pq->capacity == 0 ? 16 : pq->capacity * 2;
+        pq->items = realloc(pq->items, pq->capacity * sizeof(PriorityQueueItem));
+    }
+
+    int i = pq->size++;
+    while (i > 0) {
+        int parent = (i - 1) / 2;
+        if (pq->items[parent].priority <= priority) break;
+        pq->items[i] = pq->items[parent];
+        i = parent;
+    }
+    pq->items[i] = (PriorityQueueItem){vertex, priority};
+}
+
+static PriorityQueueItem priority_queue_pop(PriorityQueue* pq) {
+    PriorityQueueItem min = pq->items[0];
+    pq->size--;
+    if (pq->size > 0) {
+        PriorityQueueItem last = pq->items[pq->size];
+        int i = 0;
+        while (true) {
+            int left = 2 * i + 1;
+            int right = 2 * i + 2;
+            int smallest = i;
+
+            if (left < pq->size && pq->items[left].priority < pq->items[smallest].priority)
+                smallest = left;
+            if (right < pq->size && pq->items[right].priority < pq->items[smallest].priority)
+                smallest = right;
+
+            if (smallest == i) break;
+
+            pq->items[i] = pq->items[smallest];
+            i = smallest;
+        }
+        pq->items[i] = last;
+    }
+    return min;
+}
+
+static int heuristic(int v, int target) {
+    return target - v;
+}
+
+static int graph_path_astar_search(GraphPathGraph* graph, int start, int target) {
     if (start == target) return 0;
 
-    int* dist = malloc(graph->vertices * sizeof(int));
+    int* g_score = malloc(graph->vertices * sizeof(int));
+    int* f_score = malloc(graph->vertices * sizeof(int));
     uint8_t* visited = calloc(graph->vertices, sizeof(uint8_t));
 
     for (int i = 0; i < graph->vertices; i++) {
-        dist[i] = INT_MAX / 2;
+        g_score[i] = INT_MAX;
+        f_score[i] = INT_MAX;
     }
-    dist[start] = 0;
+    g_score[start] = 0;
+    f_score[start] = heuristic(start, target);
 
-    for (int iteration = 0; iteration < graph->vertices; iteration++) {
-        int u = -1;
-        int min_dist = INT_MAX / 2;
+    PriorityQueue open_set = {0};
+    priority_queue_push(&open_set, start, f_score[start]);
 
-        for (int v = 0; v < graph->vertices; v++) {
-            if (!visited[v] && dist[v] < min_dist) {
-                min_dist = dist[v];
-                u = v;
-            }
-        }
+    uint8_t* in_open_set = calloc(graph->vertices, sizeof(uint8_t));
+    in_open_set[start] = 1;
 
-        if (u == -1 || min_dist == INT_MAX / 2 || u == target) {
-            int result = (u == target) ? min_dist : -1;
-            free(dist);
-            free(visited);
+    while (open_set.size > 0) {
+        PriorityQueueItem current_item = priority_queue_pop(&open_set);
+        int current = current_item.vertex;
+        in_open_set[current] = 0;
+
+        if (current == target) {
+            int result = g_score[current];
+            free(g_score); free(f_score); free(visited); free(in_open_set);
+            free(open_set.items);
             return result;
         }
 
-        visited[u] = 1;
+        visited[current] = 1;
 
-        for (int i = 0; i < graph->adj_count[u]; i++) {
-            int v = graph->adj[u][i];
-            if (dist[u] + 1 < dist[v]) {
-                dist[v] = dist[u] + 1;
+        for (int i = 0; i < graph->adj_count[current]; i++) {
+            int neighbor = graph->adj[current][i];
+            if (visited[neighbor]) continue;
+
+            int tentative_g = g_score[current] + 1;
+
+            if (tentative_g < g_score[neighbor]) {
+                g_score[neighbor] = tentative_g;
+                int f = tentative_g + heuristic(neighbor, target);
+                f_score[neighbor] = f;
+
+                if (!in_open_set[neighbor]) {
+                    priority_queue_push(&open_set, neighbor, f);
+                    in_open_set[neighbor] = 1;
+                }
             }
         }
     }
 
-    free(dist);
-    free(visited);
+    free(g_score); free(f_score); free(visited); free(in_open_set);
+    free(open_set.items);
     return -1;
 }
 
-void GraphPathDijkstra_prepare(Benchmark* self) {
-    GraphPathDijkstraData* data = (GraphPathDijkstraData*)self->data;
-    graph_path_base_prepare(self, "GraphPathDijkstra", &data->base);
+void GraphPathAStar_prepare(Benchmark* self) {
+    GraphPathAStarData* data = (GraphPathAStarData*)self->data;
+    graph_path_base_prepare(self, "GraphPathAStar", &data->base);
 }
 
-void GraphPathDijkstra_run(Benchmark* self, int iteration_id) {
-    GraphPathDijkstraData* data = (GraphPathDijkstraData*)self->data;
-
-    int64_t total_length = 0;
-    for (int64_t i = 0; i < data->base.n_pairs; i++) {
-        int path_len = graph_path_dijkstra_search(data->base.graph, 
-                                                data->base.pairs_start[i], 
-                                                data->base.pairs_end[i]);
-        total_length += path_len;
-    }
-
-    data->base.result_val = crystal_add((int64_t)data->base.result_val, total_length);
+void GraphPathAStar_run(Benchmark* self, int iteration_id) {
+    GraphPathAStarData* data = (GraphPathAStarData*)self->data;
+    int length = graph_path_astar_search(data->base.graph, 0, data->base.graph->vertices - 1);
+    data->base.result_val = crystal_add((int64_t)data->base.result_val, length);
 }
 
-uint32_t GraphPathDijkstra_checksum(Benchmark* self) {
-    GraphPathDijkstraData* data = (GraphPathDijkstraData*)self->data;
+uint32_t GraphPathAStar_checksum(Benchmark* self) {
+    GraphPathAStarData* data = (GraphPathAStarData*)self->data;
     return data->base.result_val;
 }
 
-void GraphPathDijkstra_cleanup(Benchmark* self) {
-    GraphPathDijkstraData* data = (GraphPathDijkstraData*)self->data;
+void GraphPathAStar_cleanup(Benchmark* self) {
+    GraphPathAStarData* data = (GraphPathAStarData*)self->data;
     graph_path_base_cleanup(&data->base);
 }
 
-Benchmark* GraphPathDijkstra_create(void) {
-    Benchmark* bench = Benchmark_create("GraphPathDijkstra");
-
-    GraphPathDijkstraData* data = malloc(sizeof(GraphPathDijkstraData));
-    memset(data, 0, sizeof(GraphPathDijkstraData));
-
+Benchmark* GraphPathAStar_create(void) {
+    Benchmark* bench = Benchmark_create("GraphPathAStar");
+    GraphPathAStarData* data = malloc(sizeof(GraphPathAStarData));
+    memset(data, 0, sizeof(GraphPathAStarData));
     bench->data = data;
-
-    bench->prepare = GraphPathDijkstra_prepare;
-    bench->run = GraphPathDijkstra_run;
-    bench->checksum = GraphPathDijkstra_checksum;
-    bench->cleanup = GraphPathDijkstra_cleanup;
-
+    bench->prepare = GraphPathAStar_prepare;
+    bench->run = GraphPathAStar_run;
+    bench->checksum = GraphPathAStar_checksum;
+    bench->cleanup = GraphPathAStar_cleanup;
     return bench;
 }
 
@@ -5783,7 +5738,7 @@ static uint32_t buffer_hash_sha256_digest(uint8_t* data, int64_t size) {
     };
 
     for (int64_t i = 0; i < size; i++) {
-        uint32_t hash_idx = (uint32_t)(i % 8);
+        uint32_t hash_idx = (uint32_t)(i & 7);
         uint32_t* hash = &hashes[hash_idx];
 
         uint32_t temp = (*hash << 5) + *hash;  
@@ -6437,6 +6392,16 @@ void CalculatorAst_prepare(Benchmark* self) {
 void CalculatorAst_run(Benchmark* self, int iteration_id) {
     CalculatorAstData* data = (CalculatorAstData*)self->data;
 
+    if (data->expressions) {
+        for (int64_t i = 0; i < data->expressions_count; i++) {
+            ast_node_free(data->expressions[i]);  
+        }
+        free(data->expressions);                   
+        data->expressions = NULL;
+        data->expressions_count = 0;
+        data->expressions_capacity = 0;
+    }
+
     CalculatorAstParser parser;
     calculator_ast_parser_init(&parser, data->text);
 
@@ -6603,8 +6568,6 @@ static int64_t calculator_interpreter_evaluate(AST_Node* node, CalculatorInterpr
 typedef struct {
     CalculatorAstData ast_data;
     uint32_t result_val;
-    AST_Node** cached_expressions;
-    int64_t cached_expressions_count;
 } CalculatorInterpreterData;
 
 void CalculatorInterpreter_prepare(Benchmark* self) {
@@ -6624,14 +6587,6 @@ void CalculatorInterpreter_prepare(Benchmark* self) {
     calculator_ast_parser_init(&parser, data->ast_data.text);
     calculator_ast_parser_parse_all(&parser, &data->ast_data);
 
-    data->cached_expressions = malloc(data->ast_data.expressions_count * sizeof(AST_Node*));
-    data->cached_expressions_count = data->ast_data.expressions_count;
-
-    for (int64_t i = 0; i < data->ast_data.expressions_count; i++) {
-
-        data->cached_expressions[i] = data->ast_data.expressions[i];
-    }
-
     data->result_val = 0;
 }
 
@@ -6641,8 +6596,8 @@ void CalculatorInterpreter_run(Benchmark* self, int iteration_id) {
     CalculatorInterpreterContext* ctx = calculator_interpreter_context_new();
     int64_t iteration_result = 0;
 
-    for (int64_t i = 0; i < data->cached_expressions_count; i++) {
-        iteration_result = calculator_interpreter_evaluate(data->cached_expressions[i], ctx);
+    for (int64_t i = 0; i < data->ast_data.expressions_count; i++) {
+        iteration_result = calculator_interpreter_evaluate(data->ast_data.expressions[i], ctx);
     }
 
     calculator_interpreter_context_free(ctx);
@@ -6661,11 +6616,6 @@ void CalculatorInterpreter_cleanup(Benchmark* self) {
     if (data->ast_data.text) {
         free(data->ast_data.text);
         data->ast_data.text = NULL;
-    }
-
-    if (data->cached_expressions) {
-        free(data->cached_expressions);
-        data->cached_expressions = NULL;
     }
 
     if (data->ast_data.expressions) {
@@ -6693,16 +6643,19 @@ Benchmark* CalculatorInterpreter_create(void) {
     return bench;
 }
 
-typedef enum {
-    CELL_DEAD,
-    CELL_ALIVE
-} CellState;
+typedef struct Cell Cell;
+
+struct Cell {
+    bool alive;
+    bool next_state;
+    Cell** neighbors;
+    int neighbor_count;
+};
 
 typedef struct {
-    CellState** cells;
-    CellState** next_cells;  
     int width;
     int height;
+    Cell*** cells;  
 } GameOfLifeGrid;
 
 typedef struct {
@@ -6722,91 +6675,114 @@ static inline uint32_t fnv1a_hash(uint32_t hash, uint32_t value) {
     return hash;
 }
 
+static Cell* cell_create(void) {
+    Cell* cell = malloc(sizeof(Cell));
+    cell->alive = false;
+    cell->next_state = false;
+    cell->neighbors = malloc(8 * sizeof(Cell*));
+    cell->neighbor_count = 0;
+    return cell;
+}
+
+static void cell_destroy(Cell* cell) {
+    free(cell->neighbors);
+    free(cell);
+}
+
+static void cell_add_neighbor(Cell* cell, Cell* neighbor) {
+    cell->neighbors[cell->neighbor_count++] = neighbor;
+}
+
+static void cell_compute_next_state(Cell* cell) {
+    int alive_neighbors = 0;
+    for (int i = 0; i < cell->neighbor_count; i++) {
+        if (cell->neighbors[i]->alive) {
+            alive_neighbors++;
+        }
+    }
+
+    if (cell->alive) {
+        cell->next_state = (alive_neighbors == 2 || alive_neighbors == 3);
+    } else {
+        cell->next_state = (alive_neighbors == 3);
+    }
+}
+
+static void cell_update(Cell* cell) {
+    cell->alive = cell->next_state;
+}
+
 static void game_of_life_grid_init(GameOfLifeGrid* grid, int width, int height) {
     grid->width = width;
     grid->height = height;
 
-    grid->cells = malloc(height * sizeof(CellState*));
+    grid->cells = malloc(height * sizeof(Cell**));
     for (int y = 0; y < height; y++) {
-        grid->cells[y] = malloc(width * sizeof(CellState));
-        memset(grid->cells[y], 0, width * sizeof(CellState));
+        grid->cells[y] = malloc(width * sizeof(Cell*));
+        for (int x = 0; x < width; x++) {
+            grid->cells[y][x] = cell_create();
+        }
     }
 
-    grid->next_cells = malloc(height * sizeof(CellState*));
     for (int y = 0; y < height; y++) {
-        grid->next_cells[y] = malloc(width * sizeof(CellState));
+        for (int x = 0; x < width; x++) {
+            Cell* cell = grid->cells[y][x];
+
+            for (int dy = -1; dy <= 1; dy++) {
+                for (int dx = -1; dx <= 1; dx++) {
+                    if (dx == 0 && dy == 0) continue;
+
+                    int ny = (y + dy + height) % height;
+                    int nx = (x + dx + width) % width;
+
+                    cell_add_neighbor(cell, grid->cells[ny][nx]);
+                }
+            }
+        }
     }
 }
 
 static void game_of_life_grid_free(GameOfLifeGrid* grid) {
     for (int y = 0; y < grid->height; y++) {
+        for (int x = 0; x < grid->width; x++) {
+            cell_destroy(grid->cells[y][x]);
+        }
         free(grid->cells[y]);
-        free(grid->next_cells[y]);
     }
     free(grid->cells);
-    free(grid->next_cells);
-}
-
-static inline int game_of_life_count_neighbors(GameOfLifeGrid* grid, int x, int y) {
-    int count = 0;
-    int width = grid->width;
-    int height = grid->height;
-
-    int y_prev = (y == 0) ? height - 1 : y - 1;
-    int y_next = (y == height - 1) ? 0 : y + 1;
-    int x_prev = (x == 0) ? width - 1 : x - 1;
-    int x_next = (x == width - 1) ? 0 : x + 1;
-
-    count += grid->cells[y_prev][x_prev] == CELL_ALIVE;
-    count += grid->cells[y_prev][x] == CELL_ALIVE;
-    count += grid->cells[y_prev][x_next] == CELL_ALIVE;
-    count += grid->cells[y][x_prev] == CELL_ALIVE;
-    count += grid->cells[y][x_next] == CELL_ALIVE;
-    count += grid->cells[y_next][x_prev] == CELL_ALIVE;
-    count += grid->cells[y_next][x] == CELL_ALIVE;
-    count += grid->cells[y_next][x_next] == CELL_ALIVE;
-
-    return count;
 }
 
 static void game_of_life_next_generation(GameOfLifeGrid* grid) {
-    int width = grid->width;
-    int height = grid->height;
 
-    CellState** cells = grid->cells;
-    CellState** next_cells = grid->next_cells;
-
-    for (int y = 0; y < height; y++) {
-        CellState* row = cells[y];
-        CellState* next_row = next_cells[y];
-
-        for (int x = 0; x < width; x++) {
-            int neighbors = game_of_life_count_neighbors(grid, x, y);
-            CellState current = row[x];
-            CellState next_state = CELL_DEAD;
-
-            if (current == CELL_ALIVE) {
-                next_state = (neighbors == 2 || neighbors == 3) ? CELL_ALIVE : CELL_DEAD;
-            } else {
-                next_state = (neighbors == 3) ? CELL_ALIVE : CELL_DEAD;
-            }
-
-            next_row[x] = next_state;
+    for (int y = 0; y < grid->height; y++) {
+        for (int x = 0; x < grid->width; x++) {
+            cell_compute_next_state(grid->cells[y][x]);
         }
     }
 
-    CellState** temp = grid->cells;
-    grid->cells = grid->next_cells;
-    grid->next_cells = temp;
+    for (int y = 0; y < grid->height; y++) {
+        for (int x = 0; x < grid->width; x++) {
+            cell_update(grid->cells[y][x]);
+        }
+    }
+}
+
+static int game_of_life_count_alive(GameOfLifeGrid* grid) {
+    int count = 0;
+    for (int y = 0; y < grid->height; y++) {
+        for (int x = 0; x < grid->width; x++) {
+            if (grid->cells[y][x]->alive) count++;
+        }
+    }
+    return count;
 }
 
 static uint32_t game_of_life_grid_hash(GameOfLifeGrid* grid) {
     uint32_t hash = 0;
 
     for (int y = 0; y < grid->height; y++) {
-        CellState* row = grid->cells[y];
         for (int x = 0; x < grid->width; x++) {
-            uint32_t alive = row[x] == CELL_ALIVE;
+            uint32_t alive = (grid->cells[y][x]->alive) ? 1 : 0;
             hash = fnv1a_hash(hash, alive);
         }
     }
@@ -6828,7 +6804,7 @@ void GameOfLife_prepare(Benchmark* self) {
     for (int y = 0; y < data->grid.height; y++) {
         for (int x = 0; x < data->grid.width; x++) {
             if (Helper_next_float(1.0) < 0.1) {
-                data->grid.cells[y][x] = CELL_ALIVE;
+                data->grid.cells[y][x]->alive = true;
             }
         }
     }
@@ -6843,7 +6819,8 @@ void GameOfLife_run(Benchmark* self, int iteration_id) {
 
 uint32_t GameOfLife_checksum(Benchmark* self) {
     GameOfLifeData* data = (GameOfLifeData*)self->data;
-    return game_of_life_grid_hash(&data->grid);
+    int alive = game_of_life_count_alive(&data->grid);
+    return game_of_life_grid_hash(&data->grid) + (uint32_t)alive;
 }
 
 void GameOfLife_cleanup(Benchmark* self) {
@@ -8338,7 +8315,7 @@ void register_all_benchmarks(void) {
     Benchmark_register("SortSelf", SortSelf_create);
     Benchmark_register("GraphPathBFS", GraphPathBFS_create);
     Benchmark_register("GraphPathDFS", GraphPathDFS_create);
-    Benchmark_register("GraphPathDijkstra", GraphPathDijkstra_create);
+    Benchmark_register("GraphPathAStar", GraphPathAStar_create);
     Benchmark_register("BufferHashSHA256", BufferHashSHA256_create);
     Benchmark_register("BufferHashCRC32", BufferHashCRC32_create);
     Benchmark_register("CacheSimulation", CacheSimulation_create);

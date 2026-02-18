@@ -93,20 +93,16 @@ pub const Pidigits = struct {
 
         while (true) {
             k += 1;
-
             c.mpz_mul_ui(&t, &n_val, 2);
-
             c.mpz_mul_ui(&n_val, &n_val, @as(c_ulong, @intCast(k)));
 
             k1 += 2;
 
             c.mpz_add(&a, &a, &t);
             c.mpz_mul_ui(&a, &a, @as(c_ulong, @intCast(k1)));
-
             c.mpz_mul_ui(&d, &d, @as(c_ulong, @intCast(k1)));
 
             if (c.mpz_cmp(&a, &n_val) >= 0) {
-
                 c.mpz_mul_ui(&temp, &n_val, 3);
                 c.mpz_add(&temp, &temp, &a);
 
@@ -116,7 +112,6 @@ pub const Pidigits = struct {
                 c.mpz_add(&u, &u, &n_val);
 
                 if (c.mpz_cmp(&d, &u) > 0) {
-
                     c.mpz_mul_ui(&ns, &ns, 10);
                     c.mpz_add(&ns, &ns, &q);
 

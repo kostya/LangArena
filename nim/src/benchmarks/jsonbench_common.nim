@@ -48,6 +48,5 @@ proc generateJsonData*(n: int64): JsonData =
     )
 
 proc getJsonText*(n: int64): string =
-  reset()
   let data = generateJsonData(n)
   result = data.toJson()

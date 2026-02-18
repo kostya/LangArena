@@ -358,7 +358,7 @@ class Binarytrees extends Benchmark {
 }
 
 class Tape {
-  final Uint8List _tape = Uint8List(30000);
+  Uint8List _tape = Uint8List(30000);
   int _pos = 0;
 
   int get() => _tape[_pos];
@@ -374,20 +374,23 @@ class Tape {
   void advance() {
     _pos++;
     if (_pos >= _tape.length) {
-      _pos = _tape.length - 1;
+
+      final newTape = Uint8List(_tape.length + 1);
+      newTape.setAll(0, _tape);
+      newTape[_tape.length] = 0;
+      _tape = newTape;
     }
   }
 
   void devance() {
-    _pos--;
-    if (_pos < 0) {
-      _pos = 0;
+    if (_pos > 0) {
+      _pos--;
     }
   }
 }
 
 class BrainfuckProgram {
-  final String _commands;
+  final Uint8List _commands;
   final List<int> _jumps;
 
   BrainfuckProgram(String text) : 
@@ -396,15 +399,14 @@ class BrainfuckProgram {
     _buildJumps();
   }
 
-  static String _filterCommands(String text) {
-    final buffer = StringBuffer();
+  static Uint8List _filterCommands(String text) {
+    final buffer = <int>[];
     for (final char in text.runes) {
-      final ch = String.fromCharCode(char);
-      if ('[]<>+-,.'.contains(ch)) {
-        buffer.write(ch);
+      if ('[]<>+-,.'.contains(String.fromCharCode(char))) {
+        buffer.add(char);
       }
     }
-    return buffer.toString();
+    return Uint8List.fromList(buffer);
   }
 
   void _buildJumps() {
@@ -412,9 +414,9 @@ class BrainfuckProgram {
 
     for (int i = 0; i < _commands.length; i++) {
       final cmd = _commands[i];
-      if (cmd == '[') {
+      if (cmd == 91) { 
         stack.add(i);
-      } else if (cmd == ']' && stack.isNotEmpty) {
+      } else if (cmd == 93 && stack.isNotEmpty) { 
         final start = stack.removeLast();
         _jumps[start] = i;
         _jumps[i] = start;
@@ -426,34 +428,28 @@ class BrainfuckProgram {
     int result = 0;
     final tape = Tape();
     int pc = 0;
+    final commands = _commands;
+    final jumps = _jumps;
 
-    while (pc < _commands.length) {
-      final cmd = _commands[pc];
+    while (pc < commands.length) {
+      final cmd = commands[pc];
 
       switch (cmd) {
-        case '+':
-          tape.inc();
-          break;
-        case '-':
-          tape.dec();
-          break;
-        case '>':
-          tape.advance();
-          break;
-        case '<':
-          tape.devance();
-          break;
-        case '[':
+        case 43: tape.inc(); break;      
+        case 45: tape.dec(); break;      
+        case 62: tape.advance(); break;  
+        case 60: tape.devance(); break;  
+        case 91: 
           if (tape.get() == 0) {
-            pc = _jumps[pc];
+            pc = jumps[pc];
           }
           break;
-        case ']':
+        case 93: 
           if (tape.get() != 0) {
-            pc = _jumps[pc];
+            pc = jumps[pc];
           }
           break;
-        case '.':
+        case 46: 
           result = ((result << 2) + tape.get()) & 0xFFFFFFFF;
           break;
       }
@@ -499,25 +495,18 @@ class BrainfuckArray extends Benchmark {
 
 abstract class Op {}
 
-class IncOp extends Op {
-  final int value;
-  IncOp(this.value);
-}
-
-class MoveOp extends Op {
-  final int value;
-  MoveOp(this.value);
-}
-
-class PrintOp extends Op {}
-
-class LoopOp extends Op {
+class IncOp extends Op {}      
+class DecOp extends Op {}      
+class NextOp extends Op {}     
+class PrevOp extends Op {}     
+class PrintOp extends Op {}    
+class LoopOp extends Op {      
   final List<Op> ops;
   LoopOp(this.ops);
 }
 
 class Tape2 {
-  static const int INITIAL_SIZE = 1024;
+  static const int INITIAL_SIZE = 30000;
   Uint8List _tape;
   int _pos = 0;
 
@@ -525,22 +514,26 @@ class Tape2 {
 
   int get() => _tape[_pos];
 
-  void inc(int x) {
-    _tape[_pos] = (_tape[_pos] + x) & 0xFF;
+  void inc() {
+    _tape[_pos] = (_tape[_pos] + 1) & 0xFF;
   }
 
-  void move(int x) {
-    _pos += x;
+  void dec() {
+    _tape[_pos] = (_tape[_pos] - 1) & 0xFF;
+  }
 
+  void next() {
+    _pos++;
     if (_pos >= _tape.length) {
-      final newLength = (_tape.length * 2).clamp(_pos + 1, 1 << 30);
-      final newTape = Uint8List(newLength);
+      final newTape = Uint8List(_tape.length + 1);
       newTape.setRange(0, _tape.length, _tape);
       _tape = newTape;
     }
+  }
 
-    if (_pos < 0) {
-      _pos = 0;
+  void prev() {
+    if (_pos > 0) {
+      _pos--;
     }
   }
 }
@@ -564,9 +557,13 @@ class BrainfuckProgram2 {
           _runOps(op.ops, tape);
         }
       } else if (op is IncOp) {
-        tape.inc(op.value);
-      } else if (op is MoveOp) {
-        tape.move(op.value);
+        tape.inc();
+      } else if (op is DecOp) {
+        tape.dec();
+      } else if (op is NextOp) {
+        tape.next();
+      } else if (op is PrevOp) {
+        tape.prev();
       } else if (op is PrintOp) {
         _resultValue = ((_resultValue << 2) + tape.get()) & 0xFFFFFFFF;
       }
@@ -591,16 +588,16 @@ class BrainfuckProgram2 {
 
       switch (c) {
         case '+':
-          op = IncOp(1);
+          op = IncOp();
           break;
         case '-':
-          op = IncOp(-1);
+          op = DecOp();
           break;
         case '>':
-          op = MoveOp(1);
+          op = NextOp();
           break;
         case '<':
-          op = MoveOp(-1);
+          op = PrevOp();
           break;
         case '.':
           op = PrintOp();
@@ -609,7 +606,7 @@ class BrainfuckProgram2 {
           final parseResult = _parseSequence(chars, i);
           result.add(LoopOp(parseResult.ops));
           i = parseResult.index;
-          break;
+          continue;
         case ']':
           return ParseResult(result, i);
         default:
@@ -665,8 +662,7 @@ class BrainfuckRecursion extends Benchmark {
 
 class Pidigits extends Benchmark {
   late int nn;
-  final List<String> _resultBuffer = [];
-  String _resultStr = '';
+  final StringBuffer _resultBuffer = StringBuffer();
 
   @override
   void prepare() {
@@ -706,7 +702,7 @@ class Pidigits extends Benchmark {
 
           if (i % 10 == 0) {
             final line = ns.toString().padLeft(10, '0') + '\t:${i}\n';
-            _resultBuffer.add(line);
+            _resultBuffer.write(line);
             ns = BigInt.zero;
           }
 
@@ -723,15 +719,13 @@ class Pidigits extends Benchmark {
     if (ns != BigInt.zero && _resultBuffer.isNotEmpty) {
       final remainingDigits = nn % 10 == 0 ? 10 : nn % 10;
       final line = ns.toString().padLeft(remainingDigits, '0') + '\t:${i}\n';
-      _resultBuffer.add(line);
+      _resultBuffer.write(line);
     }
-
-    _resultStr = _resultBuffer.join();
   }
 
   @override
   int checksum() {
-    return Helper.checksumString(_resultStr);
+    return Helper.checksumString(_resultBuffer.toString());
   }
 }
 
@@ -746,9 +740,8 @@ class Fannkuchredux extends Benchmark {
   }
 
   (int, int) _fannkuchredux(int n) {
-    final perm1 = Int32List(n);
-    for (int i = 0; i < n; i++) perm1[i] = i;
 
+    final perm1 = Int32List(n)..setAll(0, List.generate(n, (i) => i));
     final perm = Int32List(n);
     final count = Int32List(n);
 
@@ -763,58 +756,47 @@ class Fannkuchredux extends Benchmark {
         r -= 1;
       }
 
-      for (int i = 0; i < n; i++) {
-        perm[i] = perm1[i];
-      }
+      perm.setAll(0, perm1);
 
       int flipsCount = 0;
       int k = perm[0];
 
       while (k != 0) {
-        final k2 = (k + 1) ~/ 2;
 
-        for (int i = 0; i < k2; i++) {
-          final j = k - i;
+        var i = 0;
+        var j = k;
+        while (i < j) {
           final temp = perm[i];
           perm[i] = perm[j];
           perm[j] = temp;
+          i++;
+          j--;
         }
 
-        flipsCount += 1;
+        flipsCount++;
         k = perm[0];
       }
 
-      if (flipsCount > maxFlipsCount) {
-        maxFlipsCount = flipsCount;
-      }
-
-      checksum += (permCount % 2 == 0) ? flipsCount : -flipsCount;
+      maxFlipsCount = max(maxFlipsCount, flipsCount);
+      checksum += (permCount & 1) == 0 ? flipsCount : -flipsCount;
 
       while (true) {
         if (r == n) {
           return (checksum, maxFlipsCount);
         }
 
-        final perm0 = perm1[0];
-        for (int i = 0; i < r; i++) {
-          final j = i + 1;
-          final temp = perm1[i];
-          perm1[i] = perm1[j];
-          perm1[j] = temp;
+        final first = perm1[0];
+        for (var i = 0; i < r; i++) {
+          perm1[i] = perm1[i + 1];
         }
+        perm1[r] = first;
 
-        perm1[r] = perm0;
         count[r] -= 1;
-        final cntr = count[r];
-
-        if (cntr > 0) {
-          break;
-        }
-
-        r += 1;
+        if (count[r] > 0) break;
+        r++;
       }
 
-      permCount += 1;
+      permCount++;
     }
   }
 
@@ -825,9 +807,7 @@ class Fannkuchredux extends Benchmark {
   }
 
   @override
-  int checksum() {
-    return _resultValue;
-  }
+  int checksum() => _resultValue;
 }
 
 class Gene {
@@ -1053,7 +1033,7 @@ class Mandelbrot extends Benchmark {
 
   late int w;
   late int h;
-  final List<int> _resultBytes = [];
+  final BytesBuilder _builder = BytesBuilder();
 
   @override
   void prepare() {
@@ -1065,7 +1045,7 @@ class Mandelbrot extends Benchmark {
   @override
   void runBenchmark(int iterationId) {
     final header = 'P4\n$w $h\n';
-    _resultBytes.addAll(header.codeUnits);
+    _builder.add(header.codeUnits);
 
     int bitNum = 0;
     int byteAcc = 0;
@@ -1096,12 +1076,12 @@ class Mandelbrot extends Benchmark {
         bitNum++;
 
         if (bitNum == 8) {
-          _resultBytes.add(byteAcc);
+          _builder.addByte(byteAcc);
           byteAcc = 0;
           bitNum = 0;
         } else if (x == w - 1) {
           byteAcc <<= (8 - (w % 8));
-          _resultBytes.add(byteAcc);
+          _builder.addByte(byteAcc);
           byteAcc = 0;
           bitNum = 0;
         }
@@ -1111,7 +1091,7 @@ class Mandelbrot extends Benchmark {
 
   @override
   int checksum() {
-    return Helper.checksumBytes(_resultBytes);
+    return Helper.checksumBytes(_builder.toBytes());
   }
 }
 
@@ -1314,8 +1294,8 @@ class Planet {
       vz = vz * DAYS_PER_YEAR,
       mass = mass * SOLAR_MASS;
 
-  void moveFromI(List<Planet> bodies, int nbodies, double dt, int i) {
-    while (i < nbodies) {
+  void moveFromI(List<Planet> bodies, double dt, int i) {
+    while (i < bodies.length) {
       final b2 = bodies[i];
       final dx = x - b2.x;
       final dy = y - b2.y;
@@ -1449,14 +1429,12 @@ class Nbody extends Benchmark {
 
   @override
   void runBenchmark(int iterationId) {
-    final nbodies = bodies.length;
-    const dt = 0.01;
-
-    int i = 0;
-    while (i < nbodies) {
-      final b = bodies[i];
-      b.moveFromI(bodies, nbodies, dt, i + 1);
-      i++;
+    for (int n = 0; n < 1000; n++) {
+      int i = 0;
+      for (var b in bodies) {
+        b.moveFromI(bodies, 0.01, i + 1);
+        i++;
+      }
     }
   }
 
@@ -1674,8 +1652,10 @@ class Spectralnorm extends Benchmark {
 
     for (int i = 0; i < n; i++) {
       double sum = 0.0;
-      for (int j = 0; j < n; j++) {
-        sum += _evalA(i, j) * uVec[j];
+      int j = 0;
+      for (var val in uVec) {
+        sum += _evalA(i, j) * val;
+        j++;
       }
       result[i] = sum;
     }
@@ -1689,8 +1669,10 @@ class Spectralnorm extends Benchmark {
 
     for (int i = 0; i < n; i++) {
       double sum = 0.0;
-      for (int j = 0; j < n; j++) {
-        sum += _evalA(j, i) * uVec[j];
+      int j = 0;
+      for (var val in uVec) {
+        sum += _evalA(j, i) * val;
+        j++;
       }
       result[i] = sum;
     }
@@ -1725,7 +1707,6 @@ class Spectralnorm extends Benchmark {
 
 class Base64Encode extends Benchmark {
   late int n;
-  late String _str;
   late Uint8List _bytes;
   late String _str2;
   int _resultValue = 0;
@@ -1735,24 +1716,22 @@ class Base64Encode extends Benchmark {
     final className = runtimeType.toString().split('.').last;
     n = Helper.configI64(className, "size").toInt();
 
-    _str = 'a' * n;
     _bytes = Uint8List(n); 
     for (int i = 0; i < n; i++) {
       _bytes[i] = 0x61;
     }
-
     _str2 = base64Encode(_bytes);
   }
 
   @override
   void runBenchmark(int iterationId) {
-
     _str2 = base64Encode(_bytes);
     _resultValue = (_resultValue + _str2.length) & 0xFFFFFFFF;
   }
 
   @override
   int checksum() {
+    final _str = 'a' * n;
     final output = 'encode ${_str.substring(0, min(4, _str.length))}... '
                   'to ${_str2.substring(0, min(4, _str2.length))}...: $_resultValue';
     return Helper.checksumString(output);
@@ -1770,25 +1749,21 @@ class Base64Decode extends Benchmark {
     final className = runtimeType.toString().split('.').last;
     n = Helper.configI64(className, "size").toInt();
 
-    final bytes = Uint8List(n);
+    _bytes = Uint8List(n); 
     for (int i = 0; i < n; i++) {
-      bytes[i] = 0x61; 
+      _bytes[i] = 0x61;
     }
-
-    _str2 = base64Encode(bytes);
-    _bytes = base64Decode(_str2);
+    _str2 = base64Encode(_bytes);
   }
 
   @override
   void runBenchmark(int iterationId) {
-
     _bytes = base64Decode(_str2);
     _resultValue = (_resultValue + _bytes.length) & 0xFFFFFFFF;
   }
 
   @override
   int checksum() {
-
     final str3 = String.fromCharCodes(_bytes);
     final output = 'decode ${_str2.substring(0, min(4, _str2.length))}... '
                   'to ${str3.substring(0, min(4, str3.length))}...: $_resultValue';
@@ -2655,111 +2630,75 @@ class SortSelf extends SortBenchmark {
 
 class GraphPathGraph {
   final int vertices;
-  final List<List<int>> _adj;
-  final int components;
+  final int jumps;
+  final int jumpLen;
+  final List<List<int>> adj;
 
-  GraphPathGraph(this.vertices, [int components = 10])
-    : components = max(10, min(components, vertices ~/ 10000)),
-      _adj = List.generate(vertices, (_) => []);
+  GraphPathGraph(this.vertices, {this.jumps = 3, this.jumpLen = 100})
+      : adj = List.generate(vertices, (_) => []);
 
   void addEdge(int u, int v) {
-    _adj[u].add(v);
-    _adj[v].add(u);
+    adj[u].add(v);
+    adj[v].add(u);
   }
 
   void generateRandom() {
-    final componentSize = vertices ~/ components;
+    for (int i = 1; i < vertices; i++) {
+      addEdge(i, i - 1);
+    }
 
-    for (int c = 0; c < components; c++) {
-      final startIdx = c * componentSize;
-      final endIdx = c == components - 1 ? vertices : (c + 1) * componentSize;
+    for (int v = 0; v < vertices; v++) {
+      int numJumps = Helper.nextInt(jumps);
+      for (int j = 0; j < numJumps; j++) {
+        int offset = Helper.nextInt(jumpLen) - jumpLen ~/ 2;
+        int u = v + offset;
 
-      for (int i = startIdx + 1; i < endIdx; i++) {
-        final parent = startIdx + Helper.nextInt(i - startIdx);
-        addEdge(i, parent);
-      }
-
-      for (int i = 0; i < componentSize * 2; i++) {
-        final u = startIdx + Helper.nextInt(endIdx - startIdx);
-        final v = startIdx + Helper.nextInt(endIdx - startIdx);
-        if (u != v) {
-          addEdge(u, v);
+        if (u >= 0 && u < vertices && u != v) {
+          addEdge(v, u);
         }
       }
     }
   }
-
-  List<List<int>> getAdjacency() => _adj;
-
-  int getVertices() => vertices;
 }
 
 abstract class GraphPathBenchmark extends Benchmark {
   late GraphPathGraph _graph;
-  late List<(int, int)> _pairs;
-  late int _nPairs;
   int _resultValue = 0;
 
   @override
   void prepare() {
     final className = runtimeType.toString().split('.').last;
     final vertices = Helper.configI64(className, "vertices").toInt();
-    _nPairs = Helper.configI64(className, "pairs").toInt();
+    final jumps = Helper.configI64(className, "jumps").toInt();
+    final jumpLen = Helper.configI64(className, "jump_len").toInt();
 
-    _graph = GraphPathGraph(vertices, max(10, vertices ~/ 10000));
+    _graph = GraphPathGraph(vertices, jumps: jumps, jumpLen: jumpLen);
     _graph.generateRandom();
-    _pairs = _generatePairs(_nPairs);
   }
 
-  List<(int, int)> _generatePairs(int n) {
-    final pairs = <(int, int)>[];
-    final componentSize = _graph.getVertices() ~/ 10;
-
-    for (int i = 0; i < n; i++) {
-      if (Helper.nextInt(100) < 70) {
-
-        final component = Helper.nextInt(10);
-        final start = component * componentSize + Helper.nextInt(componentSize);
-        int end;
-        do {
-          end = component * componentSize + Helper.nextInt(componentSize);
-        } while (end == start);
-        pairs.add((start, end));
-      } else {
-
-        int c1 = Helper.nextInt(10);
-        int c2;
-        do {
-          c2 = Helper.nextInt(10);
-        } while (c2 == c1);
-        final start = c1 * componentSize + Helper.nextInt(componentSize);
-        final end = c2 * componentSize + Helper.nextInt(componentSize);
-        pairs.add((start, end));
-      }
-    }
-
-    return pairs;
+  @override
+  void runBenchmark(int iterationId) {
+    _resultValue = (_resultValue + test()) & 0xFFFFFFFF;
   }
 
   @override
   int checksum() {
     return _resultValue & 0xFFFFFFFF;
   }
+
+  int test();
 }
 
 class GraphPathBFS extends GraphPathBenchmark {
   @override
-  void runBenchmark(int iterationId) {
-    for (final (start, end) in _pairs) {
-      final length = _bfsShortestPath(start, end);
-      _resultValue = (_resultValue + length) & 0xFFFFFFFF;
-    }
+  int test() {
+    return _bfsShortestPath(0, _graph.vertices - 1);
   }
 
   int _bfsShortestPath(int start, int target) {
     if (start == target) return 0;
 
-    final visited = Uint8List(_graph.getVertices());
+    final visited = Uint8List(_graph.vertices);
     final queue = Queue<(int, int)>();
     queue.add((start, 0));
     visited[start] = 1;
@@ -2767,7 +2706,7 @@ class GraphPathBFS extends GraphPathBenchmark {
     while (queue.isNotEmpty) {
       final (v, dist) = queue.removeFirst();
 
-      for (final neighbor in _graph.getAdjacency()[v]) {
+      for (final neighbor in _graph.adj[v]) {
         if (neighbor == target) {
           return dist + 1;
         }
@@ -2785,19 +2724,16 @@ class GraphPathBFS extends GraphPathBenchmark {
 
 class GraphPathDFS extends GraphPathBenchmark {
   @override
-  void runBenchmark(int iterationId) {
-    for (final (start, end) in _pairs) {
-      final length = _dfsFindPath(start, end);
-      _resultValue = (_resultValue + length) & 0xFFFFFFFF;
-    }
+  int test() {
+    return _dfsFindPath(0, _graph.vertices - 1);
   }
 
   int _dfsFindPath(int start, int target) {
     if (start == target) return 0;
 
-    final visited = Uint8List(_graph.getVertices());
+    final visited = Uint8List(_graph.vertices);
     final stack = <(int, int)>[(start, 0)];
-    var bestPath = 0x7FFFFFFFFFFFFFFF; 
+    var bestPath = 0x7FFFFFFFFFFFFFFF;
 
     while (stack.isNotEmpty) {
       final (v, dist) = stack.removeLast();
@@ -2805,7 +2741,7 @@ class GraphPathDFS extends GraphPathBenchmark {
       if (visited[v] == 1 || dist >= bestPath) continue;
       visited[v] = 1;
 
-      for (final neighbor in _graph.getAdjacency()[v]) {
+      for (final neighbor in _graph.adj[v]) {
         if (neighbor == target) {
           if (dist + 1 < bestPath) {
             bestPath = dist + 1;
@@ -2820,47 +2756,64 @@ class GraphPathDFS extends GraphPathBenchmark {
   }
 }
 
-class GraphPathDijkstra extends GraphPathBenchmark {
-  static const int _inf = 0x7FFFFFFF; 
+class PriorityQueueItem implements Comparable<PriorityQueueItem> {
+  final int vertex;
+  final int priority;
+  PriorityQueueItem(this.vertex, this.priority);
 
   @override
-  void runBenchmark(int iterationId) {
-    for (final (start, end) in _pairs) {
-      final length = _dijkstraShortestPath(start, end);
-      _resultValue = (_resultValue + length) & 0xFFFFFFFF;
-    }
+  int compareTo(PriorityQueueItem other) {
+    return priority.compareTo(other.priority);
+  }
+}
+
+class GraphPathAStar extends GraphPathBenchmark {
+  @override
+  int test() {
+    return _aStarShortestPath(0, _graph.vertices - 1);
   }
 
-  int _dijkstraShortestPath(int start, int target) {
+  int _heuristic(int v, int target) => target - v;
+
+  int _aStarShortestPath(int start, int target) {
     if (start == target) return 0;
 
-    final vertices = _graph.getVertices();
-    final dist = List<int>.filled(vertices, _inf);
-    final visited = Uint8List(vertices);
+    final gScore = List<int>.filled(_graph.vertices, 0x7FFFFFFF);
+    final fScore = List<int>.filled(_graph.vertices, 0x7FFFFFFF);
+    final closed = Uint8List(_graph.vertices);
 
-    dist[start] = 0;
-    final maxIterations = vertices;
+    gScore[start] = 0;
+    fScore[start] = _heuristic(start, target);
 
-    for (int iteration = 0; iteration < maxIterations; iteration++) {
-      int u = -1;
-      int minDist = _inf;
+    final openSet = PriorityQueue<PriorityQueueItem>();
+    final inOpenSet = Uint8List(_graph.vertices);
 
-      for (int v = 0; v < vertices; v++) {
-        if (visited[v] == 0 && dist[v] < minDist) {
-          minDist = dist[v];
-          u = v;
-        }
+    openSet.add(PriorityQueueItem(start, fScore[start]));
+    inOpenSet[start] = 1;
+
+    while (openSet.isNotEmpty) {
+      final current = openSet.removeFirst();
+      inOpenSet[current.vertex] = 0;
+
+      if (current.vertex == target) {
+        return gScore[current.vertex];
       }
 
-      if (u == -1 || minDist == _inf || u == target) {
-        return u == target ? minDist : -1;
-      }
+      closed[current.vertex] = 1;
 
-      visited[u] = 1;
+      for (final neighbor in _graph.adj[current.vertex]) {
+        if (closed[neighbor] == 1) continue;
 
-      for (final v in _graph.getAdjacency()[u]) {
-        if (dist[u] + 1 < dist[v]) {
-          dist[v] = dist[u] + 1;
+        final tentativeG = gScore[current.vertex] + 1;
+
+        if (tentativeG < gScore[neighbor]) {
+          gScore[neighbor] = tentativeG;
+          fScore[neighbor] = tentativeG + _heuristic(neighbor, target);
+
+          if (inOpenSet[neighbor] == 0) {
+            openSet.add(PriorityQueueItem(neighbor, fScore[neighbor]));
+            inOpenSet[neighbor] = 1;
+          }
         }
       }
     }
@@ -2907,18 +2860,12 @@ class BufferHashCRC32 extends BufferHashBenchmark {
 
     int crc = 0xFFFFFFFF;
 
-    for (int i = 0; i < _data.length; i++) {
-      final byte = _data[i];
-
+    for (final byte in _data) {
       crc ^= byte;
-
       for (int j = 0; j < 8; j++) {
-
         if ((crc & 1) != 0) {
-
           crc = (crc >>> 1) ^ 0xEDB88320;
         } else {
-
           crc = crc >>> 1;
         }
       }
@@ -3143,19 +3090,17 @@ class AssignmentNode extends Node2 {
 class Parser2 {
   final String input;
   int pos = 0;
-  late List<String> chars;
-  String currentChar = '\0';
+  late String currentChar;
   final expressions = <Node2>[];
 
   Parser2(this.input) {
-    chars = input.split('');
-    currentChar = chars.isNotEmpty ? chars[0] : '\0';
+    currentChar = input.isNotEmpty ? input[0] : '\0';
   }
 
   void parse() {
-    while (pos < chars.length) {
+    while (pos < input.length) {
       skipWhitespace();
-      if (pos >= chars.length) break;
+      if (pos >= input.length) break;
 
       final expr = parseExpression();
       expressions.add(expr);
@@ -3165,9 +3110,9 @@ class Parser2 {
   Node2 parseExpression() {
     var node = parseTerm();
 
-    while (pos < chars.length) {
+    while (pos < input.length) {
       skipWhitespace();
-      if (pos >= chars.length) break;
+      if (pos >= input.length) break;
 
       if (currentChar == '+' || currentChar == '-') {
         final op = currentChar;
@@ -3185,9 +3130,9 @@ class Parser2 {
   Node2 parseTerm() {
     var node = parseFactor();
 
-    while (pos < chars.length) {
+    while (pos < input.length) {
       skipWhitespace();
-      if (pos >= chars.length) break;
+      if (pos >= input.length) break;
 
       if (currentChar == '*' || currentChar == '/' || currentChar == '%') {
         final op = currentChar;
@@ -3204,15 +3149,15 @@ class Parser2 {
 
   Node2 parseFactor() {
     skipWhitespace();
-    if (pos >= chars.length) {
+    if (pos >= input.length) {
       return NumberNode(0);
     }
 
     final char = currentChar;
 
-    if (isDigit(char)) {
+    if (_isDigit(char)) {
       return parseNumber();
-    } else if (isLetter(char)) {
+    } else if (_isLetter(char)) {
       return parseVariable();
     } else if (char == '(') {
       advance();
@@ -3229,9 +3174,8 @@ class Parser2 {
 
   NumberNode parseNumber() {
     var value = 0;
-    while (pos < chars.length && isDigit(currentChar)) {
-      final digit = currentChar.codeUnitAt(0) - '0'.codeUnitAt(0);
-      value = value * 10 + digit;
+    while (pos < input.length && _isDigit(currentChar)) {
+      value = value * 10 + (currentChar.codeUnitAt(0) - 48);
       advance();
     }
     return NumberNode(value);
@@ -3239,8 +3183,8 @@ class Parser2 {
 
   Node2 parseVariable() {
     final start = pos;
-    while (pos < chars.length && 
-          (isLetter(currentChar) || isDigit(currentChar))) {
+    while (pos < input.length && 
+          (_isLetter(currentChar) || _isDigit(currentChar))) {
       advance();
     }
 
@@ -3258,27 +3202,28 @@ class Parser2 {
 
   void advance() {
     pos++;
-    if (pos >= chars.length) {
+    if (pos >= input.length) {
       currentChar = '\0';
     } else {
-      currentChar = chars[pos];
+      currentChar = input[pos];
     }
   }
 
   void skipWhitespace() {
-    while (pos < chars.length && isWhitespace(currentChar)) {
+    while (pos < input.length && _isWhitespace(currentChar)) {
       advance();
     }
   }
 
-  bool isDigit(String ch) => ch.codeUnitAt(0) >= 48 && ch.codeUnitAt(0) <= 57;
+  bool _isDigit(String ch) => 
+      ch.codeUnitAt(0) >= 48 && ch.codeUnitAt(0) <= 57;
 
-  bool isLetter(String ch) {
+  bool _isLetter(String ch) {
     final code = ch.codeUnitAt(0);
     return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
   }
 
-  bool isWhitespace(String ch) => 
+  bool _isWhitespace(String ch) => 
       ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
 }
 
@@ -3456,101 +3401,90 @@ class CalculatorInterpreter extends Benchmark {
   }
 }
 
-enum Cell {
-  Dead,
-  Alive,
+class CellObj {
+  bool alive = false;
+  bool nextState = false;
+  final neighbors = List<CellObj?>.filled(8, null);
+  int neighborCount = 0;
+
+  void addNeighbor(CellObj neighbor) {
+    neighbors[neighborCount++] = neighbor;
+  }
+
+  void computeNextState() {
+    int aliveNeighbors = 0;
+    for (int i = 0; i < neighborCount; i++) {
+      if (neighbors[i]!.alive) aliveNeighbors++;  
+    }
+
+    if (alive) {
+      nextState = aliveNeighbors == 2 || aliveNeighbors == 3;
+    } else {
+      nextState = aliveNeighbors == 3;
+    }
+  }
+
+  void update() {
+    alive = nextState;
+  }
 }
 
 class GameOfLifeGrid {
   late int width;
   late int height;
-  late Uint8List cells;
-  late Uint8List buffer;
+  late List<List<CellObj>> cells;
 
   GameOfLifeGrid(int width, int height) {
     this.width = width;
     this.height = height;
-    final size = width * height;
-    cells = Uint8List(size);
-    buffer = Uint8List(size);
+
+    cells = List.generate(height, (_) => List.generate(width, (_) => CellObj()));
+
+    _linkNeighbors();
   }
 
-  GameOfLifeGrid._fromBuffers(int width, int height, Uint8List cells, Uint8List buffer) {
-    this.width = width;
-    this.height = height;
-    this.cells = cells;
-    this.buffer = buffer;
-  }
-
-  factory GameOfLifeGrid.fromBuffers(int width, int height, Uint8List cells, Uint8List buffer) {
-    return GameOfLifeGrid._fromBuffers(width, height, cells, buffer);
-  }
-
-  int _index(int x, int y) {
-    return y * width + x;
-  }
-
-  Cell get(int x, int y) {
-    final idx = _index(x, y);
-    return cells[idx] == 1 ? Cell.Alive : Cell.Dead;
-  }
-
-  void setCell(int x, int y, Cell cell) {
-    final idx = _index(x, y);
-    cells[idx] = cell == Cell.Alive ? 1 : 0;
-  }
-
-  int _countNeighbors(int x, int y, Uint8List cells) {
-    final yPrev = y == 0 ? height - 1 : y - 1;
-    final yNext = y == height - 1 ? 0 : y + 1;
-    final xPrev = x == 0 ? width - 1 : x - 1;
-    final xNext = x == width - 1 ? 0 : x + 1;
-
-    int count = 0;
-
-    int idx = yPrev * width;
-    if (cells[idx + xPrev] == 1) count++;
-    if (cells[idx + x] == 1) count++;
-    if (cells[idx + xNext] == 1) count++;
-
-    idx = y * width;
-    if (cells[idx + xPrev] == 1) count++;
-    if (cells[idx + xNext] == 1) count++;
-
-    idx = yNext * width;
-    if (cells[idx + xPrev] == 1) count++;
-    if (cells[idx + x] == 1) count++;
-    if (cells[idx + xNext] == 1) count++;
-
-    return count;
-  }
-
-  GameOfLifeGrid nextGeneration() {
-    final cells = this.cells;
-    final buffer = this.buffer;
-
+  void _linkNeighbors() {
     for (int y = 0; y < height; y++) {
-      final yIdx = y * width;
-
       for (int x = 0; x < width; x++) {
-        final idx = yIdx + x;
+        final cell = cells[y][x];
 
-        final neighbors = _countNeighbors(x, y, cells);
+        for (int dy = -1; dy <= 1; dy++) {
+          for (int dx = -1; dx <= 1; dx++) {
+            if (dx == 0 && dy == 0) continue;
 
-        final current = cells[idx];
-        int nextState = 0;
+            final ny = (y + dy + height) % height;
+            final nx = (x + dx + width) % width;
 
-        if (current == 1) {
-          nextState = (neighbors == 2 || neighbors == 3) ? 1 : 0;
-        } else {
-          nextState = neighbors == 3 ? 1 : 0;
+            cell.addNeighbor(cells[ny][nx]);
+          }
         }
+      }
+    }
+  }
 
-        buffer[idx] = nextState;
+  void nextGeneration() {
+
+    for (final row in cells) {
+      for (final cell in row) {
+        cell.computeNextState();
       }
     }
 
-    return GameOfLifeGrid.fromBuffers(width, height, buffer, cells);
+    for (final row in cells) {
+      for (final cell in row) {
+        cell.update();
+      }
+    }
+  }
+
+  int countAlive() {
+    int count = 0;
+    for (final row in cells) {
+      for (final cell in row) {
+        if (cell.alive) count++;
+      }
+    }
+    return count;
   }
 
   int computeHash() {
@@ -3559,14 +3493,18 @@ class GameOfLifeGrid {
 
     int hasher = FNV_OFFSET_BASIS;
 
-    for (int i = 0; i < cells.length; i++) {
-      final alive = cells[i];
-      hasher = (hasher ^ alive) & 0xFFFFFFFF;
-      hasher = (hasher * FNV_PRIME) & 0xFFFFFFFF;
+    for (final row in cells) {
+      for (final cell in row) {
+        final alive = cell.alive ? 1 : 0;
+        hasher = (hasher ^ alive) & 0xFFFFFFFF;
+        hasher = (hasher * FNV_PRIME) & 0xFFFFFFFF;
+      }
     }
 
     return hasher & 0xFFFFFFFF;
   }
+
+  List<List<CellObj>> getCells() => cells;
 }
 
 class GameOfLife extends Benchmark {
@@ -3583,11 +3521,10 @@ class GameOfLife extends Benchmark {
 
   @override
   void prepare() {
-
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
+    for (final row in grid.getCells()) {
+      for (final cell in row) {
         if (Helper.nextFloat() < 0.1) {
-          grid.setCell(x, y, Cell.Alive);
+          cell.alive = true;
         }
       }
     }
@@ -3595,12 +3532,13 @@ class GameOfLife extends Benchmark {
 
   @override
   void runBenchmark(int iterationId) {
-    grid = grid.nextGeneration();
+    grid.nextGeneration();
   }
 
   @override
   int checksum() {
-    return grid.computeHash() & 0xFFFFFFFF;
+    final alive = grid.countAlive();
+    return (grid.computeHash() + alive) & 0xFFFFFFFF;
   }
 }
 
@@ -4612,7 +4550,7 @@ void registerBenchmarks() {
   Benchmark.registerBenchmark(() => SortSelf());
   Benchmark.registerBenchmark(() => GraphPathBFS());
   Benchmark.registerBenchmark(() => GraphPathDFS());
-  Benchmark.registerBenchmark(() => GraphPathDijkstra());
+  Benchmark.registerBenchmark(() => GraphPathAStar());
   Benchmark.registerBenchmark(() => BufferHashSHA256());
   Benchmark.registerBenchmark(() => BufferHashCRC32());
   Benchmark.registerBenchmark(() => CacheSimulation());

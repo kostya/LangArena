@@ -56,7 +56,6 @@ pub const Fannkuchredux = struct {
         var r: i32 = n;
 
         while (true) {
-
             while (r > 1) {
                 count[@as(usize, @intCast(r - 1))] = r;
                 r -= 1;
@@ -68,7 +67,6 @@ pub const Fannkuchredux = struct {
             var k = perm[0];
 
             while (k != 0) {
-
                 var i_local: i32 = 0;
                 var j = k;
                 while (i_local < j) {
@@ -83,9 +81,7 @@ pub const Fannkuchredux = struct {
                 k = perm[0];
             }
 
-            if (flips_count > max_flips) {
-                max_flips = flips_count;
-            }
+            max_flips = @max(max_flips, flips_count);
 
             checksum += if ((perm_count & 1) == 0) flips_count else -flips_count;
 

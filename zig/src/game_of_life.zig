@@ -7,15 +7,49 @@ pub const GameOfLife = struct {
     helper: *Helper,
     width: usize,
     height: usize,
-    cells: []u8,           
-    buffer: []u8,          
-    result_val: u32,
+    cells: [][]Cell,
 
-    const Cell = enum(u8) { dead = 0, alive = 1 };
+    const Cell = struct {
+        alive: bool,
+        next_state: bool,
+        neighbors: [8]*Cell,
+        neighbor_count: usize,
+
+        fn init() Cell {
+            return Cell{
+                .alive = false,
+                .next_state = false,
+                .neighbors = undefined,
+                .neighbor_count = 0,
+            };
+        }
+
+        fn addNeighbor(self: *Cell, neighbor: *Cell) void {
+            self.neighbors[self.neighbor_count] = neighbor;
+            self.neighbor_count += 1;
+        }
+
+        fn computeNextState(self: *Cell) void {
+            var alive_neighbors: usize = 0;
+            for (self.neighbors) |n| {
+                if (n.alive) alive_neighbors += 1;
+            }
+
+            if (self.alive) {
+                self.next_state = alive_neighbors == 2 or alive_neighbors == 3;
+            } else {
+                self.next_state = alive_neighbors == 3;
+            }
+        }
+
+        fn update(self: *Cell) void {
+            self.alive = self.next_state;
+        }
+    };
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
-        .checksum = resultImpl,
+        .checksum = checksumImpl,
         .prepare = prepareImpl,
         .deinit = deinitImpl,
     };
@@ -25,34 +59,94 @@ pub const GameOfLife = struct {
         const h = helper.config_i64("GameOfLife", "h");
         const width = @as(usize, @intCast(w));
         const height = @as(usize, @intCast(h));
-        const total_cells = width * height;
 
-        const cells = try allocator.alloc(u8, total_cells);
-        const buffer = try allocator.alloc(u8, total_cells);
-
-        const self = try allocator.create(GameOfLife);
-        errdefer {
-            allocator.free(cells);
-            allocator.free(buffer);
-            allocator.destroy(self);
+        var cells = try allocator.alloc([]Cell, height);
+        for (0..height) |y| {
+            cells[y] = try allocator.alloc(Cell, width);
+            for (0..width) |x| {
+                cells[y][x] = Cell.init();
+            }
         }
 
+        const self = try allocator.create(GameOfLife);
         self.* = GameOfLife{
             .allocator = allocator,
             .helper = helper,
             .width = width,
             .height = height,
             .cells = cells,
-            .buffer = buffer,
-            .result_val = 0,
         };
 
+        try self.linkNeighbors();
         return self;
     }
 
+    fn linkNeighbors(self: *GameOfLife) !void {
+        for (0..self.height) |y| {
+            for (0..self.width) |x| {
+                const cell = &self.cells[y][x];
+
+                var dy: i32 = -1;
+                while (dy <= 1) : (dy += 1) {
+                    var dx: i32 = -1;
+                    while (dx <= 1) : (dx += 1) {
+                        if (dx == 0 and dy == 0) continue;
+
+                        const ny = @mod(@as(i32, @intCast(y)) + dy + @as(i32, @intCast(self.height)), @as(i32, @intCast(self.height)));
+                        const nx = @mod(@as(i32, @intCast(x)) + dx + @as(i32, @intCast(self.width)), @as(i32, @intCast(self.width)));
+
+                        const neighbor = &self.cells[@as(usize, @intCast(ny))][@as(usize, @intCast(nx))];
+                        cell.addNeighbor(neighbor);
+                    }
+                }
+            }
+        }
+    }
+
+    fn nextGeneration(self: *GameOfLife) void {
+        for (self.cells) |row| {
+            for (row) |*cell| {
+                cell.computeNextState();
+            }
+        }
+
+        for (self.cells) |row| {
+            for (row) |*cell| {
+                cell.update();
+            }
+        }
+    }
+
+    fn countAlive(self: *const GameOfLife) u32 {
+        var count: u32 = 0;
+        for (self.cells) |row| {
+            for (row) |cell| {
+                if (cell.alive) count += 1;
+            }
+        }
+        return count;
+    }
+
+    fn computeHash(self: *const GameOfLife) u32 {
+        const FNV_OFFSET_BASIS: u32 = 2166136261;
+        const FNV_PRIME: u32 = 16777619;
+
+        var hash: u32 = FNV_OFFSET_BASIS;
+        for (self.cells) |row| {
+            for (row) |cell| {
+                const alive: u32 = if (cell.alive) 1 else 0;
+                hash ^= alive;
+                hash *%= FNV_PRIME;
+            }
+        }
+        return hash;
+    }
+
     pub fn deinit(self: *GameOfLife) void {
+        for (0..self.height) |y| {
+            self.allocator.free(self.cells[y]);
+        }
         self.allocator.free(self.cells);
-        self.allocator.free(self.buffer);
         self.allocator.destroy(self);
     }
 
@@ -62,96 +156,13 @@ pub const GameOfLife = struct {
 
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *GameOfLife = @ptrCast(@alignCast(ptr));
-        const width = self.width;
-        const height = self.height;
-
-        @memset(self.cells, @intFromEnum(Cell.dead));
-        @memset(self.buffer, @intFromEnum(Cell.dead));
-
-        for (0..height) |y| {
-            const y_idx = y * width;
-            for (0..width) |x| {
-                const idx = y_idx + x;
+        for (self.cells) |row| {
+            for (row) |*cell| {
                 if (self.helper.nextFloat(1.0) < 0.1) {
-                    self.cells[idx] = @intFromEnum(Cell.alive);
+                    cell.alive = true;
                 }
             }
         }
-    }
-
-    inline fn countNeighbors(cells: []const u8, width: usize, height: usize, x: usize, y: usize) u8 {
-
-        const y_prev = if (y == 0) height - 1 else y - 1;
-        const y_next = if (y == height - 1) 0 else y + 1;
-        const x_prev = if (x == 0) width - 1 else x - 1;
-        const x_next = if (x == width - 1) 0 else x + 1;
-
-        var count: u8 = 0;
-
-        var idx = y_prev * width;
-        count += cells[idx + x_prev];
-        count += cells[idx + x];
-        count += cells[idx + x_next];
-
-        idx = y * width;
-        count += cells[idx + x_prev];
-        count += cells[idx + x_next];
-
-        idx = y_next * width;
-        count += cells[idx + x_prev];
-        count += cells[idx + x];
-        count += cells[idx + x_next];
-
-        return count;
-    }
-
-    fn nextGeneration(self: *GameOfLife) void {
-        const width = self.width;
-        const height = self.height;
-        const cells = self.cells;
-        const buffer = self.buffer;
-
-        for (0..height) |y| {
-            const y_idx = y * width;
-
-            for (0..width) |x| {
-                const idx = y_idx + x;
-
-                const neighbors = countNeighbors(cells, width, height, x, y);
-                const current = cells[idx];
-
-                const next_state: u8 = if (current == @intFromEnum(Cell.alive)) blk: {
-                    break :blk if (neighbors == 2 or neighbors == 3) 
-                        @intFromEnum(Cell.alive) 
-                    else 
-                        @intFromEnum(Cell.dead);
-                } else blk: {
-                    break :blk if (neighbors == 3) 
-                        @intFromEnum(Cell.alive) 
-                    else 
-                        @intFromEnum(Cell.dead);
-                };
-
-                buffer[idx] = next_state;
-            }
-        }
-
-        std.mem.swap([]u8, &self.cells, &self.buffer);
-    }
-
-    fn computeHash(self: *const GameOfLife) u32 {
-        const FNV_OFFSET_BASIS: u32 = 2166136261;
-        const FNV_PRIME: u32 = 16777619;
-
-        var hasher: u32 = FNV_OFFSET_BASIS;
-
-        for (self.cells) |cell| {
-            const alive: u32 = if (cell == @intFromEnum(Cell.alive)) 1 else 0;
-            hasher ^= alive;
-            hasher = hasher *% FNV_PRIME;  
-        }
-
-        return hasher;
     }
 
     fn runImpl(ptr: *anyopaque, _: i64) void {
@@ -159,9 +170,9 @@ pub const GameOfLife = struct {
         self.nextGeneration();
     }
 
-    fn resultImpl(ptr: *anyopaque) u32 {
+    fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *GameOfLife = @ptrCast(@alignCast(ptr));
-        return self.computeHash();
+        return self.computeHash() + self.countAlive();
     }
 
     fn deinitImpl(ptr: *anyopaque) void {

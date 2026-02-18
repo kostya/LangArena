@@ -27,9 +27,7 @@ import benchmarks/neuralnet
 import benchmarks/sortquick
 import benchmarks/sortmerge
 import benchmarks/sortself
-import benchmarks/graphpathbfs
-import benchmarks/graphpathdfs
-import benchmarks/graphpathdijkstra
+import benchmarks/graphpath
 import benchmarks/bufferhashsha256
 import benchmarks/bufferhashcrc32
 import benchmarks/cachesimulation

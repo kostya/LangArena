@@ -26,9 +26,9 @@ proc newPlanet(x, y, z, vx, vy, vz, mass: float): Planet =
     mass: mass * SOLAR_MASS
   )
 
-proc moveFromI(bodies: var seq[Planet], nbodies: int, dt: float, start: int) =
+proc moveFromI(bodies: var seq[Planet], dt: float, start: int) =
   let b = bodies[start]
-  for i in start+1..<nbodies:
+  for i in start+1..<bodies.len:
     let b2 = bodies[i]
     let dx = b.x - b2.x
     let dy = b.y - b2.y
@@ -99,11 +99,9 @@ method prepare(self: Nbody) =
   self.v1 = e
 
 method run(self: Nbody, iteration_id: int) =
-  let nbodies = self.bodies.len
-  let dt = 0.01
-
-  for i in 0..<nbodies:
-    self.bodies.moveFromI(nbodies, dt, i)
+  for j in 0..<1000:
+    for i in 0..<self.bodies.len:
+      self.bodies.moveFromI(0.01, i)
 
 method checksum(self: Nbody): uint32 =
 

@@ -21,8 +21,7 @@ class Mandelbrot : Benchmark() {
         result = java.io.ByteArrayOutputStream()
     }
 
-    override fun run(iterationId: Int) {        
-
+    override fun run(iterationId: Int) {
         result.write("P4\n$w $h\n".toByteArray())
 
         var bitNum = 0
@@ -57,7 +56,6 @@ class Mandelbrot : Benchmark() {
                     byteAcc = 0
                     bitNum = 0
                 } else if (x == w - 1) {
-
                     if (bitNum > 0) {
                         byteAcc = (byteAcc shl (8 - bitNum)) and 0xFF
                         result.write(byteAcc)

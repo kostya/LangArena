@@ -39,7 +39,7 @@ public class CalculatorAst extends Benchmark {
     private long resultVal;
     private String text;
     public List<Node> expressions = new ArrayList<>();
-    private long n;
+    public long n;
 
     public CalculatorAst() {
         n = configVal("operations");
@@ -250,4 +250,6 @@ public class CalculatorAst extends Benchmark {
     public long checksum() {
         return resultVal;
     }
+
+    public List<Node> getExpressions() { return expressions; }
 }

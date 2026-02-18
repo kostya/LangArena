@@ -664,3 +664,70 @@ services:
       - ./cache/build/pypy/pycache:/src/python/__pycache__
     depends_on:
       - base
+
+  odin:
+    <<: *shared
+    image: benchmarks:odin
+    working_dir: /src/odin
+    build:
+      dockerfile: docker/odin
+      args:
+        # https://github.com/odin-lang/Odin/releases
+        version: "2026-02"
+    volumes:
+      - .:/src
+      
+      - ./cache/build/odin/target:/src/odin/target
+    environment:
+      - ODIN_ROOT=/opt/odin
+      - ODIN_PATH=/opt/odin
+    depends_on:
+      - base
+
+  scala:
+    <<: *shared
+    image: benchmarks:scala
+    working_dir: /src/scala
+    build:
+      dockerfile: docker/scala
+      args:
+        # https://www.scala-lang.org/download/
+        version: "3.8.1"
+        # https://github.com/sbt/sbt/releases
+        sbtversion: "1.12.2"
+    volumes:
+      - .:/src
+
+      - ./cache/deps/scala/coursier:/root/.cache/coursier
+      - ./cache/deps/scala/ivy2:/root/.ivy2
+      - ./cache/deps/scala/sbt:/root/.sbt
+      - ./cache/deps/scala/m2:/root/.m2
+
+      - ./cache/build/scala/target:/src/scala/target
+      - ./cache/build/scala/project-target:/src/scala/project/target
+    depends_on:
+      - java
+
+  scala-graalvm:
+    <<: *shared
+    image: benchmarks:scala-graalvm
+    working_dir: /src/scala
+    build:
+      dockerfile: docker/scala-graalvm
+      args:
+        # https://www.scala-lang.org/download/
+        version: "3.8.1"
+        # https://github.com/sbt/sbt/releases
+        sbtversion: "1.12.2"
+    volumes:
+      - .:/src
+
+      - ./cache/deps/scala-graalvm/coursier:/root/.cache/coursier
+      - ./cache/deps/scala-graalvm/ivy2:/root/.ivy2
+      - ./cache/deps/scala-graalvm/sbt:/root/.sbt
+      - ./cache/deps/scala-graalvm/m2:/root/.m2
+
+      - ./cache/build/scala-graalvm/target:/src/scala/target
+      - ./cache/build/scala-graalvm/project-target:/src/scala/project/target
+    depends_on:
+      - graalvm

@@ -21,7 +21,6 @@ method prepare(self: Base64Encode) =
   self.resultVal = 0
 
 method run(self: Base64Encode, iteration_id: int) =
-
   self.str2 = encode(self.str)
   self.resultVal = self.resultVal + uint32(self.str2.len)
 

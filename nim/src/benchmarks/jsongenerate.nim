@@ -7,6 +7,7 @@ import jsonbench_common
 type
   JsonGenerate* = ref object of Benchmark
     n: int64
+    data: JsonData
     resultJson: string
     resultVal: uint32
 
@@ -18,12 +19,10 @@ method name(self: JsonGenerate): string = "JsonGenerate"
 method prepare(self: JsonGenerate) =
   self.n = self.config_val("coords")
   self.resultVal = 0
+  self.data = generateJsonData(self.n)
 
 method run(self: JsonGenerate, iteration_id: int) =
-  let data = generateJsonData(self.n)
-
-  self.resultJson = data.toJson()
-
+  self.resultJson = self.data.toJson()
   if self.resultJson.startsWith("{\"coordinates\":"):
     self.resultVal = self.resultVal + 1
 

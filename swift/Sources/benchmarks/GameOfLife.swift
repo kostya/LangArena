@@ -1,106 +1,89 @@
 import Foundation
 
 final class GameOfLife: BenchmarkProtocol {
-    private enum Cell: UInt8 {
-        case dead = 0
-        case alive = 1
+    private final class Cell {
+        var alive: Bool = false
+        var nextState: Bool = false
+        var neighbors: [Cell] = []
+
+        func addNeighbor(_ cell: Cell) {
+            neighbors.append(cell)
+        }
+
+        func computeNextState() {
+            var aliveNeighbors = 0
+            for neighbor in neighbors {
+                if neighbor.alive { aliveNeighbors += 1 }
+            }
+
+            if alive {
+                nextState = aliveNeighbors == 2 || aliveNeighbors == 3
+            } else {
+                nextState = aliveNeighbors == 3
+            }
+        }
+
+        func update() {
+            alive = nextState
+        }
     }
 
-    private class Grid {
+    private final class Grid {
         let width: Int
         let height: Int
-        private var cells: [UInt8]          
-        private var buffer: [UInt8]         
+        private var cells: [[Cell]]
 
         init(width: Int, height: Int) {
             self.width = width
             self.height = height
-            let size = width * height
 
-            self.cells = [UInt8](repeating: 0, count: size)
-            self.buffer = [UInt8](repeating: 0, count: size)
-        }
-
-        private init(width: Int, height: Int, cells: [UInt8], buffer: [UInt8]) {
-            self.width = width
-            self.height = height
-            self.cells = cells
-            self.buffer = buffer
-        }
-
-        @inline(__always)
-        private func index(x: Int, y: Int) -> Int {
-            return y * width + x
-        }
-
-        subscript(x: Int, y: Int) -> Cell {
-            get {
-                let idx = index(x: x, y: y)
-                return cells[idx] == 1 ? .alive : .dead
-            }
-            set {
-                let idx = index(x: x, y: y)
-                cells[idx] = newValue.rawValue
-            }
-        }
-
-        @inline(__always)
-        private func countNeighbors(x: Int, y: Int, cells: [UInt8]) -> Int {
-
-            let yPrev = y == 0 ? height - 1 : y - 1
-            let yNext = y == height - 1 ? 0 : y + 1
-            let xPrev = x == 0 ? width - 1 : x - 1
-            let xNext = x == width - 1 ? 0 : x + 1
-
-            var count = 0
-
-            var idx = yPrev * width
-            if cells[idx + xPrev] == 1 { count += 1 }
-            if cells[idx + x] == 1 { count += 1 }
-            if cells[idx + xNext] == 1 { count += 1 }
-
-            idx = y * width
-            if cells[idx + xPrev] == 1 { count += 1 }
-            if cells[idx + xNext] == 1 { count += 1 }
-
-            idx = yNext * width
-            if cells[idx + xPrev] == 1 { count += 1 }
-            if cells[idx + x] == 1 { count += 1 }
-            if cells[idx + xNext] == 1 { count += 1 }
-
-            return count
-        }
-
-        func nextGeneration() -> Grid {
-            let width = self.width
-            let height = self.height
-
-            var nextCells = buffer 
-
-            for y in 0..<height {
-                let yIdx = y * width
-
-                for x in 0..<width {
-                    let idx = yIdx + x
-
-                    let neighbors = countNeighbors(x: x, y: y, cells: cells)
-
-                    let current = cells[idx]
-                    let nextState: UInt8
-
-                    if current == 1 {
-                        nextState = (neighbors == 2 || neighbors == 3) ? 1 : 0
-                    } else {
-                        nextState = (neighbors == 3) ? 1 : 0
-                    }
-
-                    nextCells[idx] = nextState
+            cells = (0..<height).map { y in
+                (0..<width).map { x in
+                    Cell()
                 }
             }
 
-            return Grid(width: width, height: height,
-                       cells: nextCells,
-                       buffer: cells)
+            linkNeighbors()
+        }
+
+        private func linkNeighbors() {
+            for y in 0..<height {
+                for x in 0..<width {
+                    let cell = cells[y][x]
+
+                    for dy in -1...1 {
+                        for dx in -1...1 {
+                            if dx == 0 && dy == 0 { continue }
+
+                            let ny = (y + dy + height) % height
+                            let nx = (x + dx + width) % width
+
+                            cell.addNeighbor(cells[ny][nx])
+                        }
+                    }
+                }
+            }
+        }
+
+        func nextGeneration() {
+
+            for row in cells {
+                for cell in row {
+                    cell.computeNextState()
+                }
+            }
+
+            for row in cells {
+                for cell in row {
+                    cell.update()
+                }
+            }
+        }
+
+        func countAlive() -> Int {
+            return cells.reduce(0) { total, row in
+                total + row.filter { $0.alive }.count
+            }
         }
 
         func computeHash() -> UInt32 {
@@ -109,17 +92,22 @@ final class GameOfLife: BenchmarkProtocol {
 
             var hasher = FNV_OFFSET_BASIS
 
-            for i in 0..<cells.count {
-                let alive = UInt32(cells[i])
-                hasher ^= alive
-                hasher = hasher &* FNV_PRIME  
+            for row in cells {
+                for cell in row {
+                    let alive = cell.alive ? UInt32(1) : UInt32(0)
+                    hasher ^= alive
+                    hasher = hasher &* FNV_PRIME
+                }
             }
 
             return hasher
         }
+
+        subscript(x: Int, y: Int) -> Cell {
+            return cells[y][x]
+        }
     }
 
-    private var resultVal: UInt32 = 0
     private var width: Int = 0
     private var height: Int = 0
     private var grid: Grid
@@ -127,37 +115,33 @@ final class GameOfLife: BenchmarkProtocol {
     init() {
         self.width = 0
         self.height = 0
-
         self.grid = Grid(width: 0, height: 0)
     }
 
     func prepare() {
-
         let configW = Int(configValue("w") ?? 256)
         let configH = Int(configValue("h") ?? 256)
 
         self.width = configW
         self.height = configH
-        let newGrid = Grid(width: width, height: height)
+        self.grid = Grid(width: width, height: height)
 
         for y in 0..<height {
-            let yIdx = y * width
             for x in 0..<width {
                 if Helper.nextFloat() < 0.1 {
-                    newGrid[x, y] = .alive
+                    grid[x, y].alive = true
                 }
             }
         }
-
-        self.grid = newGrid
     }
 
     func run(iterationId: Int) {
-        grid = grid.nextGeneration()
+        grid.nextGeneration()
     }
 
     var checksum: UInt32 {
-        return grid.computeHash()
+        let alive = grid.countAlive()
+        return grid.computeHash() + UInt32(alive)
     }
 
     var name: String {

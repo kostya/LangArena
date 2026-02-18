@@ -14,17 +14,12 @@ name(b::BrainfuckRecursion)::String = "BrainfuckRecursion"
 
 abstract type AbstractOp end
 
-struct OpInc <: AbstractOp
-    val::Int8
-end
-
-struct OpMove <: AbstractOp
-    val::Int8
-end
-
-struct OpPrint <: AbstractOp end
-
-struct OpLoop <: AbstractOp
+struct OpInc <: AbstractOp end  
+struct OpDec <: AbstractOp end  
+struct OpNext <: AbstractOp end 
+struct OpPrev <: AbstractOp end 
+struct OpPrint <: AbstractOp end 
+struct OpLoop <: AbstractOp      
     ops::Vector{AbstractOp}
 end
 
@@ -33,30 +28,32 @@ mutable struct RTape
     pos::Int
 
     function RTape()
-        new(zeros(UInt8, 1024), 1)
+        new(zeros(UInt8, 30000), 1)
     end
 end
 
-@inline function get(tape::RTape)::UInt8
-    @inbounds return tape.data[tape.pos]
+function get(tape::RTape)::UInt8
+    return tape.data[tape.pos]
 end
 
-@inline function inc!(tape::RTape, x::Int8)
-    @inbounds tape.data[tape.pos] += x % UInt8
+function inc!(tape::RTape)
+    tape.data[tape.pos] += 0x01
 end
 
-@inline function move!(tape::RTape, x::Int8)
-    tape.pos += x
+function dec!(tape::RTape)
+    tape.data[tape.pos] -= 0x01
+end
 
-    if tape.pos < 1
-        needed = 1 - tape.pos
-        new_data = zeros(UInt8, length(tape.data) + needed)
-        @inbounds copyto!(new_data, needed + 1, tape.data, 1, length(tape.data))
-        tape.data = new_data
-        tape.pos = needed
-    elseif tape.pos > length(tape.data)
-        new_size = max(length(tape.data) * 2, tape.pos + 1)
-        resize!(tape.data, new_size)
+function next!(tape::RTape)
+    tape.pos += 1
+    if tape.pos > length(tape.data)
+        push!(tape.data, 0x00)
+    end
+end
+
+function prev!(tape::RTape)
+    if tape.pos > 1
+        tape.pos -= 1
     end
 end
 
@@ -70,13 +67,13 @@ function parse_program(code::String)::Vector{AbstractOp}
         i += 1
 
         if c == '+'
-            push!(current_ops, OpInc(Int8(1)))
+            push!(current_ops, OpInc())
         elseif c == '-'
-            push!(current_ops, OpInc(Int8(-1)))
+            push!(current_ops, OpDec())
         elseif c == '>'
-            push!(current_ops, OpMove(Int8(1)))
+            push!(current_ops, OpNext())
         elseif c == '<'
-            push!(current_ops, OpMove(Int8(-1)))
+            push!(current_ops, OpPrev())
         elseif c == '.'
             push!(current_ops, OpPrint())
         elseif c == '['
@@ -97,9 +94,13 @@ function run_ops(ops::Vector{AbstractOp}, tape::RTape)::Int64
 
     function execute(op::AbstractOp)
         if op isa OpInc
-            inc!(tape, op.val)
-        elseif op isa OpMove
-            move!(tape, op.val)
+            inc!(tape)
+        elseif op isa OpDec
+            dec!(tape)
+        elseif op isa OpNext
+            next!(tape)
+        elseif op isa OpPrev
+            prev!(tape)
         elseif op isa OpPrint
             result = (result << 2) + Int64(get(tape))
         elseif op isa OpLoop

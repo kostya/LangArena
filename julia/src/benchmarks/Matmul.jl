@@ -4,9 +4,9 @@ function matgen(n::Int64)
     tmp = 1.0 / n / n
     a = Matrix{Float64}(undef, n, n)
 
-    @inbounds for i in 1:n
+    for i in 1:n
         i0 = i - 1  
-        @inbounds for j in 1:n
+        for j in 1:n
             j0 = j - 1  
             a[i, j] = tmp * (i0 - j0) * (i0 + j0)
         end
@@ -31,23 +31,23 @@ function matmul_single_thread(a::Matrix{Float64}, b::Matrix{Float64})
     n = size(a, 1)
     b_t = Matrix{Float64}(undef, n, n)
 
-    @inbounds for j in 1:n
-        @simd for i in 1:n
+    for j in 1:n
+        for i in 1:n
             b_t[j, i] = b[i, j]
         end
     end
 
     c = Matrix{Float64}(undef, n, n)
 
-    @inbounds for i in 1:n
+    for i in 1:n
         ai = @view a[i, :]
         ci = @view c[i, :]
 
-        @inbounds for j in 1:n
+        for j in 1:n
             bj = @view b_t[j, :]
             s = 0.0
 
-            @simd for k in 1:n
+            for k in 1:n
                 s += ai[k] * bj[k]
             end
 
@@ -85,8 +85,8 @@ function matmul_n_threads(a::Matrix{Float64}, b::Matrix{Float64}, nthreads::Int)
     n = size(a, 1)
     b_t = Matrix{Float64}(undef, n, n)
 
-    @inbounds for j in 1:n
-        @simd for i in 1:n
+    for j in 1:n
+        for i in 1:n
             b_t[j, i] = b[i, j]
         end
     end
@@ -102,15 +102,15 @@ function matmul_n_threads(a::Matrix{Float64}, b::Matrix{Float64}, nthreads::Int)
 
         if start_row <= n
             task = Threads.@spawn begin
-                @inbounds for i in start_row:end_row
+                for i in start_row:end_row
                     ai = @view a[i, :]
                     ci = @view c[i, :]
 
-                    @inbounds for j in 1:n
+                    for j in 1:n
                         bj = @view b_t[j, :]
                         s = 0.0
 
-                        @simd for k in 1:n
+                        for k in 1:n
                             s += ai[k] * bj[k]
                         end
 

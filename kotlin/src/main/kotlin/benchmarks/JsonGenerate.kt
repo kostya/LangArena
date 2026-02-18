@@ -30,7 +30,6 @@ class JsonGenerate : Benchmark() {
     override fun run(iterationId: Int) {
         val jsonArray = JSONArray()
         for (coord in data) {
-
             jsonArray.add(coord)
         }
 

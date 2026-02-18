@@ -12,9 +12,8 @@ import helper;
 class BrainfuckRecursion : Benchmark {
 private:
     static struct Op {
-        enum Type { inc, move, print, loop }
+        enum Type { inc, dec, right, left, print, loop }
         Type type;
-        int val;  
         Op[] loopOps;  
     }
 
@@ -29,27 +28,24 @@ private:
 
         ubyte get() const { return tape[pos]; }
 
-        void inc(int x) {
-            tape[pos] += cast(ubyte)x;
+        void inc() {
+            tape[pos]++;
         }
 
-        void move(int x) {
-            if (x >= 0) {
-                pos += cast(size_t)x;
-                if (pos >= tape.length) {
-                    tape.length = max(tape.length * 2, pos + 1);
-                }
-            } else {
-                int moveLeft = -x;
-                if (cast(size_t)moveLeft > pos) {
-                    size_t needed = cast(size_t)moveLeft - pos;
-                    ubyte[] newTape = new ubyte[tape.length + needed];
-                    newTape[needed .. $] = tape;
-                    tape = newTape;
-                    pos = needed;
-                } else {
-                    pos -= cast(size_t)moveLeft;
-                }
+        void dec() {
+            tape[pos]--;
+        }
+
+        void right() {
+            pos++;
+            if (pos >= tape.length) {
+                tape ~= 0;  
+            }
+        }
+
+        void left() {
+            if (pos > 0) {
+                pos--;
             }
         }
     }
@@ -67,23 +63,23 @@ private:
 
                 switch (c) {
                     case '+':
-                        res ~= Op(Op.Type.inc, 1);
+                        res ~= Op(Op.Type.inc);
                         break;
                     case '-':
-                        res ~= Op(Op.Type.inc, -1);
+                        res ~= Op(Op.Type.dec);
                         break;
                     case '>':
-                        res ~= Op(Op.Type.move, 1);
+                        res ~= Op(Op.Type.right);
                         break;
                     case '<':
-                        res ~= Op(Op.Type.move, -1);
+                        res ~= Op(Op.Type.left);
                         break;
                     case '.':
                         res ~= Op(Op.Type.print);
                         break;
                     case '[':
                         auto loopOps = parse(code);
-                        res ~= Op(Op.Type.loop, 0, loopOps);
+                        res ~= Op(Op.Type.loop, loopOps);
                         break;
                     case ']':
                         return res;
@@ -102,31 +98,35 @@ private:
         }
 
         private void runOp(const ref Op op, ref Tape tape) {
-            switch (op.type) {
+            final switch (op.type) {
                 case Op.Type.inc:
-                    tape.inc(op.val);
+                    tape.inc();
                     break;
-                case Op.Type.move:
-                    tape.move(op.val);
+                case Op.Type.dec:
+                    tape.dec();
+                    break;
+                case Op.Type.right:
+                    tape.right();
+                    break;
+                case Op.Type.left:
+                    tape.left();
                     break;
                 case Op.Type.print:
-                    resultVal = (resultVal << 2) + tape.get;
+                    resultVal = (resultVal << 2) + tape.get();
                     break;
                 case Op.Type.loop:
-                    while (tape.get != 0) {
+                    while (tape.get() != 0) {
                         foreach (innerOp; op.loopOps) {
                             runOp(innerOp, tape);
                         }
                     }
                     break;
-                default:
-                    assert(0, "Unknown operation type");
             }
         }
 
         long run() {
             resultVal = 0;
-            auto tape = Tape(1024);
+            auto tape = Tape(30000);
             foreach (op; ops) {
                 runOp(op, tape);
             }
@@ -138,7 +138,6 @@ private:
     uint resultVal;
 
 protected:
-
     override string className() const { return "BrainfuckRecursion"; }
 
 public:

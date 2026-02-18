@@ -26,18 +26,18 @@ proc evalA(i, j: int): float =
 
 proc evalATimesU(u: seq[float]): seq[float] =
   result = newSeq[float](u.len)
-  for i in 0..<u.len:
+  for i, _ in u:
     var sum = 0.0
-    for j in 0..<u.len:
-      sum += evalA(i, j) * u[j]
+    for j, val in u:
+      sum += evalA(i, j) * val
     result[i] = sum
 
 proc evalAtTimesU(u: seq[float]): seq[float] =
   result = newSeq[float](u.len)
-  for i in 0..<u.len:
+  for i, _ in u:
     var sum = 0.0
-    for j in 0..<u.len:
-      sum += evalA(j, i) * u[j]
+    for j, val in u:
+      sum += evalA(j, i) * val
     result[i] = sum
 
 proc evalAtATimesU(u: seq[float]): seq[float] =

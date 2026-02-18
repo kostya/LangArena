@@ -147,7 +147,6 @@ function merge_sort_helper!(arr::Vector{Int32}, temp::Vector{Int32}, left::Int, 
 end
 
 function merge!(arr::Vector{Int32}, temp::Vector{Int32}, left::Int, mid::Int, right::Int)
-
     for i in left:right
         temp[i] = arr[i]
     end

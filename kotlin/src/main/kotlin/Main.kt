@@ -37,7 +37,7 @@ fun main(args: Array<String>) {
     Benchmark.registerBenchmark { SortSelf() }
     Benchmark.registerBenchmark { GraphPathBFS() }
     Benchmark.registerBenchmark { GraphPathDFS() }
-    Benchmark.registerBenchmark { GraphPathDijkstra() }
+    Benchmark.registerBenchmark { GraphPathAStar() }
     Benchmark.registerBenchmark { BufferHashSHA256() }
     Benchmark.registerBenchmark { BufferHashCRC32() }    
     Benchmark.registerBenchmark { CacheSimulation() }        
