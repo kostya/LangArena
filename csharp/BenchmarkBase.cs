@@ -76,6 +76,69 @@ public abstract class Benchmark
         set => _timeDelta = value;
     }
 
+    private class BenchmarkInfo
+    {
+        public string Name { get; set; }
+        public Func<Benchmark> Creator { get; set; }
+    }
+
+    private static List<BenchmarkInfo> GetBenchmarkFactories()
+    {
+        return new List<BenchmarkInfo>
+        {
+            CreateBenchmarkInfo<Pidigits>(),
+            CreateBenchmarkInfo<Binarytrees>(),
+            CreateBenchmarkInfo<BrainfuckArray>(),
+            CreateBenchmarkInfo<BrainfuckRecursion>(),
+            CreateBenchmarkInfo<Fannkuchredux>(),
+            CreateBenchmarkInfo<Fasta>(),
+            CreateBenchmarkInfo<Knuckeotide>(),
+            CreateBenchmarkInfo<Mandelbrot>(),
+            CreateBenchmarkInfo<Matmul1T>(),
+            CreateBenchmarkInfo<Matmul4T>(),
+            CreateBenchmarkInfo<Matmul8T>(),
+            CreateBenchmarkInfo<Matmul16T>(),
+            CreateBenchmarkInfo<Nbody>(),
+            CreateBenchmarkInfo<RegexDna>(),
+            CreateBenchmarkInfo<Revcomp>(),
+            CreateBenchmarkInfo<Spectralnorm>(),
+            CreateBenchmarkInfo<Base64Encode>(),
+            CreateBenchmarkInfo<Base64Decode>(),
+            CreateBenchmarkInfo<JsonGenerate>(),
+            CreateBenchmarkInfo<JsonParseDom>(),
+            CreateBenchmarkInfo<JsonParseMapping>(),
+            CreateBenchmarkInfo<Primes>(),
+            CreateBenchmarkInfo<Noise>(),
+            CreateBenchmarkInfo<TextRaytracer>(),
+            CreateBenchmarkInfo<NeuralNet>(),
+            CreateBenchmarkInfo<SortQuick>(),
+            CreateBenchmarkInfo<SortMerge>(),
+            CreateBenchmarkInfo<SortSelf>(),
+            CreateBenchmarkInfo<GraphPathBFS>(),
+            CreateBenchmarkInfo<GraphPathDFS>(),
+            CreateBenchmarkInfo<GraphPathAStar>(),
+            CreateBenchmarkInfo<BufferHashSHA256>(),
+            CreateBenchmarkInfo<BufferHashCRC32>(),
+            CreateBenchmarkInfo<CacheSimulation>(),
+            CreateBenchmarkInfo<CalculatorAst>(),
+            CreateBenchmarkInfo<CalculatorInterpreter>(),
+            CreateBenchmarkInfo<GameOfLife>(),
+            CreateBenchmarkInfo<MazeGenerator>(),
+            CreateBenchmarkInfo<AStarPathfinder>(),
+            CreateBenchmarkInfo<BWTHuffEncode>(),
+            CreateBenchmarkInfo<BWTHuffDecode>(),
+        };
+    }
+
+    private static BenchmarkInfo CreateBenchmarkInfo<T>() where T : Benchmark, new()
+    {
+        return new BenchmarkInfo
+        {
+            Name = typeof(T).Name,
+            Creator = () => new T()
+        };
+    }
+
     public static void All(string? singleBench = null)
     {
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -85,54 +148,11 @@ public abstract class Benchmark
         double summaryTime = 0.0;
         int ok = 0, fails = 0;
 
-        var benchmarks = new List<Benchmark>
-        {
-            new Pidigits(),
-            new Binarytrees(),
-            new BrainfuckArray(),         
-            new BrainfuckRecursion(),                                   
-            new Fannkuchredux(),
-            new Fasta(),
-            new Knuckeotide(),
-            new Mandelbrot(),
-            new Matmul1T(),
-            new Matmul4T(),
-            new Matmul8T(),
-            new Matmul16T(),
-            new Nbody(),
-            new RegexDna(),
-            new Revcomp(),
-            new Spectralnorm(),
-            new Base64Encode(),
-            new Base64Decode(),            
-            new JsonGenerate(),
-            new JsonParseDom(),
-            new JsonParseMapping(),
-            new Primes(),
-            new Noise(),
-            new TextRaytracer(),
-            new NeuralNet(),
-            new SortQuick(),
-            new SortMerge(),
-            new SortSelf(),
-            new GraphPathBFS(),
-            new GraphPathDFS(),
-            new GraphPathAStar(),
-            new BufferHashSHA256(),
-            new BufferHashCRC32(),
-            new CacheSimulation(),
-            new CalculatorAst(),
-            new CalculatorInterpreter(),           
-            new GameOfLife(),
-            new MazeGenerator(),
-            new AStarPathfinder(),           
-            new BWTHuffEncode(),
-            new BWTHuffDecode(),
-        };
+        var benchmarkFactories = GetBenchmarkFactories();
 
-        foreach (var benchmark in benchmarks)
+        foreach (var factory in benchmarkFactories)
         {
-            var className = benchmark.GetType().Name;
+            var className = factory.Name;
 
             if (!string.IsNullOrEmpty(singleBench) && 
                 !className.ToLower().Contains(singleBench.ToLower()))
@@ -155,6 +175,9 @@ public abstract class Benchmark
 
             try
             {
+
+                var benchmark = factory.Creator();
+
                 benchmark.Prepare();
                 benchmark.Warmup();
 

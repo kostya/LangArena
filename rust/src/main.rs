@@ -9,6 +9,22 @@ use serde_json::Value;
 
 static CONFIG: OnceLock<Value> = OnceLock::new();
 
+struct BenchmarkInfo {
+    name: String,
+    creator: Box<dyn Fn() -> Box<dyn Benchmark> + Send + Sync>,
+}
+
+macro_rules! benchmark_list {
+    ($($name:ident: $path:ty),* $(,)?) => {
+        vec![
+            $(BenchmarkInfo {
+                name: stringify!($name).to_string(),
+                creator: Box::new(|| Box::new(<$path>::new())),
+            }),*
+        ]
+    };
+}
+
 fn load_config() {
     let filename = std::env::args().nth(1).unwrap_or_else(|| "../test.js".to_string());
     let file_content = fs::read_to_string(filename).expect("Failed to read config file");
@@ -100,60 +116,60 @@ fn run_benchmarks(single_bench: Option<&str>) {
     load_config();
     helper::reset();
 
-    let mut benchmarks: Vec<Box<dyn Benchmark>> = Vec::new();
-
-    benchmarks.push(Box::new(benchmarks::pidigits::Pidigits::new()));
-    benchmarks.push(Box::new(benchmarks::binarytrees::Binarytrees::new()));
-    benchmarks.push(Box::new(benchmarks::brainfuck_array::BrainfuckArray::new()));
-    benchmarks.push(Box::new(benchmarks::brainfuck_recursion::BrainfuckRecursion::new()));
-    benchmarks.push(Box::new(benchmarks::fannkuchredux::Fannkuchredux::new()));
-    benchmarks.push(Box::new(benchmarks::fasta::Fasta::new()));
-    benchmarks.push(Box::new(benchmarks::knuckeotide::Knuckeotide::new()));
-    benchmarks.push(Box::new(benchmarks::mandelbrot::Mandelbrot::new()));
-    benchmarks.push(Box::new(benchmarks::matmul1t::Matmul1T::new()));
-    benchmarks.push(Box::new(benchmarks::matmul4t::Matmul4T::new()));
-    benchmarks.push(Box::new(benchmarks::matmul8t::Matmul8T::new()));
-    benchmarks.push(Box::new(benchmarks::matmul16t::Matmul16T::new()));
-    benchmarks.push(Box::new(benchmarks::nbody::Nbody::new()));
-    benchmarks.push(Box::new(benchmarks::regex_dna::RegexDna::new()));
-    benchmarks.push(Box::new(benchmarks::revcomp::Revcomp::new()));
-    benchmarks.push(Box::new(benchmarks::spectralnorm::Spectralnorm::new()));
-    benchmarks.push(Box::new(benchmarks::base64_encode::Base64Encode::new()));
-    benchmarks.push(Box::new(benchmarks::base64_decode::Base64Decode::new()));    
-    benchmarks.push(Box::new(benchmarks::json_generate::JsonGenerate::new()));
-    benchmarks.push(Box::new(benchmarks::json_parse_dom::JsonParseDom::new()));
-    benchmarks.push(Box::new(benchmarks::json_parse_mapping::JsonParseMapping::new()));
-    benchmarks.push(Box::new(benchmarks::primes::Primes::new()));
-    benchmarks.push(Box::new(benchmarks::noise::Noise::new()));
-    benchmarks.push(Box::new(benchmarks::text_raytracer::TextRaytracer::new()));
-    benchmarks.push(Box::new(benchmarks::neural_net::NeuralNet::new()));    
-    benchmarks.push(Box::new(benchmarks::sort_quick::SortQuick::new()));
-    benchmarks.push(Box::new(benchmarks::sort_merge::SortMerge::new()));
-    benchmarks.push(Box::new(benchmarks::sort_self::SortSelf::new()));
-    benchmarks.push(Box::new(benchmarks::graph_path::GraphPathBFS::new()));
-    benchmarks.push(Box::new(benchmarks::graph_path::GraphPathDFS::new()));
-    benchmarks.push(Box::new(benchmarks::graph_path::GraphPathAStar::new()));
-    benchmarks.push(Box::new(benchmarks::buffer_hash_sha256::BufferHashSHA256::new()));
-    benchmarks.push(Box::new(benchmarks::buffer_hash_crc32::BufferHashCRC32::new()));
-    benchmarks.push(Box::new(benchmarks::cache_simulation::CacheSimulation::new()));
-    benchmarks.push(Box::new(benchmarks::calculator_ast::CalculatorAst::new()));
-    benchmarks.push(Box::new(benchmarks::calculator_interpreter::CalculatorInterpreter::new()));
-    benchmarks.push(Box::new(benchmarks::game_of_life::GameOfLife::new()));
-    benchmarks.push(Box::new(benchmarks::maze_generator::MazeGenerator::new()));
-    benchmarks.push(Box::new(benchmarks::a_star_pathfinder::AStarPathfinder::new()));
-    benchmarks.push(Box::new(benchmarks::bwthuff::BWTHuffEncode::new()));
-    benchmarks.push(Box::new(benchmarks::bwthuff::BWTHuffDecode::new()));
+    let benchmark_factories = benchmark_list![
+        Pidigits: benchmarks::pidigits::Pidigits,
+        BinaryTrees: benchmarks::binarytrees::Binarytrees,
+        BrainfuckArray: benchmarks::brainfuck_array::BrainfuckArray,
+        BrainfuckRecursion: benchmarks::brainfuck_recursion::BrainfuckRecursion,
+        Fannkuchredux: benchmarks::fannkuchredux::Fannkuchredux,
+        Fasta: benchmarks::fasta::Fasta,
+        Knuckeotide: benchmarks::knuckeotide::Knuckeotide,
+        Mandelbrot: benchmarks::mandelbrot::Mandelbrot,
+        Matmul1T: benchmarks::matmul1t::Matmul1T,
+        Matmul4T: benchmarks::matmul4t::Matmul4T,
+        Matmul8T: benchmarks::matmul8t::Matmul8T,
+        Matmul16T: benchmarks::matmul16t::Matmul16T,
+        Nbody: benchmarks::nbody::Nbody,
+        RegexDna: benchmarks::regex_dna::RegexDna,
+        Revcomp: benchmarks::revcomp::Revcomp,
+        Spectralnorm: benchmarks::spectralnorm::Spectralnorm,
+        Base64Encode: benchmarks::base64_encode::Base64Encode,
+        Base64Decode: benchmarks::base64_decode::Base64Decode,
+        JsonGenerate: benchmarks::json_generate::JsonGenerate,
+        JsonParseDom: benchmarks::json_parse_dom::JsonParseDom,
+        JsonParseMapping: benchmarks::json_parse_mapping::JsonParseMapping,
+        Primes: benchmarks::primes::Primes,
+        Noise: benchmarks::noise::Noise,
+        TextRaytracer: benchmarks::text_raytracer::TextRaytracer,
+        NeuralNet: benchmarks::neural_net::NeuralNet,
+        SortQuick: benchmarks::sort_quick::SortQuick,
+        SortMerge: benchmarks::sort_merge::SortMerge,
+        SortSelf: benchmarks::sort_self::SortSelf,
+        GraphPathBFS: benchmarks::graph_path::GraphPathBFS,
+        GraphPathDFS: benchmarks::graph_path::GraphPathDFS,
+        GraphPathAStar: benchmarks::graph_path::GraphPathAStar,
+        BufferHashSHA256: benchmarks::buffer_hash_sha256::BufferHashSHA256,
+        BufferHashCRC32: benchmarks::buffer_hash_crc32::BufferHashCRC32,
+        CacheSimulation: benchmarks::cache_simulation::CacheSimulation,
+        CalculatorAst: benchmarks::calculator_ast::CalculatorAst,
+        CalculatorInterpreter: benchmarks::calculator_interpreter::CalculatorInterpreter,
+        GameOfLife: benchmarks::game_of_life::GameOfLife,
+        MazeGenerator: benchmarks::maze_generator::MazeGenerator,
+        AStarPathfinder: benchmarks::a_star_pathfinder::AStarPathfinder,
+        BWTHuffEncode: benchmarks::bwthuff::BWTHuffEncode,
+        BWTHuffDecode: benchmarks::bwthuff::BWTHuffDecode,
+    ];
 
     let mut results = HashMap::new();
     let mut summary_time = 0.0;
     let mut ok = 0;
     let mut fails = 0;
 
-    for mut bench in benchmarks {
-        let name = bench.name();
+    for factory in benchmark_factories {
+        let name = &factory.name;
 
         if let Some(single) = single_bench {
-            let bench_lower = to_lower(&name);
+            let bench_lower = to_lower(name);
             let search_lower = to_lower(single);
             if !bench_lower.contains(&search_lower) {
                 continue;
@@ -165,6 +181,8 @@ fn run_benchmarks(single_bench: Option<&str>) {
         }
 
         print!("{}: ", name);
+
+        let mut bench = (factory.creator)();
 
         helper::reset();
         bench.prepare();
