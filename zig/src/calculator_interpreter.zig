@@ -1,14 +1,16 @@
 const std = @import("std");
 const Benchmark = @import("benchmark.zig").Benchmark;
 const Helper = @import("helper.zig").Helper;
-const CalculatorAst = @import("calculator_ast.zig").CalculatorAst;
+const shared = @import("calculator_shared.zig");
 
 pub const CalculatorInterpreter = struct {
     allocator: std.mem.Allocator,
+    arena: std.heap.ArenaAllocator,
     helper: *Helper,
     operations: i64,
     result_val: u32,
-    ast_expressions: std.ArrayListUnmanaged(*CalculatorAst.Node),
+    program: []const u8,
+    expressions: std.ArrayListUnmanaged(*shared.Node),
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
@@ -46,7 +48,7 @@ pub const CalculatorInterpreter = struct {
             return a - simpleDiv(a, b) * b;
         }
 
-        fn evaluate(self: *Interpreter, node: *CalculatorAst.Node) i64 {
+        fn evaluate(self: *Interpreter, node: *shared.Node) i64 {
             switch (node.*) {
                 .number => |num| return num.value,
                 .variable => |var1| {
@@ -73,7 +75,7 @@ pub const CalculatorInterpreter = struct {
             }
         }
 
-        fn run(self: *Interpreter, ast_exprs: []*CalculatorAst.Node) i64 {
+        fn run(self: *Interpreter, ast_exprs: []*shared.Node) i64 {
             var result: i64 = 0;
             for (ast_exprs) |expr| {
                 result = self.evaluate(expr);
@@ -90,24 +92,23 @@ pub const CalculatorInterpreter = struct {
 
         self.* = CalculatorInterpreter{
             .allocator = allocator,
+            .arena = std.heap.ArenaAllocator.init(allocator),
             .helper = helper,
             .operations = operations,
             .result_val = 0,
-            .ast_expressions = .{},
+            .program = "",
+            .expressions = .{},
         };
 
         return self;
     }
 
     pub fn deinit(self: *CalculatorInterpreter) void {
-        const allocator = self.allocator;
-
-        for (self.ast_expressions.items) |expr| {
-            freeNode(allocator, expr);
+        self.arena.deinit();
+        if (self.program.len > 0) {
+            self.allocator.free(self.program);
         }
-        self.ast_expressions.deinit(allocator);
-
-        allocator.destroy(self);
+        self.allocator.destroy(self);
     }
 
     pub fn asBenchmark(self: *CalculatorInterpreter) Benchmark {
@@ -117,33 +118,33 @@ pub const CalculatorInterpreter = struct {
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *CalculatorInterpreter = @ptrCast(@alignCast(ptr));
 
-        for (self.ast_expressions.items) |expr| {
-            freeNode(self.allocator, expr);
+        if (self.program.len > 0) {
+            self.allocator.free(self.program);
         }
-        self.ast_expressions.clearAndFree(self.allocator);
 
-        var ast_calculator = CalculatorAst.init(self.allocator, self.helper) catch return;
-        defer ast_calculator.deinit();
+        self.program = shared.generateRandomProgram(self.allocator, self.helper, self.operations) catch {
+            self.program = "";
+            return;
+        };
 
-        ast_calculator.operations = self.operations;
+        _ = self.arena.reset(.retain_capacity);
+        self.expressions.clearRetainingCapacity();
 
-        var benchmark = ast_calculator.asBenchmark();
-        benchmark.prepare();
-        benchmark.run(0);
+        const arena_allocator = self.arena.allocator();
+        var parser = shared.Parser.init(arena_allocator, self.program);
 
-        self.ast_expressions = ast_calculator.expressions;
-
-        ast_calculator.expressions = .{};
+        parser.parse(&self.expressions) catch {
+            return;
+        };
     }
 
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
         const self: *CalculatorInterpreter = @ptrCast(@alignCast(ptr));
         _ = iteration_id;
 
-        const allocator = self.allocator;
-        const expressions = self.ast_expressions.items;
+        const expressions = self.expressions.items;
 
-        var interpreter = Interpreter.init(allocator);
+        var interpreter = Interpreter.init(self.allocator);
         defer interpreter.deinit();
 
         const result = interpreter.run(expressions);
@@ -160,21 +161,3 @@ pub const CalculatorInterpreter = struct {
         self.deinit();
     }
 };
-
-fn freeNode(allocator: std.mem.Allocator, node: *CalculatorAst.Node) void {
-    switch (node.*) {
-        .number => {},
-        .variable => |*var1| allocator.free(var1.name),
-        .binary_op => |binop| {
-            freeNode(allocator, binop.left);
-            freeNode(allocator, binop.right);
-            allocator.destroy(binop);
-        },
-        .assignment => |ass| {
-            allocator.free(ass.var_name);
-            freeNode(allocator, ass.expr);
-            allocator.destroy(ass);
-        },
-    }
-    allocator.destroy(node);
-}
