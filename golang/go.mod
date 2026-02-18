@@ -1,6 +1,6 @@
 module bench
 
-go 1.25.5
+go 1.23
 
 require github.com/wasilibs/go-re2 v1.10.0
 
