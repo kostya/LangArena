@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:strconv"
 import "core:strings"
 import "core:mem"
+import "core:mem/virtual"
 import "core:slice"
 
 Number :: struct {
@@ -36,23 +37,61 @@ CalcNode :: struct {
     data: Node_Data,
 }
 
-Parser :: struct {
-    input:         string,
-    pos:           int,
-    current_char:  u8,  
-    expressions:   [dynamic]^CalcNode,
+AST :: struct {
+    nodes:       [dynamic]^CalcNode,
+    arena:       virtual.Arena,
 }
 
-parser_init :: proc(p: ^Parser, input_str: string) {
+ast_create :: proc() -> AST {
+    ast: AST
+    err := virtual.arena_init_growing(&ast.arena)
+    if err != nil {
+        fmt.println("ERROR: failed to initialize arena")
+    }
+    ast.nodes = make([dynamic]^CalcNode)
+    return ast
+}
+
+ast_destroy :: proc(ast: ^AST) {
+    virtual.arena_destroy(&ast.arena)
+    delete(ast.nodes)
+}
+
+ast_reset :: proc(ast: ^AST) {
+    virtual.arena_free_all(&ast.arena)
+    clear(&ast.nodes)
+}
+
+ast_allocator :: proc(ast: ^AST) -> mem.Allocator {
+    return virtual.arena_allocator(&ast.arena)
+}
+
+ast_new_node :: proc(ast: ^AST) -> ^CalcNode {
+    return new(CalcNode, ast_allocator(ast))
+}
+
+ast_new_binary_op :: proc(ast: ^AST) -> ^BinaryOp {
+    return new(BinaryOp, ast_allocator(ast))
+}
+
+ast_new_assignment :: proc(ast: ^AST) -> ^Assignment {
+    return new(Assignment, ast_allocator(ast))
+}
+
+Parser :: struct {
+    input:        string,
+    pos:          int,
+    current_char: u8,
+    expressions:  [dynamic]^CalcNode,
+    ast:          ^AST,
+}
+
+parser_init :: proc(p: ^Parser, input_str: string, ast: ^AST) {
     p.input = input_str
     p.pos = 0
+    p.ast = ast
     p.expressions = make([dynamic]^CalcNode)
-
-    if len(p.input) == 0 {
-        p.current_char = 0
-    } else {
-        p.current_char = p.input[0]  
-    }
+    p.current_char = len(p.input) > 0 ? p.input[0] : 0
 }
 
 parser_destroy :: proc(p: ^Parser) {
@@ -61,11 +100,7 @@ parser_destroy :: proc(p: ^Parser) {
 
 parser_advance :: proc(p: ^Parser) {
     p.pos += 1
-    if p.pos >= len(p.input) {
-        p.current_char = 0
-    } else {
-        p.current_char = p.input[p.pos]  
-    }
+    p.current_char = p.pos < len(p.input) ? p.input[p.pos] : 0
 }
 
 parser_skip_whitespace :: proc(p: ^Parser) {
@@ -84,7 +119,7 @@ parser_parse_number :: proc(p: ^Parser) -> ^CalcNode {
         parser_advance(p)
     }
 
-    node := new(CalcNode)
+    node := ast_new_node(p.ast)
     node.data = Number{value = v}
     return node
 }
@@ -98,7 +133,7 @@ parser_parse_variable :: proc(p: ^Parser) -> ^CalcNode {
         parser_advance(p)
     }
 
-    var_name := p.input[start:p.pos]  
+    var_name := p.input[start:p.pos]
 
     parser_skip_whitespace(p)
     if p.current_char == '=' {
@@ -106,23 +141,23 @@ parser_parse_variable :: proc(p: ^Parser) -> ^CalcNode {
         parser_skip_whitespace(p)
         expr := parser_parse_expression(p)
 
-        node := new(CalcNode)
-        assign := new(Assignment)
-        assign.var = strings.clone(var_name)  
+        node := ast_new_node(p.ast)
+        assign := ast_new_assignment(p.ast)
+        assign.var = strings.clone(var_name, ast_allocator(p.ast))
         assign.expr = expr
         node.data = assign
         return node
     }
 
-    node := new(CalcNode)
-    node.data = Variable{name = strings.clone(var_name)}
+    node := ast_new_node(p.ast)
+    node.data = Variable{name = strings.clone(var_name, ast_allocator(p.ast))}
     return node
 }
 
 parser_parse_factor :: proc(p: ^Parser) -> ^CalcNode {
     parser_skip_whitespace(p)
     if p.current_char == 0 {
-        node := new(CalcNode)
+        node := ast_new_node(p.ast)
         node.data = Number{value = 0}
         return node
     }
@@ -146,7 +181,7 @@ parser_parse_factor :: proc(p: ^Parser) -> ^CalcNode {
         return node
     }
 
-    node := new(CalcNode)
+    node := ast_new_node(p.ast)
     node.data = Number{value = 0}
     return node
 }
@@ -164,8 +199,8 @@ parser_parse_term :: proc(p: ^Parser) -> ^CalcNode {
             parser_skip_whitespace(p)
             right := parser_parse_factor(p)
 
-            new_node := new(CalcNode)
-            binop := new(BinaryOp)
+            new_node := ast_new_node(p.ast)
+            binop := ast_new_binary_op(p.ast)
             binop.op = op
             binop.left = node
             binop.right = right
@@ -193,8 +228,8 @@ parser_parse_expression :: proc(p: ^Parser) -> ^CalcNode {
             parser_skip_whitespace(p)
             right := parser_parse_term(p)
 
-            new_node := new(CalcNode)
-            binop := new(BinaryOp)
+            new_node := ast_new_node(p.ast)
+            binop := ast_new_binary_op(p.ast)
             binop.op = op
             binop.left = node
             binop.right = right
@@ -226,54 +261,8 @@ parser_parse :: proc(p: ^Parser) {
     }
 }
 
-node_clone :: proc(node: ^CalcNode) -> ^CalcNode {
-    if node == nil do return nil
-
-    new_node := new(CalcNode)
-
-    #partial switch &data in node.data {
-    case Number:
-        new_node.data = data
-    case Variable:
-        new_node.data = Variable{name = strings.clone(data.name)}
-    case ^BinaryOp:
-        new_binop := new(BinaryOp)
-        new_binop.op = data.op
-        new_binop.left = node_clone(data.left)
-        new_binop.right = node_clone(data.right)
-        new_node.data = new_binop
-    case ^Assignment:
-        new_assign := new(Assignment)
-        new_assign.var = strings.clone(data.var)
-        new_assign.expr = node_clone(data.expr)
-        new_node.data = new_assign
-    }
-
-    return new_node
-}
-
-node_cleanup :: proc(node: ^CalcNode) {
-    if node == nil do return
-
-    #partial switch &data in node.data {
-    case Variable:
-        delete(data.name)
-    case ^BinaryOp:
-        node_cleanup(data.left)
-        node_cleanup(data.right)
-        free(data)
-    case ^Assignment:
-        delete(data.var)
-        node_cleanup(data.expr)
-        free(data)
-    case:
-    }
-
-    free(node)
-}
-
-generate_random_program :: proc(n: i64 = 1000) -> string {
-    builder := strings.builder_make()
+generate_random_program :: proc(n: i64 = 1000, allocator := context.allocator) -> string {
+    builder := strings.builder_make(allocator)
     defer strings.builder_destroy(&builder)
 
     fmt.sbprintf(&builder, "v0 = 1\n")
@@ -314,86 +303,7 @@ generate_random_program :: proc(n: i64 = 1000) -> string {
         fmt.sbprintln(&builder)
     }
 
-    temp_result := strings.to_string(builder)
-    result := strings.clone(temp_result)
-
-    return result
-}
-
-CalculatorAst :: struct {
-    using base: Benchmark,
-    result_val: u32,
-    text:       string,
-    n:          i64,
-    expressions: [dynamic]^CalcNode,
-}
-
-calculatorast_prepare :: proc(bench: ^Benchmark) {
-    ca := cast(^CalculatorAst)bench
-    ca.n = config_i64("CalculatorAst", "operations")
-
-    ca.text = generate_random_program(ca.n)
-
-    ca.result_val = 0
-    ca.expressions = make([dynamic]^CalcNode)
-}
-
-calculatorast_run :: proc(bench: ^Benchmark, iteration_id: int) {
-    ca := cast(^CalculatorAst)bench
-
-    for expr in ca.expressions {
-        node_cleanup(expr)
-    }
-    clear(&ca.expressions)
-
-    parser: Parser
-    parser_init(&parser, ca.text)
-    defer parser_destroy(&parser)
-
-    parser_parse(&parser)
-
-    for expr in parser.expressions {
-        append(&ca.expressions, node_clone(expr))
-    }
-
-    ca.result_val = ca.result_val + u32(len(ca.expressions))
-
-    if len(ca.expressions) > 0 {
-        if assign, ok := ca.expressions[len(ca.expressions)-1].data.(^Assignment); ok {
-            ca.result_val = ca.result_val + checksum_string(assign.var)
-        }
-    }
-}
-
-calculatorast_checksum :: proc(bench: ^Benchmark) -> u32 {
-    ca := cast(^CalculatorAst)bench
-    return ca.result_val
-}
-
-calculatorast_cleanup :: proc(bench: ^Benchmark) {
-    ca := cast(^CalculatorAst)bench
-
-    for expr in ca.expressions {
-        node_cleanup(expr)
-    }
-    delete(ca.expressions)
-
-    if ca.text != "" {
-        delete(ca.text)
-    }
-}
-
-create_calculatorast :: proc() -> ^Benchmark {
-    bench := new(CalculatorAst)
-    bench.name = "CalculatorAst"
-    bench.vtable = default_vtable()
-
-    bench.vtable.run = calculatorast_run
-    bench.vtable.checksum = calculatorast_checksum
-    bench.vtable.prepare = calculatorast_prepare
-    bench.vtable.cleanup = calculatorast_cleanup
-
-    return cast(^Benchmark)bench
+    return strings.clone(strings.to_string(builder), allocator)
 }
 
 simple_div :: proc(a, b: i64) -> i64 {
@@ -444,35 +354,99 @@ evaluator_eval :: proc(e: ^Evaluator, node: ^CalcNode) -> i64 {
     return 0
 }
 
-CalculatorInterpreter :: struct {
+CalculatorAst :: struct {
     using base: Benchmark,
     result_val: u32,
+    text:       string,
     n:          i64,
-    ast:        [dynamic]^CalcNode,
+    ast:        AST,
 }
 
-calculatorinterpreter_prepare :: proc(bench: ^Benchmark) {
-    ci := cast(^CalculatorInterpreter)bench
-    ci.n = config_i64("CalculatorInterpreter", "operations")
-    ci.result_val = 0
+calculatorast_prepare :: proc(bench: ^Benchmark) {
+    ca := cast(^CalculatorAst)bench
+    ca.n = config_i64("CalculatorAst", "operations")
+    ca.text = generate_random_program(ca.n, context.allocator)
+    ca.result_val = 0
 
-    for expr in ci.ast {
-        node_cleanup(expr)
-    }
-    delete(ci.ast)
-    ci.ast = make([dynamic]^CalcNode)
+    ca.ast = ast_create()
+}
 
-    program := generate_random_program(ci.n)
-    defer delete(program)
+calculatorast_run :: proc(bench: ^Benchmark, iteration_id: int) {
+    ca := cast(^CalculatorAst)bench
+
+    ast_reset(&ca.ast)
 
     parser: Parser
-    parser_init(&parser, program)
+    parser_init(&parser, ca.text, &ca.ast)
     defer parser_destroy(&parser)
 
     parser_parse(&parser)
 
     for expr in parser.expressions {
-        append(&ci.ast, node_clone(expr))
+        append(&ca.ast.nodes, expr)
+    }
+
+    ca.result_val = ca.result_val + u32(len(ca.ast.nodes))
+
+    if len(ca.ast.nodes) > 0 {
+        if assign, ok := ca.ast.nodes[len(ca.ast.nodes)-1].data.(^Assignment); ok {
+            ca.result_val = ca.result_val + checksum_string(assign.var)
+        }
+    }
+}
+
+calculatorast_checksum :: proc(bench: ^Benchmark) -> u32 {
+    ca := cast(^CalculatorAst)bench
+    return ca.result_val
+}
+
+calculatorast_cleanup :: proc(bench: ^Benchmark) {
+    ca := cast(^CalculatorAst)bench
+
+    ast_destroy(&ca.ast)
+
+    if ca.text != "" {
+        delete(ca.text)
+    }
+}
+
+create_calculatorast :: proc() -> ^Benchmark {
+    bench := new(CalculatorAst)
+    bench.name = "CalculatorAst"
+    bench.vtable = default_vtable()
+
+    bench.vtable.prepare = calculatorast_prepare
+    bench.vtable.run = calculatorast_run
+    bench.vtable.checksum = calculatorast_checksum
+    bench.vtable.cleanup = calculatorast_cleanup
+
+    return cast(^Benchmark)bench
+}
+
+CalculatorInterpreter :: struct {
+    using base: Benchmark,
+    result_val: u32,
+    n:          i64,
+    program:    string,
+    ast:        AST,
+}
+
+calculatorinterpreter_prepare :: proc(bench: ^Benchmark) {
+    ci := cast(^CalculatorInterpreter)bench
+    ci.n = config_i64("CalculatorInterpreter", "operations")
+    ci.program = generate_random_program(ci.n, context.allocator)
+    ci.result_val = 0
+
+    ci.ast = ast_create()
+
+    parser: Parser
+    parser_init(&parser, ci.program, &ci.ast)
+    defer parser_destroy(&parser)
+
+    parser_parse(&parser)
+
+    for expr in parser.expressions {
+        append(&ci.ast.nodes, expr)
     }
 }
 
@@ -483,7 +457,7 @@ calculatorinterpreter_run :: proc(bench: ^Benchmark, iteration_id: int) {
     defer delete(evaluator.variables)
 
     result: i64 = 0
-    for expr in ci.ast {
+    for expr in ci.ast.nodes {
         result = evaluator_eval(&evaluator, expr)
     }
 
@@ -498,10 +472,11 @@ calculatorinterpreter_checksum :: proc(bench: ^Benchmark) -> u32 {
 calculatorinterpreter_cleanup :: proc(bench: ^Benchmark) {
     ci := cast(^CalculatorInterpreter)bench
 
-    for expr in ci.ast {
-        node_cleanup(expr)
+    ast_destroy(&ci.ast)
+
+    if ci.program != "" {
+        delete(ci.program)
     }
-    delete(ci.ast)
 }
 
 create_calculatorinterpreter :: proc() -> ^Benchmark {
@@ -509,9 +484,9 @@ create_calculatorinterpreter :: proc() -> ^Benchmark {
     bench.name = "CalculatorInterpreter"
     bench.vtable = default_vtable()
 
+    bench.vtable.prepare = calculatorinterpreter_prepare
     bench.vtable.run = calculatorinterpreter_run
     bench.vtable.checksum = calculatorinterpreter_checksum
-    bench.vtable.prepare = calculatorinterpreter_prepare
     bench.vtable.cleanup = calculatorinterpreter_cleanup
 
     return cast(^Benchmark)bench
