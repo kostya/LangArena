@@ -249,7 +249,6 @@ gpa_node_less :: proc(a, b: GPANode) -> bool {
     return a.f_score < b.f_score
 }
 
-// Swap функция с правильной сигнатурой для priority_queue
 gpa_node_swap :: proc(nodes: []GPANode, i, j: int) {
     nodes[i], nodes[j] = nodes[j], nodes[i]
 }
