@@ -47,8 +47,8 @@ class Gen
     j['runs'].each do |k, v|
       if v == "prod"
         @runs_prod << k
-      end
-      @runs_all << k + "-Hack"
+      end 
+      @runs_all << k     
     end
 	end
 
@@ -745,6 +745,14 @@ DESC
 
       runs.each do |run|
         desc += "• <strong>#{run}</strong> - #{@j['build-cmd'][run]}; #{@j['run-cmd'] ? @j['run-cmd'][run] : ""}<br>"
+      end
+
+      res[:up_header].map! do |run|
+        unless @runs_prod.include?(run.includes)
+          run + "-Hack"
+        else
+          run
+        end
       end
 
       res[lang][:description] = desc
