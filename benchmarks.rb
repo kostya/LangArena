@@ -1974,7 +1974,7 @@ unless ARGV[0]
 end
 
 def write_results
-  unless ARGV[0]
+  if !ARGV[0] || APPEND_RESULTS
     File.write("./results/#{RESULTS["date"]}-#{RESULTS["uname-name"]}.js", JSON.pretty_generate(RESULTS))  
   end
 end
