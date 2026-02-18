@@ -151,7 +151,7 @@ pub const GraphPathBFS = struct {
         const visited = arena_allocator.alloc(u8, self.graph.vertices) catch return;
 
         var queue: std.ArrayList([2]i32) = .empty;
-        defer queue.deinit(arena_allocator); 
+        defer queue.deinit(arena_allocator);
 
         const length = self.bfsShortestPath(0, self.graph.vertices - 1, visited, &queue, arena_allocator);
         if (length > 0) {
@@ -291,81 +291,141 @@ pub const GraphPathDFS = struct {
     }
 };
 
+const Node = struct {
+    vertex: i32,
+    f_score: i32,
+};
+
 const PriorityQueue = struct {
-    vertices: []i32,
-    priorities: []i32,
-    size: usize,
-    allocator: std.mem.Allocator,
+    nodes: std.ArrayListUnmanaged(Node),
 
-    fn init(allocator: std.mem.Allocator, capacity: usize) !PriorityQueue {
-        return PriorityQueue{
-            .vertices = try allocator.alloc(i32, capacity),
-            .priorities = try allocator.alloc(i32, capacity),
-            .size = 0,
-            .allocator = allocator,
-        };
+    fn init() PriorityQueue {
+        return .{ .nodes = .{} };
     }
 
-    fn deinit(self: *PriorityQueue) void {
-        self.allocator.free(self.vertices);
-        self.allocator.free(self.priorities);
-        self.size = 0;
+    fn deinit(self: *PriorityQueue, allocator: std.mem.Allocator) void {
+        self.nodes.deinit(allocator);
     }
 
-    fn push(self: *PriorityQueue, vertex: i32, priority: i32) !void {
-        if (self.size >= self.vertices.len) {
-            const new_capacity = self.vertices.len * 2;
-            self.vertices = try self.allocator.realloc(self.vertices, new_capacity);
-            self.priorities = try self.allocator.realloc(self.priorities, new_capacity);
+    fn push(self: *PriorityQueue, allocator: std.mem.Allocator, vertex: i32, f_score: i32) !void {
+        try self.nodes.append(allocator, .{ .vertex = vertex, .f_score = f_score });
+        heapifyUp(self.nodes.items);
+    }
+
+    fn pop(self: *PriorityQueue) ?Node {
+        if (self.nodes.items.len == 0) return null;
+
+        const node = self.nodes.items[0];
+        self.nodes.items[0] = self.nodes.items[self.nodes.items.len - 1];
+        _ = self.nodes.pop();
+
+        if (self.nodes.items.len > 0) {
+            heapifyDown(self.nodes.items);
         }
+        return node;
+    }
 
-        var i = self.size;
-        self.size += 1;
-        self.vertices[i] = vertex;
-        self.priorities[i] = priority;
+    fn empty(self: *const PriorityQueue) bool {
+        return self.nodes.items.len == 0;
+    }
 
+    fn heapifyUp(items: []Node) void {
+        var i: usize = items.len - 1;
         while (i > 0) {
             const parent = (i - 1) / 2;
-            if (self.priorities[parent] <= self.priorities[i]) break;
-            std.mem.swap(i32, &self.vertices[i], &self.vertices[parent]);
-            std.mem.swap(i32, &self.priorities[i], &self.priorities[parent]);
+            if (items[parent].f_score <= items[i].f_score) break;
+            std.mem.swap(Node, &items[i], &items[parent]);
             i = parent;
         }
     }
 
-    fn pop(self: *PriorityQueue) ?i32 {
-        if (self.size == 0) return null;
+    fn heapifyDown(items: []Node) void {
+        var i: usize = 0;
+        const n = items.len;
+        while (true) {
+            const left = 2 * i + 1;
+            const right = 2 * i + 2;
+            var smallest = i;
 
-        const result = self.vertices[0];
-        self.size -= 1;
-
-        if (self.size > 0) {
-            self.vertices[0] = self.vertices[self.size];
-            self.priorities[0] = self.priorities[self.size];
-
-            var i: usize = 0;
-            while (true) {
-                const left = 2 * i + 1;
-                const right = 2 * i + 2;
-                var smallest = i;
-
-                if (left < self.size and self.priorities[left] < self.priorities[smallest]) {
-                    smallest = left;
-                }
-                if (right < self.size and self.priorities[right] < self.priorities[smallest]) {
-                    smallest = right;
-                }
-                if (smallest == i) break;
-
-                std.mem.swap(i32, &self.vertices[i], &self.vertices[smallest]);
-                std.mem.swap(i32, &self.priorities[i], &self.priorities[smallest]);
-                i = smallest;
+            if (left < n and items[left].f_score < items[smallest].f_score) {
+                smallest = left;
             }
-        }
+            if (right < n and items[right].f_score < items[smallest].f_score) {
+                smallest = right;
+            }
+            if (smallest == i) break;
 
-        return result;
+            std.mem.swap(Node, &items[i], &items[smallest]);
+            i = smallest;
+        }
     }
 };
+
+fn heuristic(v: usize, target: usize) i32 {
+    return @as(i32, @intCast(target)) - @as(i32, @intCast(v));
+}
+
+fn aStarShortestPath(graph: *const Graph, start: usize, target: usize, allocator: std.mem.Allocator) i32 {
+    if (start == target) return 0;
+
+    const vertices = graph.vertices;
+    const INF = std.math.maxInt(i32);
+
+    const g_score = allocator.alloc(i32, vertices) catch return -1;
+    defer allocator.free(g_score);
+    @memset(g_score, INF);
+    g_score[start] = 0;
+
+    const f_score = allocator.alloc(i32, vertices) catch return -1;
+    defer allocator.free(f_score);
+    @memset(f_score, INF);
+    f_score[start] = heuristic(start, target);
+
+    const in_open_set = allocator.alloc(u8, vertices) catch return -1;
+    defer allocator.free(in_open_set);
+    @memset(in_open_set, 0);
+
+    const closed = allocator.alloc(u8, vertices) catch return -1;
+    defer allocator.free(closed);
+    @memset(closed, 0);
+
+    var open_set = PriorityQueue.init();
+    defer open_set.deinit(allocator);
+
+    open_set.push(allocator, @intCast(start), f_score[start]) catch return -1;
+    in_open_set[start] = 1;
+
+    while (!open_set.empty()) {
+        const current = open_set.pop().?;
+        const cur = @as(usize, @intCast(current.vertex));
+
+        if (closed[cur] == 1) continue;
+        closed[cur] = 1;
+        in_open_set[cur] = 0;
+
+        if (cur == target) {
+            return g_score[cur];
+        }
+
+        for (graph.adj.items[cur].items) |neighbor| {
+            if (closed[neighbor] == 1) continue;
+
+            const tentative_g = g_score[cur] + 1;
+
+            if (tentative_g < g_score[neighbor]) {
+                g_score[neighbor] = tentative_g;
+                f_score[neighbor] = tentative_g + heuristic(neighbor, target);
+
+                if (in_open_set[neighbor] == 0) {
+                    open_set.push(allocator, @intCast(neighbor), f_score[neighbor]) catch return -1;
+                    in_open_set[neighbor] = 1;
+                }
+            }
+        }
+    }
+
+    return -1;
+}
 
 pub const GraphPathAStar = struct {
     allocator: std.mem.Allocator,
@@ -408,64 +468,6 @@ pub const GraphPathAStar = struct {
         return Benchmark.init(self, &vtable, self.helper, "GraphPathAStar");
     }
 
-    fn heuristic(v: usize, target: usize) i32 {
-        return @as(i32, @intCast(target)) - @as(i32, @intCast(v));
-    }
-
-    fn aStarShortestPath(self: *const GraphPathAStar, start: usize, target: usize, allocator: std.mem.Allocator) !i32 {
-        if (start == target) return 0;
-
-        const vertices = self.graph.vertices;
-
-        const g_score = try allocator.alloc(i32, vertices);
-        defer allocator.free(g_score);
-        @memset(g_score, std.math.maxInt(i32));
-        g_score[start] = 0;
-
-        const closed = try allocator.alloc(u8, vertices);
-        defer allocator.free(closed);
-        @memset(closed, 0);
-
-        var open_set = try PriorityQueue.init(allocator, vertices);
-        defer open_set.deinit();
-
-        const in_open_set = try allocator.alloc(u8, vertices);
-        defer allocator.free(in_open_set);
-        @memset(in_open_set, 0);
-
-        try open_set.push(@as(i32, @intCast(start)), heuristic(start, target));
-        in_open_set[start] = 1;
-
-        while (open_set.pop()) |current| {
-            const cur = @as(usize, @intCast(current));
-            in_open_set[cur] = 0;
-
-            if (cur == target) {
-                return g_score[cur];
-            }
-
-            closed[cur] = 1;
-
-            for (self.graph.adj.items[cur].items) |neighbor| {
-                if (closed[neighbor] == 1) continue;
-
-                const tentative_g = g_score[cur] + 1;
-
-                if (tentative_g < g_score[neighbor]) {
-                    g_score[neighbor] = tentative_g;
-                    const f = tentative_g + heuristic(neighbor, target);
-
-                    if (in_open_set[neighbor] == 0) {
-                        try open_set.push(@as(i32, @intCast(neighbor)), f);
-                        in_open_set[neighbor] = 1;
-                    }
-                }
-            }
-        }
-
-        return -1;
-    }
-
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *GraphPathAStar = @ptrCast(@alignCast(ptr));
         const allocator = self.allocator;
@@ -490,7 +492,7 @@ pub const GraphPathAStar = struct {
         defer arena.deinit();
         const arena_allocator = arena.allocator();
 
-        const length = self.aStarShortestPath(0, self.graph.vertices - 1, arena_allocator) catch -1;
+        const length = aStarShortestPath(self.graph, 0, self.graph.vertices - 1, arena_allocator);
         if (length > 0) {
             self.result_val +%= @as(u32, @intCast(length));
         }
