@@ -39,7 +39,6 @@ pub const Graph = struct {
     }
 
     pub fn generateRandom(self: *Graph, helper: *Helper) !void {
-
         for (1..self.vertices) |i| {
             try self.addEdge(i, i - 1);
         }
@@ -114,14 +113,14 @@ pub const GraphPathBFS = struct {
         }
     }
 
-    fn bfsShortestPath(self: *const GraphPathBFS, start: usize, target: usize, visited: []u8, queue: *std.ArrayList([2]i32), allocator: std.mem.Allocator) i32 {
+    fn bfsShortestPath(self: *const GraphPathBFS, start: usize, target: usize, visited: []u8, queue: *std.ArrayList([2]i32), queue_allocator: std.mem.Allocator) i32 {
         if (start == target) return 0;
 
         @memset(visited, 0);
         queue.clearRetainingCapacity();
 
         visited[start] = 1;
-        queue.append(allocator, .{ @as(i32, @intCast(start)), 0 }) catch return -1;
+        queue.append(queue_allocator, .{ @as(i32, @intCast(start)), 0 }) catch return -1;
 
         var front: usize = 0;
         while (front < queue.items.len) {
@@ -133,7 +132,7 @@ pub const GraphPathBFS = struct {
 
                 if (visited[neighbor] == 0) {
                     visited[neighbor] = 1;
-                    queue.append(allocator, .{ @as(i32, @intCast(neighbor)), current[1] + 1 }) catch return -1;
+                    queue.append(queue_allocator, .{ @as(i32, @intCast(neighbor)), current[1] + 1 }) catch return -1;
                 }
             }
         }
@@ -150,8 +149,9 @@ pub const GraphPathBFS = struct {
         const arena_allocator = arena.allocator();
 
         const visited = arena_allocator.alloc(u8, self.graph.vertices) catch return;
-        var queue = std.ArrayList([2]i32){};
-        defer queue.deinit(arena_allocator);
+
+        var queue: std.ArrayList([2]i32) = .empty;
+        defer queue.deinit(arena_allocator); 
 
         const length = self.bfsShortestPath(0, self.graph.vertices - 1, visited, &queue, arena_allocator);
         if (length > 0) {
@@ -236,7 +236,7 @@ pub const GraphPathDFS = struct {
         defer allocator.free(visited);
         @memset(visited, 0);
 
-        var stack = std.ArrayList([2]i32){};
+        var stack: std.ArrayList([2]i32) = .empty;
         defer stack.deinit(allocator);
 
         const INF = std.math.maxInt(i32);
@@ -245,7 +245,7 @@ pub const GraphPathDFS = struct {
         stack.append(allocator, .{ @as(i32, @intCast(start)), 0 }) catch return -1;
 
         while (stack.items.len > 0) {
-            const current = stack.pop().?; 
+            const current = stack.pop().?;
             const vertex = @as(usize, @intCast(current[0]));
             const distance = current[1];
 
@@ -309,9 +309,10 @@ const PriorityQueue = struct {
     fn deinit(self: *PriorityQueue) void {
         self.allocator.free(self.vertices);
         self.allocator.free(self.priorities);
+        self.size = 0;
     }
 
-    fn push(self: *PriorityQueue, vertex: i32, priority: i32, _: std.mem.Allocator) !void {
+    fn push(self: *PriorityQueue, vertex: i32, priority: i32) !void {
         if (self.size >= self.vertices.len) {
             const new_capacity = self.vertices.len * 2;
             self.vertices = try self.allocator.realloc(self.vertices, new_capacity);
@@ -432,7 +433,7 @@ pub const GraphPathAStar = struct {
         defer allocator.free(in_open_set);
         @memset(in_open_set, 0);
 
-        try open_set.push(@as(i32, @intCast(start)), heuristic(start, target), allocator);
+        try open_set.push(@as(i32, @intCast(start)), heuristic(start, target));
         in_open_set[start] = 1;
 
         while (open_set.pop()) |current| {
@@ -455,7 +456,7 @@ pub const GraphPathAStar = struct {
                     const f = tentative_g + heuristic(neighbor, target);
 
                     if (in_open_set[neighbor] == 0) {
-                        try open_set.push(@as(i32, @intCast(neighbor)), f, allocator);
+                        try open_set.push(@as(i32, @intCast(neighbor)), f);
                         in_open_set[neighbor] = 1;
                     }
                 }
