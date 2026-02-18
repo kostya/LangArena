@@ -1,7 +1,7 @@
 FROM benchmarks:java
 
 ARG version
-RUN wget https://github.com/oracle/graalpython/releases/download/graal-$version/graalpy-$version-linux-amd64.tar.gz \
+RUN wget https://github.com/oracle/graalpython/releases/download/graal-$version/graalpy-jvm-$version-linux-amd64.tar.gz \
 	&& tar -xzvf graalpy-jvm-$version-linux-amd64.tar.gz \
     && rm graalpy-jvm-$version-linux-amd64.tar.gz
 
