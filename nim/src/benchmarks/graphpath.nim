@@ -1,4 +1,4 @@
-import std/[random, deques]
+import std/[random, deques, heapqueue]
 import ../benchmark
 import ../helper
 
@@ -16,6 +16,16 @@ type
   GraphPathBFS* = ref object of GraphPathBenchmark
   GraphPathDFS* = ref object of GraphPathBenchmark
   GraphPathAStar* = ref object of GraphPathBenchmark
+
+  AStarItem* = object
+    vertex: int
+    priority: int
+
+proc `<`*(a, b: AStarItem): bool =
+  if a.priority != b.priority:
+    a.priority < b.priority
+  else:
+    a.vertex < b.vertex
 
 proc newGraph(vertices, jumps, jumpLen: int): Graph =
   result = Graph(
@@ -48,7 +58,6 @@ method prepare(self: GraphPathBenchmark) =
   let jumpLen = int(self.config_val("jump_len"))
 
   self.graph = newGraph(vertices, jumps, jumpLen)
-  reset()
   self.graph.generateRandom()
   self.resultVal = 0
 
@@ -130,67 +139,6 @@ method test(self: GraphPathDFS): int64 =
 
 registerBenchmark("Graph::DFS", newGraphPathDFS)
 
-type
-  PriorityQueueItem = object
-    vertex: int
-    priority: int
-
-  PriorityQueue = object
-    vertices: seq[int]
-    priorities: seq[int]
-    size: int
-
-proc newPriorityQueue(initialCapacity: int = 16): PriorityQueue =
-  result.vertices = newSeq[int](initialCapacity)
-  result.priorities = newSeq[int](initialCapacity)
-  result.size = 0
-
-proc push(pq: var PriorityQueue, vertex: int, priority: int) =
-  if pq.size >= pq.vertices.len:
-    let newCapacity = pq.vertices.len * 2
-    pq.vertices.setLen(newCapacity)
-    pq.priorities.setLen(newCapacity)
-
-  var i = pq.size
-  pq.size += 1
-  pq.vertices[i] = vertex
-  pq.priorities[i] = priority
-
-  while i > 0:
-    let parent = (i - 1) div 2
-    if pq.priorities[parent] <= pq.priorities[i]:
-      break
-    swap(pq.vertices[i], pq.vertices[parent])
-    swap(pq.priorities[i], pq.priorities[parent])
-    i = parent
-
-proc pop(pq: var PriorityQueue): int =
-  result = pq.vertices[0]
-  pq.size -= 1
-
-  if pq.size > 0:
-    pq.vertices[0] = pq.vertices[pq.size]
-    pq.priorities[0] = pq.priorities[pq.size]
-
-    var i = 0
-    while true:
-      let left = 2 * i + 1
-      let right = 2 * i + 2
-      var smallest = i
-
-      if left < pq.size and pq.priorities[left] < pq.priorities[smallest]:
-        smallest = left
-      if right < pq.size and pq.priorities[right] < pq.priorities[smallest]:
-        smallest = right
-      if smallest == i:
-        break
-
-      swap(pq.vertices[i], pq.vertices[smallest])
-      swap(pq.priorities[i], pq.priorities[smallest])
-      i = smallest
-
-proc isEmpty(pq: PriorityQueue): bool = pq.size == 0
-
 proc newGraphPathAStar(): Benchmark =
   GraphPathAStar()
 
@@ -214,33 +162,33 @@ proc aStarShortestPath(g: Graph, start, target: int): int =
   gScore[start] = 0
   fScore[start] = heuristic(start, target)
 
-  var openSet = newPriorityQueue()
+  var openSet = initHeapQueue[AStarItem]()
   var inOpenSet = newSeq[bool](g.vertices)
 
-  openSet.push(start, fScore[start])
+  openSet.push(AStarItem(vertex: start, priority: fScore[start]))
   inOpenSet[start] = true
 
-  while not openSet.isEmpty:
+  while openSet.len > 0:
     let current = openSet.pop()
-    inOpenSet[current] = false
+    inOpenSet[current.vertex] = false
 
-    if current == target:
-      return gScore[current]
+    if current.vertex == target:
+      return gScore[current.vertex]
 
-    closed[current] = true
+    closed[current.vertex] = true
 
-    for neighbor in g.adj[current]:
+    for neighbor in g.adj[current.vertex]:
       if closed[neighbor]:
         continue
 
-      let tentativeG = gScore[current] + 1
+      let tentativeG = gScore[current.vertex] + 1
 
       if tentativeG < gScore[neighbor]:
         gScore[neighbor] = tentativeG
         fScore[neighbor] = tentativeG + heuristic(neighbor, target)
 
         if not inOpenSet[neighbor]:
-          openSet.push(neighbor, fScore[neighbor])
+          openSet.push(AStarItem(vertex: neighbor, priority: fScore[neighbor]))
           inOpenSet[neighbor] = true
 
   -1

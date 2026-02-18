@@ -1,4 +1,3 @@
-pub mod a_star_pathfinder;
 pub mod base64_decode;
 pub mod base64_encode;
 pub mod binarytrees;
@@ -24,7 +23,7 @@ pub mod matmul16t;
 pub mod matmul1t;
 pub mod matmul4t;
 pub mod matmul8t;
-pub mod maze_generator;
+pub mod maze;
 pub mod nbody;
 pub mod neural_net;
 pub mod noise;

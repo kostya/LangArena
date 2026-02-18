@@ -44,8 +44,9 @@ func main() {
   BenchmarkManager.register("Calculator::Ast") { CalculatorAst() }
   BenchmarkManager.register("Calculator::Interpreter") { CalculatorInterpreter() }
   BenchmarkManager.register("Etc::GameOfLife") { GameOfLife() }
-  BenchmarkManager.register("MazeGenerator") { MazeGenerator() }
-  BenchmarkManager.register("AStarPathfinder") { AStarPathfinder() }
+  BenchmarkManager.register("Maze::Generator") { MazeGenerator() }
+  BenchmarkManager.register("Maze::BFS") { MazeBFS() }
+  BenchmarkManager.register("Maze::AStar") { MazeAStar() }
   BenchmarkManager.register("Compress::BWTEncode") { BWTEncode() }
   BenchmarkManager.register("Compress::BWTDecode") { BWTDecode() }
   BenchmarkManager.register("Compress::HuffEncode") { HuffEncode() }

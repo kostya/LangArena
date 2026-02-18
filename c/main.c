@@ -7179,678 +7179,698 @@ Benchmark *GameOfLife_create(void) {
   return bench;
 }
 
-typedef enum { MAZE_CELL_WALL, MAZE_CELL_PATH } MazeCellType;
+typedef enum {
+  MAZE_CELL_WALL = 0,
+  MAZE_CELL_SPACE,
+  MAZE_CELL_START,
+  MAZE_CELL_FINISH,
+  MAZE_CELL_BORDER,
+  MAZE_CELL_PATH
+} MazeCellKind;
+
+typedef struct MazeCell {
+  MazeCellKind kind;
+  struct MazeCell *neighbors[4];
+  int neighbor_count;
+  int x;
+  int y;
+} MazeCell;
 
 typedef struct {
-  MazeCellType **cells;
   int width;
   int height;
-} MazeGeneratorGrid;
+  MazeCell **cells;
+  MazeCell *start;
+  MazeCell *finish;
+} Maze;
+
+static MazeCell *maze_cell_create(int x, int y) {
+  MazeCell *cell = malloc(sizeof(MazeCell));
+  cell->kind = MAZE_CELL_WALL;
+  cell->x = x;
+  cell->y = y;
+  cell->neighbor_count = 0;
+  return cell;
+}
+
+static void maze_cell_add_neighbor(MazeCell *cell, MazeCell *neighbor) {
+  if (cell->neighbor_count < 4) {
+    cell->neighbors[cell->neighbor_count++] = neighbor;
+  }
+}
+
+static bool maze_cell_is_walkable(MazeCell *cell) {
+  return cell->kind == MAZE_CELL_SPACE || cell->kind == MAZE_CELL_START ||
+         cell->kind == MAZE_CELL_FINISH;
+}
+
+static void maze_cell_reset(MazeCell *cell) {
+  if (cell->kind == MAZE_CELL_SPACE) {
+    cell->kind = MAZE_CELL_WALL;
+  }
+}
+
+static Maze *maze_create(int width, int height) {
+  Maze *maze = malloc(sizeof(Maze));
+  maze->width = width;
+  maze->height = height;
+
+  maze->cells = malloc(height * sizeof(MazeCell *));
+  for (int y = 0; y < height; y++) {
+    maze->cells[y] = malloc(width * sizeof(MazeCell));
+    for (int x = 0; x < width; x++) {
+      maze->cells[y][x] = *maze_cell_create(x, y);
+    }
+  }
+
+  maze->start = &maze->cells[1][1];
+  maze->finish = &maze->cells[height - 2][width - 2];
+  maze->start->kind = MAZE_CELL_START;
+  maze->finish->kind = MAZE_CELL_FINISH;
+
+  return maze;
+}
+
+static void maze_update_neighbors(Maze *maze) {
+  for (int y = 0; y < maze->height; y++) {
+    for (int x = 0; x < maze->width; x++) {
+      MazeCell *cell = &maze->cells[y][x];
+      cell->neighbor_count = 0;
+
+      if (x > 0 && y > 0 && x < maze->width - 1 && y < maze->height - 1) {
+        maze_cell_add_neighbor(cell, &maze->cells[y - 1][x]);
+        maze_cell_add_neighbor(cell, &maze->cells[y + 1][x]);
+        maze_cell_add_neighbor(cell, &maze->cells[y][x + 1]);
+        maze_cell_add_neighbor(cell, &maze->cells[y][x - 1]);
+
+        for (int t = 0; t < 4; t++) {
+          int i = Helper_next_int(4);
+          int j = Helper_next_int(4);
+          if (i != j) {
+            MazeCell *temp = cell->neighbors[i];
+            cell->neighbors[i] = cell->neighbors[j];
+            cell->neighbors[j] = temp;
+          }
+        }
+      } else {
+        cell->kind = MAZE_CELL_BORDER;
+      }
+    }
+  }
+}
+
+static void maze_reset(Maze *maze) {
+  for (int y = 0; y < maze->height; y++) {
+    for (int x = 0; x < maze->width; x++) {
+      maze_cell_reset(&maze->cells[y][x]);
+    }
+  }
+  maze->start->kind = MAZE_CELL_START;
+  maze->finish->kind = MAZE_CELL_FINISH;
+}
+
+static void maze_dig(Maze *maze, MazeCell *start_cell) {
+  MazeCell **stack = malloc(maze->width * maze->height * sizeof(MazeCell *));
+  int stack_size = 0;
+  stack[stack_size++] = start_cell;
+
+  while (stack_size > 0) {
+    MazeCell *cell = stack[--stack_size];
+
+    int walkable = 0;
+    for (int i = 0; i < cell->neighbor_count; i++) {
+      if (maze_cell_is_walkable(cell->neighbors[i]))
+        walkable++;
+    }
+
+    if (walkable != 1)
+      continue;
+
+    cell->kind = MAZE_CELL_SPACE;
+
+    for (int i = 0; i < cell->neighbor_count; i++) {
+      MazeCell *n = cell->neighbors[i];
+      if (n->kind == MAZE_CELL_WALL) {
+        stack[stack_size++] = n;
+      }
+    }
+  }
+
+  free(stack);
+}
+
+static void maze_ensure_open_finish(Maze *maze, MazeCell *start_cell) {
+  MazeCell **stack = malloc(maze->width * maze->height * sizeof(MazeCell *));
+  int stack_size = 0;
+  stack[stack_size++] = start_cell;
+
+  while (stack_size > 0) {
+    MazeCell *cell = stack[--stack_size];
+
+    cell->kind = MAZE_CELL_SPACE;
+
+    int walkable = 0;
+    for (int i = 0; i < cell->neighbor_count; i++) {
+      if (maze_cell_is_walkable(cell->neighbors[i]))
+        walkable++;
+    }
+
+    if (walkable > 1)
+      continue;
+
+    for (int i = 0; i < cell->neighbor_count; i++) {
+      MazeCell *n = cell->neighbors[i];
+      if (n->kind == MAZE_CELL_WALL) {
+        stack[stack_size++] = n;
+      }
+    }
+  }
+
+  free(stack);
+}
+
+static void maze_generate(Maze *maze) {
+  for (int i = 0; i < maze->start->neighbor_count; i++) {
+    MazeCell *n = maze->start->neighbors[i];
+    if (n->kind == MAZE_CELL_WALL) {
+      maze_dig(maze, n);
+    }
+  }
+
+  for (int i = 0; i < maze->finish->neighbor_count; i++) {
+    MazeCell *n = maze->finish->neighbors[i];
+    if (n->kind == MAZE_CELL_WALL) {
+      maze_ensure_open_finish(maze, n);
+    }
+  }
+}
+
+static MazeCell *maze_middle_cell(Maze *maze) {
+  return &maze->cells[maze->height / 2][maze->width / 2];
+}
+
+static uint32_t maze_checksum(Maze *maze) {
+  uint32_t hasher = 2166136261UL;
+  uint32_t prime = 16777619UL;
+
+  for (int y = 0; y < maze->height; y++) {
+    for (int x = 0; x < maze->width; x++) {
+      if (maze->cells[y][x].kind == MAZE_CELL_SPACE) {
+        uint32_t val = (uint32_t)(x * y);
+        hasher = (hasher ^ val) * prime;
+      }
+    }
+  }
+  return hasher;
+}
+
+static void maze_free(Maze *maze) {
+  if (!maze)
+    return;
+  for (int y = 0; y < maze->height; y++) {
+    free(maze->cells[y]);
+  }
+  free(maze->cells);
+  free(maze);
+}
 
 typedef struct {
   uint32_t result_val;
-  int64_t width_val;
-  int64_t height_val;
-  MazeGeneratorGrid grid;
+  int width;
+  int height;
+  Maze *maze;
 } MazeGeneratorData;
-
-static void maze_generator_divide(MazeGeneratorGrid *grid, int x1, int y1,
-                                  int x2, int y2) {
-  int width = x2 - x1;
-  int height = y2 - y1;
-
-  if (width < 2 || height < 2)
-    return;
-
-  int width_for_wall = width - 2 > 0 ? width - 2 : 0;
-  int height_for_wall = height - 2 > 0 ? height - 2 : 0;
-  int width_for_hole = width - 1 > 0 ? width - 1 : 0;
-  int height_for_hole = height - 1 > 0 ? height - 1 : 0;
-
-  if (width_for_wall == 0 || height_for_wall == 0 || width_for_hole == 0 ||
-      height_for_hole == 0) {
-    return;
-  }
-
-  if (width > height) {
-
-    int wall_range = width_for_wall / 2 > 0 ? width_for_wall / 2 : 1;
-    int wall_offset = wall_range > 0 ? Helper_next_int(wall_range) * 2 : 0;
-    int wall_x = x1 + 2 + wall_offset;
-
-    int hole_range = height_for_hole / 2 > 0 ? height_for_hole / 2 : 1;
-    int hole_offset = hole_range > 0 ? Helper_next_int(hole_range) * 2 : 0;
-    int hole_y = y1 + 1 + hole_offset;
-
-    if (wall_x > x2 || hole_y > y2)
-      return;
-
-    for (int y = y1; y <= y2; y++) {
-      if (y != hole_y) {
-        grid->cells[y][wall_x] = MAZE_CELL_WALL;
-      }
-    }
-
-    maze_generator_divide(grid, x1, y1, wall_x - 1, y2);
-    maze_generator_divide(grid, wall_x + 1, y1, x2, y2);
-  } else {
-
-    int wall_range = height_for_wall / 2 > 0 ? height_for_wall / 2 : 1;
-    int wall_offset = wall_range > 0 ? Helper_next_int(wall_range) * 2 : 0;
-    int wall_y = y1 + 2 + wall_offset;
-
-    int hole_range = width_for_hole / 2 > 0 ? width_for_hole / 2 : 1;
-    int hole_offset = hole_range > 0 ? Helper_next_int(hole_range) * 2 : 0;
-    int hole_x = x1 + 1 + hole_offset;
-
-    if (wall_y > y2 || hole_x > x2)
-      return;
-
-    for (int x = x1; x <= x2; x++) {
-      if (x != hole_x) {
-        grid->cells[wall_y][x] = MAZE_CELL_WALL;
-      }
-    }
-
-    maze_generator_divide(grid, x1, y1, x2, wall_y - 1);
-    maze_generator_divide(grid, x1, wall_y + 1, x2, y2);
-  }
-}
-
-static void maze_generator_add_random_paths(MazeGeneratorGrid *grid) {
-  int num_extra_paths = (grid->width * grid->height) / 20;
-
-  for (int i = 0; i < num_extra_paths; i++) {
-    int x = Helper_next_int(grid->width - 2) + 1;
-    int y = Helper_next_int(grid->height - 2) + 1;
-
-    if (grid->cells[y][x] == MAZE_CELL_WALL && x > 0 &&
-        grid->cells[y][x - 1] == MAZE_CELL_WALL && x + 1 < grid->width &&
-        grid->cells[y][x + 1] == MAZE_CELL_WALL && y > 0 &&
-        grid->cells[y - 1][x] == MAZE_CELL_WALL && y + 1 < grid->height &&
-        grid->cells[y + 1][x] == MAZE_CELL_WALL) {
-      grid->cells[y][x] = MAZE_CELL_PATH;
-    }
-  }
-}
-
-static bool maze_generator_is_connected(MazeGeneratorGrid *grid, int start_x,
-                                        int start_y, int goal_x, int goal_y) {
-  if (start_x >= grid->width || start_y >= grid->height ||
-      goal_x >= grid->width || goal_y >= grid->height) {
-    return false;
-  }
-
-  int *stack_x = malloc(grid->width * grid->height * sizeof(int));
-  int *stack_y = malloc(grid->width * grid->height * sizeof(int));
-  int stack_top = 0;
-
-  bool **visited = malloc(grid->height * sizeof(bool *));
-  for (int i = 0; i < grid->height; i++) {
-    visited[i] = calloc(grid->width, sizeof(bool));
-  }
-
-  visited[start_y][start_x] = true;
-  stack_x[stack_top] = start_x;
-  stack_y[stack_top] = start_y;
-  stack_top++;
-
-  int directions[4][2] = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
-
-  while (stack_top > 0) {
-    stack_top--;
-    int x = stack_x[stack_top];
-    int y = stack_y[stack_top];
-
-    if (x == goal_x && y == goal_y) {
-
-      for (int i = 0; i < grid->height; i++) {
-        free(visited[i]);
-      }
-      free(visited);
-      free(stack_x);
-      free(stack_y);
-      return true;
-    }
-
-    for (int d = 0; d < 4; d++) {
-      int nx = x + directions[d][0];
-      int ny = y + directions[d][1];
-
-      if (nx >= 0 && nx < grid->width && ny >= 0 && ny < grid->height &&
-          !visited[ny][nx] && grid->cells[ny][nx] == MAZE_CELL_PATH) {
-        visited[ny][nx] = true;
-        stack_x[stack_top] = nx;
-        stack_y[stack_top] = ny;
-        stack_top++;
-      }
-    }
-  }
-
-  for (int i = 0; i < grid->height; i++) {
-    free(visited[i]);
-  }
-  free(visited);
-  free(stack_x);
-  free(stack_y);
-
-  return false;
-}
-
-static void maze_generator_generate_walkable_maze(MazeGeneratorGrid *grid) {
-
-  for (int y = 0; y < grid->height; y++) {
-    for (int x = 0; x < grid->width; x++) {
-      grid->cells[y][x] = MAZE_CELL_WALL;
-    }
-  }
-
-  if (grid->width < 5 || grid->height < 5) {
-
-    for (int x = 0; x < grid->width; x++) {
-      grid->cells[grid->height / 2][x] = MAZE_CELL_PATH;
-    }
-    return;
-  }
-
-  maze_generator_divide(grid, 0, 0, grid->width - 1, grid->height - 1);
-
-  maze_generator_add_random_paths(grid);
-
-  int start_x = 1, start_y = 1;
-  int goal_x = grid->width - 2, goal_y = grid->height - 2;
-
-  if (!maze_generator_is_connected(grid, start_x, start_y, goal_x, goal_y)) {
-
-    for (int x = 0; x < grid->width; x++) {
-      for (int y = 0; y < grid->height; y++) {
-        if (x == 1 || y == 1 || x == grid->width - 2 || y == grid->height - 2) {
-          grid->cells[y][x] = MAZE_CELL_PATH;
-        }
-      }
-    }
-  }
-}
-
-static uint32_t maze_generator_grid_hash(MazeGeneratorGrid *grid) {
-  uint32_t hash = 2166136261UL;
-  const uint32_t FNV_PRIME = 16777619UL;
-
-  for (int y = 0; y < grid->height; y++) {
-    for (int x = 0; x < grid->width; x++) {
-      if (grid->cells[y][x] == MAZE_CELL_PATH) {
-        uint32_t j_squared = (uint32_t)(x * x);
-        hash ^= j_squared;
-        hash *= FNV_PRIME;
-      }
-    }
-  }
-
-  return hash;
-}
 
 void MazeGenerator_prepare(Benchmark *self) {
   MazeGeneratorData *data = (MazeGeneratorData *)self->data;
 
-  data->width_val = Helper_config_i64(self->name, "w");
-  data->height_val = Helper_config_i64(self->name, "h");
+  data->width = (int)Helper_config_i64(self->name, "w");
+  data->height = (int)Helper_config_i64(self->name, "h");
 
-  if (data->width_val <= 0)
-    data->width_val = 100;
-  if (data->height_val <= 0)
-    data->height_val = 100;
+  if (data->width < 5)
+    data->width = 5;
+  if (data->height < 5)
+    data->height = 5;
 
-  data->grid.width = (int)data->width_val;
-  data->grid.height = (int)data->height_val;
-  data->grid.cells = malloc(data->grid.height * sizeof(MazeCellType *));
-
-  for (int y = 0; y < data->grid.height; y++) {
-    data->grid.cells[y] = malloc(data->grid.width * sizeof(MazeCellType));
-  }
-
+  data->maze = maze_create(data->width, data->height);
+  maze_update_neighbors(data->maze);
   data->result_val = 0;
 }
 
 void MazeGenerator_run(Benchmark *self, int iteration_id) {
+  (void)iteration_id;
   MazeGeneratorData *data = (MazeGeneratorData *)self->data;
 
-  maze_generator_generate_walkable_maze(&data->grid);
+  maze_reset(data->maze);
+  maze_generate(data->maze);
+
+  data->result_val += maze_middle_cell(data->maze)->kind;
 }
 
 uint32_t MazeGenerator_checksum(Benchmark *self) {
   MazeGeneratorData *data = (MazeGeneratorData *)self->data;
-
-  return maze_generator_grid_hash(&data->grid);
+  return data->result_val + maze_checksum(data->maze);
 }
 
 void MazeGenerator_cleanup(Benchmark *self) {
   MazeGeneratorData *data = (MazeGeneratorData *)self->data;
-
-  if (data->grid.cells) {
-    for (int y = 0; y < data->grid.height; y++) {
-      free(data->grid.cells[y]);
-    }
-    free(data->grid.cells);
+  if (data->maze) {
+    maze_free(data->maze);
+    data->maze = NULL;
   }
 }
 
 Benchmark *MazeGenerator_create(void) {
-  Benchmark *bench = Benchmark_create("MazeGenerator");
-
-  MazeGeneratorData *data = malloc(sizeof(MazeGeneratorData));
-  memset(data, 0, sizeof(MazeGeneratorData));
-
+  Benchmark *bench = Benchmark_create("Maze::Generator");
+  MazeGeneratorData *data = calloc(1, sizeof(MazeGeneratorData));
   bench->data = data;
-
   bench->prepare = MazeGenerator_prepare;
   bench->run = MazeGenerator_run;
   bench->checksum = MazeGenerator_checksum;
   bench->cleanup = MazeGenerator_cleanup;
+  return bench;
+}
 
+typedef struct PathNode {
+  MazeCell *cell;
+  int parent;
+} PathNode;
+
+typedef struct {
+  uint32_t result_val;
+  int width;
+  int height;
+  Maze *maze;
+  MazeCell **path;
+  int path_length;
+} MazeBFSData;
+
+void MazeBFS_prepare(Benchmark *self) {
+  MazeBFSData *data = (MazeBFSData *)self->data;
+
+  data->width = (int)Helper_config_i64(self->name, "w");
+  data->height = (int)Helper_config_i64(self->name, "h");
+
+  if (data->width < 5)
+    data->width = 5;
+  if (data->height < 5)
+    data->height = 5;
+
+  data->maze = maze_create(data->width, data->height);
+  maze_update_neighbors(data->maze);
+  maze_generate(data->maze);
+  data->result_val = 0;
+  data->path = NULL;
+  data->path_length = 0;
+}
+
+static MazeCell **maze_bfs(Maze *maze, MazeCell *start, MazeCell *target,
+                           int *out_length) {
+  if (start == target) {
+    *out_length = 1;
+    MazeCell **result = malloc(sizeof(MazeCell *));
+    result[0] = start;
+    return result;
+  }
+
+  int width = maze->width;
+  int height = maze->height;
+
+  int *queue = malloc(width * height * sizeof(int));
+  int queue_head = 0;
+  int queue_tail = 0;
+
+  bool **visited = malloc(height * sizeof(bool *));
+  for (int y = 0; y < height; y++) {
+    visited[y] = calloc(width, sizeof(bool));
+  }
+
+  PathNode *path_nodes = malloc(width * height * sizeof(PathNode));
+  int path_count = 0;
+
+  visited[start->y][start->x] = true;
+  path_nodes[path_count].cell = start;
+  path_nodes[path_count].parent = -1;
+  path_count++;
+  queue[queue_tail++] = 0;
+
+  while (queue_head < queue_tail) {
+    int path_id = queue[queue_head++];
+    MazeCell *cell = path_nodes[path_id].cell;
+
+    for (int i = 0; i < cell->neighbor_count; i++) {
+      MazeCell *neighbor = cell->neighbors[i];
+
+      if (neighbor == target) {
+
+        int length = 1;
+        int cur = path_id;
+        while (cur >= 0) {
+          length++;
+          cur = path_nodes[cur].parent;
+        }
+
+        MazeCell **result = malloc(length * sizeof(MazeCell *));
+        int idx = length - 1;
+        result[idx--] = target;
+
+        cur = path_id;
+        while (cur >= 0) {
+          result[idx--] = path_nodes[cur].cell;
+          cur = path_nodes[cur].parent;
+        }
+
+        *out_length = length;
+
+        free(queue);
+        for (int y = 0; y < height; y++)
+          free(visited[y]);
+        free(visited);
+        free(path_nodes);
+
+        return result;
+      }
+
+      if (maze_cell_is_walkable(neighbor) &&
+          !visited[neighbor->y][neighbor->x]) {
+        visited[neighbor->y][neighbor->x] = true;
+        path_nodes[path_count].cell = neighbor;
+        path_nodes[path_count].parent = path_id;
+        queue[queue_tail++] = path_count;
+        path_count++;
+      }
+    }
+  }
+
+  *out_length = 0;
+
+  free(queue);
+  for (int y = 0; y < height; y++)
+    free(visited[y]);
+  free(visited);
+  free(path_nodes);
+
+  return NULL;
+}
+
+static uint32_t mid_cell_checksum(MazeCell **path, int length) {
+  if (length == 0)
+    return 0;
+  int mid = length / 2;
+  MazeCell *cell = path[mid];
+  return (uint32_t)(cell->x * cell->y);
+}
+
+void MazeBFS_run(Benchmark *self, int iteration_id) {
+  (void)iteration_id;
+  MazeBFSData *data = (MazeBFSData *)self->data;
+
+  if (data->path) {
+    free(data->path);
+    data->path = NULL;
+  }
+
+  data->path = maze_bfs(data->maze, data->maze->start, data->maze->finish,
+                        &data->path_length);
+  data->result_val += data->path_length;
+}
+
+uint32_t MazeBFS_checksum(Benchmark *self) {
+  MazeBFSData *data = (MazeBFSData *)self->data;
+  return data->result_val + mid_cell_checksum(data->path, data->path_length);
+}
+
+void MazeBFS_cleanup(Benchmark *self) {
+  MazeBFSData *data = (MazeBFSData *)self->data;
+  if (data->path)
+    free(data->path);
+  if (data->maze)
+    maze_free(data->maze);
+}
+
+Benchmark *MazeBFS_create(void) {
+  Benchmark *bench = Benchmark_create("Maze::BFS");
+  MazeBFSData *data = calloc(1, sizeof(MazeBFSData));
+  bench->data = data;
+  bench->prepare = MazeBFS_prepare;
+  bench->run = MazeBFS_run;
+  bench->checksum = MazeBFS_checksum;
+  bench->cleanup = MazeBFS_cleanup;
   return bench;
 }
 
 typedef struct {
-  int *path;
-  int path_length;
-  int nodes_explored;
-} AStarPathResult;
+  int priority;
+  int vertex;
+} AStarPriorityQueueEntry;
 
 typedef struct {
-  int x;
-  int y;
-  int f_score;
-} AStarNode;
-
-typedef struct {
-  AStarNode *data;
+  AStarPriorityQueueEntry *heap;
+  int *best_priority;
   int size;
   int capacity;
-} AStarBinaryHeap;
+} AStarPriorityQueue;
 
-typedef struct {
-  int *g_scores;
-  int *came_from;
-  int width;
-  int height;
-  int size;
-} AStarCache;
+static AStarPriorityQueue *astar_pq_create(int capacity) {
+  AStarPriorityQueue *pq = malloc(sizeof(AStarPriorityQueue));
+  pq->heap = malloc(capacity * sizeof(AStarPriorityQueueEntry));
+  pq->best_priority = malloc(capacity * sizeof(int));
+  for (int i = 0; i < capacity; i++) {
+    pq->best_priority[i] = INT_MAX;
+  }
+  pq->size = 0;
+  pq->capacity = capacity;
+  return pq;
+}
 
-static AStarCache astar_cache = {0};
-
-static void astar_cache_init(int width, int height) {
-  int new_size = width * height;
-
-  if (astar_cache.g_scores != NULL && astar_cache.width == width &&
-      astar_cache.height == height && astar_cache.size == new_size) {
+static void astar_pq_push(AStarPriorityQueue *pq, int vertex, int priority) {
+  if (priority >= pq->best_priority[vertex])
     return;
+  pq->best_priority[vertex] = priority;
+
+  if (pq->size >= pq->capacity) {
+    pq->capacity *= 2;
+    pq->heap =
+        realloc(pq->heap, pq->capacity * sizeof(AStarPriorityQueueEntry));
   }
 
-  if (astar_cache.g_scores != NULL) {
-    free(astar_cache.g_scores);
-    free(astar_cache.came_from);
-  }
-
-  astar_cache.width = width;
-  astar_cache.height = height;
-  astar_cache.size = new_size;
-
-  astar_cache.g_scores = malloc(new_size * sizeof(int));
-  astar_cache.came_from = malloc(new_size * sizeof(int));
-}
-
-static void astar_cache_cleanup(void) {
-  if (astar_cache.g_scores != NULL) {
-    free(astar_cache.g_scores);
-    free(astar_cache.came_from);
-    astar_cache.g_scores = NULL;
-    astar_cache.came_from = NULL;
-    astar_cache.width = 0;
-    astar_cache.height = 0;
-    astar_cache.size = 0;
-  }
-}
-
-static int astar_node_compare(const AStarNode *a, const AStarNode *b) {
-  if (a->f_score != b->f_score)
-    return a->f_score < b->f_score ? -1 : 1;
-  if (a->y != b->y)
-    return a->y < b->y ? -1 : 1;
-  return a->x < b->x ? -1 : 1;
-}
-
-static AStarBinaryHeap *astar_binary_heap_new(int initial_capacity) {
-  AStarBinaryHeap *heap = malloc(sizeof(AStarBinaryHeap));
-  heap->data = malloc(initial_capacity * sizeof(AStarNode));
-  heap->size = 0;
-  heap->capacity = initial_capacity;
-  return heap;
-}
-
-static void astar_binary_heap_free(AStarBinaryHeap *heap) {
-  if (!heap)
-    return;
-  free(heap->data);
-  free(heap);
-}
-
-static void astar_binary_heap_swap(AStarBinaryHeap *heap, int i, int j) {
-  AStarNode temp = heap->data[i];
-  heap->data[i] = heap->data[j];
-  heap->data[j] = temp;
-}
-
-static void astar_binary_heap_sift_up(AStarBinaryHeap *heap, int index) {
-  while (index > 0) {
-    int parent = (index - 1) >> 1;
-    if (astar_node_compare(&heap->data[index], &heap->data[parent]) >= 0)
+  int i = pq->size++;
+  while (i > 0) {
+    int parent = (i - 1) / 2;
+    if (pq->heap[parent].priority <= priority)
       break;
-    astar_binary_heap_swap(heap, index, parent);
-    index = parent;
+    pq->heap[i] = pq->heap[parent];
+    i = parent;
   }
+  pq->heap[i].priority = priority;
+  pq->heap[i].vertex = vertex;
 }
 
-static void astar_binary_heap_sift_down(AStarBinaryHeap *heap, int index) {
-  while (1) {
-    int left = (index << 1) + 1;
-    int right = left + 1;
-    int smallest = index;
+static AStarPriorityQueueEntry astar_pq_pop(AStarPriorityQueue *pq) {
+  AStarPriorityQueueEntry min = pq->heap[0];
+  pq->size--;
 
-    if (left < heap->size) {
-      if (astar_node_compare(&heap->data[left], &heap->data[smallest]) < 0) {
+  if (pq->size > 0) {
+    AStarPriorityQueueEntry last = pq->heap[pq->size];
+    int i = 0;
+    while (1) {
+      int left = 2 * i + 1;
+      int right = 2 * i + 2;
+      int smallest = i;
+
+      if (left < pq->size &&
+          pq->heap[left].priority < pq->heap[smallest].priority) {
         smallest = left;
       }
-    }
-
-    if (right < heap->size) {
-      if (astar_node_compare(&heap->data[right], &heap->data[smallest]) < 0) {
+      if (right < pq->size &&
+          pq->heap[right].priority < pq->heap[smallest].priority) {
         smallest = right;
       }
+
+      if (smallest == i)
+        break;
+
+      pq->heap[i] = pq->heap[smallest];
+      i = smallest;
     }
-
-    if (smallest == index)
-      break;
-
-    astar_binary_heap_swap(heap, index, smallest);
-    index = smallest;
+    pq->heap[i] = last;
   }
+
+  return min;
 }
 
-static void astar_binary_heap_push(AStarBinaryHeap *heap, AStarNode node) {
-  if (heap->size >= heap->capacity) {
-    heap->capacity = heap->capacity * 2;
-    heap->data = realloc(heap->data, heap->capacity * sizeof(AStarNode));
-  }
+static bool astar_pq_empty(AStarPriorityQueue *pq) { return pq->size == 0; }
 
-  heap->data[heap->size] = node;
-  astar_binary_heap_sift_up(heap, heap->size);
-  heap->size++;
-}
-
-static AStarNode astar_binary_heap_pop(AStarBinaryHeap *heap) {
-  if (heap->size == 0) {
-    AStarNode null_node = {0, 0, 0};
-    return null_node;
-  }
-
-  AStarNode result = heap->data[0];
-  heap->size--;
-
-  if (heap->size > 0) {
-    heap->data[0] = heap->data[heap->size];
-    astar_binary_heap_sift_down(heap, 0);
-  }
-
-  return result;
-}
-
-static bool astar_binary_heap_empty(AStarBinaryHeap *heap) {
-  return heap->size == 0;
-}
-
-static int astar_manhattan_distance(int a_x, int a_y, int b_x, int b_y) {
-  int dx = a_x > b_x ? a_x - b_x : b_x - a_x;
-  int dy = a_y > b_y ? a_y - b_y : b_y - a_y;
-  return dx + dy;
-}
-
-static int astar_pack_coords(int x, int y, int width) { return y * width + x; }
-
-static void astar_unpack_coords(int packed, int width, int *x, int *y) {
-  *x = packed % width;
-  *y = packed / width;
-}
-
-static AStarPathResult astar_find_path(bool **maze_grid, int width, int height,
-                                       int start_x, int start_y, int goal_x,
-                                       int goal_y) {
-  AStarPathResult result = {NULL, 0, 0};
-
-  if (!maze_grid || width <= 0 || height <= 0) {
-    return result;
-  }
-
-  int *g_scores = astar_cache.g_scores;
-  int *came_from = astar_cache.came_from;
-
-  for (int i = 0; i < astar_cache.size; i++) {
-    g_scores[i] = INT_MAX;
-    came_from[i] = -1;
-  }
-
-  AStarBinaryHeap *open_set = astar_binary_heap_new(width * height);
-
-  int start_idx = astar_pack_coords(start_x, start_y, width);
-  g_scores[start_idx] = 0;
-
-  astar_binary_heap_push(open_set,
-                         (AStarNode){.x = start_x,
-                                     .y = start_y,
-                                     .f_score = astar_manhattan_distance(
-                                         start_x, start_y, goal_x, goal_y)});
-
-  static const int directions[4][2] = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
-
-  while (!astar_binary_heap_empty(open_set)) {
-    AStarNode current = astar_binary_heap_pop(open_set);
-    result.nodes_explored++;
-
-    if (current.x == goal_x && current.y == goal_y) {
-
-      int x = current.x;
-      int y = current.y;
-
-      int path_count = 0;
-      while (x != start_x || y != start_y) {
-        path_count++;
-        int idx = astar_pack_coords(x, y, width);
-        int packed = came_from[idx];
-        if (packed == -1)
-          break;
-        astar_unpack_coords(packed, width, &x, &y);
-      }
-      path_count++;
-
-      if (path_count > 0) {
-        result.path = malloc(path_count * 2 * sizeof(int));
-        result.path_length = path_count;
-
-        x = goal_x;
-        y = goal_y;
-        int write_idx = (path_count - 1) * 2;
-
-        while (write_idx >= 0) {
-          result.path[write_idx] = x;
-          result.path[write_idx + 1] = y;
-
-          if (x == start_x && y == start_y) {
-            break;
-          }
-
-          int idx = astar_pack_coords(x, y, width);
-          int packed = came_from[idx];
-          astar_unpack_coords(packed, width, &x, &y);
-          write_idx -= 2;
-        }
-      }
-      break;
-    }
-
-    int current_idx = astar_pack_coords(current.x, current.y, width);
-    int current_g = g_scores[current_idx];
-
-    for (int d = 0; d < 4; d++) {
-      int nx = current.x + directions[d][0];
-      int ny = current.y + directions[d][1];
-
-      if (nx < 0 || nx >= width || ny < 0 || ny >= height)
-        continue;
-      if (!maze_grid[ny][nx])
-        continue;
-
-      int tentative_g = current_g + 1000;
-      int neighbor_idx = astar_pack_coords(nx, ny, width);
-
-      if (tentative_g < g_scores[neighbor_idx]) {
-
-        came_from[neighbor_idx] = current_idx;
-        g_scores[neighbor_idx] = tentative_g;
-
-        int f_score =
-            tentative_g + astar_manhattan_distance(nx, ny, goal_x, goal_y);
-        astar_binary_heap_push(open_set, (AStarNode){nx, ny, f_score});
-      }
-    }
-  }
-
-  astar_binary_heap_free(open_set);
-  return result;
+static void astar_pq_free(AStarPriorityQueue *pq) {
+  free(pq->heap);
+  free(pq->best_priority);
+  free(pq);
 }
 
 typedef struct {
   uint32_t result_val;
-  int64_t width_val;
-  int64_t height_val;
-  int start_x;
-  int start_y;
-  int goal_x;
-  int goal_y;
-  bool **maze_grid;
-} AStarPathfinderData;
+  int width;
+  int height;
+  Maze *maze;
+  MazeCell **path;
+  int path_length;
+} MazeAStarData;
 
-static void free_maze_grid(bool **grid, int height) {
-  if (!grid)
-    return;
-  for (int i = 0; i < height; i++) {
-    free(grid[i]);
-  }
-  free(grid);
+static int astar_heuristic(MazeCell *a, MazeCell *b) {
+  return abs(a->x - b->x) + abs(a->y - b->y);
 }
 
-static void astar_path_result_free(AStarPathResult *result) {
-  if (result->path) {
-    free(result->path);
-    result->path = NULL;
-  }
-  result->path_length = 0;
-  result->nodes_explored = 0;
-}
+static int astar_idx(int y, int x, int width) { return y * width + x; }
 
-void AStarPathfinder_prepare(Benchmark *self) {
-  AStarPathfinderData *data = (AStarPathfinderData *)self->data;
-
-  data->width_val = Helper_config_i64(self->name, "w");
-  data->height_val = Helper_config_i64(self->name, "h");
-
-  if (data->width_val <= 0)
-    data->width_val = 100;
-  if (data->height_val <= 0)
-    data->height_val = 100;
-
-  data->start_x = 1;
-  data->start_y = 1;
-  data->goal_x = (int)data->width_val - 2;
-  data->goal_y = (int)data->height_val - 2;
-
-  MazeGeneratorGrid maze_grid;
-  maze_grid.width = (int)data->width_val;
-  maze_grid.height = (int)data->height_val;
-
-  maze_grid.cells = malloc(maze_grid.height * sizeof(MazeCellType *));
-  for (int y = 0; y < maze_grid.height; y++) {
-    maze_grid.cells[y] = malloc(maze_grid.width * sizeof(MazeCellType));
+static MazeCell **maze_astar(Maze *maze, MazeCell *start, MazeCell *target,
+                             int *out_length) {
+  if (start == target) {
+    *out_length = 1;
+    MazeCell **result = malloc(sizeof(MazeCell *));
+    result[0] = start;
+    return result;
   }
 
-  maze_generator_generate_walkable_maze(&maze_grid);
+  int width = maze->width;
+  int height = maze->height;
+  int size = width * height;
 
-  data->maze_grid = malloc(maze_grid.height * sizeof(bool *));
-  for (int y = 0; y < maze_grid.height; y++) {
-    data->maze_grid[y] = malloc(maze_grid.width * sizeof(bool));
-    for (int x = 0; x < maze_grid.width; x++) {
-      data->maze_grid[y][x] = (maze_grid.cells[y][x] == MAZE_CELL_PATH);
+  int *came_from = malloc(size * sizeof(int));
+  int *g_score = malloc(size * sizeof(int));
+  for (int i = 0; i < size; i++) {
+    came_from[i] = -1;
+    g_score[i] = INT_MAX;
+  }
+
+  int start_idx = astar_idx(start->y, start->x, width);
+  int target_idx = astar_idx(target->y, target->x, width);
+
+  AStarPriorityQueue *open_set = astar_pq_create(size);
+
+  g_score[start_idx] = 0;
+  astar_pq_push(open_set, start_idx, astar_heuristic(start, target));
+
+  while (!astar_pq_empty(open_set)) {
+    AStarPriorityQueueEntry entry = astar_pq_pop(open_set);
+    int current_idx = entry.vertex;
+
+    if (current_idx == target_idx) {
+
+      int length = 0;
+      int cur = current_idx;
+      while (cur != -1) {
+        length++;
+        cur = came_from[cur];
+      }
+
+      MazeCell **result = malloc(length * sizeof(MazeCell *));
+      cur = current_idx;
+      for (int i = length - 1; i >= 0; i--) {
+        int y = cur / width;
+        int x = cur % width;
+        result[i] = &maze->cells[y][x];
+        cur = came_from[cur];
+      }
+
+      *out_length = length;
+
+      free(came_from);
+      free(g_score);
+      astar_pq_free(open_set);
+
+      return result;
+    }
+
+    int current_y = current_idx / width;
+    int current_x = current_idx % width;
+    MazeCell *current = &maze->cells[current_y][current_x];
+    int current_g = g_score[current_idx];
+
+    for (int i = 0; i < current->neighbor_count; i++) {
+      MazeCell *neighbor = current->neighbors[i];
+      if (!maze_cell_is_walkable(neighbor))
+        continue;
+
+      int neighbor_idx = astar_idx(neighbor->y, neighbor->x, width);
+      int tentative_g = current_g + 1;
+
+      if (tentative_g < g_score[neighbor_idx]) {
+        came_from[neighbor_idx] = current_idx;
+        g_score[neighbor_idx] = tentative_g;
+        int f_new = tentative_g + astar_heuristic(neighbor, target);
+        astar_pq_push(open_set, neighbor_idx, f_new);
+      }
     }
   }
 
-  for (int y = 0; y < maze_grid.height; y++) {
-    free(maze_grid.cells[y]);
-  }
-  free(maze_grid.cells);
+  *out_length = 0;
 
-  astar_cache_init((int)data->width_val, (int)data->height_val);
+  free(came_from);
+  free(g_score);
+  astar_pq_free(open_set);
 
+  return NULL;
+}
+
+void MazeAStar_prepare(Benchmark *self) {
+  MazeAStarData *data = (MazeAStarData *)self->data;
+
+  data->width = (int)Helper_config_i64(self->name, "w");
+  data->height = (int)Helper_config_i64(self->name, "h");
+
+  if (data->width < 5)
+    data->width = 5;
+  if (data->height < 5)
+    data->height = 5;
+
+  data->maze = maze_create(data->width, data->height);
+  maze_update_neighbors(data->maze);
+  maze_generate(data->maze);
   data->result_val = 0;
+  data->path = NULL;
+  data->path_length = 0;
 }
 
-void AStarPathfinder_run(Benchmark *self, int iteration_id) {
-  AStarPathfinderData *data = (AStarPathfinderData *)self->data;
+void MazeAStar_run(Benchmark *self, int iteration_id) {
+  (void)iteration_id;
+  MazeAStarData *data = (MazeAStarData *)self->data;
 
-  AStarPathResult result = astar_find_path(
-      data->maze_grid, (int)data->width_val, (int)data->height_val,
-      data->start_x, data->start_y, data->goal_x, data->goal_y);
-
-  uint32_t local_result = 0;
-
-  local_result = result.path_length;
-
-  local_result = (local_result << 5) + result.nodes_explored;
-
-  data->result_val += local_result;
-
-  astar_path_result_free(&result);
-}
-
-uint32_t AStarPathfinder_checksum(Benchmark *self) {
-  AStarPathfinderData *data = (AStarPathfinderData *)self->data;
-  return data->result_val;
-}
-
-void AStarPathfinder_cleanup(Benchmark *self) {
-  AStarPathfinderData *data = (AStarPathfinderData *)self->data;
-
-  if (data->maze_grid) {
-    free_maze_grid(data->maze_grid, (int)data->height_val);
-    data->maze_grid = NULL;
+  if (data->path) {
+    free(data->path);
+    data->path = NULL;
   }
+
+  data->path = maze_astar(data->maze, data->maze->start, data->maze->finish,
+                          &data->path_length);
+  data->result_val += data->path_length;
 }
 
-Benchmark *AStarPathfinder_create(void) {
-  Benchmark *bench = Benchmark_create("AStarPathfinder");
+uint32_t MazeAStar_checksum(Benchmark *self) {
+  MazeAStarData *data = (MazeAStarData *)self->data;
+  if (data->path_length == 0)
+    return data->result_val;
+  int mid = data->path_length / 2;
+  MazeCell *cell = data->path[mid];
+  return data->result_val + (uint32_t)(cell->x * cell->y);
+}
 
-  AStarPathfinderData *data = malloc(sizeof(AStarPathfinderData));
-  memset(data, 0, sizeof(AStarPathfinderData));
+void MazeAStar_cleanup(Benchmark *self) {
+  MazeAStarData *data = (MazeAStarData *)self->data;
+  if (data->path)
+    free(data->path);
+  if (data->maze)
+    maze_free(data->maze);
+}
 
+Benchmark *MazeAStar_create(void) {
+  Benchmark *bench = Benchmark_create("Maze::AStar");
+  MazeAStarData *data = calloc(1, sizeof(MazeAStarData));
   bench->data = data;
-
-  bench->prepare = AStarPathfinder_prepare;
-  bench->run = AStarPathfinder_run;
-  bench->checksum = AStarPathfinder_checksum;
-  bench->cleanup = AStarPathfinder_cleanup;
-
+  bench->prepare = MazeAStar_prepare;
+  bench->run = MazeAStar_run;
+  bench->checksum = MazeAStar_checksum;
+  bench->cleanup = MazeAStar_cleanup;
   return bench;
-}
-
-__attribute__((destructor)) static void astar_global_cleanup(void) {
-  astar_cache_cleanup();
 }
 
 static uint8_t *generate_test_data(int64_t size, size_t *data_size) {
@@ -9549,8 +9569,9 @@ void register_all_benchmarks(void) {
   Benchmark_register("Calculator::Ast", CalculatorAst_create);
   Benchmark_register("Calculator::Interpreter", CalculatorInterpreter_create);
   Benchmark_register("Etc::GameOfLife", GameOfLife_create);
-  Benchmark_register("MazeGenerator", MazeGenerator_create);
-  Benchmark_register("AStarPathfinder", AStarPathfinder_create);
+  Benchmark_register("Maze::Generator", MazeGenerator_create);
+  Benchmark_register("Maze::BFS", MazeBFS_create);
+  Benchmark_register("Maze::AStar", MazeAStar_create);
   Benchmark_register("Compress::BWTEncode", BWTEncode_create);
   Benchmark_register("Compress::BWTDecode", BWTDecode_create);
   Benchmark_register("Compress::HuffEncode", HuffEncode_create);

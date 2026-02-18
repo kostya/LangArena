@@ -1,6 +1,8 @@
 use super::super::helper;
 use crate::config_i64;
 use std::cmp;
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 use std::collections::VecDeque;
 
 pub struct Graph {
@@ -210,9 +212,6 @@ impl super::super::Benchmark for GraphPathDFS {
         self.base.result_val
     }
 }
-
-use std::cmp::Ordering;
-use std::collections::BinaryHeap;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 struct Node {

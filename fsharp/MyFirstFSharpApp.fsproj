@@ -34,10 +34,8 @@
     <Compile Include="CacheSimulation.fs" />
     <Compile Include="Calculator.fs" />
     <Compile Include="GameOfLife.fs" />
-    <Compile Include="MazeGenerator.fs" />
-    <Compile Include="AStarPathfinder.fs" />
-    <Compile Include="Compress.fs" />
-    
+    <Compile Include="Maze.fs" />
+    <Compile Include="Compress.fs" />    
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

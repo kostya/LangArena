@@ -34,8 +34,7 @@ import benchmarks/cachesimulation
 import benchmarks/calculatorast
 import benchmarks/calculatorinterpreter
 import benchmarks/gameoflife
-import benchmarks/mazegenerator
-import benchmarks/astarpathfinder
+import benchmarks/maze
 import benchmarks/compress
 
 proc main() =

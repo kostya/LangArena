@@ -147,9 +147,11 @@ abstract class Benchmark
         print "{{kl}}: "
 
         bench = {{kl.id}}.new
+
         Helper.reset
         bench.prepare
         bench.warmup
+        GC.collect
 
         Helper.reset
 
@@ -2408,408 +2410,405 @@ module Calculator
   end
 end
 
-class MazeGenerator < Benchmark
-  enum Cell
-    Wall
-    Path
-  end
+module Maze
+  class Generator < Benchmark
+    class Cell
+      enum Kind
+        Wall   = 0
+        Space
+        Start
+        Finish
+        Border
+        Path
 
-  class Maze
-    getter width : Int32
-    getter height : Int32
-    getter cells : Array(Array(Cell))
-
-    def initialize(@width : Int32, @height : Int32)
-      @width = @width > 5 ? @width : 5
-      @height = @height > 5 ? @height : 5
-      @cells = Array.new(@height) { Array.new(@width, Cell::Wall) }
-    end
-
-    def [](x, y) : Cell
-      @cells[y][x]
-    end
-
-    def []=(x, y, value : Cell)
-      @cells[y][x] = value
-    end
-
-    def generate
-      if @width < 5 || @height < 5
-        (0...@width).each do |x|
-          self[x, @height // 2] = Cell::Path
-        end
-        return
-      end
-
-      divide(0, 0, @width - 1, @height - 1)
-      add_random_paths
-    end
-
-    private def add_random_paths
-      num_extra_paths = (@width * @height) // 20
-
-      num_extra_paths.times do
-        x = Helper.next_int(@width - 2) + 1
-        y = Helper.next_int(@height - 2) + 1
-
-        if self[x, y] == Cell::Wall &&
-           [self[x - 1, y], self[x + 1, y], self[x, y - 1], self[x, y + 1]].all?(Cell::Wall)
-          self[x, y] = Cell::Path
-        end
-      end
-    end
-
-    private def divide(x1 : Int32, y1 : Int32, x2 : Int32, y2 : Int32)
-      width = x2 - x1
-      height = y2 - y1
-
-      return if width < 2 || height < 2
-
-      width_for_wall = {width - 2, 0}.max
-      height_for_wall = {height - 2, 0}.max
-      width_for_hole = {width - 1, 0}.max
-      height_for_hole = {height - 1, 0}.max
-
-      return if width_for_wall == 0 || height_for_wall == 0 ||
-                width_for_hole == 0 || height_for_hole == 0
-
-      if width > height
-        wall_range = {width_for_wall // 2, 1}.max
-        wall_offset = wall_range > 0 ? (Helper.next_int(wall_range)) * 2 : 0
-        wall_x = x1 + 2 + wall_offset
-
-        hole_range = {height_for_hole // 2, 1}.max
-        hole_offset = hole_range > 0 ? (Helper.next_int(hole_range)) * 2 : 0
-        hole_y = y1 + 1 + hole_offset
-
-        return if wall_x > x2 || hole_y > y2
-
-        (y1..y2).each do |y|
-          self[wall_x, y] = Cell::Wall if y != hole_y
-        end
-
-        divide(x1, y1, wall_x - 1, y2) if wall_x > x1 + 1
-        divide(wall_x + 1, y1, x2, y2) if wall_x + 1 < x2
-      else
-        wall_range = {height_for_wall // 2, 1}.max
-        wall_offset = wall_range > 0 ? (Helper.next_int(wall_range)) * 2 : 0
-        wall_y = y1 + 2 + wall_offset
-
-        hole_range = {width_for_hole // 2, 1}.max
-        hole_offset = hole_range > 0 ? (Helper.next_int(hole_range)) * 2 : 0
-        hole_x = x1 + 1 + hole_offset
-
-        return if wall_y > y2 || hole_x > x2
-
-        (x1..x2).each do |x|
-          self[x, wall_y] = Cell::Wall if x != hole_x
-        end
-
-        divide(x1, y1, x2, wall_y - 1) if wall_y > y1 + 1
-        divide(x1, wall_y + 1, x2, y2) if wall_y + 1 < y2
-      end
-    end
-
-    def to_bool_grid : Array(Array(Bool))
-      @cells.map do |row|
-        row.map { |cell| cell == Cell::Path }
-      end
-    end
-
-    def is_connected(start : Tuple(Int32, Int32), goal : Tuple(Int32, Int32)) : Bool
-      return false if start[0] >= @width || start[1] >= @height ||
-                      goal[0] >= @width || goal[1] >= @height
-
-      visited = Array.new(@height) { Array.new(@width, false) }
-      queue = Deque(Tuple(Int32, Int32)).new
-
-      visited[start[1]][start[0]] = true
-      queue << start
-
-      while !queue.empty?
-        x, y = queue.shift
-
-        return true if {x, y} == goal
-
-        if y > 0 && self[x, y - 1] == Cell::Path && !visited[y - 1][x]
-          visited[y - 1][x] = true
-          queue << {x, y - 1}
-        end
-
-        if x + 1 < @width && self[x + 1, y] == Cell::Path && !visited[y][x + 1]
-          visited[y][x + 1] = true
-          queue << {x + 1, y}
-        end
-
-        if y + 1 < @height && self[x, y + 1] == Cell::Path && !visited[y + 1][x]
-          visited[y + 1][x] = true
-          queue << {x, y + 1}
-        end
-
-        if x > 0 && self[x - 1, y] == Cell::Path && !visited[y][x - 1]
-          visited[y][x - 1] = true
-          queue << {x - 1, y}
+        def walkable?
+          case self
+          when Space, Start, Finish
+            true
+          else
+            false
+          end
         end
       end
 
-      false
+      property kind : Kind = :wall
+      property neighbors = Array(Cell).new(initial_capacity: 4)
+      property x : Int32
+      property y : Int32
+
+      def initialize(@x, @y)
+      end
+
+      def reset
+        @kind = :wall if @kind.space?
+      end
     end
 
-    def self.generate_walkable_maze(width : Int32, height : Int32) : Array(Array(Bool))
-      maze = Maze.new(width, height)
-      maze.generate
+    class Maze
+      property cells : Array(Array(Cell))
+      property start : Cell
+      property finish : Cell
 
-      start = {1, 1}
-      goal = {width - 2, height - 2}
+      def initialize(@w : Int32, @h : Int32)
+        @cells = Array(Array(Cell)).new(@h) { |y| Array(Cell).new(@w) { |x| Cell.new(x, y) } }
+        @start = @cells[1][1]
+        @finish = @cells[@h - 2][@w - 2]
+        @start.kind = :start
+        @finish.kind = :finish
+        update_neighbors
+      end
 
-      if !maze.is_connected(start, goal)
-        (0...width).each do |x|
-          (0...height).each do |y|
-            if x < maze.width && y < maze.height
-              if x == 1 || y == 1 || x == width - 2 || y == height - 2
-                maze[x, y] = Cell::Path
+      def update_neighbors
+        @cells.each_with_index do |row, y|
+          row.each_with_index do |cell, x|
+            if x > 0 && y > 0 && x < @w - 1 && y < @h - 1
+              cell.neighbors << @cells[y - 1][x]
+              cell.neighbors << @cells[y + 1][x]
+              cell.neighbors << @cells[y][x + 1]
+              cell.neighbors << @cells[y][x - 1]
+
+              4.times do
+                i = Helper.next_int(4)
+                j = Helper.next_int(4)
+                cell.neighbors.swap(i, j) if i != j
               end
+            else
+              cell.kind = :border
             end
           end
         end
       end
 
-      maze.to_bool_grid
-    end
-  end
+      def reset
+        @cells.each &.each &.reset
+        @start.kind = :start
+        @finish.kind = :finish
+      end
 
-  getter result : Int64
-  getter width : Int32
-  getter height : Int32
-
-  def initialize
-    @result = 0_i64
-    @width = config_val("w").to_i32
-    @height = config_val("h").to_i32
-    @bool_grid = Array(Array(Bool)).new
-  end
-
-  def run(iteration_id)
-    @bool_grid = Maze.generate_walkable_maze(@width, @height)
-  end
-
-  def grid_checksum(grid)
-    hasher = 2166136261_u32
-    prime = 16777619_u32
-
-    @bool_grid.each_with_index do |row, i|
-      row.each_with_index do |cell, j|
-        if cell
-          j_squared = j.to_u32 &* j.to_u32
-          hasher = (hasher ^ j_squared) &* prime
+      def dig(start : Cell)
+        q = Array(Cell).new
+        q << start
+        while cell = q.pop?
+          if cell.neighbors.count(&.kind.walkable?) == 1
+            cell.kind = :space
+            cell.neighbors.each { |n| q << n if n.kind.wall? }
+          end
         end
+      end
+
+      def ensure_open_finish(cell : Cell)
+        cell.kind = :space
+        return if cell.neighbors.count(&.kind.walkable?) > 1
+        cell.neighbors.each { |n| ensure_open_finish(n) if n.kind.wall? }
+      end
+
+      def generate
+        @start.neighbors.each { |n| dig(n) if n.kind.wall? }
+        @finish.neighbors.each { |n| ensure_open_finish(n) if n.kind.wall? }
+      end
+
+      def middle_cell
+        @cells[@h >> 1][@w >> 1]
+      end
+
+      def checksum : UInt32
+        hasher = 2166136261_u32
+        prime = 16777619_u32
+
+        @cells.each_with_index do |row, y|
+          row.each_with_index do |cell, x|
+            if cell.kind.space?
+              j_squared = x.to_u32 &* y.to_u32
+              hasher = (hasher ^ j_squared) &* prime
+            end
+          end
+        end
+
+        hasher
+      end
+
+      def print_to_console
+        @cells.each do |row|
+          row.each do |cell|
+            sym = case cell.kind
+                  when Cell::Kind::Space ; " "
+                  when Cell::Kind::Wall  ; "\u001B[34m#\u001B[0m"
+                  when Cell::Kind::Border; "\u001B[31mO\u001B[0m"
+                  when Cell::Kind::Start ; "\u001B[32m>\u001B[0m"
+                  when Cell::Kind::Finish; "\u001B[32m<\u001B[0m"
+                  when Cell::Kind::Path  ; "\u001B[33m.\u001B[0m"
+                  else                     "?"
+                  end
+            print(sym)
+          end
+          puts
+        end
+        puts
       end
     end
 
-    hasher
-  end
-
-  def checksum : UInt32
-    grid_checksum(@bool_grid)
-  end
-end
-
-class AStarPathfinder < Benchmark
-  getter result : UInt32
-  getter start_x : Int32
-  getter start_y : Int32
-  getter goal_x : Int32
-  getter goal_y : Int32
-  getter width : Int32
-  getter height : Int32
-
-  def distance(a_x : Int32, a_y : Int32, b_x : Int32, b_y : Int32) : Int32
-    (a_x - b_x).abs + (a_y - b_y).abs
-  end
-
-  record Node, x : Int32, y : Int32, f_score : Int32 do
-    include Comparable(Node)
-
-    def <=>(other : Node) : Int32
-      cmp = f_score <=> other.f_score
-      return cmp unless cmp == 0
-
-      cmp = y <=> other.y
-      return cmp unless cmp == 0
-      x <=> other.x
-    end
-  end
-
-  class BinaryHeap(T)
-    @data : Array(T)
+    getter width : Int32
+    getter height : Int32
 
     def initialize
-      @data = [] of T
+      @result = 0_u32
+      @width = config_val("w").to_i32
+      @height = config_val("h").to_i32
+      @maze = Maze.new(@width, @height)
     end
 
-    def push(item : T)
-      @data << item
-      sift_up(@data.size - 1)
+    def run(iteration_id)
+      @maze.reset
+      @maze.generate
+
+      @result &+= @maze.middle_cell.kind.value
     end
 
-    def pop : T?
-      return @data.pop? if @data.size <= 1
+    def checksum : UInt32
+      @result &+ @maze.checksum
+    end
+  end
 
-      result = @data[0]
-      @data[0] = @data.pop
-      sift_down(0)
-      result
+  class BFS < Benchmark
+    getter result : UInt32
+    getter width : Int32
+    getter height : Int32
+
+    def initialize
+      @result = 0_u32
+      @width = config_val("w").to_i32
+      @height = config_val("h").to_i32
+      @maze = Generator::Maze.new(@width, @height)
+      @path = [] of Generator::Cell
     end
 
-    def empty? : Bool
-      @data.empty?
+    def prepare
+      @maze.generate
     end
 
-    private def sift_up(index : Int32)
-      while index > 0
-        parent = (index - 1) // 2
-        break if @data[index] >= @data[parent]
-        swap(index, parent)
-        index = parent
+    def bfs(start : Generator::Cell, target : Generator::Cell) : Array(Generator::Cell)
+      return [start] if start == target
+
+      queue = Deque(Int32).new
+      visited = Array.new(@height) { Array.new(@width) { false } }
+      path = Array({Generator::Cell, Int32}).new
+
+      visited[start.y][start.x] = true
+      path << {start, -1}
+      queue << 0
+
+      while path_id = queue.shift?
+        cell, _ = path[path_id]
+
+        cell.neighbors.each do |neighbor|
+          if neighbor == target
+            res = [target]
+            current = path_id
+            while current >= 0
+              cell, prev_id = path[current]
+              res << cell
+              current = prev_id
+            end
+            res.reverse!
+            return res
+          end
+
+          if neighbor.kind.walkable? && !visited[neighbor.y][neighbor.x]
+            visited[neighbor.y][neighbor.x] = true
+            path << {neighbor, path_id}
+            queue << path.size - 1
+          end
+        end
+      end
+
+      [] of Generator::Cell
+    end
+
+    def run(iteration_id)
+      @path = bfs(@maze.start, @maze.finish)
+      @result &+= @path.size
+    end
+
+    def show_path(path : Array(Generator::Cell))
+      path.each { |cell| cell.kind = :path }
+      @maze.print_to_console
+    end
+
+    def checksum : UInt32
+      v = @path[@path.size >> 1]
+      @result &+ (v.x &* v.y)
+    end
+  end
+
+  class AStar < Benchmark
+    private class PriorityQueue
+      @heap = Array({Int32, Int32}).new
+      @size : Int32 = 0
+      @best_priority : Array(Int32)
+
+      def initialize(size)
+        @best_priority = Array.new(size, Int32::MAX)
+      end
+
+      def empty?
+        @size == 0
+      end
+
+      def push(vertex : Int32, priority : Int32)
+        return if priority >= @best_priority[vertex]
+
+        @best_priority[vertex] = priority
+
+        if @size >= @heap.size
+          @heap << {vertex, priority}
+        else
+          @heap[@size] = {vertex, priority}
+        end
+
+        i = @size
+        @size += 1
+
+        while i > 0
+          parent = (i - 1) // 2
+          break if @heap[parent][1] <= priority
+          @heap[i] = @heap[parent]
+          i = parent
+        end
+        @heap[i] = {vertex, priority}
+      end
+
+      def pop
+        min = @heap[0]
+        @size -= 1
+
+        if @size > 0
+          last = @heap[@size]
+          i = 0
+
+          while true
+            left = 2*i + 1
+            right = 2*i + 2
+            smallest = i
+
+            if left < @size && @heap[left][1] < @heap[smallest][1]
+              smallest = left
+            end
+            if right < @size && @heap[right][1] < @heap[smallest][1]
+              smallest = right
+            end
+
+            break if smallest == i
+
+            @heap[i] = @heap[smallest]
+            i = smallest
+          end
+
+          @heap[i] = last
+        end
+
+        min
       end
     end
 
-    private def sift_down(index : Int32)
-      size = @data.size
-      loop do
-        left = index * 2 + 1
-        right = left + 1
-        smallest = index
+    getter result : UInt32
+    getter width : Int32
+    getter height : Int32
 
-        if left < size && @data[left] < @data[smallest]
-          smallest = left
-        end
-
-        if right < size && @data[right] < @data[smallest]
-          smallest = right
-        end
-
-        break if smallest == index
-
-        swap(index, smallest)
-        index = smallest
-      end
+    def initialize
+      @result = 0_u32
+      @width = config_val("w").to_i32
+      @height = config_val("h").to_i32
+      @maze = Generator::Maze.new(@width, @height)
+      @path = [] of Generator::Cell
     end
 
-    private def swap(i : Int32, j : Int32)
-      @data[i], @data[j] = @data[j], @data[i]
-    end
-  end
-
-  def initialize
-    @result = 0_u32
-    @width = config_val("w").to_i32
-    @height = config_val("h").to_i32
-    @start_x = 1
-    @start_y = 1
-    @goal_x = @width - 2
-    @goal_y = @height - 2
-    @maze_grid = Array(Array(Bool)).new
-
-    size = @width * @height
-    @g_scores_cache = Array(Int32).new(size, Int32::MAX)
-    @came_from_cache = Array(Int32).new(size, -1)
-  end
-
-  private def pack_coords(x : Int32, y : Int32) : Int32
-    y * @width + x
-  end
-
-  private def unpack_coords(packed : Int32) : Tuple(Int32, Int32)
-    {packed % @width, packed // @width}
-  end
-
-  private def find_path : Tuple(Array({Int32, Int32})?, Int32)
-    grid = @maze_grid
-    width = @width
-    height = @height
-
-    g_scores = @g_scores_cache
-    came_from = @came_from_cache
-
-    size = width * height
-    g_scores.fill(Int32::MAX)
-    came_from.fill(-1)
-
-    open_set = BinaryHeap(Node).new
-    nodes_explored = 0
-
-    start_idx = pack_coords(@start_x, @start_y)
-    g_scores[start_idx] = 0
-    open_set.push(Node.new(@start_x, @start_y, distance(@start_x, @start_y, @goal_x, @goal_y)))
-
-    directions = { {0, -1}, {1, 0}, {0, 1}, {-1, 0} }
-
-    until open_set.empty?
-      current = open_set.pop.not_nil!
-      nodes_explored += 1
-
-      if current.x == @goal_x && current.y == @goal_y
-        path = [] of {Int32, Int32}
-        x = current.x
-        y = current.y
-
-        while x != @start_x || y != @start_y
-          path << {x, y}
-          idx = pack_coords(x, y)
-          packed = came_from[idx]
-          break if packed == -1
-          x, y = unpack_coords(packed)
-        end
-
-        path << {@start_x, @start_y}
-        return {path.reverse, nodes_explored}
-      end
-
-      current_idx = pack_coords(current.x, current.y)
-      current_g = g_scores[current_idx]
-
-      directions.each do |dx, dy|
-        nx = current.x + dx
-        ny = current.y + dy
-
-        next if nx < 0 || nx >= width || ny < 0 || ny >= height
-        next unless grid[ny][nx]
-
-        tentative_g = current_g + 1000
-        neighbor_idx = pack_coords(nx, ny)
-
-        if tentative_g < g_scores[neighbor_idx]
-          came_from[neighbor_idx] = current_idx
-          g_scores[neighbor_idx] = tentative_g
-
-          f_score = tentative_g + distance(nx, ny, @goal_x, @goal_y)
-          open_set.push(Node.new(nx, ny, f_score))
-        end
-      end
+    def prepare
+      @maze.generate
     end
 
-    {nil, nodes_explored}
-  end
+    private def heuristic(a : Generator::Cell, b : Generator::Cell) : Int32
+      (a.x - b.x).abs + (a.y - b.y).abs
+    end
 
-  def prepare
-    @maze_grid = MazeGenerator::Maze.generate_walkable_maze(@width, @height)
-  end
+    def astar(start : Generator::Cell, target : Generator::Cell) : Array(Generator::Cell)
+      return [start] if start == target
 
-  def run(iteration_id)
-    path, nodes_explored = find_path
+      width, height = @width, @height
+      size = width * height
 
-    local_result = 0_u32
+      start_idx = start.y * width + start.x
+      target_idx = target.y * width + target.x
 
-    local_result = (path.try(&.size) || 0).to_u32
+      came_from = Array(Int32).new(size, -1)
+      g_score = Array(Int32).new(size, Int32::MAX)
+      f_score = Array(Int32).new(size, Int32::MAX)
 
-    local_result = (local_result << 5) &+ nodes_explored.to_u32
+      open_set = PriorityQueue.new(size)
 
-    @result &+= local_result
-  end
+      g_score[start_idx] = 0
+      f_score[start_idx] = heuristic(start, target)
+      open_set.push(start_idx, f_score[start_idx])
 
-  def checksum : UInt32
-    @result
+      while !open_set.empty?
+        current_idx, _ = open_set.pop
+
+        if current_idx == target_idx
+          return reconstruct_path(came_from, current_idx)
+        end
+
+        current_y = current_idx // width
+        current_x = current_idx % width
+        current = @maze.cells[current_y][current_x]
+
+        current_g = g_score[current_idx]
+
+        current.neighbors.each do |neighbor|
+          next unless neighbor.kind.walkable?
+
+          neighbor_idx = neighbor.y * width + neighbor.x
+          tentative_g = current_g + 1
+
+          if tentative_g < g_score[neighbor_idx]
+            came_from[neighbor_idx] = current_idx
+            g_score[neighbor_idx] = tentative_g
+            new_f = tentative_g + heuristic(neighbor, target)
+            f_score[neighbor_idx] = new_f
+
+            open_set.push(neighbor_idx, new_f)
+          end
+        end
+      end
+
+      [] of Generator::Cell
+    end
+
+    private def reconstruct_path(came_from, current_idx)
+      path = [] of Generator::Cell
+
+      while current_idx != -1
+        y = current_idx // @width
+        x = current_idx % @width
+        path << @maze.cells[y][x]
+        current_idx = came_from[current_idx]
+      end
+
+      path.reverse
+    end
+
+    def run(iteration_id)
+      @path = astar(@maze.start, @maze.finish)
+      @result &+= @path.size
+    end
+
+    def show_path(path : Array(Generator::Cell))
+      path.each { |cell| cell.kind = :path }
+      @maze.print_to_console
+    end
+
+    def checksum : UInt32
+      v = @path[@path.size >> 1]
+      @result &+ (v.x &* v.y)
+    end
   end
 end
 

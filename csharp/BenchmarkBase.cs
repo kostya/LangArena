@@ -142,8 +142,9 @@ public abstract class Benchmark
             CreateBenchmarkInfo<CalculatorAst>("Calculator::Ast"),
             CreateBenchmarkInfo<CalculatorInterpreter>("Calculator::Interpreter"),
 
-            CreateBenchmarkInfo<MazeGenerator>("MazeGenerator"),
-            CreateBenchmarkInfo<AStarPathfinder>("AStarPathfinder"),
+            CreateBenchmarkInfo<MazeGenerator>("Maze::Generator"),
+            CreateBenchmarkInfo<MazeBFS>("Maze::BFS"),
+            CreateBenchmarkInfo<MazeAStar>("Maze::AStar"),
 
             CreateBenchmarkInfo<BWTEncode>("Compress::BWTEncode"),
             CreateBenchmarkInfo<BWTDecode>("Compress::BWTDecode"),

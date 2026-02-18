@@ -41,8 +41,7 @@ import benchmarks.cachesimulation;
 import benchmarks.calculatorast;
 import benchmarks.calculatorinterpreter;
 import benchmarks.gameoflife;
-import benchmarks.mazegenerator;
-import benchmarks.astarpathfinder;
+import benchmarks.maze;
 import benchmarks.compress;
 import benchmarks.jsonbench;
 
@@ -65,13 +64,11 @@ mixin(registerAllBenchmarks!("CLBG::Pidigits", Pidigits, "Binarytrees::Obj",
         BufferHashSHA256, "Hash::CRC32", BufferHashCRC32,
         "Etc::CacheSimulation", CacheSimulation, "Calculator::Ast",
         CalculatorAst, "Calculator::Interpreter", CalculatorInterpreter,
-        "Etc::GameOfLife", GameOfLife, "MazeGenerator",
-        MazeGenerator, "AStarPathfinder", AStarPathfinder,
-        "Compress::BWTEncode", BWTEncode, "Compress::BWTDecode", BWTDecode,
-        "Compress::HuffEncode",
-        HuffEncode, "Compress::HuffDecode", HuffDecode,
-        "Compress::ArithEncode", ArithEncode, "Compress::ArithDecode", ArithDecode,
-        "Compress::LZWEncode", LZWEncode, "Compress::LZWDecode", LZWDecode));
+        "Etc::GameOfLife", GameOfLife, "Maze::Generator", MazeGenerator, "Maze::BFS",
+        MazeBFS, "Maze::AStar", MazeAStar, "Compress::BWTEncode", BWTEncode,
+        "Compress::BWTDecode", BWTDecode, "Compress::HuffEncode", HuffEncode,
+        "Compress::HuffDecode", HuffDecode, "Compress::ArithEncode", ArithEncode, "Compress::ArithDecode",
+        ArithDecode, "Compress::LZWEncode", LZWEncode, "Compress::LZWDecode", LZWDecode));
 
 void benchmarkAll(string singleBench = "")
 {

@@ -4354,263 +4354,178 @@ export class GameOfLife extends Benchmark {
   }
 }
 
-enum MazeCell {
-  Wall,
-  Path,
+export enum CellKind {
+  WALL = 0,
+  SPACE = 1,
+  START = 2,
+  FINISH = 3,
+  BORDER = 4,
+  PATH = 5,
 }
 
-export class MazeGeneratorClass {
-  private width: number;
-  private height: number;
-  private cells: MazeCell[][];
+export function isWalkable(kind: CellKind): boolean {
+  return (
+    kind === CellKind.SPACE ||
+    kind === CellKind.START ||
+    kind === CellKind.FINISH
+  );
+}
+
+export class Cell {
+  public kind: CellKind = CellKind.WALL;
+  public neighbors: Cell[] = [];
+
+  constructor(
+    public readonly x: number,
+    public readonly y: number,
+  ) {}
+
+  public reset(): void {
+    if (this.kind === CellKind.SPACE) {
+      this.kind = CellKind.WALL;
+    }
+  }
+}
+
+export class Maze {
+  public readonly width: number;
+  public readonly height: number;
+  public readonly cells: Cell[][];
+  public readonly start: Cell;
+  public readonly finish: Cell;
 
   constructor(width: number, height: number) {
-    this.width = width > 5 ? width : 5;
-    this.height = height > 5 ? height : 5;
-    this.cells = Array(this.height);
+    this.width = Math.max(width, 5);
+    this.height = Math.max(height, 5);
+
+    this.cells = [];
     for (let y = 0; y < this.height; y++) {
-      this.cells[y] = Array(this.width).fill(MazeCell.Wall);
+      const row: Cell[] = [];
+      for (let x = 0; x < this.width; x++) {
+        row.push(new Cell(x, y));
+      }
+      this.cells.push(row);
     }
+
+    this.start = this.cells[1][1];
+    this.finish = this.cells[this.height - 2][this.width - 2];
+    this.start.kind = CellKind.START;
+    this.finish.kind = CellKind.FINISH;
+
+    this.updateNeighbors();
   }
 
-  get(x: number, y: number): MazeCell {
-    return this.cells[y][x];
-  }
+  public updateNeighbors(): void {
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        const cell = this.cells[y][x];
+        cell.neighbors = [];
 
-  set(x: number, y: number, cell: MazeCell): void {
-    this.cells[y][x] = cell;
-  }
+        if (x > 0 && y > 0 && x < this.width - 1 && y < this.height - 1) {
+          cell.neighbors.push(this.cells[y - 1][x]);
+          cell.neighbors.push(this.cells[y + 1][x]);
+          cell.neighbors.push(this.cells[y][x + 1]);
+          cell.neighbors.push(this.cells[y][x - 1]);
 
-  private divide(x1: number, y1: number, x2: number, y2: number): void {
-    const width = x2 - x1;
-    const height = y2 - y1;
-
-    if (width < 2 || height < 2) return;
-
-    const widthForWall = Math.max(width - 2, 0);
-    const heightForWall = Math.max(height - 2, 0);
-    const widthForHole = Math.max(width - 1, 0);
-    const heightForHole = Math.max(height - 1, 0);
-
-    if (
-      widthForWall === 0 ||
-      heightForWall === 0 ||
-      widthForHole === 0 ||
-      heightForHole === 0
-    )
-      return;
-
-    if (width > height) {
-      const wallRange = Math.max(Math.floor(widthForWall / 2), 1);
-      const wallOffset = wallRange > 0 ? Helper.nextInt(wallRange) * 2 : 0;
-      const wallX = x1 + 2 + wallOffset;
-
-      const holeRange = Math.max(Math.floor(heightForHole / 2), 1);
-      const holeOffset = holeRange > 0 ? Helper.nextInt(holeRange) * 2 : 0;
-      const holeY = y1 + 1 + holeOffset;
-
-      if (wallX > x2 || holeY > y2) return;
-
-      for (let y = y1; y <= y2; y++) {
-        if (y !== holeY) {
-          this.set(wallX, y, MazeCell.Wall);
+          for (let t = 0; t < 4; t++) {
+            const i = Helper.nextInt(4);
+            const j = Helper.nextInt(4);
+            if (i !== j) {
+              [cell.neighbors[i], cell.neighbors[j]] = [
+                cell.neighbors[j],
+                cell.neighbors[i],
+              ];
+            }
+          }
+        } else {
+          cell.kind = CellKind.BORDER;
         }
       }
-
-      if (wallX > x1 + 1) this.divide(x1, y1, wallX - 1, y2);
-      if (wallX + 1 < x2) this.divide(wallX + 1, y1, x2, y2);
-    } else {
-      const wallRange = Math.max(Math.floor(heightForWall / 2), 1);
-      const wallOffset = wallRange > 0 ? Helper.nextInt(wallRange) * 2 : 0;
-      const wallY = y1 + 2 + wallOffset;
-
-      const holeRange = Math.max(Math.floor(widthForHole / 2), 1);
-      const holeOffset = holeRange > 0 ? Helper.nextInt(holeRange) * 2 : 0;
-      const holeX = x1 + 1 + holeOffset;
-
-      if (wallY > y2 || holeX > x2) return;
-
-      for (let x = x1; x <= x2; x++) {
-        if (x !== holeX) {
-          this.set(x, wallY, MazeCell.Wall);
-        }
-      }
-
-      if (wallY > y1 + 1) this.divide(x1, y1, x2, wallY - 1);
-      if (wallY + 1 < y2) this.divide(x1, wallY + 1, x2, y2);
     }
   }
 
-  private isConnectedImpl(
-    startX: number,
-    startY: number,
-    goalX: number,
-    goalY: number,
-  ): boolean {
-    if (
-      startX >= this.width ||
-      startY >= this.height ||
-      goalX >= this.width ||
-      goalY >= this.height
-    ) {
-      return false;
-    }
-
-    const visited: boolean[][] = Array(this.height);
-    for (let y = 0; y < this.height; y++) {
-      visited[y] = Array(this.width).fill(false);
-    }
-
-    const queue: [number, number][] = [];
-    let queueIndex = 0;
-
-    visited[startY][startX] = true;
-    queue.push([startX, startY]);
-
-    while (queueIndex < queue.length) {
-      const [x, y] = queue[queueIndex++];
-
-      if (x === goalX && y === goalY) return true;
-
-      if (y > 0 && this.get(x, y - 1) === MazeCell.Path && !visited[y - 1][x]) {
-        visited[y - 1][x] = true;
-        queue.push([x, y - 1]);
-      }
-
-      if (
-        x + 1 < this.width &&
-        this.get(x + 1, y) === MazeCell.Path &&
-        !visited[y][x + 1]
-      ) {
-        visited[y][x + 1] = true;
-        queue.push([x + 1, y]);
-      }
-
-      if (
-        y + 1 < this.height &&
-        this.get(x, y + 1) === MazeCell.Path &&
-        !visited[y + 1][x]
-      ) {
-        visited[y + 1][x] = true;
-        queue.push([x, y + 1]);
-      }
-
-      if (x > 0 && this.get(x - 1, y) === MazeCell.Path && !visited[y][x - 1]) {
-        visited[y][x - 1] = true;
-        queue.push([x - 1, y]);
+  public reset(): void {
+    for (const row of this.cells) {
+      for (const cell of row) {
+        cell.reset();
       }
     }
-
-    return false;
+    this.start.kind = CellKind.START;
+    this.finish.kind = CellKind.FINISH;
   }
 
-  generate(): void {
-    if (this.width < 5 || this.height < 5) {
-      for (let x = 0; x < this.width; x++) {
-        this.set(x, Math.floor(this.height / 2), MazeCell.Path);
+  public dig(startCell: Cell): void {
+    const stack: Cell[] = [startCell];
+
+    while (stack.length > 0) {
+      const cell = stack.pop()!;
+
+      let walkable = 0;
+      for (const n of cell.neighbors) {
+        if (isWalkable(n.kind)) walkable++;
       }
-      return;
-    }
 
-    this.divide(0, 0, this.width - 1, this.height - 1);
-    this.addRandomPaths();
-  }
-
-  private addRandomPaths(): void {
-    const numExtraPaths = Math.floor((this.width * this.height) / 20);
-
-    for (let i = 0; i < numExtraPaths; i++) {
-      const x = Helper.nextInt(this.width - 2) + 1;
-      const y = Helper.nextInt(this.height - 2) + 1;
-
-      if (
-        this.get(x, y) === MazeCell.Wall &&
-        [
-          this.get(x - 1, y),
-          this.get(x + 1, y),
-          this.get(x, y - 1),
-          this.get(x, y + 1),
-        ].every((cell) => cell === MazeCell.Wall)
-      ) {
-        this.set(x, y, MazeCell.Path);
-      }
-    }
-  }
-
-  toBoolGrid(): boolean[][] {
-    const result: boolean[][] = Array(this.height);
-    for (let y = 0; y < this.height; y++) {
-      result[y] = Array(this.width);
-      for (let x = 0; x < this.width; x++) {
-        result[y][x] = this.cells[y][x] === MazeCell.Path;
-      }
-    }
-    return result;
-  }
-
-  isConnected(
-    startX: number,
-    startY: number,
-    goalX: number,
-    goalY: number,
-  ): boolean {
-    return this.isConnectedImpl(startX, startY, goalX, goalY);
-  }
-
-  public static generateWalkableMaze(
-    width: number,
-    height: number,
-  ): boolean[][] {
-    const maze = new MazeGeneratorClass(width, height);
-    maze.generate();
-
-    const startX = 1;
-    const startY = 1;
-    const goalX = width - 2;
-    const goalY = height - 2;
-
-    if (!maze.isConnected(startX, startY, goalX, goalY)) {
-      for (let x = 0; x < width; x++) {
-        for (let y = 0; y < height; y++) {
-          if (x === 1 || y === 1 || x === width - 2 || y === height - 2) {
-            maze.set(x, y, MazeCell.Path);
+      if (walkable === 1) {
+        cell.kind = CellKind.SPACE;
+        for (const n of cell.neighbors) {
+          if (n.kind === CellKind.WALL) {
+            stack.push(n);
           }
         }
       }
     }
-
-    return maze.toBoolGrid();
-  }
-}
-
-export class MazeGenerator extends Benchmark {
-  private readonly width: number;
-  private readonly height: number;
-  private boolGrid: boolean[][] = [];
-
-  constructor() {
-    super();
-    this.width = Number(Helper.configI64(this.name, "w"));
-    this.height = Number(Helper.configI64(this.name, "h"));
   }
 
-  run(_iteration_id: number): void {
-    this.boolGrid = MazeGeneratorClass.generateWalkableMaze(
-      this.width,
-      this.height,
-    );
+  public ensureOpenFinish(startCell: Cell): void {
+    const stack: Cell[] = [startCell];
+
+    while (stack.length > 0) {
+      const cell = stack.pop()!;
+
+      cell.kind = CellKind.SPACE;
+
+      let walkable = 0;
+      for (const n of cell.neighbors) {
+        if (isWalkable(n.kind)) walkable++;
+      }
+
+      if (walkable > 1) continue;
+
+      for (const n of cell.neighbors) {
+        if (n.kind === CellKind.WALL) {
+          stack.push(n);
+        }
+      }
+    }
   }
 
-  private gridChecksum(grid: boolean[][]): number {
+  public generate(): void {
+    for (const n of this.start.neighbors) {
+      if (n.kind === CellKind.WALL) {
+        this.dig(n);
+      }
+    }
+
+    for (const n of this.finish.neighbors) {
+      if (n.kind === CellKind.WALL) {
+        this.ensureOpenFinish(n);
+      }
+    }
+  }
+
+  public middleCell(): Cell {
+    return this.cells[Math.floor(this.height / 2)][Math.floor(this.width / 2)];
+  }
+
+  public checksum(): number {
     let hasher = 2166136261 >>> 0;
     const prime = 16777619 >>> 0;
 
-    for (let i = 0; i < grid.length; i++) {
-      const row = grid[i];
-      for (let j = 0; j < row.length; j++) {
-        if (row[j]) {
-          const j_squared = Math.imul(j, j) >>> 0;
-          hasher = hasher ^ j_squared;
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        if (this.cells[y][x].kind === CellKind.SPACE) {
+          const val = (x * y) >>> 0;
+          hasher = (hasher ^ val) >>> 0;
           hasher = Math.imul(hasher, prime) >>> 0;
         }
       }
@@ -4618,250 +4533,323 @@ export class MazeGenerator extends Benchmark {
     return hasher >>> 0;
   }
 
-  checksum(): number {
-    return this.gridChecksum(this.boolGrid) >>> 0;
-  }
-  override get name(): string {
-    return "MazeGenerator";
-  }
-}
-
-class AStarNode {
-  constructor(
-    public x: number,
-    public y: number,
-    public fScore: number,
-  ) {}
-
-  compareTo(other: AStarNode): number {
-    if (this.fScore !== other.fScore) {
-      return this.fScore - other.fScore;
-    }
-    if (this.y !== other.y) {
-      return this.y - other.y;
-    }
-    return this.x - other.x;
-  }
-}
-
-class AStarBinaryHeap {
-  private data: AStarNode[] = [];
-
-  push(item: AStarNode): void {
-    this.data.push(item);
-    this.siftUp(this.data.length - 1);
-  }
-
-  pop(): AStarNode {
-    const result = this.data[0];
-    const last = this.data.pop()!;
-
-    if (this.data.length > 0) {
-      this.data[0] = last;
-      this.siftDown(0);
-    }
-
-    return result;
-  }
-
-  isEmpty(): boolean {
-    return this.data.length === 0;
-  }
-
-  private siftUp(index: number): void {
-    const node = this.data[index];
-
-    while (index > 0) {
-      const parent = (index - 1) >> 1;
-      const parentNode = this.data[parent];
-
-      if (node.compareTo(parentNode) >= 0) break;
-
-      this.data[index] = parentNode;
-      this.data[parent] = node;
-      index = parent;
-    }
-  }
-
-  private siftDown(index: number): void {
-    const size = this.data.length;
-    const node = this.data[index];
-
-    while (true) {
-      const left = (index << 1) + 1;
-      const right = left + 1;
-      let smallest = index;
-
-      if (left < size) {
-        const leftNode = this.data[left];
-        if (leftNode.compareTo(this.data[smallest]) < 0) {
-          smallest = left;
-        }
+  public printToConsole(): void {
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        const kind = this.cells[y][x].kind;
+        if (kind === CellKind.SPACE) process.stdout.write(" ");
+        else if (kind === CellKind.WALL)
+          process.stdout.write("\x1b[34m#\x1b[0m");
+        else if (kind === CellKind.BORDER)
+          process.stdout.write("\x1b[31mO\x1b[0m");
+        else if (kind === CellKind.START)
+          process.stdout.write("\x1b[32m>\x1b[0m");
+        else if (kind === CellKind.FINISH)
+          process.stdout.write("\x1b[32m<\x1b[0m");
+        else if (kind === CellKind.PATH)
+          process.stdout.write("\x1b[33m.\x1b[0m");
       }
-
-      if (right < size) {
-        const rightNode = this.data[right];
-        if (rightNode.compareTo(this.data[smallest]) < 0) {
-          smallest = right;
-        }
-      }
-
-      if (smallest === index) break;
-
-      this.data[index] = this.data[smallest];
-      this.data[smallest] = node;
-      index = smallest;
+      console.log();
     }
+    console.log();
   }
 }
 
-export class AStarPathfinder extends Benchmark {
+export class MazeGenerator extends Benchmark {
   private resultVal: number = 0;
-  private readonly startX: number;
-  private readonly startY: number;
-  private readonly goalX: number;
-  private readonly goalY: number;
-  private readonly width: number;
-  private readonly height: number;
-  private mazeGrid: boolean[][] = [];
-
-  private gScoresCache: Int32Array;
-  private cameFromCache: Int32Array;
-
-  private static readonly DIRECTIONS: [number, number][] = [
-    [0, -1],
-    [1, 0],
-    [0, 1],
-    [-1, 0],
-  ];
-  private static readonly STRAIGHT_COST = 1000;
-  private static readonly INF = 0x7fffffff;
+  private width: number;
+  private height: number;
+  private maze: Maze | null = null;
 
   constructor() {
     super();
     this.width = Number(Helper.configI64(this.name, "w"));
     this.height = Number(Helper.configI64(this.name, "h"));
-    this.startX = 1;
-    this.startY = 1;
-    this.goalX = this.width - 2;
-    this.goalY = this.height - 2;
-
-    const size = this.width * this.height;
-    this.gScoresCache = new Int32Array(size);
-    this.cameFromCache = new Int32Array(size);
   }
 
-  private distance(aX: number, aY: number, bX: number, bY: number): number {
-    return Math.abs(aX - bX) + Math.abs(aY - bY);
+  override get name(): string {
+    return "Maze::Generator";
   }
 
-  private packCoords(x: number, y: number): number {
+  prepare(): void {
+    this.maze = new Maze(this.width, this.height);
+    this.resultVal = 0;
+  }
+
+  run(_iteration_id: number): void {
+    if (!this.maze) return;
+    this.maze.reset();
+    this.maze.generate();
+    this.resultVal = (this.resultVal + this.maze.middleCell().kind) >>> 0;
+  }
+
+  checksum(): number {
+    if (!this.maze) return 0;
+    return (this.resultVal + this.maze.checksum()) >>> 0;
+  }
+}
+
+interface PathNode {
+  cell: Cell;
+  parent: number;
+}
+
+export class MazeBFS extends Benchmark {
+  private resultVal: number = 0;
+  private width: number;
+  private height: number;
+  private maze: Maze | null = null;
+  private path: Cell[] = [];
+
+  constructor() {
+    super();
+    this.width = Number(Helper.configI64(this.name, "w"));
+    this.height = Number(Helper.configI64(this.name, "h"));
+  }
+
+  override get name(): string {
+    return "Maze::BFS";
+  }
+
+  prepare(): void {
+    this.maze = new Maze(this.width, this.height);
+    this.maze.generate();
+    this.resultVal = 0;
+    this.path = [];
+  }
+
+  private bfs(start: Cell, target: Cell): Cell[] {
+    if (start === target) return [start];
+
+    const queue: number[] = [];
+    const visited: boolean[][] = Array(this.height);
+    for (let y = 0; y < this.height; y++) {
+      visited[y] = Array(this.width).fill(false);
+    }
+    const pathNodes: PathNode[] = [];
+
+    visited[start.y][start.x] = true;
+    pathNodes.push({ cell: start, parent: -1 });
+    queue.push(0);
+
+    while (queue.length > 0) {
+      const pathId = queue.shift()!;
+      const node = pathNodes[pathId];
+
+      for (const neighbor of node.cell.neighbors) {
+        if (neighbor === target) {
+          const result: Cell[] = [target];
+          let cur = pathId;
+          while (cur >= 0) {
+            result.push(pathNodes[cur].cell);
+            cur = pathNodes[cur].parent;
+          }
+          return result.reverse();
+        }
+
+        if (isWalkable(neighbor.kind) && !visited[neighbor.y][neighbor.x]) {
+          visited[neighbor.y][neighbor.x] = true;
+          pathNodes.push({ cell: neighbor, parent: pathId });
+          queue.push(pathNodes.length - 1);
+        }
+      }
+    }
+    return [];
+  }
+
+  private midCellChecksum(path: Cell[]): number {
+    if (path.length === 0) return 0;
+    const cell = path[Math.floor(path.length / 2)];
+    return (cell.x * cell.y) >>> 0;
+  }
+
+  run(_iteration_id: number): void {
+    if (!this.maze) return;
+    this.path = this.bfs(this.maze.start, this.maze.finish);
+    this.resultVal = (this.resultVal + this.path.length) >>> 0;
+  }
+
+  checksum(): number {
+    return (this.resultVal + this.midCellChecksum(this.path)) >>> 0;
+  }
+}
+
+export class MazeAStar extends Benchmark {
+  private resultVal: number = 0;
+  private width: number;
+  private height: number;
+  private maze: Maze | null = null;
+  private path: Cell[] = [];
+
+  constructor() {
+    super();
+    this.width = Number(Helper.configI64(this.name, "w"));
+    this.height = Number(Helper.configI64(this.name, "h"));
+  }
+
+  override get name(): string {
+    return "Maze::AStar";
+  }
+
+  prepare(): void {
+    this.maze = new Maze(this.width, this.height);
+    this.maze.generate();
+    this.resultVal = 0;
+    this.path = [];
+  }
+
+  private heuristic(a: Cell, b: Cell): number {
+    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+  }
+
+  private idx(y: number, x: number): number {
     return y * this.width + x;
   }
 
-  private unpackCoords(packed: number): [number, number] {
-    return [packed % this.width, Math.floor(packed / this.width)];
-  }
+  private astar(start: Cell, target: Cell): Cell[] {
+    if (start === target) return [start];
 
-  private findPath(): [Array<[number, number]>, number] {
-    const grid = this.mazeGrid;
-    const width = this.width;
-    const height = this.height;
+    const size = this.width * this.height;
 
-    const gScores = this.gScoresCache;
-    const cameFrom = this.cameFromCache;
+    const gScore = new Int32Array(size).fill(0x7fffffff);
+    const closed = new Uint8Array(size);
+    const cameFrom = new Int32Array(size).fill(-1);
 
-    gScores.fill(AStarPathfinder.INF);
-    cameFrom.fill(-1);
+    const startIdx = this.idx(start.y, start.x);
+    const targetIdx = this.idx(target.y, target.x);
 
-    const openSet = new AStarBinaryHeap();
+    gScore[startIdx] = 0;
 
-    const startIdx = this.packCoords(this.startX, this.startY);
-    gScores[startIdx] = 0;
-    openSet.push(
-      new AStarNode(
-        this.startX,
-        this.startY,
-        this.distance(this.startX, this.startY, this.goalX, this.goalY),
-      ),
-    );
+    const heapVertices: number[] = [];
+    const heapPriorities: number[] = [];
+    const inOpenSet = new Uint8Array(size);
 
-    let nodesExplored = 0;
+    const heapPush = (vertex: number, priority: number) => {
+      let i = heapVertices.length;
+      heapVertices.push(vertex);
+      heapPriorities.push(priority);
 
-    while (!openSet.isEmpty()) {
-      const current = openSet.pop();
-      nodesExplored++;
+      while (i > 0) {
+        const parent = Math.floor((i - 1) / 2);
+        if (heapPriorities[parent] <= heapPriorities[i]) break;
+        [heapVertices[i], heapVertices[parent]] = [
+          heapVertices[parent],
+          heapVertices[i],
+        ];
+        [heapPriorities[i], heapPriorities[parent]] = [
+          heapPriorities[parent],
+          heapPriorities[i],
+        ];
+        i = parent;
+      }
+    };
 
-      if (current.x === this.goalX && current.y === this.goalY) {
-        const path: Array<[number, number]> = [];
-        let x = current.x;
-        let y = current.y;
+    const heapPop = (): number | undefined => {
+      if (heapVertices.length === 0) return undefined;
 
-        while (x !== this.startX || y !== this.startY) {
-          path.push([x, y]);
-          const idx = this.packCoords(x, y);
-          const packed = cameFrom[idx];
-          if (packed === -1) break;
+      const result = heapVertices[0];
+      heapVertices[0] = heapVertices[heapVertices.length - 1];
+      heapPriorities[0] = heapPriorities[heapPriorities.length - 1];
+      heapVertices.pop();
+      heapPriorities.pop();
 
-          [x, y] = this.unpackCoords(packed);
+      let i = 0;
+      const n = heapVertices.length;
+      while (true) {
+        const left = 2 * i + 1;
+        const right = 2 * i + 2;
+        let smallest = i;
+
+        if (left < n && heapPriorities[left] < heapPriorities[smallest]) {
+          smallest = left;
         }
+        if (right < n && heapPriorities[right] < heapPriorities[smallest]) {
+          smallest = right;
+        }
+        if (smallest === i) break;
 
-        path.push([this.startX, this.startY]);
-        path.reverse();
-        return [path, nodesExplored];
+        [heapVertices[i], heapVertices[smallest]] = [
+          heapVertices[smallest],
+          heapVertices[i],
+        ];
+        [heapPriorities[i], heapPriorities[smallest]] = [
+          heapPriorities[smallest],
+          heapPriorities[i],
+        ];
+        i = smallest;
       }
 
-      const currentIdx = this.packCoords(current.x, current.y);
-      const currentG = gScores[currentIdx];
+      return result;
+    };
 
-      for (const [dx, dy] of AStarPathfinder.DIRECTIONS) {
-        const nx = current.x + dx;
-        const ny = current.y + dy;
+    const fStart = this.heuristic(start, target);
+    heapPush(startIdx, fStart);
+    inOpenSet[startIdx] = 1;
 
-        if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-        if (!grid[ny][nx]) continue;
+    while (heapVertices.length > 0) {
+      const currentIdx = heapPop()!;
+      inOpenSet[currentIdx] = 0;
 
-        const tentativeG = currentG + AStarPathfinder.STRAIGHT_COST;
-        const neighborIdx = this.packCoords(nx, ny);
+      if (currentIdx === targetIdx) {
+        const result: Cell[] = [];
+        let cur = currentIdx;
+        while (cur !== -1) {
+          const y = Math.floor(cur / this.width);
+          const x = cur % this.width;
+          if (this.maze) {
+            result.push(this.maze.cells[y][x]);
+          }
+          cur = cameFrom[cur];
+        }
+        return result.reverse();
+      }
 
-        if (tentativeG < gScores[neighborIdx]) {
+      closed[currentIdx] = 1;
+
+      const currentY = Math.floor(currentIdx / this.width);
+      const currentX = currentIdx % this.width;
+      const currentCell = this.maze!.cells[currentY][currentX];
+      const currentG = gScore[currentIdx];
+
+      for (const neighbor of currentCell.neighbors) {
+        if (!isWalkable(neighbor.kind)) continue;
+
+        const neighborIdx = this.idx(neighbor.y, neighbor.x);
+
+        if (closed[neighborIdx]) continue;
+
+        const tentativeG = currentG + 1;
+
+        if (tentativeG < gScore[neighborIdx]) {
           cameFrom[neighborIdx] = currentIdx;
-          gScores[neighborIdx] = tentativeG;
+          gScore[neighborIdx] = tentativeG;
+          const f = tentativeG + this.heuristic(neighbor, target);
 
-          const fScore =
-            tentativeG + this.distance(nx, ny, this.goalX, this.goalY);
-          openSet.push(new AStarNode(nx, ny, fScore));
+          if (inOpenSet[neighborIdx] === 0) {
+            heapPush(neighborIdx, f);
+            inOpenSet[neighborIdx] = 1;
+          }
         }
       }
     }
 
-    return [[], nodesExplored];
+    return [];
   }
 
-  prepare(): void {
-    this.mazeGrid = MazeGeneratorClass.generateWalkableMaze(
-      this.width,
-      this.height,
-    );
+  private midCellChecksum(path: Cell[]): number {
+    if (path.length === 0) return 0;
+    const cell = path[Math.floor(path.length / 2)];
+    return (cell.x * cell.y) >>> 0;
   }
 
   run(_iteration_id: number): void {
-    const [path, nodesExplored] = this.findPath();
-
-    let localResult = 0;
-
-    localResult = path.length;
-
-    localResult = ((localResult << 5) + nodesExplored) >>> 0;
-
-    this.resultVal = (this.resultVal + localResult) >>> 0;
+    if (!this.maze) return;
+    this.path = this.astar(this.maze.start, this.maze.finish);
+    this.resultVal = (this.resultVal + this.path.length) >>> 0;
   }
 
   checksum(): number {
-    return this.resultVal;
-  }
-  override get name(): string {
-    return "AStarPathfinder";
+    return (this.resultVal + this.midCellChecksum(this.path)) >>> 0;
   }
 }
 
@@ -5861,8 +5849,9 @@ Benchmark.registerBenchmark("Etc::CacheSimulation", CacheSimulation);
 Benchmark.registerBenchmark("Calculator::Ast", CalculatorAst);
 Benchmark.registerBenchmark("Calculator::Interpreter", CalculatorInterpreter);
 Benchmark.registerBenchmark("Etc::GameOfLife", GameOfLife);
-Benchmark.registerBenchmark("MazeGenerator", MazeGenerator);
-Benchmark.registerBenchmark("AStarPathfinder", AStarPathfinder);
+Benchmark.registerBenchmark("Maze::Generator", MazeGenerator);
+Benchmark.registerBenchmark("Maze::BFS", MazeBFS);
+Benchmark.registerBenchmark("Maze::AStar", MazeAStar);
 Benchmark.registerBenchmark("Compress::BWTEncode", BWTEncode);
 Benchmark.registerBenchmark("Compress::BWTDecode", BWTDecode);
 Benchmark.registerBenchmark("Compress::HuffEncode", HuffEncode);

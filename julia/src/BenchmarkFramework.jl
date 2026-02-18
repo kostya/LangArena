@@ -37,8 +37,7 @@ include("benchmarks/BufferHash.jl")
 include("benchmarks/CacheSimulation.jl")
 include("benchmarks/Calculator.jl")
 include("benchmarks/GameOfLife.jl")
-include("benchmarks/MazeGenerator.jl")
-include("benchmarks/AStarPathfinder.jl")
+include("benchmarks/Maze.jl")
 include("benchmarks/Compress.jl")
 
 const ALL_BENCHMARKS = [
@@ -80,8 +79,9 @@ const ALL_BENCHMARKS = [
     ("Calculator::Ast", CalculatorAst),
     ("Calculator::Interpreter", CalculatorInterpreter),
     ("Etc::GameOfLife", GameOfLife),
-    ("MazeGenerator", MazeGenerator),
-    ("AStarPathfinder", AStarPathfinder),
+    ("Maze::Generator", MazeGenerator),
+    ("Maze::BFS", MazeBFS),
+    ("Maze::AStar", MazeAStar),
     ("Compress::BWTEncode", BWTEncode),
     ("Compress::BWTDecode", BWTDecode),
     ("Compress::HuffEncode", HuffEncode),

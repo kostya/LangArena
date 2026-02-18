@@ -70,8 +70,9 @@ module BenchmarkRunner =
         createBenchmarkInfo<CalculatorAst> "Calculator::Ast"
         createBenchmarkInfo<CalculatorInterpreter> "Calculator::Interpreter"
 
-        createBenchmarkInfo<MazeGenerator> "MazeGenerator"
-        createBenchmarkInfo<AStarPathfinder> "AStarPathfinder"
+        createBenchmarkInfo<MazeGenerator> "Maze::Generator"
+        createBenchmarkInfo<MazeBFS> "Maze::BFS"
+        createBenchmarkInfo<MazeAStar> "Maze::AStar"
 
         createBenchmarkInfo<BWTEncode> "Compress::BWTEncode"
         createBenchmarkInfo<BWTDecode> "Compress::BWTDecode"

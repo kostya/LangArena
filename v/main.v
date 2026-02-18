@@ -30,8 +30,7 @@ import buffer_hash
 import cache_simulation
 import calculator
 import game_of_life
-import maze_generator
-import astar_pathfinder
+import mazebench
 import compress
 import json_benchmarks
 
@@ -145,11 +144,14 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		benchmark.BenchmarkInfo{'Etc::GameOfLife', fn () &benchmark.IBenchmark {
 			return game_of_life.new_gameoflife()
 		}},
-		benchmark.BenchmarkInfo{'MazeGenerator', fn () &benchmark.IBenchmark {
-			return maze_generator.new_mazegenerator()
+		benchmark.BenchmarkInfo{'Maze::Generator', fn () &benchmark.IBenchmark {
+			return mazebench.new_maze_generator()
 		}},
-		benchmark.BenchmarkInfo{'AStarPathfinder', fn () &benchmark.IBenchmark {
-			return astar_pathfinder.new_astarpathfinder()
+		benchmark.BenchmarkInfo{'Maze::BFS', fn () &benchmark.IBenchmark {
+			return mazebench.new_maze_bfs()
+		}},
+		benchmark.BenchmarkInfo{'Maze::AStar', fn () &benchmark.IBenchmark {
+			return mazebench.new_maze_astar()
 		}},
 		benchmark.BenchmarkInfo{'Calculator::Ast', fn () &benchmark.IBenchmark {
 			return calculator.new_calculatorast()

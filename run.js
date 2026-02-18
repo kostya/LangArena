@@ -157,17 +157,23 @@
     "operations": 35000,
     "iterations": 100
   },
-  "MazeGenerator": {
-    "checksum": 3685250329,
-    "w": 1001,
-    "h": 1001,
-    "iterations": 250
+  "Maze::Generator": {
+    "checksum": 3738188563,
+    "w": 1400,
+    "h": 1400,
+    "iterations": 10
   },
-  "AStarPathfinder": {
-    "checksum": 32636640,
-    "w": 4001,
-    "h": 4001,
-    "iterations": 100
+  "Maze::BFS": {
+    "checksum": 2906799,
+    "w": 1400,
+    "h": 1400,
+    "iterations": 70
+  },
+  "Maze::AStar": {
+    "checksum": 2906799,
+    "w": 1400,
+    "h": 1400,
+    "iterations": 70
   },
   "CLBG::Pidigits": {
     "checksum": 3205646197,

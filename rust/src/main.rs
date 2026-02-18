@@ -171,8 +171,9 @@ fn run_benchmarks(single_bench: Option<&str>) {
         Calculator_Ast: benchmarks::calculator_ast::CalculatorAst,
         Calculator_Interpreter: benchmarks::calculator_interpreter::CalculatorInterpreter,
 
-        MazeGenerator: benchmarks::maze_generator::MazeGenerator,
-        AStarPathfinder: benchmarks::a_star_pathfinder::AStarPathfinder,
+        Maze_Generator: benchmarks::maze::MazeGenerator,
+        Maze_BFS: benchmarks::maze::MazeBFS,
+        Maze_AStar: benchmarks::maze::MazeAStar,
 
         Compress_BWTEncode: benchmarks::compress::BWTEncode,
         Compress_BWTDecode: benchmarks::compress::BWTDecode,

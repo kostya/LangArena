@@ -2948,6 +2948,65 @@ class PriorityQueueItem implements Comparable<PriorityQueueItem> {
   }
 }
 
+class PriorityQueue<E extends Comparable<E>> {
+  final List<E> _heap = [];
+
+  int get length => _heap.length;
+  bool get isEmpty => _heap.isEmpty;
+  bool get isNotEmpty => _heap.isNotEmpty;
+
+  void add(E element) {
+    _heap.add(element);
+    _siftUp(_heap.length - 1);
+  }
+
+  E removeFirst() {
+    if (_heap.isEmpty) {
+      throw StateError("Cannot remove from empty priority queue");
+    }
+    final result = _heap[0];
+    final last = _heap.removeLast();
+    if (_heap.isNotEmpty) {
+      _heap[0] = last;
+      _siftDown(0);
+    }
+    return result;
+  }
+
+  void _siftUp(int index) {
+    final element = _heap[index];
+    while (index > 0) {
+      final parent = (index - 1) ~/ 2;
+      if (element.compareTo(_heap[parent]) >= 0) break;
+      _heap[index] = _heap[parent];
+      _heap[parent] = element;
+      index = parent;
+    }
+  }
+
+  void _siftDown(int index) {
+    final size = _heap.length;
+    final element = _heap[index];
+    while (true) {
+      final left = 2 * index + 1;
+      final right = left + 1;
+      var smallest = index;
+
+      if (left < size && _heap[left].compareTo(_heap[smallest]) < 0) {
+        smallest = left;
+      }
+      if (right < size && _heap[right].compareTo(_heap[smallest]) < 0) {
+        smallest = right;
+      }
+      if (smallest == index) break;
+
+      _heap[index] = _heap[smallest];
+      _heap[smallest] = element;
+      index = smallest;
+    }
+  }
+}
+
 class GraphPathAStar extends GraphPathBenchmark {
   @override
   int test() {
@@ -3743,532 +3802,514 @@ class GameOfLife extends Benchmark {
   String get benchmarkName => 'Etc::GameOfLife';
 }
 
-enum MazeCell { Wall, Path }
+enum CellKind {
+  wall(0),
+  space(1),
+  start(2),
+  finish(3),
+  border(4),
+  path(5);
 
-class MazeGeneratorClass {
-  final int width;
-  final int height;
-  final List<List<MazeCell>> cells;
+  const CellKind(this.value);
+  final int value;
+}
 
-  MazeGeneratorClass(int width, int height)
-    : width = max(width, 5),
-      height = max(height, 5),
-      cells = List.generate(
-        max(height, 5),
-        (_) => List.filled(max(width, 5), MazeCell.Wall),
-      );
+class Cell {
+  CellKind kind;
+  List<Cell> neighbors;
+  int x;
+  int y;
 
-  MazeCell get(int x, int y) => cells[y][x];
-  void setCell(int x, int y, MazeCell cell) => cells[y][x] = cell;
+  Cell(this.x, this.y) : kind = CellKind.wall, neighbors = [];
 
-  void _divide(int x1, int y1, int x2, int y2) {
-    final w = x2 - x1;
-    final h = y2 - y1;
+  bool isWalkable() {
+    return kind == CellKind.space ||
+        kind == CellKind.start ||
+        kind == CellKind.finish;
+  }
 
-    if (w < 2 || h < 2) return;
+  void dig() {
+    int walkableNeighbors = 0;
+    for (int i = 0; i < neighbors.length; i++) {
+      if (neighbors[i].isWalkable()) walkableNeighbors++;
+    }
+    if (walkableNeighbors != 1) return;
 
-    final wWall = w - 2;
-    final hWall = h - 2;
-    final wHole = w - 1;
-    final hHole = h - 1;
+    kind = CellKind.space;
 
-    if (wWall <= 0 || hWall <= 0 || wHole <= 0 || hHole <= 0) return;
-
-    if (w > h) {
-      final wallRange = max(wWall ~/ 2, 1);
-      final wallX =
-          x1 + 2 + (wallRange > 0 ? Helper.nextInt(wallRange) * 2 : 0);
-
-      final holeRange = max(hHole ~/ 2, 1);
-      final holeY =
-          y1 + 1 + (holeRange > 0 ? Helper.nextInt(holeRange) * 2 : 0);
-
-      if (wallX <= x2 && holeY <= y2) {
-        for (int y = y1; y <= y2; y++) {
-          if (y != holeY) cells[y][wallX] = MazeCell.Wall;
-        }
-
-        if (wallX > x1 + 1) _divide(x1, y1, wallX - 1, y2);
-        if (wallX + 1 < x2) _divide(wallX + 1, y1, x2, y2);
-      }
-    } else {
-      final wallRange = max(hWall ~/ 2, 1);
-      final wallY =
-          y1 + 2 + (wallRange > 0 ? Helper.nextInt(wallRange) * 2 : 0);
-
-      final holeRange = max(wHole ~/ 2, 1);
-      final holeX =
-          x1 + 1 + (holeRange > 0 ? Helper.nextInt(holeRange) * 2 : 0);
-
-      if (wallY <= y2 && holeX <= x2) {
-        for (int x = x1; x <= x2; x++) {
-          if (x != holeX) cells[wallY][x] = MazeCell.Wall;
-        }
-
-        if (wallY > y1 + 1) _divide(x1, y1, x2, wallY - 1);
-        if (wallY + 1 < y2) _divide(x1, wallY + 1, x2, y2);
+    for (int i = 0; i < neighbors.length; i++) {
+      if (neighbors[i].kind == CellKind.wall) {
+        neighbors[i].dig();
       }
     }
   }
 
-  void _addRandomPaths() {
-    final numExtraPaths = (width * height) ~/ 20;
-    final w = width;
-    final h = height;
-    final cells = this.cells;
+  void ensureOpenFinish() {
+    kind = CellKind.space;
 
-    for (int i = 0; i < numExtraPaths; i++) {
-      final x = Helper.nextInt(w - 2) + 1;
-      final y = Helper.nextInt(h - 2) + 1;
+    int walkableNeighbors = 0;
+    for (int i = 0; i < neighbors.length; i++) {
+      if (neighbors[i].isWalkable()) walkableNeighbors++;
+    }
+    if (walkableNeighbors > 1) return;
 
-      if (cells[y][x] == MazeCell.Wall &&
-          cells[y][x - 1] == MazeCell.Wall &&
-          cells[y][x + 1] == MazeCell.Wall &&
-          cells[y - 1][x] == MazeCell.Wall &&
-          cells[y + 1][x] == MazeCell.Wall) {
-        cells[y][x] = MazeCell.Path;
+    for (int i = 0; i < neighbors.length; i++) {
+      if (neighbors[i].kind == CellKind.wall) {
+        neighbors[i].ensureOpenFinish();
       }
     }
   }
 
-  bool _isConnectedImpl(int startX, int startY, int goalX, int goalY) {
-    if (startX >= width ||
-        startY >= height ||
-        goalX >= width ||
-        goalY >= height) {
-      return false;
+  void reset() {
+    if (kind == CellKind.space) {
+      kind = CellKind.wall;
     }
-
-    final visited = List.generate(
-      height,
-      (_) => List<bool>.filled(width, false),
-    );
-    final queue = Queue<(int, int)>();
-
-    visited[startY][startX] = true;
-    queue.add((startX, startY));
-
-    final cells = this.cells;
-    final w = width;
-    final h = height;
-
-    while (queue.isNotEmpty) {
-      final (x, y) = queue.removeFirst();
-
-      if (x == goalX && y == goalY) return true;
-
-      if (y > 0 && cells[y - 1][x] == MazeCell.Path && !visited[y - 1][x]) {
-        visited[y - 1][x] = true;
-        queue.add((x, y - 1));
-      }
-      if (x + 1 < w && cells[y][x + 1] == MazeCell.Path && !visited[y][x + 1]) {
-        visited[y][x + 1] = true;
-        queue.add((x + 1, y));
-      }
-      if (y + 1 < h && cells[y + 1][x] == MazeCell.Path && !visited[y + 1][x]) {
-        visited[y + 1][x] = true;
-        queue.add((x, y + 1));
-      }
-      if (x > 0 && cells[y][x - 1] == MazeCell.Path && !visited[y][x - 1]) {
-        visited[y][x - 1] = true;
-        queue.add((x - 1, y));
-      }
-    }
-
-    return false;
-  }
-
-  void generate() {
-    if (width < 5 || height < 5) {
-      final midY = height ~/ 2;
-      final row = cells[midY];
-      for (int x = 0; x < width; x++) {
-        row[x] = MazeCell.Path;
-      }
-      return;
-    }
-
-    _divide(0, 0, width - 1, height - 1);
-    _addRandomPaths();
-  }
-
-  List<List<bool>> toBoolGrid() {
-    final result = List<List<bool>>.generate(
-      height,
-      (_) => List<bool>.filled(width, false),
-    );
-
-    for (int y = 0; y < height; y++) {
-      final srcRow = cells[y];
-      final dstRow = result[y];
-      for (int x = 0; x < width; x++) {
-        dstRow[x] = srcRow[x] == MazeCell.Path;
-      }
-    }
-    return result;
-  }
-
-  bool isConnected(int startX, int startY, int goalX, int goalY) {
-    return _isConnectedImpl(startX, startY, goalX, goalY);
-  }
-
-  static List<List<bool>> generateWalkableMaze(int width, int height) {
-    final maze = MazeGeneratorClass(width, height);
-    maze.generate();
-
-    final startX = 1;
-    final startY = 1;
-    final goalX = width - 2;
-    final goalY = height - 2;
-
-    if (!maze.isConnected(startX, startY, goalX, goalY)) {
-      final w = width;
-      final h = height;
-      final cells = maze.cells;
-
-      for (int x = 0; x < w; x++) {
-        for (int y = 0; y < h; y++) {
-          if (x == 1 || y == 1 || x == w - 2 || y == h - 2) {
-            cells[y][x] = MazeCell.Path;
-          }
-        }
-      }
-    }
-
-    return maze.toBoolGrid();
   }
 }
 
-class MazeGenerator extends Benchmark {
-  late final int width;
-  late final int height;
-  List<List<bool>> boolGrid = [];
+enum MazeCellKind {
+  wall(0),
+  space(1),
+  start(2),
+  finish(3),
+  border(4),
+  path(5);
 
-  MazeGenerator() {
-    width = Helper.configI64(benchmarkName, "w").toInt();
-    height = Helper.configI64(benchmarkName, "h").toInt();
+  const MazeCellKind(this.value);
+  final int value;
+
+  bool get isWalkable =>
+      this == MazeCellKind.space ||
+      this == MazeCellKind.start ||
+      this == MazeCellKind.finish;
+}
+
+class MazeCell {
+  MazeCellKind kind;
+  final List<MazeCell> neighbors;
+  final int x, y;
+
+  MazeCell(this.x, this.y) : kind = MazeCellKind.wall, neighbors = [];
+
+  void addNeighbor(MazeCell cell) => neighbors.add(cell);
+
+  void reset() {
+    if (kind == MazeCellKind.space) {
+      kind = MazeCellKind.wall;
+    }
+  }
+}
+
+class Maze {
+  final int width;
+  final int height;
+  final List<List<MazeCell>> cells;
+  late final MazeCell start;
+  late final MazeCell finish;
+
+  Maze(int w, int h)
+    : width = max(w, 5),
+      height = max(h, 5),
+      cells = List.generate(
+        max(h, 5),
+        (y) => List.generate(max(w, 5), (x) => MazeCell(x, y)),
+      ) {
+    start = cells[1][1];
+    finish = cells[height - 2][width - 2];
+    start.kind = MazeCellKind.start;
+    finish.kind = MazeCellKind.finish;
+    updateNeighbors();
   }
 
-  @override
-  void prepare() {
-    Helper.reset();
+  void updateNeighbors() {
+    for (var row in cells) {
+      for (var cell in row) {
+        cell.neighbors.clear();
+      }
+    }
+
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        var cell = cells[y][x];
+
+        if (x > 0 && y > 0 && x < width - 1 && y < height - 1) {
+          cell.addNeighbor(cells[y - 1][x]);
+          cell.addNeighbor(cells[y + 1][x]);
+          cell.addNeighbor(cells[y][x + 1]);
+          cell.addNeighbor(cells[y][x - 1]);
+
+          for (int t = 0; t < 4; t++) {
+            int i = Helper.nextInt(4);
+            int j = Helper.nextInt(4);
+            if (i != j) {
+              var temp = cell.neighbors[i];
+              cell.neighbors[i] = cell.neighbors[j];
+              cell.neighbors[j] = temp;
+            }
+          }
+        } else {
+          cell.kind = MazeCellKind.border;
+        }
+      }
+    }
   }
 
-  @override
-  void runBenchmark(int iterationId) {
-    boolGrid = MazeGeneratorClass.generateWalkableMaze(width, height);
+  void reset() {
+    for (var row in cells) {
+      for (var cell in row) {
+        cell.reset();
+      }
+    }
+    start.kind = MazeCellKind.start;
+    finish.kind = MazeCellKind.finish;
   }
 
-  int _gridChecksum(List<List<bool>> grid) {
+  void dig(MazeCell startCell) {
+    List<MazeCell> stack = [];
+    stack.add(startCell);
+
+    while (stack.isNotEmpty) {
+      var cell = stack.removeLast();
+
+      int walkable = 0;
+      for (var n in cell.neighbors) {
+        if (n.kind.isWalkable) walkable++;
+      }
+
+      if (walkable != 1) continue;
+
+      cell.kind = MazeCellKind.space;
+
+      for (var n in cell.neighbors) {
+        if (n.kind == MazeCellKind.wall) {
+          stack.add(n);
+        }
+      }
+    }
+  }
+
+  void ensureOpenFinish(MazeCell startCell) {
+    List<MazeCell> stack = [];
+    stack.add(startCell);
+
+    while (stack.isNotEmpty) {
+      var cell = stack.removeLast();
+
+      cell.kind = MazeCellKind.space;
+
+      int walkable = 0;
+      for (var n in cell.neighbors) {
+        if (n.kind.isWalkable) walkable++;
+      }
+
+      if (walkable > 1) continue;
+
+      for (var n in cell.neighbors) {
+        if (n.kind == MazeCellKind.wall) {
+          stack.add(n);
+        }
+      }
+    }
+  }
+
+  void generate() {
+    for (var n in start.neighbors) {
+      if (n.kind == MazeCellKind.wall) {
+        dig(n);
+      }
+    }
+
+    for (var n in finish.neighbors) {
+      if (n.kind == MazeCellKind.wall) {
+        ensureOpenFinish(n);
+      }
+    }
+  }
+
+  MazeCell getStart() => start;
+  MazeCell getFinish() => finish;
+  MazeCell middleCell() => cells[height ~/ 2][width ~/ 2];
+
+  int checksum() {
     int hasher = 2166136261 & 0xFFFFFFFF;
-    const int prime = 16777619 & 0xFFFFFFFF;
+    const int prime = 16777619;
 
-    for (int i = 0; i < grid.length; i++) {
-      final row = grid[i];
-      for (int j = 0; j < row.length; j++) {
-        if (row[j]) {
-          final jSquared = (j * j) & 0xFFFFFFFF;
-          hasher = ((hasher ^ jSquared) * prime) & 0xFFFFFFFF;
+    for (var row in cells) {
+      for (var cell in row) {
+        if (cell.kind == MazeCellKind.space) {
+          int val = (cell.x * cell.y) & 0xFFFFFFFF;
+          hasher = ((hasher ^ val) * prime) & 0xFFFFFFFF;
         }
       }
     }
     return hasher;
   }
 
+  void printToConsole() {
+    for (var row in cells) {
+      for (var cell in row) {
+        switch (cell.kind) {
+          case MazeCellKind.space:
+            stdout.write(' ');
+            break;
+          case MazeCellKind.wall:
+            stdout.write('\u001B[34m#\u001B[0m');
+            break;
+          case MazeCellKind.border:
+            stdout.write('\u001B[31mO\u001B[0m');
+            break;
+          case MazeCellKind.start:
+            stdout.write('\u001B[32m>\u001B[0m');
+            break;
+          case MazeCellKind.finish:
+            stdout.write('\u001B[32m<\u001B[0m');
+            break;
+          case MazeCellKind.path:
+            stdout.write('\u001B[33m.\u001B[0m');
+            break;
+        }
+      }
+      stdout.writeln();
+    }
+    stdout.writeln();
+  }
+}
+
+class _BfsPathNode {
+  final MazeCell cell;
+  final int parent;
+  _BfsPathNode(this.cell, this.parent);
+}
+
+class _AStarItem implements Comparable<_AStarItem> {
+  final int priority;
+  final int vertex;
+
+  _AStarItem(this.priority, this.vertex);
+
+  @override
+  int compareTo(_AStarItem other) {
+    if (priority != other.priority) {
+      return priority.compareTo(other.priority);
+    }
+    return vertex.compareTo(other.vertex);
+  }
+}
+
+class MazeGenerator extends Benchmark {
+  late final int width;
+  late final int height;
+  late Maze maze;
+  int resultVal = 0;
+
+  MazeGenerator() {
+    width = Helper.configI64("Maze::Generator", "w").toInt();
+    height = Helper.configI64("Maze::Generator", "h").toInt();
+    maze = Maze(width, height);
+  }
+
+  @override
+  String get benchmarkName => 'Maze::Generator';
+
+  @override
+  void prepare() {}
+
+  @override
+  void runBenchmark(int iterationId) {
+    maze.reset();
+    maze.generate();
+    resultVal = (resultVal + maze.middleCell().kind.value) & 0xFFFFFFFF;
+  }
+
   @override
   int checksum() {
-    return _gridChecksum(boolGrid);
-  }
-
-  @override
-  String get benchmarkName => 'MazeGenerator';
-}
-
-class AStarNode implements Comparable<AStarNode> {
-  final int x;
-  final int y;
-  final int fScore;
-
-  AStarNode(this.x, this.y, this.fScore);
-
-  @override
-  int compareTo(AStarNode other) {
-    if (fScore != other.fScore) {
-      return fScore - other.fScore;
-    }
-    if (y != other.y) {
-      return y - other.y;
-    }
-    return x - other.x;
+    return (resultVal + maze.checksum()) & 0xFFFFFFFF;
   }
 }
 
-class AStarBinaryHeap {
-  final List<AStarNode> _data = [];
-
-  void push(AStarNode item) {
-    _data.add(item);
-    _siftUp(_data.length - 1);
-  }
-
-  AStarNode pop() {
-    final result = _data[0];
-    final last = _data.removeLast();
-
-    if (_data.isNotEmpty) {
-      _data[0] = last;
-      _siftDown(0);
-    }
-
-    return result;
-  }
-
-  bool isEmpty() => _data.isEmpty;
-
-  void _siftUp(int index) {
-    final node = _data[index];
-
-    while (index > 0) {
-      final parent = (index - 1) >> 1;
-      final parentNode = _data[parent];
-
-      if (node.compareTo(parentNode) >= 0) break;
-
-      _data[index] = parentNode;
-      _data[parent] = node;
-      index = parent;
-    }
-  }
-
-  void _siftDown(int index) {
-    final size = _data.length;
-    final node = _data[index];
-
-    while (true) {
-      final left = (index << 1) + 1;
-      final right = left + 1;
-      var smallest = index;
-
-      if (left < size) {
-        final leftNode = _data[left];
-        if (leftNode.compareTo(_data[smallest]) < 0) {
-          smallest = left;
-        }
-      }
-
-      if (right < size) {
-        final rightNode = _data[right];
-        if (rightNode.compareTo(_data[smallest]) < 0) {
-          smallest = right;
-        }
-      }
-
-      if (smallest == index) break;
-
-      _data[index] = _data[smallest];
-      _data[smallest] = node;
-      index = smallest;
-    }
-  }
-}
-
-class PriorityQueue<E extends Comparable<E>> {
-  final List<E> _heap = [];
-
-  int get length => _heap.length;
-  bool get isEmpty => _heap.isEmpty;
-  bool get isNotEmpty => _heap.isNotEmpty;
-
-  void add(E element) {
-    _heap.add(element);
-    _siftUp(_heap.length - 1);
-  }
-
-  E removeFirst() {
-    if (_heap.isEmpty) {
-      throw StateError("Cannot remove from empty priority queue");
-    }
-    final result = _heap[0];
-    final last = _heap.removeLast();
-    if (_heap.isNotEmpty) {
-      _heap[0] = last;
-      _siftDown(0);
-    }
-    return result;
-  }
-
-  void _siftUp(int index) {
-    final element = _heap[index];
-    while (index > 0) {
-      final parent = (index - 1) ~/ 2;
-      if (element.compareTo(_heap[parent]) >= 0) break;
-      _heap[index] = _heap[parent];
-      _heap[parent] = element;
-      index = parent;
-    }
-  }
-
-  void _siftDown(int index) {
-    final size = _heap.length;
-    final element = _heap[index];
-    while (true) {
-      final left = 2 * index + 1;
-      final right = left + 1;
-      var smallest = index;
-
-      if (left < size && _heap[left].compareTo(_heap[smallest]) < 0) {
-        smallest = left;
-      }
-      if (right < size && _heap[right].compareTo(_heap[smallest]) < 0) {
-        smallest = right;
-      }
-      if (smallest == index) break;
-
-      _heap[index] = _heap[smallest];
-      _heap[smallest] = element;
-      index = smallest;
-    }
-  }
-}
-
-class AStarPathfinder extends Benchmark {
+class MazeBFS extends Benchmark {
+  late final int width;
+  late final int height;
+  late Maze maze;
   int resultVal = 0;
-  late int startX;
-  late int startY;
-  late int goalX;
-  late int goalY;
-  late int width;
-  late int height;
-  List<List<bool>> mazeGrid = [];
+  List<MazeCell> path = [];
 
-  late Int32List gScoresCache;
-  late Int32List cameFromCache;
-
-  static const directions = [
-    [0, -1],
-    [1, 0],
-    [0, 1],
-    [-1, 0],
-  ];
-  static const straightCost = 1000;
-  static const int inf = 0x7FFFFFFF;
-
-  AStarPathfinder() {
-    width = Helper.configI64(benchmarkName, "w").toInt();
-    height = Helper.configI64(benchmarkName, "h").toInt();
-    startX = 1;
-    startY = 1;
-    goalX = width - 2;
-    goalY = height - 2;
-
-    final size = width * height;
-    gScoresCache = Int32List(size);
-    cameFromCache = Int32List(size);
+  MazeBFS() {
+    width = Helper.configI64("Maze::BFS", "w").toInt();
+    height = Helper.configI64("Maze::BFS", "h").toInt();
+    maze = Maze(width, height);
   }
 
-  int _distance(int aX, int aY, int bX, int bY) {
-    return (aX - bX).abs() + (aY - bY).abs();
-  }
-
-  int _packCoords(int x, int y) {
-    return y * width + x;
-  }
-
-  (int, int) _unpackCoords(int packed) {
-    return (packed % width, packed ~/ width);
-  }
-
-  (List<(int, int)>, int) _findPath() {
-    final grid = mazeGrid;
-    final gScores = gScoresCache;
-    final cameFrom = cameFromCache;
-
-    gScores.fillRange(0, gScores.length, inf);
-    cameFrom.fillRange(0, cameFrom.length, -1);
-
-    final openSet = AStarBinaryHeap();
-
-    final startIdx = _packCoords(startX, startY);
-    gScores[startIdx] = 0;
-    openSet.push(
-      AStarNode(startX, startY, _distance(startX, startY, goalX, goalY)),
-    );
-
-    var nodesExplored = 0;
-
-    while (!openSet.isEmpty()) {
-      final current = openSet.pop();
-      nodesExplored++;
-
-      if (current.x == goalX && current.y == goalY) {
-        final path = <(int, int)>[];
-        var x = current.x;
-        var y = current.y;
-
-        while (x != startX || y != startY) {
-          path.add((x, y));
-          final idx = _packCoords(x, y);
-          final packed = cameFrom[idx];
-          if (packed == -1) break;
-
-          final (newX, newY) = _unpackCoords(packed);
-          x = newX;
-          y = newY;
-        }
-
-        path.add((startX, startY));
-        return (path.reversed.toList(), nodesExplored);
-      }
-
-      final currentIdx = _packCoords(current.x, current.y);
-      final currentG = gScores[currentIdx];
-
-      for (final dir in directions) {
-        final nx = current.x + dir[0];
-        final ny = current.y + dir[1];
-
-        if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-        if (!grid[ny][nx]) continue;
-
-        final tentativeG = currentG + straightCost;
-        final neighborIdx = _packCoords(nx, ny);
-
-        if (tentativeG < gScores[neighborIdx]) {
-          cameFrom[neighborIdx] = currentIdx;
-          gScores[neighborIdx] = tentativeG;
-
-          final fScore = tentativeG + _distance(nx, ny, goalX, goalY);
-          openSet.push(AStarNode(nx, ny, fScore));
-        }
-      }
-    }
-
-    return ([], nodesExplored);
-  }
+  @override
+  String get benchmarkName => 'Maze::BFS';
 
   @override
   void prepare() {
-    mazeGrid = MazeGeneratorClass.generateWalkableMaze(width, height);
+    maze.generate();
+  }
+
+  List<MazeCell> bfs(MazeCell start, MazeCell target) {
+    if (start == target) return [start];
+
+    var queue = Queue<int>();
+    var visited = List.generate(height, (_) => List<bool>.filled(width, false));
+    var pathNodes = <_BfsPathNode>[];
+
+    visited[start.y][start.x] = true;
+    pathNodes.add(_BfsPathNode(start, -1));
+    queue.add(0);
+
+    while (queue.isNotEmpty) {
+      int pathId = queue.removeFirst();
+      var cell = pathNodes[pathId].cell;
+
+      for (var neighbor in cell.neighbors) {
+        if (neighbor == target) {
+          var result = [target];
+          int current = pathId;
+          while (current >= 0) {
+            result.add(pathNodes[current].cell);
+            current = pathNodes[current].parent;
+          }
+          return result.reversed.toList();
+        }
+
+        if (neighbor.kind.isWalkable && !visited[neighbor.y][neighbor.x]) {
+          visited[neighbor.y][neighbor.x] = true;
+          pathNodes.add(_BfsPathNode(neighbor, pathId));
+          queue.add(pathNodes.length - 1);
+        }
+      }
+    }
+    return [];
+  }
+
+  int midCellChecksum(List<MazeCell> p) {
+    if (p.isEmpty) return 0;
+    var cell = p[p.length ~/ 2];
+    return (cell.x * cell.y) & 0xFFFFFFFF;
   }
 
   @override
   void runBenchmark(int iterationId) {
-    final (path, nodesExplored) = _findPath();
-
-    var localResult = 0;
-
-    localResult = path.length;
-    localResult = ((localResult << 5) + nodesExplored) & 0xFFFFFFFF;
-    resultVal = (resultVal + localResult) & 0xFFFFFFFF;
+    path = bfs(maze.getStart(), maze.getFinish());
+    resultVal = (resultVal + path.length) & 0xFFFFFFFF;
   }
 
   @override
   int checksum() {
-    return resultVal & 0xFFFFFFFF;
+    return (resultVal + midCellChecksum(path)) & 0xFFFFFFFF;
+  }
+}
+
+class MazeAStar extends Benchmark {
+  late final int width;
+  late final int height;
+  late Maze maze;
+  int resultVal = 0;
+  List<MazeCell> path = [];
+
+  MazeAStar() {
+    width = Helper.configI64("Maze::AStar", "w").toInt();
+    height = Helper.configI64("Maze::AStar", "h").toInt();
+    maze = Maze(width, height);
   }
 
   @override
-  String get benchmarkName => 'AStarPathfinder';
+  String get benchmarkName => 'Maze::AStar';
+
+  @override
+  void prepare() {
+    maze.generate();
+  }
+
+  int heuristic(MazeCell a, MazeCell b) {
+    return (a.x - b.x).abs() + (a.y - b.y).abs();
+  }
+
+  int idx(int y, int x) => y * width + x;
+
+  List<MazeCell> astar(MazeCell start, MazeCell target) {
+    if (start == target) return [start];
+
+    int size = width * height;
+
+    var cameFrom = List<int>.filled(size, -1);
+    var gScore = List<int>.filled(size, 1 << 30);
+    var bestF = List<int>.filled(size, 1 << 30);
+
+    int startIdx = idx(start.y, start.x);
+    int targetIdx = idx(target.y, target.x);
+
+    var openSet = PriorityQueue<_AStarItem>();
+    var inOpen = List<bool>.filled(size, false);
+
+    gScore[startIdx] = 0;
+    int fStart = heuristic(start, target);
+    openSet.add(_AStarItem(fStart, startIdx));
+    bestF[startIdx] = fStart;
+    inOpen[startIdx] = true;
+
+    while (openSet.isNotEmpty) {
+      var current = openSet.removeFirst();
+      int currentIdx = current.vertex;
+      inOpen[currentIdx] = false;
+
+      if (currentIdx == targetIdx) {
+        var result = <MazeCell>[];
+        int cur = currentIdx;
+        while (cur != -1) {
+          int y = cur ~/ width;
+          int x = cur % width;
+          result.add(maze.cells[y][x]);
+          cur = cameFrom[cur];
+        }
+        return result.reversed.toList();
+      }
+
+      int currentY = currentIdx ~/ width;
+      int currentX = currentIdx % width;
+      var currentCell = maze.cells[currentY][currentX];
+      int currentG = gScore[currentIdx];
+
+      for (var neighbor in currentCell.neighbors) {
+        if (!neighbor.kind.isWalkable) continue;
+
+        int neighborIdx = idx(neighbor.y, neighbor.x);
+        int tentativeG = currentG + 1;
+
+        if (tentativeG < gScore[neighborIdx]) {
+          cameFrom[neighborIdx] = currentIdx;
+          gScore[neighborIdx] = tentativeG;
+          int fNew = tentativeG + heuristic(neighbor, target);
+
+          if (fNew < bestF[neighborIdx]) {
+            bestF[neighborIdx] = fNew;
+            openSet.add(_AStarItem(fNew, neighborIdx));
+            inOpen[neighborIdx] = true;
+          }
+        }
+      }
+    }
+    return [];
+  }
+
+  int midCellChecksum(List<MazeCell> p) {
+    if (p.isEmpty) return 0;
+    var cell = p[p.length ~/ 2];
+    return (cell.x * cell.y) & 0xFFFFFFFF;
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    path = astar(maze.getStart(), maze.getFinish());
+    resultVal = (resultVal + path.length) & 0xFFFFFFFF;
+  }
+
+  @override
+  int checksum() {
+    return (resultVal + midCellChecksum(path)) & 0xFFFFFFFF;
+  }
 }
 
 Uint8List generateTestData(int size) {
@@ -5190,8 +5231,9 @@ void registerBenchmarks() {
     () => CalculatorInterpreter(),
   );
   Benchmark.registerBenchmark('Etc::GameOfLife', () => GameOfLife());
-  Benchmark.registerBenchmark('MazeGenerator', () => MazeGenerator());
-  Benchmark.registerBenchmark('AStarPathfinder', () => AStarPathfinder());
+  Benchmark.registerBenchmark('Maze::Generator', () => MazeGenerator());
+  Benchmark.registerBenchmark('Maze::BFS', () => MazeBFS());
+  Benchmark.registerBenchmark('Maze::AStar', () => MazeAStar());
   Benchmark.registerBenchmark('Compress::BWTEncode', () => BWTEncode());
   Benchmark.registerBenchmark('Compress::BWTDecode', () => BWTDecode());
   Benchmark.registerBenchmark('Compress::HuffEncode', () => HuffEncode());

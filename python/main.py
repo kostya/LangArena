@@ -3329,350 +3329,380 @@ class GameOfLife(Benchmark):
         return "Etc::GameOfLife"
 
 
-class Cell(Enum):
+class CellKind(Enum):
     WALL = 0
-    PATH = 1
+    SPACE = 1
+    START = 2
+    FINISH = 3
+    BORDER = 4
+    PATH = 5
+
+    def is_walkable(self) -> bool:
+        return self in (CellKind.SPACE, CellKind.START, CellKind.FINISH)
+
+
+class Cell:
+    __slots__ = ('kind', 'neighbors', 'x', 'y')
+
+    def __init__(self, x: int, y: int):
+        self.kind = CellKind.WALL
+        self.neighbors: List['Cell'] = []
+        self.x = x
+        self.y = y
+
+    def add_neighbor(self, cell: 'Cell') -> None:
+        self.neighbors.append(cell)
+
+    def reset(self) -> None:
+        if self.kind == CellKind.SPACE:
+            self.kind = CellKind.WALL
 
 
 class Maze:
 
     def __init__(self, width: int, height: int):
-        self.width = width if width > 5 else 5
-        self.height = height if height > 5 else 5
-        self.cells = [
-            [Cell.WALL for _ in range(self.width)] for _ in range(self.height)
+        self.width = max(width, 5)
+        self.height = max(height, 5)
+
+        self.cells: List[List[Cell]] = [
+            [Cell(x, y) for x in range(self.width)] for y in range(self.height)
         ]
 
-    def __getitem__(self, pos: Tuple[int, int]) -> Cell:
-        x, y = pos
-        return self.cells[y][x]
+        self.start = self.cells[1][1]
+        self.finish = self.cells[self.height - 2][self.width - 2]
+        self.start.kind = CellKind.START
+        self.finish.kind = CellKind.FINISH
 
-    def __setitem__(self, pos: Tuple[int, int], value: Cell):
-        x, y = pos
-        self.cells[y][x] = value
+        self._update_neighbors()
 
-    def generate(self):
-
-        if self.width < 5 or self.height < 5:
-
-            mid_y = self.height // 2
+    def _update_neighbors(self) -> None:
+        for y in range(self.height):
             for x in range(self.width):
-                self[x, mid_y] = Cell.PATH
-            return
+                cell = self.cells[y][x]
+                cell.neighbors.clear()
 
-        self._divide(0, 0, self.width - 1, self.height - 1)
-        self._add_random_paths()
+                if 0 < x < self.width - 1 and 0 < y < self.height - 1:
+                    cell.add_neighbor(self.cells[y - 1][x])
+                    cell.add_neighbor(self.cells[y + 1][x])
+                    cell.add_neighbor(self.cells[y][x + 1])
+                    cell.add_neighbor(self.cells[y][x - 1])
 
-    def _add_random_paths(self):
+                    for _ in range(4):
+                        i = Helper.next_int(4)
+                        j = Helper.next_int(4)
+                        if i != j:
+                            cell.neighbors[i], cell.neighbors[j] = \
+                                cell.neighbors[j], cell.neighbors[i]
+                else:
+                    cell.kind = CellKind.BORDER
 
-        num_extra_paths = (self.width * self.height) // 20
+    def reset(self) -> None:
+        for row in self.cells:
+            for cell in row:
+                cell.reset()
+        self.start.kind = CellKind.START
+        self.finish.kind = CellKind.FINISH
 
-        for _ in range(num_extra_paths):
-            x = Helper.next_int(self.width - 2) + 1
-            y = Helper.next_int(self.height - 2) + 1
+    def _dig(self, start_cell: Cell) -> None:
+        stack = [start_cell]
 
-            if (self[x, y] == Cell.WALL and self[x - 1, y] == Cell.WALL and
-                    self[x + 1, y] == Cell.WALL and
-                    self[x, y - 1] == Cell.WALL and
-                    self[x, y + 1] == Cell.WALL):
-                self[x, y] = Cell.PATH
+        while stack:
+            cell = stack.pop()
 
-    def _divide(self, x1: int, y1: int, x2: int, y2: int):
-        width = x2 - x1
-        height = y2 - y1
+            walkable = sum(1 for n in cell.neighbors if n.kind.is_walkable())
 
-        if width < 2 or height < 2:
-            return
+            if walkable == 1:
+                cell.kind = CellKind.SPACE
+                for n in cell.neighbors:
+                    if n.kind == CellKind.WALL:
+                        stack.append(n)
 
-        width_for_wall = width - 2
-        height_for_wall = height - 2
-        width_for_hole = width - 1
-        height_for_hole = height - 1
+    def _ensure_open_finish(self, start_cell: Cell) -> None:
+        stack = [start_cell]
 
-        if (width_for_wall <= 0 or height_for_wall <= 0 or
-                width_for_hole <= 0 or height_for_hole <= 0):
-            return
+        while stack:
+            cell = stack.pop()
 
-        if width > height:
+            cell.kind = CellKind.SPACE
 
-            wall_range = max(width_for_wall // 2, 1)
-            wall_offset = (Helper.next_int(wall_range) *
-                           2) if wall_range > 0 else 0
-            wall_x = x1 + 2 + wall_offset
+            walkable = sum(1 for n in cell.neighbors if n.kind.is_walkable())
+            if walkable > 1:
+                continue
 
-            hole_range = max(height_for_hole // 2, 1)
-            hole_offset = (Helper.next_int(hole_range) *
-                           2) if hole_range > 0 else 0
-            hole_y = y1 + 1 + hole_offset
+            for n in cell.neighbors:
+                if n.kind == CellKind.WALL:
+                    stack.append(n)
 
-            if wall_x > x2 or hole_y > y2:
-                return
+    def generate(self) -> None:
+        for n in self.start.neighbors:
+            if n.kind == CellKind.WALL:
+                self._dig(n)
 
-            for y in range(y1, y2 + 1):
-                if y != hole_y:
-                    self[wall_x, y] = Cell.WALL
+        for n in self.finish.neighbors:
+            if n.kind == CellKind.WALL:
+                self._ensure_open_finish(n)
 
-            if wall_x > x1 + 1:
-                self._divide(x1, y1, wall_x - 1, y2)
-            if wall_x + 1 < x2:
-                self._divide(wall_x + 1, y1, x2, y2)
-        else:
+    def middle_cell(self) -> Cell:
+        return self.cells[self.height // 2][self.width // 2]
 
-            wall_range = max(height_for_wall // 2, 1)
-            wall_offset = (Helper.next_int(wall_range) *
-                           2) if wall_range > 0 else 0
-            wall_y = y1 + 2 + wall_offset
+    def checksum(self) -> int:
+        hasher = 2166136261 & 0xFFFFFFFF
+        prime = 16777619 & 0xFFFFFFFF
 
-            hole_range = max(width_for_hole // 2, 1)
-            hole_offset = (Helper.next_int(hole_range) *
-                           2) if hole_range > 0 else 0
-            hole_x = x1 + 1 + hole_offset
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.cells[y][x].kind == CellKind.SPACE:
+                    val = (x * y) & 0xFFFFFFFF
+                    hasher = ((hasher ^ val) * prime) & 0xFFFFFFFF
 
-            if wall_y > y2 or hole_x > x2:
-                return
+        return hasher
 
-            for x in range(x1, x2 + 1):
-                if x != hole_x:
-                    self[x, wall_y] = Cell.WALL
-
-            if wall_y > y1 + 1:
-                self._divide(x1, y1, x2, wall_y - 1)
-            if wall_y + 1 < y2:
-                self._divide(x1, wall_y + 1, x2, y2)
-
-    def to_bool_grid(self) -> List[List[bool]]:
-
-        return [[cell == Cell.PATH for cell in row] for row in self.cells]
-
-    def is_connected(self, start: Tuple[int, int], goal: Tuple[int,
-                                                               int]) -> bool:
-
-        if (start[0] >= self.width or start[1] >= self.height or
-                goal[0] >= self.width or goal[1] >= self.height):
-            return False
-
-        visited = [
-            [False for _ in range(self.width)] for _ in range(self.height)
-        ]
-        queue = deque([start])
-        visited[start[1]][start[0]] = True
-
-        while queue:
-            x, y = queue.popleft()
-
-            if (x, y) == goal:
-                return True
-
-            if y > 0 and self[x, y - 1] == Cell.PATH and not visited[y - 1][x]:
-                visited[y - 1][x] = True
-                queue.append((x, y - 1))
-
-            if x + 1 < self.width and self[
-                    x + 1, y] == Cell.PATH and not visited[y][x + 1]:
-                visited[y][x + 1] = True
-                queue.append((x + 1, y))
-
-            if y + 1 < self.height and self[
-                    x, y + 1] == Cell.PATH and not visited[y + 1][x]:
-                visited[y + 1][x] = True
-                queue.append((x, y + 1))
-
-            if x > 0 and self[x - 1, y] == Cell.PATH and not visited[y][x - 1]:
-                visited[y][x - 1] = True
-                queue.append((x - 1, y))
-
-        return False
-
-    @staticmethod
-    def generate_walkable_maze(width: int, height: int) -> List[List[bool]]:
-        maze = Maze(width, height)
-        maze.generate()
-
-        start = (1, 1)
-        goal = (width - 2, height - 2)
-
-        if not maze.is_connected(start, goal):
-
-            for y in range(height):
-                for x in range(width):
-                    if y < maze.height and x < maze.width:
-                        if x == 1 or y == 1 or x == width - 2 or y == height - 2:
-                            maze[x, y] = Cell.PATH
-
-        return maze.to_bool_grid()
+    def print_to_console(self) -> None:
+        for y in range(self.height):
+            for x in range(self.width):
+                cell = self.cells[y][x]
+                if cell.kind == CellKind.SPACE:
+                    print(' ', end='')
+                elif cell.kind == CellKind.WALL:
+                    print('\033[34m#\033[0m', end='')
+                elif cell.kind == CellKind.BORDER:
+                    print('\033[31mO\033[0m', end='')
+                elif cell.kind == CellKind.START:
+                    print('\033[32m>\033[0m', end='')
+                elif cell.kind == CellKind.FINISH:
+                    print('\033[32m<\033[0m', end='')
+                elif cell.kind == CellKind.PATH:
+                    print('\033[33m.\033[0m', end='')
+            print()
+        print()
 
 
 class MazeGenerator(Benchmark):
 
     def __init__(self):
         super().__init__()
-        self.result = 0
+        self.result_val = 0
         self.width = 0
         self.height = 0
-        self.bool_grid: List[List[bool]] = []
+        self.maze: Optional[Maze] = None
 
-    def prepare(self):
+    def prepare(self) -> None:
         self.width = Helper.config_i64(self.name(), "w")
         self.height = Helper.config_i64(self.name(), "h")
+        self.maze = Maze(self.width, self.height)
+        self.result_val = 0
 
-    def run_benchmark(self, iteration_id: int):
-
-        self.bool_grid = Maze.generate_walkable_maze(self.width, self.height)
-
-    def grid_checksum(self, grid: List[List[bool]]) -> int:
-
-        hasher = 2166136261 & 0xFFFFFFFF
-        prime = 16777619 & 0xFFFFFFFF
-
-        steps = []
-
-        for i, row in enumerate(grid):
-            for j, cell in enumerate(row):
-                if cell:
-
-                    j_squared = (j * j) & 0xFFFFFFFF
-
-                    old_hasher = hasher
-                    hasher = ((hasher ^ j_squared) * prime) & 0xFFFFFFFF
-
-        return hasher
+    def run_benchmark(self, iteration_id: int) -> None:
+        if self.maze is None:
+            return
+        self.maze.reset()
+        self.maze.generate()
+        self.result_val = (self.result_val +
+                           self.maze.middle_cell().kind.value) & 0xFFFFFFFF
 
     def checksum(self) -> int:
-
-        result = self.grid_checksum(self.bool_grid)
-        return result
+        if self.maze is None:
+            return 0
+        return (self.result_val + self.maze.checksum()) & 0xFFFFFFFF
 
     def name(self) -> str:
-        return "MazeGenerator"
+        return "Maze::Generator"
 
 
-class Node:
-    __slots__ = ('x', 'y', 'f_score')
+class MazeBFS(Benchmark):
 
-    def __init__(self, x: int, y: int, f_score: int):
-        self.x = x
-        self.y = y
-        self.f_score = f_score
+    class PathNode:
+        __slots__ = ('cell', 'parent')
 
-    def __lt__(self, other: 'Node') -> bool:
-        return self.f_score < other.f_score
-
-    def __eq__(self, other: 'Node') -> bool:
-        return (self.x == other.x and self.y == other.y and
-                self.f_score == other.f_score)
-
-
-class AStarPathfinder(Benchmark):
-
-    @staticmethod
-    def manhattan_distance(x1: int, y1: int, x2: int, y2: int) -> int:
-        return abs(x1 - x2) + abs(y1 - y2)
+        def __init__(self, cell: Cell, parent: int):
+            self.cell = cell
+            self.parent = parent
 
     def __init__(self):
         super().__init__()
+        self.result_val = 0
         self.width = 0
         self.height = 0
-        self.maze_grid: List[List[bool]] = []
-        self.result = 0
-        self.start_x = 1
-        self.start_y = 1
-        self.goal_x = 0
-        self.goal_y = 0
+        self.maze: Optional[Maze] = None
+        self.path: List[Cell] = []
 
-    def prepare(self):
+    def prepare(self) -> None:
         self.width = Helper.config_i64(self.name(), "w")
         self.height = Helper.config_i64(self.name(), "h")
-        self.goal_x = self.width - 2
-        self.goal_y = self.height - 2
+        self.maze = Maze(self.width, self.height)
+        self.maze.generate()
+        self.result_val = 0
+        self.path = []
 
-        self.maze_grid = Maze.generate_walkable_maze(self.width, self.height)
+    def _bfs(self, start: Cell, target: Cell) -> List[Cell]:
+        if start == target:
+            return [start]
 
-    def _pack_coords(self, x: int, y: int) -> int:
-        return y * self.width + x
+        queue = deque([0])
+        visited = [[False] * self.width for _ in range(self.height)]
+        path_nodes: List[MazeBFS.PathNode] = []
 
-    def _unpack_coords(self, packed: int) -> Tuple[int, int]:
-        return packed % self.width, packed // self.width
+        visited[start.y][start.x] = True
+        path_nodes.append(MazeBFS.PathNode(start, -1))
 
-    def _find_path(self) -> Tuple[Optional[List[Tuple[int, int]]], int]:
+        while queue:
+            path_id = queue.popleft()
+            node = path_nodes[path_id]
 
-        width = self.width
-        height = self.height
-        grid = self.maze_grid
+            for neighbor in node.cell.neighbors:
+                if neighbor == target:
+                    result = [target]
+                    cur = path_id
+                    while cur >= 0:
+                        result.append(path_nodes[cur].cell)
+                        cur = path_nodes[cur].parent
+                    return list(reversed(result))
 
-        size = width * height
-        g_scores = [0x7FFFFFFF] * size
+                if neighbor.kind.is_walkable(
+                ) and not visited[neighbor.y][neighbor.x]:
+                    visited[neighbor.y][neighbor.x] = True
+                    path_nodes.append(MazeBFS.PathNode(neighbor, path_id))
+                    queue.append(len(path_nodes) - 1)
+
+        return []
+
+    def _mid_cell_checksum(self, path: List[Cell]) -> int:
+        if not path:
+            return 0
+        cell = path[len(path) // 2]
+        return (cell.x * cell.y) & 0xFFFFFFFF
+
+    def run_benchmark(self, iteration_id: int) -> None:
+        if self.maze is None:
+            return
+        self.path = self._bfs(self.maze.start, self.maze.finish)
+        self.result_val = (self.result_val + len(self.path)) & 0xFFFFFFFF
+
+    def checksum(self) -> int:
+        return (self.result_val +
+                self._mid_cell_checksum(self.path)) & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Maze::BFS"
+
+
+class MazeAStar(Benchmark):
+
+    class Item:
+        __slots__ = ('priority', 'vertex')
+
+        def __init__(self, priority: int, vertex: int):
+            self.priority = priority
+            self.vertex = vertex
+
+        def __lt__(self, other: 'MazeAStar.Item') -> bool:
+            if self.priority != other.priority:
+                return self.priority < other.priority
+            return self.vertex < other.vertex
+
+    def __init__(self):
+        super().__init__()
+        self.result_val = 0
+        self.width = 0
+        self.height = 0
+        self.maze: Optional[Maze] = None
+        self.path: List[Cell] = []
+
+    def prepare(self) -> None:
+        self.width = Helper.config_i64(self.name(), "w")
+        self.height = Helper.config_i64(self.name(), "h")
+        self.maze = Maze(self.width, self.height)
+        self.maze.generate()
+        self.result_val = 0
+        self.path = []
+
+    @staticmethod
+    def _heuristic(a: Cell, b: Cell) -> int:
+        return abs(a.x - b.x) + abs(a.y - b.y)
+
+    @staticmethod
+    def _idx(y: int, x: int, width: int) -> int:
+        return y * width + x
+
+    def _astar(self, start: Cell, target: Cell) -> List[Cell]:
+        if start == target:
+            return [start]
+
+        size = self.width * self.height
         came_from = [-1] * size
+        g_score = [10**9] * size
+        best_f = [10**9] * size
 
-        start_idx = self._pack_coords(self.start_x, self.start_y)
-        g_scores[start_idx] = 0
-
-        start_f = self.manhattan_distance(self.start_x, self.start_y,
-                                          self.goal_x, self.goal_y)
+        start_idx = self._idx(start.y, start.x, self.width)
+        target_idx = self._idx(target.y, target.x, self.width)
 
         open_set = []
-        heapq.heappush(open_set, Node(self.start_x, self.start_y, start_f))
+        in_open = [False] * size
 
-        nodes_explored = 0
-        directions = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+        g_score[start_idx] = 0
+        f_start = self._heuristic(start, target)
+        heapq.heappush(open_set, MazeAStar.Item(f_start, start_idx))
+        best_f[start_idx] = f_start
+        in_open[start_idx] = True
 
         while open_set:
             current = heapq.heappop(open_set)
-            nodes_explored += 1
+            current_idx = current.vertex
+            in_open[current_idx] = False
 
-            if current.x == self.goal_x and current.y == self.goal_y:
+            if current_idx == target_idx:
+                result = []
+                cur = current_idx
+                while cur != -1:
+                    y = cur // self.width
+                    x = cur % self.width
+                    result.append(self.maze.cells[y][x])
+                    cur = came_from[cur]
+                return list(reversed(result))
 
-                path = []
-                x, y = current.x, current.y
+            current_y = current_idx // self.width
+            current_x = current_idx % self.width
+            current_cell = self.maze.cells[current_y][current_x]
+            current_g = g_score[current_idx]
 
-                while x != self.start_x or y != self.start_y:
-                    path.append((x, y))
-                    idx = self._pack_coords(x, y)
-                    packed = came_from[idx]
-                    if packed == -1:
-                        break
-                    x, y = self._unpack_coords(packed)
-
-                path.append((self.start_x, self.start_y))
-                path.reverse()
-                return path, nodes_explored
-
-            current_idx = self._pack_coords(current.x, current.y)
-            current_g = g_scores[current_idx]
-
-            for dx, dy in directions:
-                nx, ny = current.x + dx, current.y + dy
-
-                if (nx < 0 or nx >= width or ny < 0 or ny >= height or
-                        not grid[ny][nx]):
+            for neighbor in current_cell.neighbors:
+                if not neighbor.kind.is_walkable():
                     continue
 
-                tentative_g = current_g + 1000
-                neighbor_idx = self._pack_coords(nx, ny)
+                neighbor_idx = self._idx(neighbor.y, neighbor.x, self.width)
+                tentative_g = current_g + 1
 
-                if tentative_g < g_scores[neighbor_idx]:
+                if tentative_g < g_score[neighbor_idx]:
                     came_from[neighbor_idx] = current_idx
-                    g_scores[neighbor_idx] = tentative_g
+                    g_score[neighbor_idx] = tentative_g
+                    f_new = tentative_g + self._heuristic(neighbor, target)
 
-                    f_score = tentative_g + self.manhattan_distance(
-                        nx, ny, self.goal_x, self.goal_y)
+                    if f_new < best_f[neighbor_idx]:
+                        best_f[neighbor_idx] = f_new
+                        heapq.heappush(open_set,
+                                       MazeAStar.Item(f_new, neighbor_idx))
+                        in_open[neighbor_idx] = True
 
-                    heapq.heappush(open_set, Node(nx, ny, f_score))
+        return []
 
-        return None, nodes_explored
+    def _mid_cell_checksum(self, path: List[Cell]) -> int:
+        if not path:
+            return 0
+        cell = path[len(path) // 2]
+        return (cell.x * cell.y) & 0xFFFFFFFF
 
-    def run_benchmark(self, iteration_id: int):
-        path, nodes_explored = self._find_path()
-
-        local_result = len(path) if path else 0
-        local_result = (local_result << 5) + nodes_explored
-
-        self.result = (self.result + local_result) & 0xFFFFFFFF
+    def run_benchmark(self, iteration_id: int) -> None:
+        if self.maze is None:
+            return
+        self.path = self._astar(self.maze.start, self.maze.finish)
+        self.result_val = (self.result_val + len(self.path)) & 0xFFFFFFFF
 
     def checksum(self) -> int:
-        return self.result & 0xFFFFFFFF
+        return (self.result_val +
+                self._mid_cell_checksum(self.path)) & 0xFFFFFFFF
 
     def name(self) -> str:
-        return "AStarPathfinder"
+        return "Maze::AStar"
 
 
 class Compress:
@@ -4458,8 +4488,9 @@ def register_benchmarks():
     Benchmark.register_benchmark('Calculator::Interpreter',
                                  CalculatorInterpreter)
     Benchmark.register_benchmark('Etc::GameOfLife', GameOfLife)
-    Benchmark.register_benchmark('MazeGenerator', MazeGenerator)
-    Benchmark.register_benchmark('AStarPathfinder', AStarPathfinder)
+    Benchmark.register_benchmark('Maze::Generator', MazeGenerator)
+    Benchmark.register_benchmark('Maze::BFS', MazeBFS)
+    Benchmark.register_benchmark('Maze::AStar', MazeAStar)
     Benchmark.register_benchmark('Compress::BWTEncode', BWTEncode)
     Benchmark.register_benchmark('Compress::BWTDecode', BWTDecode)
     Benchmark.register_benchmark('Compress::HuffEncode', HuffEncode)

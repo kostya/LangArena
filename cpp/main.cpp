@@ -3528,397 +3528,460 @@ public:
 };
 
 class MazeGenerator : public Benchmark {
-private:
-  enum class Cell { Wall, Path };
-
-  uint32_t result_val;
-  int32_t width_;
-  int32_t height_;
-  std::vector<std::vector<bool>> bool_grid;
-
 public:
-  class Maze {
-  private:
-    int width_;
-    int height_;
-    std::vector<std::vector<Cell>> cells_;
-
-    void add_random_paths() {
-      int num_extra_paths = (width_ * height_) / 20;
-
-      for (int i = 0; i < num_extra_paths; i++) {
-        int x = Helper::next_int(width_ - 2) + 1;
-        int y = Helper::next_int(height_ - 2) + 1;
-
-        if ((*this)(x, y) == Cell::Wall && (*this)(x - 1, y) == Cell::Wall &&
-            (*this)(x + 1, y) == Cell::Wall &&
-            (*this)(x, y - 1) == Cell::Wall &&
-            (*this)(x, y + 1) == Cell::Wall) {
-          (*this)(x, y) = Cell::Path;
-        }
-      }
-    }
-
-    void divide(int x1, int y1, int x2, int y2) {
-      int width = x2 - x1;
-      int height = y2 - y1;
-
-      if (width < 2 || height < 2)
-        return;
-
-      int width_for_wall = std::max(width - 2, 0);
-      int height_for_wall = std::max(height - 2, 0);
-      int width_for_hole = std::max(width - 1, 0);
-      int height_for_hole = std::max(height - 1, 0);
-
-      if (width_for_wall == 0 || height_for_wall == 0 || width_for_hole == 0 ||
-          height_for_hole == 0)
-        return;
-
-      if (width > height) {
-        int wall_range = std::max(width_for_wall / 2, 1);
-        int wall_offset = wall_range > 0 ? Helper::next_int(wall_range) * 2 : 0;
-        int wall_x = x1 + 2 + wall_offset;
-
-        int hole_range = std::max(height_for_hole / 2, 1);
-        int hole_offset = hole_range > 0 ? Helper::next_int(hole_range) * 2 : 0;
-        int hole_y = y1 + 1 + hole_offset;
-
-        if (wall_x > x2 || hole_y > y2)
-          return;
-
-        for (int y = y1; y <= y2; y++) {
-          if (y != hole_y) {
-            (*this)(wall_x, y) = Cell::Wall;
-          }
-        }
-
-        if (wall_x > x1 + 1)
-          divide(x1, y1, wall_x - 1, y2);
-        if (wall_x + 1 < x2)
-          divide(wall_x + 1, y1, x2, y2);
-      } else {
-        int wall_range = std::max(height_for_wall / 2, 1);
-        int wall_offset = wall_range > 0 ? Helper::next_int(wall_range) * 2 : 0;
-        int wall_y = y1 + 2 + wall_offset;
-
-        int hole_range = std::max(width_for_hole / 2, 1);
-        int hole_offset = hole_range > 0 ? Helper::next_int(hole_range) * 2 : 0;
-        int hole_x = x1 + 1 + hole_offset;
-
-        if (wall_y > y2 || hole_x > x2)
-          return;
-
-        for (int x = x1; x <= x2; x++) {
-          if (x != hole_x) {
-            (*this)(x, wall_y) = Cell::Wall;
-          }
-        }
-
-        if (wall_y > y1 + 1)
-          divide(x1, y1, x2, wall_y - 1);
-        if (wall_y + 1 < y2)
-          divide(x1, wall_y + 1, x2, y2);
-      }
-    }
-
-    bool is_connected_impl(const std::pair<int, int> &start,
-                           const std::pair<int, int> &goal) const {
-      if (start.first >= width_ || start.second >= height_ ||
-          goal.first >= width_ || goal.second >= height_) {
-        return false;
-      }
-
-      std::vector<std::vector<bool>> visited(height_,
-                                             std::vector<bool>(width_, false));
-      std::deque<std::pair<int, int>> queue;
-
-      visited[start.second][start.first] = true;
-      queue.push_back(start);
-
-      while (!queue.empty()) {
-        auto [x, y] = queue.front();
-        queue.pop_front();
-
-        if (std::make_pair(x, y) == goal)
-          return true;
-
-        if (y > 0 && (*this)(x, y - 1) == Cell::Path && !visited[y - 1][x]) {
-          visited[y - 1][x] = true;
-          queue.push_back({x, y - 1});
-        }
-
-        if (x + 1 < width_ && (*this)(x + 1, y) == Cell::Path &&
-            !visited[y][x + 1]) {
-          visited[y][x + 1] = true;
-          queue.push_back({x + 1, y});
-        }
-
-        if (y + 1 < height_ && (*this)(x, y + 1) == Cell::Path &&
-            !visited[y + 1][x]) {
-          visited[y + 1][x] = true;
-          queue.push_back({x, y + 1});
-        }
-
-        if (x > 0 && (*this)(x - 1, y) == Cell::Path && !visited[y][x - 1]) {
-          visited[y][x - 1] = true;
-          queue.push_back({x - 1, y});
-        }
-      }
-
-      return false;
-    }
-
-  public:
-    Maze(int width, int height)
-        : width_(width > 5 ? width : 5), height_(height > 5 ? height : 5) {
-      cells_.resize(height_, std::vector<Cell>(width_, Cell::Wall));
-    }
-
-    Cell operator()(int x, int y) const { return cells_[y][x]; }
-
-    Cell &operator()(int x, int y) { return cells_[y][x]; }
-
-    void generate() {
-      if (width_ < 5 || height_ < 5) {
-        for (int x = 0; x < width_; x++) {
-          (*this)(x, height_ / 2) = Cell::Path;
-        }
-        return;
-      }
-
-      divide(0, 0, width_ - 1, height_ - 1);
-      add_random_paths();
-    }
-
-    std::vector<std::vector<bool>> to_bool_grid() const {
-      std::vector<std::vector<bool>> result;
-      result.reserve(height_);
-
-      for (const auto &row : cells_) {
-        std::vector<bool> bool_row;
-        bool_row.reserve(width_);
-        for (Cell cell : row) {
-          bool_row.push_back(cell == Cell::Path);
-        }
-        result.push_back(std::move(bool_row));
-      }
-
-      return result;
-    }
-
-    bool is_connected(const std::pair<int, int> &start,
-                      const std::pair<int, int> &goal) const {
-      return is_connected_impl(start, goal);
-    }
-
-    static std::vector<std::vector<bool>> generate_walkable_maze(int width,
-                                                                 int height) {
-      Maze maze(width, height);
-      maze.generate();
-
-      std::pair<int, int> start = {1, 1};
-      std::pair<int, int> goal = {width - 2, height - 2};
-
-      if (!maze.is_connected(start, goal)) {
-        for (int x = 0; x < width; x++) {
-          for (int y = 0; y < height; y++) {
-            if (x < maze.width_ && y < maze.height_) {
-              if (x == 1 || y == 1 || x == width - 2 || y == height - 2) {
-                maze(x, y) = Cell::Path;
-              }
-            }
-          }
-        }
-      }
-
-      return maze.to_bool_grid();
-    }
-
-    int width() const { return width_; }
-    int height() const { return height_; }
+  enum class CellKind : uint8_t {
+    Wall = 0,
+    Space,
+    Start,
+    Finish,
+    Border,
+    Path
   };
 
-  uint32_t grid_checksum(const std::vector<std::vector<bool>> &grid) const {
-    uint32_t hasher = 2166136261UL;
-    uint32_t prime = 16777619UL;
+  class Cell {
+  public:
+    CellKind kind;
+    std::vector<Cell *> neighbors;
+    int x;
+    int y;
 
-    for (size_t i = 0; i < grid.size(); i++) {
-      const auto &row = grid[i];
-      for (size_t j = 0; j < row.size(); j++) {
-        if (row[j]) {
-          uint32_t j_squared = static_cast<uint32_t>(j * j);
-          hasher = (hasher ^ j_squared) * prime;
+    Cell(int x, int y) : kind(CellKind::Wall), x(x), y(y) {
+      neighbors.reserve(4);
+    }
+
+    bool is_walkable() const {
+      return kind == CellKind::Space || kind == CellKind::Start ||
+             kind == CellKind::Finish;
+    }
+
+    void reset() {
+      if (kind == CellKind::Space) {
+        kind = CellKind::Wall;
+      }
+    }
+
+    uint32_t value() const { return static_cast<uint32_t>(kind); }
+  };
+
+  class Maze {
+  private:
+    int w;
+    int h;
+    std::vector<std::vector<Cell>> cells;
+    Cell *start;
+    Cell *finish;
+
+  public:
+    Maze(int width, int height) : w(width), h(height) {
+      cells.reserve(h);
+      for (int y = 0; y < h; ++y) {
+        auto &row = cells.emplace_back();
+        row.reserve(w);
+        for (int x = 0; x < w; ++x) {
+          row.emplace_back(x, y);
+        }
+      }
+
+      start = &cells[1][1];
+      finish = &cells[h - 2][w - 2];
+      start->kind = CellKind::Start;
+      finish->kind = CellKind::Finish;
+
+      update_neighbors();
+    }
+
+    void update_neighbors() {
+      for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+          auto &cell = cells[y][x];
+
+          if (x > 0 && y > 0 && x < w - 1 && y < h - 1) {
+            cell.neighbors = {&cells[y - 1][x], &cells[y + 1][x],
+                              &cells[y][x + 1], &cells[y][x - 1]};
+
+            for (int t = 0; t < 4; ++t) {
+              int i = Helper::next_int(4);
+              int j = Helper::next_int(4);
+              if (i != j) {
+                std::swap(cell.neighbors[i], cell.neighbors[j]);
+              }
+            }
+          } else {
+            cell.kind = CellKind::Border;
+          }
         }
       }
     }
-    return hasher;
-  }
+
+    void reset() {
+      for (auto &row : cells) {
+        for (auto &cell : row) {
+          cell.reset();
+        }
+      }
+      start->kind = CellKind::Start;
+      finish->kind = CellKind::Finish;
+    }
+
+    void dig(Cell *start_cell) {
+      if (!start_cell)
+        return;
+
+      std::vector<Cell *> stack;
+      stack.push_back(start_cell);
+
+      while (!stack.empty()) {
+        auto *cell = stack.back();
+        stack.pop_back();
+
+        int walkable = 0;
+        for (auto *n : cell->neighbors) {
+          if (n->is_walkable())
+            ++walkable;
+        }
+
+        if (walkable != 1)
+          continue;
+
+        cell->kind = CellKind::Space;
+
+        for (auto *n : cell->neighbors) {
+          if (n->kind == CellKind::Wall) {
+            stack.push_back(n);
+          }
+        }
+      }
+    }
+
+    void ensure_open_finish(Cell *start_cell) {
+      if (!start_cell)
+        return;
+
+      std::vector<Cell *> stack;
+      stack.push_back(start_cell);
+
+      while (!stack.empty()) {
+        auto *cell = stack.back();
+        stack.pop_back();
+
+        cell->kind = CellKind::Space;
+
+        int walkable = 0;
+        for (auto *n : cell->neighbors) {
+          if (n->is_walkable())
+            ++walkable;
+        }
+
+        if (walkable > 1)
+          continue;
+
+        for (auto *n : cell->neighbors) {
+          if (n->kind == CellKind::Wall) {
+            stack.push_back(n);
+          }
+        }
+      }
+    }
+
+    void generate() {
+      for (auto *n : start->neighbors) {
+        if (n->kind == CellKind::Wall) {
+          dig(n);
+        }
+      }
+
+      for (auto *n : finish->neighbors) {
+        if (n->kind == CellKind::Wall) {
+          ensure_open_finish(n);
+        }
+      }
+    }
+
+    Cell *middle_cell() { return &cells[h / 2][w / 2]; }
+
+    Cell *get_start() { return start; }
+    Cell *get_finish() { return finish; }
+
+    Cell *get_cell(int x, int y) {
+      if (x >= 0 && x < w && y >= 0 && y < h) {
+        return &cells[y][x];
+      }
+      return nullptr;
+    }
+
+    uint32_t checksum() const {
+      uint32_t hasher = 2166136261UL;
+      uint32_t prime = 16777619UL;
+
+      for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+          if (cells[y][x].kind == CellKind::Space) {
+            uint32_t val = static_cast<uint32_t>(x * y);
+            hasher = (hasher ^ val) * prime;
+          }
+        }
+      }
+      return hasher;
+    }
+
+    void print_to_console() const {
+      for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+          switch (cells[y][x].kind) {
+          case CellKind::Space:
+            std::cout << ' ';
+            break;
+          case CellKind::Wall:
+            std::cout << "\033[34m#\033[0m";
+            break;
+          case CellKind::Border:
+            std::cout << "\033[31mO\033[0m";
+            break;
+          case CellKind::Start:
+            std::cout << "\033[32m>\033[0m";
+            break;
+          case CellKind::Finish:
+            std::cout << "\033[32m<\033[0m";
+            break;
+          case CellKind::Path:
+            std::cout << "\033[33m.\033[0m";
+            break;
+          }
+        }
+        std::cout << '\n';
+      }
+      std::cout << '\n';
+    }
+  };
+
+private:
+  uint32_t result_val;
+  int32_t width;
+  int32_t height;
+  std::unique_ptr<Maze> maze;
 
 public:
   MazeGenerator() : result_val(0) {
-    width_ = static_cast<int32_t>(config_val("w"));
-    height_ = static_cast<int32_t>(config_val("h"));
+    width = static_cast<int32_t>(config_val("w"));
+    height = static_cast<int32_t>(config_val("h"));
+    maze = std::make_unique<Maze>(width, height);
   }
 
-  std::string name() const override { return "MazeGenerator"; }
+  std::string name() const override { return "Maze::Generator"; }
 
-  void run(int iteration_id) override {
-    bool_grid = Maze::generate_walkable_maze(width_, height_);
+  void prepare() override {}
+
+  void run(int) override {
+    maze->reset();
+    maze->generate();
+    result_val += maze->middle_cell()->value();
   }
 
-  uint32_t checksum() override { return grid_checksum(bool_grid); }
+  uint32_t checksum() override { return result_val + maze->checksum(); }
 };
 
-class AStarPathfinder : public Benchmark {
+class MazeBFS : public Benchmark {
 private:
-  static constexpr int INF = std::numeric_limits<int>::max();
-  static constexpr int STRAIGHT_COST = 1000;
+  uint32_t result_val;
+  int32_t width;
+  int32_t height;
+  std::unique_ptr<MazeGenerator::Maze> maze;
+  std::vector<MazeGenerator::Cell *> path;
 
-  struct Node {
-    int x, y, f_score;
+  std::vector<MazeGenerator::Cell *> bfs(MazeGenerator::Cell *start,
+                                         MazeGenerator::Cell *target) {
+    if (start == target)
+      return {start};
 
-    bool operator<(const Node &other) const {
-      if (f_score != other.f_score)
-        return f_score < other.f_score;
-      if (y != other.y)
-        return y < other.y;
-      return x < other.x;
-    }
+    struct PathNode {
+      MazeGenerator::Cell *cell;
+      int parent;
+    };
 
-    bool operator>(const Node &other) const { return other < *this; }
-  };
+    std::deque<int> queue;
+    std::vector<std::vector<bool>> visited(height,
+                                           std::vector<bool>(width, false));
+    std::vector<PathNode> path_nodes;
 
-  uint32_t result_val = 0;
-  int width_ = 0;
-  int height_ = 0;
-  int start_x_ = 1;
-  int start_y_ = 1;
-  int goal_x_ = 0;
-  int goal_y_ = 0;
+    visited[start->y][start->x] = true;
+    path_nodes.push_back({start, -1});
+    queue.push_back(0);
 
-  std::vector<std::vector<bool>> maze_grid_;
+    while (!queue.empty()) {
+      int path_id = queue.front();
+      queue.pop_front();
 
-  std::vector<int> g_scores_;
-  std::vector<int> came_from_;
+      auto *cell = path_nodes[path_id].cell;
 
-  int heuristic(int x1, int y1, int x2, int y2) const {
-    return std::abs(x1 - x2) + std::abs(y1 - y2);
-  }
-
-  int pack_coords(int x, int y) const { return y * width_ + x; }
-
-  std::pair<int, int> unpack_coords(int idx) const {
-    return {idx % width_, idx / width_};
-  }
-
-  std::pair<std::vector<std::pair<int, int>>, int> find_path() {
-    const int size = width_ * height_;
-    const int start_idx = pack_coords(start_x_, start_y_);
-    const int goal_idx = pack_coords(goal_x_, goal_y_);
-
-    std::fill(g_scores_.begin(), g_scores_.end(), INF);
-    std::fill(came_from_.begin(), came_from_.end(), -1);
-
-    std::priority_queue<Node, std::vector<Node>, std::greater<Node>> open_set;
-
-    g_scores_[start_idx] = 0;
-    open_set.push(
-        {start_x_, start_y_, heuristic(start_x_, start_y_, goal_x_, goal_y_)});
-
-    int nodes_explored = 0;
-    static constexpr std::pair<int, int> directions[] = {
-        {0, -1}, {1, 0}, {0, 1}, {-1, 0}};
-
-    while (!open_set.empty()) {
-      Node current = open_set.top();
-      open_set.pop();
-      nodes_explored++;
-
-      if (current.x == goal_x_ && current.y == goal_y_) {
-
-        std::vector<std::pair<int, int>> path;
-        path.reserve(width_ + height_);
-
-        int x = current.x;
-        int y = current.y;
-
-        while (x != start_x_ || y != start_y_) {
-          path.emplace_back(x, y);
-          int idx = pack_coords(x, y);
-          int packed = came_from_[idx];
-          if (packed == -1)
-            break;
-
-          auto [px, py] = unpack_coords(packed);
-          x = px;
-          y = py;
+      for (auto *neighbor : cell->neighbors) {
+        if (neighbor == target) {
+          std::vector<MazeGenerator::Cell *> result = {target};
+          int current = path_id;
+          while (current >= 0) {
+            result.push_back(path_nodes[current].cell);
+            current = path_nodes[current].parent;
+          }
+          std::reverse(result.begin(), result.end());
+          return result;
         }
 
-        path.emplace_back(start_x_, start_y_);
-        std::reverse(path.begin(), path.end());
-        return {path, nodes_explored};
-      }
-
-      int current_idx = pack_coords(current.x, current.y);
-      int current_g = g_scores_[current_idx];
-
-      for (const auto &[dx, dy] : directions) {
-        int nx = current.x + dx;
-        int ny = current.y + dy;
-
-        if (nx < 0 || nx >= width_ || ny < 0 || ny >= height_)
-          continue;
-        if (!maze_grid_[ny][nx])
-          continue;
-
-        int tentative_g = current_g + STRAIGHT_COST;
-        int neighbor_idx = pack_coords(nx, ny);
-
-        if (tentative_g < g_scores_[neighbor_idx]) {
-          came_from_[neighbor_idx] = current_idx;
-          g_scores_[neighbor_idx] = tentative_g;
-
-          int f_score = tentative_g + heuristic(nx, ny, goal_x_, goal_y_);
-          open_set.push({nx, ny, f_score});
+        if (neighbor->is_walkable() && !visited[neighbor->y][neighbor->x]) {
+          visited[neighbor->y][neighbor->x] = true;
+          path_nodes.push_back({neighbor, path_id});
+          queue.push_back(path_nodes.size() - 1);
         }
       }
     }
 
-    return {{}, nodes_explored};
+    return {};
+  }
+
+  uint32_t mid_cell_checksum(const std::vector<MazeGenerator::Cell *> &p) {
+    if (p.empty())
+      return 0;
+    size_t mid = p.size() / 2;
+    auto *cell = p[mid];
+    return static_cast<uint32_t>(cell->x * cell->y);
   }
 
 public:
-  AStarPathfinder() {
-    width_ = static_cast<int>(config_val("w"));
-    height_ = static_cast<int>(config_val("h"));
-    goal_x_ = width_ - 2;
-    goal_y_ = height_ - 2;
+  MazeBFS() : result_val(0) {
+    width = static_cast<int32_t>(config_val("w"));
+    height = static_cast<int32_t>(config_val("h"));
+    maze = std::make_unique<MazeGenerator::Maze>(width, height);
   }
 
-  std::string name() const override { return "AStarPathfinder"; }
+  std::string name() const override { return "Maze::BFS"; }
 
-  void prepare() override {
+  void prepare() override { maze->generate(); }
 
-    maze_grid_ = MazeGenerator::Maze::generate_walkable_maze(width_, height_);
-
-    int size = width_ * height_;
-    g_scores_.resize(size);
-    came_from_.resize(size);
+  void run(int) override {
+    path = bfs(maze->get_start(), maze->get_finish());
+    result_val += static_cast<uint32_t>(path.size());
   }
 
-  void run(int iteration_id) override {
-    auto [path, nodes_explored] = find_path();
+  uint32_t checksum() override { return result_val + mid_cell_checksum(path); }
+};
 
-    int64_t local_result = 0;
-    if (!path.empty()) {
-      local_result = (local_result << 5) + static_cast<int64_t>(path.size());
+class MazeAStar : public Benchmark {
+private:
+  struct Node {
+    int f_score;
+    int idx;
+
+    bool operator>(const Node &other) const {
+      if (f_score != other.f_score)
+        return f_score > other.f_score;
+      return idx > other.idx;
     }
-    local_result = (local_result << 5) + nodes_explored;
-    result_val += static_cast<uint32_t>(local_result);
+  };
+
+  uint32_t result_val;
+  int32_t width;
+  int32_t height;
+  std::unique_ptr<MazeGenerator::Maze> maze;
+  std::vector<MazeGenerator::Cell *> path;
+
+  int heuristic(MazeGenerator::Cell *a, MazeGenerator::Cell *b) {
+    return std::abs(a->x - b->x) + std::abs(a->y - b->y);
   }
 
-  uint32_t checksum() override { return result_val; }
+  int idx(int y, int x) const { return y * width + x; }
+
+  std::vector<MazeGenerator::Cell *> astar(MazeGenerator::Cell *start,
+                                           MazeGenerator::Cell *target) {
+    if (start == target)
+      return {start};
+
+    int size = width * height;
+
+    std::vector<int> came_from(size, -1);
+    std::vector<int> g_score(size, std::numeric_limits<int>::max());
+    std::vector<int> best_f(size, std::numeric_limits<int>::max());
+
+    int start_idx = idx(start->y, start->x);
+    int target_idx = idx(target->y, target->x);
+
+    std::priority_queue<Node, std::vector<Node>, std::greater<Node>> open_set;
+
+    g_score[start_idx] = 0;
+    int f_start = heuristic(start, target);
+    open_set.push({f_start, start_idx});
+    best_f[start_idx] = f_start;
+
+    while (!open_set.empty()) {
+      auto [f_val, current_idx] = open_set.top();
+      open_set.pop();
+
+      if (f_val != best_f[current_idx])
+        continue;
+
+      if (current_idx == target_idx) {
+        std::vector<MazeGenerator::Cell *> result;
+        int cur = current_idx;
+        while (cur != -1) {
+          int y = cur / width;
+          int x = cur % width;
+          result.push_back(maze->get_cell(x, y));
+          cur = came_from[cur];
+        }
+        std::reverse(result.begin(), result.end());
+        return result;
+      }
+
+      int current_y = current_idx / width;
+      int current_x = current_idx % width;
+      auto *current = maze->get_cell(current_x, current_y);
+      int current_g = g_score[current_idx];
+
+      for (auto *neighbor : current->neighbors) {
+        if (!neighbor->is_walkable())
+          continue;
+
+        int neighbor_idx = idx(neighbor->y, neighbor->x);
+        int tentative_g = current_g + 1;
+
+        if (tentative_g < g_score[neighbor_idx]) {
+          came_from[neighbor_idx] = current_idx;
+          g_score[neighbor_idx] = tentative_g;
+          int f_new = tentative_g + heuristic(neighbor, target);
+
+          if (f_new < best_f[neighbor_idx]) {
+            best_f[neighbor_idx] = f_new;
+            open_set.push({f_new, neighbor_idx});
+          }
+        }
+      }
+    }
+
+    return {};
+  }
+
+  uint32_t mid_cell_checksum(const std::vector<MazeGenerator::Cell *> &p) {
+    if (p.empty())
+      return 0;
+    size_t mid = p.size() / 2;
+    auto *cell = p[mid];
+    return static_cast<uint32_t>(cell->x * cell->y);
+  }
+
+public:
+  MazeAStar() : result_val(0) {
+    width = static_cast<int32_t>(config_val("w"));
+    height = static_cast<int32_t>(config_val("h"));
+    maze = std::make_unique<MazeGenerator::Maze>(width, height);
+  }
+
+  std::string name() const override { return "Maze::AStar"; }
+
+  void prepare() override { maze->generate(); }
+
+  void run(int) override {
+    path = astar(maze->get_start(), maze->get_finish());
+    result_val += static_cast<uint32_t>(path.size());
+  }
+
+  uint32_t checksum() override { return result_val + mid_cell_checksum(path); }
 };
 
 std::vector<uint8_t> generate_test_data(int64_t size) {
@@ -4859,9 +4922,10 @@ void Benchmark::all(const std::string &single_bench) {
           {"Calculator::Interpreter",
            []() { return std::make_unique<CalculatorInterpreter>(); }},
           {"Etc::GameOfLife", []() { return std::make_unique<GameOfLife>(); }},
-          {"MazeGenerator", []() { return std::make_unique<MazeGenerator>(); }},
-          {"AStarPathfinder",
-           []() { return std::make_unique<AStarPathfinder>(); }},
+          {"Maze::Generator",
+           []() { return std::make_unique<MazeGenerator>(); }},
+          {"Maze::BFS", []() { return std::make_unique<MazeBFS>(); }},
+          {"Maze::AStar", []() { return std::make_unique<MazeAStar>(); }},
           {"Compress::BWTEncode",
            []() { return std::make_unique<BWTEncode>(); }},
           {"Compress::BWTDecode",

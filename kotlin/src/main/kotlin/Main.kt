@@ -45,8 +45,9 @@ fun main(args: Array<String>) {
     Benchmark.registerBenchmark("Calculator::Ast") { CalculatorAst() }
     Benchmark.registerBenchmark("Calculator::Interpreter") { CalculatorInterpreter() }
     Benchmark.registerBenchmark("Etc::GameOfLife") { GameOfLife() }
-    Benchmark.registerBenchmark("MazeGenerator") { MazeGenerator() }
-    Benchmark.registerBenchmark("AStarPathfinder") { AStarPathfinder() }
+    Benchmark.registerBenchmark("Maze::Generator") { MazeGenerator() }
+    Benchmark.registerBenchmark("Maze::BFS") { MazeBFS() }
+    Benchmark.registerBenchmark("Maze::AStar") { MazeAStar() }
     Benchmark.registerBenchmark("Compress::BWTEncode") { BWTEncode() }
     Benchmark.registerBenchmark("Compress::BWTDecode") { BWTDecode() }
     Benchmark.registerBenchmark("Compress::HuffEncode") { HuffEncode() }

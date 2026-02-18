@@ -170,7 +170,7 @@ module ClearComments
         match.start_with?('// @ts-ignore') ? match : ''
       end
       
-    when 'crystal'
+    when 'crystal', 'julia', 'nim', 'python'
       content.gsub!(/^=begin[\s\S]*?^=end/m, '')
     
       lines = content.lines.map do |line|
@@ -207,20 +207,6 @@ module ClearComments
       end
       
       content = lines.join("\n")
-      
-    when 'julia'
-      content.gsub!(/#[^\n]*/, '')
-      content.gsub!(/#=[\s\S]*?=#/m, '')
-
-    when 'python'
-      content.gsub!(/"""[^"]*(?:"(?!""))?[^"]*"""/m, '')
-      content.gsub!(/'''[^']*(?:'(?!''))?[^']*'''/m, '')
-      
-      content.gsub!(/#[^\n]*/, '')
-                
-    when 'nim'
-      content.gsub!(/#[^\n]*/, '')
-      content.gsub!(/#\[[\s\S]*?\]\#/m, '')
     end
     
     content.gsub!(/^[ \t]+$/, '')

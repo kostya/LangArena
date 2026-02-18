@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"container/heap"
+
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -276,8 +276,9 @@ func RunBenchmarks(singleBench string) {
 		&CalculatorAst{BaseBenchmark: BaseBenchmark{className: "Calculator::Ast"}},
 		&CalculatorInterpreter{BaseBenchmark: BaseBenchmark{className: "Calculator::Interpreter"}},
 		&GameOfLife{BaseBenchmark: BaseBenchmark{className: "Etc::GameOfLife"}},
-		&MazeGenerator{BaseBenchmark: BaseBenchmark{className: "MazeGenerator"}},
-		&AStarPathfinder{BaseBenchmark: BaseBenchmark{className: "AStarPathfinder"}},
+		&MazeGenerator{BaseBenchmark: BaseBenchmark{className: "Maze::Generator"}},
+		&MazeBFS{BaseBenchmark: BaseBenchmark{className: "Maze::BFS"}},
+		&MazeAStar{BaseBenchmark: BaseBenchmark{className: "Maze::AStar"}},
 		&BWTEncode{BaseBenchmark: BaseBenchmark{className: "Compress::BWTEncode"}},
 		&BWTDecode{BaseBenchmark: BaseBenchmark{className: "Compress::BWTDecode"}},
 		&HuffEncode{BaseBenchmark: BaseBenchmark{className: "Compress::HuffEncode"}},
@@ -3914,17 +3915,52 @@ func (g *GameOfLife) Checksum() uint32 {
 	return g.grid.ComputeHash() + uint32(g.grid.CountAlive())
 }
 
-type PCell int
+type MazeCellKind int
 
 const (
-	Wall PCell = iota
+	Wall MazeCellKind = iota
+	Space
+	Start
+	Finish
+	Border
 	Path
 )
 
+func (k MazeCellKind) IsWalkable() bool {
+	return k == Space || k == Start || k == Finish
+}
+
+type MazeCell struct {
+	Kind      MazeCellKind
+	Neighbors []*MazeCell
+	X, Y      int
+}
+
+func NewMazeCell(x, y int) *MazeCell {
+	return &MazeCell{
+		Kind:      Wall,
+		Neighbors: make([]*MazeCell, 0, 4),
+		X:         x,
+		Y:         y,
+	}
+}
+
+func (c *MazeCell) AddNeighbor(cell *MazeCell) {
+	c.Neighbors = append(c.Neighbors, cell)
+}
+
+func (c *MazeCell) Reset() {
+	if c.Kind == Space {
+		c.Kind = Wall
+	}
+}
+
 type Maze struct {
-	width  int
-	height int
-	cells  [][]PCell
+	Width  int
+	Height int
+	Cells  [][]*MazeCell
+	Start  *MazeCell
+	Finish *MazeCell
 }
 
 func NewMaze(width, height int) *Maze {
@@ -3935,46 +3971,214 @@ func NewMaze(width, height int) *Maze {
 		height = 5
 	}
 
-	cells := make([][]PCell, height)
+	cells := make([][]*MazeCell, height)
 	for y := 0; y < height; y++ {
-		cells[y] = make([]PCell, width)
+		cells[y] = make([]*MazeCell, width)
 		for x := 0; x < width; x++ {
-			cells[y][x] = Wall
+			cells[y][x] = NewMazeCell(x, y)
 		}
 	}
 
-	return &Maze{width, height, cells}
+	maze := &Maze{
+		Width:  width,
+		Height: height,
+		Cells:  cells,
+	}
+
+	maze.Start = cells[1][1]
+	maze.Finish = cells[height-2][width-2]
+	maze.Start.Kind = Start
+	maze.Finish.Kind = Finish
+
+	return maze
 }
 
-func (m *Maze) set(x, y int, cell PCell) {
-	m.cells[y][x] = cell
-}
+func (m *Maze) UpdateNeighbors() {
 
-func (m *Maze) get(x, y int) PCell {
-	return m.cells[y][x]
-}
+	for y := 0; y < m.Height; y++ {
+		for x := 0; x < m.Width; x++ {
+			m.Cells[y][x].Neighbors = m.Cells[y][x].Neighbors[:0]
+		}
+	}
 
-func (m *Maze) add_random_paths() {
-	num_extra_paths := (m.width * m.height) / 20
+	for y := 0; y < m.Height; y++ {
+		for x := 0; x < m.Width; x++ {
+			cell := m.Cells[y][x]
 
-	for i := 0; i < num_extra_paths; i++ {
-		x := 1 + NextInt(m.width-2)
-		y := 1 + NextInt(m.height-2)
+			if x > 0 && y > 0 && x < m.Width-1 && y < m.Height-1 {
+				cell.AddNeighbor(m.Cells[y-1][x])
+				cell.AddNeighbor(m.Cells[y+1][x])
+				cell.AddNeighbor(m.Cells[y][x+1])
+				cell.AddNeighbor(m.Cells[y][x-1])
 
-		if m.get(x, y) == Wall &&
-			m.get(x-1, y) == Wall &&
-			m.get(x+1, y) == Wall &&
-			m.get(x, y-1) == Wall &&
-			m.get(x, y+1) == Wall {
-			m.set(x, y, Path)
+				for t := 0; t < 4; t++ {
+					i := NextInt(4)
+					j := NextInt(4)
+					if i != j && i < len(cell.Neighbors) && j < len(cell.Neighbors) {
+						cell.Neighbors[i], cell.Neighbors[j] = cell.Neighbors[j], cell.Neighbors[i]
+					}
+				}
+			} else {
+				cell.Kind = Border
+			}
 		}
 	}
 }
 
-func (m *Maze) is_connected_impl(startX, startY, goalX, goalY int) bool {
-	if startX >= m.width || startY >= m.height ||
-		goalX >= m.width || goalY >= m.height {
-		return false
+func (m *Maze) Reset() {
+	for y := 0; y < m.Height; y++ {
+		for x := 0; x < m.Width; x++ {
+			m.Cells[y][x].Reset()
+		}
+	}
+	m.Start.Kind = Start
+	m.Finish.Kind = Finish
+}
+
+func (m *Maze) Dig(startCell *MazeCell) {
+	stack := make([]*MazeCell, 0, m.Width*m.Height)
+	stack = append(stack, startCell)
+
+	for len(stack) > 0 {
+		cell := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		walkable := 0
+		for _, n := range cell.Neighbors {
+			if n.Kind.IsWalkable() {
+				walkable++
+			}
+		}
+
+		if walkable != 1 {
+			continue
+		}
+
+		cell.Kind = Space
+
+		for _, n := range cell.Neighbors {
+			if n.Kind == Wall {
+				stack = append(stack, n)
+			}
+		}
+	}
+}
+
+func (m *Maze) EnsureOpenFinish(startCell *MazeCell) {
+	stack := make([]*MazeCell, 0, m.Width*m.Height)
+	stack = append(stack, startCell)
+
+	for len(stack) > 0 {
+		cell := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		cell.Kind = Space
+
+		walkable := 0
+		for _, n := range cell.Neighbors {
+			if n.Kind.IsWalkable() {
+				walkable++
+			}
+		}
+
+		if walkable > 1 {
+			continue
+		}
+
+		for _, n := range cell.Neighbors {
+			if n.Kind == Wall {
+				stack = append(stack, n)
+			}
+		}
+	}
+}
+
+func (m *Maze) Generate() {
+	for _, n := range m.Start.Neighbors {
+		if n.Kind == Wall {
+			m.Dig(n)
+		}
+	}
+
+	for _, n := range m.Finish.Neighbors {
+		if n.Kind == Wall {
+			m.EnsureOpenFinish(n)
+		}
+	}
+}
+
+func (m *Maze) MiddleCell() *MazeCell {
+	return m.Cells[m.Height/2][m.Width/2]
+}
+
+func (m *Maze) Checksum() uint32 {
+	hasher := uint32(2166136261)
+	prime := uint32(16777619)
+
+	for y := 0; y < m.Height; y++ {
+		for x := 0; x < m.Width; x++ {
+			if m.Cells[y][x].Kind == Space {
+				val := uint32(x * y)
+				hasher = (hasher ^ val) * prime
+			}
+		}
+	}
+	return hasher
+}
+
+type MazeGenerator struct {
+	BaseBenchmark
+	width     int
+	height    int
+	maze      *Maze
+	resultVal uint32
+}
+
+func (m *MazeGenerator) Prepare() {
+	m.width = int(m.ConfigVal("w"))
+	m.height = int(m.ConfigVal("h"))
+	m.maze = NewMaze(m.width, m.height)
+	m.maze.UpdateNeighbors()
+	m.resultVal = 0
+}
+
+func (m *MazeGenerator) Run(iteration_id int) {
+	m.maze.Reset()
+	m.maze.Generate()
+	m.resultVal += uint32(m.maze.MiddleCell().Kind)
+}
+
+func (m *MazeGenerator) Checksum() uint32 {
+	return m.resultVal + m.maze.Checksum()
+}
+
+type MazeBFS struct {
+	BaseBenchmark
+	width     int
+	height    int
+	maze      *Maze
+	resultVal uint32
+	path      []*MazeCell
+}
+
+func (m *MazeBFS) Prepare() {
+	m.width = int(m.ConfigVal("w"))
+	m.height = int(m.ConfigVal("h"))
+	m.maze = NewMaze(m.width, m.height)
+	m.maze.UpdateNeighbors()
+	m.maze.Generate()
+	m.resultVal = 0
+	m.path = nil
+}
+
+func (m *MazeBFS) bfs(start, target *MazeCell) []*MazeCell {
+	if start == target {
+		return []*MazeCell{start}
+	}
+
+	type PathNode struct {
+		cell   *MazeCell
+		parent int
 	}
 
 	visited := make([][]bool, m.height)
@@ -3982,420 +4186,199 @@ func (m *Maze) is_connected_impl(startX, startY, goalX, goalY int) bool {
 		visited[i] = make([]bool, m.width)
 	}
 
-	type Point struct{ x, y int }
-	queue := []Point{{startX, startY}}
-	visited[startY][startX] = true
+	queue := []int{0}
+	pathNodes := []PathNode{{start, -1}}
+	visited[start.Y][start.X] = true
 
 	for len(queue) > 0 {
-		current := queue[0]
+		pathId := queue[0]
 		queue = queue[1:]
-		x, y := current.x, current.y
+		cell := pathNodes[pathId].cell
 
-		if x == goalX && y == goalY {
-			return true
-		}
-
-		if y > 0 && m.get(x, y-1) == Path && !visited[y-1][x] {
-			visited[y-1][x] = true
-			queue = append(queue, Point{x, y - 1})
-		}
-
-		if x+1 < m.width && m.get(x+1, y) == Path && !visited[y][x+1] {
-			visited[y][x+1] = true
-			queue = append(queue, Point{x + 1, y})
-		}
-
-		if y+1 < m.height && m.get(x, y+1) == Path && !visited[y+1][x] {
-			visited[y+1][x] = true
-			queue = append(queue, Point{x, y + 1})
-		}
-
-		if x > 0 && m.get(x-1, y) == Path && !visited[y][x-1] {
-			visited[y][x-1] = true
-			queue = append(queue, Point{x - 1, y})
-		}
-	}
-
-	return false
-}
-
-func (m *Maze) is_connected(startX, startY, goalX, goalY int) bool {
-	return m.is_connected_impl(startX, startY, goalX, goalY)
-}
-
-func (m *Maze) divide(x1, y1, x2, y2 int) {
-	width := x2 - x1
-	height := y2 - y1
-
-	if width < 2 || height < 2 {
-		return
-	}
-
-	width_for_wall := max(width-2, 0)
-	height_for_wall := max(height-2, 0)
-	width_for_hole := max(width-1, 0)
-	height_for_hole := max(height-1, 0)
-
-	if width_for_wall == 0 || height_for_wall == 0 ||
-		width_for_hole == 0 || height_for_hole == 0 {
-		return
-	}
-
-	if width > height {
-		wall_range := max(width_for_wall/2, 1)
-		wall_offset := 0
-		if wall_range > 0 {
-			wall_offset = NextInt(wall_range) * 2
-		}
-		wallX := x1 + 2 + wall_offset
-
-		hole_range := max(height_for_hole/2, 1)
-		hole_offset := 0
-		if hole_range > 0 {
-			hole_offset = NextInt(hole_range) * 2
-		}
-		holeY := y1 + 1 + hole_offset
-
-		if wallX > x2 || holeY > y2 {
-			return
-		}
-
-		for y := y1; y <= y2; y++ {
-			if y != holeY {
-				m.set(wallX, y, Wall)
-			}
-		}
-
-		if wallX > x1+1 {
-			m.divide(x1, y1, wallX-1, y2)
-		}
-		if wallX+1 < x2 {
-			m.divide(wallX+1, y1, x2, y2)
-		}
-	} else {
-		wall_range := max(height_for_wall/2, 1)
-		wall_offset := 0
-		if wall_range > 0 {
-			wall_offset = NextInt(wall_range) * 2
-		}
-		wallY := y1 + 2 + wall_offset
-
-		hole_range := max(width_for_hole/2, 1)
-		hole_offset := 0
-		if hole_range > 0 {
-			hole_offset = NextInt(hole_range) * 2
-		}
-		holeX := x1 + 1 + hole_offset
-
-		if wallY > y2 || holeX > x2 {
-			return
-		}
-
-		for x := x1; x <= x2; x++ {
-			if x != holeX {
-				m.set(x, wallY, Wall)
-			}
-		}
-
-		if wallY > y1+1 {
-			m.divide(x1, y1, x2, wallY-1)
-		}
-		if wallY+1 < y2 {
-			m.divide(x1, wallY+1, x2, y2)
-		}
-	}
-}
-
-func (m *Maze) generate() {
-	if m.width < 5 || m.height < 5 {
-		for x := 0; x < m.width; x++ {
-			m.set(x, m.height/2, Path)
-		}
-		return
-	}
-
-	m.divide(0, 0, m.width-1, m.height-1)
-	m.add_random_paths()
-}
-
-func (m *Maze) toBoolGrid() [][]bool {
-	result := make([][]bool, m.height)
-	for y := 0; y < m.height; y++ {
-		row := make([]bool, m.width)
-		for x := 0; x < m.width; x++ {
-			row[x] = (m.get(x, y) == Path)
-		}
-		result[y] = row
-	}
-	return result
-}
-
-func generateWalkableMaze(width, height int) [][]bool {
-	m := NewMaze(width, height)
-	m.generate()
-
-	startX, startY := 1, 1
-	goalX, goalY := width-2, height-2
-
-	if !m.is_connected(startX, startY, goalX, goalY) {
-
-		for x := 0; x < width; x++ {
-			for y := 0; y < height; y++ {
-				if x == 1 || y == 1 || x == width-2 || y == height-2 {
-					m.set(x, y, Path)
+		for _, neighbor := range cell.Neighbors {
+			if neighbor == target {
+				result := []*MazeCell{target}
+				cur := pathId
+				for cur >= 0 {
+					result = append(result, pathNodes[cur].cell)
+					cur = pathNodes[cur].parent
 				}
+
+				for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
+					result[i], result[j] = result[j], result[i]
+				}
+				return result
+			}
+
+			if neighbor.Kind.IsWalkable() && !visited[neighbor.Y][neighbor.X] {
+				visited[neighbor.Y][neighbor.X] = true
+				pathNodes = append(pathNodes, PathNode{neighbor, pathId})
+				queue = append(queue, len(pathNodes)-1)
 			}
 		}
 	}
-
-	return m.toBoolGrid()
+	return nil
 }
 
-type MazeGenerator struct {
+func (m *MazeBFS) midCellChecksum(path []*MazeCell) uint32 {
+	if len(path) == 0 {
+		return 0
+	}
+	cell := path[len(path)/2]
+	return uint32(cell.X * cell.Y)
+}
+
+func (m *MazeBFS) Run(iteration_id int) {
+	m.path = m.bfs(m.maze.Start, m.maze.Finish)
+	if m.path != nil {
+		m.resultVal += uint32(len(m.path))
+	}
+}
+
+func (m *MazeBFS) Checksum() uint32 {
+	return m.resultVal + m.midCellChecksum(m.path)
+}
+
+type MazeAStar struct {
 	BaseBenchmark
-	width    int
-	height   int
-	boolGrid [][]bool
+	width     int
+	height    int
+	maze      *Maze
+	resultVal uint32
+	path      []*MazeCell
 }
 
-func (m *MazeGenerator) Prepare() {
+func (m *MazeAStar) Prepare() {
 	m.width = int(m.ConfigVal("w"))
 	m.height = int(m.ConfigVal("h"))
+	m.maze = NewMaze(m.width, m.height)
+	m.maze.UpdateNeighbors()
+	m.maze.Generate()
+	m.resultVal = 0
+	m.path = nil
 }
 
-func (m *MazeGenerator) grid_checksum(grid [][]bool) uint32 {
-	hasher := uint32(2166136261)
-	prime := uint32(16777619)
+func (m *MazeAStar) heuristic(a, b *MazeCell) int {
+	return absint(a.X-b.X) + absint(a.Y-b.Y)
+}
 
-	for i := 0; i < len(grid); i++ {
-		row := grid[i]
-		for j := 0; j < len(row); j++ {
-			if row[j] {
-				j_squared := uint32(j * j)
-				hasher = (hasher ^ j_squared) * prime
+func absint(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+func (m *MazeAStar) idx(y, x int) int {
+	return y*m.width + x
+}
+
+func (m *MazeAStar) astar(start, target *MazeCell) []*MazeCell {
+	if start == target {
+		return []*MazeCell{start}
+	}
+
+	size := m.width * m.height
+
+	cameFrom := make([]int, size)
+	gScore := make([]int, size)
+	bestF := make([]int, size)
+	for i := 0; i < size; i++ {
+		cameFrom[i] = -1
+		gScore[i] = int(^uint(0) >> 1)
+		bestF[i] = int(^uint(0) >> 1)
+	}
+
+	startIdx := m.idx(start.Y, start.X)
+	targetIdx := m.idx(target.Y, target.X)
+
+	type Item struct {
+		priority int
+		vertex   int
+	}
+	openSet := make([]Item, 0)
+
+	gScore[startIdx] = 0
+	fStart := m.heuristic(start, target)
+	openSet = append(openSet, Item{fStart, startIdx})
+	bestF[startIdx] = fStart
+
+	for len(openSet) > 0 {
+
+		minIdx := 0
+		for i := 1; i < len(openSet); i++ {
+			if openSet[i].priority < openSet[minIdx].priority {
+				minIdx = i
 			}
 		}
-	}
-	return hasher
-}
+		current := openSet[minIdx]
 
-func (m *MazeGenerator) Run(iteration_id int) {
-	m.boolGrid = generateWalkableMaze(m.width, m.height)
-}
+		openSet[minIdx] = openSet[len(openSet)-1]
+		openSet = openSet[:len(openSet)-1]
 
-func (m *MazeGenerator) Checksum() uint32 {
-	return m.grid_checksum(m.boolGrid)
-}
+		currentIdx := current.vertex
 
-type AStarPathfinder struct {
-	BaseBenchmark
-	startX, startY int
-	goalX, goalY   int
-	width, height  int
-	mazeGrid       [][]bool
-	result         uint32
-
-	gScoresCache  []int
-	cameFromCache []int
-
-	directions [4][2]int
-}
-
-func (a *AStarPathfinder) distance(aX, aY, bX, bY int) int {
-
-	dx := aX - bX
-	dy := aY - bY
-	if dx < 0 {
-		dx = -dx
-	}
-	if dy < 0 {
-		dy = -dy
-	}
-	return dx + dy
-}
-
-type AStarNode struct {
-	X, Y   int
-	fScore int
-	index  int
-}
-
-type PriorityQueue struct {
-	nodes []*AStarNode
-}
-
-func NewPriorityQueue(capacity int) *PriorityQueue {
-	return &PriorityQueue{
-		nodes: make([]*AStarNode, 0, capacity),
-	}
-}
-
-func (pq *PriorityQueue) Len() int { return len(pq.nodes) }
-func (pq *PriorityQueue) Less(i, j int) bool {
-
-	if pq.nodes[i].fScore != pq.nodes[j].fScore {
-		return pq.nodes[i].fScore < pq.nodes[j].fScore
-	}
-	if pq.nodes[i].Y != pq.nodes[j].Y {
-		return pq.nodes[i].Y < pq.nodes[j].Y
-	}
-	return pq.nodes[i].X < pq.nodes[j].X
-}
-func (pq *PriorityQueue) Swap(i, j int) {
-	pq.nodes[i], pq.nodes[j] = pq.nodes[j], pq.nodes[i]
-	pq.nodes[i].index = i
-	pq.nodes[j].index = j
-}
-func (pq *PriorityQueue) Push(x interface{}) {
-	node := x.(*AStarNode)
-	node.index = len(pq.nodes)
-	pq.nodes = append(pq.nodes, node)
-}
-func (pq *PriorityQueue) Pop() interface{} {
-	n := len(pq.nodes)
-	node := pq.nodes[n-1]
-	node.index = -1
-	pq.nodes = pq.nodes[:n-1]
-	return node
-}
-
-func (a *AStarPathfinder) packCoords(x, y int) int {
-	return y*a.width + x
-}
-
-func (a *AStarPathfinder) unpackCoords(packed int) (int, int) {
-	return packed % a.width, packed / a.width
-}
-
-func (a *AStarPathfinder) Prepare() {
-	a.width = int(a.ConfigVal("w"))
-	a.height = int(a.ConfigVal("h"))
-	a.startX = 1
-	a.startY = 1
-	a.goalX = a.width - 2
-	a.goalY = a.height - 2
-	a.mazeGrid = generateWalkableMaze(a.width, a.height)
-
-	size := a.width * a.height
-	a.gScoresCache = make([]int, size)
-	a.cameFromCache = make([]int, size)
-
-	a.directions = [4][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
-}
-
-func (a *AStarPathfinder) findPath() ([][2]int, int) {
-	grid := a.mazeGrid
-	width := a.width
-	height := a.height
-
-	gScores := a.gScoresCache
-	cameFrom := a.cameFromCache
-
-	const maxInt32 = math.MaxInt32
-	for i := range gScores {
-		gScores[i] = maxInt32
-	}
-
-	const minusOne = -1
-	for i := range cameFrom {
-		cameFrom[i] = minusOne
-	}
-
-	pq := NewPriorityQueue(width * height)
-	heap.Init(pq)
-
-	startIdx := a.packCoords(a.startX, a.startY)
-	gScores[startIdx] = 0
-	heap.Push(pq, &AStarNode{
-		X:      a.startX,
-		Y:      a.startY,
-		fScore: a.distance(a.startX, a.startY, a.goalX, a.goalY),
-	})
-
-	directions := a.directions
-	nodesExplored := 0
-
-	maxPathLen := width + height
-	path := make([][2]int, 0, maxPathLen)
-
-	for pq.Len() > 0 {
-		current := heap.Pop(pq).(*AStarNode)
-		nodesExplored++
-
-		if current.X == a.goalX && current.Y == a.goalY {
-
-			path = path[:0]
-			x, y := current.X, current.Y
-
-			for x != a.startX || y != a.startY {
-				path = append(path, [2]int{x, y})
-				idx := a.packCoords(x, y)
-				packed := cameFrom[idx]
-				if packed == -1 {
-					break
-				}
-				x, y = a.unpackCoords(packed)
+		if currentIdx == targetIdx {
+			result := make([]*MazeCell, 0)
+			cur := currentIdx
+			for cur != -1 {
+				y := cur / m.width
+				x := cur % m.width
+				result = append(result, m.maze.Cells[y][x])
+				cur = cameFrom[cur]
 			}
 
-			path = append(path, [2]int{a.startX, a.startY})
-
-			for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
-				path[i], path[j] = path[j], path[i]
+			for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
+				result[i], result[j] = result[j], result[i]
 			}
-
-			return path, nodesExplored
+			return result
 		}
 
-		currentIdx := a.packCoords(current.X, current.Y)
-		currentG := gScores[currentIdx]
+		currentY := currentIdx / m.width
+		currentX := currentIdx % m.width
+		currentCell := m.maze.Cells[currentY][currentX]
+		currentG := gScore[currentIdx]
 
-		for _, dir := range directions {
-			nx, ny := current.X+dir[0], current.Y+dir[1]
-
-			if nx < 0 || nx >= width || ny < 0 || ny >= height {
-				continue
-			}
-			if !grid[ny][nx] {
+		for _, neighbor := range currentCell.Neighbors {
+			if !neighbor.Kind.IsWalkable() {
 				continue
 			}
 
-			tentativeG := currentG + 1000
-			neighborIdx := a.packCoords(nx, ny)
+			neighborIdx := m.idx(neighbor.Y, neighbor.X)
+			tentativeG := currentG + 1
 
-			if tentativeG < gScores[neighborIdx] {
-
+			if tentativeG < gScore[neighborIdx] {
 				cameFrom[neighborIdx] = currentIdx
-				gScores[neighborIdx] = tentativeG
+				gScore[neighborIdx] = tentativeG
+				fNew := tentativeG + m.heuristic(neighbor, target)
 
-				fScore := tentativeG + a.distance(nx, ny, a.goalX, a.goalY)
-				heap.Push(pq, &AStarNode{
-					X:      nx,
-					Y:      ny,
-					fScore: fScore,
-				})
+				if fNew < bestF[neighborIdx] {
+					bestF[neighborIdx] = fNew
+					openSet = append(openSet, Item{fNew, neighborIdx})
+				}
 			}
 		}
 	}
-
-	return nil, nodesExplored
+	return nil
 }
 
-func (a *AStarPathfinder) Run(iteration_id int) {
-	path, nodesExplored := a.findPath()
-
-	var localResult uint32 = 0
-
-	if path != nil {
-		localResult = uint32(len(path))
+func (m *MazeAStar) midCellChecksum(path []*MazeCell) uint32 {
+	if len(path) == 0 {
+		return 0
 	}
-
-	localResult = (localResult << 5) + uint32(nodesExplored)
-
-	a.result += localResult
+	cell := path[len(path)/2]
+	return uint32(cell.X * cell.Y)
 }
 
-func (a *AStarPathfinder) Checksum() uint32 {
-	return a.result
+func (m *MazeAStar) Run(iteration_id int) {
+	m.path = m.astar(m.maze.Start, m.maze.Finish)
+	if m.path != nil {
+		m.resultVal += uint32(len(m.path))
+	}
+}
+
+func (m *MazeAStar) Checksum() uint32 {
+	return m.resultVal + m.midCellChecksum(m.path)
 }
 
 func generateTestData(size int64) []byte {
