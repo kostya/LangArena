@@ -140,6 +140,7 @@ jsonparsedom_run :: proc(bench: ^Benchmark, iteration_id: int) {
     if parse_err != .None {
         return
     }
+    defer json.destroy_value(value)  
 
     x_sum, y_sum, z_sum: f64 = 0, 0, 0
     len := 0
