@@ -6,11 +6,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	regexp "github.com/coregx/coregex"
+	regexp "github.com/wasilibs/go-re2"
 	"math"
 	"math/big"
 	"os"
-
 	"runtime"
 	"sort"
 	"strconv"

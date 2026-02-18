@@ -7,3 +7,5 @@ RUN apt install -y --no-install-recommends gccgo-$version \
 run ln -sf /usr/bin/gccgo-$version /usr/bin/gccgo \
     && ln -sf /usr/bin/go-$version /usr/bin/go
     
+RUN apt install -y --no-install-recommends libre2-dev \
+    && apt clean
