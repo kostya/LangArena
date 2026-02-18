@@ -44,6 +44,11 @@ pub const Parser = struct {
         };
     }
 
+    pub fn deinit(self: *Parser) void {
+
+        _ = self;
+    }
+
     pub fn advance(self: *Parser) void {
         self.pos += 1;
         if (self.pos >= self.input.len) {

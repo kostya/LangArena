@@ -5,12 +5,10 @@ const shared = @import("calculator_shared.zig");
 
 pub const CalculatorAst = struct {
     allocator: std.mem.Allocator,
-    arena: std.heap.ArenaAllocator,
     helper: *Helper,
     operations: i64,
     result_val: u32,
     text: []const u8,
-    expressions: std.ArrayListUnmanaged(*shared.Node),
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
@@ -27,19 +25,16 @@ pub const CalculatorAst = struct {
 
         self.* = CalculatorAst{
             .allocator = allocator,
-            .arena = std.heap.ArenaAllocator.init(allocator),
             .helper = helper,
             .operations = operations,
             .result_val = 0,
             .text = "",
-            .expressions = .{},
         };
 
         return self;
     }
 
     pub fn deinit(self: *CalculatorAst) void {
-        self.arena.deinit();
         if (self.text.len > 0) {
             self.allocator.free(self.text);
         }
@@ -67,10 +62,16 @@ pub const CalculatorAst = struct {
         const self: *CalculatorAst = @ptrCast(@alignCast(ptr));
         _ = iteration_id;
 
-        const arena_allocator = self.arena.allocator();
-        var parser = shared.Parser.init(arena_allocator, self.text);
+        var arena = std.heap.ArenaAllocator.init(self.allocator);
+        defer arena.deinit(); 
 
-        self.expressions.clearRetainingCapacity();
+        const arena_allocator = arena.allocator();
+
+        var expressions: std.ArrayListUnmanaged(*shared.Node) = .{};
+        defer expressions.deinit(arena_allocator);
+
+        var parser = shared.Parser.init(arena_allocator, self.text);
+        defer parser.deinit();
 
         while (parser.current_char != 0) {
             parser.skipWhitespace();
@@ -79,7 +80,8 @@ pub const CalculatorAst = struct {
             const expr = parser.parseExpression() catch {
                 return;
             };
-            self.expressions.append(arena_allocator, expr) catch {
+
+            expressions.append(arena_allocator, expr) catch {
                 return;
             };
 
@@ -89,10 +91,10 @@ pub const CalculatorAst = struct {
             }
         }
 
-        self.result_val +%= @as(u32, @intCast(self.expressions.items.len));
+        self.result_val +%= @as(u32, @intCast(expressions.items.len));
 
-        if (self.expressions.items.len > 0) {
-            const last_expr = self.expressions.items[self.expressions.items.len - 1];
+        if (expressions.items.len > 0) {
+            const last_expr = expressions.items[expressions.items.len - 1];
             if (last_expr.* == .assignment) {
                 const assignment = last_expr.assignment;
                 self.result_val +%= self.helper.checksumString(assignment.var_name);
