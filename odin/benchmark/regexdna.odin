@@ -186,10 +186,27 @@ regexdna_run :: proc(bench: ^Benchmark, iteration_id: int) {
         regexdna_append(rdna, "\n")
     }
 
-    mut_seq := rdna.seq
+    current_seq := rdna.seq
+    temp_seqs: [dynamic]string
+    defer {
+        for seq in temp_seqs {
+            delete(seq)
+        }
+        delete(temp_seqs)
+    }
 
     for repl in REPLACEMENTS {
-        mut_seq = regex_replace_all(mut_seq, repl.from, repl.to)
+
+        if current_seq != rdna.seq {
+            append(&temp_seqs, current_seq)
+        }
+
+        new_seq := regex_replace_all(current_seq, repl.from, repl.to)
+        current_seq = new_seq
+    }
+
+    if current_seq != rdna.seq {
+        append(&temp_seqs, current_seq)
     }
 
     regexdna_append(rdna, "\n")
@@ -197,7 +214,7 @@ regexdna_run :: proc(bench: ^Benchmark, iteration_id: int) {
     regexdna_append(rdna, "\n")
     regexdna_append(rdna, fmt.tprintf("%d", rdna.clen))
     regexdna_append(rdna, "\n")
-    regexdna_append(rdna, fmt.tprintf("%d", len(mut_seq)))
+    regexdna_append(rdna, fmt.tprintf("%d", len(current_seq)))
     regexdna_append(rdna, "\n")
 }
 
