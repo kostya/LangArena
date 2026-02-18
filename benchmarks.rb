@@ -1883,18 +1883,19 @@ RUNS = [
     deps_cmd: "true",
   ),
 
-  Run.new(
-    name: "Python/GraalPy", 
-    build_cmd: "true",
-    binary_name: "main.py",
-    run_cmd: "python main.py", 
-    version_cmd: "python --version",
-    dir: "/src/python",
-    container: "graalpy",   
-    group: :prod, 
-    deps_cmd: "true",
-  ),
-
+  # TOO SLOW?
+  # Run.new(
+  #   name: "Python/GraalPy", 
+  #   build_cmd: "true",
+  #   binary_name: "main.py",
+  #   run_cmd: "python main.py", 
+  #   version_cmd: "python --version",
+  #   dir: "/src/python",
+  #   container: "graalpy",   
+  #   group: :prod, 
+  #   deps_cmd: "true",
+  # ),
+  
   Run.new(
     name: "Python/GraalPy/JVM", 
     build_cmd: "true",
