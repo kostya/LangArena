@@ -1883,6 +1883,42 @@ RUNS = [
     deps_cmd: "true",
   ),
 
+  Run.new(
+    name: "Python/GraalPy", 
+    build_cmd: "true",
+    binary_name: "main.py",
+    run_cmd: "python main.py", 
+    version_cmd: "python --version",
+    dir: "/src/python",
+    container: "graalpy",   
+    group: :prod, 
+    deps_cmd: "true",
+  ),
+
+  Run.new(
+    name: "Python/GraalPy/JVM", 
+    build_cmd: "true",
+    binary_name: "main.py",
+    run_cmd: "python --jvm main.py", 
+    version_cmd: "python --version",
+    dir: "/src/python",
+    container: "graalpy",   
+    group: :prod, 
+    deps_cmd: "true",
+  ),
+
+  Run.new(
+    name: "Python/GraalPy/GraalVM", 
+    build_cmd: "true",
+    binary_name: "main.py",
+    run_cmd: "python --jvm main.py", 
+    version_cmd: "python --version",
+    dir: "/src/python",
+    container: "graalpy-graalvm",   
+    group: :prod, 
+    deps_cmd: "true",
+  ),
+
 ]
 
 run_names = {}
