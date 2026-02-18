@@ -1,8 +1,13 @@
 FROM benchmarks:base_gcc
 
 ARG version
-RUN apt install -y --no-install-recommends gccgo-$version golang \
+RUN apt install -y --no-install-recommends gccgo-$version \
     && apt clean
+
+ARG goversion
+RUN wget -O go.tar.gz "https://go.dev/dl/go${goversion}.linux-amd64.tar.gz" \
+    && tar -C /usr/local -xzf go.tar.gz \
+    && rm go.tar.gz
 
 run ln -sf /usr/bin/gccgo-$version /usr/bin/gccgo \
     && ln -sf /usr/bin/go-$version /usr/bin/go

@@ -225,6 +225,7 @@ services:
       dockerfile: docker/gccgo
       args:
         version: "14"
+        goversion: "1.25.6"
     volumes:
       - .:/src
 
