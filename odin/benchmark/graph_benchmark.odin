@@ -3,6 +3,7 @@ package benchmark
 import "core:container/queue"
 import "core:math"
 import "core:mem"
+import "core:container/priority_queue"
 
 Graph :: struct {
     vertices: int,
@@ -244,73 +245,13 @@ GPANode :: struct {
     f_score: int,
 }
 
-node_greater :: proc(a, b: GPANode) -> bool {
-    return a.f_score > b.f_score
+gpa_node_less :: proc(a, b: GPANode) -> bool {
+    return a.f_score < b.f_score
 }
 
-PriorityQueue :: struct {
-    nodes: [dynamic]GPANode,
-}
-
-priority_queue_init :: proc() -> PriorityQueue {
-    return PriorityQueue{
-        nodes = make([dynamic]GPANode),
-    }
-}
-
-priority_queue_destroy :: proc(pq: ^PriorityQueue) {
-    delete(pq.nodes)
-}
-
-priority_queue_push :: proc(pq: ^PriorityQueue, vertex: int, f_score: int) {
-    append(&pq.nodes, GPANode{vertex, f_score})
-    heapify_up(pq.nodes[:])
-}
-
-priority_queue_pop :: proc(pq: ^PriorityQueue) -> GPANode {
-    node := pq.nodes[0]
-    pq.nodes[0] = pq.nodes[len(pq.nodes)-1]
-    pop(&pq.nodes)
-    heapify_down(pq.nodes[:])
-    return node
-}
-
-priority_queue_empty :: proc(pq: ^PriorityQueue) -> bool {
-    return len(pq.nodes) == 0
-}
-
-heapify_up :: proc(nodes: []GPANode) {
-    i := len(nodes) - 1
-    for i > 0 {
-        parent := (i - 1) / 2
-        if nodes[parent].f_score <= nodes[i].f_score {
-            break
-        }
-        nodes[i], nodes[parent] = nodes[parent], nodes[i]
-        i = parent
-    }
-}
-
-heapify_down :: proc(nodes: []GPANode) {
-    i := 0
-    n := len(nodes)
-    for {
-        left := 2*i + 1
-        right := 2*i + 2
-        smallest := i
-
-        if left < n && nodes[left].f_score < nodes[smallest].f_score {
-            smallest = left
-        }
-        if right < n && nodes[right].f_score < nodes[smallest].f_score {
-            smallest = right
-        }
-        if smallest == i {
-            break
-        }
-        nodes[i], nodes[smallest] = nodes[smallest], nodes[i]
-        i = smallest
-    }
+// Swap функция с правильной сигнатурой для priority_queue
+gpa_node_swap :: proc(nodes: []GPANode, i, j: int) {
+    nodes[i], nodes[j] = nodes[j], nodes[i]
 }
 
 heuristic :: proc(v, target: int) -> int {
@@ -344,14 +285,18 @@ astar_shortest_path :: proc(g: ^Graph, start, target: int) -> int {
     g_score[start] = 0
     f_score[start] = heuristic(start, target)
 
-    open_set := priority_queue_init()
-    defer priority_queue_destroy(&open_set)
+    open_set: priority_queue.Priority_Queue(GPANode)
+    err := priority_queue.init(&open_set, gpa_node_less, gpa_node_swap, 16)
+    if err != nil {
+        return -1
+    }
+    defer priority_queue.destroy(&open_set)
 
-    priority_queue_push(&open_set, start, f_score[start])
+    priority_queue.push(&open_set, GPANode{start, f_score[start]})
     in_open_set[start] = true
 
-    for !priority_queue_empty(&open_set) {
-        current := priority_queue_pop(&open_set)
+    for priority_queue.len(open_set) > 0 {
+        current := priority_queue.pop(&open_set)
 
         if closed[current.vertex] {
             continue
@@ -375,7 +320,7 @@ astar_shortest_path :: proc(g: ^Graph, start, target: int) -> int {
                 f_score[neighbor] = tentative_g + heuristic(neighbor, target)
 
                 if !in_open_set[neighbor] {
-                    priority_queue_push(&open_set, neighbor, f_score[neighbor])
+                    priority_queue.push(&open_set, GPANode{neighbor, f_score[neighbor]})
                     in_open_set[neighbor] = true
                 }
             }
