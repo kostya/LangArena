@@ -1,5 +1,6 @@
-require "big"
 require "base64"
+require "big"
+require "cryyjson"
 require "json"
 require "complex"
 
@@ -192,10 +193,10 @@ class Pidigits < Benchmark
   def run(iteration_id)
     i = 0
     k = 0
-    ns = 0.to_big_i
-    a = 0.to_big_i
+    ns = BigInt.new("0")
+    a = BigInt.new("0")
     t = 0
-    u = 0.to_big_i
+    u = BigInt.new("0")
     k1 = 1
     n = 1.to_big_i
     d = 1.to_big_i
@@ -1326,7 +1327,7 @@ end
 
 class JsonParseDom < Benchmark
   def calc(text)
-    jobj = JSON.parse(text)
+    jobj = Cryyjson.parse(text)
     coordinates = jobj["coordinates"].as_a
     len = coordinates.size.to_f
     x = y = z = 0.0

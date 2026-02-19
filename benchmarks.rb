@@ -631,7 +631,7 @@ RUNS = [
     dir: "/src/crystal",
     container: "crystal",
     group: :prod,
-    deps_cmd: "mkdir -p target",
+    deps_cmd: "mkdir -p target ; shards install",
   ),
 
   # ======================================= D ======================================================

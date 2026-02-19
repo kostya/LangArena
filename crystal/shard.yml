@@ -1,0 +1,6 @@
+name: LangArena
+version: 0.1.0
+
+dependencies:
+  cryyjson:
+    github: syeopite/cryyjson
