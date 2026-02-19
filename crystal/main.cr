@@ -12,12 +12,10 @@ module Helper
   IC   =  29573
   INIT =     42
 
-  @[AlwaysInline]
   def self.last
     @@last ||= INIT
   end
 
-  @[AlwaysInline]
   def self.last=(x)
     @@last = x
   end
@@ -1611,23 +1609,19 @@ end
 class Noise < Benchmark
   record Vec2, x : Float64, y : Float64
 
-  @[AlwaysInline]
   def self.lerp(a, b, v)
     a * (1.0 - v) + b * v
   end
 
-  @[AlwaysInline]
   def self.smooth(v)
     v * v * (3.0 - 2.0 * v)
   end
 
-  @[AlwaysInline]
   def self.random_gradient
     v = Helper.next_float * Math::PI * 2.0
     Vec2.new(Math.cos(v), Math.sin(v))
   end
 
-  @[AlwaysInline]
   def self.gradient(orig, grad, p)
     sp = Vec2.new(p.x - orig.x, p.y - orig.y)
     grad.x * sp.x + grad.y * sp.y
@@ -1644,7 +1638,6 @@ class Noise < Benchmark
       end
     end
 
-    @[AlwaysInline]
     def get_gradient(x, y)
       idx = @permutations[x & (@size - 1)] + @permutations[y & (@size - 1)]
       @rgradients[idx & (@size - 1)]
@@ -1715,32 +1708,26 @@ end
 
 class TextRaytracer < Benchmark
   record Vector, x : Float64, y : Float64, z : Float64 do
-    @[AlwaysInline]
     def scale(s)
       Vector.new(x * s, y * s, z * s)
     end
 
-    @[AlwaysInline]
     def +(other)
       Vector.new(x + other.x, y + other.y, z + other.z)
     end
 
-    @[AlwaysInline]
     def -(other)
       Vector.new(x - other.x, y - other.y, z - other.z)
     end
 
-    @[AlwaysInline]
     def dot(other)
       x*other.x + y*other.y + z*other.z
     end
 
-    @[AlwaysInline]
     def magnitude
       Math.sqrt self.dot(self)
     end
 
-    @[AlwaysInline]
     def normalize
       scale(1.0 / magnitude)
     end
@@ -1749,19 +1736,16 @@ class TextRaytracer < Benchmark
   record Ray, orig : Vector, dir : Vector
 
   record Color, r : Float64, g : Float64, b : Float64 do
-    @[AlwaysInline]
     def scale(s)
       Color.new(r * s, g * s, b * s)
     end
 
-    @[AlwaysInline]
     def +(other)
       Color.new(r + other.r, g + other.g, b + other.b)
     end
   end
 
   record Sphere, center : Vector, radius : Float64, color : Color do
-    @[AlwaysInline]
     def get_normal(pt)
       (pt - center).normalize
     end
