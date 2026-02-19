@@ -1,3 +1,2 @@
 #!/bin/sh
-
-mvn clean compile exec:java -Pjava-optimized -Dexec.args="../run.js $@" -q
+mvn compile exec:java -Pjava-optimized -Dexec.args="../run.js $@" -q
