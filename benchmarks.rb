@@ -696,41 +696,44 @@ RUNS = [
     deps_cmd: "dub fetch",
   ),
 
-  Run.new(
-    name: "D/GDC",
-    build_cmd: "dub build --compiler=gdc -c release-gdc --build=release",
-    binary_name: "./target/release/d_benchmarks_gdc_release",
-    run_cmd: "./target/release/d_benchmarks_gdc_release",
-    version_cmd: "gdc --version | head -n 1",
-    dir: "/src/d",
-    container: "gdc",
-    group: :prod,
-    deps_cmd: "dub fetch",
-  ),
+  # GDC Slow and errors
+  # Run.new(
+  #   name: "D/GDC",
+  #   build_cmd: "dub build --compiler=gdc -c release-gdc --build=release",
+  #   binary_name: "./target/release/d_benchmarks_gdc_release",
+  #   run_cmd: "./target/release/d_benchmarks_gdc_release",
+  #   version_cmd: "gdc --version | head -n 1",
+  #   dir: "/src/d",
+  #   container: "gdc",
+  #   group: :prod,
+  #   deps_cmd: "dub fetch",
+  # ),
 
-  Run.new(
-    name: "D/GDC/Perf",
-    build_cmd: "dub build --compiler=gdc -c perf-gdc --build=release",
-    binary_name: "./target/release/d_benchmarks_gdc_perf",
-    run_cmd: "./target/release/d_benchmarks_gdc_perf",
-    version_cmd: "gdc --version | head -n 1",
-    dir: "/src/d",
-    container: "gdc",
-    group: :hack,
-    deps_cmd: "dub fetch",
-  ),
+  # GDC Slow and errors
+  # Run.new(
+  #   name: "D/GDC/Perf",
+  #   build_cmd: "dub build --compiler=gdc -c perf-gdc --build=release",
+  #   binary_name: "./target/release/d_benchmarks_gdc_perf",
+  #   run_cmd: "./target/release/d_benchmarks_gdc_perf",
+  #   version_cmd: "gdc --version | head -n 1",
+  #   dir: "/src/d",
+  #   container: "gdc",
+  #   group: :hack,
+  #   deps_cmd: "dub fetch",
+  # ),
 
-  Run.new(
-    name: "D/GDC/MaxPerf",
-    build_cmd: "dub build --compiler=gdc -c maxperf-gdc --build=release",
-    binary_name: "./target/release/d_benchmarks_gdc_maxperf",
-    run_cmd: "./target/release/d_benchmarks_gdc_maxperf",
-    version_cmd: "gdc --version | head -n 1",
-    dir: "/src/d",
-    container: "gdc",
-    group: :hack,
-    deps_cmd: "dub fetch",
-  ),
+  # GDC Slow and errors
+  # Run.new(
+  #   name: "D/GDC/MaxPerf",
+  #   build_cmd: "dub build --compiler=gdc -c maxperf-gdc --build=release",
+  #   binary_name: "./target/release/d_benchmarks_gdc_maxperf",
+  #   run_cmd: "./target/release/d_benchmarks_gdc_maxperf",
+  #   version_cmd: "gdc --version | head -n 1",
+  #   dir: "/src/d",
+  #   container: "gdc",
+  #   group: :hack,
+  #   deps_cmd: "dub fetch",
+  # ),
 
   # ======================================= V ======================================================
 
