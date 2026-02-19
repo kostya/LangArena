@@ -502,7 +502,7 @@ services:
     build:
       dockerfile: docker/gdc
       args:
-        version: "14"
+        version: "15"
     volumes:
       - .:/src
 
