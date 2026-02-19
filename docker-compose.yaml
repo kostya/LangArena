@@ -181,9 +181,9 @@ services:
     working_dir: /src
     build:
       dockerfile: docker/base_gcc
-      args:
-        # https://gcc.gnu.org/releases.html
-        version: "14"
+      # args:
+      #   # https://gcc.gnu.org/releases.html
+      #   version: "14"
     depends_on:
       - base
 
