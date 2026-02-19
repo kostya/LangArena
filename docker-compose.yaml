@@ -320,8 +320,8 @@ services:
     build:
       dockerfile: docker/kotlin
       args:
-        # https://kotlinlang.org/docs/releases.html        
-        version: "2.3.0"
+        # https://kotlinlang.org/docs/releases.html
+        version: "2.3.10"
         # https://gradle.org/releases/
         gradleversion: 9.2.1
     volumes:
@@ -347,7 +347,7 @@ services:
       dockerfile: docker/graalvm
       args:
         # https://www.graalvm.org/release-notes/
-        version: "25.0.1"
+        version: "25.0.2"
         mavenversion: 3.9.12
     volumes:
       - .:/src
@@ -368,7 +368,7 @@ services:
       dockerfile: docker/kotlin-graalvm
       args:
         # https://kotlinlang.org/docs/releases.html
-        version: "2.3.0"
+        version: "2.3.10"
         # https://gradle.org/releases/
         gradleversion: 9.2.1
     volumes:
