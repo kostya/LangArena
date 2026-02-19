@@ -14,3 +14,4 @@ RUN if [ "$arch" = "amd64" ] || [ "$arch" = "" ]; then export ARCH="linux-x86_64
     | tar -xz
 RUN ln -sf /opt/crystal-$version-1/bin/crystal /usr/local/bin/crystal
 ENV PATH="/opt/crystal-$version-1/bin:${PATH}"
+ENV CRYSTAL_WORKERS="16"
