@@ -524,7 +524,7 @@ services:
       dockerfile: docker/v_gcc
       args:
         # https://github.com/vlang/v/releases
-        version: "weekly.2026.05"
+        version: "weekly.2026.08"
     volumes:
       - .:/src
 
@@ -543,7 +543,7 @@ services:
       dockerfile: docker/v_clang
       args:
         # https://github.com/vlang/v/releases
-        version: "weekly.2026.05"
+        version: "weekly.2026.08"
     volumes:
       - .:/src
 
