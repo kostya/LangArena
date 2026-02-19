@@ -1359,7 +1359,6 @@ RUNS = [
         -XX:+UseParallelGC \
         -XX:+UseLargePages \
         -XX:+AlwaysPreTouch \
-        -XX:+UseNUMA \
         -XX:+UseCompressedOops \
         -XX:+OptimizeStringConcat \
         -XX:+UseStringDeduplication \
@@ -1480,7 +1479,6 @@ RUNS = [
         -Xms2g \
         -Xmx2g \
         -XX:+AlwaysPreTouch \
-        -XX:+UseNUMA \
         -XX:+OptimizeStringConcat \
         -XX:+UseCompressedOops \
         -Xmx8g \
@@ -1504,7 +1502,6 @@ RUNS = [
         -Xms4g \
         -Xmx8g \
         -XX:+AlwaysPreTouch \
-        -XX:+UseNUMA \
         -XX:+UseLargePages \
         -XX:+DisableExplicitGC \
         -Djava.security.egd=file:/dev/./urandom \
@@ -1604,7 +1601,6 @@ RUNS = [
         -Xms2g \
         -Xmx2g \
         -XX:+AlwaysPreTouch \
-        -XX:+UseNUMA \
         -XX:+OptimizeStringConcat \
         -XX:+UseCompressedOops \
         -Xmx8g \
@@ -1628,7 +1624,6 @@ RUNS = [
         -Xms4g \
         -Xmx8g \
         -XX:+AlwaysPreTouch \
-        -XX:+UseNUMA \
         -XX:+UseLargePages \
         -XX:+DisableExplicitGC \
         -Djava.security.egd=file:/dev/./urandom \

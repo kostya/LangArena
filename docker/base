@@ -20,8 +20,6 @@ RUN apt update && apt install -y --no-install-recommends \
     pkg-config \
     unzip \
     xz-utils \
-    libnuma-dev \
-    numactl \
     zlib1g-dev \
     libxml2-dev \
     libssl-dev \
