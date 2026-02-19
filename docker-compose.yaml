@@ -224,7 +224,7 @@ services:
     build:
       dockerfile: docker/gccgo
       args:
-        version: "14"
+        version: "15"
     volumes:
       - .:/src
 
@@ -242,7 +242,7 @@ services:
       dockerfile: docker/golang
       args:
         # https://go.dev/dl/
-        version: "1.25.6"
+        version: "1.26.0"
     volumes:
       - .:/src
 

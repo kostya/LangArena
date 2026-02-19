@@ -6,7 +6,6 @@ RUN apt install -y --no-install-recommends \
     lld-$version \
     && apt clean
 
-# 3. ЗАМЕНЯЕМ ВСЕ КОМПИЛЯТОРЫ
 RUN update-alternatives --install /usr/bin/cc cc /usr/bin/clang-$version 100 \
     && update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-$version 100 \
     && update-alternatives --install /usr/bin/gcc gcc /usr/bin/clang-$version 100 \
