@@ -13,11 +13,11 @@ end
 name(b::Primes)::String = "Primes"
 
 mutable struct PrimesNode
-    children::Vector{Union{PrimesNode, Nothing}}
+    children::Vector{Union{PrimesNode,Nothing}}
     terminal::Bool
 
     function PrimesNode()
-        children = Vector{Union{PrimesNode, Nothing}}(nothing, 10)
+        children = Vector{Union{PrimesNode,Nothing}}(nothing, 10)
         new(children, false)
     end
 end
@@ -32,10 +32,10 @@ function sieve(limit::Int32)::Vector{Int32}
 
     sqrt_limit = isqrt(limit)
 
-    for p in 2:sqrt_limit
+    for p = 2:sqrt_limit
         if is_prime[p]
             start = p * p
-            for multiple in start:p:limit
+            for multiple = start:p:limit
                 is_prime[multiple] = false
             end
         end
@@ -46,7 +46,7 @@ function sieve(limit::Int32)::Vector{Int32}
     sizehint!(primes, capacity)
 
     push!(primes, 2)
-    for p in 3:2:limit
+    for p = 3:2:limit
         if is_prime[p]
             push!(primes, p)
         end
@@ -70,7 +70,7 @@ function generate_trie(primes::Vector{Int32})::PrimesNode
         reverse!(digits)
 
         for digit in digits
-            if node.children[digit+1] === nothing  
+            if node.children[digit+1] === nothing
                 node.children[digit+1] = PrimesNode()
             end
             node = node.children[digit+1]
@@ -105,7 +105,7 @@ function find_primes_with_prefix(trie::PrimesNode, prefix::Int32)::Vector{Int32}
     end
 
     results = Int32[]
-    queue = Vector{Tuple{PrimesNode, Int32}}()
+    queue = Vector{Tuple{PrimesNode,Int32}}()
     push!(queue, (node, current))
 
     idx = 1
@@ -117,7 +117,7 @@ function find_primes_with_prefix(trie::PrimesNode, prefix::Int32)::Vector{Int32}
             push!(results, current_num)
         end
 
-        for digit in 0:9
+        for digit = 0:9
             child = current_node.children[digit+1]
             if child !== nothing
                 push!(queue, (child, current_num * 10 + digit))

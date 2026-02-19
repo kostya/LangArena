@@ -22,13 +22,13 @@ class Pidigits : Benchmark() {
         var a = BigInteger.ZERO
         var t: BigInteger
         var u: BigInteger
-        var k1 = BigInteger.ONE  
+        var k1 = BigInteger.ONE
         var n = BigInteger.ONE
         var d = BigInteger.ONE
 
         while (true) {
             k += 1
-            t = n.shiftLeft(1)  
+            t = n.shiftLeft(1)
             n = n.multiply(BigInteger.valueOf(k.toLong()))
             k1 = k1.add(BigInteger.valueOf(2))
             a = a.add(t).multiply(k1)
@@ -36,8 +36,8 @@ class Pidigits : Benchmark() {
             if (a >= n) {
                 val temp = n.multiply(BigInteger.valueOf(3)).add(a)
                 val divResult = temp.divideAndRemainder(d)
-                t = divResult[0]  
-                u = divResult[1].add(n)  
+                t = divResult[0]
+                u = divResult[1].add(n)
 
                 if (d > u) {
                     ns = ns.multiply(BigInteger.TEN).add(t)

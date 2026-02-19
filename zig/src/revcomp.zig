@@ -112,7 +112,6 @@ pub const Revcomp = struct {
 
         var i: usize = 0;
         while (i < fasta_result.len) {
-
             var line_end = i;
             while (line_end < fasta_result.len and fasta_result[line_end] != '\n') {
                 line_end += 1;
@@ -128,7 +127,7 @@ pub const Revcomp = struct {
                 }
             }
 
-            i = line_end + 1; 
+            i = line_end + 1;
         }
     }
 

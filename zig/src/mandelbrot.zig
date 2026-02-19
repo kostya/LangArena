@@ -7,7 +7,7 @@ pub const Mandelbrot = struct {
     helper: *Helper,
     w: i64,
     h: i64,
-    result_bin: std.ArrayList(u8),  
+    result_bin: std.ArrayList(u8),
 
     const ITER: i32 = 50;
     const LIMIT: f64 = 2.0;
@@ -31,7 +31,7 @@ pub const Mandelbrot = struct {
             .helper = helper,
             .w = w,
             .h = h,
-            .result_bin = std.ArrayList(u8){},  
+            .result_bin = std.ArrayList(u8){},
         };
 
         return self;

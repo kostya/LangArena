@@ -100,17 +100,27 @@ public class Helper {
         StringBuilder sb = new StringBuilder("\"");
         for (char c : str.toCharArray()) {
             switch (c) {
-                case '\n': sb.append("\\n"); break;
-                case '\r': sb.append("\\r"); break;
-                case '\t': sb.append("\\t"); break;
-                case '\\': sb.append("\\\\"); break;
-                case '\"': sb.append("\\\""); break;
-                default:
-                    if (c >= ' ' && c <= '~') {
-                        sb.append(c);
-                    } else {
-                        sb.append(String.format("\\u%04x", (int)c));
-                    }
+            case '\n':
+                sb.append("\\n");
+                break;
+            case '\r':
+                sb.append("\\r");
+                break;
+            case '\t':
+                sb.append("\\t");
+                break;
+            case '\\':
+                sb.append("\\\\");
+                break;
+            case '\"':
+                sb.append("\\\"");
+                break;
+            default:
+                if (c >= ' ' && c <= '~') {
+                    sb.append(c);
+                } else {
+                    sb.append(String.format("\\u%04x", (int)c));
+                }
             }
         }
         sb.append("\"");

@@ -55,8 +55,7 @@ class Primes extends Benchmark:
       var j = 0
       while j < digits.length do
         val digit = digits.charAt(j) - '0'
-        if current.children(digit) == null then
-          current.children(digit) = Node()
+        if current.children(digit) == null then current.children(digit) = Node()
         current = current.children(digit)
         j += 1
       current.terminal = true
@@ -71,8 +70,7 @@ class Primes extends Benchmark:
     var i = 0
     while i < prefixStr.length do
       val digit = prefixStr.charAt(i) - '0'
-      if current.children(digit) == null then
-        return List.empty
+      if current.children(digit) == null then return List.empty
       current = current.children(digit)
       i += 1
 
@@ -86,8 +84,7 @@ class Primes extends Benchmark:
 
       var digit = 0
       while digit < 10 do
-        if node.children(digit) != null then
-          queue.enqueue((node.children(digit), number * 10 + digit))
+        if node.children(digit) != null then queue.enqueue((node.children(digit), number * 10 + digit))
         digit += 1
 
     results.sortInPlace().toList

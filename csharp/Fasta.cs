@@ -11,7 +11,7 @@ public class Fasta : Benchmark
         _n = ConfigVal("n");
     }
 
-    public override void Prepare() {}
+    public override void Prepare() { }
 
     private char SelectRandom((char, double)[] genelist)
     {

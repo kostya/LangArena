@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 use crate::config_i64;
 
 struct Cell<'a> {
@@ -21,10 +21,7 @@ impl<'a> Cell<'a> {
     }
 
     fn compute_next_state(&mut self) {
-        let alive_neighbors = self.neighbors
-            .iter()
-            .filter(|n| n.alive)
-            .count();
+        let alive_neighbors = self.neighbors.iter().filter(|n| n.alive).count();
 
         if self.alive {
             self.next_state = alive_neighbors == 2 || alive_neighbors == 3
@@ -65,7 +62,6 @@ impl<'a> Grid<'a> {
     }
 
     fn link_neighbors(&mut self) {
-
         let cells_ref: Vec<Vec<*const Cell<'a>>> = (0..self.height)
             .map(|y| {
                 (0..self.width)
@@ -80,9 +76,12 @@ impl<'a> Grid<'a> {
 
                 for dy in -1..=1 {
                     for dx in -1..=1 {
-                        if dx == 0 && dy == 0 { continue; }
+                        if dx == 0 && dy == 0 {
+                            continue;
+                        }
 
-                        let ny = ((y as i32 + dy + self.height as i32) % self.height as i32) as usize;
+                        let ny =
+                            ((y as i32 + dy + self.height as i32) % self.height as i32) as usize;
                         let nx = ((x as i32 + dx + self.width as i32) % self.width as i32) as usize;
 
                         let neighbor = unsafe { &*cells_ref[ny][nx] };
@@ -131,7 +130,7 @@ impl<'a> Grid<'a> {
 pub struct GameOfLife {
     width: i32,
     height: i32,
-    grid: Grid<'static>,  
+    grid: Grid<'static>,
 }
 
 impl GameOfLife {

@@ -16,7 +16,7 @@ method prepare(self: Fannkuchredux) =
   self.resultVal = 0
 
 proc fannkuchredux(n: int): (int, int) =
-  var 
+  var
     perm1: array[32, int]
     perm: array[32, int]
     count: array[32, int]

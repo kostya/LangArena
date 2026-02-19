@@ -1,7 +1,7 @@
 mutable struct Base64Decode <: AbstractBenchmark
     n::Int64
-    str2::String  
-    bytes::Vector{UInt8}  
+    str2::String
+    bytes::Vector{UInt8}
     result::UInt32
 
     function Base64Decode()

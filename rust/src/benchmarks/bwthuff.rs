@@ -1,7 +1,7 @@
-use std::collections::{BinaryHeap, HashMap};
-use std::cmp::Ordering;
 use super::super::Benchmark;
 use crate::config_i64;
+use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap};
 
 #[derive(Debug, Clone)]
 struct BWTResult {
@@ -36,7 +36,6 @@ fn bwt_transform(input: &[u8]) -> BWTResult {
     }
 
     if n > 1 {
-
         let mut rank = vec![0; n];
         let mut current_rank = 0;
         let mut prev_char = input[sa[0]];
@@ -52,7 +51,6 @@ fn bwt_transform(input: &[u8]) -> BWTResult {
 
         let mut k = 1;
         while k < n {
-
             let mut pairs = vec![(0, 0); n];
             for i in 0..n {
                 pairs[i] = (rank[i], rank[(i + k) % n]);
@@ -73,8 +71,7 @@ fn bwt_transform(input: &[u8]) -> BWTResult {
             for i in 1..n {
                 let prev_pair = pairs[sa[i - 1]];
                 let curr_pair = pairs[sa[i]];
-                new_rank[sa[i]] = new_rank[sa[i - 1]]
-                    + if prev_pair != curr_pair { 1 } else { 0 };
+                new_rank[sa[i]] = new_rank[sa[i - 1]] + if prev_pair != curr_pair { 1 } else { 0 };
             }
 
             rank = new_rank;
@@ -152,7 +149,6 @@ struct HuffmanNode {
 
 impl Ord for HuffmanNode {
     fn cmp(&self, other: &Self) -> Ordering {
-
         other.frequency.cmp(&self.frequency)
     }
 }
@@ -185,7 +181,7 @@ fn build_huffman_tree(frequencies: &[u32; 256]) -> Option<Box<HuffmanNode>> {
             left: Some(node),
             right: Some(Box::new(HuffmanNode {
                 frequency: 0,
-                byte: Some(0), 
+                byte: Some(0),
                 left: None,
                 right: None,
             })),
@@ -211,7 +207,7 @@ fn build_huffman_tree(frequencies: &[u32; 256]) -> Option<Box<HuffmanNode>> {
 
 fn build_huffman_codes(node: &HuffmanNode, prefix: Vec<bool>, codes: &mut HashMap<u8, Vec<bool>>) {
     if let Some(byte) = node.byte {
-        if !prefix.is_empty() || byte != 0 { 
+        if !prefix.is_empty() || byte != 0 {
             codes.insert(byte, prefix);
         }
     } else {
@@ -230,13 +226,11 @@ fn build_huffman_codes(node: &HuffmanNode, prefix: Vec<bool>, codes: &mut HashMa
 }
 
 fn huffman_encode(data: &[u8], codes: &HashMap<u8, Vec<bool>>) -> (Vec<u8>, usize) {
-
     let mut bits = Vec::new();
     for &byte in data {
         if let Some(code) = codes.get(&byte) {
             bits.extend(code);
         } else {
-
             panic!("Symbol {:?} not found in Huffman codes", byte);
         }
     }
@@ -276,10 +270,10 @@ fn huffman_decode(encoded: &[u8], root: &HuffmanNode, bit_count: usize) -> Vec<u
             };
 
             if let Some(byte_val) = current_node.byte {
-                if byte_val != 0 { 
+                if byte_val != 0 {
                     result.push(byte_val);
                 }
-                current_node = root; 
+                current_node = root;
             }
         }
     }
@@ -296,7 +290,6 @@ struct CompressedData {
 }
 
 fn compress(data: &[u8]) -> CompressedData {
-
     let bwt_result = bwt_transform(data);
 
     let mut frequencies = [0u32; 256];
@@ -320,13 +313,12 @@ fn compress(data: &[u8]) -> CompressedData {
 }
 
 fn decompress(compressed: &CompressedData) -> Vec<u8> {
-
     let huffman_tree = build_huffman_tree(&compressed.frequencies).unwrap();
 
     let decoded = huffman_decode(
         &compressed.encoded_bits,
         &huffman_tree,
-        compressed.original_bit_count
+        compressed.original_bit_count,
     );
 
     let bwt_result = BWTResult {
@@ -355,7 +347,6 @@ impl BWTHuffEncode {
     }
 
     fn generate_test_data(&self, size: i64) -> Vec<u8> {
-
         let pattern = b"ABRACADABRA";
         let mut data = Vec::with_capacity(size as usize);
 
@@ -378,7 +369,9 @@ impl Benchmark for BWTHuffEncode {
 
     fn run(&mut self, _iteration_id: i64) {
         let compressed = compress(&self.test_data);
-        self.result_val = self.result_val.wrapping_add(compressed.encoded_bits.len() as u32);
+        self.result_val = self
+            .result_val
+            .wrapping_add(compressed.encoded_bits.len() as u32);
     }
 
     fn checksum(&self) -> u32 {
@@ -394,7 +387,7 @@ pub struct BWTHuffDecode {
 
 impl BWTHuffDecode {
     pub fn new() -> Self {
-        let size_val = config_i64("BWTHuffDecode", "size");  
+        let size_val = config_i64("BWTHuffDecode", "size");
 
         let mut compression_base = BWTHuffEncode {
             size_val,
@@ -418,7 +411,6 @@ impl Benchmark for BWTHuffDecode {
     }
 
     fn prepare(&mut self) {
-
         let test_data = &self.compression_base.test_data;
         self.compressed_data = Some(compress(test_data));
 
@@ -426,11 +418,12 @@ impl Benchmark for BWTHuffDecode {
     }
 
     fn run(&mut self, _iteration_id: i64) {
-
         if let Some(ref compressed) = self.compressed_data {
             self.decompressed = decompress(compressed);
 
-            self.compression_base.result_val = self.compression_base.result_val
+            self.compression_base.result_val = self
+                .compression_base
+                .result_val
                 .wrapping_add(self.decompressed.len() as u32);
         }
     }
@@ -438,8 +431,7 @@ impl Benchmark for BWTHuffDecode {
     fn checksum(&self) -> u32 {
         let mut res = self.compression_base.result_val;
 
-        if self.compressed_data.is_some() && 
-           self.decompressed == self.compression_base.test_data {
+        if self.compressed_data.is_some() && self.decompressed == self.compression_base.test_data {
             res = res.wrapping_add(1000000);
         }
 

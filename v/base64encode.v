@@ -39,10 +39,9 @@ pub fn (mut b Base64Encode) run(iteration_id int) {
 }
 
 pub fn (b Base64Encode) checksum() u32 {
-
 	mut desc := 'encode '
 
-	str := b.str[0..5].bytestr() 
+	str := b.str[0..5].bytestr()
 
 	if str.len > 4 {
 		desc += str[..4] + '...'

@@ -5,11 +5,14 @@ import std.string;
 import std.meta;
 import benchmark;
 
-template registerAllBenchmarks(Benchmarks...) {
+template registerAllBenchmarks(Benchmarks...)
+{
 
-    string generateCasesCode() {
+    string generateCasesCode()
+    {
         string code;
-        static foreach (bench; Benchmarks) {
+        static foreach (bench; Benchmarks)
+        {
 
             {
                 string name = __traits(identifier, bench);
@@ -20,9 +23,11 @@ template registerAllBenchmarks(Benchmarks...) {
         return code;
     }
 
-    string generateNameListCode() {
+    string generateNameListCode()
+    {
         string code = "string[] names;\n";
-        static foreach (bench; Benchmarks) {
+        static foreach (bench; Benchmarks)
+        {
             {
                 string name = __traits(identifier, bench);
                 code ~= "names ~= \"" ~ name ~ "\";\n";
@@ -32,14 +37,7 @@ template registerAllBenchmarks(Benchmarks...) {
         return code;
     }
 
-    enum registerAllBenchmarks = 
-        "string[] getAllBenchmarkNames() {\n" ~ 
-        generateNameListCode() ~ "\n" ~
-        "}\n\n" ~
-        "Benchmark createBenchmark(string name) {\n" ~
-        "switch (name.toLower) {\n" ~
-        generateCasesCode() ~
-        "default: throw new Exception(\"Unknown benchmark: \" ~ name);\n" ~
-        "}\n" ~
-        "}\n";
+    enum registerAllBenchmarks = "string[] getAllBenchmarkNames() {\n" ~ generateNameListCode() ~ "\n" ~ "}\n\n" ~ "Benchmark createBenchmark(string name) {\n"
+        ~ "switch (name.toLower) {\n" ~ generateCasesCode()
+        ~ "default: throw new Exception(\"Unknown benchmark: \" ~ name);\n" ~ "}\n" ~ "}\n";
 }

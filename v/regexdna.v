@@ -69,7 +69,6 @@ fn count_pattern_fast(seq string, pattern string) int {
 }
 
 pub fn (mut r RegexDna) prepare() {
-
 	mut fasta_bench := fasta.new_fasta()
 	mut f := fasta_bench as &fasta.Fasta
 	f.n = helper.config_i64('RegexDna', 'n')
@@ -87,7 +86,7 @@ pub fn (mut r RegexDna) prepare() {
 			continue
 		}
 
-		r.ilen += line.len + 1 
+		r.ilen += line.len + 1
 
 		if line[0] != `>` {
 			seq_builder.write_string(line)

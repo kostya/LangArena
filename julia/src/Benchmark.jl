@@ -18,14 +18,14 @@ end
 
 function warmup(b::AbstractBenchmark)
     warmup_iters = warmup_iterations(b)
-    for i in 1:warmup_iters
+    for i = 1:warmup_iters
         run(b, i)
     end
 end
 
 function run_all(b::AbstractBenchmark)
     iters = iterations(b)
-    for i in 1:iters
+    for i = 1:iters
         run(b, i)
     end
 end

@@ -67,7 +67,7 @@ public class Noise extends Benchmark {
                 new Vec2(x0f + 1.0, y0f + 1.0)
             };
 
-            return new Vec2[][]{gradients, origins};
+            return new Vec2[][] {gradients, origins};
         }
 
         double get(double x, double y) {

@@ -8,12 +8,16 @@ public class CalculatorAst extends Benchmark {
 
     static class Number implements Node {
         final long value;
-        Number(long value) { this.value = value; }
+        Number(long value) {
+            this.value = value;
+        }
     }
 
     static class Variable implements Node {
         final String name;
-        Variable(String name) { this.name = name; }
+        Variable(String name) {
+            this.name = name;
+        }
     }
 
     static class BinaryOp implements Node {
@@ -58,7 +62,7 @@ public class CalculatorAst extends Benchmark {
         for (int i = 0; i < 10; i++) {
             int v = i + 1;
             sb.append("v").append(v).append(" = v").append(v - 1)
-              .append(" + ").append(v).append("\n");
+            .append(" + ").append(v).append("\n");
         }
 
         for (long i = 0; i < lines; i++) {
@@ -66,41 +70,41 @@ public class CalculatorAst extends Benchmark {
             sb.append("v").append(v).append(" = v").append(v - 1).append(" + ");
 
             switch (Helper.nextInt(10)) {
-                case 0:
-                    sb.append("(v").append(v - 1).append(" / 3) * 4 - ").append(i)
-                      .append(" / (3 + (18 - v").append(v - 2).append(")) % v")
-                      .append(v - 3).append(" + 2 * ((9 - v").append(v - 6)
-                      .append(") * (v").append(v - 5).append(" + 7))");
-                    break;
-                case 1:
-                    sb.append("v").append(v - 1).append(" + (v").append(v - 2)
-                      .append(" + v").append(v - 3).append(") * v").append(v - 4)
-                      .append(" - (v").append(v - 5).append(" /  v").append(v - 6).append(")");
-                    break;
-                case 2:
-                    sb.append("(3789 - (((v").append(v - 7).append(")))) + 1");
-                    break;
-                case 3:
-                    sb.append("4/2 * (1-3) + v").append(v - 9).append("/v").append(v - 5);
-                    break;
-                case 4:
-                    sb.append("1+2+3+4+5+6+v").append(v - 1);
-                    break;
-                case 5:
-                    sb.append("(99999 / v").append(v - 3).append(")");
-                    break;
-                case 6:
-                    sb.append("0 + 0 - v").append(v - 8);
-                    break;
-                case 7:
-                    sb.append("((((((((((v").append(v - 6).append(")))))))))) * 2");
-                    break;
-                case 8:
-                    sb.append(i).append(" * (v").append(v - 1).append("%6)%7");
-                    break;
-                case 9:
-                    sb.append("(1)/(0-v").append(v - 5).append(") + (v").append(v - 7).append(")");
-                    break;
+            case 0:
+                sb.append("(v").append(v - 1).append(" / 3) * 4 - ").append(i)
+                .append(" / (3 + (18 - v").append(v - 2).append(")) % v")
+                .append(v - 3).append(" + 2 * ((9 - v").append(v - 6)
+                .append(") * (v").append(v - 5).append(" + 7))");
+                break;
+            case 1:
+                sb.append("v").append(v - 1).append(" + (v").append(v - 2)
+                .append(" + v").append(v - 3).append(") * v").append(v - 4)
+                .append(" - (v").append(v - 5).append(" /  v").append(v - 6).append(")");
+                break;
+            case 2:
+                sb.append("(3789 - (((v").append(v - 7).append(")))) + 1");
+                break;
+            case 3:
+                sb.append("4/2 * (1-3) + v").append(v - 9).append("/v").append(v - 5);
+                break;
+            case 4:
+                sb.append("1+2+3+4+5+6+v").append(v - 1);
+                break;
+            case 5:
+                sb.append("(99999 / v").append(v - 3).append(")");
+                break;
+            case 6:
+                sb.append("0 + 0 - v").append(v - 8);
+                break;
+            case 7:
+                sb.append("((((((((((v").append(v - 6).append(")))))))))) * 2");
+                break;
+            case 8:
+                sb.append(i).append(" * (v").append(v - 1).append("%6)%7");
+                break;
+            case 9:
+                sb.append("(1)/(0-v").append(v - 5).append(") + (v").append(v - 7).append(")");
+                break;
             }
             sb.append("\n");
         }
@@ -182,11 +186,11 @@ public class CalculatorAst extends Benchmark {
             } else if (ch >= 'a' && ch <= 'z') {
                 return parseVariable();
             } else if (ch == '(') {
-                advance(); 
+                advance();
                 Node node = parseExpression();
                 skipWhitespace();
                 if (pos < chars.length && chars[pos] == ')') {
-                    advance(); 
+                    advance();
                 }
                 return node;
             } else {
@@ -205,16 +209,16 @@ public class CalculatorAst extends Benchmark {
 
         private Node parseVariable() {
             int start = pos;
-            while (pos < chars.length && 
-                  ((chars[pos] >= 'a' && chars[pos] <= 'z') || 
-                   (chars[pos] >= '0' && chars[pos] <= '9'))) {
+            while (pos < chars.length &&
+                    ((chars[pos] >= 'a' && chars[pos] <= 'z') ||
+                     (chars[pos] >= '0' && chars[pos] <= '9'))) {
                 advance();
             }
             String varName = input.substring(start, pos);
 
             skipWhitespace();
             if (pos < chars.length && chars[pos] == '=') {
-                advance(); 
+                advance();
                 Node expr = parseExpression();
                 return new Assignment(varName, expr);
             }
@@ -251,5 +255,7 @@ public class CalculatorAst extends Benchmark {
         return resultVal;
     }
 
-    public List<Node> getExpressions() { return expressions; }
+    public List<Node> getExpressions() {
+        return expressions;
+    }
 }

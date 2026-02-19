@@ -35,7 +35,7 @@ public class JsonParseDom extends Benchmark {
         }
 
         double len = coordinates.size();
-        return new double[]{x / len, y / len, z / len};
+        return new double[] {x / len, y / len, z / len};
     }
 
     @Override

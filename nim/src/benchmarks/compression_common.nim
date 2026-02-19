@@ -87,7 +87,7 @@ proc bwtTransform*(input: seq[byte]): BWTResult =
       for i in 1..<n:
         let prevPair = pairs[sa[i - 1]]
         let currPair = pairs[sa[i]]
-        newRank[sa[i]] = newRank[sa[i - 1]] + 
+        newRank[sa[i]] = newRank[sa[i - 1]] +
           (if prevPair != currPair: 1 else: 0)
 
       rank = newRank
@@ -132,7 +132,7 @@ proc bwtInverse*(bwtResult: BWTResult): seq[byte] =
     next[pos] = i
     inc tempCounts[byteVal]
 
-  result = newSeqOfCap[byte](n)  
+  result = newSeqOfCap[byte](n)
   var idx = bwtResult.originalIdx
 
   for i in 0..<n:
@@ -177,7 +177,7 @@ proc buildHuffmanTree*(frequencies: seq[int]): HuffmanNode =
 
   result = heap.pop()
 
-proc buildHuffmanCodes*(node: HuffmanNode, code, length: int, 
+proc buildHuffmanCodes*(node: HuffmanNode, code, length: int,
                        codes: var HuffmanCodes) =
   if node.isLeaf:
 
@@ -191,7 +191,8 @@ proc buildHuffmanCodes*(node: HuffmanNode, code, length: int,
     if node.right != nil:
       buildHuffmanCodes(node.right, (code shl 1) or 1, length + 1, codes)
 
-proc huffmanEncode*(data: seq[byte], codes: HuffmanCodes): tuple[data: seq[byte], bitCount: int] =
+proc huffmanEncode*(data: seq[byte], codes: HuffmanCodes): tuple[data: seq[
+    byte], bitCount: int] =
   var resultData = newSeq[byte](data.len * 2)
   var currentByte: byte = 0
   var bitPos = 0
@@ -225,7 +226,7 @@ proc huffmanEncode*(data: seq[byte], codes: HuffmanCodes): tuple[data: seq[byte]
 
 proc huffmanDecode*(encoded: seq[byte], root: HuffmanNode, bitCount: int): seq[byte] =
   var resultData: seq[byte]
-  resultData = newSeqOfCap[byte](bitCount div 4 + 1)  
+  resultData = newSeqOfCap[byte](bitCount div 4 + 1)
 
   var currentNode = root
   var bitsProcessed = 0
@@ -289,10 +290,10 @@ proc decompressData*(compressed: CompressedData): seq[byte] =
 
   let huffmanTree = buildHuffmanTree(compressed.frequencies)
 
-  let decoded = huffmanDecode(compressed.encodedBits, huffmanTree, 
+  let decoded = huffmanDecode(compressed.encodedBits, huffmanTree,
                              compressed.originalBitCount)
 
-  let bwtResult = BWTResult(transformed: decoded, 
+  let bwtResult = BWTResult(transformed: decoded,
                            originalIdx: compressed.bwtResult.originalIdx)
 
   bwtInverse(bwtResult)

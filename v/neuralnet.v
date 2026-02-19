@@ -48,7 +48,7 @@ fn new_neuron() &Neuron {
 	mut threshold := helper.next_float(1.0) * 2 - 1
 	return &Neuron{
 		threshold:      threshold
-		prev_threshold: threshold 
+		prev_threshold: threshold
 		output:         0.0
 		error:          0.0
 	}
@@ -138,7 +138,7 @@ fn new_neural_network(inputs int, hidden int, outputs int) &NeuralNetwork {
 			mut weight := helper.next_float(1.0) * 2 - 1
 			mut synapse := &Synapse{
 				weight:      weight
-				prev_weight: weight 
+				prev_weight: weight
 				source:      source
 				dest:        dest
 			}
@@ -153,7 +153,7 @@ fn new_neural_network(inputs int, hidden int, outputs int) &NeuralNetwork {
 			mut weight := helper.next_float(1.0) * 2 - 1
 			mut synapse := &Synapse{
 				weight:      weight
-				prev_weight: weight 
+				prev_weight: weight
 				source:      source
 				dest:        dest
 			}

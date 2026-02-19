@@ -3,12 +3,14 @@ package benchmarks
 import Benchmark
 
 class CacheSimulation : Benchmark() {
-    private class LRUCache<K, V>(private val capacity: Int) {
+    private class LRUCache<K, V>(
+        private val capacity: Int,
+    ) {
         private data class Node<K, V>(
             val key: K,
             var value: V,
             var prev: Node<K, V>? = null,
-            var next: Node<K, V>? = null
+            var next: Node<K, V>? = null,
         )
 
         private val cache = mutableMapOf<K, Node<K, V>>()
@@ -23,10 +25,12 @@ class CacheSimulation : Benchmark() {
             return node.value
         }
 
-        fun put(key: K, value: V) {
+        fun put(
+            key: K,
+            value: V,
+        ) {
             val existing = cache[key]
             if (existing != null) {
-
                 existing.value = value
                 moveToFront(existing)
                 return
@@ -48,7 +52,6 @@ class CacheSimulation : Benchmark() {
         fun getSize(): Int = size
 
         private fun moveToFront(node: Node<K, V>) {
-
             if (node == head) return
 
             node.prev?.next = node.next

@@ -26,7 +26,7 @@ class BWTHuffEncode extends Benchmark {
     val count = new Array[Int](256)
     i = 0
     while (i < n) {
-      count(input(i) & 0xFF) += 1
+      count(input(i) & 0xff) += 1
       i += 1
     }
 
@@ -44,7 +44,7 @@ class BWTHuffEncode extends Benchmark {
     i = 0
     while (i < n) {
       val idx = sa(i)
-      val c = input(idx) & 0xFF
+      val c = input(idx) & 0xff
       sortedSA(tempPos(c)) = idx
       tempPos(c) += 1
       i += 1
@@ -54,12 +54,12 @@ class BWTHuffEncode extends Benchmark {
     if (n > 1) {
       val rank = new Array[Int](n)
       var currentRank = 0
-      var prevChar = input(sa(0)) & 0xFF
+      var prevChar = input(sa(0)) & 0xff
 
       i = 0
       while (i < n) {
         val idx = sa(i)
-        val currChar = input(idx) & 0xFF
+        val currChar = input(idx) & 0xff
         if (currChar != prevChar) {
           currentRank += 1
           prevChar = currChar
@@ -89,8 +89,11 @@ class BWTHuffEncode extends Benchmark {
           val prevIdx = sa(i - 1)
           val currIdx = sa(i)
           newRank(currIdx) = newRank(prevIdx) + (
-            if (rank(prevIdx) != rank(currIdx) || 
-                rank((prevIdx + k) % n) != rank((currIdx + k) % n)) 1 else 0
+            if (
+              rank(prevIdx) != rank(currIdx) ||
+              rank((prevIdx + k) % n) != rank((currIdx + k) % n)
+            ) 1
+            else 0
           )
           i += 1
         }
@@ -125,7 +128,7 @@ class BWTHuffEncode extends Benchmark {
     val counts = new Array[Int](256)
     var i = 0
     while (i < n) {
-      counts(bwt(i) & 0xFF) += 1
+      counts(bwt(i) & 0xff) += 1
       i += 1
     }
 
@@ -143,7 +146,7 @@ class BWTHuffEncode extends Benchmark {
 
     i = 0
     while (i < n) {
-      val byteIdx = bwt(i) & 0xFF
+      val byteIdx = bwt(i) & 0xff
       val pos = positions(byteIdx) + tempCounts(byteIdx)
       next(pos) = i
       tempCounts(byteIdx) += 1
@@ -164,11 +167,11 @@ class BWTHuffEncode extends Benchmark {
   }
 
   class HuffmanNode(
-    var frequency: Int,
-    var byteVal: Byte,
-    var isLeaf: Boolean,
-    var left: HuffmanNode,
-    var right: HuffmanNode
+      var frequency: Int,
+      var byteVal: Byte,
+      var isLeaf: Boolean,
+      var left: HuffmanNode,
+      var right: HuffmanNode
   ) extends Comparable[HuffmanNode] {
     override def compareTo(other: HuffmanNode): Int = this.frequency - other.frequency
   }
@@ -214,19 +217,19 @@ class BWTHuffEncode extends Benchmark {
   }
 
   class HuffmanCodes(
-    val codeLengths: Array[Int] = new Array[Int](256),
-    val codes: Array[Int] = new Array[Int](256)
+      val codeLengths: Array[Int] = new Array[Int](256),
+      val codes: Array[Int] = new Array[Int](256)
   )
 
   protected def buildHuffmanCodes(
-    node: HuffmanNode,
-    code: Int = 0,
-    length: Int = 0,
-    huffmanCodes: HuffmanCodes = new HuffmanCodes()
+      node: HuffmanNode,
+      code: Int = 0,
+      length: Int = 0,
+      huffmanCodes: HuffmanCodes = new HuffmanCodes()
   ): HuffmanCodes = {
     if (node.isLeaf) {
       if (length > 0 || node.byteVal != 0.toByte) {
-        val idx = node.byteVal & 0xFF
+        val idx = node.byteVal & 0xff
         huffmanCodes.codeLengths(idx) = length
         huffmanCodes.codes(idx) = code
       }
@@ -252,7 +255,7 @@ class BWTHuffEncode extends Benchmark {
 
     var i = 0
     while (i < data.length) {
-      val idx = data(i) & 0xFF
+      val idx = data(i) & 0xff
       val code = huffmanCodes.codes(idx)
       val length = huffmanCodes.codeLengths(idx)
 
@@ -286,14 +289,14 @@ class BWTHuffEncode extends Benchmark {
   }
 
   protected def huffmanDecode(encoded: Array[Byte], root: HuffmanNode, bitCount: Int): Array[Byte] = {
-    val result = new Array[Byte](bitCount) 
+    val result = new Array[Byte](bitCount)
     var resultPos = 0
     var currentNode = root
     var bitsProcessed = 0
     var byteIndex = 0
 
     while (bitsProcessed < bitCount && byteIndex < encoded.length) {
-      val byteVal = encoded(byteIndex) & 0xFF
+      val byteVal = encoded(byteIndex) & 0xff
       byteIndex += 1
 
       var bitPos = 7
@@ -323,10 +326,10 @@ class BWTHuffEncode extends Benchmark {
   }
 
   class CompressedData(
-    val bwtResult: BWTResult,
-    val frequencies: Array[Int],
-    val encodedBits: Array[Byte],
-    val originalBitCount: Int
+      val bwtResult: BWTResult,
+      val frequencies: Array[Int],
+      val encodedBits: Array[Byte],
+      val originalBitCount: Int
   )
 
   protected def compress(data: Array[Byte]): CompressedData = {
@@ -335,7 +338,7 @@ class BWTHuffEncode extends Benchmark {
     val frequencies = new Array[Int](256)
     var i = 0
     while (i < bwtResult.transformed.length) {
-      frequencies(bwtResult.transformed(i) & 0xFF) += 1
+      frequencies(bwtResult.transformed(i) & 0xff) += 1
       i += 1
     }
 
@@ -373,7 +376,7 @@ class BWTHuffEncode extends Benchmark {
     resultVal += compressed.encodedBits.length.toLong
   }
 
-  override def checksum(): Long = resultVal & 0xFFFFFFFFL
+  override def checksum(): Long = resultVal & 0xffffffffL
 
   override def name(): String = "BWTHuffEncode"
 }
@@ -400,6 +403,6 @@ class BWTHuffDecode extends BWTHuffEncode {
     if (java.util.Arrays.equals(testData, decompressed)) {
       res += 1000000L
     }
-    res & 0xFFFFFFFFL
+    res & 0xffffffffL
   }
 }

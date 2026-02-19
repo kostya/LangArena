@@ -56,9 +56,9 @@ struct Light
 end
 
 const WHITE = Color(1.0, 1.0, 1.0)
-const RED   = Color(1.0, 0.0, 0.0)
+const RED = Color(1.0, 0.0, 0.0)
 const GREEN = Color(0.0, 1.0, 0.0)
-const BLUE  = Color(0.0, 0.0, 1.0)
+const BLUE = Color(0.0, 0.0, 1.0)
 
 const LIGHT1 = Light(Vector3D(0.7, -1.0, 1.7), WHITE)
 
@@ -70,7 +70,7 @@ const SCENE = [
 
 const LUT = ['.', '-', '+', '*', 'X', 'M']
 
-function intersect_sphere(ray::Ray, sphere::Sphere)::Union{Float64, Nothing}
+function intersect_sphere(ray::Ray, sphere::Sphere)::Union{Float64,Nothing}
     l = sphere.center - ray.orig
     tca = dot(l, ray.dir)
 
@@ -111,18 +111,14 @@ function run(b::TextRaytracer, iteration_id::Int64)
     w = Float64(b.w)
     h = Float64(b.h)
 
-    for y in 0:b.h-1
+    for y = 0:(b.h-1)
         fy = Float64(y)
-        for x in 0:b.w-1
+        for x = 0:(b.w-1)
             fx = Float64(x)
 
             ray = Ray(
                 Vector3D(0.0, 0.0, 0.0),
-                normalize(Vector3D(
-                    (fx / w) - 0.5,    
-                    (fy / h) - 0.5,    
-                    1.0
-                ))
+                normalize(Vector3D((fx / w) - 0.5, (fy / h) - 0.5, 1.0)),
             )
 
             hit_t = nothing
@@ -140,8 +136,8 @@ function run(b::TextRaytracer, iteration_id::Int64)
             if hit_t !== nothing && hit_sphere !== nothing
                 idx = shade_pixel(ray, hit_sphere, hit_t)
 
-                idx = max(0, min(5, idx))  
-                pixel = LUT[idx + 1]  
+                idx = max(0, min(5, idx))
+                pixel = LUT[idx+1]
             else
                 pixel = ' '
             end

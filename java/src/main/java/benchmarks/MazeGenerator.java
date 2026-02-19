@@ -41,7 +41,7 @@ public class MazeGenerator extends Benchmark {
             int heightForHole = Math.max(height - 1, 0);
 
             if (widthForWall == 0 || heightForWall == 0 ||
-                widthForHole == 0 || heightForHole == 0) return;
+                    widthForHole == 0 || heightForHole == 0) return;
 
             if (width > height) {
 
@@ -88,7 +88,7 @@ public class MazeGenerator extends Benchmark {
 
         private boolean isConnectedImpl(int startX, int startY, int goalX, int goalY) {
             if (startX >= width || startY >= height ||
-                goalX >= width || goalY >= height) {
+                    goalX >= width || goalY >= height) {
                 return false;
             }
 
@@ -96,7 +96,7 @@ public class MazeGenerator extends Benchmark {
             Deque<int[]> queue = new ArrayDeque<>();
 
             visited[startY][startX] = true;
-            queue.add(new int[]{startX, startY});
+            queue.add(new int[] {startX, startY});
 
             while (!queue.isEmpty()) {
                 int[] current = queue.poll();
@@ -107,22 +107,22 @@ public class MazeGenerator extends Benchmark {
 
                 if (y > 0 && get(x, y - 1) == Cell.PATH && !visited[y - 1][x]) {
                     visited[y - 1][x] = true;
-                    queue.add(new int[]{x, y - 1});
+                    queue.add(new int[] {x, y - 1});
                 }
 
                 if (x + 1 < width && get(x + 1, y) == Cell.PATH && !visited[y][x + 1]) {
                     visited[y][x + 1] = true;
-                    queue.add(new int[]{x + 1, y});
+                    queue.add(new int[] {x + 1, y});
                 }
 
                 if (y + 1 < height && get(x, y + 1) == Cell.PATH && !visited[y + 1][x]) {
                     visited[y + 1][x] = true;
-                    queue.add(new int[]{x, y + 1});
+                    queue.add(new int[] {x, y + 1});
                 }
 
                 if (x > 0 && get(x - 1, y) == Cell.PATH && !visited[y][x - 1]) {
                     visited[y][x - 1] = true;
-                    queue.add(new int[]{x - 1, y});
+                    queue.add(new int[] {x - 1, y});
                 }
             }
 
@@ -143,17 +143,17 @@ public class MazeGenerator extends Benchmark {
         }
 
         private void addRandomPaths() {
-            int numExtraPaths = (width * height) / 20; 
+            int numExtraPaths = (width * height) / 20;
 
             for (int i = 0; i < numExtraPaths; i++) {
-                int x = Helper.nextInt(width - 2) + 1; 
+                int x = Helper.nextInt(width - 2) + 1;
                 int y = Helper.nextInt(height - 2) + 1;
 
                 if (get(x, y) == Cell.WALL &&
-                    get(x - 1, y) == Cell.WALL &&
-                    get(x + 1, y) == Cell.WALL &&
-                    get(x, y - 1) == Cell.WALL &&
-                    get(x, y + 1) == Cell.WALL) {
+                        get(x - 1, y) == Cell.WALL &&
+                        get(x + 1, y) == Cell.WALL &&
+                        get(x, y - 1) == Cell.WALL &&
+                        get(x, y + 1) == Cell.WALL) {
                     set(x, y, Cell.PATH);
                 }
             }
@@ -224,7 +224,7 @@ public class MazeGenerator extends Benchmark {
         for (int i = 0; i < grid.length; i++) {
             boolean[] row = grid[i];
             for (int j = 0; j < row.length; j++) {
-                if (row[j]) {  
+                if (row[j]) {
                     long jSquared = (long) j * j;
                     hasher = (hasher ^ jSquared) * FNV_PRIME;
                 }

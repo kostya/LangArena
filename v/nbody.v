@@ -9,7 +9,7 @@ pub struct Nbody {
 mut:
 	result_val u32
 	v1         f64
-	bodies     []&Planet  
+	bodies     []&Planet
 }
 
 struct Planet {
@@ -45,10 +45,10 @@ fn new_planet(x f64, y f64, z f64, vx f64, vy f64, vz f64, mass f64) &Planet {
 		x:    x
 		y:    y
 		z:    z
-		vx:   vx * days_per_year 
+		vx:   vx * days_per_year
 		vy:   vy * days_per_year
 		vz:   vz * days_per_year
-		mass: mass * solar_mass 
+		mass: mass * solar_mass
 	}
 }
 
@@ -71,7 +71,7 @@ fn (mut b Nbody) initialize_bodies() {
 }
 
 fn (mut p Planet) move_from_i(mut bodies []&Planet, nbodies int, dt f64, start int) {
-	for mut b2 in bodies[start .. nbodies] {
+	for mut b2 in bodies[start..nbodies] {
 		dx := p.x - b2.x
 		dy := p.y - b2.y
 		dz := p.z - b2.z
@@ -144,7 +144,7 @@ pub fn (mut b Nbody) run(iteration_id int) {
 
 	mut j := 0
 	for j < 1000 {
-		for i, mut planet in b.bodies {  
+		for i, mut planet in b.bodies {
 			planet.move_from_i(mut b.bodies, b.bodies.len, dt, i + 1)
 		}
 		j++

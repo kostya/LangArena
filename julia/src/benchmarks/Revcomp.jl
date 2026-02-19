@@ -16,14 +16,14 @@ const COMPLEMENT_LOOKUP = let
     table = Vector{UInt8}(undef, 256)
     fill!(table, 0x00)
 
-    for i in 0:255
+    for i = 0:255
         table[i+1] = UInt8(i)
     end
 
     from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
-    to =   "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
+    to = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
 
-    for i in 1:length(from)
+    for i = 1:length(from)
         byte = UInt8(from[i])
         table[byte+1] = UInt8(to[i])
     end
@@ -50,9 +50,9 @@ function prepare(b::Revcomp)
 
     for line in split(input, '\n')
         if startswith(line, '>')
-            result *= "\n---\n"  
+            result *= "\n---\n"
         else
-            result *= line       
+            result *= line
         end
     end
 
@@ -69,14 +69,14 @@ function revcomp(b::Revcomp, seq::String)::Vector{UInt8}
 
     reverse!(bytes)
 
-    for i in 1:bytesize
+    for i = 1:bytesize
         bytes[i] = COMPLEMENT_LOOKUP[bytes[i]+1]
     end
 
     result = UInt8[]
     chunk_size = 60
 
-    for start_idx in 1:chunk_size:bytesize
+    for start_idx = 1:chunk_size:bytesize
         end_idx = min(start_idx + chunk_size - 1, bytesize)
 
         append!(result, bytes[start_idx:end_idx])
@@ -89,7 +89,7 @@ function revcomp(b::Revcomp, seq::String)::Vector{UInt8}
 end
 
 function run(b::Revcomp, iteration_id::Int64)
-    result_bytes = revcomp(b, b.input)  
+    result_bytes = revcomp(b, b.input)
     b.checksum_val += Helper.checksum(result_bytes)
 end
 

@@ -95,7 +95,8 @@ proc clamp(x, a, b: float): float =
   elif x > b: b
   else: x
 
-proc diffuseShading(pi: Vector, obj: Sphere, lightPos: Vector, lightColor: Color): Color =
+proc diffuseShading(pi: Vector, obj: Sphere, lightPos: Vector,
+    lightColor: Color): Color =
   let n = obj.getNormal(pi)
   let lightDir = lightPos.sub(pi).normalize()
   let lam1 = lightDir.dot(n)

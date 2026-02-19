@@ -55,7 +55,7 @@ public class CalculatorInterpreter : Benchmark
                     return value;
                 default: return 0;
             }
-        }       
+        }
 
         public long Run(List<CalculatorAst.Node> expressions)
         {

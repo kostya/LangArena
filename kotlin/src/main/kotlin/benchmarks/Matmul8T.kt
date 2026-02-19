@@ -1,6 +1,5 @@
 package benchmarks
 import Benchmark
-
 import kotlinx.coroutines.*
 import java.util.concurrent.Executors
 
@@ -24,7 +23,10 @@ class Matmul8T : Benchmark() {
         return a
     }
 
-    private fun matmulParallel(a: Array<DoubleArray>, b: Array<DoubleArray>): Array<DoubleArray> {
+    private fun matmulParallel(
+        a: Array<DoubleArray>,
+        b: Array<DoubleArray>,
+    ): Array<DoubleArray> {
         val size = a.size
 
         val bT = Array(size) { DoubleArray(size) }
@@ -45,26 +47,27 @@ class Matmul8T : Benchmark() {
             val rowsPerThread = (size + 3) / numThreads
 
             for (threadId in 0 until numThreads) {
-                val job = scope.launch {
-                    val startRow = threadId * rowsPerThread
-                    val endRow = minOf(startRow + rowsPerThread, size)
+                val job =
+                    scope.launch {
+                        val startRow = threadId * rowsPerThread
+                        val endRow = minOf(startRow + rowsPerThread, size)
 
-                    for (i in startRow until endRow) {
-                        val ai = a[i]
-                        val ci = c[i]
+                        for (i in startRow until endRow) {
+                            val ai = a[i]
+                            val ci = c[i]
 
-                        for (j in 0 until size) {
-                            var sum = 0.0
-                            val bTj = bT[j]
+                            for (j in 0 until size) {
+                                var sum = 0.0
+                                val bTj = bT[j]
 
-                            for (k in 0 until size) {
-                                sum += ai[k] * bTj[k]
+                                for (k in 0 until size) {
+                                    sum += ai[k] * bTj[k]
+                                }
+
+                                ci[j] = sum
                             }
-
-                            ci[j] = sum
                         }
                     }
-                }
                 jobs.add(job)
             }
 
@@ -80,7 +83,7 @@ class Matmul8T : Benchmark() {
         val b = matgen(n.toInt())
         val c = matmulParallel(a, b)
         val center = c[(n shr 1).toInt()][(n shr 1).toInt()]
-        resultVal += Helper.checksumF64(center)  
+        resultVal += Helper.checksumF64(center)
     }
 
     override fun checksum(): UInt = resultVal

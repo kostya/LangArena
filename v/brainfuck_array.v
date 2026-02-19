@@ -112,7 +112,6 @@ fn (p BFProgram) run() u32 {
 				}
 			}
 			`.` {
-
 				result = (result << 2) + u32(tape.get())
 			}
 			else {}

@@ -10,9 +10,9 @@ const IC = 29573
 
 const CONFIG = Ref{Dict{String,Any}}(Dict{String,Any}())
 
-const THREAD_LAST = [42 for _ in 1:Threads.nthreads()]
+const THREAD_LAST = [42 for _ = 1:Threads.nthreads()]
 
-function load_config(filename="../test.js")
+function load_config(filename = "../test.js")
     try
         content = read(filename, String)
 
@@ -31,7 +31,7 @@ function convert_json3_to_dict(obj)::Dict{String,Any}
     if typeof(obj) <: JSON3.Object
 
         for (key, value) in pairs(obj)
-            key_str = string(key)  
+            key_str = string(key)
             if typeof(value) <: JSON3.Object
                 result[key_str] = convert_json3_to_dict(value)
             elseif typeof(value) <: JSON3.Array
@@ -88,7 +88,7 @@ function next_int(from::Int32, to::Int32)::Int32
     return next_int(to - from + 1) + from
 end
 
-function next_float(max::Float64=1.0)::Float64
+function next_float(max::Float64 = 1.0)::Float64
     old = _last()
     new_val = (old * IA + IC) % IM
     _set_last(new_val)
@@ -147,4 +147,4 @@ function config_s(class_name::String, field_name::String)::String
     end
 end
 
-end 
+end

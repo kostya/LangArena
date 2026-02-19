@@ -6,7 +6,12 @@ class SortMerge : SortBenchmark() {
         mergeSortHelper(arr, temp, 0, arr.size - 1)
     }
 
-    private fun mergeSortHelper(arr: IntArray, temp: IntArray, left: Int, right: Int) {
+    private fun mergeSortHelper(
+        arr: IntArray,
+        temp: IntArray,
+        left: Int,
+        right: Int,
+    ) {
         if (left >= right) return
 
         val mid = (left + right) / 2
@@ -15,13 +20,18 @@ class SortMerge : SortBenchmark() {
         merge(arr, temp, left, mid, right)
     }
 
-    private fun merge(arr: IntArray, temp: IntArray, left: Int, mid: Int, right: Int) {
-
+    private fun merge(
+        arr: IntArray,
+        temp: IntArray,
+        left: Int,
+        mid: Int,
+        right: Int,
+    ) {
         System.arraycopy(arr, left, temp, left, right - left + 1)
 
-        var i = left      
-        var j = mid + 1   
-        var k = left      
+        var i = left
+        var j = mid + 1
+        var k = left
 
         while (i <= mid && j <= right) {
             if (temp[i] <= temp[j]) {

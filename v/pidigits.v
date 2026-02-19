@@ -7,16 +7,16 @@ import math.big
 
 pub struct PidigitsBenchmark {
 	benchmark.BaseBenchmark
-	nn i64 
+	nn i64
 mut:
-	result strings.Builder 
+	result strings.Builder
 }
 
 pub fn new_pidigits() &benchmark.IBenchmark {
 	mut bench := &PidigitsBenchmark{
 		BaseBenchmark: benchmark.new_base_benchmark('Pidigits')
 		nn:            helper.config_i64('Pidigits', 'amount')
-		result:        strings.new_builder(1024) 
+		result:        strings.new_builder(1024)
 	}
 	return bench
 }
@@ -94,11 +94,9 @@ pub fn (mut b PidigitsBenchmark) run(iteration_id int) {
 }
 
 pub fn (mut b PidigitsBenchmark) checksum() u32 {
-
 	return helper.checksum_str(b.result.str())
 }
 
 pub fn (mut b PidigitsBenchmark) prepare() {
-
 	b.result = strings.new_builder(1024)
 }

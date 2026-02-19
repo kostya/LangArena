@@ -10,7 +10,10 @@ class Fannkuchredux : Benchmark() {
         n = configVal("n")
     }
 
-    private data class Result(val checksum: Int, val maxFlipsCount: Int)
+    private data class Result(
+        val checksum: Int,
+        val maxFlipsCount: Int,
+    )
 
     private fun fannkuchredux(n: Int): Result {
         val perm1 = IntArray(32) { it }
@@ -27,7 +30,7 @@ class Fannkuchredux : Benchmark() {
                 r -= 1
             }
 
-            System.arraycopy(perm1, 0, perm, 0, n) 
+            System.arraycopy(perm1, 0, perm, 0, n)
 
             var flipsCount = 0
             var k = perm[0]
@@ -75,7 +78,7 @@ class Fannkuchredux : Benchmark() {
 
     override fun run(iterationId: Int) {
         val (a, b) = fannkuchredux(n.toInt())
-        resultVal += (a * 100 + b).toUInt()  
+        resultVal += (a * 100 + b).toUInt()
     }
 
     override fun checksum(): UInt = resultVal

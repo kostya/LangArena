@@ -5,7 +5,7 @@ const Helper = @import("helper.zig").Helper;
 pub const SortSelf = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    data: std.ArrayList(i32), 
+    data: std.ArrayList(i32),
     result_val: u32,
 
     const vtable = Benchmark.VTable{
@@ -58,7 +58,6 @@ pub const SortSelf = struct {
     }
 
     fn testSort(self: *SortSelf, allocator: std.mem.Allocator) ![]i32 {
-
         const arr = try allocator.alloc(i32, self.data.items.len);
         @memcpy(arr, self.data.items);
 

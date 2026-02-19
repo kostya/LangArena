@@ -3,8 +3,8 @@ using ..BenchmarkFramework
 mutable struct CSNode{K,V}
     key::K
     value::V
-    prev::Union{CSNode{K,V}, Nothing}
-    next::Union{CSNode{K,V}, Nothing}
+    prev::Union{CSNode{K,V},Nothing}
+    next::Union{CSNode{K,V},Nothing}
 
     function CSNode{K,V}(key::K, value::V) where {K,V}
         new{K,V}(key, value, nothing, nothing)
@@ -13,17 +13,17 @@ end
 
 mutable struct LRUCache{K,V}
     capacity::Int32
-    cache::Dict{K, CSNode{K,V}}
-    head::Union{CSNode{K,V}, Nothing}
-    tail::Union{CSNode{K,V}, Nothing}
+    cache::Dict{K,CSNode{K,V}}
+    head::Union{CSNode{K,V},Nothing}
+    tail::Union{CSNode{K,V},Nothing}
     size::Int32
 
     function LRUCache{K,V}(capacity::Int32) where {K,V}
-        new{K,V}(capacity, Dict{K, CSNode{K,V}}(), nothing, nothing, 0)
+        new{K,V}(capacity, Dict{K,CSNode{K,V}}(), nothing, nothing, 0)
     end
 end
 
-function cache_get(cache::LRUCache{K,V}, key::K)::Union{V, Nothing} where {K,V}
+function cache_get(cache::LRUCache{K,V}, key::K)::Union{V,Nothing} where {K,V}
 
     if haskey(cache.cache, key)
         node = cache.cache[key]
@@ -124,7 +124,7 @@ end
 
 mutable struct CacheSimulation <: AbstractBenchmark
     values_size::Int32
-    cache::LRUCache{String, String}
+    cache::LRUCache{String,String}
     result::UInt32
     hits::Int32
     misses::Int32
@@ -133,7 +133,7 @@ mutable struct CacheSimulation <: AbstractBenchmark
         values_val = Helper.config_i64("CacheSimulation", "values")
         cache_size_val = Helper.config_i64("CacheSimulation", "size")
 
-        cache = LRUCache{String, String}(Int32(cache_size_val))
+        cache = LRUCache{String,String}(Int32(cache_size_val))
         new(Int32(values_val), cache, UInt32(5432), Int32(0), Int32(0))
     end
 end

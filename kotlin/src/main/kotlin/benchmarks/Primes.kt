@@ -1,8 +1,8 @@
 package benchmarks
 
 import Benchmark
-import kotlin.math.sqrt
 import kotlin.math.ln
+import kotlin.math.sqrt
 
 class Primes : Benchmark() {
     private class Node {
@@ -61,7 +61,10 @@ class Primes : Benchmark() {
         return root
     }
 
-    private fun findPrimesWithPrefix(root: Node, prefix: Int): List<Int> {
+    private fun findPrimesWithPrefix(
+        root: Node,
+        prefix: Int,
+    ): List<Int> {
         val prefixStr = prefix.toString()
         var current = root
 
@@ -102,7 +105,6 @@ class Primes : Benchmark() {
     }
 
     override fun run(iterationId: Int) {
-
         val primes = generatePrimes(n.toInt())
 
         val trie = buildTrie(primes)

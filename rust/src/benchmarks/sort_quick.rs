@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 use crate::benchmarks::sort_benchmark::SortBenchmark;
 
 pub struct SortQuick {
@@ -56,15 +56,15 @@ impl Benchmark for SortQuick {
     }
 
     fn run(&mut self, _iteration_id: i64) {
-
         self.base.result_val = self.base.result_val.wrapping_add(
-            self.base.data[helper::next_int(self.base.size_val as i32) as usize] as u32
+            self.base.data[helper::next_int(self.base.size_val as i32) as usize] as u32,
         );
         let mut t = self.base.data.clone();
         Self::quick_sort(&mut t);
-        self.base.result_val = self.base.result_val.wrapping_add(
-            t[helper::next_int(self.base.size_val as i32) as usize] as u32
-        );
+        self.base.result_val = self
+            .base
+            .result_val
+            .wrapping_add(t[helper::next_int(self.base.size_val as i32) as usize] as u32);
     }
 
     fn checksum(&self) -> u32 {

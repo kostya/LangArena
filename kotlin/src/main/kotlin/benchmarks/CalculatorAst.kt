@@ -5,10 +5,24 @@ import Benchmark
 class CalculatorAst : Benchmark() {
     sealed class Node
 
-    data class Number(val value: Long) : Node()
-    data class Variable(val name: String) : Node()
-    data class BinaryOp(val op: Char, val left: Node, val right: Node) : Node()
-    data class Assignment(val variable: String, val expr: Node) : Node()
+    data class Number(
+        val value: Long,
+    ) : Node()
+
+    data class Variable(
+        val name: String,
+    ) : Node()
+
+    data class BinaryOp(
+        val op: Char,
+        val left: Node,
+        val right: Node,
+    ) : Node()
+
+    data class Assignment(
+        val variable: String,
+        val expr: Node,
+    ) : Node()
 
     var n: Long = 0
     private var resultVal: UInt = 0u
@@ -19,8 +33,8 @@ class CalculatorAst : Benchmark() {
         n = configVal("operations")
     }
 
-    private fun generateRandomProgram(lines: Long = 1000): String {
-        return buildString {
+    private fun generateRandomProgram(lines: Long = 1000): String =
+        buildString {
             append("v0 = 1\n")
             for (i in 0 until 10) {
                 val v = i + 1
@@ -44,13 +58,14 @@ class CalculatorAst : Benchmark() {
                 append("\n")
             }
         }
-    }
 
     override fun prepare() {
         text = generateRandomProgram(n)
     }
 
-    private class Parser(private val input: String) {
+    private class Parser(
+        private val input: String,
+    ) {
         private var pos = 0
         private val chars = input.toCharArray()
         private val length = chars.size
@@ -110,18 +125,27 @@ class CalculatorAst : Benchmark() {
             if (pos >= length) return Number(0)
 
             return when (val ch = currentChar()) {
-                in '0'..'9' -> parseNumber()
-                in 'a'..'z' -> parseVariable()
+                in '0'..'9' -> {
+                    parseNumber()
+                }
+
+                in 'a'..'z' -> {
+                    parseVariable()
+                }
+
                 '(' -> {
-                    advance() 
+                    advance()
                     val node = parseExpression()
                     skipWhitespace()
                     if (currentChar() == ')') {
-                        advance() 
+                        advance()
                     }
                     node
                 }
-                else -> Number(0)
+
+                else -> {
+                    Number(0)
+                }
             }
         }
 
@@ -143,7 +167,7 @@ class CalculatorAst : Benchmark() {
 
             skipWhitespace()
             if (pos < length && currentChar() == '=') {
-                advance() 
+                advance()
                 val expr = parseExpression()
                 return Assignment(varName, expr)
             }
@@ -151,9 +175,7 @@ class CalculatorAst : Benchmark() {
             return Variable(varName)
         }
 
-        private fun currentChar(): Char {
-            return if (pos < length) chars[pos] else '\u0000'
-        }
+        private fun currentChar(): Char = if (pos < length) chars[pos] else '\u0000'
 
         private fun advance() {
             if (pos < length) pos++
@@ -169,7 +191,7 @@ class CalculatorAst : Benchmark() {
     override fun run(iterationId: Int) {
         val parser = Parser(text)
         expressions = parser.parse()
-        resultVal += expressions.size.toUInt()  
+        resultVal += expressions.size.toUInt()
         if (expressions.isNotEmpty() && expressions.last() is Assignment) {
             val assign = expressions.last() as Assignment
             resultVal += Helper.checksum(assign.variable)

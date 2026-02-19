@@ -42,13 +42,13 @@ function prepare(b::JsonGenerate)
         empty!(b.data)
         sizehint!(b.data, b.n)
 
-        for _ in 1:b.n
+        for _ = 1:b.n
             coord = Coordinate(
-                round(Helper.next_float(), digits=8),
-                round(Helper.next_float(), digits=8),
-                round(Helper.next_float(), digits=8),
+                round(Helper.next_float(), digits = 8),
+                round(Helper.next_float(), digits = 8),
+                round(Helper.next_float(), digits = 8),
                 @sprintf("%.7f %d", Helper.next_float(), Helper.next_int(Int32(10000))),
-                Opts([1, true])
+                Opts([1, true]),
             )
             push!(b.data, coord)
         end
@@ -93,7 +93,7 @@ function prepare(b::JsonParseDom)
     b.text = gen.text
 end
 
-function calc_dom(text::String)::Tuple{Float64, Float64, Float64}
+function calc_dom(text::String)::Tuple{Float64,Float64,Float64}
 
     json_obj = JSON3.read(text)
     coordinates = json_obj.coordinates
@@ -101,7 +101,7 @@ function calc_dom(text::String)::Tuple{Float64, Float64, Float64}
 
     x_sum = y_sum = z_sum = 0.0
 
-    for i in 1:len
+    for i = 1:len
         coord = coordinates[i]
         x_sum += coord.x
         y_sum += coord.y
@@ -160,7 +160,7 @@ function prepare(b::JsonParseMapping)
     b.text = gen.text
 end
 
-function calc_mapping(text::String)::Tuple{Float64, Float64, Float64}
+function calc_mapping(text::String)::Tuple{Float64,Float64,Float64}
 
     container = JSON3.read(text, CoordinatesContainerMapping)
     coordinates = container.coordinates

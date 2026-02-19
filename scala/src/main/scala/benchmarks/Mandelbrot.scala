@@ -42,8 +42,7 @@ class Mandelbrot extends Benchmark:
           i += 1
 
         byteAcc = (byteAcc << 1).toByte
-        if tr + ti <= LIMIT * LIMIT then
-          byteAcc = (byteAcc | 0x01).toByte
+        if tr + ti <= LIMIT * LIMIT then byteAcc = (byteAcc | 0x01).toByte
         bitNum += 1
 
         if bitNum == 8 then

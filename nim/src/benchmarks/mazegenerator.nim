@@ -2,7 +2,7 @@ import std/[math, algorithm, deques]
 import ../benchmark
 import ../helper
 
-{.experimental: "callOperator".}  
+{.experimental: "callOperator".}
 
 type
   Cell = enum
@@ -40,10 +40,10 @@ proc `()`(maze: var Maze, x, y: int): var Cell =
   maze.cells[y][x]
 
 proc addRandomPaths(maze: var Maze) =
-  let numExtraPaths = (maze.width * maze.height) div 20  
+  let numExtraPaths = (maze.width * maze.height) div 20
 
   for i in 0..<numExtraPaths:
-    let x = nextInt(int32(maze.width - 2)) + 1  
+    let x = nextInt(int32(maze.width - 2)) + 1
     let y = nextInt(int32(maze.height - 2)) + 1
 
     if maze(x, y) == Wall and
@@ -65,7 +65,8 @@ proc divide(maze: var Maze, x1, y1, x2, y2: int) =
   let widthForHole = max(width - 1, 0)
   let heightForHole = max(height - 1, 0)
 
-  if widthForWall == 0 or heightForWall == 0 or widthForHole == 0 or heightForHole == 0:
+  if widthForWall == 0 or heightForWall == 0 or widthForHole == 0 or
+      heightForHole == 0:
     return
 
   if width > height:
@@ -113,7 +114,8 @@ proc isConnected(maze: Maze, start, goal: (int, int)): bool =
   let (startX, startY) = start
   let (goalX, goalY) = goal
 
-  if startX >= maze.width or startY >= maze.height or goalX >= maze.width or goalY >= maze.height:
+  if startX >= maze.width or startY >= maze.height or goalX >= maze.width or
+      goalY >= maze.height:
     return false
 
   var visited = newSeq[seq[bool]](maze.height)

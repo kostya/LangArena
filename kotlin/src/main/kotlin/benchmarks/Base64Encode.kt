@@ -21,7 +21,7 @@ class Base64Encode : Benchmark() {
 
     override fun run(iterationId: Int) {
         val encoded = Base64.getEncoder().encodeToString(bytes)
-        resultVal += encoded.length.toUInt()  
+        resultVal += encoded.length.toUInt()
     }
 
     override fun checksum(): UInt {

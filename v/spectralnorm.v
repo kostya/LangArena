@@ -63,7 +63,6 @@ fn eval_at_times_u(u []f64) []f64 {
 }
 
 fn eval_ata_times_u(u []f64) []f64 {
-
 	return eval_at_times_u(eval_a_times_u(u))
 }
 
@@ -90,7 +89,6 @@ pub fn (s Spectralnorm) checksum() u32 {
 }
 
 pub fn (mut s Spectralnorm) prepare() {
-
 	n := int(s.size_val)
 	s.u = []f64{len: n, init: 1.0}
 	s.v = []f64{len: n, init: 1.0}

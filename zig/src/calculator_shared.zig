@@ -45,7 +45,6 @@ pub const Parser = struct {
     }
 
     pub fn deinit(self: *Parser) void {
-
         _ = self;
     }
 

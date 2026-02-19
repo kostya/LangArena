@@ -1,15 +1,15 @@
-import Foundation
 import Dispatch
+import Foundation
 
 final class Matmul16T: Matmul4T {
-    override init() {
-        super.init()
-        n = configValue("n") ?? 0
-    }
+  override init() {
+    super.init()
+    n = configValue("n") ?? 0
+  }
 
-    override var name: String { return "Matmul16T" }
+  override var name: String { return "Matmul16T" }
 
-    override func getNumThreads() -> Int {
-        return 16
-    }
+  override func getNumThreads() -> Int {
+    return 16
+  }
 }

@@ -68,6 +68,6 @@ class Fannkuchredux extends Benchmark:
 
   override def run(iterationId: Int): Unit =
     val res = fannkuchredux(n)
-    resultVal += (res.checksum * 100L + res.maxFlips) & 0xFFFFFFFFL
+    resultVal += (res.checksum * 100L + res.maxFlips) & 0xffffffffL
 
   override def checksum(): Long = resultVal

@@ -18,10 +18,9 @@ class GameOfLife extends Benchmark:
         if neighbors(i).alive then aliveNeighbors += 1
         i += 1
 
-      nextState = if alive then
-        aliveNeighbors == 2 || aliveNeighbors == 3
-      else
-        aliveNeighbors == 3
+      nextState =
+        if alive then aliveNeighbors == 2 || aliveNeighbors == 3
+        else aliveNeighbors == 3
 
     def update(): Unit =
       alive = nextState
@@ -80,7 +79,7 @@ class GameOfLife extends Benchmark:
         val alive = if cells(y)(x).alive then 1L else 0L
         hasher = (hasher ^ alive) * FNV_PRIME
 
-      hasher & 0xFFFFFFFFL
+      hasher & 0xffffffffL
 
     def getCells(): Array[Array[CellObj]] = cells
 
@@ -96,13 +95,11 @@ class GameOfLife extends Benchmark:
     for
       y <- 0 until height
       x <- 0 until width
-    do
-      if Helper.nextFloat() < 0.1f then
-        grid.getCells()(y)(x).alive = true
+    do if Helper.nextFloat() < 0.1f then grid.getCells()(y)(x).alive = true
 
   override def run(iterationId: Int): Unit =
     grid.nextGeneration()
 
   override def checksum(): Long =
     val alive = grid.countAlive()
-    (grid.computeHash() + alive) & 0xFFFFFFFFL
+    (grid.computeHash() + alive) & 0xffffffffL

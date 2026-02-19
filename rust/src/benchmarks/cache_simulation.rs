@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 use crate::config_i64;
 use lru::LruCache;
 use std::num::NonZeroUsize;
@@ -23,7 +23,7 @@ impl CacheSimulation {
             result_val: 5432,
             values_size,
             cache_size,
-            cache: LruCache::new(NonZeroUsize::new(1).unwrap()), 
+            cache: LruCache::new(NonZeroUsize::new(1).unwrap()),
             hits: 0,
             misses: 0,
         }

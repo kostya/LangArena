@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 use crate::config_i64;
 use serde_json::Value;
 
@@ -58,7 +58,7 @@ impl Benchmark for JsonParseDom {
         self.result_val = self.result_val.wrapping_add(
             helper::checksum_f64(x)
                 .wrapping_add(helper::checksum_f64(y))
-                .wrapping_add(helper::checksum_f64(z))
+                .wrapping_add(helper::checksum_f64(z)),
         );
     }
 

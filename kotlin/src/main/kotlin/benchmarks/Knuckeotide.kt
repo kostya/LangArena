@@ -31,7 +31,10 @@ class Knuckeotide : Benchmark() {
         seq = seqio.toString()
     }
 
-    private fun frequency(seq: String, length: Int): Pair<Int, Map<String, Int>> {
+    private fun frequency(
+        seq: String,
+        length: Int,
+    ): Pair<Int, Map<String, Int>> {
         val n = seq.length - length + 1
         val table = mutableMapOf<String, Int>()
 
@@ -43,13 +46,18 @@ class Knuckeotide : Benchmark() {
         return Pair(n, table)
     }
 
-    private fun sortByFreq(seq: String, length: Int) {
+    private fun sortByFreq(
+        seq: String,
+        length: Int,
+    ) {
         val (n, table) = frequency(seq, length)
 
-        table.toList()
-            .sortedWith(compareByDescending<Pair<String, Int>> { it.second }
-                .thenBy { it.first })
-            .forEach { (key, value) ->
+        table
+            .toList()
+            .sortedWith(
+                compareByDescending<Pair<String, Int>> { it.second }
+                    .thenBy { it.first },
+            ).forEach { (key, value) ->
                 val freq = (value * 100).toDouble() / n
                 output.append(String.format("%s %.3f\n", key.uppercase(), freq))
             }
@@ -57,7 +65,10 @@ class Knuckeotide : Benchmark() {
         output.append('\n')
     }
 
-    private fun findSeq(seq: String, s: String) {
+    private fun findSeq(
+        seq: String,
+        s: String,
+    ) {
         val (n, table) = frequency(seq, s.length)
         output.append("${table.getOrDefault(s, 0)}\t${s.uppercase()}\n")
     }

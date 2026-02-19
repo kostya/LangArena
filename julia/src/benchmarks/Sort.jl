@@ -17,7 +17,7 @@ name(b::SortBenchmark)::String = "SortBenchmark"
 
 function prepare(b::SortBenchmark)
     empty!(b.data)
-    for _ in 1:b.size
+    for _ = 1:b.size
         push!(b.data, Helper.next_int(1_000_000))
     end
 end
@@ -51,7 +51,7 @@ name(b::SortQuick)::String = "SortQuick"
 
 function prepare(b::SortQuick)
     empty!(b.data)
-    for _ in 1:b.size
+    for _ = 1:b.size
         push!(b.data, Helper.next_int(1_000_000))
     end
 end
@@ -61,7 +61,7 @@ function quick_sort!(arr::Vector{Int32}, low::Int, high::Int)
         return
     end
 
-    pivot = arr[(low + high) ÷ 2]
+    pivot = arr[(low+high)÷2]
     i = low
     j = high
 
@@ -86,7 +86,7 @@ end
 function test(b::SortQuick)::Vector{Int32}
     arr = copy(b.data)
     if length(arr) > 0
-        quick_sort!(arr, 1, length(arr))  
+        quick_sort!(arr, 1, length(arr))
     end
     return arr
 end
@@ -94,13 +94,13 @@ end
 function run(b::SortQuick, iteration_id::Int64)
 
     if length(b.data) > 0
-        idx = Helper.next_int(length(b.data)) + 1  
+        idx = Helper.next_int(length(b.data)) + 1
         b.result = (b.result + UInt32(b.data[idx])) & 0xffffffff
     end
 
     sorted_arr = test(b)
     if length(sorted_arr) > 0
-        idx = Helper.next_int(length(sorted_arr)) + 1  
+        idx = Helper.next_int(length(sorted_arr)) + 1
         b.result = (b.result + UInt32(sorted_arr[idx])) & 0xffffffff
     end
 end
@@ -120,7 +120,7 @@ name(b::SortMerge)::String = "SortMerge"
 
 function prepare(b::SortMerge)
     empty!(b.data)
-    for _ in 1:b.size
+    for _ = 1:b.size
         push!(b.data, Helper.next_int(1_000_000))
     end
 end
@@ -131,7 +131,7 @@ function merge_sort!(arr::Vector{Int32})
     end
 
     temp = similar(arr)
-    merge_sort_helper!(arr, temp, 1, length(arr))  
+    merge_sort_helper!(arr, temp, 1, length(arr))
     return arr
 end
 
@@ -147,13 +147,13 @@ function merge_sort_helper!(arr::Vector{Int32}, temp::Vector{Int32}, left::Int, 
 end
 
 function merge!(arr::Vector{Int32}, temp::Vector{Int32}, left::Int, mid::Int, right::Int)
-    for i in left:right
+    for i = left:right
         temp[i] = arr[i]
     end
 
-    i = left      
-    j = mid + 1   
-    k = left      
+    i = left
+    j = mid + 1
+    k = left
 
     while i <= mid && j <= right
         if temp[i] <= temp[j]
@@ -184,13 +184,13 @@ end
 function run(b::SortMerge, iteration_id::Int64)
 
     if length(b.data) > 0
-        idx = Helper.next_int(length(b.data)) + 1  
+        idx = Helper.next_int(length(b.data)) + 1
         b.result = (b.result + UInt32(b.data[idx])) & 0xffffffff
     end
 
     sorted_arr = test(b)
     if length(sorted_arr) > 0
-        idx = Helper.next_int(length(sorted_arr)) + 1  
+        idx = Helper.next_int(length(sorted_arr)) + 1
         b.result = (b.result + UInt32(sorted_arr[idx])) & 0xffffffff
     end
 end
@@ -210,7 +210,7 @@ name(b::SortSelf)::String = "SortSelf"
 
 function prepare(b::SortSelf)
     empty!(b.data)
-    for _ in 1:b.size
+    for _ = 1:b.size
         push!(b.data, Helper.next_int(1_000_000))
     end
 end
@@ -224,13 +224,13 @@ end
 function run(b::SortSelf, iteration_id::Int64)
 
     if length(b.data) > 0
-        idx = Helper.next_int(length(b.data)) + 1  
+        idx = Helper.next_int(length(b.data)) + 1
         b.result = (b.result + UInt32(b.data[idx])) & 0xffffffff
     end
 
     sorted_arr = test(b)
     if length(sorted_arr) > 0
-        idx = Helper.next_int(length(sorted_arr)) + 1  
+        idx = Helper.next_int(length(sorted_arr)) + 1
         b.result = (b.result + UInt32(sorted_arr[idx])) & 0xffffffff
     end
 end

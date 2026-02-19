@@ -58,7 +58,8 @@ method sortByFreq(self: Knuckeotide, seq: string, length: int) =
 
   for (key, value) in pairs:
     let percent = (value.float * 100.0) / n.float
-    self.resultStr.add(key.toUpperAscii() & " " & formatFloat(percent, ffDecimal, 3) & "\n")
+    self.resultStr.add(key.toUpperAscii() & " " & formatFloat(percent,
+        ffDecimal, 3) & "\n")
 
   self.resultStr.add("\n")
 

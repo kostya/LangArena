@@ -36,7 +36,7 @@ const
   MOMENTUM = 0.3
 
 proc newNeuron(): Neuron =
-  let t = nextFloat() * 2 - 1 
+  let t = nextFloat() * 2 - 1
   Neuron(
     threshold: t,
     prevThreshold: t,

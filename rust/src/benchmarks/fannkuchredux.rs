@@ -1,5 +1,5 @@
-use crate::Benchmark;
 use crate::config_i64;
+use crate::Benchmark;
 
 pub struct Fannkuchredux {
     n: i64,
@@ -10,10 +10,7 @@ impl Fannkuchredux {
     pub fn new() -> Self {
         let n = config_i64("Fannkuchredux", "n");
 
-        Self {
-            n,
-            result_val: 0,
-        }
+        Self { n, result_val: 0 }
     }
 
     fn fannkuchredux(&self, n: i32) -> (i32, i32) {
@@ -92,7 +89,11 @@ impl Benchmark for Fannkuchredux {
     fn run(&mut self, _iteration_id: i64) {
         let (checksum, max_flips) = self.fannkuchredux(self.n as i32);
 
-        self.result_val = self.result_val.wrapping_add((checksum as u32).wrapping_mul(100).wrapping_add(max_flips as u32));
+        self.result_val = self.result_val.wrapping_add(
+            (checksum as u32)
+                .wrapping_mul(100)
+                .wrapping_add(max_flips as u32),
+        );
     }
 
     fn checksum(&self) -> u32 {

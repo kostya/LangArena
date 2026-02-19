@@ -1,7 +1,7 @@
 use super::super::helper;
 use crate::config_i64;
-use std::collections::VecDeque;
 use std::cmp;
+use std::collections::VecDeque;
 
 pub struct Graph {
     pub vertices: i32,
@@ -36,7 +36,6 @@ impl Graph {
     }
 
     pub fn generate_random(&mut self) {
-
         for i in 1..self.vertices {
             self.add_edge(i, i - 1);
         }

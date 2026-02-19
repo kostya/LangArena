@@ -14,12 +14,12 @@ name(b::BrainfuckRecursion)::String = "BrainfuckRecursion"
 
 abstract type AbstractOp end
 
-struct OpInc <: AbstractOp end  
-struct OpDec <: AbstractOp end  
-struct OpNext <: AbstractOp end 
-struct OpPrev <: AbstractOp end 
-struct OpPrint <: AbstractOp end 
-struct OpLoop <: AbstractOp      
+struct OpInc <: AbstractOp end
+struct OpDec <: AbstractOp end
+struct OpNext <: AbstractOp end
+struct OpPrev <: AbstractOp end
+struct OpPrint <: AbstractOp end
+struct OpLoop <: AbstractOp
     ops::Vector{AbstractOp}
 end
 
@@ -127,7 +127,7 @@ end
 
 function warmup(b::BrainfuckRecursion)
     warmup_iters = warmup_iterations(b)
-    for i in 1:warmup_iters
+    for i = 1:warmup_iters
         _run2(b.warmup_text)
     end
 end

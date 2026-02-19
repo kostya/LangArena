@@ -3,7 +3,6 @@ package benchmarks
 import Benchmark
 
 class GameOfLife : Benchmark() {
-
     private class Cell {
         var alive: Boolean = false
         var nextState: Boolean = false
@@ -20,11 +19,12 @@ class GameOfLife : Benchmark() {
                 if (neighbor!!.alive) aliveNeighbors++
             }
 
-            nextState = if (alive) {
-                aliveNeighbors == 2 || aliveNeighbors == 3
-            } else {
-                aliveNeighbors == 3
-            }
+            nextState =
+                if (alive) {
+                    aliveNeighbors == 2 || aliveNeighbors == 3
+                } else {
+                    aliveNeighbors == 3
+                }
         }
 
         fun update() {
@@ -32,16 +32,20 @@ class GameOfLife : Benchmark() {
         }
     }
 
-    private class Grid(private val width: Int, private val height: Int) {
+    private class Grid(
+        private val width: Int,
+        private val height: Int,
+    ) {
         private val cells: List<List<Cell>>
 
         init {
 
-            cells = List(height) { y ->
-                List(width) { x ->
-                    Cell()
+            cells =
+                List(height) { y ->
+                    List(width) { x ->
+                        Cell()
+                    }
                 }
-            }
             linkNeighbors()
         }
 
@@ -65,7 +69,6 @@ class GameOfLife : Benchmark() {
         }
 
         fun nextGeneration() {
-
             for (row in cells) {
                 for (cell in row) {
                     cell.computeNextState()
@@ -79,9 +82,7 @@ class GameOfLife : Benchmark() {
             }
         }
 
-        fun countAlive(): Int {
-            return cells.sumOf { row -> row.count { it.alive } }
-        }
+        fun countAlive(): Int = cells.sumOf { row -> row.count { it.alive } }
 
         fun computeHash(): UInt {
             val FNV_OFFSET_BASIS: ULong = 2166136261UL

@@ -1,18 +1,18 @@
-use super::super::Benchmark;
 use super::super::config_s;
+use super::super::Benchmark;
 
 enum Op {
-    Dec,    
-    Inc,    
-    Prev,   
-    Next,   
-    Print,  
-    Loop(Vec<Op>),  
+    Dec,
+    Inc,
+    Prev,
+    Next,
+    Print,
+    Loop(Vec<Op>),
 }
 
 struct Tape {
     pos: usize,
-    tape: Vec<u8>,  
+    tape: Vec<u8>,
 }
 
 impl Tape {
@@ -44,7 +44,7 @@ impl Tape {
     fn next(&mut self) {
         self.pos += 1;
         if self.pos >= self.tape.len() {
-            self.tape.resize(self.pos + 1, 0);  
+            self.tape.resize(self.pos + 1, 0);
         }
     }
 }
@@ -114,7 +114,11 @@ impl BrainfuckRecursion {
     pub fn new() -> Self {
         let text = config_s("BrainfuckRecursion", "program");
         let warmup_text = config_s("BrainfuckRecursion", "warmup_program");
-        Self { text, warmup_text, result_val: 0 }
+        Self {
+            text,
+            warmup_text,
+            result_val: 0,
+        }
     }
 
     fn _run(&self, text: &str) -> i64 {

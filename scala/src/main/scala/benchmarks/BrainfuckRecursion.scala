@@ -52,7 +52,7 @@ class BrainfuckRecursion extends Benchmark:
             parse(loopOps, code, pos)
             ops.add(Loop(loopOps.toArray(Array.empty[Op])))
           case ']' => return ops
-          case _ =>
+          case _   =>
       ops
 
     def run(): Long =
@@ -60,11 +60,11 @@ class BrainfuckRecursion extends Benchmark:
       var result = 0L
 
       def exec(op: Op): Unit = op match
-        case Inc => tape.inc()
-        case Dec => tape.dec()
-        case Next => tape.next()
-        case Prev => tape.prev()
-        case Print => result = (result << 2) + (tape.get() & 0xFF)
+        case Inc        => tape.inc()
+        case Dec        => tape.dec()
+        case Next       => tape.next()
+        case Prev       => tape.prev()
+        case Print      => result = (result << 2) + (tape.get() & 0xff)
         case Loop(body) =>
           while tape.get() != 0 do
             var i = 0
@@ -77,7 +77,7 @@ class BrainfuckRecursion extends Benchmark:
         exec(ops(i))
         i += 1
 
-      result & 0xFFFFFFFFL
+      result & 0xffffffffL
 
   private def runProgram(programText: String): Long =
     Program(programText).run()
@@ -92,4 +92,4 @@ class BrainfuckRecursion extends Benchmark:
   override def run(iterationId: Int): Unit =
     resultVal += runProgram(text)
 
-  override def checksum(): Long = resultVal & 0xFFFFFFFFL
+  override def checksum(): Long = resultVal & 0xffffffffL

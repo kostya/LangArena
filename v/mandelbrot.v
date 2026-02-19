@@ -74,7 +74,6 @@ pub fn (mut m Mandelbrot) run(iteration_id int) {
 				byte_acc = 0
 				bit_num = 0
 			} else if x == w - 1 {
-
 				shift := u8(8 - (w % 8))
 				byte_acc <<= shift
 				m.result_bin << byte_acc

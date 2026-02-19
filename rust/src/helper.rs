@@ -34,7 +34,6 @@ pub fn next_float(max: f64) -> f64 {
 }
 
 pub fn checksum_str(v: &str) -> u32 {
-
     let mut hash: u32 = 5381;
     for &byte in v.as_bytes() {
         hash = ((hash << 5).wrapping_add(hash)).wrapping_add(byte as u32);
@@ -43,7 +42,6 @@ pub fn checksum_str(v: &str) -> u32 {
 }
 
 pub fn checksum_bytes(v: &Vec<u8>) -> u32 {
-
     let mut hash: u32 = 5381;
     for &byte in v {
         hash = ((hash << 5).wrapping_add(hash)).wrapping_add(byte as u32);
@@ -63,5 +61,4 @@ pub fn debug_print(msg: &str) {
             println!("{}", msg);
         }
     }
-
 }

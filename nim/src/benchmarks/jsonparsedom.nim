@@ -19,7 +19,7 @@ method prepare(self: JsonParseDom) =
   self.resultVal = 0
 
 method run(self: JsonParseDom, iteration_id: int) =
-  let parsed = parseJson(self.text)  
+  let parsed = parseJson(self.text)
 
   var xSum, ySum, zSum: float
   var len = 0
@@ -37,7 +37,8 @@ method run(self: JsonParseDom, iteration_id: int) =
     let y = ySum / float(len)
     let z = zSum / float(len)
 
-    self.resultVal = self.resultVal + checksumF64(x) + checksumF64(y) + checksumF64(z)
+    self.resultVal = self.resultVal + checksumF64(x) + checksumF64(y) +
+        checksumF64(z)
 
 method checksum(self: JsonParseDom): uint32 =
   self.resultVal

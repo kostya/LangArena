@@ -139,7 +139,6 @@ pub fn (mut n Noise) run(iteration_id int) {
 
 	for y in 0 .. size {
 		for x in 0 .. size {
-
 			v := ctx.get(f64(x) * 0.1, f64(y + (iteration_id * 128)) * 0.1) * 0.5 + 0.5
 
 			mut idx := int(v / 0.2)

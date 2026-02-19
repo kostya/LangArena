@@ -18,7 +18,7 @@ object Helper:
   numberFormat.setMinimumFractionDigits(3)
   numberFormat.setMaximumFractionDigits(3)
 
-  def formatTime(seconds: Double): String = 
+  def formatTime(seconds: Double): String =
     numberFormat.format(seconds)
 
   def reset(): Unit =
@@ -38,23 +38,20 @@ object Helper:
   def nextFloat(): Double = nextFloat(1.0)
 
   def debug(message: => String): Unit =
-    if sys.env.getOrElse("DEBUG", "0") == "1" then
-      println(message)
+    if sys.env.getOrElse("DEBUG", "0") == "1" then println(message)
 
   def checksum(v: String): Long =
     var hash: Long = 5381
-    for c <- v.toCharArray do
-      hash = (hash << 5) + hash + c
-    hash & 0xFFFFFFFFL
+    for c <- v.toCharArray do hash = (hash << 5) + hash + c
+    hash & 0xffffffffL
 
   def checksum(v: Array[Byte]): Long =
     var hash: Long = 5381
-    for b <- v do
-      hash = (hash << 5) + hash + (b & 0xFF)
-    hash & 0xFFFFFFFFL
+    for b <- v do hash = (hash << 5) + hash + (b & 0xff)
+    hash & 0xffffffffL
 
   def checksumF64(v: Double): Long =
-    checksum(String.format(Locale.US, "%.7f", v)) & 0xFFFFFFFFL
+    checksum(String.format(Locale.US, "%.7f", v)) & 0xffffffffL
 
   @volatile var CONFIG: JSONObject = new JSONObject()
 
@@ -65,10 +62,8 @@ object Helper:
 
   def configI64(className: String, fieldName: String): Long =
     try
-      if CONFIG.has(className) && CONFIG.getJSONObject(className).has(fieldName) then
-        CONFIG.getJSONObject(className).getLong(fieldName)
-      else
-        throw RuntimeException(s"Config not found for $className, field: $fieldName")
+      if CONFIG.has(className) && CONFIG.getJSONObject(className).has(fieldName) then CONFIG.getJSONObject(className).getLong(fieldName)
+      else throw RuntimeException(s"Config not found for $className, field: $fieldName")
     catch
       case e: Exception =>
         System.err.println(e.getMessage)
@@ -76,10 +71,8 @@ object Helper:
 
   def configS(className: String, fieldName: String): String =
     try
-      if CONFIG.has(className) && CONFIG.getJSONObject(className).has(fieldName) then
-        CONFIG.getJSONObject(className).getString(fieldName)
-      else
-        throw RuntimeException(s"Config not found for $className, field: $fieldName")
+      if CONFIG.has(className) && CONFIG.getJSONObject(className).has(fieldName) then CONFIG.getJSONObject(className).getString(fieldName)
+      else throw RuntimeException(s"Config not found for $className, field: $fieldName")
     catch
       case e: Exception =>
         System.err.println(e.getMessage)
@@ -94,7 +87,7 @@ object Helper:
         case '\t' => sb.append("\\t")
         case '\\' => sb.append("\\\\")
         case '\"' => sb.append("\\\"")
-        case _ =>
+        case _    =>
           if c >= ' ' && c <= '~' then sb.append(c)
           else sb.append(f"\\u$c%04x")
     sb.append("\"")

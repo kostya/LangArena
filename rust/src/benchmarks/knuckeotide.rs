@@ -1,7 +1,7 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
+use crate::benchmarks::fasta::Fasta;
 use crate::config_i64;
 use std::collections::HashMap;
-use crate::benchmarks::fasta::Fasta;
 
 pub struct Knuckeotide {
     seq: String,
@@ -41,7 +41,8 @@ impl Knuckeotide {
 
         for (seq_str, count) in entries {
             let freq = (count as f64 * 100.0) / n as f64;
-            self.result_str.push_str(&format!("{} {:.3}\n", seq_str.to_uppercase(), freq));
+            self.result_str
+                .push_str(&format!("{} {:.3}\n", seq_str.to_uppercase(), freq));
         }
         self.result_str.push('\n');
     }
@@ -49,7 +50,8 @@ impl Knuckeotide {
     fn find_seq(&mut self, seq: &str, pattern: &str) {
         let (_n, table) = self.frequency(seq, pattern.len());
         let count = table.get(&pattern.to_lowercase()).copied().unwrap_or(0);
-        self.result_str.push_str(&format!("{}\t{}\n", count, pattern.to_uppercase()));
+        self.result_str
+            .push_str(&format!("{}\t{}\n", count, pattern.to_uppercase()));
     }
 }
 
@@ -59,7 +61,6 @@ impl Benchmark for Knuckeotide {
     }
 
     fn prepare(&mut self) {
-
         let mut fasta = Fasta::new();
         fasta.n = self.n;
         fasta.run(0);
@@ -86,13 +87,19 @@ impl Benchmark for Knuckeotide {
     }
 
     fn run(&mut self, _iteration_id: i64) {
-        let seq_clone = self.seq.clone(); 
+        let seq_clone = self.seq.clone();
 
         for i in 1..=2 {
             self.sort_by_freq(&seq_clone, i);
         }
 
-        let patterns = ["ggt", "ggta", "ggtatt", "ggtattttaatt", "ggtattttaatttatagt"];
+        let patterns = [
+            "ggt",
+            "ggta",
+            "ggtatt",
+            "ggtattttaatt",
+            "ggtattttaatttatagt",
+        ];
         for pattern in patterns {
             self.find_seq(&seq_clone, pattern);
         }

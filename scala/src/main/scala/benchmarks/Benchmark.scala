@@ -14,21 +14,18 @@ abstract class Benchmark:
   def name(): String = this.getClass.getSimpleName
 
   def warmupIterations(): Long =
-    if Helper.CONFIG.has(name()) && Helper.CONFIG.getJSONObject(name()).has("warmup_iterations") then
-      Helper.CONFIG.getJSONObject(name()).getLong("warmup_iterations")
+    if Helper.CONFIG.has(name()) && Helper.CONFIG.getJSONObject(name()).has("warmup_iterations") then Helper.CONFIG.getJSONObject(name()).getLong("warmup_iterations")
     else
       val iters = iterations()
       math.max((iters * 0.2).toLong, 1L)
 
   def warmup(): Unit =
     val prepareIters = warmupIterations()
-    for i <- 0L until prepareIters do
-      this.run(i.toInt)
+    for i <- 0L until prepareIters do this.run(i.toInt)
 
   def runAll(): Unit =
     val iters = iterations()
-    for i <- 0L until iters do
-      this.run(i.toInt)
+    for i <- 0L until iters do this.run(i.toInt)
 
   def configVal(fieldName: String): Long = Helper.configI64(this.name(), fieldName)
 
@@ -56,8 +53,9 @@ object Benchmark:
       val bench = factory()
       val className = bench.name()
 
-      if singleBench == null || singleBench.isEmpty || 
-         toLower(className).contains(toLower(singleBench)) then
+      if singleBench == null || singleBench.isEmpty ||
+        toLower(className).contains(toLower(singleBench))
+      then
 
         Helper.reset()
         bench.prepare()
@@ -72,10 +70,11 @@ object Benchmark:
         results(className) = timeDelta
 
         System.gc()
-        try Thread.sleep(0) catch case _: InterruptedException => ()
+        try Thread.sleep(0)
+        catch case _: InterruptedException => ()
         System.gc()
 
-        val check = bench.checksum() & 0xFFFFFFFFL
+        val check = bench.checksum() & 0xffffffffL
         val expected = bench.expectedChecksum()
         print(s"$className: ")
         if check == expected then

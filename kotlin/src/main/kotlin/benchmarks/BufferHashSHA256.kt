@@ -5,16 +5,17 @@ class BufferHashSHA256 : BufferHashBenchmark() {
         fun digest(data: ByteArray): ByteArray {
             val result = ByteArray(32)
 
-            val hashes = intArrayOf(
-                0x6a09e667.toInt(),
-                0xbb67ae85.toInt(),
-                0x3c6ef372.toInt(),
-                0xa54ff53a.toInt(),
-                0x510e527f.toInt(),
-                0x9b05688c.toInt(),
-                0x1f83d9ab.toInt(),
-                0x5be0cd19.toInt()
-            )
+            val hashes =
+                intArrayOf(
+                    0x6a09e667.toInt(),
+                    0xbb67ae85.toInt(),
+                    0x3c6ef372.toInt(),
+                    0xa54ff53a.toInt(),
+                    0x510e527f.toInt(),
+                    0x9b05688c.toInt(),
+                    0x1f83d9ab.toInt(),
+                    0x5be0cd19.toInt(),
+                )
 
             for ((i, byte) in data.withIndex()) {
                 val hashIdx = i % 8
@@ -41,9 +42,9 @@ class BufferHashSHA256 : BufferHashBenchmark() {
         val bytes = SimpleSHA256.digest(data)
 
         return ((bytes[3].toUInt() and 0xFFu) shl 24) or
-               ((bytes[2].toUInt() and 0xFFu) shl 16) or
-               ((bytes[1].toUInt() and 0xFFu) shl 8) or
-               (bytes[0].toUInt() and 0xFFu)
+            ((bytes[2].toUInt() and 0xFFu) shl 16) or
+            ((bytes[1].toUInt() and 0xFFu) shl 8) or
+            (bytes[0].toUInt() and 0xFFu)
     }
 
     override fun name(): String = "BufferHashSHA256"

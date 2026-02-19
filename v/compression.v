@@ -64,7 +64,6 @@ fn bwt_transform(input []u8) BWTResult {
 	}
 
 	if n > 1 {
-
 		struct Pair {
 			first  int
 			second int
@@ -86,7 +85,6 @@ fn bwt_transform(input []u8) BWTResult {
 
 		mut k := 1
 		for k < n {
-
 			mut pairs := []Pair{len: n}
 
 			for i in 0 .. n {
@@ -305,7 +303,6 @@ fn huffman_decode(encoded []u8, root &HuffmanNode, bit_count int) []u8 {
 		byte_index++
 
 		if bits_processed + 8 <= bit_count {
-
 			for bit_pos := 7; bit_pos >= 0; bit_pos-- {
 				bit := ((byte_val >> bit_pos) & 1) == 1
 				current_node = if bit {
@@ -321,7 +318,6 @@ fn huffman_decode(encoded []u8, root &HuffmanNode, bit_count int) []u8 {
 			}
 			bits_processed += 8
 		} else {
-
 			for bit_pos := 7; bit_pos >= 0 && bits_processed < bit_count; bit_pos-- {
 				bit := ((byte_val >> bit_pos) & 1) == 1
 				current_node = if bit {
@@ -369,7 +365,6 @@ fn compress(data []u8) CompressedData {
 }
 
 fn decompress(compressed CompressedData) []u8 {
-
 	huffman_tree := build_huffman_tree(compressed.frequencies)
 
 	decoded := huffman_decode(compressed.encoded_bits, huffman_tree, compressed.original_bit_count)

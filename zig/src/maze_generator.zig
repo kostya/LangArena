@@ -29,7 +29,7 @@ pub const MazeGenerator = struct {
             const actual_width = if (width < 5) 5 else width;
             const actual_height = if (height < 5) 5 else height;
             const cells = try allocator.alloc(Cell, @as(usize, @intCast(actual_width * actual_height)));
-            @memset(cells, Cell.wall); 
+            @memset(cells, Cell.wall);
 
             return Maze{
                 .width = actual_width,
@@ -92,7 +92,6 @@ pub const MazeGenerator = struct {
                 width_for_hole == 0 or height_for_hole == 0) return;
 
             if (width > height) {
-
                 const wall_range = @max(@divTrunc(width_for_wall, 2), 1);
                 const wall_offset = if (wall_range > 0) self.helper.nextInt(@as(i32, @intCast(wall_range))) * 2 else 0;
                 const wall_x = x1 + 2 + wall_offset;
@@ -113,7 +112,6 @@ pub const MazeGenerator = struct {
                 if (wall_x > x1 + 1) self.divide(x1, y1, wall_x - 1, y2);
                 if (wall_x + 1 < x2) self.divide(wall_x + 1, y1, x2, y2);
             } else {
-
                 const wall_range = @max(@divTrunc(height_for_wall, 2), 1);
                 const wall_offset = if (wall_range > 0) self.helper.nextInt(@as(i32, @intCast(wall_range))) * 2 else 0;
                 const wall_y = y1 + 2 + wall_offset;
@@ -138,7 +136,8 @@ pub const MazeGenerator = struct {
 
         fn isConnected(self: *const Maze, start_x: i32, start_y: i32, goal_x: i32, goal_y: i32) bool {
             if (start_x < 0 or start_x >= self.width or start_y < 0 or start_y >= self.height or
-                goal_x < 0 or goal_x >= self.width or goal_y < 0 or goal_y >= self.height) {
+                goal_x < 0 or goal_x >= self.width or goal_y < 0 or goal_y >= self.height)
+            {
                 return false;
             }
 
@@ -201,7 +200,6 @@ pub const MazeGenerator = struct {
         }
 
         fn generate(self: *Maze) void {
-
             if (self.width < 5 or self.height < 5) {
                 const mid_y = @divTrunc(self.height, 2);
                 var x: i32 = 0;
@@ -245,7 +243,6 @@ pub const MazeGenerator = struct {
         const goal_y = height - 2;
 
         if (!maze.isConnected(start_x, start_y, goal_x, goal_y)) {
-
             var x: i32 = 0;
             while (x < width) : (x += 1) {
                 var y: i32 = 0;

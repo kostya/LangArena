@@ -14,8 +14,7 @@ class BrainfuckArray extends Benchmark:
 
   override def warmup(): Unit =
     val prepareIters = warmupIterations()
-    for i <- 0L until prepareIters do
-      runProgram(warmupText)
+    for i <- 0L until prepareIters do runProgram(warmupText)
 
   override def run(iterationId: Int): Unit =
     resultVal += runProgram(programText)
@@ -48,7 +47,7 @@ object BrainfuckArray:
 
     private val commands: Array[Byte] = {
       val chars = text.toCharArray
-      val buffer = new Array[Byte](chars.length)  
+      val buffer = new Array[Byte](chars.length)
       var count = 0
 
       for c <- chars do
@@ -63,18 +62,18 @@ object BrainfuckArray:
 
     private val jumps: Array[Int] = {
       val arr = new Array[Int](commands.length)
-      val stack = new Array[Int](commands.length)  
-      var sp = 0  
+      val stack = new Array[Int](commands.length)
+      var sp = 0
 
       for i <- commands.indices do
         commands(i).toChar match
           case '[' =>
             stack(sp) = i
-            sp += 1  
+            sp += 1
           case ']' =>
             if sp > 0 then
               sp -= 1
-              val start = stack(sp)  
+              val start = stack(sp)
               arr(start) = i
               arr(i) = start
           case _ =>
@@ -86,7 +85,7 @@ object BrainfuckArray:
       var result: Long = 0L
       val tape = Tape()
       var pc = 0
-      val cmds = commands  
+      val cmds = commands
       val jmps = jumps
 
       while pc < cmds.length do
@@ -100,7 +99,7 @@ object BrainfuckArray:
           case ']' =>
             if tape.get() != 0 then pc = jmps(pc)
           case '.' =>
-            result = (result << 2) + (tape.get() & 0xFF)
+            result = (result << 2) + (tape.get() & 0xff)
           case _ =>
         pc += 1
       result

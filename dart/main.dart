@@ -13,7 +13,7 @@ class Performance {
   static final Stopwatch _stopwatch = Stopwatch()..start();
 
   static double now() {
-    return _stopwatch.elapsedMicroseconds / 1000.0; 
+    return _stopwatch.elapsedMicroseconds / 1000.0;
   }
 }
 
@@ -50,7 +50,6 @@ class Helper {
   }
 
   static void debug(String message) {
-
     const debugEnv = String.fromEnvironment('DEBUG');
     if (debugEnv == '1' || Platform.environment['DEBUG'] == '1') {
       print('DEBUG: $message');
@@ -88,7 +87,6 @@ class Helper {
       if (await file.exists()) {
         content = await file.readAsString();
       } else {
-
         final cwd = Directory.current;
         final absolutePath = '${cwd.path}/${configFile.replaceAll('../', '')}';
         final absoluteFile = File(absolutePath);
@@ -101,7 +99,6 @@ class Helper {
       }
 
       _config = jsonDecode(content) as Map<String, dynamic>;
-
     } catch (error) {
       print('Error loading config file $configFile: $error');
       exit(1);
@@ -122,7 +119,7 @@ class Helper {
       return BigInt.parse(value);
     } else {
       throw Exception(
-        'Config for $className, not found i64 field: $fieldName in $_config'
+        'Config for $className, not found i64 field: $fieldName in $_config',
       );
     }
   }
@@ -137,14 +134,13 @@ class Helper {
       return value;
     } else {
       throw Exception(
-        'Config for $className, not found string field: $fieldName in $_config'
+        'Config for $className, not found string field: $fieldName in $_config',
       );
     }
   }
 }
 
 abstract class Benchmark {
-
   FutureOr<void> runBenchmark(int iterationId);
   int checksum();
 
@@ -221,13 +217,13 @@ abstract class Benchmark {
       final benchInstance = benchmarkClass();
       final className = benchInstance.runtimeType.toString().split('.').last;
 
-      if (singleBench != null && 
+      if (singleBench != null &&
           !className.toLowerCase().contains(singleBench.toLowerCase())) {
         continue;
       }
 
-      if (className == 'SortBenchmark' || 
-          className == 'BufferHashBenchmark' || 
+      if (className == 'SortBenchmark' ||
+          className == 'BufferHashBenchmark' ||
           className == 'GraphPathBenchmark') {
         continue;
       }
@@ -278,7 +274,9 @@ abstract class Benchmark {
       resultsFile.writeAsStringSync(jsonEncode(results));
     } catch (_) {}
 
-    print('Summary: ${summaryTime.toStringAsFixed(4)}s, ${ok + fails}, $ok, $fails');
+    print(
+      'Summary: ${summaryTime.toStringAsFixed(4)}s, ${ok + fails}, $ok, $fails',
+    );
 
     if (fails > 0) {
       exit(1);
@@ -374,7 +372,6 @@ class Tape {
   void advance() {
     _pos++;
     if (_pos >= _tape.length) {
-
       final newTape = Uint8List(_tape.length + 1);
       newTape.setAll(0, _tape);
       newTape[_tape.length] = 0;
@@ -393,9 +390,9 @@ class BrainfuckProgram {
   final Uint8List _commands;
   final List<int> _jumps;
 
-  BrainfuckProgram(String text) : 
-    _commands = _filterCommands(text),
-    _jumps = List.filled(_filterCommands(text).length, 0) {
+  BrainfuckProgram(String text)
+    : _commands = _filterCommands(text),
+      _jumps = List.filled(_filterCommands(text).length, 0) {
     _buildJumps();
   }
 
@@ -414,9 +411,9 @@ class BrainfuckProgram {
 
     for (int i = 0; i < _commands.length; i++) {
       final cmd = _commands[i];
-      if (cmd == 91) { 
+      if (cmd == 91) {
         stack.add(i);
-      } else if (cmd == 93 && stack.isNotEmpty) { 
+      } else if (cmd == 93 && stack.isNotEmpty) {
         final start = stack.removeLast();
         _jumps[start] = i;
         _jumps[i] = start;
@@ -435,21 +432,29 @@ class BrainfuckProgram {
       final cmd = commands[pc];
 
       switch (cmd) {
-        case 43: tape.inc(); break;      
-        case 45: tape.dec(); break;      
-        case 62: tape.advance(); break;  
-        case 60: tape.devance(); break;  
-        case 91: 
+        case 43:
+          tape.inc();
+          break;
+        case 45:
+          tape.dec();
+          break;
+        case 62:
+          tape.advance();
+          break;
+        case 60:
+          tape.devance();
+          break;
+        case 91:
           if (tape.get() == 0) {
             pc = jumps[pc];
           }
           break;
-        case 93: 
+        case 93:
           if (tape.get() != 0) {
             pc = jumps[pc];
           }
           break;
-        case 46: 
+        case 46:
           result = ((result << 2) + tape.get()) & 0xFFFFFFFF;
           break;
       }
@@ -495,12 +500,17 @@ class BrainfuckArray extends Benchmark {
 
 abstract class Op {}
 
-class IncOp extends Op {}      
-class DecOp extends Op {}      
-class NextOp extends Op {}     
-class PrevOp extends Op {}     
-class PrintOp extends Op {}    
-class LoopOp extends Op {      
+class IncOp extends Op {}
+
+class DecOp extends Op {}
+
+class NextOp extends Op {}
+
+class PrevOp extends Op {}
+
+class PrintOp extends Op {}
+
+class LoopOp extends Op {
   final List<Op> ops;
   LoopOp(this.ops);
 }
@@ -641,7 +651,10 @@ class BrainfuckRecursion extends Benchmark {
 
   @override
   void warmup() {
-    final warmupProgram = Helper.configS(runtimeType.toString().split('.').last, "warmup_program");
+    final warmupProgram = Helper.configS(
+      runtimeType.toString().split('.').last,
+      "warmup_program",
+    );
     for (int i = 0; i < warmupIterations; i++) {
       final program = BrainfuckProgram2(warmupProgram);
       program.run();
@@ -691,7 +704,7 @@ class Pidigits extends Benchmark {
 
       if (a >= n) {
         final temp = n * BigInt.from(3) + a;
-        t = temp ~/ d;  
+        t = temp ~/ d;
         u = temp % d;
         u += n;
 
@@ -740,7 +753,6 @@ class Fannkuchredux extends Benchmark {
   }
 
   (int, int) _fannkuchredux(int n) {
-
     final perm1 = Int32List(n)..setAll(0, List.generate(n, (i) => i));
     final perm = Int32List(n);
     final count = Int32List(n);
@@ -762,7 +774,6 @@ class Fannkuchredux extends Benchmark {
       int k = perm[0];
 
       while (k != 0) {
-
         var i = 0;
         var j = k;
         while (i < j) {
@@ -821,21 +832,32 @@ class Fasta extends Benchmark {
   static const int LINE_LENGTH = 60;
 
   static final List<Gene> IUB = [
-    Gene('a', 0.27), Gene('c', 0.39), Gene('g', 0.51),
-    Gene('t', 0.78), Gene('B', 0.8), Gene('D', 0.8200000000000001),
-    Gene('H', 0.8400000000000001), Gene('K', 0.8600000000000001),
-    Gene('M', 0.8800000000000001), Gene('N', 0.9000000000000001),
-    Gene('R', 0.9200000000000002), Gene('S', 0.9400000000000002),
-    Gene('V', 0.9600000000000002), Gene('W', 0.9800000000000002),
+    Gene('a', 0.27),
+    Gene('c', 0.39),
+    Gene('g', 0.51),
+    Gene('t', 0.78),
+    Gene('B', 0.8),
+    Gene('D', 0.8200000000000001),
+    Gene('H', 0.8400000000000001),
+    Gene('K', 0.8600000000000001),
+    Gene('M', 0.8800000000000001),
+    Gene('N', 0.9000000000000001),
+    Gene('R', 0.9200000000000002),
+    Gene('S', 0.9400000000000002),
+    Gene('V', 0.9600000000000002),
+    Gene('W', 0.9800000000000002),
     Gene('Y', 1.0000000000000002),
   ];
 
   static final List<Gene> HOMO = [
-    Gene('a', 0.302954942668), Gene('c', 0.5009432431601),
-    Gene('g', 0.6984905497992), Gene('t', 1.0),
+    Gene('a', 0.302954942668),
+    Gene('c', 0.5009432431601),
+    Gene('g', 0.6984905497992),
+    Gene('t', 1.0),
   ];
 
-  static const String ALU = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
+  static const String ALU =
+      "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
 
   late int n;
   late StringBuffer resultBuffer;
@@ -923,7 +945,7 @@ class Fasta extends Benchmark {
   }
 
   @override
-  void runBenchmark(int iterationId) {    
+  void runBenchmark(int iterationId) {
     _makeRepeatFasta("ONE", "Homo sapiens alu", ALU, n * 2);
     _makeRandomFasta("TWO", "IUB ambiguity codes", IUB, n * 3);
     _makeRandomFasta("THREE", "Homo sapiens frequency", HOMO, n * 5);
@@ -1015,7 +1037,13 @@ class Knuckeotide extends Benchmark {
       _sortByFreq(_seq, i);
     }
 
-    final sequences = ['ggt', 'ggta', 'ggtatt', 'ggtattttaatt', 'ggtattttaatttatagt'];
+    final sequences = [
+      'ggt',
+      'ggta',
+      'ggtatt',
+      'ggtattttaatt',
+      'ggtattttaatttatagt',
+    ];
     for (final s in sequences) {
       _findSeq(_seq, s);
     }
@@ -1108,8 +1136,8 @@ abstract class MatmulBase extends Benchmark {
   List<List<double>> _matgen(int n) {
     final tmp = 1.0 / n / n;
     final a = List<List<double>>.generate(
-      n, 
-      (_) => List<double>.filled(n, 0.0)
+      n,
+      (_) => List<double>.filled(n, 0.0),
     );
 
     for (int i = 0; i < n; i++) {
@@ -1126,7 +1154,7 @@ abstract class MatmulBase extends Benchmark {
 
     final bT = List<List<double>>.generate(
       size,
-      (_) => List<double>.filled(size, 0.0)
+      (_) => List<double>.filled(size, 0.0),
     );
 
     for (int i = 0; i < size; i++) {
@@ -1137,7 +1165,7 @@ abstract class MatmulBase extends Benchmark {
 
     final c = List<List<double>>.generate(
       size,
-      (_) => List<double>.filled(size, 0.0)
+      (_) => List<double>.filled(size, 0.0),
     );
 
     for (int i = 0; i < size; i++) {
@@ -1160,15 +1188,15 @@ abstract class MatmulBase extends Benchmark {
   }
 
   Future<List<List<double>>> _matmulParallel(
-    List<List<double>> a, 
+    List<List<double>> a,
     List<List<double>> b,
-    int numThreads
+    int numThreads,
   ) async {
     final size = a.length;
 
     final bT = List<List<double>>.generate(
       size,
-      (_) => List<double>.filled(size, 0.0)
+      (_) => List<double>.filled(size, 0.0),
     );
 
     for (int i = 0; i < size; i++) {
@@ -1182,9 +1210,14 @@ abstract class MatmulBase extends Benchmark {
     final futures = List.generate(numThreads, (thread) async {
       return await Isolate.run(() {
         final start = thread * rowsPerThread;
-        final end = (start + rowsPerThread) < size ? start + rowsPerThread : size;
+        final end = (start + rowsPerThread) < size
+            ? start + rowsPerThread
+            : size;
 
-        final localResult = List.generate(end - start, (_) => List.filled(size, 0.0));
+        final localResult = List.generate(
+          end - start,
+          (_) => List.filled(size, 0.0),
+        );
 
         for (int localI = 0; localI < end - start; localI++) {
           final i = start + localI;
@@ -1283,9 +1316,13 @@ class Planet {
   double mass;
 
   Planet(
-    double x, double y, double z,
-    double vx, double vy, double vz,
-    double mass
+    double x,
+    double y,
+    double z,
+    double vx,
+    double vy,
+    double vz,
+    double mass,
   ) : x = x,
       y = y,
       z = z,
@@ -1378,13 +1415,19 @@ class Nbody extends Benchmark {
     final className = runtimeType.toString().split('.').last;
     final iterations = Helper.configI64(className, "iterations").toInt();
 
-    bodies = _initialBodies.map((p) => Planet(
-      p.x, p.y, p.z,
-      p.vx / DAYS_PER_YEAR,
-      p.vy / DAYS_PER_YEAR,
-      p.vz / DAYS_PER_YEAR,
-      p.mass / SOLAR_MASS,
-    )).toList();
+    bodies = _initialBodies
+        .map(
+          (p) => Planet(
+            p.x,
+            p.y,
+            p.z,
+            p.vx / DAYS_PER_YEAR,
+            p.vy / DAYS_PER_YEAR,
+            p.vz / DAYS_PER_YEAR,
+            p.mass / SOLAR_MASS,
+          ),
+        )
+        .toList();
 
     _offsetMomentum(bodies);
     _v1 = _energy(bodies);
@@ -1462,7 +1505,6 @@ class RegexDna extends Benchmark {
 
   @override
   void prepare() {
-
     final fasta = Fasta();
 
     fasta.setIterations(n);
@@ -1549,7 +1591,10 @@ class Revcomp extends Benchmark {
 
   @override
   void prepare() {
-    final n = Helper.configI64(runtimeType.toString().split('.').last, "n").toInt();
+    final n = Helper.configI64(
+      runtimeType.toString().split('.').last,
+      "n",
+    ).toInt();
 
     final fasta = Fasta();
     fasta.n = n;
@@ -1564,7 +1609,6 @@ class Revcomp extends Benchmark {
 
     for (final line in lines) {
       if (line.startsWith('>')) {
-
         seqParts.add("\n---\n");
       } else if (line.trim().isNotEmpty) {
         seqParts.add(line.trim());
@@ -1572,7 +1616,6 @@ class Revcomp extends Benchmark {
     }
 
     input = seqParts.join('');
-
   }
 
   static Uint8List _initLookupTable() {
@@ -1611,7 +1654,7 @@ class Revcomp extends Benchmark {
         resultBytes[writePos++] = lookup[charCode];
       }
 
-      resultBytes[writePos++] = 10; 
+      resultBytes[writePos++] = 10;
     }
 
     return String.fromCharCodes(resultBytes.sublist(0, writePos));
@@ -1716,7 +1759,7 @@ class Base64Encode extends Benchmark {
     final className = runtimeType.toString().split('.').last;
     n = Helper.configI64(className, "size").toInt();
 
-    _bytes = Uint8List(n); 
+    _bytes = Uint8List(n);
     for (int i = 0; i < n; i++) {
       _bytes[i] = 0x61;
     }
@@ -1732,8 +1775,9 @@ class Base64Encode extends Benchmark {
   @override
   int checksum() {
     final _str = 'a' * n;
-    final output = 'encode ${_str.substring(0, min(4, _str.length))}... '
-                  'to ${_str2.substring(0, min(4, _str2.length))}...: $_resultValue';
+    final output =
+        'encode ${_str.substring(0, min(4, _str.length))}... '
+        'to ${_str2.substring(0, min(4, _str2.length))}...: $_resultValue';
     return Helper.checksumString(output);
   }
 }
@@ -1749,7 +1793,7 @@ class Base64Decode extends Benchmark {
     final className = runtimeType.toString().split('.').last;
     n = Helper.configI64(className, "size").toInt();
 
-    _bytes = Uint8List(n); 
+    _bytes = Uint8List(n);
     for (int i = 0; i < n; i++) {
       _bytes[i] = 0x61;
     }
@@ -1765,8 +1809,9 @@ class Base64Decode extends Benchmark {
   @override
   int checksum() {
     final str3 = String.fromCharCodes(_bytes);
-    final output = 'decode ${_str2.substring(0, min(4, _str2.length))}... '
-                  'to ${str3.substring(0, min(4, str3.length))}...: $_resultValue';
+    final output =
+        'decode ${_str2.substring(0, min(4, _str2.length))}... '
+        'to ${str3.substring(0, min(4, str3.length))}...: $_resultValue';
     return Helper.checksumString(output);
   }
 }
@@ -1792,7 +1837,8 @@ class JsonGenerate extends Benchmark {
         'x': double.parse(Helper.nextFloat().toStringAsFixed(8)),
         'y': double.parse(Helper.nextFloat().toStringAsFixed(8)),
         'z': double.parse(Helper.nextFloat().toStringAsFixed(8)),
-        'name': '${Helper.nextFloat().toStringAsFixed(7)} ${Helper.nextInt(10000)}',
+        'name':
+            '${Helper.nextFloat().toStringAsFixed(7)} ${Helper.nextInt(10000)}',
         'opts': {
           '1': [1, true],
         },
@@ -1802,10 +1848,7 @@ class JsonGenerate extends Benchmark {
 
   @override
   void runBenchmark(int iterationId) {
-    final jsonData = {
-      'coordinates': data,
-      'info': 'some info',
-    };
+    final jsonData = {'coordinates': data, 'info': 'some info'};
 
     text = jsonEncode(jsonData);
 
@@ -1838,7 +1881,8 @@ class JsonParseDom extends Benchmark {
 
   (double, double, double) _calc(String text) {
     final json = jsonDecode(text) as Map<String, dynamic>;
-    final coordinates = (json['coordinates'] as List).cast<Map<String, dynamic>>();
+    final coordinates = (json['coordinates'] as List)
+        .cast<Map<String, dynamic>>();
     final len = coordinates.length.toDouble();
 
     double x = 0, y = 0, z = 0;
@@ -1883,7 +1927,8 @@ class JsonParseMapping extends Benchmark {
 
   ({double x, double y, double z}) _calc(String text) {
     final json = jsonDecode(text) as Map<String, dynamic>;
-    final coordinates = (json['coordinates'] as List).cast<Map<String, dynamic>>();
+    final coordinates = (json['coordinates'] as List)
+        .cast<Map<String, dynamic>>();
     final len = coordinates.length.toDouble();
 
     double x = 0, y = 0, z = 0;
@@ -2045,14 +2090,13 @@ class Noise2DContext {
   final List<NoiseVec2> _rgradients;
   final List<int> _permutations;
 
-  Noise2DContext(this.size) : 
-    mask = size - 1,
-    _rgradients = List.generate(size, (_) {
-      final v = Helper.nextFloat() * pi * 2.0;
-      return NoiseVec2(cos(v), sin(v));
-    }),
-    _permutations = List.generate(size, (i) => i) {
-
+  Noise2DContext(this.size)
+    : mask = size - 1,
+      _rgradients = List.generate(size, (_) {
+        final v = Helper.nextFloat() * pi * 2.0;
+        return NoiseVec2(cos(v), sin(v));
+      }),
+      _permutations = List.generate(size, (i) => i) {
     for (int i = 0; i < size; i++) {
       final a = Helper.nextInt(size);
       final b = Helper.nextInt(size);
@@ -2076,7 +2120,7 @@ class Noise2DContext {
   }
 
   double get(double x, double y) {
-    final x0f = x.floorToDouble();  
+    final x0f = x.floorToDouble();
     final y0f = y.floorToDouble();
     final x0 = x0f.toInt();
     final y0 = y0f.toInt();
@@ -2118,10 +2162,12 @@ class Noise extends Benchmark {
   void runBenchmark(int iterationId) {
     for (int y = 0; y < size; y++) {
       for (int x = 0; x < size; x++) {
-        final v = _n2d.get(x * 0.1, (y + (iterationId * 128)) * 0.1) * 0.5 + 0.5;
+        final v =
+            _n2d.get(x * 0.1, (y + (iterationId * 128)) * 0.1) * 0.5 + 0.5;
         final idx = (v / 0.2).floor();
         final charIdx = idx.clamp(0, _sym.length - 1);
-        _resultValue = (_resultValue + _sym[charIdx].codeUnitAt(0)) & 0xFFFFFFFF;
+        _resultValue =
+            (_resultValue + _sym[charIdx].codeUnitAt(0)) & 0xFFFFFFFF;
       }
     }
   }
@@ -2171,9 +2217,9 @@ class TextRaytracer extends Benchmark {
 
   @pragma('vm:prefer-inline')
   double? _intersectSphere(
-    TextRaytracerRay ray, 
-    TextRaytracerVector center, 
-    double radius
+    TextRaytracerRay ray,
+    TextRaytracerVector center,
+    double radius,
   ) {
     final l = center.subtract(ray.orig);
     final tca = l.dot(ray.dir);
@@ -2242,7 +2288,7 @@ class TextRaytracer extends Benchmark {
           }
         }
 
-        final pixel = hitObj != null 
+        final pixel = hitObj != null
             ? _lut[_shadePixel(ray, hitObj, tval!).clamp(0, _lut.length - 1)]
             : ' ';
 
@@ -2265,20 +2311,20 @@ class TextRaytracerVector {
   TextRaytracerVector(this.x, this.y, this.z);
 
   @pragma('vm:prefer-inline')
-  TextRaytracerVector scale(double s) => 
-    TextRaytracerVector(x * s, y * s, z * s);
+  TextRaytracerVector scale(double s) =>
+      TextRaytracerVector(x * s, y * s, z * s);
 
   @pragma('vm:prefer-inline')
   TextRaytracerVector add(TextRaytracerVector other) =>
-    TextRaytracerVector(x + other.x, y + other.y, z + other.z);
+      TextRaytracerVector(x + other.x, y + other.y, z + other.z);
 
   @pragma('vm:prefer-inline')
   TextRaytracerVector subtract(TextRaytracerVector other) =>
-    TextRaytracerVector(x - other.x, y - other.y, z - other.z);
+      TextRaytracerVector(x - other.x, y - other.y, z - other.z);
 
   @pragma('vm:prefer-inline')
   double dot(TextRaytracerVector other) =>
-    x * other.x + y * other.y + z * other.z;
+      x * other.x + y * other.y + z * other.z;
 
   double magnitude() => sqrt(dot(this));
 
@@ -2297,12 +2343,11 @@ class TextRaytracerColor {
   TextRaytracerColor(this.r, this.g, this.b);
 
   @pragma('vm:prefer-inline')
-  TextRaytracerColor scale(double s) =>
-    TextRaytracerColor(r * s, g * s, b * s);
+  TextRaytracerColor scale(double s) => TextRaytracerColor(r * s, g * s, b * s);
 
   @pragma('vm:prefer-inline')
   TextRaytracerColor add(TextRaytracerColor other) =>
-    TextRaytracerColor(r + other.r, g + other.g, b + other.b);
+      TextRaytracerColor(r + other.r, g + other.g, b + other.b);
 }
 
 class TextRaytracerSphere {
@@ -2313,7 +2358,7 @@ class TextRaytracerSphere {
   TextRaytracerSphere(this.center, this.radius, this.color);
 
   TextRaytracerVector getNormal(TextRaytracerVector pt) =>
-    pt.subtract(center).normalize();
+      pt.subtract(center).normalize();
 }
 
 class TextRaytracerLight {
@@ -2330,7 +2375,6 @@ class NeuralNetSynapse {
   final NeuralNetNeuron destNeuron;
 
   NeuralNetSynapse(this.sourceNeuron, this.destNeuron) {
-
     final randomWeight = Helper.nextFloat() * 2 - 1;
     prevWeight = randomWeight;
     weight = randomWeight;
@@ -2349,7 +2393,6 @@ class NeuralNetNeuron {
   double output = 0;
 
   NeuralNetNeuron() {
-
     final randomThreshold = Helper.nextFloat() * 2 - 1;
     prevThreshold = randomThreshold;
     threshold = randomThreshold;
@@ -2373,7 +2416,7 @@ class NeuralNetNeuron {
   }
 
   void hiddenTrain(double rate) {
-    error = 0.0;  
+    error = 0.0;
     for (final synapse in synapsesOut) {
       error += synapse.prevWeight * synapse.destNeuron.error;
     }
@@ -2384,14 +2427,16 @@ class NeuralNetNeuron {
   void _updateWeights(double rate) {
     for (final synapse in synapsesIn) {
       final tempWeight = synapse.weight;
-      synapse.weight += (rate * learningRate * error * synapse.sourceNeuron.output) +
-                       (momentum * (synapse.weight - synapse.prevWeight));
+      synapse.weight +=
+          (rate * learningRate * error * synapse.sourceNeuron.output) +
+          (momentum * (synapse.weight - synapse.prevWeight));
       synapse.prevWeight = tempWeight;
     }
 
     final tempThreshold = threshold;
-    threshold += (rate * learningRate * error * -1) +
-                (momentum * (threshold - prevThreshold));
+    threshold +=
+        (rate * learningRate * error * -1) +
+        (momentum * (threshold - prevThreshold));
     prevThreshold = tempThreshold;
   }
 }
@@ -2449,8 +2494,8 @@ class NeuralNetNetwork {
     }
   }
 
-  List<double> currentOutputs() => 
-    outputLayer.map((neuron) => neuron.output).toList();
+  List<double> currentOutputs() =>
+      outputLayer.map((neuron) => neuron.output).toList();
 
   double getWeightSum() {
     double sum = 0;
@@ -2469,7 +2514,7 @@ class NeuralNet extends Benchmark {
 
   @override
   void prepare() {
-    Helper.reset();  
+    Helper.reset();
     xor = NeuralNetNetwork(2, 10, 1);
   }
 
@@ -2635,7 +2680,7 @@ class GraphPathGraph {
   final List<List<int>> adj;
 
   GraphPathGraph(this.vertices, {this.jumps = 3, this.jumpLen = 100})
-      : adj = List.generate(vertices, (_) => []);
+    : adj = List.generate(vertices, (_) => []);
 
   void addEdge(int u, int v) {
     adj[u].add(v);
@@ -2843,7 +2888,6 @@ abstract class BufferHashBenchmark extends Benchmark {
 
   @override
   void runBenchmark(int iterationId) {
-
     final hash = test();
     _result = (_result + hash) & 0xFFFFFFFF;
   }
@@ -2857,7 +2901,6 @@ abstract class BufferHashBenchmark extends Benchmark {
 class BufferHashCRC32 extends BufferHashBenchmark {
   @override
   int test() {
-
     int crc = 0xFFFFFFFF;
 
     for (final byte in _data) {
@@ -2878,7 +2921,6 @@ class BufferHashCRC32 extends BufferHashBenchmark {
 class BufferHashSHA256 extends BufferHashBenchmark {
   @override
   int test() {
-
     final hashes = Uint32List(8);
     hashes[0] = 0x6a09e667;
     hashes[1] = 0xbb67ae85;
@@ -2907,7 +2949,6 @@ class BufferHashSHA256 extends BufferHashBenchmark {
     final result = Uint8List(32);
 
     for (int i = 0; i < 8; i++) {
-
       final hash = hashes[i];
 
       result[i * 4] = (hash >> 24) & 0xFF;
@@ -2917,9 +2958,9 @@ class BufferHashSHA256 extends BufferHashBenchmark {
     }
 
     return (result[0] & 0xFF) |
-           ((result[1] & 0xFF) << 8) |
-           ((result[2] & 0xFF) << 16) |
-           ((result[3] & 0xFF) << 24);
+        ((result[1] & 0xFF) << 8) |
+        ((result[2] & 0xFF) << 16) |
+        ((result[3] & 0xFF) << 24);
   }
 }
 
@@ -3183,8 +3224,8 @@ class Parser2 {
 
   Node2 parseVariable() {
     final start = pos;
-    while (pos < input.length && 
-          (_isLetter(currentChar) || _isDigit(currentChar))) {
+    while (pos < input.length &&
+        (_isLetter(currentChar) || _isDigit(currentChar))) {
       advance();
     }
 
@@ -3215,15 +3256,14 @@ class Parser2 {
     }
   }
 
-  bool _isDigit(String ch) => 
-      ch.codeUnitAt(0) >= 48 && ch.codeUnitAt(0) <= 57;
+  bool _isDigit(String ch) => ch.codeUnitAt(0) >= 48 && ch.codeUnitAt(0) <= 57;
 
   bool _isLetter(String ch) {
     final code = ch.codeUnitAt(0);
     return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
   }
 
-  bool _isWhitespace(String ch) => 
+  bool _isWhitespace(String ch) =>
       ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
 }
 
@@ -3255,10 +3295,14 @@ class CalculatorAst extends Benchmark {
 
       switch (Helper.nextInt(10)) {
         case 0:
-          buffer.write('(v${v - 1} / 3) * 4 - $i / (3 + (18 - v${v - 2})) % v${v - 3} + 2 * ((9 - v${v - 6}) * (v${v - 5} + 7))');
+          buffer.write(
+            '(v${v - 1} / 3) * 4 - $i / (3 + (18 - v${v - 2})) % v${v - 3} + 2 * ((9 - v${v - 6}) * (v${v - 5} + 7))',
+          );
           break;
         case 1:
-          buffer.write('v${v - 1} + (v${v - 2} + v${v - 3}) * v${v - 4} - (v${v - 5} / v${v - 6})');
+          buffer.write(
+            'v${v - 1} + (v${v - 2} + v${v - 3}) * v${v - 4} - (v${v - 5} / v${v - 6})',
+          );
           break;
         case 2:
           buffer.write('(3789 - (((v${v - 7})))) + 1');
@@ -3303,7 +3347,9 @@ class CalculatorAst extends Benchmark {
     if (_expressions.isNotEmpty) {
       final lastExpr = _expressions.last;
       if (lastExpr is AssignmentNode) {
-        _resultValue = (_resultValue + Helper.checksumString(lastExpr.varName)) & 0xFFFFFFFF;
+        _resultValue =
+            (_resultValue + Helper.checksumString(lastExpr.varName)) &
+            0xFFFFFFFF;
       }
     }
   }
@@ -3329,12 +3375,18 @@ class Interpreter2 {
       final right = evaluate(node.right);
 
       switch (node.op) {
-        case '+': return left + right;
-        case '-': return left - right;
-        case '*': return left * right;
-        case '/': return _simpleDiv(left, right);
-        case '%': return _simpleMod(left, right);
-        default: return 0;
+        case '+':
+          return left + right;
+        case '-':
+          return left - right;
+        case '*':
+          return left * right;
+        case '/':
+          return _simpleDiv(left, right);
+        case '%':
+          return _simpleMod(left, right);
+        default:
+          return 0;
       }
     } else if (node is AssignmentNode) {
       final value = evaluate(node.expr);
@@ -3414,7 +3466,7 @@ class CellObj {
   void computeNextState() {
     int aliveNeighbors = 0;
     for (int i = 0; i < neighborCount; i++) {
-      if (neighbors[i]!.alive) aliveNeighbors++;  
+      if (neighbors[i]!.alive) aliveNeighbors++;
     }
 
     if (alive) {
@@ -3438,7 +3490,10 @@ class GameOfLifeGrid {
     this.width = width;
     this.height = height;
 
-    cells = List.generate(height, (_) => List.generate(width, (_) => CellObj()));
+    cells = List.generate(
+      height,
+      (_) => List.generate(width, (_) => CellObj()),
+    );
 
     _linkNeighbors();
   }
@@ -3463,7 +3518,6 @@ class GameOfLifeGrid {
   }
 
   void nextGeneration() {
-
     for (final row in cells) {
       for (final cell in row) {
         cell.computeNextState();
@@ -3550,12 +3604,12 @@ class MazeGeneratorClass {
   final List<List<MazeCell>> cells;
 
   MazeGeneratorClass(int width, int height)
-      : width = max(width, 5),
-        height = max(height, 5),
-        cells = List.generate(
-          max(height, 5),
-          (_) => List.filled(max(width, 5), MazeCell.Wall),
-        );
+    : width = max(width, 5),
+      height = max(height, 5),
+      cells = List.generate(
+        max(height, 5),
+        (_) => List.filled(max(width, 5), MazeCell.Wall),
+      );
 
   MazeCell get(int x, int y) => cells[y][x];
   void setCell(int x, int y, MazeCell cell) => cells[y][x] = cell;
@@ -3574,12 +3628,13 @@ class MazeGeneratorClass {
     if (wWall <= 0 || hWall <= 0 || wHole <= 0 || hHole <= 0) return;
 
     if (w > h) {
-
       final wallRange = max(wWall ~/ 2, 1);
-      final wallX = x1 + 2 + (wallRange > 0 ? Helper.nextInt(wallRange) * 2 : 0);
+      final wallX =
+          x1 + 2 + (wallRange > 0 ? Helper.nextInt(wallRange) * 2 : 0);
 
       final holeRange = max(hHole ~/ 2, 1);
-      final holeY = y1 + 1 + (holeRange > 0 ? Helper.nextInt(holeRange) * 2 : 0);
+      final holeY =
+          y1 + 1 + (holeRange > 0 ? Helper.nextInt(holeRange) * 2 : 0);
 
       if (wallX <= x2 && holeY <= y2) {
         for (int y = y1; y <= y2; y++) {
@@ -3590,12 +3645,13 @@ class MazeGeneratorClass {
         if (wallX + 1 < x2) _divide(wallX + 1, y1, x2, y2);
       }
     } else {
-
       final wallRange = max(hWall ~/ 2, 1);
-      final wallY = y1 + 2 + (wallRange > 0 ? Helper.nextInt(wallRange) * 2 : 0);
+      final wallY =
+          y1 + 2 + (wallRange > 0 ? Helper.nextInt(wallRange) * 2 : 0);
 
       final holeRange = max(wHole ~/ 2, 1);
-      final holeX = x1 + 1 + (holeRange > 0 ? Helper.nextInt(holeRange) * 2 : 0);
+      final holeX =
+          x1 + 1 + (holeRange > 0 ? Helper.nextInt(holeRange) * 2 : 0);
 
       if (wallY <= y2 && holeX <= x2) {
         for (int x = x1; x <= x2; x++) {
@@ -3629,12 +3685,17 @@ class MazeGeneratorClass {
   }
 
   bool _isConnectedImpl(int startX, int startY, int goalX, int goalY) {
-    if (startX >= width || startY >= height ||
-        goalX >= width || goalY >= height) {
+    if (startX >= width ||
+        startY >= height ||
+        goalX >= width ||
+        goalY >= height) {
       return false;
     }
 
-    final visited = List.generate(height, (_) => List<bool>.filled(width, false));
+    final visited = List.generate(
+      height,
+      (_) => List<bool>.filled(width, false),
+    );
     final queue = Queue<(int, int)>();
 
     visited[startY][startX] = true;
@@ -3685,7 +3746,10 @@ class MazeGeneratorClass {
   }
 
   List<List<bool>> toBoolGrid() {
-    final result = List<List<bool>>.generate(height, (_) => List<bool>.filled(width, false));
+    final result = List<List<bool>>.generate(
+      height,
+      (_) => List<bool>.filled(width, false),
+    );
 
     for (int y = 0; y < height; y++) {
       final srcRow = cells[y];
@@ -3873,7 +3937,10 @@ class AStarPathfinder extends Benchmark {
   late Int32List cameFromCache;
 
   static const directions = [
-    [0, -1], [1, 0], [0, 1], [-1, 0]
+    [0, -1],
+    [1, 0],
+    [0, 1],
+    [-1, 0],
   ];
   static const straightCost = 1000;
   static const int inf = 0x7FFFFFFF;
@@ -3916,11 +3983,9 @@ class AStarPathfinder extends Benchmark {
 
     final startIdx = _packCoords(startX, startY);
     gScores[startIdx] = 0;
-    openSet.push(AStarNode(
-      startX,
-      startY,
-      _distance(startX, startY, goalX, goalY),
-    ));
+    openSet.push(
+      AStarNode(startX, startY, _distance(startX, startY, goalX, goalY)),
+    );
 
     var nodesExplored = 0;
 
@@ -4103,7 +4168,10 @@ class BWTHuffEncode extends Benchmark {
 
       var k = 1;
       while (k < n) {
-        final pairs = List<(int, int)>.generate(n, (i) => (rank[i], rank[(i + k) % n]));
+        final pairs = List<(int, int)>.generate(
+          n,
+          (i) => (rank[i], rank[(i + k) % n]),
+        );
 
         sa.sort((a, b) {
           final pairA = pairs[a];
@@ -4119,8 +4187,11 @@ class BWTHuffEncode extends Benchmark {
         for (int i = 1; i < n; i++) {
           final prevPair = pairs[sa[i - 1]];
           final currPair = pairs[sa[i]];
-          newRank[sa[i]] = newRank[sa[i - 1]] +
-              ((prevPair.$1 != currPair.$1 || prevPair.$2 != currPair.$2) ? 1 : 0);
+          newRank[sa[i]] =
+              newRank[sa[i - 1]] +
+              ((prevPair.$1 != currPair.$1 || prevPair.$2 != currPair.$2)
+                  ? 1
+                  : 0);
         }
 
         for (int i = 0; i < n; i++) {
@@ -4244,16 +4315,29 @@ class BWTHuffEncode extends Benchmark {
       }
     } else {
       if (node.left != null) {
-        buildHuffmanCodes(node.left!, code: code << 1, length: length + 1, huffmanCodes: codes);
+        buildHuffmanCodes(
+          node.left!,
+          code: code << 1,
+          length: length + 1,
+          huffmanCodes: codes,
+        );
       }
       if (node.right != null) {
-        buildHuffmanCodes(node.right!, code: (code << 1) | 1, length: length + 1, huffmanCodes: codes);
+        buildHuffmanCodes(
+          node.right!,
+          code: (code << 1) | 1,
+          length: length + 1,
+          huffmanCodes: codes,
+        );
       }
     }
     return codes;
   }
 
-  CompressionEncodedResult huffmanEncode(Uint8List data, CompressionHuffmanCodes huffmanCodes) {
+  CompressionEncodedResult huffmanEncode(
+    Uint8List data,
+    CompressionHuffmanCodes huffmanCodes,
+  ) {
     final result = Uint8List(data.length * 2);
     var currentByte = 0;
     var bitPos = 0;
@@ -4346,7 +4430,10 @@ class BWTHuffEncode extends Benchmark {
       huffmanTree,
       compressed.originalBitCount,
     );
-    final bwtResult = CompressionBWTResult(decoded, compressed.bwtResult.originalIdx);
+    final bwtResult = CompressionBWTResult(
+      decoded,
+      compressed.bwtResult.originalIdx,
+    );
     return bwtInverse(bwtResult);
   }
 
@@ -4568,9 +4655,9 @@ Future<void> main(List<String> args) async {
   String? testName;
 
   if (args.isNotEmpty) {
-    if (args[0].contains('.txt') || 
-        args[0].contains('.json') || 
-        args[0].contains('.js') || 
+    if (args[0].contains('.txt') ||
+        args[0].contains('.json') ||
+        args[0].contains('.js') ||
         args[0].contains('.config')) {
       configFile = args[0];
       testName = args.length > 1 ? args[1] : null;
@@ -4584,7 +4671,7 @@ Future<void> main(List<String> args) async {
   try {
     await Helper.loadConfig(configFile);
     registerBenchmarks();
-    await Benchmark.run(testName);  
+    await Benchmark.run(testName);
   } catch (error) {
     print('Failed to run benchmarks: $error');
     exit(1);

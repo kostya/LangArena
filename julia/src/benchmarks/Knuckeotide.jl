@@ -9,13 +9,13 @@ end
 
 name(b::Knuckeotide)::String = "Knuckeotide"
 
-function frequency(seq::String, len::Int)::Tuple{Int, Dict{String, Int}}
+function frequency(seq::String, len::Int)::Tuple{Int,Dict{String,Int}}
     n = length(seq) - len + 1
-    table = Dict{String, Int}()
+    table = Dict{String,Int}()
 
-    for i in 1:n
-        sub = seq[i:i+len-1]
-        table[sub] = Base.get(table, sub, 0) + 1  
+    for i = 1:n
+        sub = seq[i:(i+len-1)]
+        table[sub] = Base.get(table, sub, 0) + 1
     end
 
     return (n, table)
@@ -25,13 +25,13 @@ function find_seq(b::Knuckeotide, seq::String, s::String)
     len_s = length(s)
     n, table = frequency(seq, len_s)
     s_lower = lowercase(s)
-    count = Base.get(table, s_lower, 0)  
+    count = Base.get(table, s_lower, 0)
 
     s_upper = uppercase(s)
     b.result *= "$count\t$s_upper\n"
 end
 
-function sort_by_freq(b::Knuckeotide, seq::String, len::Int)  
+function sort_by_freq(b::Knuckeotide, seq::String, len::Int)
     n, table = frequency(seq, len)
 
     pairs = collect(table)
@@ -71,7 +71,7 @@ function prepare(b::Knuckeotide)
 end
 
 function run(b::Knuckeotide, iteration_id::Int64)
-    for i in 1:2
+    for i = 1:2
         sort_by_freq(b, b.seq, i)
     end
 

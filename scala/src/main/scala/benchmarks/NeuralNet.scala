@@ -15,10 +15,10 @@ class NeuralNet extends Benchmark:
     xorNet = NeuralNetwork(2, 10, 1)
 
   private class Synapse(
-    var weight: Double,
-    var prevWeight: Double,
-    val sourceNeuron: Neuron,
-    val destNeuron: Neuron
+      var weight: Double,
+      var prevWeight: Double,
+      val sourceNeuron: Neuron,
+      val destNeuron: Neuron
   )
 
   private object Synapse:
@@ -66,13 +66,13 @@ class NeuralNet extends Benchmark:
         val synapse = synapsesIn(i)
         val tempWeight = synapse.weight
         synapse.weight += (rate * LEARNING_RATE * error * synapse.sourceNeuron.output) +
-                         (MOMENTUM * (synapse.weight - synapse.prevWeight))
+          (MOMENTUM * (synapse.weight - synapse.prevWeight))
         synapse.prevWeight = tempWeight
         i += 1
 
       val tempThreshold = threshold
       threshold += (rate * LEARNING_RATE * error * -1) +
-                  (MOMENTUM * (threshold - prevThreshold))
+        (MOMENTUM * (threshold - prevThreshold))
       prevThreshold = tempThreshold
 
   private class NeuralNetwork(inputs: Int, hidden: Int, outputs: Int):

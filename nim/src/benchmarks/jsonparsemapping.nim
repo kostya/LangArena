@@ -20,7 +20,7 @@ method prepare(self: JsonParseMapping) =
   self.resultVal = 0
 
 method run(self: JsonParseMapping, iteration_id: int) =
-  let data = self.text.fromJson(JsonData)  
+  let data = self.text.fromJson(JsonData)
 
   var xSum, ySum, zSum: float
   var len = 0
@@ -36,7 +36,8 @@ method run(self: JsonParseMapping, iteration_id: int) =
     let y = ySum / float(len)
     let z = zSum / float(len)
 
-    self.resultVal = self.resultVal + checksumF64(x) + checksumF64(y) + checksumF64(z)
+    self.resultVal = self.resultVal + checksumF64(x) + checksumF64(y) +
+        checksumF64(z)
 
 method checksum(self: JsonParseMapping): uint32 =
   self.resultVal

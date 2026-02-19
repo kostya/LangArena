@@ -12,12 +12,12 @@ public class GameOfLife : Benchmark
         public void ComputeNextState()
         {
             int aliveNeighbors = 0;
-            foreach (var neighbor in _neighbors)  
+            foreach (var neighbor in _neighbors)
             {
                 if (neighbor.Alive) aliveNeighbors++;
             }
 
-            NextState = Alive 
+            NextState = Alive
                 ? aliveNeighbors == 2 || aliveNeighbors == 3
                 : aliveNeighbors == 3;
         }
@@ -107,7 +107,7 @@ public class GameOfLife : Benchmark
             return hash;
         }
 
-        public Cell[][] GetCells() => _cells;  
+        public Cell[][] GetCells() => _cells;
     }
 
     private readonly int _width;

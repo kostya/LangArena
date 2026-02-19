@@ -1,54 +1,56 @@
 const isDeno = (() => {
-    try {
-        // @ts-ignore
-        return typeof Deno !== 'undefined' && Deno.version !== undefined;
-    } catch {
-        return false;
-    }
+  try {
+    // @ts-ignore
+    return typeof Deno !== "undefined" && Deno.version !== undefined;
+  } catch {
+    return false;
+  }
 })();
 
 const isBun = (() => {
-    try {
-        // @ts-ignore
-        return typeof Bun !== 'undefined' && Bun.version !== undefined;
-    } catch {
-        return false;
-    }
+  try {
+    // @ts-ignore
+    return typeof Bun !== "undefined" && Bun.version !== undefined;
+  } catch {
+    return false;
+  }
 })();
 
 const isNode = (() => {
-    try {
-        // @ts-ignore
-        return typeof process !== 'undefined' && process.versions && process.versions.node && !isBun;
-    } catch {
-        return false;
-    }
+  try {
+    // @ts-ignore
+    return (
+      typeof process !== "undefined" &&
+      process.versions &&
+      process.versions.node &&
+      !isBun
+    );
+  } catch {
+    return false;
+  }
 })();
 
 const getPerformance = (): { now: () => number } => {
-    try {
-
-        const global = globalThis as any;
-        if (typeof global.performance !== 'undefined' && typeof global.performance.now === 'function') {
-            return global.performance;
-        }
-
-        if (isNode) {
-
-            try {
-                // @ts-ignore
-                return require('perf_hooks').performance;
-            } catch {
-
-            }
-        }
-    } catch {
-
+  try {
+    const global = globalThis as any;
+    if (
+      typeof global.performance !== "undefined" &&
+      typeof global.performance.now === "function"
+    ) {
+      return global.performance;
     }
 
-    return {
-        now: () => Date.now()
-    };
+    if (isNode) {
+      try {
+        // @ts-ignore
+        return require("perf_hooks").performance;
+      } catch {}
+    }
+  } catch {}
+
+  return {
+    now: () => Date.now(),
+  };
 };
 
 const performance = getPerformance();
@@ -77,7 +79,7 @@ export class Helper {
 
   static nextInt(max: number): number {
     Helper.last = (Helper.last * Helper.IA + Helper.IC) % Helper.IM;
-    return Math.floor(Helper.last / Helper.IM * max);
+    return Math.floor((Helper.last / Helper.IM) * max);
   }
 
   static nextIntRange(from: number, to: number): number {
@@ -86,45 +88,40 @@ export class Helper {
 
   static nextFloat(max: number = 1.0): number {
     Helper.last = (Helper.last * Helper.IA + Helper.IC) % Helper.IM;
-    return max * Helper.last / Helper.IM;
+    return (max * Helper.last) / Helper.IM;
   }
 
   static debug(message: string): void {
-
     try {
-        if (isDeno) {
-            // @ts-ignore
-            if (Deno.env.get('DEBUG') === '1') {
-                console.log(message);
-            }
-        } else if (isNode || isBun) {
-            // @ts-ignore
-            if (process.env.DEBUG === '1') {
-                console.log(message);
-            }
+      if (isDeno) {
+        // @ts-ignore
+        if (Deno.env.get("DEBUG") === "1") {
+          console.log(message);
         }
-    } catch {
-
-    }
+      } else if (isNode || isBun) {
+        // @ts-ignore
+        if (process.env.DEBUG === "1") {
+          console.log(message);
+        }
+      }
+    } catch {}
   }
 
   static checksumString(str: string): number {
-
     let hash = 5381;
     for (let i = 0; i < str.length; i++) {
       const byte = str.charCodeAt(i);
-      hash = ((hash << 5) + hash) + byte;
-      hash = hash & 0xFFFFFFFF;
+      hash = (hash << 5) + hash + byte;
+      hash = hash & 0xffffffff;
     }
     return hash >>> 0;
   }
 
   static checksumBytes(bytes: Uint8Array): number {
-
     let hash = 5381;
     for (const byte of bytes) {
-      hash = ((hash << 5) + hash) + byte;
-      hash = hash & 0xFFFFFFFF;
+      hash = (hash << 5) + hash + byte;
+      hash = hash & 0xffffffff;
     }
     return hash >>> 0;
   }
@@ -133,24 +130,28 @@ export class Helper {
     return Helper.checksumString(value.toFixed(7));
   }
 
-  static async loadConfig(configFile: string = '../test.js'): Promise<void> {
+  static async loadConfig(configFile: string = "../test.js"): Promise<void> {
     try {
-      let content = '';
+      let content = "";
 
       if (isDeno) {
         try {
-
           const denoGlobal = (globalThis as any).Deno;
-          if (denoGlobal && typeof denoGlobal.cwd === 'function') {
-            const filePath = configFile.startsWith('/') ? configFile : denoGlobal.cwd() + '/' + configFile;
+          if (denoGlobal && typeof denoGlobal.cwd === "function") {
+            const filePath = configFile.startsWith("/")
+              ? configFile
+              : denoGlobal.cwd() + "/" + configFile;
             content = denoGlobal.readTextFileSync(filePath);
           } else {
-            throw new Error('Deno environment not properly detected');
+            throw new Error("Deno environment not properly detected");
           }
         } catch (denoError: any) {
-          console.error(`Deno error loading ${configFile}:`, denoError?.message || denoError);
+          console.error(
+            `Deno error loading ${configFile}:`,
+            denoError?.message || denoError,
+          );
           const denoGlobal = (globalThis as any).Deno;
-          if (denoGlobal && typeof denoGlobal.exit === 'function') {
+          if (denoGlobal && typeof denoGlobal.exit === "function") {
             denoGlobal.exit(1);
           }
           throw denoError;
@@ -158,14 +159,17 @@ export class Helper {
       } else if (isNode) {
         try {
           // @ts-ignore
-          const fs = require('fs');
+          const fs = require("fs");
           // @ts-ignore
-          const path = require('path');
+          const path = require("path");
           // @ts-ignore
           const filePath = path.resolve(process.cwd(), configFile);
-          content = fs.readFileSync(filePath, 'utf-8');
+          content = fs.readFileSync(filePath, "utf-8");
         } catch (nodeError: any) {
-          console.error(`Node.js error loading ${configFile}:`, nodeError?.message || nodeError);
+          console.error(
+            `Node.js error loading ${configFile}:`,
+            nodeError?.message || nodeError,
+          );
           // @ts-ignore
           process.exit(1);
         }
@@ -175,7 +179,10 @@ export class Helper {
           const file = Bun.file(configFile);
           content = await file.text();
         } catch (bunError: any) {
-          console.error(`Bun error loading ${configFile}:`, bunError?.message || bunError);
+          console.error(
+            `Bun error loading ${configFile}:`,
+            bunError?.message || bunError,
+          );
           // @ts-ignore
           process.exit(1);
         }
@@ -187,25 +194,26 @@ export class Helper {
       const config = JSON.parse(content);
 
       (Helper as any).CONFIG = config;
-
     } catch (error: any) {
-      console.error(`Error loading config file ${configFile}:`, error?.message || error);
+      console.error(
+        `Error loading config file ${configFile}:`,
+        error?.message || error,
+      );
 
       try {
         if (isDeno) {
           const denoGlobal = (globalThis as any).Deno;
-          if (denoGlobal && typeof denoGlobal.exit === 'function') {
+          if (denoGlobal && typeof denoGlobal.exit === "function") {
             denoGlobal.exit(1);
           }
         } else if (isNode || isBun) {
           // @ts-ignore
-          if (typeof process !== 'undefined' && process.exit) {
+          if (typeof process !== "undefined" && process.exit) {
             // @ts-ignore
             process.exit(1);
           }
         }
       } catch {
-
         throw error;
       }
     }
@@ -218,12 +226,14 @@ export class Helper {
     }
 
     const value = config[className][fieldName];
-    if (typeof value === 'bigint') {
+    if (typeof value === "bigint") {
       return value;
-    } else if (typeof value === 'number') {
+    } else if (typeof value === "number") {
       return BigInt(value);
     } else {
-      throw new Error(`Config for ${className}, not found i64 field: ${fieldName} in ${JSON.stringify(config[className])}`);
+      throw new Error(
+        `Config for ${className}, not found i64 field: ${fieldName} in ${JSON.stringify(config[className])}`,
+      );
     }
   }
 
@@ -234,10 +244,12 @@ export class Helper {
     }
 
     const value = config[className][fieldName];
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       return value;
     } else {
-      throw new Error(`Config for ${className}, not found string field: ${fieldName} in ${JSON.stringify(config[className])}`);
+      throw new Error(
+        `Config for ${className}, not found string field: ${fieldName} in ${JSON.stringify(config[className])}`,
+      );
     }
   }
 }
@@ -257,11 +269,16 @@ async function main(): Promise<void> {
     args = [];
   }
 
-  let configFile = '../test.js';
+  let configFile = "../test.js";
   let testName: string | undefined;
 
   if (args.length >= 1) {
-    if (args[0].includes('.txt') || args[0].includes('.json') || args[0].includes('.js') || args[0].includes('.config')) {
+    if (
+      args[0].includes(".txt") ||
+      args[0].includes(".json") ||
+      args[0].includes(".js") ||
+      args[0].includes(".config")
+    ) {
       configFile = args[0];
       testName = args[1];
     } else {
@@ -275,16 +292,16 @@ async function main(): Promise<void> {
 }
 
 export abstract class Benchmark {
-  abstract run(iteration_id: number): void
+  abstract run(iteration_id: number): void;
   abstract checksum(): number;
 
-  prepare(): void {
-
-  }
+  prepare(): void {}
 
   get config(): Record<string, any> {
     const config = (Helper as any).CONFIG;
-    return config && config[this.constructor.name] ? config[this.constructor.name] : {};
+    return config && config[this.constructor.name]
+      ? config[this.constructor.name]
+      : {};
   }
 
   get warmupIterations(): number {
@@ -334,11 +351,18 @@ export abstract class Benchmark {
     for (const BenchmarkClass of benchmarkClasses) {
       const className = BenchmarkClass.name;
 
-      if (singleBench && !className.toLowerCase().includes(singleBench.toLowerCase())) {
+      if (
+        singleBench &&
+        !className.toLowerCase().includes(singleBench.toLowerCase())
+      ) {
         continue;
       }
 
-      if (className === "SortBenchmark" || className === "BufferHashBenchmark" || className === "GraphPathBenchmark") {
+      if (
+        className === "SortBenchmark" ||
+        className === "BufferHashBenchmark" ||
+        className === "GraphPathBenchmark"
+      ) {
         continue;
       }
 
@@ -376,9 +400,7 @@ export abstract class Benchmark {
           // @ts-ignore
           global.gc();
         }
-      } catch {
-
-      }
+      } catch {}
 
       const actualResult = BigInt(bench.checksum());
       const expectedResult = bench.expectedChecksum;
@@ -387,19 +409,19 @@ export abstract class Benchmark {
         try {
           if (isNode || isBun) {
             // @ts-ignore
-            process.stdout.write('OK ');
+            process.stdout.write("OK ");
           } else if (isDeno) {
             // @ts-ignore
-            Deno.stdout.write(new TextEncoder().encode('OK '));
+            Deno.stdout.write(new TextEncoder().encode("OK "));
           } else {
-            console.log('OK ');
+            console.log("OK ");
           }
         } catch {
-          console.log('OK ');
+          console.log("OK ");
         }
         ok++;
       } else {
-        const errorMsg = `ERR[actual=${actualResult.toString()}, expected=${expectedResult?.toString() || 'undefined'}] `;
+        const errorMsg = `ERR[actual=${actualResult.toString()}, expected=${expectedResult?.toString() || "undefined"}] `;
         try {
           if (isNode || isBun) {
             // @ts-ignore
@@ -423,26 +445,26 @@ export abstract class Benchmark {
     try {
       if (isNode) {
         // @ts-ignore
-        const fs = require('fs');
+        const fs = require("fs");
         // @ts-ignore
-        const path = require('path');
+        const path = require("path");
         fs.writeFileSync(
-          '/tmp/results.js',
-          `window.results = ${JSON.stringify(results)};`
+          "/tmp/results.js",
+          `window.results = ${JSON.stringify(results)};`,
         );
       } else if (isBun) {
         // @ts-ignore
-        const fs = require('fs');
+        const fs = require("fs");
         fs.writeFileSync(
-          '/tmp/results.js',
-          `window.results = ${JSON.stringify(results)};`
+          "/tmp/results.js",
+          `window.results = ${JSON.stringify(results)};`,
         );
       }
-    } catch {
+    } catch {}
 
-    }
-
-    console.log(`Summary: ${summaryTime.toFixed(4)}s, ${ok + fails}, ${ok}, ${fails}`);
+    console.log(
+      `Summary: ${summaryTime.toFixed(4)}s, ${ok + fails}, ${ok}, ${fails}`,
+    );
 
     if (fails > 0) {
       try {
@@ -454,7 +476,7 @@ export abstract class Benchmark {
           process.exit(1);
         }
       } catch {
-        throw new Error('Benchmarks failed');
+        throw new Error("Benchmarks failed");
       }
     }
   }
@@ -480,7 +502,7 @@ export class Pidigits extends Benchmark {
     this.nn = Number(Helper.configI64(this.constructor.name, "amount"));
   }
 
-  run(_iteration_id: number): void {    
+  run(_iteration_id: number): void {
     let i = 0;
     let k = 0;
     let ns = 0n;
@@ -511,7 +533,7 @@ export class Pidigits extends Benchmark {
           i += 1;
 
           if (i % 10 === 0) {
-            const line = ns.toString().padStart(10, '0') + `\t:${i}\n`;
+            const line = ns.toString().padStart(10, "0") + `\t:${i}\n`;
             this.resultBuffer.push(line);
             ns = 0n;
           }
@@ -528,13 +550,13 @@ export class Pidigits extends Benchmark {
 
     if (ns !== 0n && this.resultBuffer.length > 0) {
       const remainingDigits = this.nn % 10 || 10;
-      const line = ns.toString().padStart(remainingDigits, '0') + `\t:${i}\n`;
+      const line = ns.toString().padStart(remainingDigits, "0") + `\t:${i}\n`;
       this.resultBuffer.push(line);
     }
   }
 
   checksum(): number {
-    return Helper.checksumString(this.resultBuffer.join(''));
+    return Helper.checksumString(this.resultBuffer.join(""));
   }
 }
 
@@ -544,7 +566,7 @@ class TreeNode {
 
   constructor(
     public item: number,
-    depth: number = 0
+    depth: number = 0,
   ) {
     if (depth > 0) {
       this.left = new TreeNode(2 * item - 1, depth - 1);
@@ -641,8 +663,7 @@ class Program {
   private jumps: number[];
 
   constructor(text: string) {
-
-    const valid = new Set(['[', ']', '<', '>', '+', '-', ',', '.']);
+    const valid = new Set(["[", "]", "<", ">", "+", "-", ",", "."]);
     const bytes: number[] = [];
     for (let i = 0; i < text.length; i++) {
       const c = text[i];
@@ -657,9 +678,9 @@ class Program {
 
     for (let i = 0; i < this.commands.length; i++) {
       const cmd = this.commands[i];
-      if (cmd === 91) { 
+      if (cmd === 91) {
         stack.push(i);
-      } else if (cmd === 93 && stack.length > 0) { 
+      } else if (cmd === 93 && stack.length > 0) {
         const start = stack.pop()!;
         this.jumps[start] = i;
         this.jumps[i] = start;
@@ -678,21 +699,29 @@ class Program {
       const cmd = commands[pc];
 
       switch (cmd) {
-        case 43: tape.inc(); break;      
-        case 45: tape.dec(); break;      
-        case 62: tape.advance(); break;  
-        case 60: tape.devance(); break;  
-        case 91: 
+        case 43:
+          tape.inc();
+          break;
+        case 45:
+          tape.dec();
+          break;
+        case 62:
+          tape.advance();
+          break;
+        case 60:
+          tape.devance();
+          break;
+        case 91:
           if (tape.get() === 0) {
             pc = jumps[pc];
           }
           break;
-        case 93: 
+        case 93:
           if (tape.get() !== 0) {
             pc = jumps[pc];
           }
           break;
-        case 46: 
+        case 46:
           result = ((result << 2) + tape.get()) >>> 0;
           break;
       }
@@ -733,18 +762,18 @@ export class BrainfuckArray extends Benchmark {
 }
 
 const enum OpType {
-  INC,   
-  DEC,   
-  NEXT,  
-  PREV,  
-  PRINT, 
-  LOOP   
+  INC,
+  DEC,
+  NEXT,
+  PREV,
+  PRINT,
+  LOOP,
 }
 
 type Op = {
   type: OpType;
-  loop?: Op[];  
-}
+  loop?: Op[];
+};
 
 class Tape2 {
   private tape: Uint8Array;
@@ -840,27 +869,27 @@ class Program2 {
       let op: Op | null = null;
 
       switch (c) {
-        case '+':
+        case "+":
           op = { type: OpType.INC };
           break;
-        case '-':
+        case "-":
           op = { type: OpType.DEC };
           break;
-        case '>':
+        case ">":
           op = { type: OpType.NEXT };
           break;
-        case '<':
+        case "<":
           op = { type: OpType.PREV };
           break;
-        case '.':
+        case ".":
           op = { type: OpType.PRINT };
           break;
-        case '[':
+        case "[":
           const [loopOps, newIndex] = this.parseSequence(chars, i);
           op = { type: OpType.LOOP, loop: loopOps };
           i = newIndex;
           break;
-        case ']':
+        case "]":
           return [result, i];
         default:
           continue;
@@ -886,7 +915,10 @@ export class BrainfuckRecursion extends Benchmark {
   }
 
   warmup(): void {
-    const warmupProgram = Helper.configS(this.constructor.name, "warmup_program");
+    const warmupProgram = Helper.configS(
+      this.constructor.name,
+      "warmup_program",
+    );
     for (let i = 0; i < this.warmupIterations; i++) {
       const program = new Program2(warmupProgram);
       program.run();
@@ -913,7 +945,6 @@ export class Fannkuchredux extends Benchmark {
   }
 
   private fannkuchredux(n: number): [number, number] {
-
     const perm1 = new Int32Array(n);
     for (let i = 0; i < n; ++i) perm1[i] = i;
 
@@ -937,7 +968,6 @@ export class Fannkuchredux extends Benchmark {
       let k = perm[0];
 
       while (k !== 0) {
-
         let i = 0;
         let j = k;
         while (i < j) {
@@ -994,24 +1024,35 @@ export class Fasta extends Benchmark {
   private static readonly LINE_LENGTH = 60;
 
   private static readonly IUB: Gene[] = [
-    {char: 'a', prob: 0.27}, {char: 'c', prob: 0.39}, {char: 'g', prob: 0.51},
-    {char: 't', prob: 0.78}, {char: 'B', prob: 0.8}, {char: 'D', prob: 0.8200000000000001},
-    {char: 'H', prob: 0.8400000000000001}, {char: 'K', prob: 0.8600000000000001},
-    {char: 'M', prob: 0.8800000000000001}, {char: 'N', prob: 0.9000000000000001},
-    {char: 'R', prob: 0.9200000000000002}, {char: 'S', prob: 0.9400000000000002},
-    {char: 'V', prob: 0.9600000000000002}, {char: 'W', prob: 0.9800000000000002},
-    {char: 'Y', prob: 1.0000000000000002}
+    { char: "a", prob: 0.27 },
+    { char: "c", prob: 0.39 },
+    { char: "g", prob: 0.51 },
+    { char: "t", prob: 0.78 },
+    { char: "B", prob: 0.8 },
+    { char: "D", prob: 0.8200000000000001 },
+    { char: "H", prob: 0.8400000000000001 },
+    { char: "K", prob: 0.8600000000000001 },
+    { char: "M", prob: 0.8800000000000001 },
+    { char: "N", prob: 0.9000000000000001 },
+    { char: "R", prob: 0.9200000000000002 },
+    { char: "S", prob: 0.9400000000000002 },
+    { char: "V", prob: 0.9600000000000002 },
+    { char: "W", prob: 0.9800000000000002 },
+    { char: "Y", prob: 1.0000000000000002 },
   ];
 
   private static readonly HOMO: Gene[] = [
-    {char: 'a', prob: 0.302954942668}, {char: 'c', prob: 0.5009432431601},
-    {char: 'g', prob: 0.6984905497992}, {char: 't', prob: 1.0}
+    { char: "a", prob: 0.302954942668 },
+    { char: "c", prob: 0.5009432431601 },
+    { char: "g", prob: 0.6984905497992 },
+    { char: "t", prob: 1.0 },
   ];
 
-  private static readonly ALU = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
+  private static readonly ALU =
+    "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
 
   public n: number;
-  public resultStr: string = '';
+  public resultStr: string = "";
 
   constructor() {
     super();
@@ -1042,7 +1083,12 @@ export class Fasta extends Benchmark {
     return genelist[hi].char;
   }
 
-  private makeRandomFasta(id: string, desc: string, genelist: Gene[], n: number): void {
+  private makeRandomFasta(
+    id: string,
+    desc: string,
+    genelist: Gene[],
+    n: number,
+  ): void {
     const lines: string[] = [];
     lines.push(`>${id} ${desc}`);
 
@@ -1056,14 +1102,19 @@ export class Fasta extends Benchmark {
         lineChars[i] = this.selectRandom(genelist);
       }
 
-      lines.push(lineChars.join(''));
+      lines.push(lineChars.join(""));
       todo -= Fasta.LINE_LENGTH;
     }
 
-    this.resultStr += lines.join('\n') + '\n';
+    this.resultStr += lines.join("\n") + "\n";
   }
 
-  private makeRepeatFasta(id: string, desc: string, s: string, n: number): void {
+  private makeRepeatFasta(
+    id: string,
+    desc: string,
+    s: string,
+    n: number,
+  ): void {
     let todo = n;
     let k = 0;
     const kn = s.length;
@@ -1085,7 +1136,7 @@ export class Fasta extends Benchmark {
         k += remaining;
       }
 
-      this.resultStr += '\n';
+      this.resultStr += "\n";
       todo -= Fasta.LINE_LENGTH;
     }
   }
@@ -1093,7 +1144,12 @@ export class Fasta extends Benchmark {
   run(_iteration_id: number): void {
     this.makeRepeatFasta("ONE", "Homo sapiens alu", Fasta.ALU, this.n * 2);
     this.makeRandomFasta("TWO", "IUB ambiguity codes", Fasta.IUB, this.n * 3);
-    this.makeRandomFasta("THREE", "Homo sapiens frequency", Fasta.HOMO, this.n * 5);
+    this.makeRandomFasta(
+      "THREE",
+      "Homo sapiens frequency",
+      Fasta.HOMO,
+      this.n * 5,
+    );
   }
 
   checksum(): number {
@@ -1102,10 +1158,13 @@ export class Fasta extends Benchmark {
 }
 
 export class Knuckeotide extends Benchmark {
-  private seq: string = '';
-  private resultStr: string = '';
+  private seq: string = "";
+  private resultStr: string = "";
 
-  private frequency(seq: string, length: number): { n: number; table: Map<string, number> } {
+  private frequency(
+    seq: string,
+    length: number,
+  ): { n: number; table: Map<string, number> } {
     const n = seq.length - length + 1;
     const table = new Map<string, number>();
 
@@ -1127,7 +1186,7 @@ export class Knuckeotide extends Benchmark {
       this.resultStr += `${key.toUpperCase()} ${freq.toFixed(3)}\n`;
     }
 
-    this.resultStr += '\n';
+    this.resultStr += "\n";
   }
 
   private findSeq(seq: string, s: string): void {
@@ -1137,34 +1196,34 @@ export class Knuckeotide extends Benchmark {
   }
 
   prepare(): void {
-      const n = Number(Helper.configI64(this.constructor.name, "n"));
+    const n = Number(Helper.configI64(this.constructor.name, "n"));
 
-      const fasta = new Fasta();
-      fasta.n = n;
-      fasta.prepare();
-      fasta.run(0);
+    const fasta = new Fasta();
+    fasta.n = n;
+    fasta.prepare();
+    fasta.run(0);
 
-      const fastaOutput = fasta.resultStr;
+    const fastaOutput = fasta.resultStr;
 
-      let seq = '';
-      let afterThree = false;
+    let seq = "";
+    let afterThree = false;
 
-      const lines = fastaOutput.split('\n');
-      for (const line of lines) {
-          if (line.startsWith('>THREE')) {
-              afterThree = true;
-              continue;
-          }
-
-          if (afterThree) {
-              if (line.startsWith('>')) {
-                  break;
-              }
-              seq += line.trim();
-          }
+    const lines = fastaOutput.split("\n");
+    for (const line of lines) {
+      if (line.startsWith(">THREE")) {
+        afterThree = true;
+        continue;
       }
 
-      this.seq = seq;
+      if (afterThree) {
+        if (line.startsWith(">")) {
+          break;
+        }
+        seq += line.trim();
+      }
+    }
+
+    this.seq = seq;
   }
 
   run(_iteration_id: number): void {
@@ -1172,7 +1231,13 @@ export class Knuckeotide extends Benchmark {
       this.sortByFreq(this.seq, i);
     }
 
-    const sequences = ['ggt', 'ggta', 'ggtatt', 'ggtattttaatt', 'ggtattttaatttatagt'];
+    const sequences = [
+      "ggt",
+      "ggta",
+      "ggtatt",
+      "ggtattttaatt",
+      "ggtattttaatttatagt",
+    ];
     for (const s of sequences) {
       this.findSeq(this.seq, s);
     }
@@ -1200,7 +1265,7 @@ export class Mandelbrot extends Benchmark {
   run(_iteration_id: number): void {
     const header = `P4\n${this.w} ${this.h}\n`;
 
-    this.resultBytes.push(...Array.from(header, c => c.charCodeAt(0)));
+    this.resultBytes.push(...Array.from(header, (c) => c.charCodeAt(0)));
 
     let bitNum = 0;
     let byteAcc = 0;
@@ -1212,11 +1277,14 @@ export class Mandelbrot extends Benchmark {
         let tr = 0.0;
         let ti = 0.0;
 
-        const cr = (2.0 * x / this.w - 1.5);
-        const ci = (2.0 * y / this.h - 1.0);
+        const cr = (2.0 * x) / this.w - 1.5;
+        const ci = (2.0 * y) / this.h - 1.0;
 
         let i = 0;
-        while (i < Mandelbrot.ITER && (tr + ti) <= Mandelbrot.LIMIT * Mandelbrot.LIMIT) {
+        while (
+          i < Mandelbrot.ITER &&
+          tr + ti <= Mandelbrot.LIMIT * Mandelbrot.LIMIT
+        ) {
           zi = 2.0 * zr * zi + ci;
           zr = tr - ti + cr;
           tr = zr * zr;
@@ -1235,7 +1303,7 @@ export class Mandelbrot extends Benchmark {
           byteAcc = 0;
           bitNum = 0;
         } else if (x === this.w - 1) {
-          byteAcc <<= (8 - (this.w % 8));
+          byteAcc <<= 8 - (this.w % 8);
           this.resultBytes.push(byteAcc);
           byteAcc = 0;
           bitNum = 0;
@@ -1264,14 +1332,18 @@ export class Matmul1T extends Benchmark {
     const n = a[0].length;
     const p = b[0].length;
 
-    const b2: number[][] = Array(p).fill(0).map(() => Array(n).fill(0));
+    const b2: number[][] = Array(p)
+      .fill(0)
+      .map(() => Array(n).fill(0));
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < p; j++) {
         b2[j][i] = b[i][j];
       }
     }
 
-    const c: number[][] = Array(m).fill(0).map(() => Array(p).fill(0));
+    const c: number[][] = Array(m)
+      .fill(0)
+      .map(() => Array(p).fill(0));
 
     for (let i = 0; i < m; i++) {
       const ai = a[i];
@@ -1294,7 +1366,9 @@ export class Matmul1T extends Benchmark {
 
   private matgen(n: number): number[][] {
     const tmp = 1.0 / n / n;
-    const a: number[][] = Array(n).fill(0).map(() => Array(n).fill(0));
+    const a: number[][] = Array(n)
+      .fill(0)
+      .map(() => Array(n).fill(0));
 
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
@@ -1311,7 +1385,8 @@ export class Matmul1T extends Benchmark {
     const c = this.matmul(a, b);
     const value = c[this.n >> 1][this.n >> 1];
 
-    this.resultValue = (this.resultValue + Helper.checksumFloat(value)) & 0xFFFFFFFF;
+    this.resultValue =
+      (this.resultValue + Helper.checksumFloat(value)) & 0xffffffff;
   }
 
   checksum(): number {
@@ -1330,7 +1405,9 @@ export class Matmul4T extends Benchmark {
 
   private matgen(n: number): number[][] {
     const tmp = 1.0 / n / n;
-    const a: number[][] = Array(n).fill(0).map(() => Array(n).fill(0));
+    const a: number[][] = Array(n)
+      .fill(0)
+      .map(() => Array(n).fill(0));
 
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
@@ -1344,14 +1421,18 @@ export class Matmul4T extends Benchmark {
   private matmulParallel(a: number[][], b: number[][]): number[][] {
     const size = a.length;
 
-    const bT: number[][] = Array(size).fill(0).map(() => Array(size).fill(0));
+    const bT: number[][] = Array(size)
+      .fill(0)
+      .map(() => Array(size).fill(0));
     for (let i = 0; i < size; i++) {
       for (let j = 0; j < size; j++) {
         bT[j][i] = b[i][j];
       }
     }
 
-    const c: number[][] = Array(size).fill(0).map(() => Array(size).fill(0));
+    const c: number[][] = Array(size)
+      .fill(0)
+      .map(() => Array(size).fill(0));
 
     const numParts = 4;
     const rowsPerPart = Math.ceil(size / numParts);
@@ -1386,7 +1467,8 @@ export class Matmul4T extends Benchmark {
     const c = this.matmulParallel(a, b);
     const value = c[this.n >> 1][this.n >> 1];
 
-    this.resultValue = (this.resultValue + Helper.checksumFloat(value)) & 0xFFFFFFFF;
+    this.resultValue =
+      (this.resultValue + Helper.checksumFloat(value)) & 0xffffffff;
   }
 
   checksum(): number {
@@ -1405,7 +1487,9 @@ export class Matmul8T extends Benchmark {
 
   private matgen(n: number): number[][] {
     const tmp = 1.0 / n / n;
-    const a: number[][] = Array(n).fill(0).map(() => Array(n).fill(0));
+    const a: number[][] = Array(n)
+      .fill(0)
+      .map(() => Array(n).fill(0));
 
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
@@ -1419,14 +1503,18 @@ export class Matmul8T extends Benchmark {
   private matmulParallel(a: number[][], b: number[][]): number[][] {
     const size = a.length;
 
-    const bT: number[][] = Array(size).fill(0).map(() => Array(size).fill(0));
+    const bT: number[][] = Array(size)
+      .fill(0)
+      .map(() => Array(size).fill(0));
     for (let i = 0; i < size; i++) {
       for (let j = 0; j < size; j++) {
         bT[j][i] = b[i][j];
       }
     }
 
-    const c: number[][] = Array(size).fill(0).map(() => Array(size).fill(0));
+    const c: number[][] = Array(size)
+      .fill(0)
+      .map(() => Array(size).fill(0));
 
     const numParts = 8;
     const rowsPerPart = Math.ceil(size / numParts);
@@ -1461,7 +1549,8 @@ export class Matmul8T extends Benchmark {
     const c = this.matmulParallel(a, b);
     const value = c[this.n >> 1][this.n >> 1];
 
-    this.resultValue = (this.resultValue + Helper.checksumFloat(value)) & 0xFFFFFFFF;
+    this.resultValue =
+      (this.resultValue + Helper.checksumFloat(value)) & 0xffffffff;
   }
 
   checksum(): number {
@@ -1480,7 +1569,9 @@ export class Matmul16T extends Benchmark {
 
   private matgen(n: number): number[][] {
     const tmp = 1.0 / n / n;
-    const a: number[][] = Array(n).fill(0).map(() => Array(n).fill(0));
+    const a: number[][] = Array(n)
+      .fill(0)
+      .map(() => Array(n).fill(0));
 
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
@@ -1494,14 +1585,18 @@ export class Matmul16T extends Benchmark {
   private matmulParallel(a: number[][], b: number[][]): number[][] {
     const size = a.length;
 
-    const bT: number[][] = Array(size).fill(0).map(() => Array(size).fill(0));
+    const bT: number[][] = Array(size)
+      .fill(0)
+      .map(() => Array(size).fill(0));
     for (let i = 0; i < size; i++) {
       for (let j = 0; j < size; j++) {
         bT[j][i] = b[i][j];
       }
     }
 
-    const c: number[][] = Array(size).fill(0).map(() => Array(size).fill(0));
+    const c: number[][] = Array(size)
+      .fill(0)
+      .map(() => Array(size).fill(0));
 
     const numParts = 16;
     const rowsPerPart = Math.ceil(size / numParts);
@@ -1536,7 +1631,8 @@ export class Matmul16T extends Benchmark {
     const c = this.matmulParallel(a, b);
     const value = c[this.n >> 1][this.n >> 1];
 
-    this.resultValue = (this.resultValue + Helper.checksumFloat(value)) & 0xFFFFFFFF;
+    this.resultValue =
+      (this.resultValue + Helper.checksumFloat(value)) & 0xffffffff;
   }
 
   checksum(): number {
@@ -1557,9 +1653,13 @@ class Planet {
   mass: number;
 
   constructor(
-    x: number, y: number, z: number,
-    vx: number, vy: number, vz: number,
-    mass: number
+    x: number,
+    y: number,
+    z: number,
+    vx: number,
+    vy: number,
+    vz: number,
+    mass: number,
   ) {
     this.x = x;
     this.y = y;
@@ -1605,40 +1705,44 @@ export class Nbody extends Benchmark {
     new Planet(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0),
 
     new Planet(
-      4.84143144246472090e+00,
-      -1.16032004402742839e+00,
-      -1.03622044471123109e-01,
-      1.66007664274403694e-03,
-      7.69901118419740425e-03,
-      -6.90460016972063023e-05,
-      9.54791938424326609e-04),
+      4.8414314424647209,
+      -1.16032004402742839,
+      -1.03622044471123109e-1,
+      1.66007664274403694e-3,
+      7.69901118419740425e-3,
+      -6.90460016972063023e-5,
+      9.54791938424326609e-4,
+    ),
 
     new Planet(
-      8.34336671824457987e+00,
-      4.12479856412430479e+00,
-      -4.03523417114321381e-01,
-      -2.76742510726862411e-03,
-      4.99852801234917238e-03,
-      2.30417297573763929e-05,
-      2.85885980666130812e-04),
+      8.34336671824457987,
+      4.12479856412430479,
+      -4.03523417114321381e-1,
+      -2.76742510726862411e-3,
+      4.99852801234917238e-3,
+      2.30417297573763929e-5,
+      2.85885980666130812e-4,
+    ),
 
     new Planet(
-      1.28943695621391310e+01,
-      -1.51111514016986312e+01,
-      -2.23307578892655734e-01,
-      2.96460137564761618e-03,
-      2.37847173959480950e-03,
-      -2.96589568540237556e-05,
-      4.36624404335156298e-05),
+      1.2894369562139131e1,
+      -1.51111514016986312e1,
+      -2.23307578892655734e-1,
+      2.96460137564761618e-3,
+      2.3784717395948095e-3,
+      -2.96589568540237556e-5,
+      4.36624404335156298e-5,
+    ),
 
     new Planet(
-      1.53796971148509165e+01,
-      -2.59193146099879641e+01,
-      1.79258772950371181e-01,
-      2.68067772490389322e-03,
-      1.62824170038242295e-03,
-      -9.51592254519715870e-05,
-      5.15138902046611451e-05),
+      1.53796971148509165e1,
+      -2.59193146099879641e1,
+      1.79258772950371181e-1,
+      2.68067772490389322e-3,
+      1.62824170038242295e-3,
+      -9.5159225451971587e-5,
+      5.15138902046611451e-5,
+    ),
   ];
 
   private bodies: Planet[];
@@ -1647,12 +1751,16 @@ export class Nbody extends Benchmark {
 
   constructor() {
     super();
-    this.bodies = Nbody.BODIES.map(p => {
-      return new Planet(p.x, p.y, p.z, 
+    this.bodies = Nbody.BODIES.map((p) => {
+      return new Planet(
+        p.x,
+        p.y,
+        p.z,
         p.vx / DAYS_PER_YEAR,
         p.vy / DAYS_PER_YEAR,
         p.vz / DAYS_PER_YEAR,
-        p.mass / SOLAR_MASS);
+        p.mass / SOLAR_MASS,
+      );
     });
   }
 
@@ -1720,55 +1828,55 @@ export class Nbody extends Benchmark {
     const checksum1 = Helper.checksumFloat(this.v1);
     const checksum2 = Helper.checksumFloat(v2);
 
-    return ((checksum1 << 5) & checksum2) & 0xFFFFFFFF;
+    return (checksum1 << 5) & checksum2 & 0xffffffff;
   }
 }
 
 export class RegexDna extends Benchmark {
-  private seq: string = '';
+  private seq: string = "";
   private ilen: number = 0;
   private clen: number = 0;
-  private resultStr: string = '';
+  private resultStr: string = "";
 
   prepare(): void {
-      const n = Number(Helper.configI64(this.constructor.name, "n"));
+    const n = Number(Helper.configI64(this.constructor.name, "n"));
 
-      const fasta = new Fasta();
-      fasta.n = n;
-      fasta.prepare();
-      fasta.run(0);
+    const fasta = new Fasta();
+    fasta.n = n;
+    fasta.prepare();
+    fasta.run(0);
 
-      const fastaOutput = fasta.resultStr;
+    const fastaOutput = fasta.resultStr;
 
-      let seq = '';
-      let totalBytes = 0;
+    let seq = "";
+    let totalBytes = 0;
 
-      const lines = fastaOutput.split('\n');
-      for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
+    const lines = fastaOutput.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
 
-          const lineBytes = new TextEncoder().encode(line).length;
+      const lineBytes = new TextEncoder().encode(line).length;
 
-          if (i < lines.length - 1) {
-              totalBytes += lineBytes + 1;
-          } else if (line.length > 0) {
-              totalBytes += lineBytes;
-          } else {
-          }
-
-          if (!line.startsWith('>')) {
-              seq += line.trim();
-          }
+      if (i < lines.length - 1) {
+        totalBytes += lineBytes + 1;
+      } else if (line.length > 0) {
+        totalBytes += lineBytes;
+      } else {
       }
 
-      totalBytes = new TextEncoder().encode(fastaOutput).length;
+      if (!line.startsWith(">")) {
+        seq += line.trim();
+      }
+    }
 
-      this.seq = seq;
-      this.ilen = totalBytes;
-      this.clen = new TextEncoder().encode(seq).length;
+    totalBytes = new TextEncoder().encode(fastaOutput).length;
+
+    this.seq = seq;
+    this.ilen = totalBytes;
+    this.clen = new TextEncoder().encode(seq).length;
   }
 
-  run(_iteration_id: number): void {    
+  run(_iteration_id: number): void {
     const patterns = [
       /agggtaaa|tttaccct/gi,
       /[cgt]gggtaaa|tttaccc[acg]/gi,
@@ -1787,22 +1895,22 @@ export class RegexDna extends Benchmark {
     }
 
     const replacements: Record<string, string> = {
-      "B": "(c|g|t)",
-      "D": "(a|g|t)",
-      "H": "(a|c|t)",
-      "K": "(g|t)",
-      "M": "(a|c)",
-      "N": "(a|c|g|t)",
-      "R": "(a|g)",
-      "S": "(c|t)",
-      "V": "(a|c|g)",
-      "W": "(a|t)",
-      "Y": "(c|t)",
+      B: "(c|g|t)",
+      D: "(a|g|t)",
+      H: "(a|c|t)",
+      K: "(g|t)",
+      M: "(a|c)",
+      N: "(a|c|g|t)",
+      R: "(a|g)",
+      S: "(c|t)",
+      V: "(a|c|g)",
+      W: "(a|t)",
+      Y: "(c|t)",
     };
 
     let modifiedSeq = this.seq;
     for (const [key, value] of Object.entries(replacements)) {
-      const regex = new RegExp(key, 'gi');
+      const regex = new RegExp(key, "gi");
       const before = modifiedSeq.length;
       modifiedSeq = modifiedSeq.replace(regex, value);
     }
@@ -1816,7 +1924,7 @@ export class RegexDna extends Benchmark {
 }
 
 export class Revcomp extends Benchmark {
-  private input: string = '';
+  private input: string = "";
   private resultValue: number = 0;
 
   private static lookupTable: Uint8Array | null = null;
@@ -1834,19 +1942,19 @@ export class Revcomp extends Benchmark {
 
     const fastaOutput = fasta.resultStr;
 
-    const lines = fastaOutput.split('\n');
+    const lines = fastaOutput.split("\n");
     const seqParts: string[] = [];
     let partCount = 0;
 
     for (const line of lines) {
-        if (line.startsWith('>')) {
-            seqParts[partCount++] = "\n---\n";
-        } else if (line.trim()) {
-            seqParts[partCount++] = line.trim();
-        }
+      if (line.startsWith(">")) {
+        seqParts[partCount++] = "\n---\n";
+      } else if (line.trim()) {
+        seqParts[partCount++] = line.trim();
+      }
     }
 
-    this.input = seqParts.join('');
+    this.input = seqParts.join("");
   }
 
   private static initLookupTable(): Uint8Array {
@@ -1858,9 +1966,9 @@ export class Revcomp extends Benchmark {
     for (let i = 0; i < 256; i++) lookup[i] = i;
 
     for (let i = 0; i < Revcomp.FROM.length; i++) {
-        const fromChar = Revcomp.FROM.charCodeAt(i);
-        const toChar = Revcomp.TO.charCodeAt(i);
-        lookup[fromChar] = toChar;
+      const fromChar = Revcomp.FROM.charCodeAt(i);
+      const toChar = Revcomp.TO.charCodeAt(i);
+      lookup[fromChar] = toChar;
     }
 
     Revcomp.lookupTable = lookup;
@@ -1873,23 +1981,23 @@ export class Revcomp extends Benchmark {
 
     const lineLength = 60;
     const numLines = Math.ceil(len / lineLength);
-    const resultBytes = new Uint8Array(len + numLines); 
+    const resultBytes = new Uint8Array(len + numLines);
 
     let writePos = 0;
     let readPos = len - 1;
 
     for (let line = 0; line < numLines; line++) {
-        const charsInLine = Math.min(lineLength, readPos + 1);
+      const charsInLine = Math.min(lineLength, readPos + 1);
 
-        for (let i = 0; i < charsInLine; i++) {
-            const charCode = seq.charCodeAt(readPos--);
-            resultBytes[writePos++] = lookup[charCode];
-        }
+      for (let i = 0; i < charsInLine; i++) {
+        const charCode = seq.charCodeAt(readPos--);
+        resultBytes[writePos++] = lookup[charCode];
+      }
 
-        resultBytes[writePos++] = 10; 
+      resultBytes[writePos++] = 10;
     }
 
-    const decoder = new TextDecoder('ascii');
+    const decoder = new TextDecoder("ascii");
     return decoder.decode(resultBytes);
   }
 
@@ -1916,7 +2024,7 @@ export class Spectralnorm extends Benchmark {
   }
 
   private evalA(i: number, j: number): number {
-    return 1.0 / ((i + j) * (i + j + 1) / 2.0 + i + 1.0);
+    return 1.0 / (((i + j) * (i + j + 1)) / 2.0 + i + 1.0);
   }
 
   private evalATimesU(u: number[]): number[] {
@@ -1974,8 +2082,8 @@ export class Spectralnorm extends Benchmark {
 
 export class Base64Encode extends Benchmark {
   private n: number;
-  private str: string = '';
-  private str2: string = '';
+  private str: string = "";
+  private str2: string = "";
   private resultValue: number = 0;
 
   constructor() {
@@ -1984,7 +2092,7 @@ export class Base64Encode extends Benchmark {
   }
 
   prepare(): void {
-    this.str = 'a'.repeat(this.n);
+    this.str = "a".repeat(this.n);
     this.str2 = btoa(this.str);
   }
 
@@ -2001,8 +2109,8 @@ export class Base64Encode extends Benchmark {
 
 export class Base64Decode extends Benchmark {
   private n: number;
-  private str2: string = '';
-  private str3: string = '';
+  private str2: string = "";
+  private str3: string = "";
   private resultValue: number = 0;
 
   constructor() {
@@ -2011,7 +2119,7 @@ export class Base64Decode extends Benchmark {
   }
 
   prepare(): void {
-    const str = 'a'.repeat(this.n);
+    const str = "a".repeat(this.n);
     this.str2 = btoa(str);
     this.str3 = atob(this.str2);
   }
@@ -2030,7 +2138,7 @@ export class Base64Decode extends Benchmark {
 export class JsonGenerate extends Benchmark {
   public n: number;
   private data: any[] = [];
-  private text: string = '';
+  private text: string = "";
   private result: number = 0;
 
   constructor() {
@@ -2048,8 +2156,8 @@ export class JsonGenerate extends Benchmark {
         z: parseFloat(Helper.nextFloat().toFixed(8)),
         name: `${Helper.nextFloat().toFixed(7)} ${Helper.nextInt(10000)}`,
         opts: {
-          "1": [1, true]
-        }
+          "1": [1, true],
+        },
       });
     }
   }
@@ -2057,7 +2165,7 @@ export class JsonGenerate extends Benchmark {
   run(_iteration_id: number): void {
     const jsonData = {
       coordinates: this.data,
-      info: "some info"
+      info: "some info",
     };
 
     this.text = JSON.stringify(jsonData, null, 0);
@@ -2077,7 +2185,7 @@ export class JsonGenerate extends Benchmark {
 }
 
 export class JsonParseDom extends Benchmark {
-  private text: string = '';
+  private text: string = "";
   private resultValue: number = 0;
 
   prepare(): void {
@@ -2109,9 +2217,12 @@ export class JsonParseDom extends Benchmark {
   run(_iteration_id: number): void {
     const [x, y, z] = this.calc(this.text);
 
-    this.resultValue = (this.resultValue + Helper.checksumFloat(x)) & 0xFFFFFFFF;
-    this.resultValue = (this.resultValue + Helper.checksumFloat(y)) & 0xFFFFFFFF;
-    this.resultValue = (this.resultValue + Helper.checksumFloat(z)) & 0xFFFFFFFF;
+    this.resultValue =
+      (this.resultValue + Helper.checksumFloat(x)) & 0xffffffff;
+    this.resultValue =
+      (this.resultValue + Helper.checksumFloat(y)) & 0xffffffff;
+    this.resultValue =
+      (this.resultValue + Helper.checksumFloat(z)) & 0xffffffff;
   }
 
   checksum(): number {
@@ -2130,7 +2241,7 @@ interface CoordinatesData {
 }
 
 export class JsonParseMapping extends Benchmark {
-  private text: string = '';
+  private text: string = "";
   private resultValue: number = 0;
 
   prepare(): void {
@@ -2159,16 +2270,19 @@ export class JsonParseMapping extends Benchmark {
     return {
       x: x / len,
       y: y / len,
-      z: z / len
+      z: z / len,
     };
   }
 
   run(_iteration_id: number): void {
     const coord = this.calc(this.text);
 
-    this.resultValue = (this.resultValue + Helper.checksumFloat(coord.x)) & 0xFFFFFFFF;
-    this.resultValue = (this.resultValue + Helper.checksumFloat(coord.y)) & 0xFFFFFFFF;
-    this.resultValue = (this.resultValue + Helper.checksumFloat(coord.z)) & 0xFFFFFFFF;
+    this.resultValue =
+      (this.resultValue + Helper.checksumFloat(coord.x)) & 0xffffffff;
+    this.resultValue =
+      (this.resultValue + Helper.checksumFloat(coord.y)) & 0xffffffff;
+    this.resultValue =
+      (this.resultValue + Helper.checksumFloat(coord.z)) & 0xffffffff;
   }
 
   checksum(): number {
@@ -2231,7 +2345,7 @@ export class Primes extends Benchmark {
       const str = num.toString();
 
       for (let i = 0; i < str.length; i++) {
-        const digit = str.charCodeAt(i) - 48; 
+        const digit = str.charCodeAt(i) - 48;
 
         if (current.children[digit] === null) {
           current.children[digit] = new PrimesNode();
@@ -2285,9 +2399,9 @@ export class Primes extends Benchmark {
     const trie = this.buildTrie(primes);
     const results = this.findPrimesWithPrefix(trie, Number(this.prefix));
 
-    this.resultValue = (this.resultValue + results.length) & 0xFFFFFFFF;
+    this.resultValue = (this.resultValue + results.length) & 0xffffffff;
     for (const num of results) {
-      this.resultValue = (this.resultValue + num) & 0xFFFFFFFF;
+      this.resultValue = (this.resultValue + num) & 0xffffffff;
     }
   }
 
@@ -2299,7 +2413,7 @@ export class Primes extends Benchmark {
 class NoiseVec2 {
   constructor(
     public x: number,
-    public y: number
+    public y: number,
   ) {}
 }
 
@@ -2346,8 +2460,8 @@ class Noise2DContext {
   }
 
   private getGradient(x: number, y: number): NoiseVec2 {
-    const idx = this.permutations[x & this.mask] + 
-                this.permutations[y & this.mask];
+    const idx =
+      this.permutations[x & this.mask] + this.permutations[y & this.mask];
     return this.rgradients[idx & this.mask];
   }
 
@@ -2361,14 +2475,14 @@ class Noise2DContext {
       this.getGradient(x0, y0),
       this.getGradient(x0 + 1, y0),
       this.getGradient(x0, y0 + 1),
-      this.getGradient(x0 + 1, y0 + 1)
+      this.getGradient(x0 + 1, y0 + 1),
     ];
 
     const origins = [
       new NoiseVec2(x0f + 0.0, y0f + 0.0),
       new NoiseVec2(x0f + 1.0, y0f + 0.0),
       new NoiseVec2(x0f + 0.0, y0f + 1.0),
-      new NoiseVec2(x0f + 1.0, y0f + 1.0)
+      new NoiseVec2(x0f + 1.0, y0f + 1.0),
     ];
 
     return [gradients, origins];
@@ -2393,7 +2507,7 @@ class Noise2DContext {
 }
 
 export class Noise extends Benchmark {
-  private static readonly SYM = [' ', '░', '▒', '▓', '█', '█'];
+  private static readonly SYM = [" ", "░", "▒", "▓", "█", "█"];
 
   private size: bigint;
   private n2d: Noise2DContext;
@@ -2408,10 +2522,13 @@ export class Noise extends Benchmark {
   run(iteration_id: number): void {
     for (let y = 0; y < this.size; y++) {
       for (let x = 0; x < this.size; x++) {
-        const v = this.n2d.get(x * 0.1, (y + (iteration_id * 128)) * 0.1) * 0.5 + 0.5;
+        const v =
+          this.n2d.get(x * 0.1, (y + iteration_id * 128) * 0.1) * 0.5 + 0.5;
         const idx = Math.floor(v / 0.2);
-        const charIdx = idx < 0 ? 0 : (idx > Noise.SYM.length - 1 ? Noise.SYM.length - 1 : idx);
-        this.resultValue = (this.resultValue + Noise.SYM[charIdx].charCodeAt(0)) & 0xFFFFFFFF;
+        const charIdx =
+          idx < 0 ? 0 : idx > Noise.SYM.length - 1 ? Noise.SYM.length - 1 : idx;
+        this.resultValue =
+          (this.resultValue + Noise.SYM[charIdx].charCodeAt(0)) & 0xffffffff;
       }
     }
   }
@@ -2425,7 +2542,7 @@ class TextRaytracerVector {
   constructor(
     public x: number,
     public y: number,
-    public z: number
+    public z: number,
   ) {}
 
   scale(s: number): TextRaytracerVector {
@@ -2433,11 +2550,19 @@ class TextRaytracerVector {
   }
 
   add(other: TextRaytracerVector): TextRaytracerVector {
-    return new TextRaytracerVector(this.x + other.x, this.y + other.y, this.z + other.z);
+    return new TextRaytracerVector(
+      this.x + other.x,
+      this.y + other.y,
+      this.z + other.z,
+    );
   }
 
   subtract(other: TextRaytracerVector): TextRaytracerVector {
-    return new TextRaytracerVector(this.x - other.x, this.y - other.y, this.z - other.z);
+    return new TextRaytracerVector(
+      this.x - other.x,
+      this.y - other.y,
+      this.z - other.z,
+    );
   }
 
   dot(other: TextRaytracerVector): number {
@@ -2457,7 +2582,7 @@ class TextRaytracerVector {
 class TextRaytracerRay {
   constructor(
     public orig: TextRaytracerVector,
-    public dir: TextRaytracerVector
+    public dir: TextRaytracerVector,
   ) {}
 }
 
@@ -2465,7 +2590,7 @@ class TextRaytracerColor {
   constructor(
     public r: number,
     public g: number,
-    public b: number
+    public b: number,
   ) {}
 
   scale(s: number): TextRaytracerColor {
@@ -2473,7 +2598,11 @@ class TextRaytracerColor {
   }
 
   add(other: TextRaytracerColor): TextRaytracerColor {
-    return new TextRaytracerColor(this.r + other.r, this.g + other.g, this.b + other.b);
+    return new TextRaytracerColor(
+      this.r + other.r,
+      this.g + other.g,
+      this.b + other.b,
+    );
   }
 }
 
@@ -2481,7 +2610,7 @@ class TextRaytracerSphere {
   constructor(
     public center: TextRaytracerVector,
     public radius: number,
-    public color: TextRaytracerColor
+    public color: TextRaytracerColor,
   ) {}
 
   getNormal(pt: TextRaytracerVector): TextRaytracerVector {
@@ -2492,14 +2621,14 @@ class TextRaytracerSphere {
 class TextRaytracerLight {
   constructor(
     public position: TextRaytracerVector,
-    public color: TextRaytracerColor
+    public color: TextRaytracerColor,
   ) {}
 }
 
 class TextRaytracerHit {
   constructor(
     public obj: TextRaytracerSphere,
-    public value: number
+    public value: number,
   ) {}
 }
 
@@ -2511,16 +2640,28 @@ export class TextRaytracer extends Benchmark {
 
   private static readonly LIGHT1 = new TextRaytracerLight(
     new TextRaytracerVector(0.7, -1.0, 1.7),
-    TextRaytracer.WHITE
+    TextRaytracer.WHITE,
   );
 
   private static readonly SCENE: TextRaytracerSphere[] = [
-    new TextRaytracerSphere(new TextRaytracerVector(-1.0, 0.0, 3.0), 0.3, TextRaytracer.RED),
-    new TextRaytracerSphere(new TextRaytracerVector(0.0, 0.0, 3.0), 0.8, TextRaytracer.GREEN),
-    new TextRaytracerSphere(new TextRaytracerVector(1.0, 0.0, 3.0), 0.4, TextRaytracer.BLUE),
+    new TextRaytracerSphere(
+      new TextRaytracerVector(-1.0, 0.0, 3.0),
+      0.3,
+      TextRaytracer.RED,
+    ),
+    new TextRaytracerSphere(
+      new TextRaytracerVector(0.0, 0.0, 3.0),
+      0.8,
+      TextRaytracer.GREEN,
+    ),
+    new TextRaytracerSphere(
+      new TextRaytracerVector(1.0, 0.0, 3.0),
+      0.4,
+      TextRaytracer.BLUE,
+    ),
   ];
 
-  private static readonly LUT = ['.', '-', '+', '*', 'X', 'M'];
+  private static readonly LUT = [".", "-", "+", "*", "X", "M"];
 
   private w: number;
   private h: number;
@@ -2532,14 +2673,22 @@ export class TextRaytracer extends Benchmark {
     this.h = Number(Helper.configI64(this.constructor.name, "h"));
   }
 
-  private shadePixel(ray: TextRaytracerRay, obj: TextRaytracerSphere, tval: number): number {
+  private shadePixel(
+    ray: TextRaytracerRay,
+    obj: TextRaytracerSphere,
+    tval: number,
+  ): number {
     const pi = ray.orig.add(ray.dir.scale(tval));
     const color = this.diffuseShading(pi, obj, TextRaytracer.LIGHT1);
     const col = (color.r + color.g + color.b) / 3.0;
     return Math.floor(col * 6.0);
   }
 
-  private intersectSphere(ray: TextRaytracerRay, center: TextRaytracerVector, radius: number): number | null {
+  private intersectSphere(
+    ray: TextRaytracerRay,
+    center: TextRaytracerVector,
+    radius: number,
+  ): number | null {
     const l = center.subtract(ray.orig);
     const tca = l.dot(ray.dir);
 
@@ -2570,7 +2719,11 @@ export class TextRaytracer extends Benchmark {
     return x;
   }
 
-  private diffuseShading(pi: TextRaytracerVector, obj: TextRaytracerSphere, light: TextRaytracerLight): TextRaytracerColor {
+  private diffuseShading(
+    pi: TextRaytracerVector,
+    obj: TextRaytracerSphere,
+    light: TextRaytracerLight,
+  ): TextRaytracerColor {
     const n = obj.getNormal(pi);
     const lam1 = light.position.subtract(pi).normalize().dot(n);
     const lam2 = this.clamp(lam1, 0.0, 1.0);
@@ -2589,8 +2742,8 @@ export class TextRaytracer extends Benchmark {
           new TextRaytracerVector(
             (i - fw / 2.0) / fw,
             (j - fh / 2.0) / fh,
-            1.0
-          ).normalize()
+            1.0,
+          ).normalize(),
         );
 
         let hit: TextRaytracerHit | null = null;
@@ -2606,16 +2759,17 @@ export class TextRaytracer extends Benchmark {
         let pixel: string;
         if (hit) {
           const shadeIdx = this.shadePixel(ray, hit.obj, hit.value);
-          pixel = TextRaytracer.LUT[Math.min(shadeIdx, TextRaytracer.LUT.length - 1)];
+          pixel =
+            TextRaytracer.LUT[Math.min(shadeIdx, TextRaytracer.LUT.length - 1)];
         } else {
-          pixel = ' ';
+          pixel = " ";
         }
 
         res += pixel.charCodeAt(0);
       }
     }
 
-    this.resultValue = (this.resultValue + res) & 0xFFFFFFFF;
+    this.resultValue = (this.resultValue + res) & 0xffffffff;
   }
 
   checksum(): number {
@@ -2682,14 +2836,19 @@ class NeuralNetNeuron {
   updateWeights(rate: number): void {
     for (const synapse of this.synapsesIn) {
       const tempWeight = synapse.weight;
-      synapse.weight += (rate * NeuralNetNeuron.LEARNING_RATE * this.error * synapse.sourceNeuron.output) +
-                       (NeuralNetNeuron.MOMENTUM * (synapse.weight - synapse.prevWeight));
+      synapse.weight +=
+        rate *
+          NeuralNetNeuron.LEARNING_RATE *
+          this.error *
+          synapse.sourceNeuron.output +
+        NeuralNetNeuron.MOMENTUM * (synapse.weight - synapse.prevWeight);
       synapse.prevWeight = tempWeight;
     }
 
     const tempThreshold = this.threshold;
-    this.threshold += (rate * NeuralNetNeuron.LEARNING_RATE * this.error * -1) +
-                     (NeuralNetNeuron.MOMENTUM * (this.threshold - this.prevThreshold));
+    this.threshold +=
+      rate * NeuralNetNeuron.LEARNING_RATE * this.error * -1 +
+      NeuralNetNeuron.MOMENTUM * (this.threshold - this.prevThreshold);
     this.prevThreshold = tempThreshold;
   }
 }
@@ -2700,9 +2859,18 @@ class NeuralNetNetwork {
   private outputLayer: NeuralNetNeuron[];
 
   constructor(inputs: number, hidden: number, outputs: number) {
-    this.inputLayer = Array.from({ length: inputs }, () => new NeuralNetNeuron());
-    this.hiddenLayer = Array.from({ length: hidden }, () => new NeuralNetNeuron());
-    this.outputLayer = Array.from({ length: outputs }, () => new NeuralNetNeuron());
+    this.inputLayer = Array.from(
+      { length: inputs },
+      () => new NeuralNetNeuron(),
+    );
+    this.hiddenLayer = Array.from(
+      { length: hidden },
+      () => new NeuralNetNeuron(),
+    );
+    this.outputLayer = Array.from(
+      { length: outputs },
+      () => new NeuralNetNeuron(),
+    );
 
     for (const source of this.inputLayer) {
       for (const dest of this.hiddenLayer) {
@@ -2748,7 +2916,7 @@ class NeuralNetNetwork {
   }
 
   currentOutputs(): number[] {
-    return this.outputLayer.map(neuron => neuron.output);
+    return this.outputLayer.map((neuron) => neuron.output);
   }
 }
 
@@ -2810,9 +2978,11 @@ export abstract class SortBenchmark extends Benchmark {
   abstract test(): number[];
 
   run(_iteration_id: number): void {
-    this.resultValue = (this.resultValue + this.data[Helper.nextInt(this.size)]) & 0xFFFFFFFF;
+    this.resultValue =
+      (this.resultValue + this.data[Helper.nextInt(this.size)]) & 0xffffffff;
     const t = this.test();
-    this.resultValue = (this.resultValue + t[Helper.nextInt(this.size)]) & 0xFFFFFFFF;
+    this.resultValue =
+      (this.resultValue + t[Helper.nextInt(this.size)]) & 0xffffffff;
   }
 
   checksum(): number {
@@ -2862,7 +3032,12 @@ export class SortMerge extends SortBenchmark {
     this.mergeSortHelper(arr, temp, 0, arr.length - 1);
   }
 
-  private mergeSortHelper(arr: number[], temp: number[], left: number, right: number): void {
+  private mergeSortHelper(
+    arr: number[],
+    temp: number[],
+    left: number,
+    right: number,
+  ): void {
     if (left >= right) return;
 
     const mid = Math.floor((left + right) / 2);
@@ -2871,7 +3046,13 @@ export class SortMerge extends SortBenchmark {
     this.merge(arr, temp, left, mid, right);
   }
 
-  private merge(arr: number[], temp: number[], left: number, mid: number, right: number): void {
+  private merge(
+    arr: number[],
+    temp: number[],
+    left: number,
+    mid: number,
+    right: number,
+  ): void {
     for (let i = left; i <= right; i++) {
       temp[i] = arr[i];
     }
@@ -2917,7 +3098,9 @@ export class GraphPathGraph {
     this.vertices = vertices;
     this.jumps = jumps;
     this.jumpLen = jumpLen;
-    this.adj = Array(vertices).fill(0).map(() => []);
+    this.adj = Array(vertices)
+      .fill(0)
+      .map(() => []);
   }
 
   addEdge(u: number, v: number): void {
@@ -2926,7 +3109,6 @@ export class GraphPathGraph {
   }
 
   generateRandom(): void {
-
     for (let i = 1; i < this.vertices; i++) {
       this.addEdge(i, i - 1);
     }
@@ -2934,7 +3116,8 @@ export class GraphPathGraph {
     for (let v = 0; v < this.vertices; v++) {
       const numJumps = Helper.nextInt(this.jumps);
       for (let j = 0; j < numJumps; j++) {
-        const offset = Helper.nextInt(this.jumpLen) - Math.floor(this.jumpLen / 2);
+        const offset =
+          Helper.nextInt(this.jumpLen) - Math.floor(this.jumpLen / 2);
         const u = v + offset;
 
         if (u >= 0 && u < this.vertices && u !== v) {
@@ -2958,7 +3141,9 @@ export abstract class GraphPathBenchmark extends Benchmark {
   protected resultValue: number = 0;
 
   prepare(): void {
-    const vertices = Number(Helper.configI64(this.constructor.name, "vertices"));
+    const vertices = Number(
+      Helper.configI64(this.constructor.name, "vertices"),
+    );
     const jumps = Number(Helper.configI64(this.constructor.name, "jumps"));
     const jumpLen = Number(Helper.configI64(this.constructor.name, "jump_len"));
 
@@ -2969,7 +3154,7 @@ export abstract class GraphPathBenchmark extends Benchmark {
   abstract run(_iteration_id: number): void;
 
   checksum(): number {
-    return this.resultValue >>> 0; 
+    return this.resultValue >>> 0;
   }
 }
 
@@ -3072,8 +3257,14 @@ export class GraphPathAStar extends GraphPathBenchmark {
       while (i > 0) {
         const parent = Math.floor((i - 1) / 2);
         if (heapPriorities[parent] <= heapPriorities[i]) break;
-        [heapVertices[i], heapVertices[parent]] = [heapVertices[parent], heapVertices[i]];
-        [heapPriorities[i], heapPriorities[parent]] = [heapPriorities[parent], heapPriorities[i]];
+        [heapVertices[i], heapVertices[parent]] = [
+          heapVertices[parent],
+          heapVertices[i],
+        ];
+        [heapPriorities[i], heapPriorities[parent]] = [
+          heapPriorities[parent],
+          heapPriorities[i],
+        ];
         i = parent;
       }
     };
@@ -3102,8 +3293,14 @@ export class GraphPathAStar extends GraphPathBenchmark {
         }
         if (smallest === i) break;
 
-        [heapVertices[i], heapVertices[smallest]] = [heapVertices[smallest], heapVertices[i]];
-        [heapPriorities[i], heapPriorities[smallest]] = [heapPriorities[smallest], heapPriorities[i]];
+        [heapVertices[i], heapVertices[smallest]] = [
+          heapVertices[smallest],
+          heapVertices[i],
+        ];
+        [heapPriorities[i], heapPriorities[smallest]] = [
+          heapPriorities[smallest],
+          heapPriorities[i],
+        ];
         i = smallest;
       }
 
@@ -3165,7 +3362,7 @@ export abstract class BufferHashBenchmark extends Benchmark {
 
   run(_iteration_id: number): void {
     const hash = this.test();
-    this.resultValue = (this.resultValue + hash) & 0xFFFFFFFF;
+    this.resultValue = (this.resultValue + hash) & 0xffffffff;
   }
 
   checksum(): number {
@@ -3175,22 +3372,22 @@ export abstract class BufferHashBenchmark extends Benchmark {
 
 export class BufferHashCRC32 extends BufferHashBenchmark {
   test(): number {
-    let crc = 0xFFFFFFFF;
-    const data = this.data; 
+    let crc = 0xffffffff;
+    const data = this.data;
 
     for (let i = 0; i < data.length; i++) {
       crc ^= data[i];
 
       for (let j = 0; j < 8; j++) {
         if (crc & 1) {
-          crc = (crc >>> 1) ^ 0xEDB88320;
+          crc = (crc >>> 1) ^ 0xedb88320;
         } else {
           crc >>>= 1;
         }
       }
     }
 
-    return (crc ^ 0xFFFFFFFF) >>> 0;
+    return (crc ^ 0xffffffff) >>> 0;
   }
 }
 
@@ -3199,8 +3396,8 @@ class SimpleSHA256 {
     const result = new Uint8Array(32);
 
     const hashes = [
-      0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-      0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+      0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c,
+      0x1f83d9ab, 0x5be0cd19,
     ];
 
     for (let i = 0; i < data.length; i++) {
@@ -3208,17 +3405,17 @@ class SimpleSHA256 {
       const hashIdx = i % 8;
       let hash = hashes[hashIdx];
 
-      hash = ((hash << 5) + hash) + byte;
+      hash = (hash << 5) + hash + byte;
       hash = (hash + (hash << 10)) ^ (hash >>> 6);
       hashes[hashIdx] = hash >>> 0;
     }
 
     for (let i = 0; i < 8; i++) {
       const hash = hashes[i];
-      result[i * 4] = (hash >> 24) & 0xFF;
-      result[i * 4 + 1] = (hash >> 16) & 0xFF;
-      result[i * 4 + 2] = (hash >> 8) & 0xFF;
-      result[i * 4 + 3] = hash & 0xFF;
+      result[i * 4] = (hash >> 24) & 0xff;
+      result[i * 4 + 1] = (hash >> 16) & 0xff;
+      result[i * 4 + 2] = (hash >> 8) & 0xff;
+      result[i * 4 + 3] = hash & 0xff;
     }
 
     return result;
@@ -3343,7 +3540,9 @@ export class CacheSimulation extends Benchmark {
   constructor() {
     super();
     this.valuesSize = Number(Helper.configI64(this.constructor.name, "values"));
-    this.cache = new FastLRUCache(Number(Helper.configI64(this.constructor.name, "size")));
+    this.cache = new FastLRUCache(
+      Number(Helper.configI64(this.constructor.name, "size")),
+    );
   }
 
   run(_iteration_id: number): void {
@@ -3360,9 +3559,9 @@ export class CacheSimulation extends Benchmark {
 
   checksum(): number {
     let result = 5432;
-    result = ((result << 5) + (this.hits)) & 0xFFFFFFFF;
-    result = ((result << 5) + (this.misses)) & 0xFFFFFFFF;
-    result = ((result << 5) + (this.cache.size())) & 0xFFFFFFFF;
+    result = ((result << 5) + this.hits) & 0xffffffff;
+    result = ((result << 5) + this.misses) & 0xffffffff;
+    result = ((result << 5) + this.cache.size()) & 0xffffffff;
     return result >>> 0;
   }
 }
@@ -3382,13 +3581,20 @@ class VariableNode extends Node2 {
 }
 
 class BinaryOpNode extends Node2 {
-  constructor(public op: string, public left: Node2, public right: Node2) {
+  constructor(
+    public op: string,
+    public left: Node2,
+    public right: Node2,
+  ) {
     super();
   }
 }
 
 class AssignmentNode extends Node2 {
-  constructor(public varName: string, public expr: Node2) {
+  constructor(
+    public varName: string,
+    public expr: Node2,
+  ) {
     super();
   }
 }
@@ -3397,13 +3603,13 @@ class Parser {
   private input: string;
   private pos: number = 0;
   private chars: string[];
-  private currentChar: string = '\0';
+  private currentChar: string = "\0";
   public expressions: Node2[] = [];
 
   constructor(input: string) {
     this.input = input;
     this.chars = Array.from(input);
-    this.currentChar = this.chars.length > 0 ? this.chars[0] : '\0';
+    this.currentChar = this.chars.length > 0 ? this.chars[0] : "\0";
   }
 
   parse(): void {
@@ -3422,7 +3628,7 @@ class Parser {
       this.skipWhitespace();
       if (this.pos >= this.chars.length) break;
 
-      if (this.currentChar === '+' || this.currentChar === '-') {
+      if (this.currentChar === "+" || this.currentChar === "-") {
         const op = this.currentChar;
         this.advance();
         const right = this.parseTerm();
@@ -3442,7 +3648,11 @@ class Parser {
       this.skipWhitespace();
       if (this.pos >= this.chars.length) break;
 
-      if (this.currentChar === '*' || this.currentChar === '/' || this.currentChar === '%') {
+      if (
+        this.currentChar === "*" ||
+        this.currentChar === "/" ||
+        this.currentChar === "%"
+      ) {
         const op = this.currentChar;
         this.advance();
         const right = this.parseFactor();
@@ -3463,15 +3673,15 @@ class Parser {
 
     const char = this.currentChar;
 
-    if (char >= '0' && char <= '9') {
+    if (char >= "0" && char <= "9") {
       return this.parseNumber();
-    } else if ((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z')) {
+    } else if ((char >= "a" && char <= "z") || (char >= "A" && char <= "Z")) {
       return this.parseVariable();
-    } else if (char === '(') {
+    } else if (char === "(") {
       this.advance();
       const node = this.parseExpression();
       this.skipWhitespace();
-      if (this.currentChar === ')') {
+      if (this.currentChar === ")") {
         this.advance();
       }
       return node;
@@ -3483,7 +3693,7 @@ class Parser {
   private parseNumber(): Node2 {
     let value = 0;
     while (this.pos < this.chars.length && this.isDigit(this.currentChar)) {
-      const digit = this.currentChar.charCodeAt(0) - '0'.charCodeAt(0);
+      const digit = this.currentChar.charCodeAt(0) - "0".charCodeAt(0);
       value = value * 10 + digit;
       this.advance();
     }
@@ -3492,14 +3702,16 @@ class Parser {
 
   private parseVariable(): Node2 {
     const start = this.pos;
-    while (this.pos < this.chars.length && 
-           (this.isLetter(this.currentChar) || this.isDigit(this.currentChar))) {
+    while (
+      this.pos < this.chars.length &&
+      (this.isLetter(this.currentChar) || this.isDigit(this.currentChar))
+    ) {
       this.advance();
     }
     const varName = this.input.substring(start, this.pos);
 
     this.skipWhitespace();
-    if (this.currentChar === '=') {
+    if (this.currentChar === "=") {
       this.advance();
       const expr = this.parseExpression();
       return new AssignmentNode(varName, expr);
@@ -3511,34 +3723,37 @@ class Parser {
   private advance(): void {
     this.pos++;
     if (this.pos >= this.chars.length) {
-      this.currentChar = '\0';
+      this.currentChar = "\0";
     } else {
       this.currentChar = this.chars[this.pos];
     }
   }
 
   private skipWhitespace(): void {
-    while (this.pos < this.chars.length && this.isWhitespace(this.currentChar)) {
+    while (
+      this.pos < this.chars.length &&
+      this.isWhitespace(this.currentChar)
+    ) {
       this.advance();
     }
   }
 
   private isDigit(char: string): boolean {
-    return char >= '0' && char <= '9';
+    return char >= "0" && char <= "9";
   }
 
   private isLetter(char: string): boolean {
-    return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z');
+    return (char >= "a" && char <= "z") || (char >= "A" && char <= "Z");
   }
 
   private isWhitespace(char: string): boolean {
-    return char === ' ' || char === '\t' || char === '\n' || char === '\r';
+    return char === " " || char === "\t" || char === "\n" || char === "\r";
   }
 }
 
 export class CalculatorAst extends Benchmark {
   public n: number;
-  private text: string = '';
+  private text: string = "";
   private expressions: Node2[] = [];
   private resultValue: number = 0;
 
@@ -3548,54 +3763,54 @@ export class CalculatorAst extends Benchmark {
   }
 
   private generateRandomProgram(n: number = 1000): string {
-      let result = 'v0 = 1\n';
+    let result = "v0 = 1\n";
 
-      for (let i = 0; i < 10; i++) {
-          const v = i + 1;
-          result += `v${v} = v${v - 1} + ${v}\n`;
+    for (let i = 0; i < 10; i++) {
+      const v = i + 1;
+      result += `v${v} = v${v - 1} + ${v}\n`;
+    }
+
+    for (let i = 0; i < n; i++) {
+      const v = i + 10;
+      result += `v${v} = v${v - 1} + `;
+
+      const choice = Helper.nextInt(10);
+      switch (choice) {
+        case 0:
+          result += `(v${v - 1} / 3) * 4 - ${i} / (3 + (18 - v${v - 2})) % v${v - 3} + 2 * ((9 - v${v - 6}) * (v${v - 5} + 7))`;
+          break;
+        case 1:
+          result += `v${v - 1} + (v${v - 2} + v${v - 3}) * v${v - 4} - (v${v - 5} / v${v - 6})`;
+          break;
+        case 2:
+          result += `(3789 - (((v${v - 7})))) + 1`;
+          break;
+        case 3:
+          result += `4/2 * (1-3) + v${v - 9}/v${v - 5}`;
+          break;
+        case 4:
+          result += `1+2+3+4+5+6+v${v - 1}`;
+          break;
+        case 5:
+          result += `(99999 / v${v - 3})`;
+          break;
+        case 6:
+          result += `0 + 0 - v${v - 8}`;
+          break;
+        case 7:
+          result += `((((((((((v${v - 6})))))))))) * 2`;
+          break;
+        case 8:
+          result += `${i} * (v${v - 1}%6)%7`;
+          break;
+        case 9:
+          result += `(1)/(0-v${v - 5}) + (v${v - 7})`;
+          break;
       }
+      result += "\n";
+    }
 
-      for (let i = 0; i < n; i++) {
-          const v = i + 10;
-          result += `v${v} = v${v - 1} + `;
-
-          const choice = Helper.nextInt(10);
-          switch (choice) {
-              case 0:
-                  result += `(v${v - 1} / 3) * 4 - ${i} / (3 + (18 - v${v - 2})) % v${v - 3} + 2 * ((9 - v${v - 6}) * (v${v - 5} + 7))`;
-                  break;
-              case 1:
-                  result += `v${v - 1} + (v${v - 2} + v${v - 3}) * v${v - 4} - (v${v - 5} / v${v - 6})`;
-                  break;
-              case 2:
-                  result += `(3789 - (((v${v - 7})))) + 1`;
-                  break;
-              case 3:
-                  result += `4/2 * (1-3) + v${v - 9}/v${v - 5}`;
-                  break;
-              case 4:
-                  result += `1+2+3+4+5+6+v${v - 1}`;
-                  break;
-              case 5:
-                  result += `(99999 / v${v - 3})`;
-                  break;
-              case 6:
-                  result += `0 + 0 - v${v - 8}`;
-                  break;
-              case 7:
-                  result += `((((((((((v${v - 6})))))))))) * 2`;
-                  break;
-              case 8:
-                  result += `${i} * (v${v - 1}%6)%7`;
-                  break;
-              case 9:
-                  result += `(1)/(0-v${v - 5}) + (v${v - 7})`;
-                  break;
-          }
-          result += '\n';
-      }
-
-      return result;
+    return result;
   }
   prepare(): void {
     this.text = this.generateRandomProgram(this.n);
@@ -3605,10 +3820,13 @@ export class CalculatorAst extends Benchmark {
     const parser = new Parser(this.text);
     parser.parse();
     this.expressions = parser.expressions;
-    this.resultValue = (this.resultValue + this.expressions.length) & 0xFFFFFFFF;
+    this.resultValue =
+      (this.resultValue + this.expressions.length) & 0xffffffff;
     const lastExpr = this.expressions[this.expressions.length - 1];
     if (lastExpr instanceof AssignmentNode) {
-      this.resultValue = (this.resultValue + Helper.checksumString(lastExpr.varName)) & 0xFFFFFFFF;
+      this.resultValue =
+        (this.resultValue + Helper.checksumString(lastExpr.varName)) &
+        0xffffffff;
     }
   }
 
@@ -3626,7 +3844,7 @@ class Int64 {
   private high: number;
 
   constructor(value: number | bigint) {
-    if (typeof value === 'bigint') {
+    if (typeof value === "bigint") {
       const mask = 0xffffffffn;
       this.low = Number(value & mask);
       this.high = Number((value >> 32n) & mask);
@@ -3667,7 +3885,7 @@ class Int64 {
     let low = (this.low - other.low) | 0;
     let high = (this.high - other.high) | 0;
 
-    if ((this.low >>> 0) < (other.low >>> 0)) {
+    if (this.low >>> 0 < other.low >>> 0) {
       high = (high - 1) | 0;
     }
 
@@ -3741,12 +3959,18 @@ class Interpreter {
       const right = this.evaluate(node.right);
 
       switch (node.op) {
-        case '+': return left.add(right);
-        case '-': return left.sub(right);
-        case '*': return left.mul(right);
-        case '/': return left.div(right);
-        case '%': return left.mod(right);
-        default: return new Int64(0);
+        case "+":
+          return left.add(right);
+        case "-":
+          return left.sub(right);
+        case "*":
+          return left.mul(right);
+        case "/":
+          return left.div(right);
+        case "%":
+          return left.mod(right);
+        default:
+          return new Int64(0);
       }
     } else if (node.varName !== undefined && node.expr !== undefined) {
       const value = this.evaluate(node.expr);
@@ -3776,7 +4000,9 @@ export class CalculatorInterpreter extends Benchmark {
 
   prepare(): void {
     const calculator = new CalculatorAst();
-    calculator.n = Number(Helper.configI64(this.constructor.name, "operations"));
+    calculator.n = Number(
+      Helper.configI64(this.constructor.name, "operations"),
+    );
     calculator.prepare();
     calculator.run(0);
     this.ast = calculator.getExpressions();
@@ -3785,7 +4011,7 @@ export class CalculatorInterpreter extends Benchmark {
   run(_iteration_id: number): void {
     const interpreter = new Interpreter();
     const result = interpreter.run(this.ast);
-    this.resultValue = (this.resultValue + result.tonumber()) & 0xFFFFFFFF;
+    this.resultValue = (this.resultValue + result.tonumber()) & 0xffffffff;
   }
 
   checksum(): number {
@@ -3794,614 +4020,659 @@ export class CalculatorInterpreter extends Benchmark {
 }
 
 class CellObj {
-    alive: boolean = false;
-    nextState: boolean = false;
-    neighbors: CellObj[] = new Array(8);
-    neighborCount: number = 0;
+  alive: boolean = false;
+  nextState: boolean = false;
+  neighbors: CellObj[] = new Array(8);
+  neighborCount: number = 0;
 
-    addNeighbor(cell: CellObj): void {
-        this.neighbors[this.neighborCount++] = cell;
+  addNeighbor(cell: CellObj): void {
+    this.neighbors[this.neighborCount++] = cell;
+  }
+
+  computeNextState(): void {
+    let aliveNeighbors = 0;
+    for (let i = 0; i < this.neighborCount; i++) {
+      if (this.neighbors[i].alive) aliveNeighbors++;
     }
 
-    computeNextState(): void {
-        let aliveNeighbors = 0;
-        for (let i = 0; i < this.neighborCount; i++) {
-            if (this.neighbors[i].alive) aliveNeighbors++;
-        }
-
-        if (this.alive) {
-            this.nextState = aliveNeighbors === 2 || aliveNeighbors === 3;
-        } else {
-            this.nextState = aliveNeighbors === 3;
-        }
+    if (this.alive) {
+      this.nextState = aliveNeighbors === 2 || aliveNeighbors === 3;
+    } else {
+      this.nextState = aliveNeighbors === 3;
     }
+  }
 
-    update(): void {
-        this.alive = this.nextState;
-    }
+  update(): void {
+    this.alive = this.nextState;
+  }
 }
 
 class GameOfLifeGrid {
-    private width: number;
-    private height: number;
-    private cells: CellObj[][];
+  private width: number;
+  private height: number;
+  private cells: CellObj[][];
 
-    constructor(width: number, height: number) {
-        this.width = width;
-        this.height = height;
+  constructor(width: number, height: number) {
+    this.width = width;
+    this.height = height;
 
-        this.cells = new Array(height);
-        for (let y = 0; y < height; y++) {
-            this.cells[y] = new Array(width);
-            for (let x = 0; x < width; x++) {
-                this.cells[y][x] = new CellObj();
-            }
-        }
-
-        this.linkNeighbors();
+    this.cells = new Array(height);
+    for (let y = 0; y < height; y++) {
+      this.cells[y] = new Array(width);
+      for (let x = 0; x < width; x++) {
+        this.cells[y][x] = new CellObj();
+      }
     }
 
-    private linkNeighbors(): void {
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                const cell = this.cells[y][x];
+    this.linkNeighbors();
+  }
 
-                for (let dy = -1; dy <= 1; dy++) {
-                    for (let dx = -1; dx <= 1; dx++) {
-                        if (dx === 0 && dy === 0) continue;
+  private linkNeighbors(): void {
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        const cell = this.cells[y][x];
 
-                        const ny = (y + dy + this.height) % this.height;
-                        const nx = (x + dx + this.width) % this.width;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
 
-                        cell.addNeighbor(this.cells[ny][nx]);
-                    }
-                }
-            }
+            const ny = (y + dy + this.height) % this.height;
+            const nx = (x + dx + this.width) % this.width;
+
+            cell.addNeighbor(this.cells[ny][nx]);
+          }
         }
+      }
+    }
+  }
+
+  nextGeneration(): void {
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        this.cells[y][x].computeNextState();
+      }
     }
 
-    nextGeneration(): void {
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        this.cells[y][x].update();
+      }
+    }
+  }
 
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                this.cells[y][x].computeNextState();
-            }
-        }
+  countAlive(): number {
+    let count = 0;
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        if (this.cells[y][x].alive) count++;
+      }
+    }
+    return count;
+  }
 
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                this.cells[y][x].update();
-            }
-        }
+  computeHash(): number {
+    const FNV_OFFSET_BASIS = 2166136261 >>> 0;
+    const FNV_PRIME = 16777619 >>> 0;
+
+    let hasher = FNV_OFFSET_BASIS;
+
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        const alive = this.cells[y][x].alive ? 1 : 0;
+        hasher = (hasher ^ alive) >>> 0;
+        hasher = Math.imul(hasher, FNV_PRIME) >>> 0;
+      }
     }
 
-    countAlive(): number {
-        let count = 0;
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                if (this.cells[y][x].alive) count++;
-            }
-        }
-        return count;
-    }
+    return hasher >>> 0;
+  }
 
-    computeHash(): number {
-        const FNV_OFFSET_BASIS = 2166136261 >>> 0;
-        const FNV_PRIME = 16777619 >>> 0;
-
-        let hasher = FNV_OFFSET_BASIS;
-
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                const alive = this.cells[y][x].alive ? 1 : 0;
-                hasher = (hasher ^ alive) >>> 0;
-                hasher = Math.imul(hasher, FNV_PRIME) >>> 0;
-            }
-        }
-
-        return hasher >>> 0;
-    }
-
-    getCells(): CellObj[][] {
-        return this.cells;
-    }
+  getCells(): CellObj[][] {
+    return this.cells;
+  }
 }
 
 export class GameOfLife extends Benchmark {
-    private readonly width: number;
-    private readonly height: number;
-    private grid: GameOfLifeGrid;
+  private readonly width: number;
+  private readonly height: number;
+  private grid: GameOfLifeGrid;
 
-    constructor() {
-        super();
-        this.width = Number(Helper.configI64(this.constructor.name, "w"));
-        this.height = Number(Helper.configI64(this.constructor.name, "h"));
-        this.grid = new GameOfLifeGrid(this.width, this.height);
-    }
+  constructor() {
+    super();
+    this.width = Number(Helper.configI64(this.constructor.name, "w"));
+    this.height = Number(Helper.configI64(this.constructor.name, "h"));
+    this.grid = new GameOfLifeGrid(this.width, this.height);
+  }
 
-    prepare(): void {
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                if (Helper.nextFloat() < 0.1) {
-                    this.grid.getCells()[y][x].alive = true;
-                }
-            }
+  prepare(): void {
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        if (Helper.nextFloat() < 0.1) {
+          this.grid.getCells()[y][x].alive = true;
         }
+      }
     }
+  }
 
-    run(_iteration_id: number): void {
-        this.grid.nextGeneration();
-    }
+  run(_iteration_id: number): void {
+    this.grid.nextGeneration();
+  }
 
-    checksum(): number {
-        const alive = this.grid.countAlive();
-        return (this.grid.computeHash() + alive) >>> 0;
-    }
+  checksum(): number {
+    const alive = this.grid.countAlive();
+    return (this.grid.computeHash() + alive) >>> 0;
+  }
 }
 
 enum MazeCell {
-    Wall,
-    Path
+  Wall,
+  Path,
 }
 
 export class MazeGeneratorClass {
-    private width: number;
-    private height: number;
-    private cells: MazeCell[][];
+  private width: number;
+  private height: number;
+  private cells: MazeCell[][];
 
-    constructor(width: number, height: number) {
-        this.width = width > 5 ? width : 5;
-        this.height = height > 5 ? height : 5;
-        this.cells = Array(this.height);
-        for (let y = 0; y < this.height; y++) {
-            this.cells[y] = Array(this.width).fill(MazeCell.Wall);
+  constructor(width: number, height: number) {
+    this.width = width > 5 ? width : 5;
+    this.height = height > 5 ? height : 5;
+    this.cells = Array(this.height);
+    for (let y = 0; y < this.height; y++) {
+      this.cells[y] = Array(this.width).fill(MazeCell.Wall);
+    }
+  }
+
+  get(x: number, y: number): MazeCell {
+    return this.cells[y][x];
+  }
+
+  set(x: number, y: number, cell: MazeCell): void {
+    this.cells[y][x] = cell;
+  }
+
+  private divide(x1: number, y1: number, x2: number, y2: number): void {
+    const width = x2 - x1;
+    const height = y2 - y1;
+
+    if (width < 2 || height < 2) return;
+
+    const widthForWall = Math.max(width - 2, 0);
+    const heightForWall = Math.max(height - 2, 0);
+    const widthForHole = Math.max(width - 1, 0);
+    const heightForHole = Math.max(height - 1, 0);
+
+    if (
+      widthForWall === 0 ||
+      heightForWall === 0 ||
+      widthForHole === 0 ||
+      heightForHole === 0
+    )
+      return;
+
+    if (width > height) {
+      const wallRange = Math.max(Math.floor(widthForWall / 2), 1);
+      const wallOffset = wallRange > 0 ? Helper.nextInt(wallRange) * 2 : 0;
+      const wallX = x1 + 2 + wallOffset;
+
+      const holeRange = Math.max(Math.floor(heightForHole / 2), 1);
+      const holeOffset = holeRange > 0 ? Helper.nextInt(holeRange) * 2 : 0;
+      const holeY = y1 + 1 + holeOffset;
+
+      if (wallX > x2 || holeY > y2) return;
+
+      for (let y = y1; y <= y2; y++) {
+        if (y !== holeY) {
+          this.set(wallX, y, MazeCell.Wall);
         }
-    }
+      }
 
-    get(x: number, y: number): MazeCell {
-        return this.cells[y][x];
-    }
+      if (wallX > x1 + 1) this.divide(x1, y1, wallX - 1, y2);
+      if (wallX + 1 < x2) this.divide(wallX + 1, y1, x2, y2);
+    } else {
+      const wallRange = Math.max(Math.floor(heightForWall / 2), 1);
+      const wallOffset = wallRange > 0 ? Helper.nextInt(wallRange) * 2 : 0;
+      const wallY = y1 + 2 + wallOffset;
 
-    set(x: number, y: number, cell: MazeCell): void {
-        this.cells[y][x] = cell;
-    }
+      const holeRange = Math.max(Math.floor(widthForHole / 2), 1);
+      const holeOffset = holeRange > 0 ? Helper.nextInt(holeRange) * 2 : 0;
+      const holeX = x1 + 1 + holeOffset;
 
-    private divide(x1: number, y1: number, x2: number, y2: number): void {
-        const width = x2 - x1;
-        const height = y2 - y1;
+      if (wallY > y2 || holeX > x2) return;
 
-        if (width < 2 || height < 2) return;
-
-        const widthForWall = Math.max(width - 2, 0);
-        const heightForWall = Math.max(height - 2, 0);
-        const widthForHole = Math.max(width - 1, 0);
-        const heightForHole = Math.max(height - 1, 0);
-
-        if (widthForWall === 0 || heightForWall === 0 ||
-            widthForHole === 0 || heightForHole === 0) return;
-
-        if (width > height) {
-
-            const wallRange = Math.max(Math.floor(widthForWall / 2), 1);
-            const wallOffset = wallRange > 0 ? (Helper.nextInt(wallRange)) * 2 : 0;
-            const wallX = x1 + 2 + wallOffset;
-
-            const holeRange = Math.max(Math.floor(heightForHole / 2), 1);
-            const holeOffset = holeRange > 0 ? (Helper.nextInt(holeRange)) * 2 : 0;
-            const holeY = y1 + 1 + holeOffset;
-
-            if (wallX > x2 || holeY > y2) return;
-
-            for (let y = y1; y <= y2; y++) {
-                if (y !== holeY) {
-                    this.set(wallX, y, MazeCell.Wall);
-                }
-            }
-
-            if (wallX > x1 + 1) this.divide(x1, y1, wallX - 1, y2);
-            if (wallX + 1 < x2) this.divide(wallX + 1, y1, x2, y2);
-        } else {
-
-            const wallRange = Math.max(Math.floor(heightForWall / 2), 1);
-            const wallOffset = wallRange > 0 ? (Helper.nextInt(wallRange)) * 2 : 0;
-            const wallY = y1 + 2 + wallOffset;
-
-            const holeRange = Math.max(Math.floor(widthForHole / 2), 1);
-            const holeOffset = holeRange > 0 ? (Helper.nextInt(holeRange)) * 2 : 0;
-            const holeX = x1 + 1 + holeOffset;
-
-            if (wallY > y2 || holeX > x2) return;
-
-            for (let x = x1; x <= x2; x++) {
-                if (x !== holeX) {
-                    this.set(x, wallY, MazeCell.Wall);
-                }
-            }
-
-            if (wallY > y1 + 1) this.divide(x1, y1, x2, wallY - 1);
-            if (wallY + 1 < y2) this.divide(x1, wallY + 1, x2, y2);
+      for (let x = x1; x <= x2; x++) {
+        if (x !== holeX) {
+          this.set(x, wallY, MazeCell.Wall);
         }
+      }
+
+      if (wallY > y1 + 1) this.divide(x1, y1, x2, wallY - 1);
+      if (wallY + 1 < y2) this.divide(x1, wallY + 1, x2, y2);
+    }
+  }
+
+  private isConnectedImpl(
+    startX: number,
+    startY: number,
+    goalX: number,
+    goalY: number,
+  ): boolean {
+    if (
+      startX >= this.width ||
+      startY >= this.height ||
+      goalX >= this.width ||
+      goalY >= this.height
+    ) {
+      return false;
     }
 
-    private isConnectedImpl(startX: number, startY: number, goalX: number, goalY: number): boolean {
-        if (startX >= this.width || startY >= this.height ||
-            goalX >= this.width || goalY >= this.height) {
-            return false;
-        }
-
-        const visited: boolean[][] = Array(this.height);
-        for (let y = 0; y < this.height; y++) {
-            visited[y] = Array(this.width).fill(false);
-        }
-
-        const queue: [number, number][] = [];
-        let queueIndex = 0;  
-
-        visited[startY][startX] = true;
-        queue.push([startX, startY]);
-
-        while (queueIndex < queue.length) {
-            const [x, y] = queue[queueIndex++];
-
-            if (x === goalX && y === goalY) return true;
-
-            if (y > 0 && this.get(x, y - 1) === MazeCell.Path && !visited[y - 1][x]) {
-                visited[y - 1][x] = true;
-                queue.push([x, y - 1]);
-            }
-
-            if (x + 1 < this.width && this.get(x + 1, y) === MazeCell.Path && !visited[y][x + 1]) {
-                visited[y][x + 1] = true;
-                queue.push([x + 1, y]);
-            }
-
-            if (y + 1 < this.height && this.get(x, y + 1) === MazeCell.Path && !visited[y + 1][x]) {
-                visited[y + 1][x] = true;
-                queue.push([x, y + 1]);
-            }
-
-            if (x > 0 && this.get(x - 1, y) === MazeCell.Path && !visited[y][x - 1]) {
-                visited[y][x - 1] = true;
-                queue.push([x - 1, y]);
-            }
-        }
-
-        return false;
+    const visited: boolean[][] = Array(this.height);
+    for (let y = 0; y < this.height; y++) {
+      visited[y] = Array(this.width).fill(false);
     }
 
-    generate(): void {
-        if (this.width < 5 || this.height < 5) {
-            for (let x = 0; x < this.width; x++) {
-                this.set(x, Math.floor(this.height / 2), MazeCell.Path);
-            }
-            return;
+    const queue: [number, number][] = [];
+    let queueIndex = 0;
+
+    visited[startY][startX] = true;
+    queue.push([startX, startY]);
+
+    while (queueIndex < queue.length) {
+      const [x, y] = queue[queueIndex++];
+
+      if (x === goalX && y === goalY) return true;
+
+      if (y > 0 && this.get(x, y - 1) === MazeCell.Path && !visited[y - 1][x]) {
+        visited[y - 1][x] = true;
+        queue.push([x, y - 1]);
+      }
+
+      if (
+        x + 1 < this.width &&
+        this.get(x + 1, y) === MazeCell.Path &&
+        !visited[y][x + 1]
+      ) {
+        visited[y][x + 1] = true;
+        queue.push([x + 1, y]);
+      }
+
+      if (
+        y + 1 < this.height &&
+        this.get(x, y + 1) === MazeCell.Path &&
+        !visited[y + 1][x]
+      ) {
+        visited[y + 1][x] = true;
+        queue.push([x, y + 1]);
+      }
+
+      if (x > 0 && this.get(x - 1, y) === MazeCell.Path && !visited[y][x - 1]) {
+        visited[y][x - 1] = true;
+        queue.push([x - 1, y]);
+      }
+    }
+
+    return false;
+  }
+
+  generate(): void {
+    if (this.width < 5 || this.height < 5) {
+      for (let x = 0; x < this.width; x++) {
+        this.set(x, Math.floor(this.height / 2), MazeCell.Path);
+      }
+      return;
+    }
+
+    this.divide(0, 0, this.width - 1, this.height - 1);
+    this.addRandomPaths();
+  }
+
+  private addRandomPaths(): void {
+    const numExtraPaths = Math.floor((this.width * this.height) / 20);
+
+    for (let i = 0; i < numExtraPaths; i++) {
+      const x = Helper.nextInt(this.width - 2) + 1;
+      const y = Helper.nextInt(this.height - 2) + 1;
+
+      if (
+        this.get(x, y) === MazeCell.Wall &&
+        [
+          this.get(x - 1, y),
+          this.get(x + 1, y),
+          this.get(x, y - 1),
+          this.get(x, y + 1),
+        ].every((cell) => cell === MazeCell.Wall)
+      ) {
+        this.set(x, y, MazeCell.Path);
+      }
+    }
+  }
+
+  toBoolGrid(): boolean[][] {
+    const result: boolean[][] = Array(this.height);
+    for (let y = 0; y < this.height; y++) {
+      result[y] = Array(this.width);
+      for (let x = 0; x < this.width; x++) {
+        result[y][x] = this.cells[y][x] === MazeCell.Path;
+      }
+    }
+    return result;
+  }
+
+  isConnected(
+    startX: number,
+    startY: number,
+    goalX: number,
+    goalY: number,
+  ): boolean {
+    return this.isConnectedImpl(startX, startY, goalX, goalY);
+  }
+
+  public static generateWalkableMaze(
+    width: number,
+    height: number,
+  ): boolean[][] {
+    const maze = new MazeGeneratorClass(width, height);
+    maze.generate();
+
+    const startX = 1;
+    const startY = 1;
+    const goalX = width - 2;
+    const goalY = height - 2;
+
+    if (!maze.isConnected(startX, startY, goalX, goalY)) {
+      for (let x = 0; x < width; x++) {
+        for (let y = 0; y < height; y++) {
+          if (x === 1 || y === 1 || x === width - 2 || y === height - 2) {
+            maze.set(x, y, MazeCell.Path);
+          }
         }
-
-        this.divide(0, 0, this.width - 1, this.height - 1);
-        this.addRandomPaths();
+      }
     }
 
-    private addRandomPaths(): void {
-        const numExtraPaths = Math.floor((this.width * this.height) / 20);
-
-        for (let i = 0; i < numExtraPaths; i++) {
-            const x = Helper.nextInt(this.width - 2) + 1;
-            const y = Helper.nextInt(this.height - 2) + 1;
-
-            if (this.get(x, y) === MazeCell.Wall &&
-                [this.get(x - 1, y), this.get(x + 1, y), this.get(x, y - 1), this.get(x, y + 1)].every(cell => cell === MazeCell.Wall)) {
-                this.set(x, y, MazeCell.Path);
-            }
-        }
-    }
-
-    toBoolGrid(): boolean[][] {
-        const result: boolean[][] = Array(this.height);
-        for (let y = 0; y < this.height; y++) {
-            result[y] = Array(this.width);
-            for (let x = 0; x < this.width; x++) {
-                result[y][x] = (this.cells[y][x] === MazeCell.Path);
-            }
-        }
-        return result;
-    }
-
-    isConnected(startX: number, startY: number, goalX: number, goalY: number): boolean {
-        return this.isConnectedImpl(startX, startY, goalX, goalY);
-    }
-
-    public static generateWalkableMaze(width: number, height: number): boolean[][] {
-        const maze = new MazeGeneratorClass(width, height);
-        maze.generate();
-
-        const startX = 1;
-        const startY = 1;
-        const goalX = width - 2;
-        const goalY = height - 2;
-
-        if (!maze.isConnected(startX, startY, goalX, goalY)) {
-            for (let x = 0; x < width; x++) {
-                for (let y = 0; y < height; y++) {
-                    if (x === 1 || y === 1 || x === width - 2 || y === height - 2) {
-                        maze.set(x, y, MazeCell.Path);
-                    }
-                }
-            }
-        }
-
-        return maze.toBoolGrid();
-    }
+    return maze.toBoolGrid();
+  }
 }
 
 export class MazeGenerator extends Benchmark {
-    private readonly width: number;
-    private readonly height: number;
-    private boolGrid: boolean[][] = [];
+  private readonly width: number;
+  private readonly height: number;
+  private boolGrid: boolean[][] = [];
 
-    constructor() {
-        super();
-        this.width = Number(Helper.configI64(this.constructor.name, "w"));
-        this.height = Number(Helper.configI64(this.constructor.name, "h"));
-    }
+  constructor() {
+    super();
+    this.width = Number(Helper.configI64(this.constructor.name, "w"));
+    this.height = Number(Helper.configI64(this.constructor.name, "h"));
+  }
 
-    run(_iteration_id: number): void {
-        this.boolGrid = MazeGeneratorClass.generateWalkableMaze(this.width, this.height);
-    }
+  run(_iteration_id: number): void {
+    this.boolGrid = MazeGeneratorClass.generateWalkableMaze(
+      this.width,
+      this.height,
+    );
+  }
 
-    private gridChecksum(grid: boolean[][]): number {
-        let hasher = 2166136261 >>> 0;  
-        const prime = 16777619 >>> 0;   
+  private gridChecksum(grid: boolean[][]): number {
+    let hasher = 2166136261 >>> 0;
+    const prime = 16777619 >>> 0;
 
-        for (let i = 0; i < grid.length; i++) {
-            const row = grid[i];
-            for (let j = 0; j < row.length; j++) {
-                if (row[j]) {  
-                    const j_squared = Math.imul(j, j) >>> 0;  
-                    hasher = hasher ^ j_squared;
-                    hasher = Math.imul(hasher, prime) >>> 0;
-                }
-            }
+    for (let i = 0; i < grid.length; i++) {
+      const row = grid[i];
+      for (let j = 0; j < row.length; j++) {
+        if (row[j]) {
+          const j_squared = Math.imul(j, j) >>> 0;
+          hasher = hasher ^ j_squared;
+          hasher = Math.imul(hasher, prime) >>> 0;
         }
-        return hasher >>> 0;  
+      }
     }
+    return hasher >>> 0;
+  }
 
-    checksum(): number {
-      return this.gridChecksum(this.boolGrid) >>> 0;
-    }
+  checksum(): number {
+    return this.gridChecksum(this.boolGrid) >>> 0;
+  }
 }
 
 class AStarNode {
-    constructor(
-        public x: number,
-        public y: number,
-        public fScore: number
-    ) {}
+  constructor(
+    public x: number,
+    public y: number,
+    public fScore: number,
+  ) {}
 
-    compareTo(other: AStarNode): number {
-        if (this.fScore !== other.fScore) {
-            return this.fScore - other.fScore;
-        }
-        if (this.y !== other.y) {
-            return this.y - other.y;
-        }
-        return this.x - other.x;
+  compareTo(other: AStarNode): number {
+    if (this.fScore !== other.fScore) {
+      return this.fScore - other.fScore;
     }
+    if (this.y !== other.y) {
+      return this.y - other.y;
+    }
+    return this.x - other.x;
+  }
 }
 
 class AStarBinaryHeap {
-    private data: AStarNode[] = [];
+  private data: AStarNode[] = [];
 
-    push(item: AStarNode): void {
-        this.data.push(item);
-        this.siftUp(this.data.length - 1);
+  push(item: AStarNode): void {
+    this.data.push(item);
+    this.siftUp(this.data.length - 1);
+  }
+
+  pop(): AStarNode {
+    const result = this.data[0];
+    const last = this.data.pop()!;
+
+    if (this.data.length > 0) {
+      this.data[0] = last;
+      this.siftDown(0);
     }
 
-    pop(): AStarNode {
-        const result = this.data[0];
-        const last = this.data.pop()!;
+    return result;
+  }
 
-        if (this.data.length > 0) {
-            this.data[0] = last;
-            this.siftDown(0);
+  isEmpty(): boolean {
+    return this.data.length === 0;
+  }
+
+  private siftUp(index: number): void {
+    const node = this.data[index];
+
+    while (index > 0) {
+      const parent = (index - 1) >> 1;
+      const parentNode = this.data[parent];
+
+      if (node.compareTo(parentNode) >= 0) break;
+
+      this.data[index] = parentNode;
+      this.data[parent] = node;
+      index = parent;
+    }
+  }
+
+  private siftDown(index: number): void {
+    const size = this.data.length;
+    const node = this.data[index];
+
+    while (true) {
+      const left = (index << 1) + 1;
+      const right = left + 1;
+      let smallest = index;
+
+      if (left < size) {
+        const leftNode = this.data[left];
+        if (leftNode.compareTo(this.data[smallest]) < 0) {
+          smallest = left;
         }
+      }
 
-        return result;
-    }
-
-    isEmpty(): boolean {
-        return this.data.length === 0;
-    }
-
-    private siftUp(index: number): void {
-        const node = this.data[index];
-
-        while (index > 0) {
-            const parent = (index - 1) >> 1;
-            const parentNode = this.data[parent];
-
-            if (node.compareTo(parentNode) >= 0) break;
-
-            this.data[index] = parentNode;
-            this.data[parent] = node;
-            index = parent;
+      if (right < size) {
+        const rightNode = this.data[right];
+        if (rightNode.compareTo(this.data[smallest]) < 0) {
+          smallest = right;
         }
+      }
+
+      if (smallest === index) break;
+
+      this.data[index] = this.data[smallest];
+      this.data[smallest] = node;
+      index = smallest;
     }
-
-    private siftDown(index: number): void {
-        const size = this.data.length;
-        const node = this.data[index];
-
-        while (true) {
-            const left = (index << 1) + 1;
-            const right = left + 1;
-            let smallest = index;
-
-            if (left < size) {
-                const leftNode = this.data[left];
-                if (leftNode.compareTo(this.data[smallest]) < 0) {
-                    smallest = left;
-                }
-            }
-
-            if (right < size) {
-                const rightNode = this.data[right];
-                if (rightNode.compareTo(this.data[smallest]) < 0) {
-                    smallest = right;
-                }
-            }
-
-            if (smallest === index) break;
-
-            this.data[index] = this.data[smallest];
-            this.data[smallest] = node;
-            index = smallest;
-        }
-    }
+  }
 }
 
 export class AStarPathfinder extends Benchmark {
-    private resultVal: number = 0;
-    private readonly startX: number;
-    private readonly startY: number;
-    private readonly goalX: number;
-    private readonly goalY: number;
-    private readonly width: number;
-    private readonly height: number;
-    private mazeGrid: boolean[][] = [];
+  private resultVal: number = 0;
+  private readonly startX: number;
+  private readonly startY: number;
+  private readonly goalX: number;
+  private readonly goalY: number;
+  private readonly width: number;
+  private readonly height: number;
+  private mazeGrid: boolean[][] = [];
 
-    private gScoresCache: Int32Array;
-    private cameFromCache: Int32Array;
+  private gScoresCache: Int32Array;
+  private cameFromCache: Int32Array;
 
-    private static readonly DIRECTIONS: [number, number][] = [
-        [0, -1], [1, 0], [0, 1], [-1, 0]
-    ];
-    private static readonly STRAIGHT_COST = 1000;
-    private static readonly INF = 0x7FFFFFFF;
+  private static readonly DIRECTIONS: [number, number][] = [
+    [0, -1],
+    [1, 0],
+    [0, 1],
+    [-1, 0],
+  ];
+  private static readonly STRAIGHT_COST = 1000;
+  private static readonly INF = 0x7fffffff;
 
-    constructor() {
-        super();
-        this.width = Number(Helper.configI64(this.constructor.name, "w"));
-        this.height = Number(Helper.configI64(this.constructor.name, "h"));
-        this.startX = 1;
-        this.startY = 1;
-        this.goalX = this.width - 2;
-        this.goalY = this.height - 2;
+  constructor() {
+    super();
+    this.width = Number(Helper.configI64(this.constructor.name, "w"));
+    this.height = Number(Helper.configI64(this.constructor.name, "h"));
+    this.startX = 1;
+    this.startY = 1;
+    this.goalX = this.width - 2;
+    this.goalY = this.height - 2;
 
-        const size = this.width * this.height;
-        this.gScoresCache = new Int32Array(size);
-        this.cameFromCache = new Int32Array(size);
-    }
+    const size = this.width * this.height;
+    this.gScoresCache = new Int32Array(size);
+    this.cameFromCache = new Int32Array(size);
+  }
 
-    private distance(aX: number, aY: number, bX: number, bY: number): number {
-        return Math.abs(aX - bX) + Math.abs(aY - bY);
-    }
+  private distance(aX: number, aY: number, bX: number, bY: number): number {
+    return Math.abs(aX - bX) + Math.abs(aY - bY);
+  }
 
-    private packCoords(x: number, y: number): number {
-        return y * this.width + x;
-    }
+  private packCoords(x: number, y: number): number {
+    return y * this.width + x;
+  }
 
-    private unpackCoords(packed: number): [number, number] {
-        return [packed % this.width, Math.floor(packed / this.width)];
-    }
+  private unpackCoords(packed: number): [number, number] {
+    return [packed % this.width, Math.floor(packed / this.width)];
+  }
 
-    private findPath(): [Array<[number, number]>, number] {
-        const grid = this.mazeGrid;
-        const width = this.width;
-        const height = this.height;
+  private findPath(): [Array<[number, number]>, number] {
+    const grid = this.mazeGrid;
+    const width = this.width;
+    const height = this.height;
 
-        const gScores = this.gScoresCache;
-        const cameFrom = this.cameFromCache;
+    const gScores = this.gScoresCache;
+    const cameFrom = this.cameFromCache;
 
-        gScores.fill(AStarPathfinder.INF);
-        cameFrom.fill(-1);
+    gScores.fill(AStarPathfinder.INF);
+    cameFrom.fill(-1);
 
-        const openSet = new AStarBinaryHeap();
+    const openSet = new AStarBinaryHeap();
 
-        const startIdx = this.packCoords(this.startX, this.startY);
-        gScores[startIdx] = 0;
-        openSet.push(new AStarNode(
-            this.startX, 
-            this.startY, 
-            this.distance(this.startX, this.startY, this.goalX, this.goalY)
-        ));
+    const startIdx = this.packCoords(this.startX, this.startY);
+    gScores[startIdx] = 0;
+    openSet.push(
+      new AStarNode(
+        this.startX,
+        this.startY,
+        this.distance(this.startX, this.startY, this.goalX, this.goalY),
+      ),
+    );
 
-        let nodesExplored = 0;
+    let nodesExplored = 0;
 
-        while (!openSet.isEmpty()) {
-            const current = openSet.pop();
-            nodesExplored++;
+    while (!openSet.isEmpty()) {
+      const current = openSet.pop();
+      nodesExplored++;
 
-            if (current.x === this.goalX && current.y === this.goalY) {
+      if (current.x === this.goalX && current.y === this.goalY) {
+        const path: Array<[number, number]> = [];
+        let x = current.x;
+        let y = current.y;
 
-                const path: Array<[number, number]> = [];
-                let x = current.x;
-                let y = current.y;
+        while (x !== this.startX || y !== this.startY) {
+          path.push([x, y]);
+          const idx = this.packCoords(x, y);
+          const packed = cameFrom[idx];
+          if (packed === -1) break;
 
-                while (x !== this.startX || y !== this.startY) {
-                    path.push([x, y]);
-                    const idx = this.packCoords(x, y);
-                    const packed = cameFrom[idx];
-                    if (packed === -1) break;
-
-                    [x, y] = this.unpackCoords(packed);
-                }
-
-                path.push([this.startX, this.startY]);
-                path.reverse();
-                return [path, nodesExplored];
-            }
-
-            const currentIdx = this.packCoords(current.x, current.y);
-            const currentG = gScores[currentIdx];
-
-            for (const [dx, dy] of AStarPathfinder.DIRECTIONS) {
-                const nx = current.x + dx;
-                const ny = current.y + dy;
-
-                if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-                if (!grid[ny][nx]) continue;
-
-                const tentativeG = currentG + AStarPathfinder.STRAIGHT_COST;
-                const neighborIdx = this.packCoords(nx, ny);
-
-                if (tentativeG < gScores[neighborIdx]) {
-                    cameFrom[neighborIdx] = currentIdx;
-                    gScores[neighborIdx] = tentativeG;
-
-                    const fScore = tentativeG + this.distance(nx, ny, this.goalX, this.goalY);
-                    openSet.push(new AStarNode(nx, ny, fScore));
-                }
-            }
+          [x, y] = this.unpackCoords(packed);
         }
 
-        return [[], nodesExplored];
+        path.push([this.startX, this.startY]);
+        path.reverse();
+        return [path, nodesExplored];
+      }
+
+      const currentIdx = this.packCoords(current.x, current.y);
+      const currentG = gScores[currentIdx];
+
+      for (const [dx, dy] of AStarPathfinder.DIRECTIONS) {
+        const nx = current.x + dx;
+        const ny = current.y + dy;
+
+        if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+        if (!grid[ny][nx]) continue;
+
+        const tentativeG = currentG + AStarPathfinder.STRAIGHT_COST;
+        const neighborIdx = this.packCoords(nx, ny);
+
+        if (tentativeG < gScores[neighborIdx]) {
+          cameFrom[neighborIdx] = currentIdx;
+          gScores[neighborIdx] = tentativeG;
+
+          const fScore =
+            tentativeG + this.distance(nx, ny, this.goalX, this.goalY);
+          openSet.push(new AStarNode(nx, ny, fScore));
+        }
+      }
     }
 
-    prepare(): void {
-        this.mazeGrid = MazeGeneratorClass.generateWalkableMaze(this.width, this.height);
-    }
+    return [[], nodesExplored];
+  }
 
-    run(_iteration_id: number): void {
-        const [path, nodesExplored] = this.findPath();
+  prepare(): void {
+    this.mazeGrid = MazeGeneratorClass.generateWalkableMaze(
+      this.width,
+      this.height,
+    );
+  }
 
-        let localResult = 0;
+  run(_iteration_id: number): void {
+    const [path, nodesExplored] = this.findPath();
 
-        localResult = path.length;
+    let localResult = 0;
 
-        localResult = ((localResult << 5) + nodesExplored) >>> 0;
+    localResult = path.length;
 
-        this.resultVal = (this.resultVal + localResult) >>> 0;
-    }
+    localResult = ((localResult << 5) + nodesExplored) >>> 0;
 
-    checksum(): number {
-        return this.resultVal;
-    }
+    this.resultVal = (this.resultVal + localResult) >>> 0;
+  }
+
+  checksum(): number {
+    return this.resultVal;
+  }
 }
 
 class CompressionBWTResult {
   constructor(
     public transformed: Uint8Array,
-    public originalIdx: number
+    public originalIdx: number,
   ) {}
 }
 
@@ -4411,7 +4682,7 @@ class CompressionHuffmanNode {
     public byteVal: number | null = null,
     public isLeaf: boolean = true,
     public left: CompressionHuffmanNode | null = null,
-    public right: CompressionHuffmanNode | null = null
+    public right: CompressionHuffmanNode | null = null,
   ) {}
 }
 
@@ -4423,7 +4694,7 @@ class CompressionHuffmanCodes {
 class CompressionEncodedResult {
   constructor(
     public data: Uint8Array,
-    public bitCount: number
+    public bitCount: number,
   ) {}
 }
 
@@ -4432,7 +4703,7 @@ class CompressionCompressedData {
     public bwtResult: CompressionBWTResult,
     public frequencies: number[],
     public encodedBits: Uint8Array,
-    public originalBitCount: number
+    public originalBitCount: number,
   ) {}
 }
 
@@ -4495,12 +4766,12 @@ export class BWTHuffEncode extends Benchmark {
         }
 
         sa.sort((a, b) => {
-            const pairA = pairs[a];
-            const pairB = pairs[b];
-            if (pairA[0] !== pairB[0]) {
-                return pairA[0] - pairB[0];
-            }
-            return pairA[1] - pairB[1];  
+          const pairA = pairs[a];
+          const pairB = pairs[b];
+          if (pairA[0] !== pairB[0]) {
+            return pairA[0] - pairB[0];
+          }
+          return pairA[1] - pairB[1];
         });
 
         const newRank = new Array(n).fill(0);
@@ -4508,8 +4779,11 @@ export class BWTHuffEncode extends Benchmark {
         for (let i = 1; i < n; i++) {
           const prevPair = pairs[sa[i - 1]];
           const currPair = pairs[sa[i]];
-          newRank[sa[i]] = newRank[sa[i - 1]] + 
-            (prevPair[0] !== currPair[0] || prevPair[1] !== currPair[1] ? 1 : 0);
+          newRank[sa[i]] =
+            newRank[sa[i - 1]] +
+            (prevPair[0] !== currPair[0] || prevPair[1] !== currPair[1]
+              ? 1
+              : 0);
         }
 
         for (let i = 0; i < n; i++) {
@@ -4593,7 +4867,7 @@ export class BWTHuffEncode extends Benchmark {
         null,
         false,
         node,
-        new CompressionHuffmanNode(0, 0)
+        new CompressionHuffmanNode(0, 0),
       );
     }
 
@@ -4606,7 +4880,7 @@ export class BWTHuffEncode extends Benchmark {
         null,
         false,
         left,
-        right
+        right,
       );
 
       let inserted = false;
@@ -4629,7 +4903,7 @@ export class BWTHuffEncode extends Benchmark {
     node: CompressionHuffmanNode,
     code: number = 0,
     length: number = 0,
-    huffmanCodes: CompressionHuffmanCodes = new CompressionHuffmanCodes()
+    huffmanCodes: CompressionHuffmanCodes = new CompressionHuffmanCodes(),
   ): CompressionHuffmanCodes {
     if (node.isLeaf) {
       if (length > 0 || node.byteVal !== 0) {
@@ -4642,13 +4916,21 @@ export class BWTHuffEncode extends Benchmark {
         this.buildHuffmanCodes(node.left, code << 1, length + 1, huffmanCodes);
       }
       if (node.right) {
-        this.buildHuffmanCodes(node.right, (code << 1) | 1, length + 1, huffmanCodes);
+        this.buildHuffmanCodes(
+          node.right,
+          (code << 1) | 1,
+          length + 1,
+          huffmanCodes,
+        );
       }
     }
     return huffmanCodes;
   }
 
-  protected huffmanEncode(data: Uint8Array, huffmanCodes: CompressionHuffmanCodes): CompressionEncodedResult {
+  protected huffmanEncode(
+    data: Uint8Array,
+    huffmanCodes: CompressionHuffmanCodes,
+  ): CompressionEncodedResult {
     const result = new Uint8Array(data.length * 2);
     let currentByte = 0;
     let bitPos = 0;
@@ -4682,7 +4964,11 @@ export class BWTHuffEncode extends Benchmark {
     return new CompressionEncodedResult(result.slice(0, byteIndex), totalBits);
   }
 
-  protected huffmanDecode(encoded: Uint8Array, root: CompressionHuffmanNode, bitCount: number): Uint8Array {
+  protected huffmanDecode(
+    encoded: Uint8Array,
+    root: CompressionHuffmanNode,
+    bitCount: number,
+  ): Uint8Array {
     const result: number[] = [];
 
     let currentNode = root;
@@ -4728,7 +5014,7 @@ export class BWTHuffEncode extends Benchmark {
       bwtResult,
       frequencies,
       encoded.data,
-      encoded.bitCount
+      encoded.bitCount,
     );
   }
 
@@ -4738,12 +5024,12 @@ export class BWTHuffEncode extends Benchmark {
     const decoded = this.huffmanDecode(
       compressed.encodedBits,
       huffmanTree,
-      compressed.originalBitCount
+      compressed.originalBitCount,
     );
 
     const bwtResult = new CompressionBWTResult(
       decoded,
-      compressed.bwtResult.originalIdx
+      compressed.bwtResult.originalIdx,
     );
 
     return this.bwtInverse(bwtResult);
@@ -4769,7 +5055,7 @@ export class BWTHuffEncode extends Benchmark {
 
   run(_iteration_id: number): void {
     const compressed = this.compress(this.testData);
-    this.result = (this.result + compressed.encodedBits.length) & 0xFFFFFFFF;
+    this.result = (this.result + compressed.encodedBits.length) & 0xffffffff;
   }
 
   checksum(): number {
@@ -4795,16 +5081,16 @@ export class BWTHuffDecode extends BWTHuffEncode {
     let res = this.result;
 
     if (this.decompressed.length === this.testData.length) {
-        let equal = true;
-        for (let i = 0; i < this.decompressed.length; i++) {
-            if (this.decompressed[i] !== this.testData[i]) {
-                equal = false;
-                break;
-            }
+      let equal = true;
+      for (let i = 0; i < this.decompressed.length; i++) {
+        if (this.decompressed[i] !== this.testData[i]) {
+          equal = false;
+          break;
         }
-        if (equal) {
-            res += 1000000;
-        }
+      }
+      if (equal) {
+        res += 1000000;
+      }
     }
     return res;
   }
@@ -4852,12 +5138,12 @@ Benchmark.registerBenchmark(AStarPathfinder);
 Benchmark.registerBenchmark(BWTHuffEncode);
 Benchmark.registerBenchmark(BWTHuffDecode);
 
-const RECOMPILE_MARKER = 'RECOMPILE_MARKER_0';
+const RECOMPILE_MARKER = "RECOMPILE_MARKER_0";
 
 try {
   main().catch(console.error);
 } catch (error) {
-  console.error('Failed to run benchmarks:', error);
+  console.error("Failed to run benchmarks:", error);
   try {
     if (isDeno) {
       // @ts-ignore
@@ -4866,7 +5152,5 @@ try {
       // @ts-ignore
       process.exit(1);
     }
-  } catch {
-
-  }
+  } catch {}
 }

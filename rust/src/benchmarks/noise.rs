@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 use crate::config_i64;
 
 const SYM: [char; 6] = [' ', '░', '▒', '▓', '█', '█'];
@@ -47,8 +47,8 @@ impl Noise2DContext {
     }
 
     fn get_gradient(&self, x: i32, y: i32) -> Vec2 {
-        let idx = self.permutations[(x as usize) & (self.size_val as usize - 1)] 
-                + self.permutations[(y as usize) & (self.size_val as usize - 1)];
+        let idx = self.permutations[(x as usize) & (self.size_val as usize - 1)]
+            + self.permutations[(y as usize) & (self.size_val as usize - 1)];
         self.rgradients[(idx as usize) & (self.size_val as usize - 1)]
     }
 
@@ -125,7 +125,11 @@ impl Benchmark for Noise {
     fn run(&mut self, iteration_id: i64) {
         for y in 0..self.size_val {
             for x in 0..self.size_val {
-                let v = self.n2d.get(x as f64 * 0.1, (y + (iteration_id * 128)) as f64 * 0.1) * 0.5 + 0.5;
+                let v = self
+                    .n2d
+                    .get(x as f64 * 0.1, (y + (iteration_id * 128)) as f64 * 0.1)
+                    * 0.5
+                    + 0.5;
                 let idx = (v / 0.2) as usize;
                 let idx = if idx < SYM.len() { idx } else { SYM.len() - 1 };
                 self.result_val = self.result_val.wrapping_add(SYM[idx] as u32);

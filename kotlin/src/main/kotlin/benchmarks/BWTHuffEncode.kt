@@ -1,7 +1,7 @@
 package benchmarks
 
-import java.util.*
 import Benchmark
+import java.util.*
 
 open class BWTHuffEncode : Benchmark() {
     protected lateinit var testData: ByteArray
@@ -14,7 +14,7 @@ open class BWTHuffEncode : Benchmark() {
 
     public data class BWTResult(
         val transformed: ByteArray,
-        val originalIdx: Int
+        val originalIdx: Int,
     ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -61,7 +61,6 @@ open class BWTHuffEncode : Benchmark() {
         }
 
         if (n > 1) {
-
             val rank = IntArray(n)
             var currentRank = 0
             var prevChar = input[sa[0]].toInt() and 0xFF
@@ -77,22 +76,24 @@ open class BWTHuffEncode : Benchmark() {
 
             var k = 1
             while (k < n) {
+                val pairs =
+                    Array(n) { i ->
+                        intArrayOf(rank[i], rank[(i + k) % n])
+                    }
 
-                val pairs = Array(n) { i ->
-                    intArrayOf(rank[i], rank[(i + k) % n])
-                }
-
-                sa.sortWith(compareBy(
-                    { pairs[it][0] },
-                    { pairs[it][1] }
-                ))
+                sa.sortWith(
+                    compareBy(
+                        { pairs[it][0] },
+                        { pairs[it][1] },
+                    ),
+                )
 
                 val newRank = IntArray(n)
                 newRank[sa[0]] = 0
                 for (i in 1 until n) {
                     val prevPair = pairs[sa[i - 1]]
                     val currPair = pairs[sa[i]]
-                    newRank[sa[i]] = newRank[sa[i - 1]] + 
+                    newRank[sa[i]] = newRank[sa[i - 1]] +
                         if (prevPair[0] != currPair[0] || prevPair[1] != currPair[1]) 1 else 0
                 }
 
@@ -161,11 +162,9 @@ open class BWTHuffEncode : Benchmark() {
         val byteVal: Byte? = null,
         val isLeaf: Boolean = true,
         val left: HuffmanNode? = null,
-        val right: HuffmanNode? = null
+        val right: HuffmanNode? = null,
     ) : Comparable<HuffmanNode> {
-        override fun compareTo(other: HuffmanNode): Int {
-            return frequency.compareTo(other.frequency)
-        }
+        override fun compareTo(other: HuffmanNode): Int = frequency.compareTo(other.frequency)
     }
 
     protected fun buildHuffmanTree(frequencies: IntArray): HuffmanNode {
@@ -184,7 +183,7 @@ open class BWTHuffEncode : Benchmark() {
                 byteVal = null,
                 isLeaf = false,
                 left = node,
-                right = HuffmanNode(0, 0)
+                right = HuffmanNode(0, 0),
             )
         }
 
@@ -192,13 +191,14 @@ open class BWTHuffEncode : Benchmark() {
             val left = heap.poll()
             val right = heap.poll()
 
-            val parent = HuffmanNode(
-                frequency = left.frequency + right.frequency,
-                byteVal = null,
-                isLeaf = false,
-                left = left,
-                right = right
-            )
+            val parent =
+                HuffmanNode(
+                    frequency = left.frequency + right.frequency,
+                    byteVal = null,
+                    isLeaf = false,
+                    left = left,
+                    right = right,
+                )
 
             heap.offer(parent)
         }
@@ -208,14 +208,14 @@ open class BWTHuffEncode : Benchmark() {
 
     protected data class HuffmanCodes(
         val codeLengths: IntArray = IntArray(256),
-        val codes: IntArray = IntArray(256)
+        val codes: IntArray = IntArray(256),
     )
 
     protected fun buildHuffmanCodes(
         node: HuffmanNode,
         code: Int = 0,
         length: Int = 0,
-        huffmanCodes: HuffmanCodes = HuffmanCodes()
+        huffmanCodes: HuffmanCodes = HuffmanCodes(),
     ): HuffmanCodes {
         if (node.isLeaf) {
             if (length > 0 || node.byteVal != 0.toByte()) {
@@ -236,7 +236,7 @@ open class BWTHuffEncode : Benchmark() {
 
     protected data class EncodedResult(
         val data: ByteArray,
-        val bitCount: Int
+        val bitCount: Int,
     ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -257,8 +257,10 @@ open class BWTHuffEncode : Benchmark() {
         }
     }
 
-    protected fun huffmanEncode(data: ByteArray, huffmanCodes: HuffmanCodes): EncodedResult {
-
+    protected fun huffmanEncode(
+        data: ByteArray,
+        huffmanCodes: HuffmanCodes,
+    ): EncodedResult {
         val result = ByteArray(data.size * 2)
         var currentByte = 0
         var bitPos = 0
@@ -292,7 +294,11 @@ open class BWTHuffEncode : Benchmark() {
         return EncodedResult(result.copyOf(byteIndex), totalBits)
     }
 
-    protected fun huffmanDecode(encoded: ByteArray, root: HuffmanNode, bitCount: Int): ByteArray {
+    protected fun huffmanDecode(
+        encoded: ByteArray,
+        root: HuffmanNode,
+        bitCount: Int,
+    ): ByteArray {
         val result = mutableListOf<Byte>()
         var currentNode = root
         var bitsProcessed = 0
@@ -325,7 +331,7 @@ open class BWTHuffEncode : Benchmark() {
         val bwtResult: BWTResult,
         val frequencies: IntArray,
         val encodedBits: ByteArray,
-        val originalBitCount: Int
+        val originalBitCount: Int,
     ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -351,7 +357,6 @@ open class BWTHuffEncode : Benchmark() {
     }
 
     protected fun compress(data: ByteArray): CompressedData {
-
         val bwtResult = bwtTransform(data)
 
         val frequencies = IntArray(256)
@@ -369,24 +374,25 @@ open class BWTHuffEncode : Benchmark() {
             bwtResult,
             frequencies,
             encoded.data,
-            encoded.bitCount
+            encoded.bitCount,
         )
     }
 
     protected fun decompress(compressed: CompressedData): ByteArray {
-
         val huffmanTree = buildHuffmanTree(compressed.frequencies)
 
-        val decoded = huffmanDecode(
-            compressed.encodedBits,
-            huffmanTree,
-            compressed.originalBitCount
-        )
+        val decoded =
+            huffmanDecode(
+                compressed.encodedBits,
+                huffmanTree,
+                compressed.originalBitCount,
+            )
 
-        val bwtResult = BWTResult(
-            decoded,
-            compressed.bwtResult.originalIdx
-        )
+        val bwtResult =
+            BWTResult(
+                decoded,
+                compressed.bwtResult.originalIdx,
+            )
 
         return bwtInverse(bwtResult)
     }
@@ -408,7 +414,7 @@ open class BWTHuffEncode : Benchmark() {
 
     override fun run(iterationId: Int) {
         val compressed = compress(testData)
-        resultVal += compressed.encodedBits.size.toUInt()  
+        resultVal += compressed.encodedBits.size.toUInt()
     }
 
     override fun checksum(): UInt = resultVal

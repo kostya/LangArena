@@ -75,7 +75,6 @@ pub fn load_config(filename string) {
 
 pub fn config_i64(class_name string, field_name string) i64 {
 	if class_name in g.config && field_name in g.config[class_name] {
-
 		val := g.config[class_name][field_name] or { return 0 }
 		if val is i64 {
 			return val
@@ -86,7 +85,6 @@ pub fn config_i64(class_name string, field_name string) i64 {
 
 pub fn config_string(class_name string, field_name string) string {
 	if class_name in g.config && field_name in g.config[class_name] {
-
 		val := g.config[class_name][field_name] or { return '' }
 		if val is string {
 			return val

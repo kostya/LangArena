@@ -79,7 +79,11 @@ struct Sphere {
 
 impl Sphere {
     const fn new(center: Vector, radius: f64, color: Color) -> Self {
-        Self { center, radius, color }
+        Self {
+            center,
+            radius,
+            color,
+        }
     }
 
     fn get_normal(&self, pt: &Vector) -> Vector {

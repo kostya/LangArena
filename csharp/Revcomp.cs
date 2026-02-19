@@ -61,8 +61,8 @@ public class Revcomp : Benchmark
     private string ReverseComplement(string seq)
     {
         int length = seq.Length;
-        int lines = (length + 59) / 60; 
-        int totalSize = length + lines; 
+        int lines = (length + 59) / 60;
+        int totalSize = length + lines;
 
         var result = new StringBuilder(totalSize);
 

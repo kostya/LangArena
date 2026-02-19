@@ -11,8 +11,8 @@ pub const RegexDna = struct {
     ilen: i32,
     clen: i32,
 
-    compiled_patterns: [9]?*anyopaque, 
-    match_data: [9]?*anyopaque, 
+    compiled_patterns: [9]?*anyopaque,
+    match_data: [9]?*anyopaque,
 
     const PATTERNS = [_][]const u8{
         "agggtaaa|tttaccct",
@@ -106,7 +106,7 @@ pub const RegexDna = struct {
 
         var fasta_bench = fasta.asBenchmark();
         fasta_bench.prepare();
-        fasta_bench.run(0); 
+        fasta_bench.run(0);
 
         const fasta_result = fasta.getResult();
 
@@ -115,7 +115,6 @@ pub const RegexDna = struct {
         self.seq.clearRetainingCapacity();
 
         while (lines.next()) |line| {
-
             if (line.len == 0 and lines.peek() == null) {
                 break;
             }
@@ -130,7 +129,6 @@ pub const RegexDna = struct {
         self.clen = @as(i32, @intCast(self.seq.items.len));
 
         for (PATTERNS, 0..) |pattern, i| {
-
             if (self.match_data[i]) |md| {
                 pcre2_match_data_free_8(@ptrCast(md));
                 self.match_data[i] = null;
@@ -220,7 +218,7 @@ pub const RegexDna = struct {
             const count = self.countPattern(i);
 
             var buf: [128]u8 = undefined;
-            const line = std.fmt.bufPrint(&buf, "{s} {d}\n", .{pattern, count}) catch continue;
+            const line = std.fmt.bufPrint(&buf, "{s} {d}\n", .{ pattern, count }) catch continue;
             self.result_str.appendSlice(allocator, line) catch continue;
         }
 

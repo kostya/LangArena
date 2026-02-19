@@ -20,21 +20,31 @@ class Fasta extends Benchmark:
   private case class Gene(ch: Char, prob: Double)
 
   private val IUB = Array(
-    Gene('a', 0.27), Gene('c', 0.39), Gene('g', 0.51),
-    Gene('t', 0.78), Gene('B', 0.8), Gene('D', 0.8200000000000001),
-    Gene('H', 0.8400000000000001), Gene('K', 0.8600000000000001),
-    Gene('M', 0.8800000000000001), Gene('N', 0.9000000000000001),
-    Gene('R', 0.9200000000000002), Gene('S', 0.9400000000000002),
-    Gene('V', 0.9600000000000002), Gene('W', 0.9800000000000002),
+    Gene('a', 0.27),
+    Gene('c', 0.39),
+    Gene('g', 0.51),
+    Gene('t', 0.78),
+    Gene('B', 0.8),
+    Gene('D', 0.8200000000000001),
+    Gene('H', 0.8400000000000001),
+    Gene('K', 0.8600000000000001),
+    Gene('M', 0.8800000000000001),
+    Gene('N', 0.9000000000000001),
+    Gene('R', 0.9200000000000002),
+    Gene('S', 0.9400000000000002),
+    Gene('V', 0.9600000000000002),
+    Gene('W', 0.9800000000000002),
     Gene('Y', 1.0000000000000002)
   )
 
   private val HOMO = Array(
-    Gene('a', 0.302954942668), Gene('c', 0.5009432431601),
-    Gene('g', 0.6984905497992), Gene('t', 1.0)
+    Gene('a', 0.302954942668),
+    Gene('c', 0.5009432431601),
+    Gene('g', 0.6984905497992),
+    Gene('t', 1.0)
   )
 
-  private val ALU = 
+  private val ALU =
     "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"
 
   private def selectRandom(genelist: Array[Gene]): Char =

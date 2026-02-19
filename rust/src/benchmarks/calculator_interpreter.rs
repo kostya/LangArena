@@ -1,6 +1,6 @@
+use super::super::Benchmark;
 use crate::benchmarks::calculator_ast::{CalculatorAst, Node};
 use crate::config_i64;
-use super::super::{Benchmark};
 use std::collections::HashMap;
 
 pub struct CalculatorInterpreter {
@@ -26,9 +26,9 @@ impl CalculatorInterpreter {
         }
 
         if (a >= 0 && b > 0) || (a < 0 && b < 0) {
-            a / b  
+            a / b
         } else {
-            -(a.abs() / b.abs())  
+            -(a.abs() / b.abs())
         }
     }
 

@@ -17,10 +17,9 @@ abstract class SortBenchmark : Benchmark() {
     abstract fun test(): IntArray
 
     override fun run(iterationId: Int) {
-
-        resultVal += data[Helper.nextInt(sizeVal.toInt())].toUInt()  
+        resultVal += data[Helper.nextInt(sizeVal.toInt())].toUInt()
         val t = test()
-        resultVal += t[Helper.nextInt(sizeVal.toInt())].toUInt()  
+        resultVal += t[Helper.nextInt(sizeVal.toInt())].toUInt()
     }
 
     override fun checksum(): UInt = resultVal

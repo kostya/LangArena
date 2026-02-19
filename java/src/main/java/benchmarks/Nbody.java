@@ -161,7 +161,7 @@ public class Nbody extends Benchmark {
     public void run(int iterationId) {
         for (int n = 0; n < 1000; n++) {
             for (int i = 0; i < bodies.length; i++) {
-               bodies[i].moveFromI(bodies, 0.01, i + 1);
+                bodies[i].moveFromI(bodies, 0.01, i + 1);
             }
         }
     }

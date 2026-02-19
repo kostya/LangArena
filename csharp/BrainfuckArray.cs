@@ -54,8 +54,14 @@ public class BrainfuckArray : Benchmark
             {
                 switch (c)
                 {
-                    case '[': case ']': case '<': case '>':
-                    case '+': case '-': case ',': case '.':
+                    case '[':
+                    case ']':
+                    case '<':
+                    case '>':
+                    case '+':
+                    case '-':
+                    case ',':
+                    case '.':
                         _commands.Add((byte)c);
                         break;
                 }
@@ -131,13 +137,13 @@ public class BrainfuckArray : Benchmark
     public override void Warmup()
     {
         long prepareIters = WarmupIterations;
-        for (long i = 0; i < prepareIters; i++) 
+        for (long i = 0; i < prepareIters; i++)
         {
             RunProgram(_warmupText);
         }
     }
 
-    public override void Run(long IterationId) 
+    public override void Run(long IterationId)
     {
         _result = unchecked(_result + RunProgram(_programText));
     }

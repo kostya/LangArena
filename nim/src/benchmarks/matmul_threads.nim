@@ -49,7 +49,7 @@ proc worker(data: ThreadData) {.thread.} =
       for k in 0..<data.n:
         sum += ai[k] * data.bT[][j][k]
       data.c[][i][j] = sum
-    i += data.numThreads 
+    i += data.numThreads
 
 method numThreads(self: MatmulBase): int {.base.} = 1
 method name(self: MatmulBase): string = "MatmulBase"

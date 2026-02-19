@@ -10,11 +10,11 @@ object Main:
     Benchmark.registerBenchmark(() => new Pidigits())
     Benchmark.registerBenchmark(() => new Binarytrees())
     Benchmark.registerBenchmark(() => new BrainfuckArray())
-    Benchmark.registerBenchmark(() => new BrainfuckRecursion())   
-    Benchmark.registerBenchmark(() => new Fannkuchredux())             
+    Benchmark.registerBenchmark(() => new BrainfuckRecursion())
+    Benchmark.registerBenchmark(() => new Fannkuchredux())
     Benchmark.registerBenchmark(() => new Fasta())
     Benchmark.registerBenchmark(() => new Knuckeotide())
-    Benchmark.registerBenchmark(() => new Mandelbrot())        
+    Benchmark.registerBenchmark(() => new Mandelbrot())
     Benchmark.registerBenchmark(() => new Matmul1T())
     Benchmark.registerBenchmark(() => new Matmul4T())
     Benchmark.registerBenchmark(() => new Matmul8T())
@@ -22,9 +22,9 @@ object Main:
     Benchmark.registerBenchmark(() => new Nbody())
     Benchmark.registerBenchmark(() => new RegexDna())
     Benchmark.registerBenchmark(() => new Revcomp())
-    Benchmark.registerBenchmark(() => new Spectralnorm())        
+    Benchmark.registerBenchmark(() => new Spectralnorm())
     Benchmark.registerBenchmark(() => new Base64Encode())
-    Benchmark.registerBenchmark(() => new Base64Decode())        
+    Benchmark.registerBenchmark(() => new Base64Decode())
     Benchmark.registerBenchmark(() => new JsonGenerate())
     Benchmark.registerBenchmark(() => new JsonParseDom())
     Benchmark.registerBenchmark(() => new JsonParseMapping())
@@ -42,7 +42,7 @@ object Main:
     Benchmark.registerBenchmark(() => new BufferHashCRC32())
     Benchmark.registerBenchmark(() => new CacheSimulation())
     Benchmark.registerBenchmark(() => new CalculatorAst())
-    Benchmark.registerBenchmark(() => new CalculatorInterpreter())                                               
+    Benchmark.registerBenchmark(() => new CalculatorInterpreter())
     Benchmark.registerBenchmark(() => new GameOfLife())
     Benchmark.registerBenchmark(() => new MazeGenerator())
     Benchmark.registerBenchmark(() => new AStarPathfinder())
@@ -56,10 +56,8 @@ object Main:
     var singleBench: String = null
 
     for arg <- args do
-      if arg.endsWith(".js") then
-        configFile = arg
-      else
-        singleBench = arg
+      if arg.endsWith(".js") then configFile = arg
+      else singleBench = arg
 
     try
       Helper.loadConfig(configFile)

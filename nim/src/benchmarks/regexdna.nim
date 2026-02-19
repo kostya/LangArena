@@ -40,7 +40,7 @@ method prepare(self: RegexDna) =
   self.ilen = 0
 
   for line in res.splitLines():
-    self.ilen += line.len + 1  
+    self.ilen += line.len + 1
     if line.len > 0 and line[0] != '>':
       self.seqData.add(line)
 
@@ -67,7 +67,7 @@ method run(self: RegexDna, iteration_id: int) =
       if first < 0:
         break
       inc count
-      pos = last + 1  
+      pos = last + 1
 
     self.resultStr.add(patternStrings[i] & " " & $count & "\n")
 

@@ -12,7 +12,7 @@ pub const BrainfuckRecursion = struct {
 
     const Op = struct {
         op_type: OpType,
-        loop: []const Op = &.{}, 
+        loop: []const Op = &.{},
     };
 
     const Tape = struct {

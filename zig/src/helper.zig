@@ -28,7 +28,6 @@ pub const Helper = struct {
     }
 
     pub fn deinit(self: *Helper) void {
-
         if (self.config_parsed) |*parsed| {
             parsed.deinit();
         }
@@ -44,7 +43,6 @@ pub const Helper = struct {
     }
 
     pub fn nextInt(self: *Helper, max: i32) i32 {
-
         self.last = positiveMod(self.last *% IA +% IC, IM);
 
         return @intFromFloat(@as(f64, @floatFromInt(self.last)) * @as(f64, @floatFromInt(max)) / @as(f64, @floatFromInt(IM)));
@@ -55,7 +53,6 @@ pub const Helper = struct {
     }
 
     pub fn nextFloat(self: *Helper, max: f64) f64 {
-
         self.last = positiveMod(self.last *% IA +% IC, IM);
         return max * @as(f64, @floatFromInt(self.last)) / @as(f64, @floatFromInt(IM));
     }
@@ -96,12 +93,7 @@ pub const Helper = struct {
             parsed.deinit();
         }
 
-        const parsed = try std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            content,
-            .{ .ignore_unknown_fields = true }
-        );
+        const parsed = try std.json.parseFromSlice(std.json.Value, self.allocator, content, .{ .ignore_unknown_fields = true });
 
         self.config_parsed = parsed;
         self.config = parsed.value;

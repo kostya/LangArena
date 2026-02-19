@@ -16,7 +16,7 @@ public class Fannkuchredux : Benchmark
         Span<int> perm = stackalloc int[32];
         Span<int> count = stackalloc int[32];
 
-        for (int i = 0; i < n; i++) 
+        for (int i = 0; i < n; i++)
             perm1[i] = i;
 
         int maxFlipsCount = 0;
@@ -58,7 +58,7 @@ public class Fannkuchredux : Benchmark
 
             while (true)
             {
-                if (r == n) 
+                if (r == n)
                     return (checksum, maxFlipsCount);
 
                 int first = perm1[0];
@@ -68,7 +68,7 @@ public class Fannkuchredux : Benchmark
                 }
                 perm1[r] = first;
 
-                if (--count[r] > 0) 
+                if (--count[r] > 0)
                     break;
 
                 r++;

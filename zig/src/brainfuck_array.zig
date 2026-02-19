@@ -38,9 +38,9 @@ pub const BrainfuckArray = struct {
         pub fn advance(self: *Tape, allocator: std.mem.Allocator) !void {
             self.pos += 1;
             if (self.pos >= self.tape.len) {
-                const new_len = self.tape.len + 1; 
+                const new_len = self.tape.len + 1;
                 const new_tape = try allocator.realloc(self.tape, new_len);
-                new_tape[self.tape.len] = 0; 
+                new_tape[self.tape.len] = 0;
                 self.tape = new_tape;
             }
         }

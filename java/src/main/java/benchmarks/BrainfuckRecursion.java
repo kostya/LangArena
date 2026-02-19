@@ -13,16 +13,24 @@ public class BrainfuckRecursion extends Benchmark {
     static class Print implements Op {}
     static class Loop implements Op {
         Op[] body;
-        Loop(Op[] body) { this.body = body; }
+        Loop(Op[] body) {
+            this.body = body;
+        }
     }
 
     static class Tape {
         private byte[] tape = new byte[30000];
         private int pos = 0;
 
-        byte get() { return tape[pos]; }
-        void inc() { tape[pos]++; }
-        void dec() { tape[pos]--; }
+        byte get() {
+            return tape[pos];
+        }
+        void inc() {
+            tape[pos]++;
+        }
+        void dec() {
+            tape[pos]--;
+        }
 
         void next() {
             pos++;
@@ -54,17 +62,27 @@ public class BrainfuckRecursion extends Benchmark {
             while (pos[0] < code.length()) {
                 char c = code.charAt(pos[0]++);
                 switch (c) {
-                    case '+': list.add(new Inc()); break;
-                    case '-': list.add(new Dec()); break;
-                    case '>': list.add(new Next()); break;
-                    case '<': list.add(new Prev()); break;
-                    case '.': list.add(new Print()); break;
-                    case '[':
-                        List<Op> loopList = parse(code, pos);
-                        list.add(new Loop(loopList.toArray(new Op[0])));
-                        break;
-                    case ']':
-                        return list;
+                case '+':
+                    list.add(new Inc());
+                    break;
+                case '-':
+                    list.add(new Dec());
+                    break;
+                case '>':
+                    list.add(new Next());
+                    break;
+                case '<':
+                    list.add(new Prev());
+                    break;
+                case '.':
+                    list.add(new Print());
+                    break;
+                case '[':
+                    List<Op> loopList = parse(code, pos);
+                    list.add(new Loop(loopList.toArray(new Op[0])));
+                    break;
+                case ']':
+                    return list;
                 }
             }
             return list;
@@ -110,7 +128,9 @@ public class BrainfuckRecursion extends Benchmark {
     }
 
     @Override
-    public String name() { return "BrainfuckRecursion"; }
+    public String name() {
+        return "BrainfuckRecursion";
+    }
 
     private long runProgram(String programText) {
         return new Program(programText).run();
@@ -130,5 +150,7 @@ public class BrainfuckRecursion extends Benchmark {
     }
 
     @Override
-    public long checksum() { return resultVal; }
+    public long checksum() {
+        return resultVal;
+    }
 }

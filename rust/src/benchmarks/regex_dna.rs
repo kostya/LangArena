@@ -1,7 +1,7 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
+use crate::benchmarks::fasta::Fasta;
 use crate::config_i64;
 use regex::Regex;
-use crate::benchmarks::fasta::Fasta;
 
 pub struct RegexDna {
     seq: String,
@@ -66,7 +66,8 @@ impl Benchmark for RegexDna {
         for (pattern, display) in &patterns {
             let re = Regex::new(pattern).unwrap();
             let count = re.find_iter(&self.seq).count();
-            self.result_str.push_str(&format!("{} {}\n", display, count));
+            self.result_str
+                .push_str(&format!("{} {}\n", display, count));
         }
 
         let replacements = [

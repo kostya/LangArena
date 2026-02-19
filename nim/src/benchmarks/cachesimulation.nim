@@ -19,7 +19,8 @@ type
 proc newFastLRUCache(capacity: int): FastLRUCache =
   result = FastLRUCache(
     capacity: capacity,
-    cache: initTable[string, tuple[value: string, node: DoublyLinkedNode[string]]](),
+    cache: initTable[string, tuple[value: string, node: DoublyLinkedNode[
+        string]]](),
     lruList: initDoublyLinkedList[string]()
   )
 

@@ -182,7 +182,6 @@ fn (mut b AStarPathfinder) find_path() ([]int, int) {
 		nodes_explored++
 
 		if current.x == b.goal_x && current.y == b.goal_y {
-
 			mut path := []int{}
 			mut x := current.x
 			mut y := current.y

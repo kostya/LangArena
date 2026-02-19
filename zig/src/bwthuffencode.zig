@@ -64,7 +64,6 @@ pub const BWTHuffEncode = struct {
 
             var k: usize = 1;
             while (k < n) {
-
                 const SortContext = struct {
                     rank_ptr: []i32,
                     k: usize,
@@ -149,7 +148,6 @@ pub const BWTHuffEncode = struct {
     };
 
     pub fn buildHuffmanTree(frequencies: []const u32, allocator: std.mem.Allocator) !*HuffmanNode {
-
         var arena = std.heap.ArenaAllocator.init(allocator);
         const arena_allocator = arena.allocator();
 
@@ -225,7 +223,6 @@ pub const BWTHuffEncode = struct {
 
     fn buildHuffmanCodes(node: *HuffmanNode, code: u32, length: u8, codes: *HuffmanCodes) void {
         if (node.is_leaf) {
-
             if (length > 0 or node.byte_val != 0) {
                 codes.code_lengths[node.byte_val] = length;
                 codes.codes[node.byte_val] = code;
@@ -241,7 +238,6 @@ pub const BWTHuffEncode = struct {
     }
 
     fn huffmanEncode(data: []const u8, codes: *const HuffmanCodes, allocator: std.mem.Allocator) !EncodedResult {
-
         var total_bits: u32 = 0;
         for (data) |byte| {
             total_bits += codes.code_lengths[byte];
@@ -266,7 +262,7 @@ pub const BWTHuffEncode = struct {
                 const bits_to_write_u8 = @min(remaining_bits, 8 - bit_pos);
                 const bits_to_write = @as(u5, @intCast(bits_to_write_u8));
                 const shift_u8 = remaining_bits - bits_to_write_u8;
-                const shift = @as(u5, @intCast(shift_u8)); 
+                const shift = @as(u5, @intCast(shift_u8));
 
                 const mask = (@as(u32, 1) << bits_to_write) - 1;
                 const bits = (code_remaining >> shift) & mask;
@@ -307,9 +303,8 @@ pub const BWTHuffEncode = struct {
     };
 
     pub fn compress(data: []const u8, allocator: std.mem.Allocator) !CompressedData {
-
         var bwt_result = try bwtTransform(data, allocator);
-        defer bwt_result.deinit(allocator); 
+        defer bwt_result.deinit(allocator);
 
         var frequencies: [256]u32 = [_]u32{0} ** 256;
         for (bwt_result.transformed) |byte| {
@@ -317,7 +312,7 @@ pub const BWTHuffEncode = struct {
         }
 
         var tree_arena = std.heap.ArenaAllocator.init(allocator);
-        defer tree_arena.deinit(); 
+        defer tree_arena.deinit();
         const tree_allocator = tree_arena.allocator();
 
         const huffman_tree = try buildHuffmanTree(&frequencies, tree_allocator);
@@ -329,7 +324,7 @@ pub const BWTHuffEncode = struct {
         buildHuffmanCodes(huffman_tree, 0, 0, &huffman_codes);
 
         var encoded = try huffmanEncode(bwt_result.transformed, &huffman_codes, allocator);
-        defer encoded.deinit(allocator); 
+        defer encoded.deinit(allocator);
 
         const bwt_copy = try allocator.dupe(u8, bwt_result.transformed);
         const encoded_copy = try allocator.dupe(u8, encoded.data);

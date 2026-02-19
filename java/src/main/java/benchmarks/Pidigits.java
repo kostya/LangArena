@@ -19,13 +19,13 @@ public class Pidigits extends Benchmark {
 
     @Override
     public void run(int iterationId) {
-        int i = 0;          
-        int k = 0;          
-        BigInteger ns = BigInteger.ZERO;  
-        BigInteger a = BigInteger.ZERO;   
-        int k1 = 1;         
-        BigInteger n = BigInteger.ONE;    
-        BigInteger d = BigInteger.ONE;    
+        int i = 0;
+        int k = 0;
+        BigInteger ns = BigInteger.ZERO;
+        BigInteger a = BigInteger.ZERO;
+        int k1 = 1;
+        BigInteger n = BigInteger.ONE;
+        BigInteger d = BigInteger.ONE;
 
         while (i < nn) {
             k++;
@@ -59,7 +59,7 @@ public class Pidigits extends Benchmark {
                     if (i >= nn) break;
 
                     a = a.subtract(d.multiply(BigInteger.valueOf(digit)))
-                         .multiply(BigInteger.TEN);
+                        .multiply(BigInteger.TEN);
                     n = n.multiply(BigInteger.TEN);
                 }
             }

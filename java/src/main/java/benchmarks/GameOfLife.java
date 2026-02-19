@@ -48,7 +48,7 @@ public class GameOfLife extends Benchmark {
     private static class Grid {
         private final int width;
         private final int height;
-        private final Cell[][] cells;  
+        private final Cell[][] cells;
 
         public Grid(int width, int height) {
             this.width = width;
@@ -85,13 +85,13 @@ public class GameOfLife extends Benchmark {
 
         public void nextGeneration() {
             for (Cell[] row : cells) {
-               for (Cell cell : row) {
+                for (Cell cell : row) {
                     cell.computeNextState();
                 }
             }
 
             for (Cell[] row : cells) {
-               for (Cell cell : row) {
+                for (Cell cell : row) {
                     cell.update();
                 }
             }

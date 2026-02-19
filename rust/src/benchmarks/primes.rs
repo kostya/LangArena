@@ -130,7 +130,6 @@ impl Benchmark for Primes {
     }
 
     fn run(&mut self, _iteration_id: i64) {
-
         let primes = generate_primes(self.n as i32);
 
         let trie = build_trie(&primes);

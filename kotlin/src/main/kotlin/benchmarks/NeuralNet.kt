@@ -11,7 +11,7 @@ class NeuralNet : Benchmark() {
 
     private class Synapse(
         val sourceNeuron: Neuron,
-        val destNeuron: Neuron
+        val destNeuron: Neuron,
     ) {
         var weight: Double = Helper.nextFloat() * 2 - 1
         var prevWeight: Double = weight
@@ -36,7 +36,10 @@ class NeuralNet : Benchmark() {
 
         fun derivative(): Double = output * (1 - output)
 
-        fun outputTrain(rate: Double, target: Double) {
+        fun outputTrain(
+            rate: Double,
+            target: Double,
+        ) {
             error = (target - output) * derivative()
             updateWeights(rate)
         }
@@ -52,18 +55,22 @@ class NeuralNet : Benchmark() {
             for (synapse in synapsesIn) {
                 val tempWeight = synapse.weight
                 synapse.weight += (rate * LEARNING_RATE * error * synapse.sourceNeuron.output) +
-                                 (MOMENTUM * (synapse.weight - synapse.prevWeight))
+                    (MOMENTUM * (synapse.weight - synapse.prevWeight))
                 synapse.prevWeight = tempWeight
             }
 
             val tempThreshold = threshold
             threshold += (rate * LEARNING_RATE * error * -1) +
-                        (MOMENTUM * (threshold - prevThreshold))
+                (MOMENTUM * (threshold - prevThreshold))
             prevThreshold = tempThreshold
         }
     }
 
-    private class NeuralNetwork(inputs: Int, hidden: Int, outputs: Int) {
+    private class NeuralNetwork(
+        inputs: Int,
+        hidden: Int,
+        outputs: Int,
+    ) {
         private val inputLayer = List(inputs) { Neuron() }
         private val hiddenLayer = List(hidden) { Neuron() }
         private val outputLayer = List(outputs) { Neuron() }
@@ -87,7 +94,10 @@ class NeuralNet : Benchmark() {
             }
         }
 
-        fun train(inputs: List<Int>, targets: List<Int>) {
+        fun train(
+            inputs: List<Int>,
+            targets: List<Int>,
+        ) {
             feedForward(inputs)
 
             for ((neuron, target) in outputLayer.zip(targets)) {
@@ -113,9 +123,7 @@ class NeuralNet : Benchmark() {
             }
         }
 
-        fun currentOutputs(): List<Double> {
-            return outputLayer.map { it.output }
-        }
+        fun currentOutputs(): List<Double> = outputLayer.map { it.output }
     }
 
     private lateinit var xorNet: NeuralNetwork

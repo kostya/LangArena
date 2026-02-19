@@ -5,10 +5,10 @@ import scala.collection.mutable
 class CacheSimulation extends Benchmark:
   private class LRUCache[K, V](private val capacity: Int):
     private case class Node[K, V](
-      val key: K,
-      var value: V,
-      var prev: Node[K, V] = null,
-      var next: Node[K, V] = null
+        val key: K,
+        var value: V,
+        var prev: Node[K, V] = null,
+        var next: Node[K, V] = null
     )
 
     private val cache = mutable.Map.empty[K, Node[K, V]]
@@ -41,11 +41,11 @@ class CacheSimulation extends Benchmark:
 
       node.prev match
         case null =>
-        case p => p.next = node.next
+        case p    => p.next = node.next
 
       node.next match
         case null =>
-        case n => n.prev = node.prev
+        case n    => n.prev = node.prev
 
       if node == tail then tail = node.prev
 
@@ -53,7 +53,7 @@ class CacheSimulation extends Benchmark:
       node.next = head
       head match
         case null =>
-        case h => h.prev = node
+        case h    => h.prev = node
       head = node
 
       if tail == null then tail = node
@@ -62,7 +62,7 @@ class CacheSimulation extends Benchmark:
       node.next = head
       head match
         case null =>
-        case h => h.prev = node
+        case h    => h.prev = node
       head = node
       if tail == null then tail = node
 
@@ -74,7 +74,7 @@ class CacheSimulation extends Benchmark:
 
       oldest.prev match
         case null =>
-        case p => p.next = null
+        case p    => p.next = null
       tail = oldest.prev
 
       if head == oldest then head = null
@@ -110,4 +110,4 @@ class CacheSimulation extends Benchmark:
     finalResult = (finalResult << 5) + hits
     finalResult = (finalResult << 5) + misses
     finalResult = (finalResult << 5) + cache.getSize().toLong
-    finalResult & 0xFFFFFFFFL
+    finalResult & 0xffffffffL

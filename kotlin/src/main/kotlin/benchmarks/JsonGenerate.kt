@@ -16,15 +16,16 @@ class JsonGenerate : Benchmark() {
     }
 
     override fun prepare() {
-        data = List(n.toInt()) {
-            mapOf(
-                "x" to String.format(Locale.US, "%.8f", Helper.nextFloat()).toDouble(),
-                "y" to String.format(Locale.US, "%.8f", Helper.nextFloat()).toDouble(),
-                "z" to String.format(Locale.US, "%.8f", Helper.nextFloat()).toDouble(),
-                "name" to "${String.format(Locale.US, "%.7f", Helper.nextFloat())} ${Helper.nextInt(10000)}",
-                "opts" to mapOf("1" to listOf(1, true))
-            )
-        }
+        data =
+            List(n.toInt()) {
+                mapOf(
+                    "x" to String.format(Locale.US, "%.8f", Helper.nextFloat()).toDouble(),
+                    "y" to String.format(Locale.US, "%.8f", Helper.nextFloat()).toDouble(),
+                    "z" to String.format(Locale.US, "%.8f", Helper.nextFloat()).toDouble(),
+                    "name" to "${String.format(Locale.US, "%.7f", Helper.nextFloat())} ${Helper.nextInt(10000)}",
+                    "opts" to mapOf("1" to listOf(1, true)),
+                )
+            }
     }
 
     override fun run(iterationId: Int) {
@@ -37,13 +38,11 @@ class JsonGenerate : Benchmark() {
         jsonObject.put("coordinates", jsonArray)
         jsonObject.put("info", "some info")
 
-        text = jsonObject.toJSONString() 
+        text = jsonObject.toJSONString()
         if (text.startsWith("{\"coordinates\":")) resultVal += 1
     }
 
-    override fun checksum(): UInt {
-        return resultVal.toUInt()
-    }
+    override fun checksum(): UInt = resultVal.toUInt()
 
     override fun name(): String = "JsonGenerate"
 }

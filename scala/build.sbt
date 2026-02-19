@@ -10,16 +10,17 @@ lazy val root = (project in file("."))
     ),
     Compile / run / fork := true,
     Compile / run / connectInput := true,
-    
+
     scalacOptions ++= Seq(
       "-deprecation",
       "-feature",
       "-unchecked",
-      "-Xmax-inlines", "64"
+      "-Xmax-inlines",
+      "64"
     ),
     assembly / assemblyOutputPath := baseDirectory.value / "target" / "benchmark.jar",
     assembly / assemblyMergeStrategy := {
       case PathList("META-INF", xs @ _*) => MergeStrategy.discard
-      case x => MergeStrategy.first
+      case x                             => MergeStrategy.first
     }
   )

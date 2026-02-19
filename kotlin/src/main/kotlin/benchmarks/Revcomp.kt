@@ -7,16 +7,17 @@ class Revcomp : Benchmark() {
     private var resultVal: UInt = 0u
 
     companion object {
-        private val LOOKUP = CharArray(256).apply {
-            for (i in indices) this[i] = i.toChar()
+        private val LOOKUP =
+            CharArray(256).apply {
+                for (i in indices) this[i] = i.toChar()
 
-            val from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
-            val to = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
+                val from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
+                val to = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
 
-            for (i in from.indices) {
-                this[from[i].code] = to[i]
+                for (i in from.indices) {
+                    this[from[i].code] = to[i]
+                }
             }
-        }
     }
 
     override fun name(): String = "Revcomp"
@@ -77,7 +78,5 @@ class Revcomp : Benchmark() {
         resultVal += Helper.checksum(revcompFast(input))
     }
 
-    override fun checksum(): UInt {
-        return resultVal
-    }
+    override fun checksum(): UInt = resultVal
 }

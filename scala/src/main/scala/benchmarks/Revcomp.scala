@@ -12,7 +12,7 @@ class Revcomp extends Benchmark:
       i += 1
 
     val from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
-    val to   = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
+    val to = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
 
     i = 0
     while i < from.length do
@@ -36,10 +36,8 @@ class Revcomp extends Benchmark:
     while end != -1 do
       val line = fastaResult.substring(start, end)
 
-      if line.startsWith(">") then
-        seq.append("\n---\n")
-      else
-        seq.append(line)
+      if line.startsWith(">") then seq.append("\n---\n")
+      else seq.append(line)
 
       start = end + 1
       end = fastaResult.indexOf('\n', start)
@@ -68,8 +66,7 @@ class Revcomp extends Benchmark:
       pos += 1
       start = chunkStart
 
-    if length % 60 == 0 && length > 0 then
-      pos -= 1
+    if length % 60 == 0 && length > 0 then pos -= 1
 
     String(result, 0, pos)
 

@@ -28,9 +28,10 @@ class Pidigits extends Benchmark:
       d = d.multiply(BigInteger.valueOf(k1.toLong))
 
       if a.compareTo(n) >= 0 then
-        val divResult = n.multiply(BigInteger.valueOf(3))
-                         .add(a)
-                         .divideAndRemainder(d)
+        val divResult = n
+          .multiply(BigInteger.valueOf(3))
+          .add(a)
+          .divideAndRemainder(d)
         val digit = divResult(0).intValue()
         val u = divResult(1).add(n)
 
@@ -45,8 +46,9 @@ class Pidigits extends Benchmark:
 
           if i >= nn then ()
 
-          a = a.subtract(d.multiply(BigInteger.valueOf(digit.toLong)))
-               .multiply(BigInteger.TEN)
+          a = a
+            .subtract(d.multiply(BigInteger.valueOf(digit.toLong)))
+            .multiply(BigInteger.TEN)
           n = n.multiply(BigInteger.TEN)
 
     if ns.compareTo(BigInteger.ZERO) > 0 then
@@ -54,4 +56,4 @@ class Pidigits extends Benchmark:
       result.append(String.format(s"%0${nn % 10}d\t:%d%n", ns.longValue(), nn))
 
   override def checksum(): Long =
-    Helper.checksum(result.toString()) & 0xFFFFFFFFL
+    Helper.checksum(result.toString()) & 0xffffffffL

@@ -35,7 +35,7 @@ public class JsonGenerate : Benchmark
     }
 
     public override void Prepare()
-    {        
+    {
         _data.Clear();
         for (int i = 0; i < _n; i++)
         {
@@ -54,7 +54,8 @@ public class JsonGenerate : Benchmark
         var obj = new CoordinatesWrapper { coordinates = _data, info = "some info" };
         _json = JsonSerializer.Serialize(obj, JsonGenerateContext.Default.CoordinatesWrapper);
 
-        if (_json.StartsWith("{\"coordinates\":")) {
+        if (_json.StartsWith("{\"coordinates\":"))
+        {
             _result++;
         }
     }

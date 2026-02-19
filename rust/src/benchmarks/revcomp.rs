@@ -1,7 +1,7 @@
-use std::cell::RefCell;
-use super::super::{Benchmark, helper};
-use crate::config_i64;
+use super::super::{helper, Benchmark};
 use crate::benchmarks::fasta::Fasta;
+use crate::config_i64;
+use std::cell::RefCell;
 
 pub struct Revcomp {
     input: String,
@@ -25,7 +25,7 @@ impl Revcomp {
         Self {
             n,
             input: String::new(),
-            result_val: 0
+            result_val: 0,
         }
     }
 
@@ -52,7 +52,6 @@ impl Revcomp {
     }
 
     fn revcomp(seq: &str) -> String {
-
         Self::init_lookup_table();
 
         let n = seq.len();
@@ -73,7 +72,6 @@ impl Revcomp {
         let mut result = String::with_capacity(n + line_breaks);
 
         for chunk in bytes.chunks(60) {
-
             result.push_str(unsafe { std::str::from_utf8_unchecked(chunk) });
             result.push('\n');
         }

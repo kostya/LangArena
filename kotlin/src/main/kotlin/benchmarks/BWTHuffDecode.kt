@@ -7,7 +7,6 @@ class BWTHuffDecode : BWTHuffEncode() {
     private lateinit var decompressed: ByteArray
 
     init {
-
     }
 
     override fun name(): String = "BWTHuffDecode"

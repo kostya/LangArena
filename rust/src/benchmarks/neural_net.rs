@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 
 #[derive(Clone)]
 struct Synapse {
@@ -114,21 +114,21 @@ impl NeuralNetwork {
             let error = (target - output) * derivative;
             self.neurons[neuron_idx].error = error;
 
-            let synapses_in = self.neurons[neuron_idx].synapses_in.clone(); 
+            let synapses_in = self.neurons[neuron_idx].synapses_in.clone();
             for &synapse_idx in &synapses_in {
                 let synapse = &mut self.synapses[synapse_idx];
                 let source_output = self.neurons[synapse.source_neuron].output;
 
                 let temp_weight = synapse.weight;
                 synapse.weight += (RATE * Neuron::LEARNING_RATE * error * source_output)
-                               + (Neuron::MOMENTUM * (synapse.weight - synapse.prev_weight));
+                    + (Neuron::MOMENTUM * (synapse.weight - synapse.prev_weight));
                 synapse.prev_weight = temp_weight;
             }
 
             let neuron = &mut self.neurons[neuron_idx];
             let temp_threshold = neuron.threshold;
             neuron.threshold += (RATE * Neuron::LEARNING_RATE * error * -1.0)
-                             + (Neuron::MOMENTUM * (neuron.threshold - neuron.prev_threshold));
+                + (Neuron::MOMENTUM * (neuron.threshold - neuron.prev_threshold));
             neuron.prev_threshold = temp_threshold;
         }
 
@@ -151,27 +151,26 @@ impl NeuralNetwork {
             let error = hidden_errors[i];
             self.neurons[neuron_idx].error = error;
 
-            let synapses_in = self.neurons[neuron_idx].synapses_in.clone(); 
+            let synapses_in = self.neurons[neuron_idx].synapses_in.clone();
             for &synapse_idx in &synapses_in {
                 let synapse = &mut self.synapses[synapse_idx];
                 let source_output = self.neurons[synapse.source_neuron].output;
 
                 let temp_weight = synapse.weight;
                 synapse.weight += (RATE * Neuron::LEARNING_RATE * error * source_output)
-                               + (Neuron::MOMENTUM * (synapse.weight - synapse.prev_weight));
+                    + (Neuron::MOMENTUM * (synapse.weight - synapse.prev_weight));
                 synapse.prev_weight = temp_weight;
             }
 
             let neuron = &mut self.neurons[neuron_idx];
             let temp_threshold = neuron.threshold;
             neuron.threshold += (RATE * Neuron::LEARNING_RATE * error * -1.0)
-                             + (Neuron::MOMENTUM * (neuron.threshold - neuron.prev_threshold));
+                + (Neuron::MOMENTUM * (neuron.threshold - neuron.prev_threshold));
             neuron.prev_threshold = temp_threshold;
         }
     }
 
     fn feed_forward(&mut self, inputs: &[f64]) {
-
         for (i, &input) in inputs.iter().enumerate() {
             let neuron_idx = self.input_layer[i];
             self.neurons[neuron_idx].output = input;
@@ -207,7 +206,8 @@ impl NeuralNetwork {
     }
 
     fn current_outputs(&self) -> Vec<f64> {
-        self.output_layer.iter()
+        self.output_layer
+            .iter()
             .map(|&idx| self.neurons[idx].output)
             .collect()
     }
@@ -219,9 +219,8 @@ pub struct NeuralNet {
 
 impl NeuralNet {
     pub fn new() -> Self {
-
         Self {
-            xor_net: NeuralNetwork::new(0, 0, 0), 
+            xor_net: NeuralNetwork::new(0, 0, 0),
         }
     }
 }
@@ -232,12 +231,10 @@ impl Benchmark for NeuralNet {
     }
 
     fn prepare(&mut self) {
-
         self.xor_net = NeuralNetwork::new(2, 10, 1);
     }
 
     fn run(&mut self, _iteration_id: i64) {
-
         self.xor_net.train(&[0.0, 0.0], &[0.0]);
         self.xor_net.train(&[1.0, 0.0], &[1.0]);
         self.xor_net.train(&[0.0, 1.0], &[1.0]);

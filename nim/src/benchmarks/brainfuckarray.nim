@@ -1,6 +1,6 @@
 import std/[strutils, sequtils]
 import ../benchmark
-import ../helper  
+import ../helper
 
 type
   Tape = object

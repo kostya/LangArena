@@ -23,7 +23,7 @@ import benchmarks/jsonparsemapping
 import benchmarks/primes
 import benchmarks/noise
 import benchmarks/textraytracer
-import benchmarks/neuralnet       
+import benchmarks/neuralnet
 import benchmarks/sortquick
 import benchmarks/sortmerge
 import benchmarks/sortself

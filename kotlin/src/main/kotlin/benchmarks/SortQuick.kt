@@ -1,7 +1,11 @@
 package benchmarks
 
 class SortQuick : SortBenchmark() {
-    private fun quickSort(arr: IntArray, low: Int, high: Int) {
+    private fun quickSort(
+        arr: IntArray,
+        low: Int,
+        high: Int,
+    ) {
         if (low >= high) return
 
         val pivot = arr[(low + high) / 2]

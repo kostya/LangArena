@@ -3,7 +3,7 @@ package benchmarks
 import Benchmark
 
 class Fasta : Benchmark() {
-    var n: Long = 0  
+    var n: Long = 0
     private lateinit var output: StringBuilder
 
     init {
@@ -17,18 +17,32 @@ class Fasta : Benchmark() {
     companion object {
         private const val LINE_LENGTH = 60
 
-        private val IUB = listOf(
-            Pair('a', 0.27), Pair('c', 0.39), Pair('g', 0.51), Pair('t', 0.78),
-            Pair('B', 0.8), Pair('D', 0.8200000000000001), Pair('H', 0.8400000000000001),
-            Pair('K', 0.8600000000000001), Pair('M', 0.8800000000000001), Pair('N', 0.9000000000000001),
-            Pair('R', 0.9200000000000002), Pair('S', 0.9400000000000002), Pair('V', 0.9600000000000002),
-            Pair('W', 0.9800000000000002), Pair('Y', 1.0000000000000002)
-        )
+        private val IUB =
+            listOf(
+                Pair('a', 0.27),
+                Pair('c', 0.39),
+                Pair('g', 0.51),
+                Pair('t', 0.78),
+                Pair('B', 0.8),
+                Pair('D', 0.8200000000000001),
+                Pair('H', 0.8400000000000001),
+                Pair('K', 0.8600000000000001),
+                Pair('M', 0.8800000000000001),
+                Pair('N', 0.9000000000000001),
+                Pair('R', 0.9200000000000002),
+                Pair('S', 0.9400000000000002),
+                Pair('V', 0.9600000000000002),
+                Pair('W', 0.9800000000000002),
+                Pair('Y', 1.0000000000000002),
+            )
 
-        private val HOMO = listOf(
-            Pair('a', 0.302954942668), Pair('c', 0.5009432431601),
-            Pair('g', 0.6984905497992), Pair('t', 1.0)
-        )
+        private val HOMO =
+            listOf(
+                Pair('a', 0.302954942668),
+                Pair('c', 0.5009432431601),
+                Pair('g', 0.6984905497992),
+                Pair('t', 1.0),
+            )
 
         private const val ALU = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"
     }
@@ -51,7 +65,12 @@ class Fasta : Benchmark() {
         return genelist[hi].first
     }
 
-    private fun makeRandomFasta(id: String, desc: String, genelist: List<Pair<Char, Double>>, n: Int) {
+    private fun makeRandomFasta(
+        id: String,
+        desc: String,
+        genelist: List<Pair<Char, Double>>,
+        n: Int,
+    ) {
         output.append(">$id $desc\n")
 
         var todo = n
@@ -67,7 +86,12 @@ class Fasta : Benchmark() {
         }
     }
 
-    private fun makeRepeatFasta(id: String, desc: String, s: String, n: Int) {
+    private fun makeRepeatFasta(
+        id: String,
+        desc: String,
+        s: String,
+        n: Int,
+    ) {
         output.append(">$id $desc\n")
 
         var todo = n

@@ -23,10 +23,10 @@ function eval_A_times_u(u::Vector{Float64})::Vector{Float64}
     n = length(u)
     v = Vector{Float64}(undef, n)
 
-    for i in 1:n
+    for i = 1:n
         s = 0.0
-        for j in 1:n
-            s += eval_A(i-1, j-1) * u[j]  
+        for j = 1:n
+            s += eval_A(i-1, j-1) * u[j]
         end
         v[i] = s
     end
@@ -38,10 +38,10 @@ function eval_At_times_u(u::Vector{Float64})::Vector{Float64}
     n = length(u)
     v = Vector{Float64}(undef, n)
 
-    for i in 1:n
+    for i = 1:n
         s = 0.0
-        for j in 1:n
-            s += eval_A(j-1, i-1) * u[j]  
+        for j = 1:n
+            s += eval_A(j-1, i-1) * u[j]
         end
         v[i] = s
     end
@@ -62,7 +62,7 @@ end
 function checksum(b::Spectralnorm)::UInt32
     vBv = vv = 0.0
 
-    for i in 1:b.size
+    for i = 1:b.size
         vBv += b.u[i] * b.v[i]
         vv += b.v[i] * b.v[i]
     end

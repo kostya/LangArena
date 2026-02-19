@@ -21,7 +21,7 @@ class Base64Decode : Benchmark() {
 
     override fun run(iterationId: Int) {
         bytes = Base64.getDecoder().decode(str2)
-        resultVal += bytes.size.toUInt()  
+        resultVal += bytes.size.toUInt()
     }
 
     override fun checksum(): UInt {

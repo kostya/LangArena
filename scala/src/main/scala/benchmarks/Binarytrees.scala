@@ -7,11 +7,11 @@ class Binarytrees extends Benchmark:
   override def name(): String = "Binarytrees"
 
   class TreeNode(val item: Int, depth: Int):
-    val left: TreeNode = 
+    val left: TreeNode =
       if depth > 0 then TreeNode(2 * item - 1, depth - 1)
       else null.asInstanceOf[TreeNode]
 
-    val right: TreeNode = 
+    val right: TreeNode =
       if depth > 0 then TreeNode(2 * item, depth - 1)
       else null.asInstanceOf[TreeNode]
 
@@ -40,4 +40,4 @@ class Binarytrees extends Benchmark:
         i += 1
       depth += 2
 
-  override def checksum(): Long = resultVal & 0xFFFFFFFFL
+  override def checksum(): Long = resultVal & 0xffffffffL

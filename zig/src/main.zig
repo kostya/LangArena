@@ -15,7 +15,7 @@ pub fn main() !void {
     defer helper.deinit();
 
     var args = std.process.args();
-    _ = args.next(); 
+    _ = args.next();
 
     const config_path = args.next() orelse "test.js";
     try helper.loadConfig(config_path);

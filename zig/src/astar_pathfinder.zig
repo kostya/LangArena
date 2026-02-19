@@ -129,11 +129,7 @@ pub const AStarPathfinder = struct {
         _ = self.ensureMazeGrid() catch return;
     }
 
-    fn findPath(self: *AStarPathfinder, maze_grid: []const []const bool) struct { 
-        path_length: u32, 
-        nodes_explored: u32,
-        found: bool 
-    } {
+    fn findPath(self: *AStarPathfinder, maze_grid: []const []const bool) struct { path_length: u32, nodes_explored: u32, found: bool } {
         const width = self.width;
         const height = self.height;
         const start_x = self.start_x;
@@ -157,9 +153,7 @@ pub const AStarPathfinder = struct {
         const start_idx = self.packCoords(start_x, start_y);
         g_scores[@as(usize, @intCast(start_idx))] = 0;
         const start_f = distance(start_x, start_y, goal_x, goal_y);
-        open_set.add(Node.init(start_x, start_y, start_f)) catch return .{ 
-            .path_length = 0, .nodes_explored = 0, .found = false 
-        };
+        open_set.add(Node.init(start_x, start_y, start_f)) catch return .{ .path_length = 0, .nodes_explored = 0, .found = false };
 
         const directions = [_][2]i32{ .{ 0, -1 }, .{ 1, 0 }, .{ 0, 1 }, .{ -1, 0 } };
         var nodes_explored: u32 = 0;
@@ -169,7 +163,6 @@ pub const AStarPathfinder = struct {
             nodes_explored += 1;
 
             if (current.x == goal_x and current.y == goal_y) {
-
                 var path_length: u32 = 1;
                 var x = current.x;
                 var y = current.y;
@@ -185,11 +178,7 @@ pub const AStarPathfinder = struct {
                     path_length += 1;
                 }
 
-                return .{ 
-                    .path_length = path_length, 
-                    .nodes_explored = nodes_explored, 
-                    .found = true 
-                };
+                return .{ .path_length = path_length, .nodes_explored = nodes_explored, .found = true };
             }
 
             const current_idx = self.packCoords(current.x, current.y);
@@ -206,14 +195,11 @@ pub const AStarPathfinder = struct {
                 const neighbor_idx = self.packCoords(nx, ny);
 
                 if (tentative_g < g_scores[@as(usize, @intCast(neighbor_idx))]) {
-
                     came_from[@as(usize, @intCast(neighbor_idx))] = current_idx;
                     g_scores[@as(usize, @intCast(neighbor_idx))] = tentative_g;
 
                     const f_score = tentative_g + distance(nx, ny, goal_x, goal_y);
-                    open_set.add(Node.init(nx, ny, f_score)) catch return .{ 
-                        .path_length = 0, .nodes_explored = nodes_explored, .found = false 
-                    };
+                    open_set.add(Node.init(nx, ny, f_score)) catch return .{ .path_length = 0, .nodes_explored = nodes_explored, .found = false };
                 }
             }
         }

@@ -79,10 +79,10 @@ pub fn (mut b BufferHashSHA256) run(iteration_id int) {
 	bytes := simple_sha256_digest(b.data)
 
 	mut hash_val := u32(0)
-	hash_val |= u32(bytes[3]) << 24 
+	hash_val |= u32(bytes[3]) << 24
 	hash_val |= u32(bytes[2]) << 16
 	hash_val |= u32(bytes[1]) << 8
-	hash_val |= u32(bytes[0]) 
+	hash_val |= u32(bytes[0])
 
 	b.result_val += hash_val
 }

@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 
 const SOLAR_MASS: f64 = 4.0 * std::f64::consts::PI * std::f64::consts::PI;
 const DAYS_PER_YEAR: f64 = 365.24;
@@ -17,7 +17,9 @@ struct Planet {
 impl Planet {
     fn new(x: f64, y: f64, z: f64, vx: f64, vy: f64, vz: f64, mass: f64) -> Self {
         Self {
-            x, y, z,
+            x,
+            y,
+            z,
             vx: vx * DAYS_PER_YEAR,
             vy: vy * DAYS_PER_YEAR,
             vz: vz * DAYS_PER_YEAR,
@@ -94,9 +96,7 @@ fn offset_momentum(bodies: &mut [Planet]) {
 
 fn create_bodies() -> [Planet; 5] {
     [
-
         Planet::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0),
-
         Planet::new(
             4.84143144246472090e+00,
             -1.16032004402742839e+00,
@@ -106,7 +106,6 @@ fn create_bodies() -> [Planet; 5] {
             -6.90460016972063023e-05,
             9.54791938424326609e-04,
         ),
-
         Planet::new(
             8.34336671824457987e+00,
             4.12479856412430479e+00,
@@ -116,7 +115,6 @@ fn create_bodies() -> [Planet; 5] {
             2.30417297573763929e-05,
             2.85885980666130812e-04,
         ),
-
         Planet::new(
             1.28943695621391310e+01,
             -1.51111514016986312e+01,
@@ -126,7 +124,6 @@ fn create_bodies() -> [Planet; 5] {
             -2.96589568540237556e-05,
             4.36624404335156298e-05,
         ),
-
         Planet::new(
             1.53796971148509165e+01,
             -2.59193146099879641e+01,

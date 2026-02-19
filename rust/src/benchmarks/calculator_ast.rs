@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 use crate::config_i64;
 
 #[derive(Clone)]
@@ -49,13 +49,23 @@ impl CalculatorAst {
                 0 => {
                     result.push_str(&format!(
                         "(v{} / 3) * 4 - {} / (3 + (18 - v{})) % v{} + 2 * ((9 - v{}) * (v{} + 7))",
-                        v - 1, i, v - 2, v - 3, v - 6, v - 5
+                        v - 1,
+                        i,
+                        v - 2,
+                        v - 3,
+                        v - 6,
+                        v - 5
                     ));
                 }
                 1 => {
                     result.push_str(&format!(
                         "v{} + (v{} + v{}) * v{} - (v{} / v{})",
-                        v - 1, v - 2, v - 3, v - 4, v - 5, v - 6
+                        v - 1,
+                        v - 2,
+                        v - 3,
+                        v - 4,
+                        v - 5,
+                        v - 6
                     ));
                 }
                 2 => {
@@ -149,7 +159,9 @@ impl Parser {
 
             self.skip_whitespace();
 
-            while self.pos < self.chars.len() && (self.current_char == '\n' || self.current_char == ';') {
+            while self.pos < self.chars.len()
+                && (self.current_char == '\n' || self.current_char == ';')
+            {
                 self.advance();
                 self.skip_whitespace();
             }
@@ -222,11 +234,11 @@ impl Parser {
             '0'..='9' => self.parse_number(),
             'a'..='z' => self.parse_variable(),
             '(' => {
-                self.advance(); 
+                self.advance();
                 let node = self.parse_expression();
                 self.skip_whitespace();
                 if self.current_char == ')' {
-                    self.advance(); 
+                    self.advance();
                 }
                 node
             }
@@ -249,8 +261,9 @@ impl Parser {
 
     fn parse_variable(&mut self) -> Node {
         let start = self.pos;
-        while self.pos < self.chars.len() && 
-              (self.current_char.is_ascii_lowercase() || self.current_char.is_ascii_digit()) {
+        while self.pos < self.chars.len()
+            && (self.current_char.is_ascii_lowercase() || self.current_char.is_ascii_digit())
+        {
             self.advance();
         }
 
@@ -258,7 +271,7 @@ impl Parser {
 
         self.skip_whitespace();
         if self.current_char == '=' {
-            self.advance(); 
+            self.advance();
             let expr = self.parse_expression();
             return Node::Assignment(var_name, Box::new(expr));
         }

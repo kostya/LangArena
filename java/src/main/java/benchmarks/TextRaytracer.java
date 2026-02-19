@@ -109,10 +109,10 @@ public class TextRaytracer extends Benchmark {
     private static final char[] LUT = {'.', '-', '+', '*', 'X', 'M'};
 
     private static final List<Sphere> SCENE = Arrays.asList(
-        new Sphere(new Vector(-1.0, 0.0, 3.0), 0.3, RED),
-        new Sphere(new Vector(0.0, 0.0, 3.0), 0.8, GREEN),
-        new Sphere(new Vector(1.0, 0.0, 3.0), 0.4, BLUE)
-    );
+            new Sphere(new Vector(-1.0, 0.0, 3.0), 0.3, RED),
+            new Sphere(new Vector(0.0, 0.0, 3.0), 0.8, GREEN),
+            new Sphere(new Vector(1.0, 0.0, 3.0), 0.4, BLUE)
+        );
 
     private int w, h;
     private long resultVal;
@@ -176,8 +176,8 @@ public class TextRaytracer extends Benchmark {
 
                 Ray ray = new Ray(
                     new Vector(0.0, 0.0, 0.0),
-                    new Vector((fi - fw / 2.0) / fw, 
-                              (fj - fh / 2.0) / fh, 1.0).normalize()
+                    new Vector((fi - fw / 2.0) / fw,
+                               (fj - fh / 2.0) / fh, 1.0).normalize()
                 );
 
                 Hit hit = null;

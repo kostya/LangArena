@@ -44,7 +44,6 @@ struct CoordinatesData {
 }
 
 pub fn (mut b JsonGenerate) prepare() {
-
 	mut coordinates := []CoordinateData{cap: int(b.n)}
 
 	for _ in 0 .. b.n {
@@ -116,7 +115,6 @@ pub fn (b JsonParseDom) name() string {
 }
 
 pub fn (mut b JsonParseDom) prepare() {
-
 	mut jg := JsonGenerate{
 		BaseBenchmark: benchmark.new_base_benchmark('JsonGenerate')
 		n:             b.BaseBenchmark.config_i64('coords')
@@ -205,7 +203,6 @@ struct Coordinates {
 }
 
 pub fn (mut b JsonParseMapping) prepare() {
-
 	mut jg := JsonGenerate{
 		BaseBenchmark: benchmark.new_base_benchmark('JsonGenerate')
 		n:             b.BaseBenchmark.config_i64('coords')

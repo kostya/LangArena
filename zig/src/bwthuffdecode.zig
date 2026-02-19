@@ -13,7 +13,6 @@ pub const BWTHuffDecode = struct {
     result_val: u32,
 
     fn decompress(compressed: *const BWTHuffEncode.CompressedData, allocator: std.mem.Allocator) ![]u8 {
-
         var tree_arena = std.heap.ArenaAllocator.init(allocator);
         defer tree_arena.deinit();
         const tree_allocator = tree_arena.allocator();
@@ -57,7 +56,6 @@ pub const BWTHuffDecode = struct {
                     current_node.left.?;
 
                 if (current_node.is_leaf) {
-
                     if (current_node.byte_val != 0) {
                         try result.append(allocator, current_node.byte_val);
                     }
@@ -175,7 +173,6 @@ pub const BWTHuffDecode = struct {
         const self: *BWTHuffDecode = @ptrCast(@alignCast(ptr));
 
         if (self.compressed_data) |*compressed| {
-
             const decompressed = decompress(compressed, self.allocator) catch return;
 
             if (self.decompressed.len > 0) {
