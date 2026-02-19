@@ -4,5 +4,5 @@ ARG version
 RUN wget "https://github.com/vlang/v/releases/download/$version/v_linux.zip" \
     && unzip v_linux.zip -d /opt \
     && rm v_linux.zip
-RUN ln -df /opt/v/v /usr/local/bin/v
+RUN ln -sf /opt/v/v /usr/local/bin/v
 ENV PATH=/opt/v:$PATH
