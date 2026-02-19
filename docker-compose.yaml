@@ -637,6 +637,9 @@ services:
     working_dir: /src/dart
     build:
       dockerfile: docker/dart
+      args:
+        # https://dart.dev/get-dart/archive#stable-channel
+        version: "3.11.0"
     volumes:
       - .:/src
 
