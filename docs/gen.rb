@@ -843,6 +843,14 @@ DESC
     desc = <<-DESC
     Runtime diff with previous run, from #{hist['date']}.
     DESC
+    if @j['changes']
+      desc += <<-DESC
+        <br><br><strong>Changes: </strong>
+        <p>
+        #{@j['changes'].split("\n").join("<br>")}
+        </p>
+      DESC
+    end
     {map: m, up_header: @runs_prod, left_header: @tests, summary: 'sum', lang: :up, description: desc, first_row: "Test"}
   end
 
