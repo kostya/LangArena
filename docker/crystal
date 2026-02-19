@@ -1,11 +1,5 @@
 FROM benchmarks:base
 
-RUN apt install -y --no-install-recommends \
-    libyaml-dev \
-    libevent-dev \
-    libpcre3-dev \
-    && apt clean
-
 ARG version
 ARG arch
 RUN if [ "$arch" = "amd64" ] || [ "$arch" = "" ]; then export ARCH="linux-x86_64"; else export ARCH="linux-aarch64"; fi && \
