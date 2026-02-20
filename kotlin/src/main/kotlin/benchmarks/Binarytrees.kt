@@ -1,8 +1,9 @@
 package benchmarks
 
 import Benchmark
+import java.util.*
 
-class Binarytrees : Benchmark() {
+class BinarytreesObj : Benchmark() {
     private var n: Long = 0
 
     init {
@@ -18,49 +19,88 @@ class Binarytrees : Benchmark() {
 
         init {
             if (depth > 0) {
-                left = TreeNode(2 * item - 1, depth - 1)
-                right = TreeNode(2 * item, depth - 1)
+                val shift = 1 shl (depth - 1)
+                left = TreeNode(item - shift, depth - 1)
+                right = TreeNode(item + shift, depth - 1)
             } else {
                 left = null
                 right = null
             }
         }
 
-        fun check(): Int =
-            if (left == null) {
-                item
-            } else {
-                left.check() - right!!.check() + item
-            }
-
-        companion object {
-            fun create(
-                item: Int,
-                depth: Int,
-            ): TreeNode = TreeNode(item, depth - 1)
+        fun sum(): UInt {
+            var total = item.toUInt() + 1u
+            if (left != null) total += left!!.sum()
+            if (right != null) total += right!!.sum()
+            return total
         }
     }
 
     private var resultVal: UInt = 0u
 
     override fun run(iterationId: Int) {
-        val minDepth = 4
-        val maxDepth = Math.max(minDepth + 2, n.toInt())
-        val stretchDepth = maxDepth + 1
-
-        resultVal += TreeNode.create(0, stretchDepth).check().toUInt()
-
-        for (depth in minDepth..maxDepth step 2) {
-            val iterations = 1 shl (maxDepth - depth + minDepth)
-
-            for (i in 1..iterations) {
-                resultVal += TreeNode.create(i, depth).check().toUInt()
-                resultVal += TreeNode.create(-i, depth).check().toUInt()
-            }
-        }
+        val root = TreeNode(0, n.toInt())
+        resultVal += root.sum()
     }
 
     override fun checksum(): UInt = resultVal
 
-    override fun name(): String = "Binarytrees"
+    override fun name(): String = "BinarytreesObj"
+}
+
+class BinarytreesArena : Benchmark() {
+    private var n: Long = 0
+
+    init {
+        n = configVal("depth")
+    }
+
+    data class TreeNode(
+        val item: Int,
+        var left: Int = -1,
+        var right: Int = -1,
+    )
+
+    class TreeArena {
+        private val nodes = ArrayList<TreeNode>()
+
+        fun build(
+            item: Int,
+            depth: Int,
+        ): Int {
+            val idx = nodes.size
+            nodes.add(TreeNode(item))
+
+            if (depth > 0) {
+                val shift = 1 shl (depth - 1)
+                val leftIdx = build(item - shift, depth - 1)
+                val rightIdx = build(item + shift, depth - 1)
+                nodes[idx] = nodes[idx].copy(left = leftIdx, right = rightIdx)
+            }
+
+            return idx
+        }
+
+        fun sum(idx: Int): UInt {
+            val node = nodes[idx]
+            var total = node.item.toUInt() + 1u
+
+            if (node.left >= 0) total += sum(node.left)
+            if (node.right >= 0) total += sum(node.right)
+
+            return total
+        }
+    }
+
+    private var resultVal: UInt = 0u
+
+    override fun run(iterationId: Int) {
+        val arena = TreeArena()
+        val rootIdx = arena.build(0, n.toInt())
+        resultVal += arena.sum(rootIdx)
+    }
+
+    override fun checksum(): UInt = resultVal
+
+    override fun name(): String = "BinarytreesArena"
 }

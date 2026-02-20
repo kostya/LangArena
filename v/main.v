@@ -40,6 +40,12 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		benchmark.BenchmarkInfo{'Pidigits', fn () &benchmark.IBenchmark {
 			return pidigits.new_pidigits()
 		}},
+		benchmark.BenchmarkInfo{'BinarytreesObj', fn () &benchmark.IBenchmark {
+			return binarytrees.new_binarytrees_obj()
+		}},
+		benchmark.BenchmarkInfo{'BinarytreesArena', fn () &benchmark.IBenchmark {
+			return binarytrees.new_binarytrees_arena()
+		}},
 		benchmark.BenchmarkInfo{'Fannkuchredux', fn () &benchmark.IBenchmark {
 			return fannkuchredux.new_fannkuchredux()
 		}},
@@ -69,9 +75,6 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		}},
 		benchmark.BenchmarkInfo{'Matmul16T', fn () &benchmark.IBenchmark {
 			return matmul_parallel.new_matmul16t()
-		}},
-		benchmark.BenchmarkInfo{'Binarytrees', fn () &benchmark.IBenchmark {
-			return binarytrees.new_binarytrees()
 		}},
 		benchmark.BenchmarkInfo{'BrainfuckArray', fn () &benchmark.IBenchmark {
 			return brainfuck_array.new_brainfuck_array()

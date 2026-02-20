@@ -4,8 +4,13 @@
     "amount": 10,
     "iterations": 3
   },
-  "Binarytrees": {
-    "checksum": 4294966652,
+  "BinarytreesObj": {
+    "checksum": 124,
+    "depth": 4,
+    "iterations": 3
+  },
+  "BinarytreesArena": {
+    "checksum": 124,
     "depth": 4,
     "iterations": 3
   },

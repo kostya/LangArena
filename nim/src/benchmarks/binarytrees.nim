@@ -2,54 +2,104 @@ import std/math
 import ../benchmark
 
 type
-  TreeNode = ref object
-    left, right: TreeNode
+  TreeNodeObj = ref object
+    left, right: TreeNodeObj
     item: int
 
-proc newTreeNode(item: int, depth: int): TreeNode =
-  result = TreeNode(item: item)
+proc newTreeNodeObj(item: int, depth: int): TreeNodeObj =
+  result = TreeNodeObj(item: item)
   if depth > 0:
-    result.left = newTreeNode(2 * item - 1, depth - 1)
-    result.right = newTreeNode(2 * item, depth - 1)
+    let shift = 1 shl (depth - 1)
+    result.left = newTreeNodeObj(item - shift, depth - 1)
+    result.right = newTreeNodeObj(item + shift, depth - 1)
 
-proc check(self: TreeNode): int =
-  if self.left.isNil or self.right.isNil:
-    return self.item
-  return self.left.check() - self.right.check() + self.item
+proc sum(self: TreeNodeObj): uint32 =
+  var total = uint32(self.item) + 1'u32
+  if not self.left.isNil:
+    total += self.left.sum()
+  if not self.right.isNil:
+    total += self.right.sum()
+  return total
 
 type
-  Binarytrees* = ref object of Benchmark
+  BinarytreesObj* = ref object of Benchmark
     n: int64
     resultVal: uint32
 
-proc newBinarytrees(): Benchmark =
-  Binarytrees()
+proc newBinarytreesObj(): Benchmark =
+  BinarytreesObj()
 
-method name(self: Binarytrees): string = "Binarytrees"
+method name(self: BinarytreesObj): string = "BinarytreesObj"
 
-method prepare(self: Binarytrees) =
-
+method prepare(self: BinarytreesObj) =
   self.n = self.config_val("depth")
   self.resultVal = 0
 
-method run(self: Binarytrees, iteration_id: int) =
-  let minDepth = 4
-  let maxDepth = max(minDepth + 2, self.n.int)
-  let stretchDepth = maxDepth + 1
+method run(self: BinarytreesObj, iteration_id: int) =
+  let tree = newTreeNodeObj(0, self.n.int)
+  self.resultVal += tree.sum()
 
-  let stretchTree = newTreeNode(0, stretchDepth)
-  var total: uint32 = uint32(stretchTree.check())
-
-  for depth in countup(minDepth, maxDepth, 2):
-    let iterations = 1 shl (maxDepth - depth + minDepth)
-    for i in 1..iterations:
-      let tree1 = newTreeNode(i, depth)
-      let tree2 = newTreeNode(-i, depth)
-      total = total + uint32(tree1.check()) + uint32(tree2.check())
-
-  self.resultVal = self.resultVal + total
-
-method checksum(self: Binarytrees): uint32 =
+method checksum(self: BinarytreesObj): uint32 =
   self.resultVal
 
-registerBenchmark("Binarytrees", newBinarytrees)
+registerBenchmark("BinarytreesObj", newBinarytreesObj)
+
+type
+  TreeNodeArena = object
+    item: int
+    left: int
+    right: int
+
+  TreeArena = object
+    nodes: seq[TreeNodeArena]
+
+proc initTreeArena(): TreeArena =
+  result.nodes = newSeq[TreeNodeArena]()
+
+proc build(self: var TreeArena, item: int, depth: int): int =
+  let idx = self.nodes.len
+  self.nodes.add(TreeNodeArena(item: item, left: -1, right: -1))
+
+  if depth > 0:
+    let shift = 1 shl (depth - 1)
+    let leftIdx = self.build(item - shift, depth - 1)
+    let rightIdx = self.build(item + shift, depth - 1)
+    self.nodes[idx].left = leftIdx
+    self.nodes[idx].right = rightIdx
+
+  return idx
+
+proc sum(self: TreeArena, idx: int): uint32 =
+  let node = self.nodes[idx]
+  var total = uint32(node.item) + 1'u32
+
+  if node.left >= 0:
+    total += self.sum(node.left)
+  if node.right >= 0:
+    total += self.sum(node.right)
+
+  return total
+
+type
+  BinarytreesArena* = ref object of Benchmark
+    n: int64
+    resultVal: uint32
+
+proc newBinarytreesArena(): Benchmark =
+  result = BinarytreesArena()
+
+method name(self: BinarytreesArena): string = "BinarytreesArena"
+
+method prepare(self: BinarytreesArena) =
+  self.n = self.config_val("depth")
+  self.resultVal = 0
+
+method run(self: BinarytreesArena, iteration_id: int) =
+  var arena = initTreeArena()
+  let rootIdx = arena.build(0, self.n.int)
+  self.resultVal += arena.sum(rootIdx)
+
+method checksum(self: BinarytreesArena): uint32 =
+  self.resultVal
+
+registerBenchmark("BinarytreesArena", newBinarytreesArena)

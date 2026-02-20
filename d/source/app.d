@@ -46,13 +46,14 @@ import benchmarks.astarpathfinder;
 import benchmarks.bwthuff;
 import benchmarks.jsonbench;
 
-mixin(registerAllBenchmarks!(Pidigits, Binarytrees, BrainfuckArray, BrainfuckRecursion, Fannkuchredux, Fasta,
-        Knuckeotide, Mandelbrot, Matmul1T, Matmul4T, Matmul8T, Matmul16T,
-        Nbody, RegexDna, Revcomp, Spectralnorm, Base64Encode,
-        Base64Decode, JsonGenerate, JsonParseDom, JsonParseMapping, Primes,
-        Noise, TextRaytracer, NeuralNet, SortQuick, SortMerge,
-        SortSelf, GraphPathBFS, GraphPathDFS, GraphPathAStar, BufferHashSHA256,
-        BufferHashCRC32, CacheSimulation, CalculatorAst,
+mixin(registerAllBenchmarks!(Pidigits, BinarytreesObj, BinarytreesArena,
+        BrainfuckArray, BrainfuckRecursion, Fannkuchredux,
+        Fasta, Knuckeotide, Mandelbrot, Matmul1T, Matmul4T, Matmul8T,
+        Matmul16T, Nbody, RegexDna, Revcomp, Spectralnorm,
+        Base64Encode, Base64Decode, JsonGenerate, JsonParseDom, JsonParseMapping,
+        Primes, Noise, TextRaytracer, NeuralNet, SortQuick,
+        SortMerge, SortSelf, GraphPathBFS, GraphPathDFS, GraphPathAStar,
+        BufferHashSHA256, BufferHashCRC32, CacheSimulation, CalculatorAst,
         CalculatorInterpreter, GameOfLife, MazeGenerator, AStarPathfinder,
         BWTHuffEncode, BWTHuffDecode));
 

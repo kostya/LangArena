@@ -2,20 +2,23 @@ package benchmark
 
 import "core:fmt"
 import "core:math"
+import "core:mem/virtual"
+import "core:mem"
 
-TreeNode :: struct {
-    left:  ^TreeNode,
-    right: ^TreeNode,
+TreeNodeObj :: struct {
+    left:  ^TreeNodeObj,
+    right: ^TreeNodeObj,
     item:  int,
 }
 
-tree_node_create :: proc(item: int, depth: int, allocator := context.allocator) -> ^TreeNode {
-    node := new(TreeNode, allocator)
+tree_node_obj_create :: proc(item: int, depth: int, allocator := context.allocator) -> ^TreeNodeObj {
+    node := new(TreeNodeObj, allocator)
     node.item = item
 
     if depth > 0 {
-        node.left = tree_node_create(2 * item - 1, depth - 1, allocator)
-        node.right = tree_node_create(2 * item, depth - 1, allocator)
+        shift := 1 << uint(depth - 1)
+        node.left = tree_node_obj_create(item - int(shift), depth - 1, allocator)
+        node.right = tree_node_obj_create(item + int(shift), depth - 1, allocator)
     } else {
         node.left = nil
         node.right = nil
@@ -24,86 +27,144 @@ tree_node_create :: proc(item: int, depth: int, allocator := context.allocator) 
     return node
 }
 
-tree_node_check :: proc(node: ^TreeNode) -> int {
+tree_node_obj_sum :: proc(node: ^TreeNodeObj) -> u32 {
     if node == nil {
         return 0
     }
 
-    if node.left == nil || node.right == nil {
-        return node.item
-    }
+    total := u32(node.item) + 1
+    total += tree_node_obj_sum(node.left)
+    total += tree_node_obj_sum(node.right)
 
-    left_check := tree_node_check(node.left)
-    right_check := tree_node_check(node.right)
-
-    return left_check - right_check + node.item
+    return total
 }
 
-tree_node_destroy :: proc(node: ^TreeNode, allocator := context.allocator) {
+tree_node_obj_destroy :: proc(node: ^TreeNodeObj, allocator := context.allocator) {
     if node == nil {
         return
     }
 
-    tree_node_destroy(node.left, allocator)
-    tree_node_destroy(node.right, allocator)
-
+    tree_node_obj_destroy(node.left, allocator)
+    tree_node_obj_destroy(node.right, allocator)
     free(node, allocator)
 }
 
-Binarytrees :: struct {
+BinarytreesObj :: struct {
     using base: Benchmark,
     depth: int,
     result_val: u32,
 }
 
-binarytrees_run :: proc(bench: ^Benchmark, iteration_id: int) {
-    bt := cast(^Binarytrees)bench
+binarytrees_obj_run :: proc(bench: ^Benchmark, iteration_id: int) {
+    bt := cast(^BinarytreesObj)bench
 
-    min_depth := 4
-    max_depth := max(min_depth + 2, bt.depth)
-    stretch_depth := max_depth + 1
+    tree := tree_node_obj_create(0, bt.depth)
+    defer tree_node_obj_destroy(tree)
 
-    stretch_tree := tree_node_create(0, stretch_depth)
-    defer tree_node_destroy(stretch_tree)
-    bt.result_val += u32(tree_node_check(stretch_tree))
-
-    for depth := min_depth; depth <= max_depth; depth += 2 {
-        iterations := 1 << u32(max_depth - depth + min_depth)  
-
-        for i := 1; i <= iterations; i += 1 {
-
-            tree1 := tree_node_create(i, depth)
-            defer tree_node_destroy(tree1)
-            bt.result_val += u32(tree_node_check(tree1))
-
-            tree2 := tree_node_create(-i, depth)
-            defer tree_node_destroy(tree2)
-            bt.result_val += u32(tree_node_check(tree2))
-        }
-    }
+    bt.result_val += tree_node_obj_sum(tree)
 }
 
-binarytrees_checksum :: proc(bench: ^Benchmark) -> u32 {
-    bt := cast(^Binarytrees)bench
+binarytrees_obj_checksum :: proc(bench: ^Benchmark) -> u32 {
+    bt := cast(^BinarytreesObj)bench
     return bt.result_val
 }
 
-binarytrees_prepare :: proc(bench: ^Benchmark) {
-    bt := cast(^Binarytrees)bench
+binarytrees_obj_prepare :: proc(bench: ^Benchmark) {
+    bt := cast(^BinarytreesObj)bench
     bt.depth = int(config_i64(bt.name, "depth"))
 }
 
-binarytrees_cleanup :: proc(bench: ^Benchmark) {
+create_binarytrees_obj :: proc() -> ^Benchmark {
+    bt := new(BinarytreesObj)
+    bt.name = "BinarytreesObj"
+    bt.vtable = default_vtable()
+    bt.vtable.run = binarytrees_obj_run
+    bt.vtable.checksum = binarytrees_obj_checksum
+    bt.vtable.prepare = binarytrees_obj_prepare
+
+    return cast(^Benchmark)bt
+}
+
+TreeNodeArena :: struct {
+    item:  int,
+    left:  ^TreeNodeArena,
+    right: ^TreeNodeArena,
+}
+
+BinarytreesArena :: struct {
+    using base: Benchmark,
+    depth: int,
+    result_val: u32,
+}
+
+tree_node_arena_create :: proc(arena_allocator: mem.Allocator, item: int, depth: int) -> ^TreeNodeArena {
+    node := new(TreeNodeArena, arena_allocator)
+    node.item = item
+
+    if depth > 0 {
+        shift := 1 << uint(depth - 1)
+        node.left = tree_node_arena_create(arena_allocator, item - int(shift), depth - 1)
+        node.right = tree_node_arena_create(arena_allocator, item + int(shift), depth - 1)
+    } else {
+        node.left = nil
+        node.right = nil
+    }
+
+    return node
+}
+
+tree_node_arena_sum :: proc(node: ^TreeNodeArena) -> u32 {
+    if node == nil {
+        return 0
+    }
+
+    total := u32(node.item) + 1
+    total += tree_node_arena_sum(node.left)
+    total += tree_node_arena_sum(node.right)
+
+    return total
+}
+
+binarytrees_arena_run :: proc(bench: ^Benchmark, iteration_id: int) {
+    bt := cast(^BinarytreesArena)bench
+
+    arena: virtual.Arena
+    err := virtual.arena_init_growing(&arena)
+    if err != nil {
+        fmt.println("ERROR: failed to initialize arena")
+        return
+    }
+    defer virtual.arena_destroy(&arena)  
+
+    allocator := virtual.arena_allocator(&arena)
+
+    tree := tree_node_arena_create(allocator, 0, bt.depth)
+    bt.result_val += tree_node_arena_sum(tree)
 
 }
 
-create_binarytrees :: proc() -> ^Benchmark {
-    bt := new(Binarytrees)
-    bt.name = "Binarytrees"
+binarytrees_arena_checksum :: proc(bench: ^Benchmark) -> u32 {
+    bt := cast(^BinarytreesArena)bench
+    return bt.result_val
+}
+
+binarytrees_arena_prepare :: proc(bench: ^Benchmark) {
+    bt := cast(^BinarytreesArena)bench
+    bt.depth = int(config_i64(bt.name, "depth"))
+}
+
+binarytrees_arena_cleanup :: proc(bench: ^Benchmark) {
+    bt := cast(^BinarytreesArena)bench
+}
+
+create_binarytrees_arena :: proc() -> ^Benchmark {
+    bt := new(BinarytreesArena)
+    bt.name = "BinarytreesArena"
     bt.vtable = default_vtable()
-    bt.vtable.run = binarytrees_run
-    bt.vtable.checksum = binarytrees_checksum
-    bt.vtable.prepare = binarytrees_prepare
+    bt.vtable.run = binarytrees_arena_run
+    bt.vtable.checksum = binarytrees_arena_checksum
+    bt.vtable.prepare = binarytrees_arena_prepare
+    bt.vtable.cleanup = binarytrees_arena_cleanup
 
     return cast(^Benchmark)bt
 }

@@ -43,7 +43,8 @@ include("benchmarks/BWTHuff.jl")
 
 const ALL_BENCHMARKS = [
     ("Pidigits", Pidigits),
-    ("Binarytrees", Binarytrees),
+    ("BinarytreesObj", BinarytreesObj),
+    ("BinarytreesArena", BinarytreesArena),
     ("BrainfuckArray", BrainfuckArray),
     ("BrainfuckRecursion", BrainfuckRecursion),
     ("Fannkuchredux", Fannkuchredux),

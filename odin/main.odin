@@ -11,7 +11,8 @@ main :: proc() {
     benchmark.helper_init()
 
     benchmark.register_benchmark_factory(benchmark.create_pidigits)
-    benchmark.register_benchmark_factory(benchmark.create_binarytrees)
+    benchmark.register_benchmark_factory(benchmark.create_binarytrees_obj)
+    benchmark.register_benchmark_factory(benchmark.create_binarytrees_arena)
     benchmark.register_benchmark_factory(benchmark.create_brainfuckarray)
     benchmark.register_benchmark_factory(benchmark.create_brainfuckrecursion)
     benchmark.register_benchmark_factory(benchmark.create_fannkuchredux)

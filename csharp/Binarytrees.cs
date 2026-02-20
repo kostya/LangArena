@@ -1,9 +1,9 @@
-public class Binarytrees : Benchmark
+public class BinarytreesObj : Benchmark
 {
     private long _n;
     private uint _result;
 
-    public Binarytrees()
+    public BinarytreesObj()
     {
         _result = 0;
         _n = ConfigVal("depth");
@@ -15,45 +15,102 @@ public class Binarytrees : Benchmark
         public TreeNode? Right { get; set; }
         public int Item { get; }
 
-        public static TreeNode Create(int item, int depth) => new TreeNode(item, depth);
-
         public TreeNode(int item, int depth)
         {
             Item = item;
             if (depth > 0)
             {
-                Left = new TreeNode(2 * item - 1, depth - 1);
-                Right = new TreeNode(2 * item, depth - 1);
+                int shift = 1 << (depth - 1);
+                Left = new TreeNode(item - shift, depth - 1);
+                Right = new TreeNode(item + shift, depth - 1);
             }
         }
 
-        public int Check()
+        public uint Sum()
         {
-            if (Left == null || Right == null) return Item;
-            return Left.Check() - Right.Check() + Item;
+            uint total = (uint)Item + 1;
+            if (Left != null) total += Left.Sum();
+            if (Right != null) total += Right.Sum();
+            return total;
         }
     }
 
     public override void Run(long IterationId)
     {
-        int minDepth = 4;
-        int maxDepth = Math.Max(minDepth + 2, (int)_n);
-        int stretchDepth = maxDepth + 1;
+        var root = new TreeNode(0, (int)_n);
+        _result += root.Sum();
 
-        _result += (uint)TreeNode.Create(0, stretchDepth).Check();
+    }
 
-        var longLivedTree = TreeNode.Create(0, maxDepth);
+    public override uint Checksum => _result;
+}
 
-        for (int depth = minDepth; depth <= maxDepth; depth += 2)
+public class BinarytreesArena : Benchmark
+{
+    private long _n;
+    private uint _result;
+
+    public BinarytreesArena()
+    {
+        _result = 0;
+        _n = ConfigVal("depth");
+    }
+
+    private struct TreeNode
+    {
+        public int Item;
+        public int Left;
+        public int Right;
+
+        public TreeNode(int item)
         {
-            int iterations = 1 << (maxDepth - depth + minDepth);
-
-            for (int i = 1; i <= iterations; i++)
-            {
-                _result += (uint)TreeNode.Create(i, depth).Check();
-                _result += (uint)TreeNode.Create(-i, depth).Check();
-            }
+            Item = item;
+            Left = -1;
+            Right = -1;
         }
+    }
+
+    private class TreeArena
+    {
+        private List<TreeNode> _nodes = new();
+
+        public int Build(int item, int depth)
+        {
+            int idx = _nodes.Count;
+            _nodes.Add(new TreeNode(item));
+
+            if (depth > 0)
+            {
+                int shift = 1 << (depth - 1);
+                int leftIdx = Build(item - shift, depth - 1);
+                int rightIdx = Build(item + shift, depth - 1);
+
+                var node = _nodes[idx];
+                node.Left = leftIdx;
+                node.Right = rightIdx;
+                _nodes[idx] = node;
+            }
+
+            return idx;
+        }
+
+        public uint Sum(int idx)
+        {
+            var node = _nodes[idx];
+            uint total = (uint)node.Item + 1;
+
+            if (node.Left >= 0) total += Sum(node.Left);
+            if (node.Right >= 0) total += Sum(node.Right);
+
+            return total;
+        }
+    }
+
+    public override void Run(long IterationId)
+    {
+        TreeArena _arena = new();
+        int rootIdx = _arena.Build(0, (int)_n);
+        _result += _arena.Sum(rootIdx);
     }
 
     public override uint Checksum => _result;

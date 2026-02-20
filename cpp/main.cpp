@@ -270,7 +270,7 @@ public:
   uint32_t checksum() override { return Helper::checksum(result_stream.str()); }
 };
 
-class Binarytrees : public Benchmark {
+class BinarytreesObj : public Benchmark {
 private:
   struct TreeNode {
     std::unique_ptr<TreeNode> left;
@@ -279,15 +279,20 @@ private:
 
     TreeNode(int item, int depth = 0) : item(item) {
       if (depth > 0) {
-        left = std::make_unique<TreeNode>(2 * item - 1, depth - 1);
-        right = std::make_unique<TreeNode>(2 * item, depth - 1);
+
+        left = std::make_unique<TreeNode>(item - (1 << (depth - 1)), depth - 1);
+        right =
+            std::make_unique<TreeNode>(item + (1 << (depth - 1)), depth - 1);
       }
     }
 
-    int check() const {
-      if (!left || !right)
-        return item;
-      return left->check() - right->check() + item;
+    uint32_t sum() const {
+      uint32_t total = static_cast<uint32_t>(item) + 1;
+      if (left)
+        total += left->sum();
+      if (right)
+        total += right->sum();
+      return total;
     }
   };
 
@@ -295,27 +300,70 @@ private:
   uint32_t result_val;
 
 public:
-  Binarytrees() : n(config_val("depth")), result_val(0) {}
+  BinarytreesObj() : n(config_val("depth")), result_val(0) {}
 
-  std::string name() const override { return "Binarytrees"; }
+  std::string name() const override { return "BinarytreesObj"; }
 
   void run(int iteration_id) override {
-    int min_depth = 4;
-    int max_depth = std::max(min_depth + 2, static_cast<int>(n));
-    int stretch_depth = max_depth + 1;
+    TreeNode root(0, n);
+    result_val += root.sum();
+  }
 
-    TreeNode stretch_tree(0, stretch_depth);
-    result_val += stretch_tree.check();
+  uint32_t checksum() override { return result_val; }
+};
 
-    for (int depth = min_depth; depth <= max_depth; depth += 2) {
-      int iterations = 1 << (max_depth - depth + min_depth);
-      for (int i = 1; i <= iterations; i++) {
-        TreeNode tree1(i, depth);
-        TreeNode tree2(-i, depth);
-        result_val += tree1.check();
-        result_val += tree2.check();
-      }
+class BinarytreesArena : public Benchmark {
+private:
+  struct TreeNode {
+    int32_t item;
+    int32_t left;
+    int32_t right;
+
+    TreeNode(int32_t item) : item(item), left(-1), right(-1) {}
+  };
+
+  std::vector<TreeNode> arena;
+  int64_t n;
+  uint32_t result_val;
+
+  int32_t build_tree(int32_t item, int32_t depth) {
+    int32_t idx = static_cast<int32_t>(arena.size());
+    arena.emplace_back(item);
+
+    if (depth > 0) {
+      int32_t left_idx = build_tree(item - (1 << (depth - 1)), depth - 1);
+      int32_t right_idx = build_tree(item + (1 << (depth - 1)), depth - 1);
+      auto &node = arena[idx];
+      node.left = left_idx;
+      node.right = right_idx;
     }
+
+    return idx;
+  }
+
+  uint32_t sum(int32_t idx) const {
+    const auto &node = arena[idx];
+    uint32_t total = static_cast<uint32_t>(node.item) + 1;
+
+    if (node.left >= 0) {
+      total += sum(node.left);
+    }
+    if (node.right >= 0) {
+      total += sum(node.right);
+    }
+
+    return total;
+  }
+
+public:
+  BinarytreesArena() : n(config_val("depth")), result_val(0) {}
+
+  std::string name() const override { return "BinarytreesArena"; }
+
+  void run(int iteration_id) override {
+    arena = std::vector<TreeNode>();
+    build_tree(0, static_cast<int32_t>(n));
+    result_val += sum(0);
   }
 
   uint32_t checksum() override { return result_val; }
@@ -4309,7 +4357,10 @@ void Benchmark::all(const std::string &single_bench) {
       std::pair<std::string, std::function<std::unique_ptr<Benchmark>()>>>
       benchmarks = {
           {"Pidigits", []() { return std::make_unique<Pidigits>(); }},
-          {"Binarytrees", []() { return std::make_unique<Binarytrees>(); }},
+          {"BinarytreesObj",
+           []() { return std::make_unique<BinarytreesObj>(); }},
+          {"BinarytreesArena",
+           []() { return std::make_unique<BinarytreesArena>(); }},
           {"BrainfuckArray",
            []() { return std::make_unique<BrainfuckArray>(); }},
           {"BrainfuckRecursion",

@@ -318,40 +318,120 @@ class TreeNode {
   }
 }
 
-class Binarytrees extends Benchmark {
+class BinarytreesObj extends Benchmark {
   late int n;
   int result = 0;
 
-  Binarytrees() {
+  BinarytreesObj() {
     final className = runtimeType.toString().split('.').last;
     n = Helper.configI64(className, 'depth').toInt();
   }
 
   @override
+  String get name => 'BinarytreesObj';
+
+  @override
   void runBenchmark(int iterationId) {
-    final minDepth = 4;
-    final maxDepth = max(minDepth + 2, n);
-    final stretchDepth = maxDepth + 1;
-
-    final stretchTree = TreeNode.create(0, stretchDepth);
-    result += stretchTree.check();
-
-    for (int depth = minDepth; depth <= maxDepth; depth += 2) {
-      final iterations = 1 << (maxDepth - depth + minDepth);
-
-      for (int i = 1; i <= iterations; i++) {
-        final tree1 = TreeNode.create(i, depth);
-        final tree2 = TreeNode.create(-i, depth);
-
-        result += tree1.check();
-        result += tree2.check();
-      }
-    }
+    final root = TreeNodeObj(0, n);
+    result += root.sum() & 0xFFFFFFFF;
   }
 
   @override
   int checksum() {
     return result & 0xFFFFFFFF;
+  }
+}
+
+class TreeNodeObj {
+  TreeNodeObj? left;
+  TreeNodeObj? right;
+  int item;
+
+  TreeNodeObj(this.item, int depth) {
+    if (depth > 0) {
+      final shift = 1 << (depth - 1);
+      left = TreeNodeObj(item - shift, depth - 1);
+      right = TreeNodeObj(item + shift, depth - 1);
+    }
+  }
+
+  int sum() {
+    int total = item + 1;
+
+    if (left != null) {
+      total += left!.sum();
+    }
+    if (right != null) {
+      total += right!.sum();
+    }
+
+    return total & 0xFFFFFFFF;
+  }
+}
+
+class BinarytreesArena extends Benchmark {
+  late int n;
+  int result = 0;
+
+  BinarytreesArena() {
+    final className = runtimeType.toString().split('.').last;
+    n = Helper.configI64(className, 'depth').toInt();
+  }
+
+  @override
+  String get name => 'BinarytreesArena';
+
+  @override
+  void runBenchmark(int iterationId) {
+    TreeArena _arena = TreeArena();
+    final rootIdx = _arena.build(0, n);
+    result += _arena.sum(rootIdx) & 0xFFFFFFFF;
+  }
+
+  @override
+  int checksum() {
+    return result & 0xFFFFFFFF;
+  }
+}
+
+class TreeNodeArena {
+  int item;
+  int left = -1;
+  int right = -1;
+
+  TreeNodeArena(this.item);
+}
+
+class TreeArena {
+  final List<TreeNodeArena> _nodes = [];
+
+  int build(int item, int depth) {
+    final idx = _nodes.length;
+    _nodes.add(TreeNodeArena(item));
+
+    if (depth > 0) {
+      final shift = 1 << (depth - 1);
+      final leftIdx = build(item - shift, depth - 1);
+      final rightIdx = build(item + shift, depth - 1);
+      _nodes[idx].left = leftIdx;
+      _nodes[idx].right = rightIdx;
+    }
+
+    return idx;
+  }
+
+  int sum(int idx) {
+    final node = _nodes[idx];
+    int total = node.item + 1;
+
+    if (node.left >= 0) {
+      total += sum(node.left);
+    }
+    if (node.right >= 0) {
+      total += sum(node.right);
+    }
+
+    return total & 0xFFFFFFFF;
   }
 }
 
@@ -4608,7 +4688,8 @@ CompressionHuffmanNode buildHuffmanTree(List<int> frequencies) {
 
 void registerBenchmarks() {
   Benchmark.registerBenchmark(() => Pidigits());
-  Benchmark.registerBenchmark(() => Binarytrees());
+  Benchmark.registerBenchmark(() => BinarytreesObj());
+  Benchmark.registerBenchmark(() => BinarytreesArena());
   Benchmark.registerBenchmark(() => BrainfuckArray());
   Benchmark.registerBenchmark(() => BrainfuckRecursion());
   Benchmark.registerBenchmark(() => Fannkuchredux());

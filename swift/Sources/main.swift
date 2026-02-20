@@ -7,7 +7,8 @@ func main() {
   setenv("LANG", "en_US.UTF-8", 1)
 
   BenchmarkManager.register { Pidigits() }
-  BenchmarkManager.register { Binarytrees() }
+  BenchmarkManager.register { BinarytreesObj() }
+  BenchmarkManager.register { BinarytreesArena() }
   BenchmarkManager.register { BrainfuckArray() }
   BenchmarkManager.register { BrainfuckRecursion() }
   BenchmarkManager.register { Fannkuchredux() }

@@ -146,7 +146,8 @@ fn toLower(str: []const u8, buffer: []u8) []const u8 {
 pub const all_benchmarks_list = blk: {
     const list = &[_]BenchInfo{
         createBenchInfo("Pidigits", @import("pidigits.zig").Pidigits),
-        createBenchInfo("Binarytrees", @import("binarytrees.zig").Binarytrees),
+        createBenchInfo("BinarytreesObj", @import("binarytrees.zig").BinarytreesObj),
+        createBenchInfo("BinarytreesArena", @import("binarytrees.zig").BinarytreesArena),
         createBenchInfo("BrainfuckArray", @import("brainfuck_array.zig").BrainfuckArray),
         createBenchInfo("BrainfuckRecursion", @import("brainfuck_recursion.zig").BrainfuckRecursion),
         createBenchInfo("Fannkuchredux", @import("fannkuchredux.zig").Fannkuchredux),

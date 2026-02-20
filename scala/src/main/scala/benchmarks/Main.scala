@@ -8,7 +8,8 @@ object Main:
   def main(args: Array[String]): Unit =
 
     Benchmark.registerBenchmark(() => new Pidigits())
-    Benchmark.registerBenchmark(() => new Binarytrees())
+    Benchmark.registerBenchmark(() => new BinarytreesObj())
+    Benchmark.registerBenchmark(() => new BinarytreesArena())
     Benchmark.registerBenchmark(() => new BrainfuckArray())
     Benchmark.registerBenchmark(() => new BrainfuckRecursion())
     Benchmark.registerBenchmark(() => new Fannkuchredux())

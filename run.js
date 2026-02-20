@@ -4,10 +4,15 @@
     "amount": 1000,
     "iterations": 120
   },
-  "Binarytrees": {
-    "checksum": 4294181560,
-    "depth": 12,
-    "iterations": 60
+  "BinarytreesObj": {
+    "checksum": 100663248,
+    "depth": 20,
+    "iterations": 40
+  },
+  "BinarytreesArena": {
+    "checksum": 100663248,
+    "depth": 20,
+    "iterations": 40
   },
   "BrainfuckArray": {
     "checksum": 954437102,

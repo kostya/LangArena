@@ -4,8 +4,9 @@ import benchmark;
 import helper;
 import std.algorithm;
 import std.stdio;
+import std.array;
 
-class Binarytrees : Benchmark
+class BinarytreesObj : Benchmark
 {
 private:
     class TreeNode
@@ -19,16 +20,20 @@ private:
             this.item = item;
             if (depth > 0)
             {
-                left = new TreeNode(2 * item - 1, depth - 1);
-                right = new TreeNode(2 * item, depth - 1);
+                int shift = 1 << (depth - 1);
+                left = new TreeNode(item - shift, depth - 1);
+                right = new TreeNode(item + shift, depth - 1);
             }
         }
 
-        int check() const
+        uint sum() const
         {
-            if (left is null || right is null)
-                return item;
-            return left.check() - right.check() + item;
+            uint total = cast(uint) item + 1;
+            if (left !is null)
+                total += left.sum();
+            if (right !is null)
+                total += right.sum();
+            return total;
         }
     }
 
@@ -38,35 +43,97 @@ private:
 public:
     this()
     {
-        n = configVal("depth");
+        n = cast(int) configVal("depth");
         resultVal = 0;
     }
 
     override string className() const
     {
-        return "Binarytrees";
+        return "BinarytreesObj";
     }
 
     override void run(int iterationId)
     {
-        int minDepth = 4;
-        int maxDepth = max(minDepth + 2, n);
-        int stretchDepth = maxDepth + 1;
+        auto root = new TreeNode(0, n);
+        resultVal += root.sum();
 
-        auto stretchTree = new TreeNode(0, stretchDepth);
-        resultVal += cast(uint) stretchTree.check();
+    }
 
-        for (int depth = minDepth; depth <= maxDepth; depth += 2)
+    override uint checksum()
+    {
+        return resultVal;
+    }
+}
+
+class BinarytreesArena : Benchmark
+{
+private:
+    struct TreeNode
+    {
+        int item;
+        int left = -1;
+        int right = -1;
+    }
+
+    class TreeArena
+    {
+        TreeNode[] nodes;
+
+        this()
         {
-            int iterations = 1 << (maxDepth - depth + minDepth);
-            for (int i = 1; i <= iterations; i++)
-            {
-                auto tree1 = new TreeNode(i, depth);
-                auto tree2 = new TreeNode(-i, depth);
-                resultVal += cast(uint) tree1.check();
-                resultVal += cast(uint) tree2.check();
-            }
         }
+
+        int build(int item, int depth)
+        {
+            int idx = cast(int) nodes.length;
+            nodes ~= TreeNode(item);
+
+            if (depth > 0)
+            {
+                int shift = 1 << (depth - 1);
+                int leftIdx = build(item - shift, depth - 1);
+                int rightIdx = build(item + shift, depth - 1);
+                nodes[idx].left = leftIdx;
+                nodes[idx].right = rightIdx;
+            }
+
+            return idx;
+        }
+
+        uint sum(int idx) const
+        {
+            auto node = nodes[idx];
+            uint total = cast(uint) node.item + 1;
+
+            if (node.left >= 0)
+                total += sum(node.left);
+            if (node.right >= 0)
+                total += sum(node.right);
+
+            return total;
+        }
+    }
+
+    int n;
+    uint resultVal;
+
+public:
+    this()
+    {
+        n = cast(int) configVal("depth");
+        resultVal = 0;
+    }
+
+    override string className() const
+    {
+        return "BinarytreesArena";
+    }
+
+    override void run(int iterationId)
+    {
+        TreeArena arena = new TreeArena();
+        int rootIdx = arena.build(0, n);
+        resultVal += arena.sum(rootIdx);
     }
 
     override uint checksum()

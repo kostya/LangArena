@@ -229,27 +229,28 @@ class Pidigits < Benchmark
   end
 end
 
-class Binarytrees < Benchmark
+class BinarytreesObj < Benchmark
   class TreeNode
     property left : TreeNode?
     property right : TreeNode?
     property item : Int32
 
-    def self.create(item, depth) : TreeNode
-      TreeNode.new item, depth - 1
-    end
-
     def initialize(@item, depth = 0)
       if depth > 0
-        self.left = TreeNode.new 2 * item - 1, depth - 1
-        self.right = TreeNode.new 2 * item, depth - 1
+        self.left = TreeNode.new(@item - (2**(depth - 1)), depth - 1)
+        self.right = TreeNode.new(@item + (2**(depth - 1)), depth - 1)
       end
     end
 
-    def check
-      return item if (lft = left).nil?
-      return item if (rgt = right).nil?
-      lft.check - rgt.check + item
+    def sum
+      total = @item &+ 1
+      if l = @left
+        total &+= l.sum
+      end
+      if r = @right
+        total &+= r.sum
+      end
+      total
     end
   end
 
@@ -258,18 +259,48 @@ class Binarytrees < Benchmark
   end
 
   def run(iteration_id)
-    min_depth = 4
-    max_depth = Math.max min_depth + 2, @n
-    stretch_depth = max_depth + 1
-    @result &+= TreeNode.create(0, stretch_depth).check
+    node = TreeNode.new(0, @n)
+    @result &+= node.sum
+  end
 
-    min_depth.step(to: max_depth, by: 2) do |depth|
-      iterations = 1 << (max_depth - depth + min_depth)
-      1.upto(iterations) do |i|
-        @result &+= TreeNode.create(i, depth).check
-        @result &+= TreeNode.create(-i, depth).check
-      end
+  def checksum : UInt32
+    @result
+  end
+end
+
+class BinarytreesArena < Benchmark
+  record TreeNode, item : Int32, left : Int32 = -1, right : Int32 = -1
+
+  def build_tree(item, depth)
+    idx = @arena.size
+    @arena << TreeNode.new(item, -1, -1)
+
+    if depth > 0
+      left_idx = build_tree(item - (2**(depth - 1)), depth - 1)
+      right_idx = build_tree(item + (2**(depth - 1)), depth - 1)
+      @arena[idx] = TreeNode.new(item, left_idx, right_idx)
     end
+
+    idx
+  end
+
+  def sum(idx)
+    node = @arena[idx]
+    total = node.item &+ 1
+    total &+= sum(node.left) if node.left >= 0
+    total &+= sum(node.right) if node.right >= 0
+    total
+  end
+
+  def initialize(@n : Int64 = config_val("depth"))
+    @result = 0_u32
+    @arena = Array(TreeNode).new
+  end
+
+  def run(iteration_id)
+    @arena = Array(TreeNode).new
+    build_tree(0, @n)
+    @result &+= sum(0)
   end
 
   def checksum : UInt32

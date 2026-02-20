@@ -312,7 +312,28 @@ class Benchmark(ABC):
         Benchmark._benchmark_classes.append(constructor)
 
 
-class Binarytrees(Benchmark):
+class BinarytreesObj(Benchmark):
+
+    class TreeNode:
+        __slots__ = ('left', 'right', 'item')
+
+        def __init__(self, item: int, depth: int):
+            self.item = item
+            self.left = None
+            self.right = None
+
+            if depth > 0:
+                shift = 1 << (depth - 1)
+                self.left = BinarytreesObj.TreeNode(item - shift, depth - 1)
+                self.right = BinarytreesObj.TreeNode(item + shift, depth - 1)
+
+        def sum(self) -> int:
+            total = self.item + 1
+            if self.left:
+                total += self.left.sum()
+            if self.right:
+                total += self.right.sum()
+            return total
 
     def __init__(self):
         super().__init__()
@@ -321,22 +342,62 @@ class Binarytrees(Benchmark):
         self.result = 0
 
     def run_benchmark(self, iteration_id: int) -> None:
-        min_depth = 4
-        max_depth = max(min_depth + 2, self.n)
-        stretch_depth = max_depth + 1
+        tree = self.TreeNode(0, self.n)
+        self.result = (self.result + tree.sum()) & 0xFFFFFFFF
 
-        stretch_tree = TreeNode.create(0, stretch_depth)
-        self.result += stretch_tree.check()
+    def checksum(self) -> int:
+        return self.result & 0xFFFFFFFF
 
-        for depth in range(min_depth, max_depth + 1, 2):
-            iterations = 1 << (max_depth - depth + min_depth)
 
-            for i in range(1, iterations + 1):
-                tree1 = TreeNode.create(i, depth)
-                tree2 = TreeNode.create(-i, depth)
+class BinarytreesArena(Benchmark):
 
-                self.result += tree1.check()
-                self.result += tree2.check()
+    class TreeNode:
+        __slots__ = ('item', 'left', 'right')
+
+        def __init__(self, item: int):
+            self.item = item
+            self.left = -1
+            self.right = -1
+
+    class TreeArena:
+
+        def __init__(self):
+            self.nodes = []
+
+        def build(self, item: int, depth: int) -> int:
+            idx = len(self.nodes)
+            self.nodes.append(BinarytreesArena.TreeNode(item))
+
+            if depth > 0:
+                shift = 1 << (depth - 1)
+                left_idx = self.build(item - shift, depth - 1)
+                right_idx = self.build(item + shift, depth - 1)
+                self.nodes[idx].left = left_idx
+                self.nodes[idx].right = right_idx
+
+            return idx
+
+        def sum(self, idx: int) -> int:
+            node = self.nodes[idx]
+            total = node.item + 1
+
+            if node.left >= 0:
+                total += self.sum(node.left)
+            if node.right >= 0:
+                total += self.sum(node.right)
+
+            return total
+
+    def __init__(self):
+        super().__init__()
+        class_name = self.__class__.__name__
+        self.n = Helper.config_i64(class_name, 'depth')
+        self.result = 0
+
+    def run_benchmark(self, iteration_id: int) -> None:
+        arena = self.TreeArena()
+        root_idx = arena.build(0, self.n)
+        self.result = (self.result + arena.sum(root_idx)) & 0xFFFFFFFF
 
     def checksum(self) -> int:
         return self.result & 0xFFFFFFFF
@@ -3887,7 +3948,8 @@ class BWTHuffDecode(BWTHuffBase):
 def register_benchmarks():
 
     Benchmark.register_benchmark(Pidigits)
-    Benchmark.register_benchmark(Binarytrees)
+    Benchmark.register_benchmark(BinarytreesObj)
+    Benchmark.register_benchmark(BinarytreesArena)
     Benchmark.register_benchmark(BrainfuckArray)
     Benchmark.register_benchmark(BrainfuckRecursion)
     Benchmark.register_benchmark(Fannkuchredux)

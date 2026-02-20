@@ -2,12 +2,11 @@ module binarytrees
 
 import benchmark
 import helper
-import math
 
 struct TreeNode {
 mut:
-	left  ?&TreeNode
-	right ?&TreeNode
+	left  &TreeNode = unsafe { nil }
+	right &TreeNode = unsafe { nil }
 	item  int
 }
 
@@ -17,72 +16,142 @@ fn new_tree_node(item int, depth int) &TreeNode {
 	}
 
 	if depth > 0 {
-		node.left = new_tree_node(2 * item - 1, depth - 1)
-		node.right = new_tree_node(2 * item, depth - 1)
+		shift := 1 << (depth - 1)
+		node.left = new_tree_node(item - shift, depth - 1)
+		node.right = new_tree_node(item + shift, depth - 1)
 	}
 
 	return node
 }
 
-fn (t &TreeNode) check() int {
-	if t.left == none || t.right == none {
-		return t.item
+fn (t &TreeNode) sum() u32 {
+	mut total := u32(t.item) + 1
+
+	if !isnil(t.left) {
+		total += t.left.sum()
+	}
+	if !isnil(t.right) {
+		total += t.right.sum()
 	}
 
-	left_check := unsafe { (t.left or { return t.item }).check() }
-	right_check := unsafe { (t.right or { return t.item }).check() }
-
-	return left_check - right_check + t.item
+	return total
 }
 
-pub struct BinarytreesBenchmark {
+pub struct BinarytreesObjBenchmark {
 	benchmark.BaseBenchmark
 	n i64
 mut:
 	result_val u32
 }
 
-pub fn new_binarytrees() &benchmark.IBenchmark {
-	mut bench := &BinarytreesBenchmark{
-		BaseBenchmark: benchmark.new_base_benchmark('Binarytrees')
-		n:             helper.config_i64('Binarytrees', 'depth')
+pub fn new_binarytrees_obj() &benchmark.IBenchmark {
+	mut bench := &BinarytreesObjBenchmark{
+		BaseBenchmark: benchmark.new_base_benchmark('BinarytreesObj')
+		n:             helper.config_i64('BinarytreesObj', 'depth')
 	}
 	return bench
 }
 
-pub fn (b BinarytreesBenchmark) name() string {
-	return 'Binarytrees'
+pub fn (b BinarytreesObjBenchmark) name() string {
+	return 'BinarytreesObj'
 }
 
-pub fn (mut b BinarytreesBenchmark) run(iteration_id int) {
+pub fn (mut b BinarytreesObjBenchmark) run(iteration_id int) {
 	_ = iteration_id
 
-	min_depth := 4
-	max_depth := int(math.max(f64(min_depth + 2), f64(b.n)))
-	stretch_depth := max_depth + 1
-
-	stretch_tree := new_tree_node(0, stretch_depth)
-	b.result_val += u32(stretch_tree.check())
-
-	for depth in min_depth .. max_depth + 1 {
-		if depth % 2 != 0 {
-			continue
-		}
-
-		iterations := 1 << (max_depth - depth + min_depth)
-		for i in 1 .. iterations + 1 {
-			tree1 := new_tree_node(i, depth)
-			tree2 := new_tree_node(-i, depth)
-			b.result_val += u32(tree1.check())
-			b.result_val += u32(tree2.check())
-		}
-	}
+	tree := new_tree_node(0, int(b.n))
+	b.result_val += tree.sum()
 }
 
-pub fn (b BinarytreesBenchmark) checksum() u32 {
+pub fn (b BinarytreesObjBenchmark) checksum() u32 {
 	return b.result_val
 }
 
-pub fn (mut b BinarytreesBenchmark) prepare() {
+pub fn (mut b BinarytreesObjBenchmark) prepare() {
+	b.result_val = 0
+}
+
+struct TreeNodeArena {
+	item int
+mut:
+	left  int = -1
+	right int = -1
+}
+
+struct TreeArena {
+mut:
+	nodes []TreeNodeArena
+}
+
+fn new_tree_arena() &TreeArena {
+	return &TreeArena{
+		nodes: []TreeNodeArena{}
+	}
+}
+
+fn (mut a TreeArena) build(item int, depth int) int {
+	idx := a.nodes.len
+	a.nodes << TreeNodeArena{
+		item: item
+	}
+
+	if depth > 0 {
+		shift := 1 << (depth - 1)
+		left_idx := a.build(item - shift, depth - 1)
+		right_idx := a.build(item + shift, depth - 1)
+		mut node := &a.nodes[idx]
+		node.left = left_idx
+		node.right = right_idx
+	}
+
+	return idx
+}
+
+fn (a TreeArena) sum(idx int) u32 {
+	node := a.nodes[idx]
+	mut total := u32(node.item) + 1
+
+	if node.left >= 0 {
+		total += a.sum(node.left)
+	}
+	if node.right >= 0 {
+		total += a.sum(node.right)
+	}
+
+	return total
+}
+
+pub struct BinarytreesArenaBenchmark {
+	benchmark.BaseBenchmark
+	n i64
+mut:
+	result_val u32
+}
+
+pub fn new_binarytrees_arena() &benchmark.IBenchmark {
+	mut bench := &BinarytreesArenaBenchmark{
+		BaseBenchmark: benchmark.new_base_benchmark('BinarytreesArena')
+		n:             helper.config_i64('BinarytreesArena', 'depth')
+	}
+	return bench
+}
+
+pub fn (b BinarytreesArenaBenchmark) name() string {
+	return 'BinarytreesArena'
+}
+
+pub fn (mut b BinarytreesArenaBenchmark) run(iteration_id int) {
+	_ = iteration_id
+
+	mut arena := new_tree_arena()
+	root_idx := arena.build(0, int(b.n))
+	b.result_val += arena.sum(root_idx)
+}
+
+pub fn (b BinarytreesArenaBenchmark) checksum() u32 {
+	return b.result_val
+}
+
+pub fn (mut b BinarytreesArenaBenchmark) prepare() {
 	b.result_val = 0
 }

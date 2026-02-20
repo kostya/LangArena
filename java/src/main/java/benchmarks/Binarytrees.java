@@ -1,6 +1,7 @@
 package benchmarks;
+import java.util.ArrayList;
 
-public class Binarytrees extends Benchmark {
+class BinarytreesObj extends Benchmark {
     private int n;
     private long resultVal;
 
@@ -12,53 +13,116 @@ public class Binarytrees extends Benchmark {
         TreeNode(int item, int depth) {
             this.item = item;
             if (depth > 0) {
-                left = new TreeNode(2 * item - 1, depth - 1);
-                right = new TreeNode(2 * item, depth - 1);
+
+                int shift = 1 << (depth - 1);
+                left = new TreeNode(item - shift, depth - 1);
+                right = new TreeNode(item + shift, depth - 1);
             } else {
                 left = null;
                 right = null;
             }
         }
 
-        int check() {
-            if (left == null) {
-                return item;
-            } else {
-                return left.check() - right.check() + item;
-            }
-        }
+        long sum() {
+            long total = item + 1;
 
-        static TreeNode create(int item, int depth) {
-            return new TreeNode(item, depth - 1);
+            if (left != null) {
+                total += left.sum();
+            }
+            if (right != null) {
+                total += right.sum();
+            }
+
+            return total;
         }
     }
 
-    public Binarytrees() {
+    public BinarytreesObj() {
         n = (int) configVal("depth");
         resultVal = 0L;
     }
 
     @Override
     public String name() {
-        return "Binarytrees";
+        return "BinarytreesObj";
     }
 
     @Override
     public void run(int iterationId) {
-        int minDepth = 4;
-        int maxDepth = Math.max(minDepth + 2, n);
-        int stretchDepth = maxDepth + 1;
+        TreeNode root = new TreeNode(0, n);
+        resultVal = resultVal + root.sum();
+    }
 
-        resultVal += TreeNode.create(0, stretchDepth).check();
+    @Override
+    public long checksum() {
+        return resultVal & 0xFFFFFFFFL;
+    }
+}
 
-        for (int depth = minDepth; depth <= maxDepth; depth += 2) {
-            int iterations = 1 << (maxDepth - depth + minDepth);
+class BinarytreesArena extends Benchmark {
+    private static class TreeNode {
+        final int item;
+        int left;
+        int right;
 
-            for (int i = 1; i <= iterations; i++) {
-                resultVal += TreeNode.create(i, depth).check();
-                resultVal += TreeNode.create(-i, depth).check();
-            }
+        TreeNode(int item) {
+            this.item = item;
+            this.left = -1;
+            this.right = -1;
         }
+    }
+
+    private ArrayList<TreeNode> arena;
+    private int n;
+    private long resultVal;
+
+    public BinarytreesArena() {
+        this.n = (int) configVal("depth");
+        this.arena = new ArrayList<>();
+        this.resultVal = 0L;
+    }
+
+    private int buildTree(int item, int depth) {
+        int idx = arena.size();
+        arena.add(new TreeNode(item));
+
+        if (depth > 0) {
+            int leftIdx = buildTree(item - (1 << (depth - 1)), depth - 1);
+            int rightIdx = buildTree(item + (1 << (depth - 1)), depth - 1);
+
+            TreeNode node = arena.get(idx);
+            node.left = leftIdx;
+            node.right = rightIdx;
+
+        }
+
+        return idx;
+    }
+
+    private long sum(int idx) {
+        TreeNode node = arena.get(idx);
+        long total = (node.item & 0xFFFFFFFFL) + 1;
+
+        if (node.left >= 0) {
+            total += sum(node.left);
+        }
+        if (node.right >= 0) {
+            total += sum(node.right);
+        }
+
+        return total & 0xFFFFFFFFL;
+    }
+
+    @Override
+    public String name() {
+        return "BinarytreesArena";
+    }
+
+    @Override
+    public void run(int iterationId) {
+        arena = new ArrayList<>();
+        buildTree(0, n);
+        resultVal = (resultVal + sum(0)) & 0xFFFFFFFFL;
     }
 
     @Override

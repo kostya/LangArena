@@ -586,7 +586,7 @@ class TreeNode {
   }
 }
 
-export class Binarytrees extends Benchmark {
+export class BinarytreesObj extends Benchmark {
   private n: number;
   private result: number = 0;
 
@@ -596,28 +596,94 @@ export class Binarytrees extends Benchmark {
   }
 
   run(_iteration_id: number): void {
-    const minDepth = 4;
-    const maxDepth = Math.max(minDepth + 2, this.n);
-    const stretchDepth = maxDepth + 1;
-
-    const stretchTree = TreeNode.create(0, stretchDepth);
-    this.result += stretchTree.check();
-
-    for (let depth = minDepth; depth <= maxDepth; depth += 2) {
-      const iterations = 1 << (maxDepth - depth + minDepth);
-
-      for (let i = 1; i <= iterations; i++) {
-        const tree1 = TreeNode.create(i, depth);
-        const tree2 = TreeNode.create(-i, depth);
-
-        this.result += tree1.check();
-        this.result += tree2.check();
-      }
-    }
+    const root = new TreeNodeObj(0, this.n);
+    this.result = (this.result + root.sum()) >>> 0;
   }
 
   checksum(): number {
     return this.result >>> 0;
+  }
+}
+
+class TreeNodeObj {
+  left: TreeNodeObj | null = null;
+  right: TreeNodeObj | null = null;
+
+  constructor(
+    public item: number,
+    depth: number,
+  ) {
+    if (depth > 0) {
+      const shift = 1 << (depth - 1);
+      this.left = new TreeNodeObj(item - shift, depth - 1);
+      this.right = new TreeNodeObj(item + shift, depth - 1);
+    }
+  }
+
+  sum(): number {
+    let total = (this.item >>> 0) + 1;
+    if (this.left) total += this.left.sum();
+    if (this.right) total += this.right.sum();
+    return total >>> 0;
+  }
+}
+
+export class BinarytreesArena extends Benchmark {
+  private n: number;
+  private result: number = 0;
+
+  constructor() {
+    super();
+    this.n = Number(Helper.configI64(this.constructor.name, "depth"));
+  }
+
+  run(_iteration_id: number): void {
+    var arena = new TreeArena();
+    const rootIdx = arena.build(0, this.n);
+    this.result = (this.result + arena.sum(rootIdx)) >>> 0;
+  }
+
+  checksum(): number {
+    return this.result >>> 0;
+  }
+}
+
+interface TreeNodeArena {
+  item: number;
+  left: number;
+  right: number;
+}
+
+class TreeArena {
+  private nodes: TreeNodeArena[] = [];
+
+  build(item: number, depth: number): number {
+    const idx = this.nodes.length;
+    this.nodes.push({ item, left: -1, right: -1 });
+
+    if (depth > 0) {
+      const shift = 1 << (depth - 1);
+      const leftIdx = this.build(item - shift, depth - 1);
+      const rightIdx = this.build(item + shift, depth - 1);
+      this.nodes[idx].left = leftIdx;
+      this.nodes[idx].right = rightIdx;
+    }
+
+    return idx;
+  }
+
+  sum(idx: number): number {
+    const node = this.nodes[idx];
+    let total = (node.item >>> 0) + 1;
+
+    if (node.left >= 0) total += this.sum(node.left);
+    if (node.right >= 0) total += this.sum(node.right);
+
+    return total >>> 0;
+  }
+
+  clear(): void {
+    this.nodes = [];
   }
 }
 
@@ -5097,7 +5163,8 @@ export class BWTHuffDecode extends BWTHuffEncode {
 }
 
 Benchmark.registerBenchmark(Pidigits);
-Benchmark.registerBenchmark(Binarytrees);
+Benchmark.registerBenchmark(BinarytreesObj);
+Benchmark.registerBenchmark(BinarytreesArena);
 Benchmark.registerBenchmark(BrainfuckArray);
 Benchmark.registerBenchmark(BrainfuckRecursion);
 Benchmark.registerBenchmark(Fannkuchredux);

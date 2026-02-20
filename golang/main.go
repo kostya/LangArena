@@ -234,7 +234,8 @@ func RunBenchmarks(singleBench string) {
 
 	allBenches := []Benchmark{
 		&Pidigits{BaseBenchmark: BaseBenchmark{className: "Pidigits"}},
-		&Binarytrees{BaseBenchmark: BaseBenchmark{className: "Binarytrees"}},
+		&BinarytreesObj{BaseBenchmark: BaseBenchmark{className: "BinarytreesObj"}},
+		&BinarytreesArena{BaseBenchmark: BaseBenchmark{className: "BinarytreesArena"}},
 		&BrainfuckArray{BaseBenchmark: BaseBenchmark{className: "BrainfuckArray"}},
 		&BrainfuckRecursion{BaseBenchmark: BaseBenchmark{className: "BrainfuckRecursion"}},
 		&Fannkuchredux{BaseBenchmark: BaseBenchmark{className: "Fannkuchredux"}},
@@ -393,58 +394,117 @@ func (p *Pidigits) Checksum() uint32 {
 	return Checksum(p.result.String())
 }
 
-type TreeNode struct {
-	left  *TreeNode
-	right *TreeNode
+type TreeNodeObj struct {
+	left  *TreeNodeObj
+	right *TreeNodeObj
 	item  int
 }
 
-func NewTreeNode(item, depth int) *TreeNode {
-	node := &TreeNode{item: item}
+func NewTreeNodeObj(item, depth int) *TreeNodeObj {
+	node := &TreeNodeObj{item: item}
 	if depth > 0 {
-		node.left = NewTreeNode(2*item-1, depth-1)
-		node.right = NewTreeNode(2*item, depth-1)
+		shift := 1 << (depth - 1)
+		node.left = NewTreeNodeObj(item-shift, depth-1)
+		node.right = NewTreeNodeObj(item+shift, depth-1)
 	}
 	return node
 }
 
-func (t *TreeNode) Check() int {
-	if t.left == nil || t.right == nil {
-		return t.item
+func (t *TreeNodeObj) Sum() uint32 {
+	total := uint32(t.item) + 1
+	if t.left != nil {
+		total += t.left.Sum()
 	}
-	return t.left.Check() - t.right.Check() + t.item
+	if t.right != nil {
+		total += t.right.Sum()
+	}
+	return total
 }
 
-type Binarytrees struct {
+type BinarytreesObj struct {
 	BaseBenchmark
 	n      int64
 	result uint32
 }
 
-func (b *Binarytrees) Prepare() {
+func (b *BinarytreesObj) Prepare() {
 	b.n = b.ConfigVal("depth")
+	b.result = 0
 }
 
-func (b *Binarytrees) Run(iteration_id int) {
-	minDepth := 4
-	maxDepth := minDepth + 2
-	if int(b.n) > maxDepth {
-		maxDepth = int(b.n)
-	}
-	stretchDepth := maxDepth + 1
+func (b *BinarytreesObj) Run(iteration_id int) {
+	root := NewTreeNodeObj(0, int(b.n))
+	b.result += root.Sum()
 
-	b.result += uint32(NewTreeNode(0, stretchDepth).Check())
+}
 
-	for depth := minDepth; depth <= maxDepth; depth += 2 {
-		iterations := 1 << (maxDepth - depth + minDepth)
-		for i := 1; i <= iterations; i++ {
-			b.result += uint32(NewTreeNode(i, depth).Check())
-			b.result += uint32(NewTreeNode(-i, depth).Check())
-		}
+func (b *BinarytreesObj) Checksum() uint32 {
+	return b.result
+}
+
+type TreeNodeArena struct {
+	item  int
+	left  int
+	right int
+}
+
+type TreeArena struct {
+	nodes []TreeNodeArena
+}
+
+func NewTreeArena() *TreeArena {
+	return &TreeArena{
+		nodes: make([]TreeNodeArena, 0),
 	}
 }
 
-func (b *Binarytrees) Checksum() uint32 {
+func (a *TreeArena) Build(item, depth int) int {
+	idx := len(a.nodes)
+	a.nodes = append(a.nodes, TreeNodeArena{item: item, left: -1, right: -1})
+
+	if depth > 0 {
+		shift := 1 << (depth - 1)
+		leftIdx := a.Build(item-shift, depth-1)
+		rightIdx := a.Build(item+shift, depth-1)
+		a.nodes[idx].left = leftIdx
+		a.nodes[idx].right = rightIdx
+	}
+
+	return idx
+}
+
+func (a *TreeArena) Sum(idx int) uint32 {
+	node := a.nodes[idx]
+	total := uint32(node.item) + 1
+
+	if node.left >= 0 {
+		total += a.Sum(node.left)
+	}
+	if node.right >= 0 {
+		total += a.Sum(node.right)
+	}
+
+	return total
+}
+
+type BinarytreesArena struct {
+	BaseBenchmark
+	n      int64
+	result uint32
+}
+
+func (b *BinarytreesArena) Prepare() {
+	b.n = b.ConfigVal("depth")
+	b.result = 0
+}
+
+func (b *BinarytreesArena) Run(iteration_id int) {
+	arena := NewTreeArena()
+	rootIdx := arena.Build(0, int(b.n))
+	b.result += arena.Sum(rootIdx)
+}
+
+func (b *BinarytreesArena) Checksum() uint32 {
 	return b.result
 }
 

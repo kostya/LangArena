@@ -87,7 +87,8 @@ public abstract class Benchmark
         return new List<BenchmarkInfo>
         {
             CreateBenchmarkInfo<Pidigits>(),
-            CreateBenchmarkInfo<Binarytrees>(),
+            CreateBenchmarkInfo<BinarytreesObj>(),
+            CreateBenchmarkInfo<BinarytreesArena>(),
             CreateBenchmarkInfo<BrainfuckArray>(),
             CreateBenchmarkInfo<BrainfuckRecursion>(),
             CreateBenchmarkInfo<Fannkuchredux>(),

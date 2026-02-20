@@ -22,7 +22,8 @@ module BenchmarkRunner =
 
     let private benchmarkFactories = [
         createBenchmarkInfo<Pidigits> ()
-        createBenchmarkInfo<Binarytrees> ()
+        createBenchmarkInfo<BinarytreesObj> ()
+        createBenchmarkInfo<BinarytreesArena> ()
         createBenchmarkInfo<BrainfuckArray> ()
         createBenchmarkInfo<BrainfuckRecursion> ()
         createBenchmarkInfo<Fannkuchredux> ()

@@ -6,7 +6,8 @@ import java.time.Instant;
 public class Main {
     public static void main(String[] args) throws Exception {
         Benchmark.registerBenchmark(() -> new Pidigits());
-        Benchmark.registerBenchmark(() -> new Binarytrees());
+        Benchmark.registerBenchmark(() -> new BinarytreesObj());
+        Benchmark.registerBenchmark(() -> new BinarytreesArena());
         Benchmark.registerBenchmark(() -> new BrainfuckArray());
         Benchmark.registerBenchmark(() -> new BrainfuckRecursion());
         Benchmark.registerBenchmark(() -> new Fannkuchredux());

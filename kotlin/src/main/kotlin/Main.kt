@@ -8,7 +8,8 @@ fun main(args: Array<String>) {
     Locale.setDefault(Locale.US)
 
     Benchmark.registerBenchmark { Pidigits() }
-    Benchmark.registerBenchmark { Binarytrees() }
+    Benchmark.registerBenchmark { BinarytreesObj() }
+    Benchmark.registerBenchmark { BinarytreesArena() }
     Benchmark.registerBenchmark { BrainfuckArray() }
     Benchmark.registerBenchmark { BrainfuckRecursion() }
     Benchmark.registerBenchmark { Fannkuchredux() }
