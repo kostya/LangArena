@@ -18,7 +18,7 @@ class BrainfuckArray : Benchmark() {
 
         private fun ensureCapacity() {
             if (pos >= tape.size) {
-                tape = tape.copyOf(tape.size + 1)  
+                tape = tape.copyOf(tape.size + 1)
             }
         }
 
@@ -42,7 +42,9 @@ class BrainfuckArray : Benchmark() {
         }
     }
 
-    class Program(private val text: String) {
+    class Program(
+        private val text: String,
+    ) {
         private val commands: ByteArray
         private val jumps: IntArray
 
@@ -57,17 +59,18 @@ class BrainfuckArray : Benchmark() {
             commands = cmdList.toByteArray()
 
             jumps = IntArray(commands.size)
-            val stack = IntArray(commands.size)  
-            var sp = 0  
+            val stack = IntArray(commands.size)
+            var sp = 0
 
             for (i in commands.indices) {
                 when (commands[i].toInt().toChar()) {
                     '[' -> {
-                        stack[sp++] = i  
+                        stack[sp++] = i
                     }
+
                     ']' -> {
                         if (sp > 0) {
-                            val start = stack[--sp]  
+                            val start = stack[--sp]
                             jumps[start] = i
                             jumps[i] = start
                         }
@@ -80,7 +83,7 @@ class BrainfuckArray : Benchmark() {
             var result = 0L
             val tape = Tape()
             var pc = 0
-            val cmds = commands  
+            val cmds = commands
             val jmps = jumps
 
             while (pc < cmds.size) {
@@ -112,5 +115,6 @@ class BrainfuckArray : Benchmark() {
     }
 
     override fun checksum(): UInt = resultVal
+
     override fun name(): String = "BrainfuckArray"
 }

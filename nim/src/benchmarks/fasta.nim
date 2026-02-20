@@ -36,7 +36,7 @@ proc selectRandom(genelist: seq[Gene]): char =
 
   return genelist[hi].c
 
-proc makeRandomFasta(self: Fasta, id, desc: string, 
+proc makeRandomFasta(self: Fasta, id, desc: string,
                     genelist: seq[Gene], nIter: int) =
   self.stream.write(">" & id & " " & desc & "\n")
   var todo = nIter

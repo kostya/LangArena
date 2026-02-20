@@ -8,7 +8,7 @@ pub const Primes = struct {
     helper: *Helper,
     n: i64,
     prefix: i64,
-    result_val: u32, 
+    result_val: u32,
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
@@ -42,7 +42,7 @@ pub const Primes = struct {
             .helper = helper,
             .n = n,
             .prefix = prefix,
-            .result_val = 5432, 
+            .result_val = 5432,
         };
         return self;
     }

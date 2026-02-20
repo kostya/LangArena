@@ -9,38 +9,48 @@ import std.range;
 import benchmark;
 import helper;
 
-class Primes : Benchmark {
+class Primes : Benchmark
+{
 private:
-    static struct Node {
+    static struct Node
+    {
         Node*[10] children;
         bool isTerminal;
 
-        static this() {
+        static this()
+        {
 
         }
     }
 
-    static int[] generatePrimes(int limit) {
-        if (limit < 2) return [];
+    static int[] generatePrimes(int limit)
+    {
+        if (limit < 2)
+            return [];
 
         bool[] isPrime = new bool[](limit + 1);
         isPrime[] = true;
         isPrime[0] = false;
         isPrime[1] = false;
 
-        int sqrtLimit = cast(int)sqrt(cast(double)limit);
+        int sqrtLimit = cast(int) sqrt(cast(double) limit);
 
-        for (int p = 2; p <= sqrtLimit; ++p) {
-            if (isPrime[p]) {
-                for (int multiple = p * p; multiple <= limit; multiple += p) {
+        for (int p = 2; p <= sqrtLimit; ++p)
+        {
+            if (isPrime[p])
+            {
+                for (int multiple = p * p; multiple <= limit; multiple += p)
+                {
                     isPrime[multiple] = false;
                 }
             }
         }
 
         auto primes = appender!(int[]);
-        foreach (i; 2 .. limit + 1) {
-            if (isPrime[i]) {
+        foreach (i; 2 .. limit + 1)
+        {
+            if (isPrime[i])
+            {
                 primes.put(i);
             }
         }
@@ -48,18 +58,22 @@ private:
         return primes.data;
     }
 
-    static Node* buildTrie(int[] primes) {
+    static Node* buildTrie(int[] primes)
+    {
         Node* root = new Node();
         root.isTerminal = false;
 
-        foreach (prime; primes) {
+        foreach (prime; primes)
+        {
             Node* current = root;
             string digits = prime.to!string;
 
-            foreach (digitChar; digits) {
+            foreach (digitChar; digits)
+            {
                 int digit = digitChar - '0';
 
-                if (current.children[digit] is null) {
+                if (current.children[digit] is null)
+                {
                     current.children[digit] = new Node();
                     current.children[digit].isTerminal = false;
                 }
@@ -71,20 +85,24 @@ private:
         return root;
     }
 
-    static int[] findPrimesWithPrefix(Node* trieRoot, int prefix) {
+    static int[] findPrimesWithPrefix(Node* trieRoot, int prefix)
+    {
         string prefixStr = prefix.to!string;
 
         Node* current = trieRoot;
-        foreach (digitChar; prefixStr) {
+        foreach (digitChar; prefixStr)
+        {
             int digit = digitChar - '0';
 
-            if (current.children[digit] is null) {
+            if (current.children[digit] is null)
+            {
                 return [];
             }
             current = current.children[digit];
         }
 
-        struct QueueItem {
+        struct QueueItem
+        {
             Node* node;
             int number;
         }
@@ -93,18 +111,21 @@ private:
         QueueItem[] queue;
         queue ~= QueueItem(current, prefix);
 
-        while (!queue.empty) {
+        while (!queue.empty)
+        {
             auto item = queue.front;
-            queue = queue[1..$];
+            queue = queue[1 .. $];
 
-            if (item.node.isTerminal) {
+            if (item.node.isTerminal)
+            {
                 results ~= item.number;
             }
 
-            foreach (digit; 0 .. 10) {
-                if (item.node.children[digit] !is null) {
-                    queue ~= QueueItem(item.node.children[digit], 
-                                     item.number * 10 + digit);
+            foreach (digit; 0 .. 10)
+            {
+                if (item.node.children[digit]!is null)
+                {
+                    queue ~= QueueItem(item.node.children[digit], item.number * 10 + digit);
                 }
             }
         }
@@ -118,27 +139,34 @@ protected:
     int prefix;
     uint resultVal;
 
-    override string className() const { return "Primes"; }
+    override string className() const
+    {
+        return "Primes";
+    }
 
 public:
-    this() {
+    this()
+    {
         n = configVal("limit");
         prefix = configVal("prefix");
         resultVal = 5432;
     }
 
-    override void run(int iterationId) {
+    override void run(int iterationId)
+    {
         auto primes = generatePrimes(n);
         auto trie = buildTrie(primes);
         auto results = findPrimesWithPrefix(trie, prefix);
 
-        resultVal += cast(uint)results.length;
-        foreach (prime; results) {
-            resultVal += cast(uint)prime;
+        resultVal += cast(uint) results.length;
+        foreach (prime; results)
+        {
+            resultVal += cast(uint) prime;
         }
     }
 
-    override uint checksum() {
+    override uint checksum()
+    {
         return resultVal;
     }
 }

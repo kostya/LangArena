@@ -85,7 +85,7 @@ const ALL_BENCHMARKS = [
     ("BWTHuffDecode", BWTHuffDecode),
 ]
 
-function run_all_benchmarks(single_bench::String="")
+function run_all_benchmarks(single_bench::String = "")
     results = Dict{String,Float64}()
     summary_time = 0.0
     ok = 0
@@ -125,7 +125,7 @@ function run_all_benchmarks(single_bench::String="")
 
         summary_time += duration
         GC.gc()
-        sleep(0.001)  
+        sleep(0.001)
         GC.gc()
     end
 
@@ -176,4 +176,4 @@ function main()
     end
 end
 
-end 
+end

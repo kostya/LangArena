@@ -3,11 +3,16 @@ module brainfuck_recursion
 import benchmark
 import helper
 
-struct IncOp {}    
-struct DecOp {}    
-struct NextOp {}   
-struct PrevOp {}   
-struct PrintOp {}  
+struct IncOp {}
+
+struct DecOp {}
+
+struct NextOp {}
+
+struct PrevOp {}
+
+struct PrintOp {}
+
 struct LoopOp {
 	ops []Op
 }

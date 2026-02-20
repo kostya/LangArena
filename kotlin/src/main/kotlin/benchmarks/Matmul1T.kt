@@ -10,7 +10,10 @@ class Matmul1T : Benchmark() {
         n = configVal("n")
     }
 
-    private fun matmul(a: Array<DoubleArray>, b: Array<DoubleArray>): Array<DoubleArray> {
+    private fun matmul(
+        a: Array<DoubleArray>,
+        b: Array<DoubleArray>,
+    ): Array<DoubleArray> {
         val m = a.size
         val n = a[0].size
         val p = b[0].size
@@ -55,7 +58,7 @@ class Matmul1T : Benchmark() {
         val b = matgen(n.toInt())
         val c = matmul(a, b)
         val center = c[(n shr 1).toInt()][(n shr 1).toInt()]
-        resultVal += Helper.checksumF64(center)  
+        resultVal += Helper.checksumF64(center)
     }
 
     override fun checksum(): UInt = resultVal

@@ -27,8 +27,7 @@ abstract class GraphPathBenchmark extends Benchmark:
           val offset = Helper.nextInt(jumpLen) - jumpLen / 2
           val u = v + offset
 
-          if u >= 0 && u < vertices && u != v then
-            addEdge(v, u)
+          if u >= 0 && u < vertices && u != v then addEdge(v, u)
           j += 1
         v += 1
 
@@ -109,8 +108,7 @@ class GraphPathDFS extends GraphPathBenchmark:
           val neighbor = neighbors(j)
           if neighbor == target then
             if dist + 1 < bestPath then bestPath = dist + 1
-          else if !visited(neighbor) then
-            stack.push(Array(neighbor, dist + 1))
+          else if !visited(neighbor) then stack.push(Array(neighbor, dist + 1))
           j += 1
 
     if bestPath == Int.MaxValue then -1 else bestPath
@@ -131,7 +129,7 @@ class GraphPathAStar extends GraphPathBenchmark:
     gScore(start) = 0
     fScore(start) = heuristic(start, target)
 
-    val openSet = mutable.PriorityQueue[Node]()(Ordering[Node].reverse) 
+    val openSet = mutable.PriorityQueue[Node]()(Ordering[Node].reverse)
     val inOpenSet = new Array[Boolean](graph.vertices)
 
     openSet.enqueue(Node(start, fScore(start)))
@@ -141,8 +139,7 @@ class GraphPathAStar extends GraphPathBenchmark:
       val current = openSet.dequeue()
       inOpenSet(current.vertex) = false
 
-      if current.vertex == target then
-        return gScore(current.vertex)
+      if current.vertex == target then return gScore(current.vertex)
 
       closed(current.vertex) = true
 

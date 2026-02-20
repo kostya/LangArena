@@ -12,34 +12,40 @@ import benchmarks.fasta;
 import helper;
 import core.atomic;
 
-class Revcomp : Benchmark {
+class Revcomp : Benchmark
+{
 private:
     string input;
     shared uint checksumVal;
 
-    string revcomp(string seq) {
+    string revcomp(string seq)
+    {
 
         char[] reversed = seq.dup;
         reversed.reverse();
 
         ubyte[256] lookup;
-        foreach (i; 0 .. 256) {
-            lookup[i] = cast(ubyte)i;
+        foreach (i; 0 .. 256)
+        {
+            lookup[i] = cast(ubyte) i;
         }
 
         string from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
-        string to   = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
+        string to = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
 
-        foreach (i, c; from) {
-            lookup[cast(ubyte)c] = cast(ubyte)to[i];
+        foreach (i, c; from)
+        {
+            lookup[cast(ubyte) c] = cast(ubyte) to[i];
         }
 
-        foreach (ref c; reversed) {
-            c = cast(char)lookup[cast(ubyte)c];
+        foreach (ref c; reversed)
+        {
+            c = cast(char) lookup[cast(ubyte) c];
         }
 
         string result;
-        for (size_t i = 0; i < reversed.length; i += 60) {
+        for (size_t i = 0; i < reversed.length; i += 60)
+        {
             size_t end = min(i + 60, reversed.length);
             result ~= reversed[i .. end].idup ~ "\n";
         }
@@ -48,24 +54,33 @@ private:
     }
 
 protected:
-    override string className() const { return "Revcomp"; }
+    override string className() const
+    {
+        return "Revcomp";
+    }
 
 public:
-    this() {
+    this()
+    {
         checksumVal = 0;
     }
 
-    override void prepare() {
+    override void prepare()
+    {
         auto fasta = new Fasta();
         fasta.n = configVal("n");
         fasta.run(0);
         string fastaResult = fasta.getResult();
 
         string seq;
-        foreach (line; fastaResult.splitLines) {
-            if (line.startsWith(">")) {
+        foreach (line; fastaResult.splitLines)
+        {
+            if (line.startsWith(">"))
+            {
                 seq ~= "\n---\n";
-            } else {
+            }
+            else
+            {
                 seq ~= line;
             }
         }
@@ -73,12 +88,14 @@ public:
         input = seq;
     }
 
-    override void run(int iterationId) {
+    override void run(int iterationId)
+    {
         string resultStr = revcomp(input);
         atomicOp!"+="(checksumVal, Helper.checksum(resultStr));
     }
 
-    override uint checksum() {
-      return atomicLoad(checksumVal);
+    override uint checksum()
+    {
+        return atomicLoad(checksumVal);
     }
 }

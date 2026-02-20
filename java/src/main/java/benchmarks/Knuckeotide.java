@@ -87,8 +87,8 @@ public class Knuckeotide extends Benchmark {
             for (Map.Entry<String, Integer> entry : entries) {
                 double freq = (entry.getValue() * 100.0) / fr.n;
 
-                String line = String.format(Locale.US, "%s %.3f%s", 
-                    entry.getKey().toUpperCase(), freq, NL);
+                String line = String.format(Locale.US, "%s %.3f%s",
+                                            entry.getKey().toUpperCase(), freq, NL);
                 result.write(line.getBytes(StandardCharsets.UTF_8));
             }
 

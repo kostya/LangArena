@@ -1,5 +1,5 @@
-use super::super::Benchmark;
 use super::super::config_i64;
+use super::super::Benchmark;
 
 struct TreeNode {
     left: Option<Box<TreeNode>>,
@@ -47,10 +47,7 @@ impl Binarytrees {
     pub fn new() -> Self {
         let n = config_i64("Binarytrees", "depth");
 
-        Self {
-            n,
-            result_val: 0,
-        }
+        Self { n, result_val: 0 }
     }
 }
 
@@ -64,15 +61,21 @@ impl Benchmark for Binarytrees {
         let max_depth = std::cmp::max(min_depth + 2, self.n as i32);
         let stretch_depth = max_depth + 1;
 
-        self.result_val = self.result_val.wrapping_add(TreeNode::create(0, stretch_depth).check() as u32);
+        self.result_val = self
+            .result_val
+            .wrapping_add(TreeNode::create(0, stretch_depth).check() as u32);
 
         let mut depth = min_depth;
         while depth <= max_depth {
             let iterations = 1 << (max_depth - depth + min_depth);
             let mut i = 1;
             while i <= iterations {
-                self.result_val = self.result_val.wrapping_add(TreeNode::create(i, depth).check() as u32);
-                self.result_val = self.result_val.wrapping_add(TreeNode::create(-i, depth).check() as u32);
+                self.result_val = self
+                    .result_val
+                    .wrapping_add(TreeNode::create(i, depth).check() as u32);
+                self.result_val = self
+                    .result_val
+                    .wrapping_add(TreeNode::create(-i, depth).check() as u32);
                 i += 1;
             }
             depth += 2;

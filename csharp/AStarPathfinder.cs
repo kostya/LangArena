@@ -81,9 +81,9 @@ public class AStarPathfinder : Benchmark
                 int right = left + 1;
                 int smallest = index;
 
-                if (left < size && _data[left].CompareTo(_data[smallest]) < 0) 
+                if (left < size && _data[left].CompareTo(_data[smallest]) < 0)
                     smallest = left;
-                if (right < size && _data[right].CompareTo(_data[smallest]) < 0) 
+                if (right < size && _data[right].CompareTo(_data[smallest]) < 0)
                     smallest = right;
 
                 if (smallest == index) break;
@@ -111,7 +111,7 @@ public class AStarPathfinder : Benchmark
     private bool[,] _mazeGrid;
 
     private int[] _gScoresCache;
-    private int[] _cameFromCache; 
+    private int[] _cameFromCache;
 
     private static readonly (int dx, int dy)[] _directions = new[]
     {

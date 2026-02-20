@@ -18,8 +18,8 @@
     "bench:run": "npm run build:run && node --expose-gc target/dist/index.js ../run.js"
   },
   "devDependencies": {
-    "@types/node": "^20.19.29",
-    "ts-node": "^10.9.0",
+    "@types/node": "^25.3.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },
   "keywords": [

@@ -39,18 +39,21 @@ function generate_random_program(n::Int64 = 1000)::String
     io = IOBuffer()
 
     write(io, "v0 = 1\n")
-    for i in 0:9
+    for i = 0:9
         v = i + 1
         write(io, "v$v = v$(v-1) + $v\n")
     end
 
-    for i in 0:n-1
+    for i = 0:(n-1)
         v = i + 10
         write(io, "v$v = v$(v-1) + ")
 
         r = Helper.next_int(10)
         if r == 0
-            write(io, "(v$(v-1) / 3) * 4 - $i / (3 + (18 - v$(v-2))) % v$(v-3) + 2 * ((9 - v$(v-6)) * (v$(v-5) + 7))")
+            write(
+                io,
+                "(v$(v-1) / 3) * 4 - $i / (3 + (18 - v$(v-2))) % v$(v-3) + 2 * ((9 - v$(v-6)) * (v$(v-5) + 7))",
+            )
         elseif r == 1
             write(io, "v$(v-1) + (v$(v-2) + v$(v-3)) * v$(v-4) - (v$(v-5) /  v$(v-6))")
         elseif r == 2
@@ -67,7 +70,7 @@ function generate_random_program(n::Int64 = 1000)::String
             write(io, "((((((((((v$(v-6)))))))))) * 2")
         elseif r == 8
             write(io, "$i * (v$(v-1)%6)%7")
-        else 
+        else
             write(io, "(1)/(0-v$(v-5)) + (v$(v-7))")
         end
         write(io, "\n")
@@ -152,11 +155,11 @@ function parse_factor(p::Parser)::CalcNode
     elseif islowercase(p.current_char)
         return parse_variable(p)
     elseif p.current_char == '('
-        advance(p)  
+        advance(p)
         node = parse_expression(p)
         skip_whitespace(p)
         if p.current_char == ')'
-            advance(p)  
+            advance(p)
         end
         return node
     else
@@ -175,14 +178,15 @@ end
 
 function parse_variable(p::Parser)::CalcNode
     start = p.pos
-    while p.pos <= length(p.chars) && (islowercase(p.current_char) || isdigit(p.current_char))
+    while p.pos <= length(p.chars) &&
+        (islowercase(p.current_char) || isdigit(p.current_char))
         advance(p)
     end
-    var_name = p.input[start:p.pos-1]
+    var_name = p.input[start:(p.pos-1)]
 
     skip_whitespace(p)
     if p.pos <= length(p.chars) && p.current_char == '='
-        advance(p)  
+        advance(p)
         expr = parse_expression(p)
         return AssignmentCalcNode(var_name, expr)
     end
@@ -224,10 +228,10 @@ function checksum(b::CalculatorAst)::UInt32
 end
 
 mutable struct Interpreter
-    variables::Dict{String, Int64}
+    variables::Dict{String,Int64}
 
     function Interpreter()
-        new(Dict{String, Int64}())
+        new(Dict{String,Int64}())
     end
 end
 
@@ -251,7 +255,7 @@ function evaluate(interp::Interpreter, node::NumberCalcNode)::Int64
 end
 
 function evaluate(interp::Interpreter, node::VariableCalcNode)::Int64
-    return interp.variables[node.name]  
+    return interp.variables[node.name]
 end
 
 function evaluate(interp::Interpreter, node::BinaryOpCalcNode)::Int64

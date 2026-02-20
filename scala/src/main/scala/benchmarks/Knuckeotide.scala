@@ -30,7 +30,7 @@ class Knuckeotide extends Benchmark {
         afterThree = true
       } else if (afterThree) {
         if (line.startsWith(">")) {
-          i = lines.length 
+          i = lines.length
         } else {
           seqBuilder.append(line.trim())
         }
@@ -71,8 +71,7 @@ class Knuckeotide extends Benchmark {
     while (iter.hasNext) {
       val entry = iter.next
       val freq = (entry.getValue * 100.0) / fr.n
-      val line = String.format(Locale.US, "%s %.3f%s", 
-        entry.getKey.toUpperCase(Locale.US), freq, NL)
+      val line = String.format(Locale.US, "%s %.3f%s", entry.getKey.toUpperCase(Locale.US), freq, NL)
       result.write(line.getBytes(StandardCharsets.UTF_8))
     }
 

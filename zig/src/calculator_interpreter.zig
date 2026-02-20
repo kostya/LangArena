@@ -5,12 +5,12 @@ const shared = @import("calculator_shared.zig");
 
 pub const CalculatorInterpreter = struct {
     allocator: std.mem.Allocator,
-    arena: std.heap.ArenaAllocator, 
+    arena: std.heap.ArenaAllocator,
     helper: *Helper,
     operations: i64,
     result_val: u32,
     program: []const u8,
-    expressions: std.ArrayListUnmanaged(*shared.Node), 
+    expressions: std.ArrayListUnmanaged(*shared.Node),
 
     const vtable = Benchmark.VTable{
         .run = runImpl,
@@ -92,7 +92,7 @@ pub const CalculatorInterpreter = struct {
 
         self.* = CalculatorInterpreter{
             .allocator = allocator,
-            .arena = std.heap.ArenaAllocator.init(allocator), 
+            .arena = std.heap.ArenaAllocator.init(allocator),
             .helper = helper,
             .operations = operations,
             .result_val = 0,
@@ -104,7 +104,7 @@ pub const CalculatorInterpreter = struct {
     }
 
     pub fn deinit(self: *CalculatorInterpreter) void {
-        self.arena.deinit(); 
+        self.arena.deinit();
 
         if (self.program.len > 0) {
             self.allocator.free(self.program);

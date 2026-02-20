@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 use crate::config_i64;
 use std::collections::VecDeque;
 
@@ -23,12 +23,15 @@ pub struct Maze {
 
 impl Maze {
     pub fn new(width: usize, height: usize) -> Self {
-
         let width = width.max(5);
         let height = height.max(5);
 
         let cells = vec![vec![Cell::Wall; width]; height];
-        Self { width, height, cells }
+        Self {
+            width,
+            height,
+            cells,
+        }
     }
 
     #[inline]
@@ -42,9 +45,7 @@ impl Maze {
     }
 
     pub fn generate(&mut self) {
-
         if self.width < 5 || self.height < 5 {
-
             for x in 0..self.width {
                 *self.get_mut(x, self.height / 2) = Cell::Path;
             }
@@ -57,17 +58,18 @@ impl Maze {
     }
 
     fn add_random_paths(&mut self) {
-        let num_extra_paths = (self.width * self.height) / 20; 
+        let num_extra_paths = (self.width * self.height) / 20;
 
         for _ in 0..num_extra_paths {
-            let x = helper::next_int((self.width - 2) as i32) as usize + 1; 
+            let x = helper::next_int((self.width - 2) as i32) as usize + 1;
             let y = helper::next_int((self.height - 2) as i32) as usize + 1;
 
-            if self.get(x, y) == Cell::Wall &&
-                self.get(x - 1, y) == Cell::Wall &&
-                self.get(x + 1, y) == Cell::Wall &&
-                self.get(x, y - 1) == Cell::Wall &&
-                self.get(x, y + 1) == Cell::Wall {
+            if self.get(x, y) == Cell::Wall
+                && self.get(x - 1, y) == Cell::Wall
+                && self.get(x + 1, y) == Cell::Wall
+                && self.get(x, y - 1) == Cell::Wall
+                && self.get(x, y + 1) == Cell::Wall
+            {
                 *self.get_mut(x, y) = Cell::Path;
             }
         }
@@ -86,13 +88,15 @@ impl Maze {
         let width_for_hole = width.saturating_sub(1);
         let height_for_hole = height.saturating_sub(1);
 
-        if width_for_wall == 0 || height_for_wall == 0 || 
-           width_for_hole == 0 || height_for_hole == 0 {
+        if width_for_wall == 0
+            || height_for_wall == 0
+            || width_for_hole == 0
+            || height_for_hole == 0
+        {
             return;
         }
 
         if width > height {
-
             let wall_range = (width_for_wall / 2).max(1);
             let wall_offset = if wall_range > 0 {
                 (helper::next_int(wall_range as i32) as usize) * 2
@@ -126,7 +130,6 @@ impl Maze {
                 self.divide(wall_x + 1, y1, x2, y2);
             }
         } else {
-
             let wall_range = (height_for_wall / 2).max(1);
             let wall_offset = if wall_range > 0 {
                 (helper::next_int(wall_range as i32) as usize) * 2
@@ -163,7 +166,8 @@ impl Maze {
     }
 
     pub fn to_bool_grid(&self) -> Vec<Vec<bool>> {
-        self.cells.iter()
+        self.cells
+            .iter()
             .map(|row| row.iter().map(|cell| cell.is_walkable()).collect())
             .collect()
     }
@@ -176,7 +180,6 @@ impl Maze {
         let end = (width - 2, height - 2);
 
         if !maze.is_connected(start, end) {
-
             for x in 0..width {
                 if x < maze.width {
                     for y in 0..height {
@@ -194,8 +197,11 @@ impl Maze {
     }
 
     fn is_connected(&self, start: (usize, usize), end: (usize, usize)) -> bool {
-        if start.0 >= self.width || start.1 >= self.height ||
-           end.0 >= self.width || end.1 >= self.height {
+        if start.0 >= self.width
+            || start.1 >= self.height
+            || end.0 >= self.width
+            || end.1 >= self.height
+        {
             return false;
         }
 
@@ -244,12 +250,12 @@ pub struct MazeGenerator {
 
 impl MazeGenerator {
     fn grid_checksum(&self, grid: &Vec<Vec<bool>>) -> u32 {
-        let mut hasher: u32 = 2166136261;      
-        let prime: u32 = 16777619;             
+        let mut hasher: u32 = 2166136261;
+        let prime: u32 = 16777619;
 
         for (_i, row) in grid.iter().enumerate() {
             for (j, &cell) in row.iter().enumerate() {
-                if cell {  
+                if cell {
                     let j_squared = (j * j) as u32;
                     hasher = (hasher ^ j_squared).wrapping_mul(prime);
                 }

@@ -8,7 +8,7 @@ class JsonGenerate extends Benchmark:
   private var _n: Int = Helper.configI64("JsonGenerate", "coords").toInt
 
   def n: Int = _n
-  def n_=(value: Int): Unit = _n = value  
+  def n_=(value: Int): Unit = _n = value
 
   private val data = mutable.ArrayBuffer.empty[mutable.LinkedHashMap[String, Any]]
   private var text: String = ""
@@ -27,8 +27,7 @@ class JsonGenerate extends Benchmark:
       coord("y") = math.round(Helper.nextFloat() * 1e8) / 1e8
       coord("z") = math.round(Helper.nextFloat() * 1e8) / 1e8
 
-      coord("name") = String.format(Locale.US, "%.7f %d", 
-        Helper.nextFloat(), Helper.nextInt(10000))
+      coord("name") = String.format(Locale.US, "%.7f %d", Helper.nextFloat(), Helper.nextInt(10000))
 
       val opts = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[Any]]
       val tuple = mutable.ArrayBuffer.empty[Any]

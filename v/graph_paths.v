@@ -16,9 +16,9 @@ pub fn graph_new(vertices int, jumps int, jump_len int) &Graph {
 	mut adj := [][]int{len: vertices}
 	return &Graph{
 		vertices: vertices
-		jumps: jumps
+		jumps:    jumps
 		jump_len: jump_len
-		adj: adj
+		adj:      adj
 	}
 }
 
@@ -28,7 +28,6 @@ pub fn (mut graph Graph) add_edge(u int, v int) {
 }
 
 pub fn (mut graph Graph) generate_random() {
-
 	for i in 1 .. graph.vertices {
 		graph.add_edge(i, i - 1)
 	}
@@ -54,7 +53,7 @@ struct Pair {
 struct GraphPathBenchmark {
 	benchmark.BaseBenchmark
 pub mut:
-	graph   &Graph = unsafe { nil }
+	graph &Graph = unsafe { nil }
 mut:
 	result_val u32
 }
@@ -62,7 +61,7 @@ mut:
 fn new_graph_path_benchmark(class_name string) GraphPathBenchmark {
 	return GraphPathBenchmark{
 		BaseBenchmark: benchmark.new_base_benchmark(class_name)
-		result_val: 0
+		result_val:    0
 	}
 }
 

@@ -111,7 +111,7 @@ public class BWTHuffEncode extends Benchmark {
         }
 
         return new BWTResult(transformed, originalIdx);
-    }    
+    }
 
     public byte[] bwtInverse(BWTResult bwtResult) {
         byte[] bwt = bwtResult.transformed;
@@ -246,7 +246,7 @@ public class BWTHuffEncode extends Benchmark {
 
     public EncodedResult huffmanEncode(byte[] data, Map<Byte, boolean[]> codes) {
 
-        byte[] result = new byte[data.length * 2]; 
+        byte[] result = new byte[data.length * 2];
         int currentByte = 0;
         int bitPos = 0;
         int byteIndex = 0;
@@ -324,8 +324,8 @@ public class BWTHuffEncode extends Benchmark {
         byte[] encodedBits;
         int originalBitCount;
 
-        CompressedData(BWTResult bwtResult, int[] frequencies, 
-                      byte[] encodedBits, int originalBitCount) {
+        CompressedData(BWTResult bwtResult, int[] frequencies,
+                       byte[] encodedBits, int originalBitCount) {
             this.bwtResult = bwtResult;
             this.frequencies = frequencies;
             this.encodedBits = encodedBits;
@@ -349,8 +349,8 @@ public class BWTHuffEncode extends Benchmark {
 
         EncodedResult encoded = huffmanEncode(bwtResult.transformed, huffmanCodes);
 
-        return new CompressedData(bwtResult, frequencies, 
-                                 encoded.data, encoded.bitCount);
+        return new CompressedData(bwtResult, frequencies,
+                                  encoded.data, encoded.bitCount);
     }
 
     public byte[] decompress(CompressedData compressed) {
@@ -358,10 +358,10 @@ public class BWTHuffEncode extends Benchmark {
         HuffmanNode huffmanTree = buildHuffmanTree(compressed.frequencies);
 
         byte[] decoded = huffmanDecode(
-            compressed.encodedBits,
-            huffmanTree,
-            compressed.originalBitCount
-        );
+                             compressed.encodedBits,
+                             huffmanTree,
+                             compressed.originalBitCount
+                         );
 
         BWTResult bwtResult = new BWTResult(decoded, compressed.bwtResult.originalIdx);
 

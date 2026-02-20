@@ -42,9 +42,9 @@ function run(b::Binarytrees, iteration_id::Int64)
     stretch_tree = TreeNode(0, stretch_depth)
     local_result += check(stretch_tree)
 
-    for depth in min_depth:2:max_depth
+    for depth = min_depth:2:max_depth
         iterations = 1 << (max_depth - depth + min_depth)
-        for i in 1:iterations
+        for i = 1:iterations
             tree1 = TreeNode(i, depth)
             tree2 = TreeNode(-i, depth)
             local_result += check(tree1)

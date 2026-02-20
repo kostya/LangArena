@@ -1,9 +1,9 @@
+import org.json.JSONObject
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
 import java.util.function.Supplier
-import org.json.JSONObject
 
 object Helper {
     private const val IM = 139968
@@ -22,9 +22,10 @@ object Helper {
         return (last / IM.toDouble() * max).toInt()
     }
 
-    fun nextInt(from: Int, to: Int): Int {
-        return nextInt(to - from + 1) + from
-    }
+    fun nextInt(
+        from: Int,
+        to: Int,
+    ): Int = nextInt(to - from + 1) + from
 
     fun nextFloat(max: Double = 1.0): Double {
         last = (last * IA + IC) % IM
@@ -53,9 +54,7 @@ object Helper {
         return (hash and 0xFFFFFFFFL).toUInt()
     }
 
-    fun checksumF64(v: Double): UInt {
-        return checksum(String.format(Locale.US, "%.7f", v)) and 0xFFFFFFFFu
-    }
+    fun checksumF64(v: Double): UInt = checksum(String.format(Locale.US, "%.7f", v)) and 0xFFFFFFFFu
 
     var CONFIG = JSONObject()
 
@@ -66,8 +65,11 @@ object Helper {
         CONFIG = JSONObject(content)
     }
 
-    fun configI64(className: String, fieldName: String): Long {
-        return try {
+    fun configI64(
+        className: String,
+        fieldName: String,
+    ): Long =
+        try {
             if (CONFIG.has(className) && CONFIG.getJSONObject(className).has(fieldName)) {
                 CONFIG.getJSONObject(className).getLong(fieldName)
             } else {
@@ -77,10 +79,12 @@ object Helper {
             System.err.println(e.message)
             0
         }
-    }
 
-    fun configS(className: String, fieldName: String): String {
-        return try {
+    fun configS(
+        className: String,
+        fieldName: String,
+    ): String =
+        try {
             if (CONFIG.has(className) && CONFIG.getJSONObject(className).has(fieldName)) {
                 CONFIG.getJSONObject(className).getString(fieldName)
             } else {
@@ -90,7 +94,6 @@ object Helper {
             System.err.println(e.message)
             ""
         }
-    }
 
     private fun inspect(str: String): String {
         val sb = StringBuilder("\"")

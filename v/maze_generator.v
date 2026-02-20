@@ -17,7 +17,6 @@ mut:
 }
 
 fn new_maze(width int, height int) Maze {
-
 	actual_width := if width > 5 { width } else { 5 }
 	actual_height := if height > 5 { height } else { 5 }
 
@@ -42,10 +41,10 @@ fn (mut m Maze) set(x int, y int, cell MazeCell) {
 }
 
 fn (mut m Maze) add_random_paths() {
-	num_extra_paths := (m.width * m.height) / 20 
+	num_extra_paths := (m.width * m.height) / 20
 
 	for _ in 0 .. num_extra_paths {
-		x := helper.next_int(m.width - 2) + 1 
+		x := helper.next_int(m.width - 2) + 1
 		y := helper.next_int(m.height - 2) + 1
 
 		if m.get(x, y) == .wall && m.get(x - 1, y) == .wall && m.get(x + 1, y) == .wall
@@ -73,7 +72,6 @@ fn (mut m Maze) divide(x1 int, y1 int, x2 int, y2 int) {
 	}
 
 	if width > height {
-
 		wall_range := if width_for_wall / 2 > 1 { width_for_wall / 2 } else { 1 }
 		wall_offset := if wall_range > 0 { helper.next_int(wall_range) * 2 } else { 0 }
 		wall_x := x1 + 2 + wall_offset
@@ -99,7 +97,6 @@ fn (mut m Maze) divide(x1 int, y1 int, x2 int, y2 int) {
 			m.divide(wall_x + 1, y1, x2, y2)
 		}
 	} else {
-
 		wall_range := if height_for_wall / 2 > 1 { height_for_wall / 2 } else { 1 }
 		wall_offset := if wall_range > 0 { helper.next_int(wall_range) * 2 } else { 0 }
 		wall_y := y1 + 2 + wall_offset
@@ -129,7 +126,6 @@ fn (mut m Maze) divide(x1 int, y1 int, x2 int, y2 int) {
 
 fn (mut m Maze) generate() {
 	if m.width < 5 || m.height < 5 {
-
 		for x in 0 .. m.width {
 			m.set(x, m.height / 2, .path)
 		}
@@ -210,7 +206,6 @@ pub fn generate_walkable_maze(width int, height int) [][]bool {
 	goal := [width - 2, height - 2]
 
 	if !maze.is_connected(start, goal) {
-
 		for x in 0 .. width {
 			for y in 0 .. height {
 				if x < maze.width && y < maze.height {
@@ -249,13 +244,13 @@ pub fn (b MazeGenerator) name() string {
 }
 
 fn grid_checksum(grid [][]bool) u32 {
-	mut hasher := u32(2166136261) 
-	prime := u32(16777619) 
+	mut hasher := u32(2166136261)
+	prime := u32(16777619)
 
 	for y in 0 .. grid.len {
 		row := grid[y]
 		for x in 0 .. row.len {
-			if row[x] { 
+			if row[x] {
 				j_squared := u32(x * x)
 				hasher = (hasher ^ j_squared) * prime
 			}

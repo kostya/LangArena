@@ -46,51 +46,18 @@ import benchmarks.astarpathfinder;
 import benchmarks.bwthuff;
 import benchmarks.jsonbench;
 
-mixin(registerAllBenchmarks!(
-	Pidigits,
-    Binarytrees,
-    BrainfuckArray,
-    BrainfuckRecursion,
-    Fannkuchredux,
-    Fasta,
-    Knuckeotide,
-    Mandelbrot,
-    Matmul1T,
-    Matmul4T,
-    Matmul8T,
-    Matmul16T,
-    Nbody,
-    RegexDna,
-    Revcomp,
-    Spectralnorm,
-    Base64Encode,
-    Base64Decode,
-    JsonGenerate,
-    JsonParseDom,
-    JsonParseMapping,
-    Primes,
-    Noise,
-    TextRaytracer,
-    NeuralNet,
-    SortQuick,   
-    SortMerge,   
-    SortSelf,
-    GraphPathBFS,
-    GraphPathDFS,
-    GraphPathAStar,
-    BufferHashSHA256,
-    BufferHashCRC32,
-    CacheSimulation,
-    CalculatorAst,
-    CalculatorInterpreter,
-    GameOfLife,
-    MazeGenerator,
-    AStarPathfinder,
-    BWTHuffEncode,
-    BWTHuffDecode     
-));
+mixin(registerAllBenchmarks!(Pidigits, Binarytrees, BrainfuckArray, BrainfuckRecursion, Fannkuchredux, Fasta,
+        Knuckeotide, Mandelbrot, Matmul1T, Matmul4T, Matmul8T, Matmul16T,
+        Nbody, RegexDna, Revcomp, Spectralnorm, Base64Encode,
+        Base64Decode, JsonGenerate, JsonParseDom, JsonParseMapping, Primes,
+        Noise, TextRaytracer, NeuralNet, SortQuick, SortMerge,
+        SortSelf, GraphPathBFS, GraphPathDFS, GraphPathAStar, BufferHashSHA256,
+        BufferHashCRC32, CacheSimulation, CalculatorAst,
+        CalculatorInterpreter, GameOfLife, MazeGenerator, AStarPathfinder,
+        BWTHuffEncode, BWTHuffDecode));
 
-void benchmarkAll(string singleBench = "") {
+void benchmarkAll(string singleBench = "")
+{
 
     auto benchmarks = getAllBenchmarkNames();
 
@@ -99,8 +66,10 @@ void benchmarkAll(string singleBench = "") {
     int ok = 0;
     int fails = 0;
 
-    foreach (benchName; benchmarks) {
-        if (!singleBench.empty && benchName.toLower.indexOf(singleBench.toLower) == -1) {
+    foreach (benchName; benchmarks)
+    {
+        if (!singleBench.empty && benchName.toLower.indexOf(singleBench.toLower) == -1)
+        {
             continue;
         }
 
@@ -123,12 +92,15 @@ void benchmarkAll(string singleBench = "") {
         bench.setTimeDelta(duration);
         results[benchName] = duration;
 
-        if (bench.checksum == bench.expectedChecksum) {
+        if (bench.checksum == bench.expectedChecksum)
+        {
             std.stdio.write("OK ");
             ok++;
-        } else {
-            std.stdio.write("ERR[actual=", bench.checksum, 
-                  ", expected=", bench.expectedChecksum, "] ");
+        }
+        else
+        {
+            std.stdio.write("ERR[actual=", bench.checksum, ", expected=",
+                    bench.expectedChecksum, "] ");
             fails++;
         }
 
@@ -141,25 +113,29 @@ void benchmarkAll(string singleBench = "") {
     auto resultsFile = File("/tmp/results.js", "w");
     resultsFile.write("{");
     bool first = true;
-    foreach (name, time; results) {
-        if (!first) resultsFile.write(",");
+    foreach (name, time; results)
+    {
+        if (!first)
+            resultsFile.write(",");
         resultsFile.writef(`"%s":%s`, name, time);
         first = false;
     }
     resultsFile.write("}");
     resultsFile.close();
 
-    if (ok + fails > 0) {
-        std.stdio.writefln("Summary: %.4fs, %s, %s, %s", 
-                 summaryTime, ok + fails, ok, fails);
+    if (ok + fails > 0)
+    {
+        std.stdio.writefln("Summary: %.4fs, %s, %s, %s", summaryTime, ok + fails, ok, fails);
     }
 
-    if (fails > 0) {
+    if (fails > 0)
+    {
         exit(1);
     }
 }
 
-void main(string[] args) {
+void main(string[] args)
+{
     import std.datetime : Clock;
     import std.datetime.systime : SysTime;
 
@@ -171,15 +147,21 @@ void main(string[] args) {
 
     writeln("start: ", unixMs);
 
-    if (args.length > 1) {
+    if (args.length > 1)
+    {
         loadConfig(args[1]);
-    } else {
+    }
+    else
+    {
         loadConfig();
     }
 
-    if (args.length > 2) {
+    if (args.length > 2)
+    {
         benchmarkAll(args[2]);
-    } else {
+    }
+    else
+    {
         benchmarkAll();
     }
 

@@ -50,7 +50,7 @@ proc newNoise2DContext(size: int): Noise2DContext =
     swap(result.permutations[a], result.permutations[b])
 
 proc getGradient(ctx: Noise2DContext, x, y: int): Vec2 =
-  let idx = ctx.permutations[x and (ctx.sizeVal - 1)] + 
+  let idx = ctx.permutations[x and (ctx.sizeVal - 1)] +
             ctx.permutations[y and (ctx.sizeVal - 1)]
   ctx.rgradients[idx and (ctx.sizeVal - 1)]
 
@@ -97,17 +97,17 @@ method prepare(self: Noise) =
 
 method run(self: Noise, iteration_id: int) =
   const SYM_CODES: array[6, uint32] = [
-      32'u32,      
-      9617'u32,    
-      9618'u32,    
-      9619'u32,    
-      9608'u32,    
-      9608'u32     
+      32'u32,
+      9617'u32,
+      9618'u32,
+      9619'u32,
+      9608'u32,
+      9608'u32
   ]
 
   for y in 0..<self.sizeVal:
     for x in 0..<self.sizeVal:
-      let v = self.n2d.get(float(x) * 0.1, 
+      let v = self.n2d.get(float(x) * 0.1,
                           float(y + iteration_id * 128) * 0.1) * 0.5 + 0.5
       var idx = int(v / 0.2)
       if idx >= 6:

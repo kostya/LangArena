@@ -1,4 +1,4 @@
-import std/[json, times, math, tables, strutils, os]  
+import std/[json, times, math, tables, strutils, os]
 import config, helper
 
 type
@@ -109,13 +109,14 @@ proc all*(singleBench = "") =
       stdout.write("OK ")
       inc ok
     else:
-      stdout.write("ERR[actual=", $bench.checksum, ", expected=", $bench.expected_checksum, "] ")
+      stdout.write("ERR[actual=", $bench.checksum, ", expected=",
+          $bench.expected_checksum, "] ")
       inc fails
 
     echo "in ", formatFloat(duration, ffDecimal, 3), "s"
     summaryTime += duration
 
-    sleep(1)  
+    sleep(1)
 
   let resultsFile = open("/tmp/results.js", fmWrite)
   resultsFile.write("{")
@@ -129,7 +130,8 @@ proc all*(singleBench = "") =
   resultsFile.close()
 
   if ok + fails > 0:
-    echo "Summary: ", formatFloat(summaryTime, ffDecimal, 4), "s, ", ok+fails, ", ", ok, ", ", fails
+    echo "Summary: ", formatFloat(summaryTime, ffDecimal, 4), "s, ", ok+fails,
+        ", ", ok, ", ", fails
 
   if fails > 0:
     quit(1)

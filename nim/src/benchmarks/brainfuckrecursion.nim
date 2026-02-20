@@ -1,14 +1,14 @@
 import std/[strutils, sequtils, strformat, algorithm]
 import ../benchmark
-import ../helper  
+import ../helper
 
 type
-  OpInc = object    
-  OpDec = object    
-  OpRight = object  
-  OpLeft = object   
-  OpPrint = object  
-  OpLoop = object   
+  OpInc = object
+  OpDec = object
+  OpRight = object
+  OpLeft = object
+  OpPrint = object
+  OpLoop = object
     ops: seq[Op]
 
   Op = object
@@ -69,15 +69,15 @@ proc parseOp(it: var int, code: string): Op =
     let loopOps = parse(it, code)
     result = Op(kind: 5, loopOp: OpLoop(ops: loopOps))
   of ']':
-    return Op(kind: 5, loopOp: OpLoop(ops: @[]))  
+    return Op(kind: 5, loopOp: OpLoop(ops: @[]))
   else:
-    result = Op(kind: 4, printOp: OpPrint())  
+    result = Op(kind: 4, printOp: OpPrint())
 
 proc parse(it: var int, code: string): seq[Op] =
   var res: seq[Op]
   while it < code.len:
     let op = parseOp(it, code)
-    if op.kind == 5 and op.loopOp.ops.len == 0:  
+    if op.kind == 5 and op.loopOp.ops.len == 0:
       return res
     res.add(op)
   return res
@@ -96,17 +96,17 @@ proc executeLoop(program: var Program, loop: OpLoop, tape: var Tape) =
 
 proc executeOp(program: var Program, op: Op, tape: var Tape) =
   case op.kind
-  of 0:  
+  of 0:
     tape.inc()
-  of 1:  
+  of 1:
     tape.dec()
-  of 2:  
+  of 2:
     tape.right()
-  of 3:  
+  of 3:
     tape.left()
-  of 4:  
+  of 4:
     program.resultVal = (program.resultVal shl 2) + tape.get().int64
-  of 5:  
+  of 5:
     executeLoop(program, op.loopOp, tape)
 
 proc run(self: var Program): int64 =

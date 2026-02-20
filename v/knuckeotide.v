@@ -81,7 +81,7 @@ fn (mut k Knuckeotide) sort_by_freq(seq string, length int) {
 
 	pairs.sort_with_compare(fn (a &SortPair, b &SortPair) int {
 		if a.value != b.value {
-			return if b.value > a.value { 1 } else { -1 } 
+			return if b.value > a.value { 1 } else { -1 }
 		}
 		return if a.key > b.key {
 			1
@@ -108,7 +108,6 @@ fn (mut k Knuckeotide) find_seq(seq string, s string) {
 }
 
 pub fn (mut k Knuckeotide) prepare() {
-
 	mut fasta_bench_raw := fasta.new_fasta()
 
 	mut fasta_bench := fasta_bench_raw as &fasta.Fasta

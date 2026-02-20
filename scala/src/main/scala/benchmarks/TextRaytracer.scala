@@ -93,21 +93,19 @@ class TextRaytracer extends Benchmark:
         while idx < SCENE.length && hit == null do
           val obj = SCENE(idx)
           val t = intersectSphere(ray, obj.center, obj.radius)
-          if t >= 0.0 then
-            hit = new Hit(obj, t)
+          if t >= 0.0 then hit = new Hit(obj, t)
           idx += 1
 
-        val pixel = 
+        val pixel =
           if hit != null then
             var shade = shadePixel(ray, hit.obj, hit.value)
             if shade < 0 then shade = 0
             if shade >= LUT.length then shade = LUT.length - 1
             LUT(shade)
-          else
-            ' '
+          else ' '
 
         resultVal += pixel.toLong
         i += 1
       j += 1
 
-  override def checksum(): Long = resultVal & 0xFFFFFFFFL
+  override def checksum(): Long = resultVal & 0xffffffffL

@@ -40,9 +40,9 @@ public class BufferHashSHA256 extends BufferHashBenchmark {
     long test() {
         byte[] bytes = SimpleSHA256.digest(data);
 
-        return ((bytes[3] & 0xFFL) << 24) |    
+        return ((bytes[3] & 0xFFL) << 24) |
                ((bytes[2] & 0xFFL) << 16) |
                ((bytes[1] & 0xFFL) << 8) |
-               (bytes[0] & 0xFFL);             
+               (bytes[0] & 0xFFL);
     }
 }

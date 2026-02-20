@@ -17,7 +17,7 @@ pub fn new_primes() &benchmark.IBenchmark {
 		BaseBenchmark: benchmark.new_base_benchmark('Primes')
 		n:             helper.config_i64('Primes', 'limit')
 		prefix:        helper.config_i64('Primes', 'prefix')
-		result_val:    5432 
+		result_val:    5432
 	}
 	return bench
 }
@@ -113,7 +113,7 @@ fn find_primes_with_prefix(trie_root &TrieNode, prefix int) []int {
 	}
 
 	mut results := []int{}
-	mut bfs_queue := []BfsItem{} 
+	mut bfs_queue := []BfsItem{}
 	bfs_queue << BfsItem{node, prefix}
 
 	for bfs_queue.len > 0 {
@@ -156,5 +156,5 @@ pub fn (p Primes) checksum() u32 {
 }
 
 pub fn (mut p Primes) prepare() {
-	p.result_val = 5432 
+	p.result_val = 5432
 }

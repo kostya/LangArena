@@ -8,7 +8,7 @@ pub const Noise = struct {
     helper: *Helper,
     size_val: i64,
     result_val: u32,
-    n2d: ?Noise2DContext, 
+    n2d: ?Noise2DContext,
 
     const Vec2 = struct {
         x: f64,
@@ -98,7 +98,7 @@ pub const Noise = struct {
         }
     };
 
-    const SYM = [6]u32{ ' ', 0x2591, 0x2592, 0x2593, 0x2588, 0x2588 }; 
+    const SYM = [6]u32{ ' ', 0x2591, 0x2592, 0x2593, 0x2588, 0x2588 };
 
     const vtable = Benchmark.VTable{
         .prepare = prepareImpl,

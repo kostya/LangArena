@@ -14,12 +14,12 @@ function run(b::Pidigits, iteration_id::Int64)
     i = Int32(0)
     k = Int32(0)
 
-    ns = BigInt(0)  
-    a = BigInt(0)   
-    t = BigInt(0)   
-    u = BigInt(0)   
-    n = BigInt(1)   
-    d = BigInt(1)   
+    ns = BigInt(0)
+    a = BigInt(0)
+    t = BigInt(0)
+    u = BigInt(0)
+    n = BigInt(1)
+    d = BigInt(1)
 
     k1 = Int32(1)
 

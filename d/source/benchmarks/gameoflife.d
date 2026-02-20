@@ -10,58 +10,73 @@ import std.range;
 import benchmark;
 import helper;
 
-class GameOfLife : Benchmark {
+class GameOfLife : Benchmark
+{
 private:
 
-    class Cell {
+    class Cell
+    {
     public:
         bool alive;
         bool nextState;
         Cell[] neighbors;
 
-        this() {
+        this()
+        {
             alive = false;
             nextState = false;
             neighbors.length = 0;
         }
 
-        void addNeighbor(Cell cell) {
+        void addNeighbor(Cell cell)
+        {
             neighbors ~= cell;
         }
 
-        void computeNextState() {
+        void computeNextState()
+        {
             int aliveNeighbors = 0;
-            foreach (n; neighbors) {
-                if (n.alive) aliveNeighbors++;
+            foreach (n; neighbors)
+            {
+                if (n.alive)
+                    aliveNeighbors++;
             }
 
-            if (alive) {
+            if (alive)
+            {
                 nextState = (aliveNeighbors == 2 || aliveNeighbors == 3);
-            } else {
+            }
+            else
+            {
                 nextState = (aliveNeighbors == 3);
             }
         }
 
-        void update() {
+        void update()
+        {
             alive = nextState;
         }
     }
 
-    class Grid {
+    class Grid
+    {
     private:
         int width;
         int height;
-        Cell[][] cells;      
+        Cell[][] cells;
 
     public:
-        this(int w, int h) {
+        this(int w, int h)
+        {
             width = w;
             height = h;
 
             cells.length = height;
-            for (int y = 0; y < height; ++y) {
+            for (int y = 0; y < height; ++y)
+            {
                 cells[y].length = width;
-                for (int x = 0; x < width; ++x) {
+                for (int x = 0; x < width; ++x)
+                {
                     cells[y][x] = new Cell();
                 }
             }
@@ -70,14 +85,20 @@ private:
         }
 
     private:
-        void linkNeighbors() {
-            for (int y = 0; y < height; ++y) {
-                for (int x = 0; x < width; ++x) {
+        void linkNeighbors()
+        {
+            for (int y = 0; y < height; ++y)
+            {
+                for (int x = 0; x < width; ++x)
+                {
                     auto cell = cells[y][x];
 
-                    for (int dy = -1; dy <= 1; ++dy) {
-                        for (int dx = -1; dx <= 1; ++dx) {
-                            if (dx == 0 && dy == 0) continue;
+                    for (int dy = -1; dy <= 1; ++dy)
+                    {
+                        for (int dx = -1; dx <= 1; ++dx)
+                        {
+                            if (dx == 0 && dy == 0)
+                                continue;
 
                             int ny = (y + dy + height) % height;
                             int nx = (x + dx + width) % width;
@@ -90,38 +111,50 @@ private:
         }
 
     public:
-        void nextGeneration() {
+        void nextGeneration()
+        {
 
-            foreach (row; cells) {
-                foreach (cell; row) {
+            foreach (row; cells)
+            {
+                foreach (cell; row)
+                {
                     cell.computeNextState();
                 }
             }
 
-            foreach (row; cells) {
-                foreach (cell; row) {
+            foreach (row; cells)
+            {
+                foreach (cell; row)
+                {
                     cell.update();
                 }
             }
         }
 
-        int countAlive() const {
+        int countAlive() const
+        {
             int count = 0;
-            foreach (row; cells) {
-                foreach (cell; row) {
-                    if (cell.alive) count++;
+            foreach (row; cells)
+            {
+                foreach (cell; row)
+                {
+                    if (cell.alive)
+                        count++;
                 }
             }
             return count;
         }
 
-        uint computeHash() const {
+        uint computeHash() const
+        {
             enum FNV_OFFSET_BASIS = 2166136261u;
             enum FNV_PRIME = 16777619u;
 
             uint hash = FNV_OFFSET_BASIS;
-            foreach (row; cells) {
-                foreach (cell; row) {
+            foreach (row; cells)
+            {
+                foreach (cell; row)
+                {
                     uint alive = cast(uint)(cell.alive ? 1 : 0);
                     hash = cast(uint)((hash ^ alive) * FNV_PRIME);
                 }
@@ -129,9 +162,20 @@ private:
             return hash;
         }
 
-        Cell[][] getCells() { return cells; }
-        int getWidth() const { return width; }
-        int getHeight() const { return height; }
+        Cell[][] getCells()
+        {
+            return cells;
+        }
+
+        int getWidth() const
+        {
+            return width;
+        }
+
+        int getHeight() const
+        {
+            return height;
+        }
     }
 
     uint resultVal;
@@ -140,31 +184,41 @@ private:
     Grid grid;
 
 protected:
-    override string className() const { return "GameOfLife"; }
+    override string className() const
+    {
+        return "GameOfLife";
+    }
 
 public:
-    this() {
+    this()
+    {
         resultVal = 0;
         width = configVal("w");
         height = configVal("h");
         grid = new Grid(width, height);
     }
 
-    override void prepare() {
-        foreach (row; grid.getCells()) {
-            foreach (cell; row) {
-                if (Helper.nextFloat(1.0) < 0.1) {
+    override void prepare()
+    {
+        foreach (row; grid.getCells())
+        {
+            foreach (cell; row)
+            {
+                if (Helper.nextFloat(1.0) < 0.1)
+                {
                     cell.alive = true;
                 }
             }
         }
     }
 
-    override void run(int iterationId) {
+    override void run(int iterationId)
+    {
         grid.nextGeneration();
     }
 
-    override uint checksum() {
+    override uint checksum()
+    {
         int alive = grid.countAlive();
         return grid.computeHash() + alive;
     }

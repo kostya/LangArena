@@ -62,13 +62,13 @@ public class NeuralNet extends Benchmark {
             for (Synapse synapse : synapsesIn) {
                 double tempWeight = synapse.weight;
                 synapse.weight += (rate * LEARNING_RATE * error * synapse.sourceNeuron.output) +
-                                 (MOMENTUM * (synapse.weight - synapse.prevWeight));
+                                  (MOMENTUM * (synapse.weight - synapse.prevWeight));
                 synapse.prevWeight = tempWeight;
             }
 
             double tempThreshold = threshold;
             threshold += (rate * LEARNING_RATE * error * -1) +
-                        (MOMENTUM * (threshold - prevThreshold));
+                         (MOMENTUM * (threshold - prevThreshold));
             prevThreshold = tempThreshold;
         }
     }
@@ -166,26 +166,26 @@ public class NeuralNet extends Benchmark {
 
     @Override
     public void run(int iterationId) {
-        xorNet.train(new int[]{0, 0}, new int[]{0});
-        xorNet.train(new int[]{1, 0}, new int[]{1});
-        xorNet.train(new int[]{0, 1}, new int[]{1});
-        xorNet.train(new int[]{1, 1}, new int[]{0});
+        xorNet.train(new int[] {0, 0}, new int[] {0});
+        xorNet.train(new int[] {1, 0}, new int[] {1});
+        xorNet.train(new int[] {0, 1}, new int[] {1});
+        xorNet.train(new int[] {1, 1}, new int[] {0});
     }
 
     @Override
     public long checksum() {
         allOutputs.clear();
 
-        xorNet.feedForward(new int[]{0, 0});
+        xorNet.feedForward(new int[] {0, 0});
         allOutputs.addAll(xorNet.currentOutputs());
 
-        xorNet.feedForward(new int[]{0, 1});
+        xorNet.feedForward(new int[] {0, 1});
         allOutputs.addAll(xorNet.currentOutputs());
 
-        xorNet.feedForward(new int[]{1, 0});
+        xorNet.feedForward(new int[] {1, 0});
         allOutputs.addAll(xorNet.currentOutputs());
 
-        xorNet.feedForward(new int[]{1, 1});
+        xorNet.feedForward(new int[] {1, 1});
         allOutputs.addAll(xorNet.currentOutputs());
 
         double sum = 0.0;

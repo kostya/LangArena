@@ -38,8 +38,8 @@ public class AStarPathfinder extends Benchmark {
     private final int height;
     private boolean[][] mazeGrid;
 
-    private int[] gScoresFlat;      
-    private int[] cameFromFlat;     
+    private int[] gScoresFlat;
+    private int[] cameFromFlat;
 
     public AStarPathfinder() {
         this.width = (int) configVal("w");
@@ -65,7 +65,7 @@ public class AStarPathfinder extends Benchmark {
     }
 
     private int[] unpackCoords(int idx) {
-        return new int[]{idx % width, idx / width};
+        return new int[] {idx % width, idx / width};
     }
 
     private Pair<Optional<List<int[]>>, Integer> findPath() {
@@ -80,8 +80,8 @@ public class AStarPathfinder extends Benchmark {
         PriorityQueue<Node> openSet = new PriorityQueue<>();
 
         gScoresFlat[startIdx] = 0;
-        openSet.add(new Node(startX, startY, 
-                           heuristic(startX, startY, goalX, goalY)));
+        openSet.add(new Node(startX, startY,
+                             heuristic(startX, startY, goalX, goalY)));
 
         int nodesExplored = 0;
         int[][] directions = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
@@ -97,7 +97,7 @@ public class AStarPathfinder extends Benchmark {
                 int y = current.y;
 
                 while (x != startX || y != startY) {
-                    path.add(new int[]{x, y});
+                    path.add(new int[] {x, y});
                     int idx = packCoords(x, y);
                     int packed = cameFromFlat[idx];
                     if (packed == -1) break;
@@ -107,7 +107,7 @@ public class AStarPathfinder extends Benchmark {
                     y = prev[1];
                 }
 
-                path.add(new int[]{startX, startY});
+                path.add(new int[] {startX, startY});
                 Collections.reverse(path);
                 return new Pair<>(Optional.of(path), nodesExplored);
             }

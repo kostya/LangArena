@@ -14,7 +14,7 @@ class JsonParseDom extends Benchmark:
     generator.prepare()
     generator.run(0)
     text = generator.getText
-    resultVal = 0L  
+    resultVal = 0L
 
   private def calc(text: String): (Double, Double, Double) =
     val json = JSONObject.parseObject(text)
@@ -38,7 +38,7 @@ class JsonParseDom extends Benchmark:
   override def run(iterationId: Int): Unit =
     val (x, y, z) = calc(text)
 
-    val sum = (Helper.checksumF64(x) + Helper.checksumF64(y) + Helper.checksumF64(z)) & 0xFFFFFFFFL
+    val sum = (Helper.checksumF64(x) + Helper.checksumF64(y) + Helper.checksumF64(z)) & 0xffffffffL
     resultVal += sum
 
-  override def checksum(): Long = resultVal & 0xFFFFFFFFL
+  override def checksum(): Long = resultVal & 0xffffffffL

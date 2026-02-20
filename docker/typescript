@@ -4,10 +4,4 @@ ARG version
 RUN npm install -g \
     typescript@$version \
     ts-node@latest \
-    @types/node@latest \
-    nodemon@latest \
-    eslint@latest \
-    prettier@latest \
-    yarn@latest
-
-RUN npm i --save-dev @types/node
+    @types/node@latest

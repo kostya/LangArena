@@ -1,13 +1,16 @@
 package benchmarks
 
 import Benchmark
-import kotlin.math.abs
 import java.util.Collections
+import kotlin.math.abs
 
 class AStarPathfinder : Benchmark() {
-    private data class Node(val x: Int, val y: Int, val fScore: Int) : Comparable<Node> {
+    private data class Node(
+        val x: Int,
+        val y: Int,
+        val fScore: Int,
+    ) : Comparable<Node> {
         override fun compareTo(other: Node): Int {
-
             if (fScore != other.fScore) {
                 return fScore.compareTo(other.fScore)
             }
@@ -47,7 +50,7 @@ class AStarPathfinder : Benchmark() {
         private fun siftUp(index: Int) {
             var i = index
             while (i > 0) {
-                val parent = (i - 1) shr 1  
+                val parent = (i - 1) shr 1
                 if (data[i] >= data[parent]) break
                 Collections.swap(data, i, parent)
                 i = parent
@@ -58,7 +61,7 @@ class AStarPathfinder : Benchmark() {
             var i = index
             val size = data.size
             while (true) {
-                val left = (i shl 1) + 1  
+                val left = (i shl 1) + 1
                 val right = left + 1
                 var smallest = i
 
@@ -88,7 +91,7 @@ class AStarPathfinder : Benchmark() {
     private lateinit var mazeGrid: Array<BooleanArray>
 
     private lateinit var gScoresCache: IntArray
-    private lateinit var cameFromCache: IntArray  
+    private lateinit var cameFromCache: IntArray
 
     private companion object {
         val DIRECTIONS = arrayOf(0 to -1, 1 to 0, 0 to 1, -1 to 0)
@@ -108,17 +111,19 @@ class AStarPathfinder : Benchmark() {
         cameFromCache = IntArray(size)
     }
 
-    private fun distance(aX: Int, aY: Int, bX: Int, bY: Int): Int {
-        return abs(aX - bX) + abs(aY - bY)
-    }
+    private fun distance(
+        aX: Int,
+        aY: Int,
+        bX: Int,
+        bY: Int,
+    ): Int = abs(aX - bX) + abs(aY - bY)
 
-    private fun packCoords(x: Int, y: Int): Int {
-        return y * width + x
-    }
+    private fun packCoords(
+        x: Int,
+        y: Int,
+    ): Int = y * width + x
 
-    private fun unpackCoords(packed: Int): Pair<Int, Int> {
-        return Pair(packed % width, packed / width)
-    }
+    private fun unpackCoords(packed: Int): Pair<Int, Int> = Pair(packed % width, packed / width)
 
     private fun findPath(): Pair<List<Pair<Int, Int>>?, Int> {
         val grid = mazeGrid
@@ -134,15 +139,19 @@ class AStarPathfinder : Benchmark() {
 
         val startIdx = packCoords(startX, startY)
         gScores[startIdx] = 0
-        openSet.push(Node(startX, startY, 
-                         distance(startX, startY, goalX, goalY)))
+        openSet.push(
+            Node(
+                startX,
+                startY,
+                distance(startX, startY, goalX, goalY),
+            ),
+        )
 
         while (!openSet.isEmpty()) {
             val current = openSet.pop() ?: break
             nodesExplored++
 
             if (current.x == goalX && current.y == goalY) {
-
                 val path = mutableListOf<Pair<Int, Int>>()
                 var x = current.x
                 var y = current.y
@@ -177,7 +186,6 @@ class AStarPathfinder : Benchmark() {
                 val neighborIdx = packCoords(nx, ny)
 
                 if (tentativeG < gScores[neighborIdx]) {
-
                     cameFrom[neighborIdx] = currentIdx
                     gScores[neighborIdx] = tentativeG
 

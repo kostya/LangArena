@@ -20,7 +20,7 @@ mut:
 pub struct BenchmarkInfo {
 pub:
 	name    string
-	creator ?fn () &IBenchmark  
+	creator ?fn () &IBenchmark
 }
 
 fn warmup(mut bench IBenchmark) {
@@ -48,7 +48,6 @@ pub fn run_benchmarks(factories []BenchmarkInfo, single_bench string) {
 		os.flush()
 
 		if creator := factory.creator {
-
 			mut bench := creator()
 
 			helper.reset()

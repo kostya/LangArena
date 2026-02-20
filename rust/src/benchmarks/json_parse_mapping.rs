@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 use crate::config_i64;
 use serde::{Deserialize, Serialize};
 
@@ -73,7 +73,7 @@ impl Benchmark for JsonParseMapping {
         self.result_val = self.result_val.wrapping_add(
             helper::checksum_f64(avg.x)
                 .wrapping_add(helper::checksum_f64(avg.y))
-                .wrapping_add(helper::checksum_f64(avg.z))
+                .wrapping_add(helper::checksum_f64(avg.z)),
         );
     }
 

@@ -1,8 +1,8 @@
 import benchmarks.*
-import kotlin.system.exitProcess
-import java.util.Locale
 import java.io.File
 import java.time.Instant
+import java.util.Locale
+import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
     Locale.setDefault(Locale.US)
@@ -10,7 +10,7 @@ fun main(args: Array<String>) {
     Benchmark.registerBenchmark { Pidigits() }
     Benchmark.registerBenchmark { Binarytrees() }
     Benchmark.registerBenchmark { BrainfuckArray() }
-    Benchmark.registerBenchmark { BrainfuckRecursion() }            
+    Benchmark.registerBenchmark { BrainfuckRecursion() }
     Benchmark.registerBenchmark { Fannkuchredux() }
     Benchmark.registerBenchmark { Fasta() }
     Benchmark.registerBenchmark { Knuckeotide() }
@@ -24,10 +24,10 @@ fun main(args: Array<String>) {
     Benchmark.registerBenchmark { Revcomp() }
     Benchmark.registerBenchmark { Spectralnorm() }
     Benchmark.registerBenchmark { Base64Encode() }
-    Benchmark.registerBenchmark { Base64Decode() }    
+    Benchmark.registerBenchmark { Base64Decode() }
     Benchmark.registerBenchmark { JsonGenerate() }
     Benchmark.registerBenchmark { JsonParseDom() }
-    Benchmark.registerBenchmark { JsonParseMapping() }    
+    Benchmark.registerBenchmark { JsonParseMapping() }
     Benchmark.registerBenchmark { Primes() }
     Benchmark.registerBenchmark { Noise() }
     Benchmark.registerBenchmark { TextRaytracer() }
@@ -39,24 +39,25 @@ fun main(args: Array<String>) {
     Benchmark.registerBenchmark { GraphPathDFS() }
     Benchmark.registerBenchmark { GraphPathAStar() }
     Benchmark.registerBenchmark { BufferHashSHA256() }
-    Benchmark.registerBenchmark { BufferHashCRC32() }    
-    Benchmark.registerBenchmark { CacheSimulation() }        
-    Benchmark.registerBenchmark { CalculatorAst() }    
-    Benchmark.registerBenchmark { CalculatorInterpreter() }    
-    Benchmark.registerBenchmark { GameOfLife() }        
-    Benchmark.registerBenchmark { MazeGenerator() }    
-    Benchmark.registerBenchmark { AStarPathfinder() }    
+    Benchmark.registerBenchmark { BufferHashCRC32() }
+    Benchmark.registerBenchmark { CacheSimulation() }
+    Benchmark.registerBenchmark { CalculatorAst() }
+    Benchmark.registerBenchmark { CalculatorInterpreter() }
+    Benchmark.registerBenchmark { GameOfLife() }
+    Benchmark.registerBenchmark { MazeGenerator() }
+    Benchmark.registerBenchmark { AStarPathfinder() }
     Benchmark.registerBenchmark { BWTHuffEncode() }
-    Benchmark.registerBenchmark { BWTHuffDecode() }  
+    Benchmark.registerBenchmark { BWTHuffDecode() }
 
     val now = Instant.now().toEpochMilli()
     println("start: $now")
 
-    val configFile = when {
-        args.isNotEmpty() && args[0].endsWith(".js") -> args[0]
-        args.size > 1 && args[1].endsWith(".js") -> args[1]
-        else -> null
-    }
+    val configFile =
+        when {
+            args.isNotEmpty() && args[0].endsWith(".js") -> args[0]
+            args.size > 1 && args[1].endsWith(".js") -> args[1]
+            else -> null
+        }
 
     val singleBench = args.firstOrNull { !it.endsWith(".js") }
 

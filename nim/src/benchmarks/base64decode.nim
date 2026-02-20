@@ -4,8 +4,8 @@ import ../helper
 
 type
   Base64Decode* = ref object of Benchmark
-    str2: string  
-    str3: string  
+    str2: string
+    str3: string
     resultVal: uint32
 
 proc newBase64Decode(): Benchmark =

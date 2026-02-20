@@ -33,7 +33,6 @@ pub fn (b Fasta) name() string {
 }
 
 fn select_random(genelist []Gene) u8 {
-
 	r := helper.next_float(1.0)
 	if r < genelist[0].prob {
 		return genelist[0].c
@@ -55,7 +54,6 @@ fn select_random(genelist []Gene) u8 {
 }
 
 fn (mut f Fasta) make_random_fasta(id string, desc string, genelist []Gene, n_iter int) {
-
 	f.result_buf.write_string('>')
 	f.result_buf.write_string(id)
 	f.result_buf.write_string(' ')
@@ -135,15 +133,12 @@ pub fn (mut f Fasta) run(iteration_id int) {
 }
 
 pub fn (mut f Fasta) checksum() u32 {
-
 	result_str := f.result_buf.str()
 	return helper.checksum_str(result_str)
 }
 
 pub fn (mut f Fasta) prepare() {
-
 	f.result_buf = strings.new_builder(0)
-
 }
 
 pub fn (mut f Fasta) get_result() string {

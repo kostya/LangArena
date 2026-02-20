@@ -166,13 +166,13 @@
     "iterations": 3
   },
   "BufferHashSHA256": {
-    "checksum": 2501368992,
-    "size": 1000000,
+    "checksum": 1036619072,
+    "size": 1000,
     "iterations": 3
   },
   "BufferHashCRC32": {
-    "checksum": 3487501020,
-    "size": 1000000,
+    "checksum": 3031698216,
+    "size": 1000,
     "iterations": 3
   },
   "CacheSimulation": {

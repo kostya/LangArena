@@ -39,11 +39,13 @@ class MazeGenerator extends Benchmark:
         val x = Helper.nextInt(width - 2) + 1
         val y = Helper.nextInt(height - 2) + 1
 
-        if (get(x, y) == WALL &&
-            get(x - 1, y) == WALL &&
-            get(x + 1, y) == WALL &&
-            get(x, y - 1) == WALL &&
-            get(x, y + 1) == WALL) {
+        if (
+          get(x, y) == WALL &&
+          get(x - 1, y) == WALL &&
+          get(x + 1, y) == WALL &&
+          get(x, y - 1) == WALL &&
+          get(x, y + 1) == WALL
+        ) {
           set(x, y, PATH)
         }
         i += 1
@@ -154,7 +156,7 @@ class MazeGenerator extends Benchmark:
       addRandomPaths()
     }
 
-    def isConnected(startX: Int, startY: Int, goalX: Int, goalY: Int): Boolean = 
+    def isConnected(startX: Int, startY: Int, goalX: Int, goalY: Int): Boolean =
       isConnectedImpl(startX, startY, goalX, goalY)
 
     def toBoolGrid(): Array[Array[Boolean]] = {
@@ -214,7 +216,7 @@ class MazeGenerator extends Benchmark:
       }
       i += 1
     }
-    hasher & 0xFFFFFFFFL
+    hasher & 0xffffffffL
   }
 
   override def name(): String = "MazeGenerator"
@@ -377,4 +379,4 @@ class AStarPathfinder extends Benchmark:
 
     resultVal += localResult
 
-  override def checksum(): Long = resultVal & 0xFFFFFFFFL
+  override def checksum(): Long = resultVal & 0xffffffffL

@@ -57,8 +57,7 @@ class RegexDna extends Benchmark:
     val pattern = compiledPatterns(patternIdx)
     val matcher = pattern.matcher(seq)
     var count = 0
-    while matcher.find() do
-      count += 1
+    while matcher.find() do count += 1
     count
 
   override def run(iterationId: Int): Unit =
@@ -70,10 +69,17 @@ class RegexDna extends Benchmark:
       i += 1
 
     val replacements = Map(
-      "B" -> "(c|g|t)", "D" -> "(a|g|t)", "H" -> "(a|c|t)",
-      "K" -> "(g|t)", "M" -> "(a|c)", "N" -> "(a|c|g|t)",
-      "R" -> "(a|g)", "S" -> "(c|t)", "V" -> "(a|c|g)",
-      "W" -> "(a|t)", "Y" -> "(c|t)"
+      "B" -> "(c|g|t)",
+      "D" -> "(a|g|t)",
+      "H" -> "(a|c|t)",
+      "K" -> "(g|t)",
+      "M" -> "(a|c)",
+      "N" -> "(a|c|g|t)",
+      "R" -> "(a|g)",
+      "S" -> "(c|t)",
+      "V" -> "(a|c|g)",
+      "W" -> "(a|t)",
+      "Y" -> "(c|t)"
     )
 
     var newSeq = seq

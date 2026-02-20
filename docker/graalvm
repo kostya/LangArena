@@ -8,7 +8,7 @@ RUN wget -O graalvm.tar.gz "https://github.com/graalvm/graalvm-ce-builds/release
     && tar -xzf graalvm.tar.gz -C /opt \
     && rm graalvm.tar.gz
 
-ENV GRAALVM_HOME="/opt/graalvm-community-openjdk-${GRAALVM_VERSION}+8.1"
+ENV GRAALVM_HOME="/opt/graalvm-community-openjdk-${GRAALVM_VERSION}+10.1"
 ENV PATH="${GRAALVM_HOME}/bin:${PATH}"
 
 # RUN ${GRAALVM_HOME}/bin/gu install native-image

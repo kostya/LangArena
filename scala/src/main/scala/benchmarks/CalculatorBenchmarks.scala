@@ -32,7 +32,10 @@ class CalculatorAst extends Benchmark:
       val v = i + 10
       sb.append(s"v$v = v${v - 1} + ")
       Helper.nextInt(10) match {
-        case 0 => sb.append(s"(v${v - 1} / 3) * 4 - $i / (3 + (18 - v${v - 2})) % v${v - 3} + 2 * ((9 - v${v - 6}) * (v${v - 5} + 7))")
+        case 0 =>
+          sb.append(
+            s"(v${v - 1} / 3) * 4 - $i / (3 + (18 - v${v - 2})) % v${v - 3} + 2 * ((9 - v${v - 6}) * (v${v - 5} + 7))"
+          )
         case 1 => sb.append(s"v${v - 1} + (v${v - 2} + v${v - 3}) * v${v - 4} - (v${v - 5} /  v${v - 6})")
         case 2 => sb.append(s"(3789 - (((v${v - 7})))) + 1")
         case 3 => sb.append(s"4/2 * (1-3) + v${v - 9}/v${v - 5}")
@@ -177,7 +180,7 @@ class CalculatorAst extends Benchmark:
     }
   }
 
-  override def checksum(): Long = resultVal & 0xFFFFFFFFL
+  override def checksum(): Long = resultVal & 0xffffffffL
 
   override def name(): String = "CalculatorAst"
 
@@ -229,7 +232,7 @@ class CalculatorInterpreter extends Benchmark:
             case '*' => left * right
             case '/' => simpleDiv(left, right)
             case '%' => simpleMod(left, right)
-            case _ => 0L
+            case _   => 0L
           }
         case assign: CalculatorAst#Assignment =>
           val value = evaluate(assign.expr)
@@ -254,4 +257,4 @@ class CalculatorInterpreter extends Benchmark:
     resultVal += result
   }
 
-  override def checksum(): Long = resultVal & 0xFFFFFFFFL
+  override def checksum(): Long = resultVal & 0xffffffffL

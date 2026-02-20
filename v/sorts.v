@@ -52,7 +52,6 @@ fn quick_sort(mut arr []int, low int, high int) {
 			j--
 		}
 		if i <= j {
-
 			temp := arr[i]
 			arr[i] = arr[j]
 			arr[j] = temp
@@ -121,7 +120,6 @@ fn merge_sort_helper(mut arr []int, mut temp []int, left int, right int) {
 }
 
 fn merge(mut arr []int, mut temp []int, left int, mid int, right int) {
-
 	for i in left .. right + 1 {
 		temp[i] = arr[i]
 	}

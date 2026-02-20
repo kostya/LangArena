@@ -45,19 +45,17 @@ pub const CacheSimulation = struct {
         }
 
         fn deinit(self: *FastLRUCache) void {
-
             var current = self.lru_head;
             while (current) |node| {
                 const next = node.next;
-                self.allocator.free(node.key); 
+                self.allocator.free(node.key);
                 self.allocator.destroy(node);
                 current = next;
             }
 
             var iter = self.map.iterator();
             while (iter.next()) |entry| {
-                self.allocator.free(entry.value_ptr.value); 
-
+                self.allocator.free(entry.value_ptr.value);
             }
             self.map.deinit();
         }
@@ -96,7 +94,6 @@ pub const CacheSimulation = struct {
 
         fn get(self: *FastLRUCache, key: []const u8) bool {
             if (self.map.getPtr(key)) |entry| {
-
                 self.removeNode(entry.node);
                 self.prependNode(entry.node);
                 return true;
@@ -106,7 +103,6 @@ pub const CacheSimulation = struct {
 
         fn put(self: *FastLRUCache, key: []const u8, value: []const u8) !void {
             if (self.map.getPtr(key)) |entry| {
-
                 self.removeNode(entry.node);
                 self.prependNode(entry.node);
 
@@ -226,12 +222,10 @@ pub const CacheSimulation = struct {
         const key = std.fmt.bufPrint(&key_buf, "item_{}", .{key_num}) catch return;
 
         if (cache.get(key)) {
-
             self.hits += 1;
             const value = std.fmt.bufPrint(&val_buf, "updated_{}", .{iteration_id}) catch return;
             cache.put(key, value) catch return;
         } else {
-
             self.misses += 1;
             const value = std.fmt.bufPrint(&val_buf, "new_{}", .{iteration_id}) catch return;
             cache.put(key, value) catch return;

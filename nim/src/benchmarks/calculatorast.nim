@@ -63,8 +63,8 @@ proc parseVariable(p: var Parser): Node =
   let startPos = p.pos
 
   while p.currentChar != '\0' and (
-    (p.currentChar in 'a'..'z') or 
-    (p.currentChar in 'A'..'Z') or 
+    (p.currentChar in 'a'..'z') or
+    (p.currentChar in 'A'..'Z') or
     (p.currentChar in '0'..'9')):
     p.advance()
 

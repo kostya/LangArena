@@ -24,9 +24,11 @@ from io import StringIO
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, NamedTuple, Optional, Union)
 
+
 def with_timeout(timeout_seconds):
 
     def decorator(func):
+
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             with ThreadPoolExecutor(max_workers=1) as executor:
@@ -35,14 +37,21 @@ def with_timeout(timeout_seconds):
                     return future.result(timeout=timeout_seconds)
                 except TimeoutError:
                     future.cancel()
-                    raise TimeoutError(f"Function {func.__name__} timed out after {timeout_seconds} seconds")
+                    raise TimeoutError(
+                        f"Function {func.__name__} timed out after {timeout_seconds} seconds"
+                    )
+
         return wrapper
+
     return decorator
 
+
 class Performance:
+
     @staticmethod
     def now() -> float:
-        return time.time() * 1000  
+        return time.time() * 1000
+
 
 class Helper:
     IM = 139968
@@ -69,7 +78,8 @@ class Helper:
 
     @staticmethod
     def next_int(max_val: int) -> int:
-        Helper._last_value = (Helper._last_value * Helper.IA + Helper.IC) % Helper.IM
+        Helper._last_value = (Helper._last_value * Helper.IA +
+                              Helper.IC) % Helper.IM
         return int(Helper._last_value / Helper.IM * max_val)
 
     @staticmethod
@@ -78,7 +88,8 @@ class Helper:
 
     @staticmethod
     def next_float(max_val: float = 1.0) -> float:
-        Helper._last_value = (Helper._last_value * Helper.IA + Helper.IC) % Helper.IM
+        Helper._last_value = (Helper._last_value * Helper.IA +
+                              Helper.IC) % Helper.IM
         return max_val * Helper._last_value / Helper.IM
 
     @staticmethod
@@ -128,7 +139,8 @@ class Helper:
         value = Helper._config[className][fieldName]
         if isinstance(value, (int, str)):
             return int(value)
-        raise Exception(f'Config for {className}, not found i64 field: {fieldName}')
+        raise Exception(
+            f'Config for {className}, not found i64 field: {fieldName}')
 
     @staticmethod
     def config_s(className: str, fieldName: str) -> str:
@@ -138,9 +150,12 @@ class Helper:
         value = Helper._config[className][fieldName]
         if isinstance(value, str):
             return value
-        raise Exception(f'Config for {className}, not found string field: {fieldName}')
+        raise Exception(
+            f'Config for {className}, not found string field: {fieldName}')
+
 
 class TreeNode:
+
     def __init__(self, item: int, depth: int = 0):
         self.item = item
         self.left: Optional[TreeNode] = None
@@ -159,7 +174,9 @@ class TreeNode:
             return self.item
         return self.left.check() - self.right.check() + self.item
 
+
 class Benchmark(ABC):
+
     def __init__(self):
         self._iterations_cache = None
 
@@ -203,7 +220,8 @@ class Benchmark(ABC):
         if self._iterations_cache is None:
             try:
                 class_name = self.__class__.__name__
-                self._iterations_cache = Helper.config_i64(class_name, 'iterations')
+                self._iterations_cache = Helper.config_i64(
+                    class_name, 'iterations')
             except:
                 self._iterations_cache = 1
         return self._iterations_cache
@@ -230,7 +248,9 @@ class Benchmark(ABC):
             if single_bench and single_bench.lower() not in class_name.lower():
                 continue
 
-            if class_name in ['SortBenchmark', 'BufferHashBenchmark', 'GraphPathBenchmark']:
+            if class_name in [
+                    'SortBenchmark', 'BufferHashBenchmark', 'GraphPathBenchmark'
+            ]:
                 continue
 
             print(f'{class_name}: ', end='', flush=True)
@@ -265,7 +285,9 @@ class Benchmark(ABC):
                 print('OK ', end='')
                 ok += 1
             else:
-                print(f'ERR[actual={actual_result}, expected={expected_result}] ', end='')
+                print(
+                    f'ERR[actual={actual_result}, expected={expected_result}] ',
+                    end='')
                 fails += 1
 
             print(f'in {time_delta:.3f}s')
@@ -289,7 +311,9 @@ class Benchmark(ABC):
     def register_benchmark(constructor: Callable[[], 'Benchmark']) -> None:
         Benchmark._benchmark_classes.append(constructor)
 
+
 class Binarytrees(Benchmark):
+
     def __init__(self):
         super().__init__()
         class_name = self.__class__.__name__
@@ -317,7 +341,9 @@ class Binarytrees(Benchmark):
     def checksum(self) -> int:
         return self.result & 0xFFFFFFFF
 
+
 class Tape:
+
     def __init__(self, size: int = 30000):
         self._tape = bytearray(size)
         self._pos = 0
@@ -340,7 +366,9 @@ class Tape:
         if self._pos > 0:
             self._pos -= 1
 
+
 class BrainfuckProgram:
+
     def __init__(self, text: str):
         self._commands = self._filter_commands(text)
         self._jumps = [0] * len(self._commands)
@@ -348,7 +376,7 @@ class BrainfuckProgram:
 
     @staticmethod
     def _filter_commands(text: str) -> str:
-        valid = set('[]<>+-,.')  
+        valid = set('[]<>+-,.')
         buffer = []
         for char in text:
             if char in valid:
@@ -397,7 +425,9 @@ class BrainfuckProgram:
 
         return result
 
+
 class BrainfuckArray(Benchmark):
+
     def __init__(self):
         super().__init__()
         self._program_text = ""
@@ -421,34 +451,43 @@ class BrainfuckArray(Benchmark):
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
 
+
 class Op:
     pass
 
-@dataclass
-class IncOp(Op):  
-    pass
 
 @dataclass
-class DecOp(Op):  
+class IncOp(Op):
     pass
 
-@dataclass
-class NextOp(Op):  
-    pass
 
 @dataclass
-class PrevOp(Op):  
+class DecOp(Op):
     pass
 
-@dataclass
-class PrintOp(Op):  
-    pass
 
 @dataclass
-class LoopOp(Op):  
+class NextOp(Op):
+    pass
+
+
+@dataclass
+class PrevOp(Op):
+    pass
+
+
+@dataclass
+class PrintOp(Op):
+    pass
+
+
+@dataclass
+class LoopOp(Op):
     ops: List[Op]
 
+
 class Tape2:
+
     def __init__(self):
         self._tape = bytearray(30000)
         self._pos = 0
@@ -471,7 +510,9 @@ class Tape2:
         if self._pos > 0:
             self._pos -= 1
 
+
 class BrainfuckProgram2:
+
     def __init__(self, code: str):
         self._ops = self._parse(code)
         self._result_value = 0
@@ -495,7 +536,8 @@ class BrainfuckProgram2:
                 while tape.get() != 0:
                     self._run_ops(op.ops, tape)
             elif isinstance(op, PrintOp):
-                self._result_value = ((self._result_value << 2) + tape.get()) & 0xFFFFFFFF
+                self._result_value = (
+                    (self._result_value << 2) + tape.get()) & 0xFFFFFFFF
 
     @staticmethod
     def _parse_sequence(chars: List[str], index: int):
@@ -539,7 +581,9 @@ class BrainfuckProgram2:
         parse_result = BrainfuckProgram2._parse_sequence(chars, 0)
         return parse_result[0]
 
+
 class BrainfuckRecursion(Benchmark):
+
     def __init__(self):
         super().__init__()
         self._text = ""
@@ -563,7 +607,9 @@ class BrainfuckRecursion(Benchmark):
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
 
+
 class Pidigits(Benchmark):
+
     def __init__(self):
         super().__init__()
         self.nn = 0
@@ -620,7 +666,9 @@ class Pidigits(Benchmark):
     def checksum(self) -> int:
         return Helper.checksum_string(''.join(self._result_buffer))
 
+
 class Fannkuchredux(Benchmark):
+
     def __init__(self):
         super().__init__()
         self.n = 0
@@ -692,36 +740,46 @@ class Fannkuchredux(Benchmark):
     def checksum(self) -> int:
         return self._result_value
 
+
 @dataclass
 class Gene:
     char: str
     prob: float
 
+
 class Fasta(Benchmark):
     LINE_LENGTH = 60
 
     IUB = [
-        Gene('a', 0.27), Gene('c', 0.39), Gene('g', 0.51),
-        Gene('t', 0.78), Gene('B', 0.8), Gene('D', 0.8200000000000001),
-        Gene('H', 0.8400000000000001), Gene('K', 0.8600000000000001),
-        Gene('M', 0.8800000000000001), Gene('N', 0.9000000000000001),
-        Gene('R', 0.9200000000000002), Gene('S', 0.9400000000000002),
-        Gene('V', 0.9600000000000002), Gene('W', 0.9800000000000002),
+        Gene('a', 0.27),
+        Gene('c', 0.39),
+        Gene('g', 0.51),
+        Gene('t', 0.78),
+        Gene('B', 0.8),
+        Gene('D', 0.8200000000000001),
+        Gene('H', 0.8400000000000001),
+        Gene('K', 0.8600000000000001),
+        Gene('M', 0.8800000000000001),
+        Gene('N', 0.9000000000000001),
+        Gene('R', 0.9200000000000002),
+        Gene('S', 0.9400000000000002),
+        Gene('V', 0.9600000000000002),
+        Gene('W', 0.9800000000000002),
         Gene('Y', 1.0000000000000002),
     ]
 
     HOMO = [
-        Gene('a', 0.302954942668), Gene('c', 0.5009432431601),
-        Gene('g', 0.6984905497992), Gene('t', 1.0),
+        Gene('a', 0.302954942668),
+        Gene('c', 0.5009432431601),
+        Gene('g', 0.6984905497992),
+        Gene('t', 1.0),
     ]
 
-    ALU = (
-        "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGG"
-        "ATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTA"
-        "CTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGG"
-        "GAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGAT"
-        "CGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"
-    )
+    ALU = ("GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGG"
+           "ATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTA"
+           "CTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGG"
+           "GAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGAT"
+           "CGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA")
 
     def __init__(self):
         super().__init__()
@@ -750,7 +808,8 @@ class Fasta(Benchmark):
 
         return genelist[hi].char
 
-    def _make_random_fasta(self, id_str: str, desc: str, genelist: List[Gene], n: int):
+    def _make_random_fasta(self, id_str: str, desc: str, genelist: List[Gene],
+                           n: int):
         self.result_buffer.write(f'>{id_str} {desc}\n')
 
         todo = n
@@ -794,8 +853,10 @@ class Fasta(Benchmark):
 
     def run_benchmark(self, iteration_id: int):
         self._make_repeat_fasta("ONE", "Homo sapiens alu", self.ALU, self.n * 2)
-        self._make_random_fasta("TWO", "IUB ambiguity codes", self.IUB, self.n * 3)
-        self._make_random_fasta("THREE", "Homo sapiens frequency", self.HOMO, self.n * 5)
+        self._make_random_fasta("TWO", "IUB ambiguity codes", self.IUB,
+                                self.n * 3)
+        self._make_random_fasta("THREE", "Homo sapiens frequency", self.HOMO,
+                                self.n * 5)
 
     def get_result(self) -> str:
         return self.result_buffer.getvalue()
@@ -803,7 +864,9 @@ class Fasta(Benchmark):
     def checksum(self) -> int:
         return Helper.checksum_string(self.result_buffer.getvalue())
 
+
 class Knuckeotide(Benchmark):
+
     def __init__(self):
         super().__init__()
         self._seq = ""
@@ -866,12 +929,15 @@ class Knuckeotide(Benchmark):
         for i in range(1, 3):
             self._sort_by_freq(self._seq, i)
 
-        sequences = ['ggt', 'ggta', 'ggtatt', 'ggtattttaatt', 'ggtattttaatttatagt']
+        sequences = [
+            'ggt', 'ggta', 'ggtatt', 'ggtattttaatt', 'ggtattttaatttatagt'
+        ]
         for s in sequences:
             self._find_seq(self._seq, s)
 
     def checksum(self) -> int:
         return Helper.checksum_string(self._result_str)
+
 
 class Mandelbrot(Benchmark):
     ITER = 50
@@ -887,7 +953,7 @@ class Mandelbrot(Benchmark):
         class_name = self.__class__.__name__
         self.w = Helper.config_i64(class_name, "w")
         self.h = Helper.config_i64(class_name, "h")
-        self._result_bytes = []  
+        self._result_bytes = []
 
     def run_benchmark(self, iteration_id: int):
 
@@ -933,11 +999,13 @@ class Mandelbrot(Benchmark):
     def checksum(self) -> int:
         return Helper.checksum_bytes(bytes(self._result_bytes))
 
+
 class MatmulBase(Benchmark):
+
     def __init__(self):
         super().__init__()
         self.n = 0
-        self._result_value = 0  
+        self._result_value = 0
 
     def prepare(self):
         class_name = self.__class__.__name__
@@ -951,7 +1019,8 @@ class MatmulBase(Benchmark):
                 a[i][j] = tmp * (i - j) * (i + j)
         return a
 
-    def _matmul_sync(self, a: List[List[float]], b: List[List[float]]) -> List[List[float]]:
+    def _matmul_sync(self, a: List[List[float]],
+                     b: List[List[float]]) -> List[List[float]]:
         size = len(a)
         bT = [[0.0] * size for _ in range(size)]
         for i in range(size):
@@ -974,16 +1043,21 @@ class MatmulBase(Benchmark):
 
         return self._result_value & 0xFFFFFFFF
 
+
 class Matmul1T(MatmulBase):
+
     def run_benchmark(self, iteration_id: int) -> None:
         a = self._matgen(self.n)
         b = self._matgen(self.n)
         c = self._matmul_sync(a, b)
         value = c[self.n >> 1][self.n >> 1]
 
-        self._result_value = (self._result_value + Helper.checksum_float(value)) & 0xFFFFFFFF
+        self._result_value = (self._result_value +
+                              Helper.checksum_float(value)) & 0xFFFFFFFF
+
 
 class MatmulParallelBase(MatmulBase):
+
     def __init__(self, num_threads: int = 4):
         super().__init__()
         self.num_threads = num_threads
@@ -1016,7 +1090,8 @@ class MatmulParallelBase(MatmulBase):
         rows_per_thread = (size + self.num_threads - 1) // self.num_threads
         futures = []
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.num_threads) as executor:
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=self.num_threads) as executor:
             for t in range(self.num_threads):
                 start_i = t * rows_per_thread
                 end_i = min(start_i + rows_per_thread, size)
@@ -1033,19 +1108,27 @@ class MatmulParallelBase(MatmulBase):
 
         value = c[self.n >> 1][self.n >> 1]
 
-        self._result_value = (self._result_value + Helper.checksum_float(value)) & 0xFFFFFFFF
+        self._result_value = (self._result_value +
+                              Helper.checksum_float(value)) & 0xFFFFFFFF
+
 
 class Matmul4T(MatmulParallelBase):
+
     def __init__(self):
         super().__init__(num_threads=4)
 
+
 class Matmul8T(MatmulParallelBase):
+
     def __init__(self):
         super().__init__(num_threads=8)
 
+
 class Matmul16T(MatmulParallelBase):
+
     def __init__(self):
         super().__init__(num_threads=16)
+
 
 class Planet:
     SOLAR_MASS = 4 * math.pi * math.pi
@@ -1070,7 +1153,7 @@ class Planet:
             dy = self.y - b2.y
             dz = self.z - b2.z
 
-            distance = math.sqrt(dx*dx + dy*dy + dz*dz)
+            distance = math.sqrt(dx * dx + dy * dy + dz * dz)
             mag = dt / (distance * distance * distance)
             b_mass_mag = self.mass * mag
             b2_mass_mag = b2.mass * mag
@@ -1086,6 +1169,7 @@ class Planet:
         self.x += dt * self.vx
         self.y += dt * self.vy
         self.z += dt * self.vz
+
 
 class Nbody(Benchmark):
     SOLAR_MASS = Planet.SOLAR_MASS
@@ -1142,13 +1226,10 @@ class Nbody(Benchmark):
 
         self.bodies = []
         for p in self._INITIAL_BODIES:
-            new_planet = Planet(
-                p.x, p.y, p.z,
-                p.vx / self.DAYS_PER_YEAR,
-                p.vy / self.DAYS_PER_YEAR,
-                p.vz / self.DAYS_PER_YEAR,
-                p.mass / self.SOLAR_MASS
-            )
+            new_planet = Planet(p.x, p.y, p.z, p.vx / self.DAYS_PER_YEAR,
+                                p.vy / self.DAYS_PER_YEAR,
+                                p.vz / self.DAYS_PER_YEAR,
+                                p.mass / self.SOLAR_MASS)
             self.bodies.append(new_planet)
 
         self._offset_momentum()
@@ -1161,14 +1242,14 @@ class Nbody(Benchmark):
 
         for i in range(nbodies):
             b = self.bodies[i]
-            e += 0.5 * b.mass * (b.vx*b.vx + b.vy*b.vy + b.vz*b.vz)
+            e += 0.5 * b.mass * (b.vx * b.vx + b.vy * b.vy + b.vz * b.vz)
 
             for j in range(i + 1, nbodies):
                 b2 = self.bodies[j]
                 dx = b.x - b2.x
                 dy = b.y - b2.y
                 dz = b.z - b2.z
-                distance = math.sqrt(dx*dx + dy*dy + dz*dz)
+                distance = math.sqrt(dx * dx + dy * dy + dz * dz)
                 e -= (b.mass * b2.mass) / distance
 
         return e
@@ -1202,7 +1283,9 @@ class Nbody(Benchmark):
 
         return ((checksum1 << 5) & checksum2) & 0xFFFFFFFF
 
+
 class RegexDna(Benchmark):
+
     def __init__(self):
         super().__init__()
         self.seq = ""
@@ -1274,9 +1357,10 @@ class RegexDna(Benchmark):
     def checksum(self) -> int:
         return Helper.checksum_string(self.result_str)
 
+
 class Revcomp(Benchmark):
     FROM = "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
-    TO   = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
+    TO = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
 
     def __init__(self):
         super().__init__()
@@ -1340,7 +1424,7 @@ class Revcomp(Benchmark):
                 read_pos -= 1
                 result_chars.append(chr(lookup[char_code]))
 
-            result_chars.append('\n')  
+            result_chars.append('\n')
 
         return ''.join(result_chars)
 
@@ -1351,7 +1435,9 @@ class Revcomp(Benchmark):
     def checksum(self) -> int:
         return self.result_value & 0xFFFFFFFF
 
+
 class Spectralnorm(Benchmark):
+
     def __init__(self):
         super().__init__()
         self.size = 0
@@ -1409,7 +1495,9 @@ class Spectralnorm(Benchmark):
         result = math.sqrt(v_bv / vv)
         return Helper.checksum_float(result)
 
+
 class Base64Encode(Benchmark):
+
     def __init__(self):
         super().__init__()
         self.n = 0
@@ -1436,7 +1524,9 @@ class Base64Encode(Benchmark):
         output += f"to {self._str2[:min(4, len(self._str2))]}...: {self._result_value}"
         return Helper.checksum_string(output)
 
+
 class Base64Decode(Benchmark):
+
     def __init__(self):
         super().__init__()
         self.n = 0
@@ -1463,7 +1553,9 @@ class Base64Decode(Benchmark):
         output += f"to {str3[:min(4, len(str3))]}...: {self._result_value}"
         return Helper.checksum_string(output)
 
+
 class JsonGenerate(Benchmark):
+
     def __init__(self):
         super().__init__()
         class_name = self.__class__.__name__
@@ -1503,7 +1595,9 @@ class JsonGenerate(Benchmark):
     def checksum(self) -> int:
         return self.result & 0xFFFFFFFF
 
+
 class JsonParseDom(Benchmark):
+
     def __init__(self):
         super().__init__()
         self.text = ''
@@ -1535,19 +1629,25 @@ class JsonParseDom(Benchmark):
     def run_benchmark(self, iteration_id: int):
         x, y, z = self._calc(self.text)
 
-        self.result_value = (self.result_value + Helper.checksum_float(x)) & 0xFFFFFFFF
-        self.result_value = (self.result_value + Helper.checksum_float(y)) & 0xFFFFFFFF
-        self.result_value = (self.result_value + Helper.checksum_float(z)) & 0xFFFFFFFF
+        self.result_value = (self.result_value +
+                             Helper.checksum_float(x)) & 0xFFFFFFFF
+        self.result_value = (self.result_value +
+                             Helper.checksum_float(y)) & 0xFFFFFFFF
+        self.result_value = (self.result_value +
+                             Helper.checksum_float(z)) & 0xFFFFFFFF
 
     def checksum(self) -> int:
         return self.result_value & 0xFFFFFFFF
+
 
 class CoordinateResult(NamedTuple):
     x: float
     y: float
     z: float
 
+
 class JsonParseMapping(Benchmark):
+
     def __init__(self):
         super().__init__()
         self.text = ''
@@ -1579,12 +1679,16 @@ class JsonParseMapping(Benchmark):
     def run_benchmark(self, iteration_id: int):
         coord = self._calc(self.text)
 
-        self.result_value = (self.result_value + Helper.checksum_float(coord.x)) & 0xFFFFFFFF
-        self.result_value = (self.result_value + Helper.checksum_float(coord.y)) & 0xFFFFFFFF
-        self.result_value = (self.result_value + Helper.checksum_float(coord.z)) & 0xFFFFFFFF
+        self.result_value = (self.result_value +
+                             Helper.checksum_float(coord.x)) & 0xFFFFFFFF
+        self.result_value = (self.result_value +
+                             Helper.checksum_float(coord.y)) & 0xFFFFFFFF
+        self.result_value = (self.result_value +
+                             Helper.checksum_float(coord.z)) & 0xFFFFFFFF
 
     def checksum(self) -> int:
         return self.result_value & 0xFFFFFFFF
+
 
 class PrimesNode:
 
@@ -1597,6 +1701,7 @@ class PrimesNode:
 
     def __setitem__(self, digit: int, node: 'PrimesNode'):
         self.children[digit] = node
+
 
 class Sieve:
 
@@ -1638,7 +1743,9 @@ class Sieve:
 
         return result
 
+
 class Primes(Benchmark):
+
     def __init__(self):
         super().__init__()
         self.n = 0
@@ -1675,7 +1782,8 @@ class Primes(Benchmark):
 
         return root
 
-    def _find_primes_with_prefix(self, trie: PrimesNode, prefix: int) -> List[int]:
+    def _find_primes_with_prefix(self, trie: PrimesNode,
+                                 prefix: int) -> List[int]:
 
         node = trie
         prefix_value = 0
@@ -1726,10 +1834,12 @@ class Primes(Benchmark):
     def checksum(self) -> int:
         return self.result & 0xFFFFFFFF
 
+
 @dataclass
 class Vec2:
     x: float
     y: float
+
 
 class Noise2DContext:
 
@@ -1742,7 +1852,8 @@ class Noise2DContext:
         for _ in range(size):
             a = Helper.next_int(size)
             b = Helper.next_int(size)
-            self.permutations[a], self.permutations[b] = self.permutations[b], self.permutations[a]
+            self.permutations[a], self.permutations[b] = self.permutations[
+                b], self.permutations[a]
 
     @staticmethod
     def _random_gradient() -> Vec2:
@@ -1752,7 +1863,7 @@ class Noise2DContext:
 
     def get_gradient(self, x: int, y: int) -> Vec2:
 
-        idx = (self.permutations[x & (self.size - 1)] + 
+        idx = (self.permutations[x & (self.size - 1)] +
                self.permutations[y & (self.size - 1)])
         return self.rgradients[idx & (self.size - 1)]
 
@@ -1814,6 +1925,7 @@ class Noise2DContext:
         fy = self._smooth(y - origins[0].y)
         return self._lerp(vx0, vx1, fy)
 
+
 class Noise(Benchmark):
     SYM = [' ', '░', '▒', '▓', '█', '█']
 
@@ -1831,12 +1943,14 @@ class Noise(Benchmark):
     def run_benchmark(self, iteration_id: int):
         for y in range(self.size):
             for x in range(self.size):
-                v = self.n2d.get(x * 0.1, (y + (iteration_id * 128)) * 0.1) * 0.5 + 0.5
+                v = self.n2d.get(x * 0.1,
+                                 (y + (iteration_id * 128)) * 0.1) * 0.5 + 0.5
                 idx = int(v / 0.2)
                 self.result = (self.result + ord(self.SYM[idx])) & 0xFFFFFFFF
 
     def checksum(self) -> int:
         return self.result & 0xFFFFFFFF
+
 
 @dataclass
 class Vector:
@@ -1862,10 +1976,12 @@ class Vector:
     def normalize(self) -> 'Vector':
         return self.scale(1.0 / self.magnitude())
 
+
 @dataclass
 class Ray:
     orig: Vector
     dir: Vector
+
 
 @dataclass
 class Color:
@@ -1879,6 +1995,7 @@ class Color:
     def __add__(self, other: 'Color') -> 'Color':
         return Color(self.r + other.r, self.g + other.g, self.b + other.b)
 
+
 @dataclass
 class Sphere:
     center: Vector
@@ -1888,15 +2005,18 @@ class Sphere:
     def get_normal(self, pt: Vector) -> Vector:
         return (pt - self.center).normalize()
 
+
 @dataclass
 class Light:
     position: Vector
     color: Color
 
+
 @dataclass
 class Hit:
     obj: Sphere
     value: float
+
 
 class TextRaytracer(Benchmark):
     WHITE = Color(1.0, 1.0, 1.0)
@@ -1924,7 +2044,8 @@ class TextRaytracer(Benchmark):
         self.w = Helper.config_i64(class_name, "w")
         self.h = Helper.config_i64(class_name, "h")
 
-    def intersect_sphere(self, ray: Ray, center: Vector, radius: float) -> Optional[float]:
+    def intersect_sphere(self, ray: Ray, center: Vector,
+                         radius: float) -> Optional[float]:
 
         l = center - ray.orig
         tca = l.dot(ray.dir)
@@ -1971,12 +2092,13 @@ class TextRaytracer(Benchmark):
 
         for j in range(self.h):
             for i in range(self.w):
-                fw, fi, fj, fh = float(self.w), float(i), float(j), float(self.h)
+                fw, fi, fj, fh = float(self.w), float(i), float(j), float(
+                    self.h)
 
                 ray = Ray(
                     Vector(0.0, 0.0, 0.0),
-                    Vector((fi - fw/2.0)/fw, (fj - fh/2.0)/fh, 1.0).normalize()
-                )
+                    Vector((fi - fw / 2.0) / fw, (fj - fh / 2.0) / fh,
+                           1.0).normalize())
 
                 hit = None
 
@@ -1999,6 +2121,7 @@ class TextRaytracer(Benchmark):
     def checksum(self) -> int:
         return self.res & 0xFFFFFFFF
 
+
 class Synapse:
 
     def __init__(self, source_neuron: 'Neuron', dest_neuron: 'Neuron'):
@@ -2006,6 +2129,7 @@ class Synapse:
         self.dest_neuron = dest_neuron
         self.weight = Helper.next_float() * 2 - 1
         self.prev_weight = self.weight
+
 
 class Neuron:
     LEARNING_RATE = 1.0
@@ -2021,8 +2145,8 @@ class Neuron:
 
     def calculate_output(self):
 
-        activation = sum(synapse.weight * synapse.source_neuron.output 
-                        for synapse in self.synapses_in)
+        activation = sum(synapse.weight * synapse.source_neuron.output
+                         for synapse in self.synapses_in)
         activation -= self.threshold
         self.output = 1.0 / (1.0 + math.exp(-activation))
 
@@ -2037,8 +2161,8 @@ class Neuron:
 
     def hidden_train(self, rate: float):
 
-        error_sum = sum(synapse.dest_neuron.error * synapse.prev_weight 
-                       for synapse in self.synapses_out)
+        error_sum = sum(synapse.dest_neuron.error * synapse.prev_weight
+                        for synapse in self.synapses_out)
         self.error = error_sum * self.derivative()
         self._update_weights(rate)
 
@@ -2046,7 +2170,7 @@ class Neuron:
 
         for synapse in self.synapses_in:
             temp_weight = synapse.weight
-            synapse.weight += (rate * self.LEARNING_RATE * self.error * 
+            synapse.weight += (rate * self.LEARNING_RATE * self.error *
                              synapse.source_neuron.output) + \
                             (self.MOMENTUM * (synapse.weight - synapse.prev_weight))
             synapse.prev_weight = temp_weight
@@ -2055,6 +2179,7 @@ class Neuron:
         self.threshold += (rate * self.LEARNING_RATE * self.error * -1.0) + \
                          (self.MOMENTUM * (self.threshold - self.prev_threshold))
         self.prev_threshold = temp_threshold
+
 
 class NeuralNetwork:
 
@@ -2100,7 +2225,9 @@ class NeuralNetwork:
 
         return [neuron.output for neuron in self.output_layer]
 
+
 class NeuralNet(Benchmark):
+
     def __init__(self):
         super().__init__()
         self.xor: Optional[NeuralNetwork] = None
@@ -2135,7 +2262,9 @@ class NeuralNet(Benchmark):
         total = sum(outputs)
         return Helper.checksum_float(total)
 
+
 class SortBenchmark(Benchmark, ABC):
+
     def __init__(self):
         super().__init__()
         self._data: List[int] = []
@@ -2157,17 +2286,19 @@ class SortBenchmark(Benchmark, ABC):
 
     def run_benchmark(self, iteration_id: int):
 
-        self._result_value = (self._result_value + 
-                             self._data[Helper.next_int(self.size)]) & 0xFFFFFFFF
+        self._result_value = (self._result_value + self._data[Helper.next_int(
+            self.size)]) & 0xFFFFFFFF
 
         t = self.test()
-        self._result_value = (self._result_value + 
-                             t[Helper.next_int(self.size)]) & 0xFFFFFFFF
+        self._result_value = (self._result_value +
+                              t[Helper.next_int(self.size)]) & 0xFFFFFFFF
 
     def checksum(self) -> int:
         return self._result_value
 
+
 class SortQuick(SortBenchmark):
+
     def test(self) -> List[int]:
         arr = self._data.copy()
         self._quick_sort(arr, 0, len(arr) - 1)
@@ -2197,7 +2328,9 @@ class SortQuick(SortBenchmark):
         self._quick_sort(arr, low, j)
         self._quick_sort(arr, i, high)
 
+
 class SortMerge(SortBenchmark):
+
     def test(self) -> List[int]:
         arr = self._data.copy()
         self._merge_sort_inplace(arr)
@@ -2208,8 +2341,8 @@ class SortMerge(SortBenchmark):
         temp = [0] * len(arr)
         self._merge_sort_helper(arr, temp, 0, len(arr) - 1)
 
-    def _merge_sort_helper(self, arr: List[int], temp: List[int], 
-                          left: int, right: int):
+    def _merge_sort_helper(self, arr: List[int], temp: List[int], left: int,
+                           right: int):
 
         if left >= right:
             return
@@ -2219,8 +2352,8 @@ class SortMerge(SortBenchmark):
         self._merge_sort_helper(arr, temp, mid + 1, right)
         self._merge(arr, temp, left, mid, right)
 
-    def _merge(self, arr: List[int], temp: List[int], 
-               left: int, mid: int, right: int):
+    def _merge(self, arr: List[int], temp: List[int], left: int, mid: int,
+               right: int):
 
         for i in range(left, right + 1):
             temp[i] = arr[i]
@@ -2243,13 +2376,17 @@ class SortMerge(SortBenchmark):
             i += 1
             k += 1
 
+
 class SortSelf(SortBenchmark):
+
     def test(self) -> List[int]:
         arr = self._data.copy()
-        arr.sort()  
+        arr.sort()
         return arr
 
+
 class GraphPathGraph:
+
     def __init__(self, vertices: int, jumps: int = 3, jump_len: int = 100):
         self.vertices = vertices
         self.jumps = jumps
@@ -2280,7 +2417,9 @@ class GraphPathGraph:
     def get_vertices(self) -> int:
         return self.vertices
 
+
 class GraphPathBenchmark(Benchmark, ABC):
+
     def __init__(self):
         super().__init__()
         self._graph: Optional[GraphPathGraph] = None
@@ -2305,7 +2444,9 @@ class GraphPathBenchmark(Benchmark, ABC):
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
 
+
 class GraphPathBFS(GraphPathBenchmark):
+
     def test(self) -> int:
         return self._bfs_shortest_path(0, self._graph.get_vertices() - 1)
 
@@ -2331,7 +2472,9 @@ class GraphPathBFS(GraphPathBenchmark):
 
         return -1
 
+
 class GraphPathDFS(GraphPathBenchmark):
+
     def test(self) -> int:
         return self._dfs_find_path(0, self._graph.get_vertices() - 1)
 
@@ -2360,7 +2503,9 @@ class GraphPathDFS(GraphPathBenchmark):
 
         return -1 if best_path == 0x7FFFFFFFFFFFFFFF else best_path
 
+
 class GraphPathAStar(GraphPathBenchmark):
+
     def test(self) -> int:
         return self._a_star_shortest_path(0, self._graph.get_vertices() - 1)
 
@@ -2411,7 +2556,9 @@ class GraphPathAStar(GraphPathBenchmark):
 
         return -1
 
+
 class BufferHashBenchmark(Benchmark, ABC):
+
     def __init__(self):
         super().__init__()
         self._data = bytearray()
@@ -2439,7 +2586,9 @@ class BufferHashBenchmark(Benchmark, ABC):
     def checksum(self) -> int:
         return self._result & 0xFFFFFFFF
 
+
 class BufferHashCRC32(BufferHashBenchmark):
+
     def test(self) -> int:
 
         crc = 0xFFFFFFFF
@@ -2456,18 +2605,20 @@ class BufferHashCRC32(BufferHashBenchmark):
 
         return (crc ^ 0xFFFFFFFF) & 0xFFFFFFFF
 
+
 class BufferHashSHA256(BufferHashBenchmark):
+
     def test(self) -> int:
 
         hashes = [
-            0x6a09e667,  
-            0xbb67ae85,  
-            0x3c6ef372,  
-            0xa54ff53a,  
-            0x510e527f,  
-            0x9b05688c,  
-            0x1f83d9ab,  
-            0x5be0cd19,  
+            0x6a09e667,
+            0xbb67ae85,
+            0x3c6ef372,
+            0xa54ff53a,
+            0x510e527f,
+            0x9b05688c,
+            0x1f83d9ab,
+            0x5be0cd19,
         ]
 
         for i, byte in enumerate(self._data):
@@ -2475,7 +2626,8 @@ class BufferHashSHA256(BufferHashBenchmark):
             hash_val = hashes[hash_idx]
 
             hash_val = ((hash_val << 5) + hash_val + byte) & 0xFFFFFFFF
-            hash_val = ((hash_val + (hash_val << 10)) & 0xFFFFFFFF) ^ (hash_val >> 6)
+            hash_val = ((hash_val +
+                         (hash_val << 10)) & 0xFFFFFFFF) ^ (hash_val >> 6)
             hash_val &= 0xFFFFFFFF
 
             hashes[hash_idx] = hash_val
@@ -2493,6 +2645,7 @@ class BufferHashSHA256(BufferHashBenchmark):
                ((result[2] & 0xFF) << 16) | \
                ((result[3] & 0xFF) << 24)
 
+
 class LRUCacheOrderedDict:
 
     def __init__(self, capacity: int):
@@ -2504,22 +2657,23 @@ class LRUCacheOrderedDict:
         if key not in self.cache:
             return None
 
-        self.cache.move_to_end(key)  
+        self.cache.move_to_end(key)
         return self.cache[key]
 
     def put(self, key: K, value: V):
 
         if key in self.cache:
             self.cache[key] = value
-            self.cache.move_to_end(key)  
+            self.cache.move_to_end(key)
         else:
             if len(self.cache) >= self.capacity:
-                self.cache.popitem(last=False)  
+                self.cache.popitem(last=False)
             self.cache[key] = value
 
     @property
     def size(self) -> int:
         return len(self.cache)
+
 
 class CacheSimulation(Benchmark):
 
@@ -2557,28 +2711,38 @@ class CacheSimulation(Benchmark):
         self.result = ((self.result << 5) + self.cache.size) & 0xFFFFFFFF
         return self.result & 0xFFFFFFFF
 
+
 class Node2(ABC):
 
     pass
 
+
 class NumberNode(Node2):
+
     def __init__(self, value: int):
         self.value = value
 
+
 class VariableNode(Node2):
+
     def __init__(self, name: str):
         self.name = name
 
+
 class BinaryOpNode(Node2):
+
     def __init__(self, op: str, left: Node2, right: Node2):
         self.op = op
         self.left = left
         self.right = right
 
+
 class AssignmentNode(Node2):
+
     def __init__(self, var_name: str, expr: Node2):
         self.var_name = var_name
         self.expr = expr
+
 
 class Parser2:
 
@@ -2650,11 +2814,11 @@ class Parser2:
         elif self._is_letter(char):
             return self._parse_variable()
         elif char == '(':
-            self._advance()  
+            self._advance()
             node = self._parse_expression()
             self._skip_whitespace()
             if self.current_char == ')':
-                self._advance()  
+                self._advance()
             return node
         else:
             return NumberNode(0)
@@ -2671,8 +2835,8 @@ class Parser2:
     def _parse_variable(self) -> Node2:
 
         start = self.pos
-        while (self.pos < len(self.chars) and 
-               (self._is_letter(self.current_char) or 
+        while (self.pos < len(self.chars) and
+               (self._is_letter(self.current_char) or
                 self._is_digit(self.current_char))):
             self._advance()
 
@@ -2680,7 +2844,7 @@ class Parser2:
 
         self._skip_whitespace()
         if self.pos < len(self.chars) and self.current_char == '=':
-            self._advance()  
+            self._advance()
             expr = self._parse_expression()
             return AssignmentNode(var_name, expr)
 
@@ -2696,7 +2860,8 @@ class Parser2:
 
     def _skip_whitespace(self):
 
-        while self.pos < len(self.chars) and self._is_whitespace(self.current_char):
+        while self.pos < len(self.chars) and self._is_whitespace(
+                self.current_char):
             self._advance()
 
     @staticmethod
@@ -2711,7 +2876,9 @@ class Parser2:
     def _is_whitespace(ch: str) -> bool:
         return ch in ' \t\n\r'
 
+
 class CalculatorAst(Benchmark):
+
     def __init__(self):
         super().__init__()
         self.n = 0
@@ -2734,7 +2901,7 @@ class CalculatorAst(Benchmark):
 
         for i in range(n):
             v = i + 10
-            expr = f'v{v-1} + '  
+            expr = f'v{v-1} + '
 
             choice = Helper.next_int(10)
             if choice == 0:
@@ -2755,7 +2922,7 @@ class CalculatorAst(Benchmark):
                 expr += f'((((((((((v{v-6})))))))))) * 2'
             elif choice == 8:
                 expr += f'{i} * (v{v-1} % 6) % 7'
-            else:  
+            else:
                 expr += f'(1)/(0-v{v-5}) + (v{v-7})'
 
             lines.append(f'v{v} = {expr}')
@@ -2767,19 +2934,22 @@ class CalculatorAst(Benchmark):
         parser.parse()
         self._expressions = parser.expressions
 
-        self._result_value = (self._result_value + len(self._expressions)) & 0xFFFFFFFF
+        self._result_value = (self._result_value +
+                              len(self._expressions)) & 0xFFFFFFFF
 
         if self._expressions:
             last_expr = self._expressions[-1]
             if isinstance(last_expr, AssignmentNode):
-                self._result_value = (self._result_value + 
-                                     Helper.checksum_string(last_expr.var_name)) & 0xFFFFFFFF
+                self._result_value = (
+                    self._result_value +
+                    Helper.checksum_string(last_expr.var_name)) & 0xFFFFFFFF
 
     def get_expressions(self) -> List[Node2]:
         return self._expressions
 
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
+
 
 class Int64:
     MASK64 = 0xFFFFFFFFFFFFFFFF
@@ -2836,7 +3006,9 @@ class Int64:
     def __repr__(self):
         return f"Int64({self._value})"
 
+
 class Interpreter2:
+
     def __init__(self):
         self.variables = {}
 
@@ -2856,9 +3028,9 @@ class Interpreter2:
             elif node.op == '*':
                 return left * right
             elif node.op == '/':
-                return left // right  
+                return left // right
             elif node.op == '%':
-                return left % right   
+                return left % right
         elif isinstance(node, AssignmentNode):
             value = self.evaluate(node.expr)
             self.variables[node.var_name] = value
@@ -2877,7 +3049,9 @@ class Interpreter2:
 
         self.variables.clear()
 
+
 class CalculatorInterpreter(Benchmark):
+
     def __init__(self):
         super().__init__()
         self._ast: List[Node2] = []
@@ -2898,13 +3072,15 @@ class CalculatorInterpreter(Benchmark):
         result = interpreter.run(self._ast)
 
         result = result & 0xFFFFFFFFFFFFFFFF
-        if result & (1 << 63):  
+        if result & (1 << 63):
             result = result - (1 << 64)
 
-        self._result_value = (self._result_value + (result & 0xFFFFFFFF)) & 0xFFFFFFFF
+        self._result_value = (self._result_value +
+                              (result & 0xFFFFFFFF)) & 0xFFFFFFFF
 
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
+
 
 class GCell:
     __slots__ = ('alive', 'next_state', 'neighbors')
@@ -2928,12 +3104,16 @@ class GCell:
     def update(self):
         self.alive = self.next_state
 
+
 class Grid:
+
     def __init__(self, width: int, height: int):
         self.width = width
         self.height = height
 
-        self.cells: List[List[GCell]] = [[GCell() for _ in range(width)] for _ in range(height)]
+        self.cells: List[List[GCell]] = [
+            [GCell() for _ in range(width)] for _ in range(height)
+        ]
 
         self._link_neighbors()
 
@@ -2978,7 +3158,9 @@ class Grid:
 
         return hash_val
 
+
 class GameOfLife(Benchmark):
+
     def __init__(self):
         super().__init__()
         self.width = 0
@@ -3004,16 +3186,20 @@ class GameOfLife(Benchmark):
         alive = self.grid.count_alive()
         return self.grid.compute_hash() + alive
 
+
 class Cell(Enum):
     WALL = 0
     PATH = 1
 
+
 class Maze:
+
     def __init__(self, width: int, height: int):
         self.width = width if width > 5 else 5
         self.height = height if height > 5 else 5
-        self.cells = [[Cell.WALL for _ in range(self.width)] 
-                     for _ in range(self.height)]
+        self.cells = [
+            [Cell.WALL for _ in range(self.width)] for _ in range(self.height)
+        ]
 
     def __getitem__(self, pos: Tuple[int, int]) -> Cell:
         x, y = pos
@@ -3043,11 +3229,10 @@ class Maze:
             x = Helper.next_int(self.width - 2) + 1
             y = Helper.next_int(self.height - 2) + 1
 
-            if (self[x, y] == Cell.WALL and
-                self[x - 1, y] == Cell.WALL and
-                self[x + 1, y] == Cell.WALL and
-                self[x, y - 1] == Cell.WALL and
-                self[x, y + 1] == Cell.WALL):
+            if (self[x, y] == Cell.WALL and self[x - 1, y] == Cell.WALL and
+                    self[x + 1, y] == Cell.WALL and
+                    self[x, y - 1] == Cell.WALL and
+                    self[x, y + 1] == Cell.WALL):
                 self[x, y] = Cell.PATH
 
     def _divide(self, x1: int, y1: int, x2: int, y2: int):
@@ -3062,18 +3247,20 @@ class Maze:
         width_for_hole = width - 1
         height_for_hole = height - 1
 
-        if (width_for_wall <= 0 or height_for_wall <= 0 or 
-            width_for_hole <= 0 or height_for_hole <= 0):
+        if (width_for_wall <= 0 or height_for_wall <= 0 or
+                width_for_hole <= 0 or height_for_hole <= 0):
             return
 
         if width > height:
 
             wall_range = max(width_for_wall // 2, 1)
-            wall_offset = (Helper.next_int(wall_range) * 2) if wall_range > 0 else 0
+            wall_offset = (Helper.next_int(wall_range) *
+                           2) if wall_range > 0 else 0
             wall_x = x1 + 2 + wall_offset
 
             hole_range = max(height_for_hole // 2, 1)
-            hole_offset = (Helper.next_int(hole_range) * 2) if hole_range > 0 else 0
+            hole_offset = (Helper.next_int(hole_range) *
+                           2) if hole_range > 0 else 0
             hole_y = y1 + 1 + hole_offset
 
             if wall_x > x2 or hole_y > y2:
@@ -3090,11 +3277,13 @@ class Maze:
         else:
 
             wall_range = max(height_for_wall // 2, 1)
-            wall_offset = (Helper.next_int(wall_range) * 2) if wall_range > 0 else 0
+            wall_offset = (Helper.next_int(wall_range) *
+                           2) if wall_range > 0 else 0
             wall_y = y1 + 2 + wall_offset
 
             hole_range = max(width_for_hole // 2, 1)
-            hole_offset = (Helper.next_int(hole_range) * 2) if hole_range > 0 else 0
+            hole_offset = (Helper.next_int(hole_range) *
+                           2) if hole_range > 0 else 0
             hole_x = x1 + 1 + hole_offset
 
             if wall_y > y2 or hole_x > x2:
@@ -3111,17 +3300,18 @@ class Maze:
 
     def to_bool_grid(self) -> List[List[bool]]:
 
-        return [[cell == Cell.PATH for cell in row] 
-                for row in self.cells]
+        return [[cell == Cell.PATH for cell in row] for row in self.cells]
 
-    def is_connected(self, start: Tuple[int, int], goal: Tuple[int, int]) -> bool:
+    def is_connected(self, start: Tuple[int, int], goal: Tuple[int,
+                                                               int]) -> bool:
 
         if (start[0] >= self.width or start[1] >= self.height or
-            goal[0] >= self.width or goal[1] >= self.height):
+                goal[0] >= self.width or goal[1] >= self.height):
             return False
 
-        visited = [[False for _ in range(self.width)] 
-                  for _ in range(self.height)]
+        visited = [
+            [False for _ in range(self.width)] for _ in range(self.height)
+        ]
         queue = deque([start])
         visited[start[1]][start[0]] = True
 
@@ -3135,11 +3325,13 @@ class Maze:
                 visited[y - 1][x] = True
                 queue.append((x, y - 1))
 
-            if x + 1 < self.width and self[x + 1, y] == Cell.PATH and not visited[y][x + 1]:
+            if x + 1 < self.width and self[
+                    x + 1, y] == Cell.PATH and not visited[y][x + 1]:
                 visited[y][x + 1] = True
                 queue.append((x + 1, y))
 
-            if y + 1 < self.height and self[x, y + 1] == Cell.PATH and not visited[y + 1][x]:
+            if y + 1 < self.height and self[
+                    x, y + 1] == Cell.PATH and not visited[y + 1][x]:
                 visited[y + 1][x] = True
                 queue.append((x, y + 1))
 
@@ -3168,10 +3360,12 @@ class Maze:
 
         return maze.to_bool_grid()
 
+
 class MazeGenerator(Benchmark):
+
     def __init__(self):
         super().__init__()
-        self.result = 0  
+        self.result = 0
         self.width = 0
         self.height = 0
         self.bool_grid: List[List[bool]] = []
@@ -3187,8 +3381,8 @@ class MazeGenerator(Benchmark):
 
     def grid_checksum(self, grid: List[List[bool]]) -> int:
 
-        hasher = 2166136261 & 0xFFFFFFFF  
-        prime = 16777619 & 0xFFFFFFFF     
+        hasher = 2166136261 & 0xFFFFFFFF
+        prime = 16777619 & 0xFFFFFFFF
 
         steps = []
 
@@ -3208,6 +3402,7 @@ class MazeGenerator(Benchmark):
         result = self.grid_checksum(self.bool_grid)
         return result
 
+
 class Node:
     __slots__ = ('x', 'y', 'f_score')
 
@@ -3220,11 +3415,12 @@ class Node:
         return self.f_score < other.f_score
 
     def __eq__(self, other: 'Node') -> bool:
-        return (self.x == other.x and 
-                self.y == other.y and 
+        return (self.x == other.x and self.y == other.y and
                 self.f_score == other.f_score)
 
+
 class AStarPathfinder(Benchmark):
+
     @staticmethod
     def manhattan_distance(x1: int, y1: int, x2: int, y2: int) -> int:
         return abs(x1 - x2) + abs(y1 - y2)
@@ -3268,8 +3464,8 @@ class AStarPathfinder(Benchmark):
         start_idx = self._pack_coords(self.start_x, self.start_y)
         g_scores[start_idx] = 0
 
-        start_f = self.manhattan_distance(
-            self.start_x, self.start_y, self.goal_x, self.goal_y)
+        start_f = self.manhattan_distance(self.start_x, self.start_y,
+                                          self.goal_x, self.goal_y)
 
         open_set = []
         heapq.heappush(open_set, Node(self.start_x, self.start_y, start_f))
@@ -3304,9 +3500,8 @@ class AStarPathfinder(Benchmark):
             for dx, dy in directions:
                 nx, ny = current.x + dx, current.y + dy
 
-                if (nx < 0 or nx >= width or 
-                    ny < 0 or ny >= height or 
-                    not grid[ny][nx]):
+                if (nx < 0 or nx >= width or ny < 0 or ny >= height or
+                        not grid[ny][nx]):
                     continue
 
                 tentative_g = current_g + 1000
@@ -3334,12 +3529,18 @@ class AStarPathfinder(Benchmark):
     def checksum(self) -> int:
         return self.result & 0xFFFFFFFF
 
+
 class BWTResult(NamedTuple):
     transformed: bytes
     original_idx: int
 
+
 class HuffmanNode:
-    def __init__(self, frequency: int, byte_val: Optional[int] = None, is_leaf: bool = True):
+
+    def __init__(self,
+                 frequency: int,
+                 byte_val: Optional[int] = None,
+                 is_leaf: bool = True):
         self.frequency = frequency
         self.byte_val = byte_val
         self.is_leaf = is_leaf
@@ -3347,14 +3548,18 @@ class HuffmanNode:
         self.right: Optional[HuffmanNode] = None
         self.index = 0
 
+
 class HuffmanCodes:
+
     def __init__(self):
         self.code_lengths = [0] * 256
         self.codes = [0] * 256
 
+
 class EncodedResult(NamedTuple):
     data: bytes
     bit_count: int
+
 
 class CompressedData(NamedTuple):
     bwt_result: BWTResult
@@ -3362,7 +3567,9 @@ class CompressedData(NamedTuple):
     encoded_bits: bytes
     original_bit_count: int
 
+
 class BWTHuffBase(Benchmark):
+
     @staticmethod
     def bwt_transform(input_data: bytes) -> BWTResult:
 
@@ -3405,7 +3612,8 @@ class BWTHuffBase(Benchmark):
                 for i in range(1, n):
                     prev_pair = pairs[sa[i - 1]]
                     curr_pair = pairs[sa[i]]
-                    new_rank[sa[i]] = new_rank[sa[i - 1]] + (1 if prev_pair != curr_pair else 0)
+                    new_rank[sa[i]] = new_rank[sa[i - 1]] + (
+                        1 if prev_pair != curr_pair else 0)
 
                 rank = new_rank
                 k *= 2
@@ -3482,14 +3690,14 @@ class BWTHuffBase(Benchmark):
             parent.left = left
             parent.right = right
 
-            heapq.heappush(heap, (parent.frequency, 0, parent))  
+            heapq.heappush(heap, (parent.frequency, 0, parent))
 
         _, _, root = heapq.heappop(heap)
         return root
 
     @staticmethod
-    def build_huffman_codes(node: HuffmanNode, code: int, length: int, 
-                           huffman_codes: HuffmanCodes):
+    def build_huffman_codes(node: HuffmanNode, code: int, length: int,
+                            huffman_codes: HuffmanCodes):
 
         if node.is_leaf:
             if length > 0 or node.byte_val != 0:
@@ -3499,18 +3707,17 @@ class BWTHuffBase(Benchmark):
                     huffman_codes.codes[idx] = code
         else:
             if node.left:
-                BWTHuffBase.build_huffman_codes(
-                    node.left, code << 1, length + 1, huffman_codes
-                )
+                BWTHuffBase.build_huffman_codes(node.left, code << 1,
+                                                length + 1, huffman_codes)
             if node.right:
-                BWTHuffBase.build_huffman_codes(
-                    node.right, (code << 1) | 1, length + 1, huffman_codes
-                )
+                BWTHuffBase.build_huffman_codes(node.right, (code << 1) | 1,
+                                                length + 1, huffman_codes)
 
     @staticmethod
-    def huffman_encode(data: bytes, huffman_codes: HuffmanCodes) -> EncodedResult:
+    def huffman_encode(data: bytes,
+                       huffman_codes: HuffmanCodes) -> EncodedResult:
 
-        result = bytearray(len(data) * 2)  
+        result = bytearray(len(data) * 2)
         current_byte = 0
         bit_pos = 0
         byte_index = 0
@@ -3541,9 +3748,10 @@ class BWTHuffBase(Benchmark):
         return EncodedResult(bytes(result[:byte_index]), total_bits)
 
     @staticmethod
-    def huffman_decode(encoded: bytes, root: HuffmanNode, bit_count: int) -> bytes:
+    def huffman_decode(encoded: bytes, root: HuffmanNode,
+                       bit_count: int) -> bytes:
 
-        result = bytearray(bit_count // 4 + 1)  
+        result = bytearray(bit_count // 4 + 1)
         result_idx = 0
         current_node = root
         bits_processed = 0
@@ -3566,7 +3774,7 @@ class BWTHuffBase(Benchmark):
                     if current_node.byte_val is not None:
 
                         if result_idx >= len(result):
-                            result.extend([0] * len(result))  
+                            result.extend([0] * len(result))
 
                         result[result_idx] = current_node.byte_val
                         result_idx += 1
@@ -3588,25 +3796,27 @@ class BWTHuffBase(Benchmark):
         huffman_codes = HuffmanCodes()
         BWTHuffBase.build_huffman_codes(huffman_tree, 0, 0, huffman_codes)
 
-        encoded = BWTHuffBase.huffman_encode(bwt_result.transformed, huffman_codes)
+        encoded = BWTHuffBase.huffman_encode(bwt_result.transformed,
+                                             huffman_codes)
 
-        return CompressedData(bwt_result, frequencies, encoded.data, encoded.bit_count)
+        return CompressedData(bwt_result, frequencies, encoded.data,
+                              encoded.bit_count)
 
     @staticmethod
     def decompress(compressed: CompressedData) -> bytes:
 
         huffman_tree = BWTHuffBase.build_huffman_tree(compressed.frequencies)
 
-        decoded = BWTHuffBase.huffman_decode(
-            compressed.encoded_bits,
-            huffman_tree,
-            compressed.original_bit_count
-        )
+        decoded = BWTHuffBase.huffman_decode(compressed.encoded_bits,
+                                             huffman_tree,
+                                             compressed.original_bit_count)
 
         bwt_result = BWTResult(decoded, compressed.bwt_result.original_idx)
         return BWTHuffBase.bwt_inverse(bwt_result)
 
+
 class BWTHuffEncode(BWTHuffBase):
+
     def __init__(self):
         super().__init__()
         self.size = 0
@@ -3635,7 +3845,9 @@ class BWTHuffEncode(BWTHuffBase):
     def checksum(self) -> int:
         return self.result & 0xFFFFFFFF
 
+
 class BWTHuffDecode(BWTHuffBase):
+
     def __init__(self):
         super().__init__()
         self.size = 0
@@ -3670,6 +3882,7 @@ class BWTHuffDecode(BWTHuffBase):
         if self.decompressed == self.test_data:
             self.result = (self.result + 1000000) & 0xFFFFFFFF
         return self.result & 0xFFFFFFFF
+
 
 def register_benchmarks():
 
@@ -3715,6 +3928,7 @@ def register_benchmarks():
     Benchmark.register_benchmark(BWTHuffEncode)
     Benchmark.register_benchmark(BWTHuffDecode)
 
+
 def main():
     config_file = '../test.json'
     test_name = None
@@ -3739,6 +3953,7 @@ def main():
 
     with open("/tmp/recompile_marker", "w") as file:
         file.write("RECOMPILE_MARKER_0")
+
 
 if __name__ == '__main__':
     main()

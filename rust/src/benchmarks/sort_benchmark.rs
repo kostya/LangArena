@@ -1,4 +1,4 @@
-use super::super::helper; 
+use super::super::helper;
 use crate::config_i64;
 
 pub struct SortBenchmark {
@@ -17,7 +17,7 @@ impl SortBenchmark {
     }
 
     pub fn prepare(&mut self, class_name: &str) {
-        if self.size_val == 0 {  
+        if self.size_val == 0 {
             self.size_val = config_i64(class_name, "size");
             self.data.reserve(self.size_val as usize);
             for _ in 0..self.size_val {

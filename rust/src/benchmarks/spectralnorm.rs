@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 use crate::config_i64;
 
 pub struct Spectralnorm {
@@ -21,7 +21,6 @@ impl Spectralnorm {
     }
 
     fn eval_a(&self, i: usize, j: usize) -> f64 {
-
         let ij = (i + j) as f64;
         1.0 / (ij * (ij + 1.0) / 2.0 + i as f64 + 1.0)
     }
@@ -33,7 +32,8 @@ impl Spectralnorm {
         let u_slice = u;
 
         for (i, r) in result.iter_mut().enumerate() {
-            *r = u_slice.iter()
+            *r = u_slice
+                .iter()
                 .enumerate()
                 .map(|(j, &u)| self.eval_a(i, j) * u)
                 .sum();
@@ -49,7 +49,8 @@ impl Spectralnorm {
         let u_slice = u;
 
         for (i, r) in result.iter_mut().enumerate() {
-            *r = u_slice.iter()
+            *r = u_slice
+                .iter()
                 .enumerate()
                 .map(|(j, &u)| self.eval_a(j, i) * u)
                 .sum();

@@ -155,7 +155,7 @@ public class BWTHuffEncode : Benchmark
         public HuffmanNode? Left { get; }
         public HuffmanNode? Right { get; }
 
-        public HuffmanNode(int frequency, byte? byteVal = null, bool isLeaf = true, 
+        public HuffmanNode(int frequency, byte? byteVal = null, bool isLeaf = true,
                           HuffmanNode? left = null, HuffmanNode? right = null)
         {
             Frequency = frequency;

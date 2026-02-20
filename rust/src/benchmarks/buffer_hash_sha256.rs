@@ -21,7 +21,10 @@ impl SimpleSHA256 {
         for (i, &byte) in data.iter().enumerate() {
             let hash_idx = i % 8;
             let mut hash = hashes[hash_idx];
-            hash = hash.wrapping_shl(5).wrapping_add(hash).wrapping_add(byte as u32);
+            hash = hash
+                .wrapping_shl(5)
+                .wrapping_add(hash)
+                .wrapping_add(byte as u32);
             hash = hash.wrapping_add(hash.wrapping_shl(10)) ^ hash.wrapping_shr(6);
             hashes[hash_idx] = hash;
         }

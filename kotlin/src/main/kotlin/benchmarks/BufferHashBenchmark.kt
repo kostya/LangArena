@@ -17,7 +17,7 @@ abstract class BufferHashBenchmark : Benchmark() {
     abstract fun test(): UInt
 
     override fun run(iterationId: Int) {
-        resultVal += test()  
+        resultVal += test()
     }
 
     override fun checksum(): UInt = resultVal

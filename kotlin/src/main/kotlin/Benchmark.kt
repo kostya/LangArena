@@ -1,8 +1,9 @@
 abstract class Benchmark {
     protected var _timeDelta = 0.0
 
-    abstract fun run(iterationId: Int)  
-    abstract fun checksum(): UInt  
+    abstract fun run(iterationId: Int)
+
+    abstract fun checksum(): UInt
 
     open fun prepare() {}
 
@@ -27,19 +28,15 @@ abstract class Benchmark {
         }
     }
 
-    open fun configVal(fieldName: String): Long {
-        return Helper.configI64(name(), fieldName)
-    }
+    open fun configVal(fieldName: String): Long = Helper.configI64(name(), fieldName)
 
-    open fun iterations(): Long {
-        return configVal("iterations")
-    }
+    open fun iterations(): Long = configVal("iterations")
 
-    open fun expectedChecksum(): Long {
-        return configVal("checksum")
-    }
+    open fun expectedChecksum(): Long = configVal("checksum")
 
-    fun setTimeDelta(delta: Double) { _timeDelta = delta }
+    fun setTimeDelta(delta: Double) {
+        _timeDelta = delta
+    }
 
     companion object {
         private val benchmarkFactories = mutableListOf<() -> Benchmark>()
@@ -58,17 +55,18 @@ abstract class Benchmark {
                 val bench = factory()
                 val className = bench.name()
 
-                val shouldRun = when {
-                    singleBench == null -> true
-                    className.lowercase().contains(singleBench.lowercase()) -> true
-                    else -> false
-                }
+                val shouldRun =
+                    when {
+                        singleBench == null -> true
+                        className.lowercase().contains(singleBench.lowercase()) -> true
+                        else -> false
+                    }
 
-                if (shouldRun && 
-                    className != "SortBenchmark" && 
-                    className != "BufferHashBenchmark" && 
-                    className != "GraphPathBenchmark") {
-
+                if (shouldRun &&
+                    className != "SortBenchmark" &&
+                    className != "BufferHashBenchmark" &&
+                    className != "GraphPathBenchmark"
+                ) {
                     Helper.reset()
 
                     bench.prepare()
@@ -77,14 +75,14 @@ abstract class Benchmark {
                     Helper.reset()
 
                     val startTime = System.nanoTime()
-                    bench.runAll()  
+                    bench.runAll()
                     val timeDelta2 = (System.nanoTime() - startTime) / 1_000_000_000.0
 
                     bench.setTimeDelta(timeDelta2)
                     results[className] = timeDelta2
 
                     System.gc()
-                    Thread.sleep(1)  
+                    Thread.sleep(1)
                     System.gc()
 
                     print("$className: ")
@@ -106,8 +104,8 @@ abstract class Benchmark {
                     results.entries.joinToString(
                         ", ",
                         "{",
-                        "}"
-                    ) { "\"${it.key}\": ${it.value}" }
+                        "}",
+                    ) { "\"${it.key}\": ${it.value}" },
                 )
             } catch (e: Exception) {
                 System.err.println("Failed to write results: ${e.message}")

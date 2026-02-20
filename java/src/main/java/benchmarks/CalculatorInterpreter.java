@@ -12,9 +12,9 @@ public class CalculatorInterpreter extends Benchmark {
             if (b == 0L) return 0L;
 
             if ((a >= 0 && b > 0) || (a < 0 && b < 0)) {
-                return a / b; 
+                return a / b;
             } else {
-                return -Math.abs(a) / Math.abs(b); 
+                return -Math.abs(a) / Math.abs(b);
             }
         }
 
@@ -34,12 +34,18 @@ public class CalculatorInterpreter extends Benchmark {
                 long right = evaluate(op.right);
 
                 switch (op.op) {
-                    case '+': return left + right;
-                    case '-': return left - right;
-                    case '*': return left * right;
-                    case '/': return simpleDiv(left, right);
-                    case '%': return simpleMod(left, right);
-                    default: return 0L;
+                case '+':
+                    return left + right;
+                case '-':
+                    return left - right;
+                case '*':
+                    return left * right;
+                case '/':
+                    return simpleDiv(left, right);
+                case '%':
+                    return simpleMod(left, right);
+                default:
+                    return 0L;
                 }
             } else if (node instanceof CalculatorAst.Assignment) {
                 CalculatorAst.Assignment assign = (CalculatorAst.Assignment) node;
@@ -81,10 +87,10 @@ public class CalculatorInterpreter extends Benchmark {
     @Override
     public void prepare() {
         CalculatorAst calculator = new CalculatorAst();
-        calculator.n = n;  
+        calculator.n = n;
         calculator.prepare();
         calculator.run(0);
-        ast = calculator.getExpressions();  
+        ast = calculator.getExpressions();
     }
 
     @Override

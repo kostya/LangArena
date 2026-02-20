@@ -105,9 +105,9 @@ public class Primes extends Benchmark {
             for (int digit = 0; digit < 10; digit++) {
                 if (node.children[digit] != null) {
                     queue.offer(new AbstractMap.SimpleEntry<>(
-                        node.children[digit],
-                        number * 10 + digit
-                    ));
+                                    node.children[digit],
+                                    number * 10 + digit
+                                ));
                 }
             }
         }

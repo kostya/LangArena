@@ -33,11 +33,11 @@ class JsonParseMapping extends Benchmark:
 
     val len = coords.size.toDouble
     val checksum = (
-      Helper.checksumF64(x / len).toInt + 
-      Helper.checksumF64(y / len).toInt + 
-      Helper.checksumF64(z / len).toInt
-    ) & 0xFFFFFFFFL
+      Helper.checksumF64(x / len).toInt +
+        Helper.checksumF64(y / len).toInt +
+        Helper.checksumF64(z / len).toInt
+    ) & 0xffffffffL
 
     resultVal += checksum
 
-  override def checksum(): Long = resultVal & 0xFFFFFFFFL
+  override def checksum(): Long = resultVal & 0xffffffffL

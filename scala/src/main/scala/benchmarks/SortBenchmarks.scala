@@ -37,9 +37,9 @@ class SortMerge extends SortBenchmark:
   private def merge(arr: Array[Int], temp: Array[Int], left: Int, mid: Int, right: Int): Unit =
     Array.copy(arr, left, temp, left, right - left + 1)
 
-    var l = left      
-    var r = mid + 1   
-    var k = left      
+    var l = left
+    var r = mid + 1
+    var k = left
 
     while l <= mid && r <= right do
       if temp(l) <= temp(r) then
@@ -93,7 +93,7 @@ class SortQuick extends SortBenchmark:
 class SortSelf extends SortBenchmark:
   override def test(): Array[Int] =
     val arr = data.clone()
-    scala.util.Sorting.quickSort(arr)  
+    scala.util.Sorting.quickSort(arr)
     arr
 
   override def name(): String = "SortSelf"

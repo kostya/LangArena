@@ -15,8 +15,8 @@ mutable struct Neuron
     prev_threshold::Float64
     output::Float64
     error::Float64
-    synapses_in::Vector{Int32}    
-    synapses_out::Vector{Int32}   
+    synapses_in::Vector{Int32}
+    synapses_out::Vector{Int32}
 end
 
 function Neuron()
@@ -33,9 +33,9 @@ const MOMENTUM = 0.3
 const TRAIN_RATE = 0.3
 
 mutable struct NeuralNetwork
-    input_layer::Vector{Int32}    
-    hidden_layer::Vector{Int32}   
-    output_layer::Vector{Int32}   
+    input_layer::Vector{Int32}
+    hidden_layer::Vector{Int32}
+    output_layer::Vector{Int32}
     neurons::Vector{Neuron}
     synapses::Vector{Synapse}
 end
@@ -44,13 +44,13 @@ function NeuralNetwork(inputs::Int, hidden::Int, outputs::Int)
     total_neurons = inputs + hidden + outputs
     neurons = Vector{Neuron}(undef, total_neurons)
 
-    for i in 1:total_neurons
+    for i = 1:total_neurons
         neurons[i] = Neuron()
     end
 
-    input_layer = [i for i in 1:inputs]
-    hidden_layer = [i for i in inputs+1:inputs+hidden]
-    output_layer = [i for i in inputs+hidden+1:inputs+hidden+outputs]
+    input_layer = [i for i = 1:inputs]
+    hidden_layer = [i for i = (inputs+1):(inputs+hidden)]
+    output_layer = [i for i = (inputs+hidden+1):(inputs+hidden+outputs)]
 
     synapses = Synapse[]
 
@@ -100,7 +100,7 @@ function train!(net::NeuralNetwork, inputs::Vector{Float64}, targets::Vector{Flo
                 synapse.weight + delta + momentum_term,
                 temp_weight,
                 synapse.source_neuron,
-                synapse.dest_neuron
+                synapse.dest_neuron,
             )
         end
 
@@ -113,7 +113,7 @@ function train!(net::NeuralNetwork, inputs::Vector{Float64}, targets::Vector{Flo
             neuron.output,
             error,
             neuron.synapses_in,
-            neuron.synapses_out
+            neuron.synapses_out,
         )
     end
 
@@ -148,7 +148,7 @@ function train!(net::NeuralNetwork, inputs::Vector{Float64}, targets::Vector{Flo
                 synapse.weight + delta + momentum_term,
                 temp_weight,
                 synapse.source_neuron,
-                synapse.dest_neuron
+                synapse.dest_neuron,
             )
         end
 
@@ -161,7 +161,7 @@ function train!(net::NeuralNetwork, inputs::Vector{Float64}, targets::Vector{Flo
             neuron.output,
             error,
             neuron.synapses_in,
-            neuron.synapses_out
+            neuron.synapses_out,
         )
     end
 end
@@ -176,7 +176,7 @@ function feed_forward!(net::NeuralNetwork, inputs::Vector{Float64})
             input,
             net.neurons[neuron_idx].error,
             net.neurons[neuron_idx].synapses_in,
-            net.neurons[neuron_idx].synapses_out
+            net.neurons[neuron_idx].synapses_out,
         )
     end
 
@@ -197,7 +197,7 @@ function feed_forward!(net::NeuralNetwork, inputs::Vector{Float64})
             output,
             neuron.error,
             neuron.synapses_in,
-            neuron.synapses_out
+            neuron.synapses_out,
         )
     end
 
@@ -218,7 +218,7 @@ function feed_forward!(net::NeuralNetwork, inputs::Vector{Float64})
             output,
             neuron.error,
             neuron.synapses_in,
-            neuron.synapses_out
+            neuron.synapses_out,
         )
     end
 end
@@ -232,7 +232,7 @@ function current_outputs(net::NeuralNetwork)::Vector{Float64}
 end
 
 mutable struct NeuralNet <: AbstractBenchmark
-    xor_net::Union{NeuralNetwork, Nothing}
+    xor_net::Union{NeuralNetwork,Nothing}
     result::UInt32
 
     function NeuralNet()

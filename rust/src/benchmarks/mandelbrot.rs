@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 use crate::config_i64;
 
 const ITER: i32 = 50;
@@ -57,13 +57,13 @@ impl Benchmark for Mandelbrot {
                     i += 1;
                 }
 
-                byte_acc <<= 1;                
+                byte_acc <<= 1;
                 if tr + ti <= LIMIT * LIMIT {
                     byte_acc |= 0x01;
                 }
                 bit_num += 1;
 
-                if bit_num == 8 {                    
+                if bit_num == 8 {
                     self.result_bin.push(byte_acc);
                     byte_acc = 0;
                     bit_num = 0;

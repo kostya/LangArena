@@ -14,33 +14,30 @@ class Spectralnorm : Benchmark() {
         v = DoubleArray(sizeVal.toInt()) { 1.0 }
     }
 
-    private fun evalA(i: Int, j: Int): Double {
-        return 1.0 / ((i + j) * (i + j + 1.0) / 2.0 + i + 1.0)
-    }
+    private fun evalA(
+        i: Int,
+        j: Int,
+    ): Double = 1.0 / ((i + j) * (i + j + 1.0) / 2.0 + i + 1.0)
 
-    private fun evalATimesU(u: DoubleArray): DoubleArray {
-        return DoubleArray(u.size) { i ->
+    private fun evalATimesU(u: DoubleArray): DoubleArray =
+        DoubleArray(u.size) { i ->
             var v = 0.0
             for ((j, value) in u.withIndex()) {
                 v += evalA(i, j) * value
             }
             v
         }
-    }
 
-    private fun evalAtTimesU(u: DoubleArray): DoubleArray {
-        return DoubleArray(u.size) { i ->
+    private fun evalAtTimesU(u: DoubleArray): DoubleArray =
+        DoubleArray(u.size) { i ->
             var v = 0.0
             for ((j, value) in u.withIndex()) {
                 v += evalA(j, i) * value
             }
             v
         }
-    }
 
-    private fun evalAtATimesU(u: DoubleArray): DoubleArray {
-        return evalAtTimesU(evalATimesU(u))
-    }
+    private fun evalAtATimesU(u: DoubleArray): DoubleArray = evalAtTimesU(evalATimesU(u))
 
     override fun run(iterationId: Int) {
         v = evalAtATimesU(u)

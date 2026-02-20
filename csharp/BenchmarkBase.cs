@@ -154,12 +154,12 @@ public abstract class Benchmark
         {
             var className = factory.Name;
 
-            if (!string.IsNullOrEmpty(singleBench) && 
+            if (!string.IsNullOrEmpty(singleBench) &&
                 !className.ToLower().Contains(singleBench.ToLower()))
                 continue;
 
-            if (className == "SortBenchmark" || 
-                className == "BufferHashBenchmark" || 
+            if (className == "SortBenchmark" ||
+                className == "BufferHashBenchmark" ||
                 className == "GraphPathBenchmark")
                 continue;
 
@@ -230,8 +230,8 @@ public abstract class Benchmark
         }
 
         Console.WriteLine(
-            string.Format(CultureInfo.InvariantCulture, 
-            "Summary: {0:F4}s, {1}, {2}, {3}", 
+            string.Format(CultureInfo.InvariantCulture,
+            "Summary: {0:F4}s, {1}, {2}, {3}",
             summaryTime, ok + fails, ok, fails));
 
         File.WriteAllText("/tmp/recompile_marker", "RECOMPILE_MARKER_0");

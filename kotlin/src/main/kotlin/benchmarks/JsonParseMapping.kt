@@ -3,7 +3,11 @@ package benchmarks
 import Benchmark
 import com.alibaba.fastjson2.*
 
-data class Coord(val x: Double, val y: Double, val z: Double)
+data class Coord(
+    val x: Double,
+    val y: Double,
+    val z: Double,
+)
 
 class JsonParseMapping : Benchmark() {
     private lateinit var text: String
@@ -42,8 +46,8 @@ class JsonParseMapping : Benchmark() {
     override fun run(iterationId: Int) {
         val coord = calc(text)
         resultVal += Helper.checksum("%.7f".format(coord.x)) +
-                    Helper.checksum("%.7f".format(coord.y)) +
-                    Helper.checksum("%.7f".format(coord.z))  
+            Helper.checksum("%.7f".format(coord.y)) +
+            Helper.checksum("%.7f".format(coord.z))
     }
 
     override fun checksum(): UInt = resultVal

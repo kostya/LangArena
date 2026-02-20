@@ -21,7 +21,7 @@ impl Tape {
     }
 
     fn get(&self) -> u8 {
-        self.tape[self.pos]  
+        self.tape[self.pos]
     }
 
     fn inc(&mut self) {
@@ -95,8 +95,16 @@ impl Program {
                 b'-' => tape.dec(),
                 b'>' => tape.advance(),
                 b'<' => tape.devance(),
-                b'[' => if tape.get() == 0 { pc = self.jumps[pc]; },
-                b']' => if tape.get() != 0 { pc = self.jumps[pc]; },
+                b'[' => {
+                    if tape.get() == 0 {
+                        pc = self.jumps[pc];
+                    }
+                }
+                b']' => {
+                    if tape.get() != 0 {
+                        pc = self.jumps[pc];
+                    }
+                }
                 b'.' => result = result.wrapping_shl(2).wrapping_add(tape.get() as u32),
                 _ => return None,
             }

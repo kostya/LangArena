@@ -1,11 +1,7 @@
 FROM benchmarks:base
 
-RUN apt install -y --no-install-recommends apt-transport-https \
-    && apt clean
-RUN wget -qO- https://dl-ssl.google.com/linux/linux_signing_key.pub \
-  | gpg  --dearmor -o /usr/share/keyrings/dart.gpg
-RUN echo 'deb [signed-by=/usr/share/keyrings/dart.gpg arch=amd64] https://storage.googleapis.com/download.dartlang.org/linux/debian stable main' \
-  | tee /etc/apt/sources.list.d/dart_stable.list
-RUN apt update \
-	&& apt install -y --no-install-recommends dart \
-	&& apt clean
+ARG version
+RUN wget https://storage.googleapis.com/dart-archive/channels/stable/release/$version/sdk/dartsdk-linux-x64-release.zip \
+	&& unzip dartsdk-linux-x64-release.zip \
+	&& rm dartsdk-linux-x64-release.zip
+ENV PATH="/opt/dart-sdk/bin:$PATH"

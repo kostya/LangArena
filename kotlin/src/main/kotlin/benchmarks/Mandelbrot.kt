@@ -69,7 +69,7 @@ class Mandelbrot : Benchmark() {
 
     override fun checksum(): UInt {
         val bytes = result.toByteArray()
-        val checksum = Helper.checksum(bytes)        
+        val checksum = Helper.checksum(bytes)
         return checksum
     }
 

@@ -198,7 +198,7 @@ public class CalculatorAst : Benchmark
         {
             int start = _pos;
 
-            while (_pos < _input.Length && 
+            while (_pos < _input.Length &&
                   (char.IsLetterOrDigit(_currentChar) || _currentChar == '_'))
             {
                 Advance();

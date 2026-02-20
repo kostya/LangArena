@@ -8,11 +8,11 @@ public class Main {
         Benchmark.registerBenchmark(() -> new Pidigits());
         Benchmark.registerBenchmark(() -> new Binarytrees());
         Benchmark.registerBenchmark(() -> new BrainfuckArray());
-        Benchmark.registerBenchmark(() -> new BrainfuckRecursion());   
-        Benchmark.registerBenchmark(() -> new Fannkuchredux());             
+        Benchmark.registerBenchmark(() -> new BrainfuckRecursion());
+        Benchmark.registerBenchmark(() -> new Fannkuchredux());
         Benchmark.registerBenchmark(() -> new Fasta());
         Benchmark.registerBenchmark(() -> new Knuckeotide());
-        Benchmark.registerBenchmark(() -> new Mandelbrot());        
+        Benchmark.registerBenchmark(() -> new Mandelbrot());
         Benchmark.registerBenchmark(() -> new Matmul1T());
         Benchmark.registerBenchmark(() -> new Matmul4T());
         Benchmark.registerBenchmark(() -> new Matmul8T());
@@ -20,9 +20,9 @@ public class Main {
         Benchmark.registerBenchmark(() -> new Nbody());
         Benchmark.registerBenchmark(() -> new RegexDna());
         Benchmark.registerBenchmark(() -> new Revcomp());
-        Benchmark.registerBenchmark(() -> new Spectralnorm());        
+        Benchmark.registerBenchmark(() -> new Spectralnorm());
         Benchmark.registerBenchmark(() -> new Base64Encode());
-        Benchmark.registerBenchmark(() -> new Base64Decode());        
+        Benchmark.registerBenchmark(() -> new Base64Decode());
         Benchmark.registerBenchmark(() -> new JsonGenerate());
         Benchmark.registerBenchmark(() -> new JsonParseDom());
         Benchmark.registerBenchmark(() -> new JsonParseMapping());
@@ -40,7 +40,7 @@ public class Main {
         Benchmark.registerBenchmark(() -> new BufferHashCRC32());
         Benchmark.registerBenchmark(() -> new CacheSimulation());
         Benchmark.registerBenchmark(() -> new CalculatorAst());
-        Benchmark.registerBenchmark(() -> new CalculatorInterpreter());                                               
+        Benchmark.registerBenchmark(() -> new CalculatorInterpreter());
         Benchmark.registerBenchmark(() -> new GameOfLife());
         Benchmark.registerBenchmark(() -> new MazeGenerator());
         Benchmark.registerBenchmark(() -> new AStarPathfinder());
@@ -71,9 +71,9 @@ public class Main {
                 System.exit(1);
             }
         } catch (Exception e) {
-            System.err.println("Error loading config file '" + 
-                             (configFile != null ? configFile : "test.js") + 
-                             "': " + e.getMessage());
+            System.err.println("Error loading config file '" +
+                               (configFile != null ? configFile : "test.js") +
+                               "': " + e.getMessage());
             e.printStackTrace();
             System.exit(1);
         }
@@ -83,6 +83,6 @@ public class Main {
         }
 
         Benchmark.all(singleBench);
-        System.exit(0); 
+        System.exit(0);
     }
 }

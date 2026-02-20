@@ -70,8 +70,8 @@ public abstract class Benchmark {
             Benchmark bench = factory.get();
             String className = bench.name();
 
-            if (singleBench != null && !singleBench.isEmpty() && 
-                !toLower(className).contains(toLower(singleBench))) {
+            if (singleBench != null && !singleBench.isEmpty() &&
+                    !toLower(className).contains(toLower(singleBench))) {
                 continue;
             }
 
@@ -89,7 +89,10 @@ public abstract class Benchmark {
             results.put(className, timeDelta);
 
             System.gc();
-            try { Thread.sleep(0); } catch (InterruptedException e) {}
+            try {
+                Thread.sleep(0);
+            }
+            catch (InterruptedException e) {}
             System.gc();
 
             long check = bench.checksum() & 0xFFFFFFFFL;
@@ -99,8 +102,8 @@ public abstract class Benchmark {
                 System.out.print("OK ");
                 ok++;
             } else {
-                System.out.print("ERR[actual=" + check + 
-                               ", expected=" + expected + "] ");
+                System.out.print("ERR[actual=" + check +
+                                 ", expected=" + expected + "] ");
                 fails++;
             }
 

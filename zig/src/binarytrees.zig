@@ -110,7 +110,7 @@ pub const Binarytrees = struct {
         {
             const stretch_tree = TreeNode.create(&main_pool, 0, stretch_depth);
             self.result_val +%= @as(u32, @bitCast(stretch_tree.check()));
-            main_pool.reset(); 
+            main_pool.reset();
         }
 
         var depth = min_depth;
@@ -119,7 +119,6 @@ pub const Binarytrees = struct {
 
             var i: i32 = 1;
             while (i <= iterations) : (i += 1) {
-
                 {
                     const tree1 = TreeNode.create(&main_pool, i, depth);
                     self.result_val +%= @as(u32, @bitCast(tree1.check()));

@@ -13,8 +13,8 @@ end
 name(b::BrainfuckArray)::String = "BrainfuckArray"
 
 mutable struct Tape
-    data::Vector{UInt8}  
-    pos::Int             
+    data::Vector{UInt8}
+    pos::Int
 
     function Tape()
 
@@ -40,7 +40,7 @@ end
 function advance!(tape::Tape)
     tape.pos += 1
     if tape.pos > length(tape.data)
-        push!(tape.data, 0x00)  
+        push!(tape.data, 0x00)
     end
 end
 
@@ -51,7 +51,7 @@ function devance!(tape::Tape)
 end
 
 struct Program
-    commands::Vector{UInt8}  
+    commands::Vector{UInt8}
     jumps::Vector{Int}
 
     function Program(text::String)
@@ -74,7 +74,7 @@ struct Program
         stack = Vector{Int}(undef, count)
         sp = 0
 
-        for i in 1:count
+        for i = 1:count
             cmd = commands[i]
             if cmd == UInt8('[')
                 sp += 1
@@ -95,7 +95,7 @@ end
 
 function run(prog::Program)::Int64
     result = Int64(0)
-    tape = Tape()  
+    tape = Tape()
     pc = 1
     cmds = prog.commands
     jmps = prog.jumps
@@ -137,7 +137,7 @@ end
 
 function warmup(b::BrainfuckArray)
     warmup_iters = warmup_iterations(b)
-    for _ in 1:warmup_iters
+    for _ = 1:warmup_iters
         _run(b.warmup_text)
     end
 end

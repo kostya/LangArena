@@ -57,7 +57,6 @@ fn (mut r Revcomp) revcomp_impl(seq string) {
 		start_pos := if end_pos - 60 > 0 { end_pos - 60 } else { 0 }
 
 		for i := end_pos - 1; i >= start_pos; i-- {
-
 			b := unsafe { seq.str[i] }
 			complement := complement_lookup[b]
 			r.result_buf.write_u8(complement)
@@ -68,7 +67,6 @@ fn (mut r Revcomp) revcomp_impl(seq string) {
 }
 
 pub fn (mut r Revcomp) prepare() {
-
 	mut fasta_bench := fasta.new_fasta()
 	fasta_bench.n = helper.config_i64('Revcomp', 'n')
 	fasta_bench.prepare()
@@ -87,7 +85,6 @@ pub fn (mut r Revcomp) prepare() {
 		if line.starts_with('>') {
 			seq_builder.write_string('\n---\n')
 		} else {
-
 			seq_builder.write_string(line)
 		}
 	}

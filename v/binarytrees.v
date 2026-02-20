@@ -36,10 +36,10 @@ fn (t &TreeNode) check() int {
 }
 
 pub struct BinarytreesBenchmark {
-	benchmark.BaseBenchmark 
-	n i64 
+	benchmark.BaseBenchmark
+	n i64
 mut:
-	result_val u32 
+	result_val u32
 }
 
 pub fn new_binarytrees() &benchmark.IBenchmark {
@@ -85,5 +85,4 @@ pub fn (b BinarytreesBenchmark) checksum() u32 {
 
 pub fn (mut b BinarytreesBenchmark) prepare() {
 	b.result_val = 0
-
 }

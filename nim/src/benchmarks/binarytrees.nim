@@ -47,7 +47,7 @@ method run(self: Binarytrees, iteration_id: int) =
       let tree2 = newTreeNode(-i, depth)
       total = total + uint32(tree1.check()) + uint32(tree2.check())
 
-  self.resultVal = self.resultVal + total  
+  self.resultVal = self.resultVal + total
 
 method checksum(self: Binarytrees): uint32 =
   self.resultVal

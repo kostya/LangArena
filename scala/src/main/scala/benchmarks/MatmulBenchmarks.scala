@@ -32,11 +32,14 @@ abstract class MatmulParallel(threads: Int) extends Benchmark:
     val tmp = 1.0 / n / n
     val a = Array.ofDim[Double](n, n)
 
-    val task = RangeTask(0, n, i =>
-      var j = 0
-      while j < n do
-        a(i)(j) = tmp * (i - j) * (i + j)
-        j += 1
+    val task = RangeTask(
+      0,
+      n,
+      i =>
+        var j = 0
+        while j < n do
+          a(i)(j) = tmp * (i - j) * (i + j)
+          j += 1
     )
     pool.invoke(task)
     a
@@ -45,27 +48,33 @@ abstract class MatmulParallel(threads: Int) extends Benchmark:
     val size = a.length
     val bT = Array.ofDim[Double](size, size)
 
-    val transposeTask = RangeTask(0, size, i =>
-      var j = 0
-      while j < size do
-        bT(j)(i) = b(i)(j)
-        j += 1
+    val transposeTask = RangeTask(
+      0,
+      size,
+      i =>
+        var j = 0
+        while j < size do
+          bT(j)(i) = b(i)(j)
+          j += 1
     )
     pool.invoke(transposeTask)
 
     val c = Array.ofDim[Double](size, size)
-    val mulTask = RangeTask(0, size, i =>
-      val ai = a(i)
-      var j = 0
-      while j < size do
-        var sum = 0.0
-        val bTj = bT(j)
-        var k = 0
-        while k < size do
-          sum += ai(k) * bTj(k)
-          k += 1
-        c(i)(j) = sum
-        j += 1
+    val mulTask = RangeTask(
+      0,
+      size,
+      i =>
+        val ai = a(i)
+        var j = 0
+        while j < size do
+          var sum = 0.0
+          val bTj = bT(j)
+          var k = 0
+          while k < size do
+            sum += ai(k) * bTj(k)
+            k += 1
+          c(i)(j) = sum
+          j += 1
     )
     pool.invoke(mulTask)
     c
@@ -88,7 +97,7 @@ class Matmul1T extends Benchmark:
 
   override def name(): String = "Matmul1T"
 
-  override def prepare(): Unit = 
+  override def prepare(): Unit =
     n = configVal("n").toInt
 
   private def matmul(a: Array[Array[Double]], b: Array[Array[Double]]): Array[Array[Double]] =

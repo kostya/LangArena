@@ -133,7 +133,8 @@ public class Nbody : Benchmark
 
     public override void Run(long IterationId)
     {
-        for (int n = 0; n < 1000; n++) {
+        for (int n = 0; n < 1000; n++)
+        {
             int i = 0;
             foreach (var body in _bodies)
             {

@@ -31,8 +31,8 @@ public class JsonGenerate extends Benchmark {
             coord.put("y", Math.round(Helper.nextFloat() * 1e8) / 1e8);
             coord.put("z", Math.round(Helper.nextFloat() * 1e8) / 1e8);
 
-            coord.put("name", String.format(Locale.US, "%.7f %d", 
-                Helper.nextFloat(), Helper.nextInt(10000)));
+            coord.put("name", String.format(Locale.US, "%.7f %d",
+                                            Helper.nextFloat(), Helper.nextInt(10000)));
 
             Map<String, List<Object>> opts = new LinkedHashMap<>();
             List<Object> tuple = new ArrayList<>();

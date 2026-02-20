@@ -48,7 +48,7 @@ services:
       dockerfile: docker/rust
       args:
         # https://github.com/rust-lang/rust/releases/
-        version: 1.93.0
+        version: 1.93.1
     volumes:
       - .:/src
 
@@ -181,9 +181,9 @@ services:
     working_dir: /src
     build:
       dockerfile: docker/base_gcc
-      args:
-        # https://gcc.gnu.org/releases.html
-        version: "14"
+      # args:
+      #   # https://gcc.gnu.org/releases.html
+      #   version: "14"
     depends_on:
       - base
 
@@ -224,7 +224,7 @@ services:
     build:
       dockerfile: docker/gccgo
       args:
-        version: "14"
+        version: "15"
     volumes:
       - .:/src
 
@@ -242,7 +242,7 @@ services:
       dockerfile: docker/golang
       args:
         # https://go.dev/dl/
-        version: "1.25.6"
+        version: "1.26.0"
     volumes:
       - .:/src
 
@@ -320,8 +320,8 @@ services:
     build:
       dockerfile: docker/kotlin
       args:
-        # https://kotlinlang.org/docs/releases.html        
-        version: "2.3.0"
+        # https://kotlinlang.org/docs/releases.html
+        version: "2.3.10"
         # https://gradle.org/releases/
         gradleversion: 9.2.1
     volumes:
@@ -347,7 +347,7 @@ services:
       dockerfile: docker/graalvm
       args:
         # https://www.graalvm.org/release-notes/
-        version: "25.0.1"
+        version: "25.0.2"
         mavenversion: 3.9.12
     volumes:
       - .:/src
@@ -368,7 +368,7 @@ services:
       dockerfile: docker/kotlin-graalvm
       args:
         # https://kotlinlang.org/docs/releases.html
-        version: "2.3.0"
+        version: "2.3.10"
         # https://gradle.org/releases/
         gradleversion: 9.2.1
     volumes:
@@ -436,7 +436,7 @@ services:
       dockerfile: docker/typescript-bun
       args:
         # https://bun.com/
-        version: "1.3.8"
+        version: "1.3.9"
     volumes:
       - .:/src
 
@@ -502,7 +502,7 @@ services:
     build:
       dockerfile: docker/gdc
       args:
-        version: "14"
+        version: "15"
     volumes:
       - .:/src
 
@@ -524,7 +524,7 @@ services:
       dockerfile: docker/v_gcc
       args:
         # https://github.com/vlang/v/releases
-        version: "weekly.2026.05"
+        version: "weekly.2026.08"
     volumes:
       - .:/src
 
@@ -543,7 +543,7 @@ services:
       dockerfile: docker/v_clang
       args:
         # https://github.com/vlang/v/releases
-        version: "weekly.2026.05"
+        version: "weekly.2026.08"
     volumes:
       - .:/src
 
@@ -562,7 +562,7 @@ services:
       dockerfile: docker/julia
       args:
         # https://github.com/JuliaLang/julia/releases
-        version: "1.12.4"
+        version: "1.12.5"
     volumes:
       - .:/src
 
@@ -637,6 +637,9 @@ services:
     working_dir: /src/dart
     build:
       dockerfile: docker/dart
+      args:
+        # https://dart.dev/get-dart/archive#stable-channel
+        version: "3.11.0"
     volumes:
       - .:/src
 

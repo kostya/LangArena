@@ -30,17 +30,17 @@ end
 mutable struct BinaryHeap{T}
     data::Vector{T}
 
-    function BinaryHeap{T}() where T
+    function BinaryHeap{T}() where {T}
         new{T}(Vector{T}())
     end
 end
 
-function heap_push!(heap::BinaryHeap{T}, item::T) where T
+function heap_push!(heap::BinaryHeap{T}, item::T) where {T}
     Base.push!(heap.data, item)
     sift_up!(heap, length(heap.data))
 end
 
-function heap_pop!(heap::BinaryHeap{T})::Union{T,Nothing} where T
+function heap_pop!(heap::BinaryHeap{T})::Union{T,Nothing} where {T}
     if Base.isempty(heap.data)
         return nothing
     end
@@ -58,7 +58,7 @@ function heap_isempty(heap::BinaryHeap)::Bool
     return Base.isempty(heap.data)
 end
 
-function sift_up!(heap::BinaryHeap{T}, index::Int64) where T
+function sift_up!(heap::BinaryHeap{T}, index::Int64) where {T}
     while index > 1
         parent = index ÷ 2
         if Base.isless(heap.data[index], heap.data[parent])
@@ -70,7 +70,7 @@ function sift_up!(heap::BinaryHeap{T}, index::Int64) where T
     end
 end
 
-function sift_down!(heap::BinaryHeap{T}, index::Int64) where T
+function sift_down!(heap::BinaryHeap{T}, index::Int64) where {T}
     n = length(heap.data)
     while true
         left = 2 * index
@@ -98,17 +98,19 @@ function manhattan_distance(ax::Int64, ay::Int64, bx::Int64, by::Int64)::Int64
 end
 
 function pack_coords(width::Int64, x::Int64, y::Int64)::Int64
-    return (y - 1) * width + x  
+    return (y - 1) * width + x
 end
 
 function unpack_coords(width::Int64, packed::Int64)::Tuple{Int64,Int64}
-    packed -= 1  
+    packed -= 1
     y = packed ÷ width
     x = packed - y * width
-    return (x + 1, y + 1)  
+    return (x + 1, y + 1)
 end
 
-function find_path(astar::AStarPathfinder)::Tuple{Union{Vector{Tuple{Int64,Int64}},Nothing},Int64}
+function find_path(
+    astar::AStarPathfinder,
+)::Tuple{Union{Vector{Tuple{Int64,Int64}},Nothing},Int64}
     grid = astar.maze_grid
     width = astar.width
     height = astar.height
@@ -166,18 +168,19 @@ function find_path(astar::AStarPathfinder)::Tuple{Union{Vector{Tuple{Int64,Int64
             if nx < 1 || nx > width || ny < 1 || ny > height
                 continue
             end
-            if !grid[ny][nx]  
+            if !grid[ny][nx]
                 continue
             end
 
-            tentative_g = current_g + 1000  
+            tentative_g = current_g + 1000
             neighbor_idx = pack_coords(width, nx, ny)
 
             if tentative_g < g_scores[neighbor_idx]
                 came_from[neighbor_idx] = current_idx
                 g_scores[neighbor_idx] = tentative_g
 
-                f_score = tentative_g + manhattan_distance(nx, ny, astar.goal_x, astar.goal_y)
+                f_score =
+                    tentative_g + manhattan_distance(nx, ny, astar.goal_x, astar.goal_y)
                 heap_push!(open_set, Node(nx, ny, f_score))
             end
         end
@@ -189,7 +192,7 @@ end
 function AStarPathfinder()
     width = Helper.config_i64("AStarPathfinder", "w")
     height = Helper.config_i64("AStarPathfinder", "h")
-    start_x = Int64(2)  
+    start_x = Int64(2)
     start_y = Int64(2)
     goal_x = width - 1
     goal_y = height - 1
@@ -199,8 +202,18 @@ function AStarPathfinder()
     g_scores_cache = Base.fill(typemax(Int64), size_val)
     came_from_cache = Base.fill(-1, size_val)
 
-    return AStarPathfinder(width, height, start_x, start_y, goal_x, goal_y, 
-                          maze_grid, g_scores_cache, came_from_cache, UInt32(0))
+    return AStarPathfinder(
+        width,
+        height,
+        start_x,
+        start_y,
+        goal_x,
+        goal_y,
+        maze_grid,
+        g_scores_cache,
+        came_from_cache,
+        UInt32(0),
+    )
 end
 
 name(b::AStarPathfinder)::String = "AStarPathfinder"

@@ -17,11 +17,11 @@ public class BrainfuckArray extends Benchmark {
         }
 
         void inc() {
-            tape[pos] = (byte)(tape[pos] + 1); 
+            tape[pos] = (byte)(tape[pos] + 1);
         }
 
         void dec() {
-            tape[pos] = (byte)(tape[pos] - 1); 
+            tape[pos] = (byte)(tape[pos] - 1);
         }
 
         void advance() {
@@ -43,7 +43,7 @@ public class BrainfuckArray extends Benchmark {
 
     static class Program {
         private final byte[] commands;
-        private final int[] jumps; 
+        private final int[] jumps;
 
         Program(String text) {
 
@@ -65,8 +65,8 @@ public class BrainfuckArray extends Benchmark {
             }
 
             jumps = new int[commands.length];
-            int[] stack = new int[commands.length];  
-            int sp = 0;  
+            int[] stack = new int[commands.length];
+            int sp = 0;
 
             for (int i = 0; i < commands.length; i++) {
                 byte cmd = commands[i];
@@ -85,7 +85,7 @@ public class BrainfuckArray extends Benchmark {
         long run() {
             long result = 0L;
             Tape tape = new Tape();
-            byte[] cmds = commands;  
+            byte[] cmds = commands;
             int[] jmps = jumps;
             int pc = 0;
 
@@ -104,13 +104,21 @@ public class BrainfuckArray extends Benchmark {
                     }
                 } else {
                     switch (cmd) {
-                        case '+': tape.inc(); break;
-                        case '-': tape.dec(); break;
-                        case '>': tape.advance(); break;
-                        case '<': tape.devance(); break;
-                        case '.':
-                            result = (result << 2) + (tape.get() & 0xFF);
-                            break;
+                    case '+':
+                        tape.inc();
+                        break;
+                    case '-':
+                        tape.dec();
+                        break;
+                    case '>':
+                        tape.advance();
+                        break;
+                    case '<':
+                        tape.devance();
+                        break;
+                    case '.':
+                        result = (result << 2) + (tape.get() & 0xFF);
+                        break;
                     }
                 }
                 pc++;

@@ -95,7 +95,7 @@ class GraphPathBFS extends GraphPathBenchmark {
         Queue<int[]> queue = new ArrayDeque<>();
 
         visited[start] = true;
-        queue.add(new int[]{start, 0});
+        queue.add(new int[] {start, 0});
 
         while (!queue.isEmpty()) {
             int[] current = queue.poll();
@@ -107,7 +107,7 @@ class GraphPathBFS extends GraphPathBenchmark {
 
                 if (!visited[neighbor]) {
                     visited[neighbor] = true;
-                    queue.add(new int[]{neighbor, dist + 1});
+                    queue.add(new int[] {neighbor, dist + 1});
                 }
             }
         }
@@ -135,7 +135,7 @@ class GraphPathDFS extends GraphPathBenchmark {
         Deque<int[]> stack = new ArrayDeque<>();
         int bestPath = Integer.MAX_VALUE;
 
-        stack.push(new int[]{start, 0});
+        stack.push(new int[] {start, 0});
 
         while (!stack.isEmpty()) {
             int[] current = stack.pop();
@@ -151,7 +151,7 @@ class GraphPathDFS extends GraphPathBenchmark {
                         bestPath = dist + 1;
                     }
                 } else if (!visited[neighbor]) {
-                    stack.push(new int[]{neighbor, dist + 1});
+                    stack.push(new int[] {neighbor, dist + 1});
                 }
             }
         }

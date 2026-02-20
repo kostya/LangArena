@@ -337,7 +337,7 @@ LD_FLAGS_PROD = " -flto=auto #{IS_MACOS ? "" : "-Wl,-z,relro,-z,now -Wl,--gc-sec
 C_FLAGS_ENH = " -O3 -march=native -mtune=native -DNDEBUG -pipe -fstack-protector -ftree-vectorize -funroll-loops -fno-semantic-interposition"
 LD_FLAGS_ENH = " -flto=thin #{IS_MACOS ? "-Wl,-dead_strip" : "-Wl,-O1 -Wl,--gc-sections"}"
 C_FLAGS_MAX = " -Ofast -march=native -DNDEBUG -pipe -fno-stack-protector -fomit-frame-pointer -ffast-math -funroll-all-loops -fvisibility=hidden -fno-plt -fno-common -fstrict-overflow -fno-trapping-math"
-LD_FLAGS_MAX = " -flto=full #{IS_MACOS ? "-Wl,-dead_strip -Wl,-S" : "-Wl,-O3 -Wl,--strip-all -static"}"
+LD_FLAGS_MAX = " -flto=full #{IS_MACOS ? "-Wl,-dead_strip -Wl,-S" : "-Wl,-O3 -Wl,--strip-all"}"
 
 CXXFLAGS_PROD = C_FLAGS_PROD + " -std=c++20 -Wold-style-cast -Woverloaded-virtual"
 CXXFLAGS_ENH = C_FLAGS_ENH + " -std=c++20 -Wsuggest-override -Wduplicated-cond"
@@ -696,41 +696,44 @@ RUNS = [
     deps_cmd: "dub fetch",
   ),
 
-  Run.new(
-    name: "D/GDC",
-    build_cmd: "dub build --compiler=gdc -c release-gdc --build=release",
-    binary_name: "./target/release/d_benchmarks_gdc_release",
-    run_cmd: "./target/release/d_benchmarks_gdc_release",
-    version_cmd: "gdc --version | head -n 1",
-    dir: "/src/d",
-    container: "gdc",
-    group: :prod,
-    deps_cmd: "dub fetch",
-  ),
+  # GDC Slow and errors
+  # Run.new(
+  #   name: "D/GDC",
+  #   build_cmd: "dub build --compiler=gdc -c release-gdc --build=release",
+  #   binary_name: "./target/release/d_benchmarks_gdc_release",
+  #   run_cmd: "./target/release/d_benchmarks_gdc_release",
+  #   version_cmd: "gdc --version | head -n 1",
+  #   dir: "/src/d",
+  #   container: "gdc",
+  #   group: :prod,
+  #   deps_cmd: "dub fetch",
+  # ),
 
-  Run.new(
-    name: "D/GDC/Perf",
-    build_cmd: "dub build --compiler=gdc -c perf-gdc --build=release",
-    binary_name: "./target/release/d_benchmarks_gdc_perf",
-    run_cmd: "./target/release/d_benchmarks_gdc_perf",
-    version_cmd: "gdc --version | head -n 1",
-    dir: "/src/d",
-    container: "gdc",
-    group: :hack,
-    deps_cmd: "dub fetch",
-  ),
+  # GDC Slow and errors
+  # Run.new(
+  #   name: "D/GDC/Perf",
+  #   build_cmd: "dub build --compiler=gdc -c perf-gdc --build=release",
+  #   binary_name: "./target/release/d_benchmarks_gdc_perf",
+  #   run_cmd: "./target/release/d_benchmarks_gdc_perf",
+  #   version_cmd: "gdc --version | head -n 1",
+  #   dir: "/src/d",
+  #   container: "gdc",
+  #   group: :hack,
+  #   deps_cmd: "dub fetch",
+  # ),
 
-  Run.new(
-    name: "D/GDC/MaxPerf",
-    build_cmd: "dub build --compiler=gdc -c maxperf-gdc --build=release",
-    binary_name: "./target/release/d_benchmarks_gdc_maxperf",
-    run_cmd: "./target/release/d_benchmarks_gdc_maxperf",
-    version_cmd: "gdc --version | head -n 1",
-    dir: "/src/d",
-    container: "gdc",
-    group: :hack,
-    deps_cmd: "dub fetch",
-  ),
+  # GDC Slow and errors
+  # Run.new(
+  #   name: "D/GDC/MaxPerf",
+  #   build_cmd: "dub build --compiler=gdc -c maxperf-gdc --build=release",
+  #   binary_name: "./target/release/d_benchmarks_gdc_maxperf",
+  #   run_cmd: "./target/release/d_benchmarks_gdc_maxperf",
+  #   version_cmd: "gdc --version | head -n 1",
+  #   dir: "/src/d",
+  #   container: "gdc",
+  #   group: :hack,
+  #   deps_cmd: "dub fetch",
+  # ),
 
   # ======================================= V ======================================================
 
@@ -1359,7 +1362,6 @@ RUNS = [
         -XX:+UseParallelGC \
         -XX:+UseLargePages \
         -XX:+AlwaysPreTouch \
-        -XX:+UseNUMA \
         -XX:+UseCompressedOops \
         -XX:+OptimizeStringConcat \
         -XX:+UseStringDeduplication \
@@ -1480,7 +1482,6 @@ RUNS = [
         -Xms2g \
         -Xmx2g \
         -XX:+AlwaysPreTouch \
-        -XX:+UseNUMA \
         -XX:+OptimizeStringConcat \
         -XX:+UseCompressedOops \
         -Xmx8g \
@@ -1504,7 +1505,6 @@ RUNS = [
         -Xms4g \
         -Xmx8g \
         -XX:+AlwaysPreTouch \
-        -XX:+UseNUMA \
         -XX:+UseLargePages \
         -XX:+DisableExplicitGC \
         -Djava.security.egd=file:/dev/./urandom \
@@ -1604,7 +1604,6 @@ RUNS = [
         -Xms2g \
         -Xmx2g \
         -XX:+AlwaysPreTouch \
-        -XX:+UseNUMA \
         -XX:+OptimizeStringConcat \
         -XX:+UseCompressedOops \
         -Xmx8g \
@@ -1628,7 +1627,6 @@ RUNS = [
         -Xms4g \
         -Xmx8g \
         -XX:+AlwaysPreTouch \
-        -XX:+UseNUMA \
         -XX:+UseLargePages \
         -XX:+DisableExplicitGC \
         -Djava.security.egd=file:/dev/./urandom \

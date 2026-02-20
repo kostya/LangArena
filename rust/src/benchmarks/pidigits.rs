@@ -1,7 +1,7 @@
-use super::super::{Benchmark, helper};
 use super::super::config_i64;
+use super::super::{helper, Benchmark};
 use num_bigint::BigInt;
-use num_traits::{Zero, One, FromPrimitive};
+use num_traits::{FromPrimitive, One, Zero};
 use std::fmt::Write;
 
 pub struct Pidigits {
@@ -19,11 +19,13 @@ impl Pidigits {
 }
 
 impl Benchmark for Pidigits {
-    fn name(&self) -> String { "Pidigits".to_string() }
+    fn name(&self) -> String {
+        "Pidigits".to_string()
+    }
 
     fn run(&mut self, _iteration_id: i64) {
         let (mut i, mut k, mut k1) = (0, 0, 1);
-        let (mut ns, mut a, mut n, mut d) = 
+        let (mut ns, mut a, mut n, mut d) =
             (BigInt::zero(), BigInt::zero(), BigInt::one(), BigInt::one());
         let (ten, three) = (BigInt::from_u8(10).unwrap(), BigInt::from_u8(3).unwrap());
 
@@ -48,7 +50,9 @@ impl Benchmark for Pidigits {
                         ns = BigInt::zero();
                     }
 
-                    if i >= self.nn { break; }
+                    if i >= self.nn {
+                        break;
+                    }
 
                     a = (&a - (&d * &q)) * &ten;
                     n *= &ten;

@@ -11,12 +11,12 @@ public class BrainfuckRecursion : Benchmark
     }
 
     private interface IOp { }
-    private record struct Inc() : IOp;      
-    private record struct Dec() : IOp;      
-    private record struct Next() : IOp;     
-    private record struct Prev() : IOp;     
-    private record struct Print() : IOp;    
-    private record class Loop(List<IOp> Operations) : IOp;  
+    private record struct Inc() : IOp;
+    private record struct Dec() : IOp;
+    private record struct Next() : IOp;
+    private record struct Prev() : IOp;
+    private record struct Print() : IOp;
+    private record class Loop(List<IOp> Operations) : IOp;
 
     private struct Tape
     {
@@ -111,7 +111,7 @@ public class BrainfuckRecursion : Benchmark
                     case Prev: tape.Prev(); break;
                     case Print: _result = (_result << 2) + tape.Get(); break;
                     case Loop loop:
-                        while (tape.Get() != 0) 
+                        while (tape.Get() != 0)
                             RunOperations(loop.Operations, tape);
                         break;
                 }
@@ -129,13 +129,13 @@ public class BrainfuckRecursion : Benchmark
     public override void Warmup()
     {
         long prepareIters = WarmupIterations;
-        for (long i = 0; i < prepareIters; i++) 
+        for (long i = 0; i < prepareIters; i++)
             RunProgram(_warmupText);
     }
 
-    public override void Run(long IterationId) 
-    { 
-        _result = (_result + RunProgram(_text)) & 0xFFFFFFFF; 
+    public override void Run(long IterationId)
+    {
+        _result = (_result + RunProgram(_text)) & 0xFFFFFFFF;
     }
 
     public override uint Checksum => _result;

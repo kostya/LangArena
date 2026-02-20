@@ -12,9 +12,9 @@ mut:
 
 fn new_cell() &Cell {
 	return &Cell{
-		alive: false
+		alive:      false
 		next_state: false
-		neighbors: unsafe { []&Cell{} }
+		neighbors:  unsafe { []&Cell{} }
 	}
 }
 
@@ -62,9 +62,9 @@ fn new_grid(width int, height int) &Grid {
 		}
 
 		mut grid := &Grid{
-			width: width
+			width:  width
 			height: height
-			cells: cells
+			cells:  cells
 		}
 
 		grid.link_neighbors()
@@ -94,7 +94,6 @@ fn (mut grid Grid) link_neighbors() {
 }
 
 fn (mut grid Grid) next_generation() {
-
 	for mut row in grid.cells {
 		for mut cell in row {
 			cell.compute_next_state()
@@ -145,9 +144,9 @@ mut:
 pub fn new_gameoflife() &benchmark.IBenchmark {
 	mut bench := &GameOfLife{
 		BaseBenchmark: benchmark.new_base_benchmark('GameOfLife')
-		width: 0
-		height: 0
-		grid: unsafe { nil }
+		width:         0
+		height:        0
+		grid:          unsafe { nil }
 	}
 	return bench
 }

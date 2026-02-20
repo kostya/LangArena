@@ -9,49 +9,62 @@ import std.math;
 import benchmark;
 import helper;
 
-class Spectralnorm : Benchmark {
+class Spectralnorm : Benchmark
+{
 private:
     int sizeVal;
     double[] u;
     double[] v;
 
-    double evalA(ulong i, ulong j) {
+    double evalA(ulong i, ulong j)
+    {
         return 1.0 / ((i + j) * (i + j + 1.0) / 2.0 + i + 1.0);
     }
 
-    double[] evalATimesU(double[] u) {
+    double[] evalATimesU(double[] u)
+    {
         double[] v = new double[u.length];
 
-        for (int i = 0; i < u.length; i++) {  
+        for (int i = 0; i < u.length; i++)
+        {
             double sum = 0.0;
-            foreach (j, ref val; u) sum += evalA(i, j) * val;
+            foreach (j, ref val; u)
+                sum += evalA(i, j) * val;
             v[i] = sum;
         }
 
         return v;
     }
 
-    double[] evalAtTimesU(double[] u) {
+    double[] evalAtTimesU(double[] u)
+    {
         double[] v = new double[u.length];
 
-        for (int i = 0; i < u.length; i++) {  
+        for (int i = 0; i < u.length; i++)
+        {
             double sum = 0.0;
-            foreach (j, ref val; u) sum += evalA(j, i) * val;
+            foreach (j, ref val; u)
+                sum += evalA(j, i) * val;
             v[i] = sum;
         }
 
         return v;
     }
 
-    double[] evalAtATimesU(double[] u) {
+    double[] evalAtATimesU(double[] u)
+    {
         return evalAtTimesU(evalATimesU(u));
     }
 
 protected:
-    override string className() const { return "Spectralnorm"; }
+    override string className() const
+    {
+        return "Spectralnorm";
+    }
 
 public:
-    this() {
+    this()
+    {
         sizeVal = configVal("size");
         u = new double[sizeVal];
         v = new double[sizeVal];
@@ -60,14 +73,17 @@ public:
         v[] = 1.0;
     }
 
-    override void run(int iterationId) {
+    override void run(int iterationId)
+    {
         v = evalAtATimesU(u);
         u = evalAtATimesU(v);
     }
 
-    override uint checksum() {
+    override uint checksum()
+    {
         double vBv = 0.0, vv = 0.0;
-        for (int i = 0; i < sizeVal; i++) {  
+        for (int i = 0; i < sizeVal; i++)
+        {
             vBv += u[i] * v[i];
             vv += v[i] * v[i];
         }

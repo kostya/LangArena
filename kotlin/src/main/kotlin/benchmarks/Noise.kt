@@ -7,28 +7,37 @@ class Noise : Benchmark() {
     companion object {
         private val SYM = listOf(' ', '░', '▒', '▓', '█', '█')
 
-        private data class Vec2(val x: Double, val y: Double)
+        private data class Vec2(
+            val x: Double,
+            val y: Double,
+        )
 
-        private fun lerp(a: Double, b: Double, v: Double): Double {
-            return a * (1.0 - v) + b * v
-        }
+        private fun lerp(
+            a: Double,
+            b: Double,
+            v: Double,
+        ): Double = a * (1.0 - v) + b * v
 
-        private fun smooth(v: Double): Double {
-            return v * v * (3.0 - 2.0 * v)
-        }
+        private fun smooth(v: Double): Double = v * v * (3.0 - 2.0 * v)
 
         private fun randomGradient(): Vec2 {
             val v = Helper.nextFloat() * PI * 2.0
             return Vec2(cos(v), sin(v))
         }
 
-        private fun gradient(orig: Vec2, grad: Vec2, p: Vec2): Double {
+        private fun gradient(
+            orig: Vec2,
+            grad: Vec2,
+            p: Vec2,
+        ): Double {
             val sp = Vec2(p.x - orig.x, p.y - orig.y)
             return grad.x * sp.x + grad.y * sp.y
         }
     }
 
-    private class Noise2DContext(private val sizeVal: Int) {
+    private class Noise2DContext(
+        private val sizeVal: Int,
+    ) {
         private val rgradients = Array(sizeVal) { randomGradient() }
         private val permutations = IntArray(sizeVal) { it }
 
@@ -42,35 +51,46 @@ class Noise : Benchmark() {
             }
         }
 
-        private fun getGradient(x: Int, y: Int): Vec2 {
+        private fun getGradient(
+            x: Int,
+            y: Int,
+        ): Vec2 {
             val idx = permutations[x and (sizeVal - 1)] + permutations[y and (sizeVal - 1)]
-            return rgradients[idx and (sizeVal - 1)]  
+            return rgradients[idx and (sizeVal - 1)]
         }
 
-        private fun getGradients(x: Double, y: Double): Pair<List<Vec2>, List<Vec2>> {
+        private fun getGradients(
+            x: Double,
+            y: Double,
+        ): Pair<List<Vec2>, List<Vec2>> {
             val x0f = floor(x)
             val y0f = floor(y)
             val x0 = x0f.toInt()
             val y0 = y0f.toInt()
 
-            val gradients = listOf(
-                getGradient(x0, y0),
-                getGradient(x0 + 1, y0),
-                getGradient(x0, y0 + 1),
-                getGradient(x0 + 1, y0 + 1)
-            )
+            val gradients =
+                listOf(
+                    getGradient(x0, y0),
+                    getGradient(x0 + 1, y0),
+                    getGradient(x0, y0 + 1),
+                    getGradient(x0 + 1, y0 + 1),
+                )
 
-            val origins = listOf(
-                Vec2(x0f + 0.0, y0f + 0.0),
-                Vec2(x0f + 1.0, y0f + 0.0),
-                Vec2(x0f + 0.0, y0f + 1.0),
-                Vec2(x0f + 1.0, y0f + 1.0)
-            )
+            val origins =
+                listOf(
+                    Vec2(x0f + 0.0, y0f + 0.0),
+                    Vec2(x0f + 1.0, y0f + 0.0),
+                    Vec2(x0f + 0.0, y0f + 1.0),
+                    Vec2(x0f + 1.0, y0f + 1.0),
+                )
 
             return Pair(gradients, origins)
         }
 
-        fun get(x: Double, y: Double): Double {
+        fun get(
+            x: Double,
+            y: Double,
+        ): Double {
             val p = Vec2(x, y)
             val (gradients, origins) = getGradients(x, y)
 
@@ -103,7 +123,7 @@ class Noise : Benchmark() {
                 val v = n2d.get(x * 0.1, (y + (iterationId * 128)) * 0.1) * 0.5 + 0.5
                 val idx = (v / 0.2).toInt()
                 val clampedIdx = if (idx >= 6) 5 else idx
-                resultVal += SYM[clampedIdx].code.toUInt()  
+                resultVal += SYM[clampedIdx].code.toUInt()
             }
         }
     }

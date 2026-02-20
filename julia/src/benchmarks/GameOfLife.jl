@@ -40,8 +40,8 @@ end
 function Grid(width::Int32, height::Int32)
     cells = Matrix{GCell}(undef, height, width)
 
-    for y in 1:height
-        for x in 1:width
+    for y = 1:height
+        for x = 1:width
             cells[y, x] = GCell()
         end
     end
@@ -52,12 +52,12 @@ function Grid(width::Int32, height::Int32)
 end
 
 function link_neighbors!(grid::Grid)
-    for y in 1:grid.height
-        for x in 1:grid.width
+    for y = 1:grid.height
+        for x = 1:grid.width
             cell = grid.cells[y, x]
 
-            for dy in -1:1
-                for dx in -1:1
+            for dy = -1:1
+                for dx = -1:1
                     if dx == 0 && dy == 0
                         continue
                     end
@@ -74,14 +74,14 @@ end
 
 function next_generation!(grid::Grid)
 
-    for y in 1:grid.height
-        for x in 1:grid.width
+    for y = 1:grid.height
+        for x = 1:grid.width
             compute_next_state(grid.cells[y, x])
         end
     end
 
-    for y in 1:grid.height
-        for x in 1:grid.width
+    for y = 1:grid.height
+        for x = 1:grid.width
             update(grid.cells[y, x])
         end
     end
@@ -89,8 +89,8 @@ end
 
 function count_alive(grid::Grid)::UInt32
     count = 0
-    for y in 1:grid.height
-        for x in 1:grid.width
+    for y = 1:grid.height
+        for x = 1:grid.width
             if grid.cells[y, x].alive
                 count += 1
             end
@@ -103,8 +103,8 @@ function compute_hash(grid::Grid)::UInt32
     FNV_OFFSET_BASIS = 0x811c9dc5
     FNV_PRIME = 0x01000193
     hash = FNV_OFFSET_BASIS
-    for y in 1:grid.height
-        for x in 1:grid.width
+    for y = 1:grid.height
+        for x = 1:grid.width
             alive = UInt32(grid.cells[y, x].alive ? 1 : 0)
             hash = xor(hash, alive)
             hash = hash * FNV_PRIME
@@ -130,8 +130,8 @@ end
 name(b::GameOfLife)::String = "GameOfLife"
 
 function prepare(b::GameOfLife)
-    for y in 1:b.height
-        for x in 1:b.width
+    for y = 1:b.height
+        for x = 1:b.width
             if Helper.next_float(1.0) < 0.1
                 b.grid.cells[y, x].alive = true
             end

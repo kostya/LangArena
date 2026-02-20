@@ -7,8 +7,8 @@ mutable struct Graph
     jump_len::Int32
     adj::Vector{Vector{Int32}}
 
-    function Graph(vertices::Int32, jumps::Int32=3, jump_len::Int32=100)
-        adj = [Int32[] for _ in 1:vertices]
+    function Graph(vertices::Int32, jumps::Int32 = 3, jump_len::Int32 = 100)
+        adj = [Int32[] for _ = 1:vertices]
         new(vertices, jumps, jump_len, adj)
     end
 end
@@ -20,13 +20,13 @@ end
 
 function generate_random(g::Graph)
 
-    for i in 1:g.vertices-1
+    for i = 1:(g.vertices-1)
         add_edge(g, i, i-1)
     end
 
-    for v in 0:g.vertices-1
+    for v = 0:(g.vertices-1)
         num_jumps = Helper.next_int(g.jumps)
-        for _ in 1:num_jumps
+        for _ = 1:num_jumps
             offset = Helper.next_int(g.jump_len) - g.jump_len ÷ 2
             u = v + offset
 
@@ -65,7 +65,7 @@ function bfs_shortest_path(graph::Graph, start::Int64, target::Int64)::Int32
     end
 
     visited = falses(graph.vertices)
-    queue = Vector{Tuple{Int64, Int32}}()
+    queue = Vector{Tuple{Int64,Int32}}()
 
     visited[start+1] = true
     push!(queue, (start, Int32(0)))
@@ -129,7 +129,7 @@ function dfs_find_path(graph::Graph, start::Int64, target::Int64)::Int32
     end
 
     visited = falses(graph.vertices)
-    stack = Vector{Tuple{Int64, Int32}}()
+    stack = Vector{Tuple{Int64,Int32}}()
     best_path = typemax(Int32)
 
     push!(stack, (start, Int32(0)))
@@ -206,7 +206,7 @@ function a_star_shortest_path(graph::Graph, start::Int64, target::Int64)::Int32
     g_score[start+1] = 0
     f_score[start+1] = heuristic(start, target)
 
-    open_set = BinaryMinHeap{Tuple{Int32, Int64}}()
+    open_set = BinaryMinHeap{Tuple{Int32,Int64}}()
     in_open_set = falses(graph.vertices)
 
     push!(open_set, (f_score[start+1], start))

@@ -34,8 +34,8 @@ mutable struct HuffmanNode
     frequency::Int64
     byte_val::UInt8
     is_leaf::Bool
-    left::Union{HuffmanNode, Nothing}
-    right::Union{HuffmanNode, Nothing}
+    left::Union{HuffmanNode,Nothing}
+    right::Union{HuffmanNode,Nothing}
 
     function HuffmanNode(frequency::Int64, byte_val::UInt8)
         new(frequency, byte_val, true, nothing, nothing)
@@ -57,18 +57,18 @@ function bwt_transform(input::Vector{UInt8})::BWTResult
     end
 
     doubled = Vector{UInt8}(undef, n * 2)
-    for i in 1:n
+    for i = 1:n
         doubled[i] = input[i]
-        doubled[i + n] = input[i]
+        doubled[i+n] = input[i]
     end
 
-    sa = [i for i in 0:(n-1)]
+    sa = [i for i = 0:(n-1)]
 
-    buckets = [Int[] for _ in 1:256]
+    buckets = [Int[] for _ = 1:256]
 
     for idx in sa
-        first_char = input[idx + 1]  
-        push!(buckets[first_char + 1], idx)  
+        first_char = input[idx+1]
+        push!(buckets[first_char+1], idx)
     end
 
     pos = 1
@@ -83,35 +83,35 @@ function bwt_transform(input::Vector{UInt8})::BWTResult
 
         rank = Vector{Int}(undef, n)
         current_rank = 0
-        prev_char = input[sa[1] + 1]
+        prev_char = input[sa[1]+1]
 
-        for i in 1:n
+        for i = 1:n
             idx = sa[i]
-            curr_char = input[idx + 1]
+            curr_char = input[idx+1]
             if curr_char != prev_char
                 current_rank += 1
                 prev_char = curr_char
             end
-            rank[idx + 1] = current_rank
+            rank[idx+1] = current_rank
         end
 
         k = 1
         while k < n
 
-            pairs = Vector{Tuple{Int, Int}}(undef, n)
-            for i in 1:n
-                idx = i - 1  
+            pairs = Vector{Tuple{Int,Int}}(undef, n)
+            for i = 1:n
+                idx = i - 1
                 first = rank[i]
-                second = rank[((idx + k) % n) + 1]  
+                second = rank[((idx+k)%n)+1]
                 pairs[i] = (first, second)
             end
 
-            sort!(sa, by=idx -> pairs[idx + 1])  
+            sort!(sa, by = idx -> pairs[idx+1])
 
             new_rank = Vector{Int}(undef, n)
-            new_rank[sa[1] + 1] = 0
+            new_rank[sa[1]+1] = 0
 
-            for i in 2:n
+            for i = 2:n
                 prev_idx = sa[i-1] + 1
                 curr_idx = sa[i] + 1
                 if pairs[prev_idx] != pairs[curr_idx]
@@ -129,13 +129,13 @@ function bwt_transform(input::Vector{UInt8})::BWTResult
     transformed = Vector{UInt8}(undef, n)
     original_idx = 0
 
-    for i in 1:n
-        suffix = sa[i]  
+    for i = 1:n
+        suffix = sa[i]
         if suffix == 0
-            transformed[i] = input[n]  
-            original_idx = i - 1  
+            transformed[i] = input[n]
+            original_idx = i - 1
         else
-            transformed[i] = input[suffix]  
+            transformed[i] = input[suffix]
         end
     end
 
@@ -151,12 +151,12 @@ function bwt_inverse(bwt_result::BWTResult)::Vector{UInt8}
 
     counts = zeros(Int, 256)
     for byte in bwt
-        counts[byte + 1] += 1
+        counts[byte+1] += 1
     end
 
     positions = zeros(Int, 256)
     total = 0
-    for i in 1:256
+    for i = 1:256
         positions[i] = total
         total += counts[i]
     end
@@ -164,18 +164,18 @@ function bwt_inverse(bwt_result::BWTResult)::Vector{UInt8}
     next = Vector{Int}(undef, n)
     temp_counts = zeros(Int, 256)
 
-    for i in 1:n
+    for i = 1:n
         byte = bwt[i]
         idx = byte + 1
-        pos = positions[idx] + temp_counts[idx] + 1  
+        pos = positions[idx] + temp_counts[idx] + 1
         next[pos] = i
         temp_counts[idx] += 1
     end
 
     result = Vector{UInt8}(undef, n)
-    idx = bwt_result.original_idx + 1  
+    idx = bwt_result.original_idx + 1
 
-    for i in 1:n
+    for i = 1:n
         idx = next[idx]
         result[i] = bwt[idx]
     end
@@ -187,10 +187,10 @@ function build_huffman_tree(frequencies::Vector{Int64})::HuffmanNode
 
     heap = BinaryMinHeap{HuffmanNode}()
 
-    for i in 1:256
+    for i = 1:256
         freq = frequencies[i]
         if freq > 0
-            push!(heap, HuffmanNode(freq, UInt8(i-1)))  
+            push!(heap, HuffmanNode(freq, UInt8(i-1)))
         end
     end
 
@@ -219,11 +219,15 @@ mutable struct HuffmanCodes
     end
 end
 
-function build_huffman_codes(node::HuffmanNode, code::Int64, length::Int64, 
-                             huffman_codes::HuffmanCodes)
+function build_huffman_codes(
+    node::HuffmanNode,
+    code::Int64,
+    length::Int64,
+    huffman_codes::HuffmanCodes,
+)
     if node.is_leaf
         if length > 0 || node.byte_val != 0x00
-            idx = Int64(node.byte_val) + 1  
+            idx = Int64(node.byte_val) + 1
             huffman_codes.code_lengths[idx] = length
             huffman_codes.codes[idx] = code
         end
@@ -244,11 +248,11 @@ function huffman_encode(data::Vector{UInt8}, huffman_codes::HuffmanCodes)::Encod
     total_bits = 0
 
     for byte in data
-        idx = Int64(byte) + 1  
+        idx = Int64(byte) + 1
         code = huffman_codes.codes[idx]
         length = huffman_codes.code_lengths[idx]
 
-        for i in (length-1):-1:0
+        for i = (length-1):-1:0
             if ((code >> i) & 1) == 1
                 current_byte |= 0x01 << (7 - bit_pos)
             end
@@ -270,8 +274,11 @@ function huffman_encode(data::Vector{UInt8}, huffman_codes::HuffmanCodes)::Encod
     return EncodedResult(result, total_bits)
 end
 
-function huffman_decode(encoded::Vector{UInt8}, root::HuffmanNode, 
-                        bit_count::Int64)::Vector{UInt8}
+function huffman_decode(
+    encoded::Vector{UInt8},
+    root::HuffmanNode,
+    bit_count::Int64,
+)::Vector{UInt8}
     result = UInt8[]
     current_node = root
     bits_processed = 0
@@ -281,7 +288,7 @@ function huffman_decode(encoded::Vector{UInt8}, root::HuffmanNode,
         byte_val = encoded[byte_index]
         byte_index += 1
 
-        for bit_pos in 7:-1:0
+        for bit_pos = 7:-1:0
             if bits_processed >= bit_count
                 break
             end
@@ -307,7 +314,7 @@ function compress(data::Vector{UInt8})::CompressedData
 
     frequencies = zeros(Int64, 256)
     for byte in bwt_result.transformed
-        frequencies[byte + 1] += 1  
+        frequencies[byte+1] += 1
     end
 
     huffman_tree = build_huffman_tree(frequencies)
@@ -324,8 +331,8 @@ function decompress(compressed::CompressedData)::Vector{UInt8}
 
     huffman_tree = build_huffman_tree(compressed.frequencies)
 
-    decoded = huffman_decode(compressed.encoded_bits, huffman_tree, 
-                            compressed.original_bit_count)
+    decoded =
+        huffman_decode(compressed.encoded_bits, huffman_tree, compressed.original_bit_count)
 
     bwt_result = BWTResult(decoded, compressed.bwt_result.original_idx)
     return bwt_inverse(bwt_result)
@@ -336,8 +343,8 @@ function generate_test_data(size::Int64)::Vector{UInt8}
     pattern_len = length(pattern)
     data = Vector{UInt8}(undef, size)
 
-    for i in 1:size
-        data[i] = pattern[((i-1) % pattern_len) + 1]
+    for i = 1:size
+        data[i] = pattern[((i-1)%pattern_len)+1]
     end
 
     return data
@@ -360,8 +367,8 @@ mutable struct BWTHuffDecode <: AbstractBenchmark
     size::Int64
     result::UInt32
     test_data::Vector{UInt8}
-    compressed::Union{CompressedData, Nothing}
-    decompressed::Union{Vector{UInt8}, Nothing}
+    compressed::Union{CompressedData,Nothing}
+    decompressed::Union{Vector{UInt8},Nothing}
 
     function BWTHuffDecode()
         size_val = Helper.config_i64("BWTHuffDecode", "size")

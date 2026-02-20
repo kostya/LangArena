@@ -140,14 +140,12 @@ pub fn (b CacheSimulation) name() string {
 }
 
 pub fn (mut b CacheSimulation) prepare() {
-
 	b.values_size = int(helper.config_i64('CacheSimulation', 'values'))
 	b.cache_size = int(helper.config_i64('CacheSimulation', 'size'))
 
 	b.cache = new_fast_lru_cache(b.cache_size)
 	b.hits = 0
 	b.misses = 0
-
 }
 
 pub fn (mut b CacheSimulation) run(iteration_id int) {
@@ -159,11 +157,9 @@ pub fn (mut b CacheSimulation) run(iteration_id int) {
 	value := b.cache.get(key)
 
 	if value != none {
-
 		b.hits++
 		b.cache.put(key, 'updated_${iteration_id}')
 	} else {
-
 		b.misses++
 		b.cache.put(key, 'new_${iteration_id}')
 	}

@@ -1,6 +1,6 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 use crate::config_i64;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
 
@@ -35,7 +35,10 @@ impl JsonGenerate {
         Self {
             n,
             text: String::new(),
-            data: JsonData{coordinates: Vec::new(), info: "some info"},
+            data: JsonData {
+                coordinates: Vec::new(),
+                info: "some info",
+            },
             result: 0,
         }
     }
@@ -57,7 +60,6 @@ impl Benchmark for JsonGenerate {
     fn prepare(&mut self) {
         let mut data = Vec::new();
         for _ in 0..self.n {
-
             let x = Self::round_to_8(helper::next_float(1.0));
             let y = Self::round_to_8(helper::next_float(1.0));
             let z = Self::round_to_8(helper::next_float(1.0));

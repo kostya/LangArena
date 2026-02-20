@@ -5,7 +5,10 @@ class CalculatorInterpreter : Benchmark() {
     private class Interpreter {
         private val variables = mutableMapOf<String, Long>()
 
-        private fun simpleDiv(a: Long, b: Long): Long {
+        private fun simpleDiv(
+            a: Long,
+            b: Long,
+        ): Long {
             if (b == 0L) return 0L
             return if ((a >= 0 && b > 0) || (a < 0 && b < 0)) {
                 a / b
@@ -14,15 +17,24 @@ class CalculatorInterpreter : Benchmark() {
             }
         }
 
-        private fun simpleMod(a: Long, b: Long): Long {
+        private fun simpleMod(
+            a: Long,
+            b: Long,
+        ): Long {
             if (b == 0L) return 0L
             return a - simpleDiv(a, b) * b
         }
 
-        private fun evaluate(node: CalculatorAst.Node): Long {
-            return when (node) {
-                is CalculatorAst.Number -> node.value
-                is CalculatorAst.Variable -> variables[node.name] ?: 0L
+        private fun evaluate(node: CalculatorAst.Node): Long =
+            when (node) {
+                is CalculatorAst.Number -> {
+                    node.value
+                }
+
+                is CalculatorAst.Variable -> {
+                    variables[node.name] ?: 0L
+                }
+
                 is CalculatorAst.BinaryOp -> {
                     val left = evaluate(node.left)
                     val right = evaluate(node.right)
@@ -36,14 +48,17 @@ class CalculatorInterpreter : Benchmark() {
                         else -> 0L
                     }
                 }
+
                 is CalculatorAst.Assignment -> {
                     val value = evaluate(node.expr)
                     variables[node.variable] = value
                     value
                 }
-                else -> 0L
+
+                else -> {
+                    0L
+                }
             }
-        }
 
         fun run(expressions: List<CalculatorAst.Node>): Long {
             var result = 0L
@@ -73,7 +88,7 @@ class CalculatorInterpreter : Benchmark() {
     override fun run(iterationId: Int) {
         val interpreter = Interpreter()
         val result = interpreter.run(ast)
-        resultVal += result.toUInt()  
+        resultVal += result.toUInt()
     }
 
     override fun checksum(): UInt = resultVal

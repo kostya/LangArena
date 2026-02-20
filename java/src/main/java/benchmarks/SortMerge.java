@@ -31,9 +31,9 @@ public class SortMerge extends SortBenchmark {
     private void merge(int[] arr, int[] temp, int left, int mid, int right) {
         System.arraycopy(arr, left, temp, left, right - left + 1);
 
-        int i = left;      
-        int j = mid + 1;   
-        int k = left;      
+        int i = left;
+        int j = mid + 1;
+        int k = left;
 
         while (i <= mid && j <= right) {
             if (temp[i] <= temp[j]) {

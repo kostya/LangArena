@@ -27,10 +27,10 @@ function run(b::Mandelbrot, iteration_id::Int64)
     h = b.h
     w = b.w
 
-    for y in 0:h-1
+    for y = 0:(h-1)
         ci = (2.0 * y / h - 1.0)
 
-        for x in 0:w-1
+        for x = 0:(w-1)
             cr = (2.0 * x / w - 1.5)
 
             zr = zi = tr = ti = 0.0

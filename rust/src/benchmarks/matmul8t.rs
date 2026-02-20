@@ -1,7 +1,7 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 use crate::config_i64;
-use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
+use rayon::ThreadPoolBuilder;
 
 pub struct Matmul8T {
     n: i64,
@@ -12,10 +12,7 @@ impl Matmul8T {
     pub fn new() -> Self {
         let n = config_i64("Matmul8T", "n");
 
-        Self {
-            n,
-            result_val: 0,
-        }
+        Self { n, result_val: 0 }
     }
 
     fn matgen(&self, n: usize) -> Vec<Vec<f64>> {
@@ -82,7 +79,9 @@ impl Benchmark for Matmul8T {
         let c = self.matmul_parallel(&a, &b);
 
         let center_value = c[n >> 1][n >> 1];
-        self.result_val = self.result_val.wrapping_add(helper::checksum_f64(center_value));
+        self.result_val = self
+            .result_val
+            .wrapping_add(helper::checksum_f64(center_value));
     }
 
     fn checksum(&self) -> u32 {

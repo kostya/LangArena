@@ -14,17 +14,14 @@ pub fn new_base_benchmark(class_name string) BaseBenchmark {
 }
 
 pub fn (mut b BaseBenchmark) prepare() {
-
 }
 
 pub fn (mut b BaseBenchmark) run(iteration_id int) {
-
 }
 
 pub fn (mut b BaseBenchmark) warmup(mut bench IBenchmark) {
 	prepare_iters := b.warmup_iterations()
 	for i in 0 .. prepare_iters {
-
 		bench.run(int(i))
 	}
 }
@@ -54,6 +51,5 @@ pub fn (b &BaseBenchmark) config_i64(field_name string) i64 {
 }
 
 pub fn (b &BaseBenchmark) config_string(field_name string) string {
-
 	return ''
 }

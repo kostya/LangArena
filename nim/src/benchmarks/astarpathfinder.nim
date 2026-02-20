@@ -1,7 +1,7 @@
 import std/[math, algorithm, deques, heapqueue, sequtils]
 import ../benchmark
 import ../helper
-import mazegenerator  
+import mazegenerator
 
 type
   Node = object

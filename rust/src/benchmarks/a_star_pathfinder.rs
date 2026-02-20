@@ -1,6 +1,6 @@
 use super::super::Benchmark;
-use crate::config_i64;
 use super::maze_generator::Maze;
+use crate::config_i64;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap as StdBinaryHeap;
 
@@ -19,8 +19,9 @@ impl Node {
 
 impl Ord for Node {
     fn cmp(&self, other: &Self) -> Ordering {
-
-        other.f_score.cmp(&self.f_score)
+        other
+            .f_score
+            .cmp(&self.f_score)
             .then_with(|| self.y.cmp(&other.y))
             .then_with(|| self.x.cmp(&other.x))
     }
@@ -43,11 +44,10 @@ pub struct AStarPathfinder {
     result_val: u32,
 
     g_scores_cache: Vec<i32>,
-    came_from_cache: Vec<i32>, 
+    came_from_cache: Vec<i32>,
 }
 
 impl AStarPathfinder {
-
     #[inline]
     fn distance(a_x: i32, a_y: i32, b_x: i32, b_y: i32) -> i32 {
         (a_x - b_x).abs() + (a_y - b_y).abs()
@@ -117,7 +117,7 @@ impl AStarPathfinder {
         open_set.push(Node::new(
             start_x,
             start_y,
-            Self::distance(start_x, start_y, goal_x, goal_y)
+            Self::distance(start_x, start_y, goal_x, goal_y),
         ));
 
         static DIRECTIONS: [(i32, i32); 4] = [(0, -1), (1, 0), (0, 1), (-1, 0)];
@@ -126,7 +126,6 @@ impl AStarPathfinder {
             nodes_explored += 1;
 
             if current.x == goal_x && current.y == goal_y {
-
                 let mut path = Vec::with_capacity(size);
                 let mut x = current.x;
                 let mut y = current.y;
@@ -170,7 +169,6 @@ impl AStarPathfinder {
                 let neighbor_idx = Self::pack_coords(nx, ny, width) as usize;
 
                 if tentative_g < g_scores[neighbor_idx] {
-
                     came_from[neighbor_idx] = current_idx as i32;
                     g_scores[neighbor_idx] = tentative_g;
 
@@ -200,7 +198,9 @@ impl Benchmark for AStarPathfinder {
 
         local_result = path.as_ref().map(|p| p.len()).unwrap_or(0) as u32;
 
-        local_result = local_result.wrapping_shl(5).wrapping_add(nodes_explored as u32);
+        local_result = local_result
+            .wrapping_shl(5)
+            .wrapping_add(nodes_explored as u32);
 
         self.result_val = self.result_val.wrapping_add(local_result);
     }

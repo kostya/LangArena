@@ -25,7 +25,6 @@ pub const JsonGenerate = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*JsonGenerate {
-
         const n = helper.config_i64("JsonGenerate", "coords");
 
         const self = try allocator.create(JsonGenerate);
@@ -44,7 +43,6 @@ pub const JsonGenerate = struct {
     }
 
     pub fn deinit(self: *JsonGenerate) void {
-
         for (self.data.items) |entry| {
             self.allocator.free(entry.name);
         }
@@ -121,7 +119,7 @@ pub const JsonGenerate = struct {
         if (self.result_str.items.len >= 15 and
             std.mem.startsWith(u8, self.result_str.items, "{\"coordinates\":"))
         {
-            self.result_val +%= 1; 
+            self.result_val +%= 1;
         }
     }
 

@@ -4,18 +4,28 @@ struct Gene
 end
 
 const IUB = [
-    Gene('a', 0.27), Gene('c', 0.39), Gene('g', 0.51), Gene('t', 0.78), 
-    Gene('B', 0.8), Gene('D', 0.8200000000000001),
-    Gene('H', 0.8400000000000001), Gene('K', 0.8600000000000001), 
-    Gene('M', 0.8800000000000001), Gene('N', 0.9000000000000001),
-    Gene('R', 0.9200000000000002), Gene('S', 0.9400000000000002),
-    Gene('V', 0.9600000000000002), Gene('W', 0.9800000000000002), 
-    Gene('Y', 1.0000000000000002)
+    Gene('a', 0.27),
+    Gene('c', 0.39),
+    Gene('g', 0.51),
+    Gene('t', 0.78),
+    Gene('B', 0.8),
+    Gene('D', 0.8200000000000001),
+    Gene('H', 0.8400000000000001),
+    Gene('K', 0.8600000000000001),
+    Gene('M', 0.8800000000000001),
+    Gene('N', 0.9000000000000001),
+    Gene('R', 0.9200000000000002),
+    Gene('S', 0.9400000000000002),
+    Gene('V', 0.9600000000000002),
+    Gene('W', 0.9800000000000002),
+    Gene('Y', 1.0000000000000002),
 ]
 
 const HOMO = [
-    Gene('a', 0.302954942668), Gene('c', 0.5009432431601),
-    Gene('g', 0.6984905497992), Gene('t', 1.0)
+    Gene('a', 0.302954942668),
+    Gene('c', 0.5009432431601),
+    Gene('g', 0.6984905497992),
+    Gene('t', 1.0),
 ]
 
 const ALU = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"
@@ -34,13 +44,13 @@ name(b::Fasta)::String = "Fasta"
 
 const LINE_LENGTH = 60
 
-const IUB_SORTED = sort(IUB, by=x->x.prob)
-const HOMO_SORTED = sort(HOMO, by=x->x.prob)
+const IUB_SORTED = sort(IUB, by = x->x.prob)
+const HOMO_SORTED = sort(HOMO, by = x->x.prob)
 
 function select_random(genelist::Vector{Gene})::Char
     r = Helper.next_float()
 
-    @inbounds for i in 1:length(genelist)
+    @inbounds for i = 1:length(genelist)
         if r < genelist[i].prob
             return genelist[i].c
         end
@@ -48,8 +58,13 @@ function select_random(genelist::Vector{Gene})::Char
     return genelist[end].c
 end
 
-function make_random_fasta(b::Fasta, id::String, desc::String, 
-                          genelist::Vector{Gene}, n_iter::Int)
+function make_random_fasta(
+    b::Fasta,
+    id::String,
+    desc::String,
+    genelist::Vector{Gene},
+    n_iter::Int,
+)
     io = b.io
     write(io, ">$id $desc\n")
     todo = n_iter
@@ -59,7 +74,7 @@ function make_random_fasta(b::Fasta, id::String, desc::String,
     while todo > 0
         m = min(todo, LINE_LENGTH)
 
-        @inbounds for i in 1:m
+        @inbounds for i = 1:m
             buffer[i] = UInt8(select_random(genelist))
         end
 
@@ -69,8 +84,7 @@ function make_random_fasta(b::Fasta, id::String, desc::String,
     end
 end
 
-function make_repeat_fasta(b::Fasta, id::String, desc::String,
-                          s::String, n_iter::Int)
+function make_repeat_fasta(b::Fasta, id::String, desc::String, s::String, n_iter::Int)
     io = b.io
     write(io, ">$id $desc\n")
     todo = n_iter
@@ -89,7 +103,7 @@ function make_repeat_fasta(b::Fasta, id::String, desc::String,
 
             full_repeats = m ÷ kn
             if full_repeats > 0
-                for _ in 1:full_repeats
+                for _ = 1:full_repeats
                     write(io, s)
                 end
                 m -= full_repeats * kn
@@ -100,7 +114,7 @@ function make_repeat_fasta(b::Fasta, id::String, desc::String,
                 k = m + 1
             end
         else
-            write(io, view(s, k:k+m-1))
+            write(io, view(s, k:(k+m-1)))
             k += m
         end
 

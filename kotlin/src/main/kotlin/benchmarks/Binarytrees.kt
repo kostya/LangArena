@@ -9,7 +9,10 @@ class Binarytrees : Benchmark() {
         n = configVal("depth")
     }
 
-    class TreeNode(val item: Int, depth: Int) {
+    class TreeNode(
+        val item: Int,
+        depth: Int,
+    ) {
         val left: TreeNode?
         val right: TreeNode?
 
@@ -23,18 +26,18 @@ class Binarytrees : Benchmark() {
             }
         }
 
-        fun check(): Int {
-            return if (left == null) {
+        fun check(): Int =
+            if (left == null) {
                 item
             } else {
                 left.check() - right!!.check() + item
             }
-        }
 
         companion object {
-            fun create(item: Int, depth: Int): TreeNode {
-                return TreeNode(item, depth - 1)
-            }
+            fun create(
+                item: Int,
+                depth: Int,
+            ): TreeNode = TreeNode(item, depth - 1)
         }
     }
 
@@ -45,7 +48,7 @@ class Binarytrees : Benchmark() {
         val maxDepth = Math.max(minDepth + 2, n.toInt())
         val stretchDepth = maxDepth + 1
 
-        resultVal += TreeNode.create(0, stretchDepth).check().toUInt()  
+        resultVal += TreeNode.create(0, stretchDepth).check().toUInt()
 
         for (depth in minDepth..maxDepth step 2) {
             val iterations = 1 shl (maxDepth - depth + minDepth)
@@ -55,7 +58,6 @@ class Binarytrees : Benchmark() {
                 resultVal += TreeNode.create(-i, depth).check().toUInt()
             }
         }
-
     }
 
     override fun checksum(): UInt = resultVal

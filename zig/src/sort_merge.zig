@@ -5,7 +5,7 @@ const Helper = @import("helper.zig").Helper;
 pub const SortMerge = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
-    data: std.ArrayList(i32), 
+    data: std.ArrayList(i32),
     result_val: u32,
 
     const vtable = Benchmark.VTable{
@@ -22,7 +22,7 @@ pub const SortMerge = struct {
         self.* = SortMerge{
             .allocator = allocator,
             .helper = helper,
-            .data = .{}, 
+            .data = .{},
             .result_val = 0,
         };
 
@@ -60,7 +60,7 @@ pub const SortMerge = struct {
     fn mergeSortHelper(arr: []i32, temp: []i32, left: usize, right: usize) void {
         if (left >= right) return;
 
-        const mid = @divTrunc(left + right, 2); 
+        const mid = @divTrunc(left + right, 2);
         mergeSortHelper(arr, temp, left, mid);
         mergeSortHelper(arr, temp, mid + 1, right);
         merge(arr, temp, left, mid, right);
@@ -92,7 +92,6 @@ pub const SortMerge = struct {
     }
 
     fn testSort(self: *SortMerge, allocator: std.mem.Allocator) ![]i32 {
-
         const arr = try allocator.alloc(i32, self.data.items.len);
         const temp = try allocator.alloc(i32, self.data.items.len);
         defer allocator.free(temp);

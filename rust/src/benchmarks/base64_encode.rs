@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 use crate::config_i64;
 use base64::{engine::general_purpose, Engine as _};
 
@@ -36,8 +36,16 @@ impl Benchmark for Base64Encode {
     fn checksum(&self) -> u32 {
         let message = format!(
             "encode {} to {}: {}",
-            if self.str_data.len() > 4 { format!("{}...", &self.str_data[0..4]) } else { self.str_data.clone() },
-            if self.str2_encoded.len() > 4 { format!("{}...", &self.str2_encoded[0..4]) } else { self.str2_encoded.clone() },
+            if self.str_data.len() > 4 {
+                format!("{}...", &self.str_data[0..4])
+            } else {
+                self.str_data.clone()
+            },
+            if self.str2_encoded.len() > 4 {
+                format!("{}...", &self.str2_encoded[0..4])
+            } else {
+                self.str2_encoded.clone()
+            },
             self.result_val
         );
 

@@ -63,7 +63,7 @@ pub const CalculatorAst = struct {
         _ = iteration_id;
 
         var arena = std.heap.ArenaAllocator.init(self.allocator);
-        defer arena.deinit(); 
+        defer arena.deinit();
 
         const arena_allocator = arena.allocator();
 

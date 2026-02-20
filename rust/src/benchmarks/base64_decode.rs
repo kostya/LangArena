@@ -1,4 +1,4 @@
-use super::super::{Benchmark, helper};
+use super::super::{helper, Benchmark};
 use crate::config_i64;
 use base64::{engine::general_purpose, Engine as _};
 
@@ -31,7 +31,9 @@ impl Benchmark for Base64Decode {
     }
 
     fn run(&mut self, _iteration_id: i64) {
-        self.str3_decoded = general_purpose::STANDARD.decode(&self.str2_encoded).unwrap();
+        self.str3_decoded = general_purpose::STANDARD
+            .decode(&self.str2_encoded)
+            .unwrap();
         self.result_val = self.result_val.wrapping_add(self.str3_decoded.len() as u32);
     }
 
@@ -41,7 +43,11 @@ impl Benchmark for Base64Decode {
 
         let message = format!(
             "decode {} to {}: {}",
-            if self.str2_encoded.len() > 4 { format!("{}...", &self.str2_encoded[0..4]) } else { self.str2_encoded.clone() },
+            if self.str2_encoded.len() > 4 {
+                format!("{}...", &self.str2_encoded[0..4])
+            } else {
+                self.str2_encoded.clone()
+            },
             format!("{}...", &str3[0..4]),
             self.result_val
         );

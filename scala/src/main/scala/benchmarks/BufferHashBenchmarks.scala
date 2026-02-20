@@ -22,8 +22,7 @@ class BufferHashSHA256 extends BufferHashBenchmark:
     def digest(data: Array[Byte]): Array[Byte] =
       val result = new Array[Byte](32)
       val hashes = Array(
-        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-        0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
       )
 
       var i = 0
@@ -32,7 +31,7 @@ class BufferHashSHA256 extends BufferHashBenchmark:
         val hashIdx = i % 8
         var hash = hashes(hashIdx)
 
-        hash = ((hash << 5) + hash) + (byte.toInt & 0xFF)
+        hash = ((hash << 5) + hash) + (byte.toInt & 0xff)
         hash = (hash + (hash << 10)) ^ (hash >>> 6)
         hashes(hashIdx) = hash
         i += 1
@@ -51,28 +50,27 @@ class BufferHashSHA256 extends BufferHashBenchmark:
   override def test(): Long =
     val bytes = SimpleSHA256.digest(data)
 
-    ((bytes(3).toLong & 0xFFL) << 24) |
-    ((bytes(2).toLong & 0xFFL) << 16) |
-    ((bytes(1).toLong & 0xFFL) << 8)  |
-    (bytes(0).toLong & 0xFFL)
+    ((bytes(3).toLong & 0xffL) << 24) |
+      ((bytes(2).toLong & 0xffL) << 16) |
+      ((bytes(1).toLong & 0xffL) << 8) |
+      (bytes(0).toLong & 0xffL)
 
   override def name(): String = "BufferHashSHA256"
 
 class BufferHashCRC32 extends BufferHashBenchmark:
   override def test(): Long =
-    var crc = 0xFFFFFFFFL
+    var crc = 0xffffffffL
 
     for byte <- data do
-      crc = crc ^ (byte.toLong & 0xFFL)
+      crc = crc ^ (byte.toLong & 0xffL)
 
       var j = 0
       while j < 8 do
-        crc = if (crc & 1L) != 0L then
-          (crc >>> 1) ^ 0xEDB88320L
-        else
-          crc >>> 1
+        crc =
+          if (crc & 1L) != 0L then (crc >>> 1) ^ 0xedb88320L
+          else crc >>> 1
         j += 1
 
-    crc ^ 0xFFFFFFFFL
+    crc ^ 0xffffffffL
 
   override def name(): String = "BufferHashCRC32"

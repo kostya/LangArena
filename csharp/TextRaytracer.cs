@@ -133,7 +133,7 @@ public class TextRaytracer : Benchmark
                     {
                         hitObj = obj;
                         tval = ret.Value;
-                        break;  
+                        break;
                     }
                 }
 

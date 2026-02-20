@@ -15,13 +15,13 @@ name(b::Fannkuchredux)::String = "Fannkuchredux"
 function run(b::Fannkuchredux, iteration_id::Int64)
     n = Int32(b.n)
 
-    perm1 = MVector{32, Int32}(undef)
-    perm = MVector{32, Int32}(undef)
-    count = MVector{32, Int32}(undef)
+    perm1 = MVector{32,Int32}(undef)
+    perm = MVector{32,Int32}(undef)
+    count = MVector{32,Int32}(undef)
 
     i = Int32(0)
     while i < n
-        perm1[i+1] = i  
+        perm1[i+1] = i
         perm[i+1] = 0
         count[i+1] = 0
         i += 1
@@ -35,7 +35,7 @@ function run(b::Fannkuchredux, iteration_id::Int64)
     while true
 
         while r > 1
-            count[r] = r  
+            count[r] = r
             r -= 1
         end
 
@@ -46,10 +46,10 @@ function run(b::Fannkuchredux, iteration_id::Int64)
         end
 
         flips_count = Int32(0)
-        k = perm[1]  
+        k = perm[1]
 
         while k != 0
-            k2 = (k + 1) >> 1  
+            k2 = (k + 1) >> 1
 
             i_local = Int32(0)
             while i_local < k2
@@ -62,7 +62,7 @@ function run(b::Fannkuchredux, iteration_id::Int64)
             end
 
             flips_count += 1
-            k = perm[1]  
+            k = perm[1]
         end
 
         if flips_count > max_flips
@@ -84,17 +84,17 @@ function run(b::Fannkuchredux, iteration_id::Int64)
                 return
             end
 
-            perm0 = perm1[1]  
+            perm0 = perm1[1]
 
             i = Int32(0)
             while i < r
-                perm1[i+1] = perm1[i+2]  
+                perm1[i+1] = perm1[i+2]
                 i += 1
             end
 
-            perm1[r+1] = perm0  
+            perm1[r+1] = perm0
 
-            count[r+1] -= 1  
+            count[r+1] -= 1
             if count[r+1] > 0
                 break
             end

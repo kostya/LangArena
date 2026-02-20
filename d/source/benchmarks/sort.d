@@ -8,13 +8,15 @@ import std.random;
 import benchmark;
 import helper;
 
-class SortBenchmark : Benchmark {
+class SortBenchmark : Benchmark
+{
 protected:
     int[] data;
     int sizeVal;
     uint resultVal;
 
-    this() {
+    this()
+    {
         resultVal = 0;
         sizeVal = 0;
     }
@@ -22,45 +24,60 @@ protected:
     abstract int[] test();
 
 protected:
-    override string className() const { return "SortBenchmark"; }
+    override string className() const
+    {
+        return "SortBenchmark";
+    }
 
 public:
-    override void prepare() {
-        if (sizeVal == 0) {
+    override void prepare()
+    {
+        if (sizeVal == 0)
+        {
             sizeVal = configVal("size");
             data.length = sizeVal;
 
-            foreach (i; 0 .. sizeVal) {
+            foreach (i; 0 .. sizeVal)
+            {
                 data[i] = Helper.nextInt(1_000_000);
             }
         }
     }
 
-    override void run(int iterationId) {
+    override void run(int iterationId)
+    {
 
-        resultVal += data[Helper.nextInt(cast(int)sizeVal)];
+        resultVal += data[Helper.nextInt(cast(int) sizeVal)];
 
         int[] t = test();
-        resultVal += t[Helper.nextInt(cast(int)sizeVal)];
+        resultVal += t[Helper.nextInt(cast(int) sizeVal)];
     }
 
-    override uint checksum() {
+    override uint checksum()
+    {
         return resultVal;
     }
 }
 
-class SortQuick : SortBenchmark {
+class SortQuick : SortBenchmark
+{
 private:
-    void quickSort(ref int[] arr, int low, int high) {
-        if (low >= high) return;
+    void quickSort(ref int[] arr, int low, int high)
+    {
+        if (low >= high)
+            return;
 
         int pivot = arr[(low + high) / 2];
         int i = low, j = high;
 
-        while (i <= j) {
-            while (arr[i] < pivot) i++;
-            while (arr[j] > pivot) j--;
-            if (i <= j) {
+        while (i <= j)
+        {
+            while (arr[i] < pivot)
+                i++;
+            while (arr[j] > pivot)
+                j--;
+            if (i <= j)
+            {
                 swap(arr[i], arr[j]);
                 i++;
                 j--;
@@ -72,25 +89,33 @@ private:
     }
 
 protected:
-    override string className() const { return "SortQuick"; }
+    override string className() const
+    {
+        return "SortQuick";
+    }
 
 public:
-    override int[] test() {
-        int[] arr = data.dup;  
+    override int[] test()
+    {
+        int[] arr = data.dup;
         quickSort(arr, 0, cast(int)(arr.length - 1));
         return arr;
     }
 }
 
-class SortMerge : SortBenchmark {
+class SortMerge : SortBenchmark
+{
 private:
-    void mergeSortInplace(ref int[] arr) {
+    void mergeSortInplace(ref int[] arr)
+    {
         int[] temp = new int[arr.length];
         mergeSortHelper(arr, temp, 0, cast(int)(arr.length - 1));
     }
 
-    void mergeSortHelper(ref int[] arr, ref int[] temp, int left, int right) {
-        if (left >= right) return;
+    void mergeSortHelper(ref int[] arr, ref int[] temp, int left, int right)
+    {
+        if (left >= right)
+            return;
 
         int mid = (left + right) / 2;
         mergeSortHelper(arr, temp, left, mid);
@@ -98,25 +123,31 @@ private:
         merge(arr, temp, left, mid, right);
     }
 
-    void merge(ref int[] arr, ref int[] temp, int left, int mid, int right) {
+    void merge(ref int[] arr, ref int[] temp, int left, int mid, int right)
+    {
         temp[left .. right + 1] = arr[left .. right + 1];
 
         int i = left;
         int j = mid + 1;
         int k = left;
 
-        while (i <= mid && j <= right) {
-            if (temp[i] <= temp[j]) {
+        while (i <= mid && j <= right)
+        {
+            if (temp[i] <= temp[j])
+            {
                 arr[k] = temp[i];
                 i++;
-            } else {
+            }
+            else
+            {
                 arr[k] = temp[j];
                 j++;
             }
             k++;
         }
 
-        while (i <= mid) {
+        while (i <= mid)
+        {
             arr[k] = temp[i];
             i++;
             k++;
@@ -124,24 +155,33 @@ private:
     }
 
 protected:
-    override string className() const { return "SortMerge"; }
+    override string className() const
+    {
+        return "SortMerge";
+    }
 
 public:
-    override int[] test() {
-        int[] arr = data.dup;  
+    override int[] test()
+    {
+        int[] arr = data.dup;
         mergeSortInplace(arr);
         return arr;
     }
 }
 
-class SortSelf : SortBenchmark {
+class SortSelf : SortBenchmark
+{
 protected:
-    override string className() const { return "SortSelf"; }
+    override string className() const
+    {
+        return "SortSelf";
+    }
 
 public:
-    override int[] test() {
-        int[] arr = data.dup;  
-        sort(arr);  
+    override int[] test()
+    {
+        int[] arr = data.dup;
+        sort(arr);
         return arr;
     }
 }

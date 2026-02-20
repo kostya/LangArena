@@ -1,11 +1,11 @@
-mod helper;
 mod benchmarks;
+mod helper;
 
+use serde_json::Value;
 use std::collections::HashMap;
+use std::fs;
 use std::sync::OnceLock;
 use std::time::Instant;
-use std::fs;
-use serde_json::Value;
 
 static CONFIG: OnceLock<Value> = OnceLock::new();
 
@@ -26,18 +26,20 @@ macro_rules! benchmark_list {
 }
 
 fn load_config() {
-    let filename = std::env::args().nth(1).unwrap_or_else(|| "../test.js".to_string());
+    let filename = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "../test.js".to_string());
     let file_content = fs::read_to_string(filename).expect("Failed to read config file");
 
-    let config: Value = serde_json::from_str(&file_content)
-        .expect("Failed to parse JSON config");
+    let config: Value = serde_json::from_str(&file_content).expect("Failed to parse JSON config");
 
     CONFIG.set(config).expect("Failed to set CONFIG");
 }
 
 fn config_i64(class_name: &str, field_name: &str) -> i64 {
     let config = CONFIG.get().expect("Config not loaded");
-    config.get(class_name)
+    config
+        .get(class_name)
         .and_then(|c| c.get(field_name))
         .and_then(|v| v.as_i64())
         .unwrap_or_else(|| {
@@ -48,7 +50,8 @@ fn config_i64(class_name: &str, field_name: &str) -> i64 {
 
 fn config_s(class_name: &str, field_name: &str) -> String {
     let config = CONFIG.get().expect("Config not loaded");
-    config.get(class_name)
+    config
+        .get(class_name)
         .and_then(|c| c.get(field_name))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
@@ -63,7 +66,8 @@ trait Benchmark: Send + Sync {
     fn prepare(&mut self) {}
     fn warmup_iterations(&self) -> i64 {
         let config = CONFIG.get().expect("Config not loaded");
-        config.get(&self.name())
+        config
+            .get(&self.name())
             .and_then(|c| c.get("warmup_iterations"))
             .and_then(|v| v.as_i64())
             .unwrap_or_else(|| {
@@ -176,7 +180,8 @@ fn run_benchmarks(single_bench: Option<&str>) {
             }
         }
 
-        if name == "SortBenchmark" || name == "BufferHashBenchmark" || name == "GraphPathBenchmark" {
+        if name == "SortBenchmark" || name == "BufferHashBenchmark" || name == "GraphPathBenchmark"
+        {
             continue;
         }
 
@@ -192,7 +197,7 @@ fn run_benchmarks(single_bench: Option<&str>) {
         helper::reset();
 
         let start = Instant::now();
-        bench.run_all();  
+        bench.run_all();
         let time_delta = start.elapsed().as_secs_f64();
 
         results.insert(name.clone(), time_delta);
@@ -205,7 +210,11 @@ fn run_benchmarks(single_bench: Option<&str>) {
             print!("OK ");
             ok += 1;
         } else {
-            print!("ERR[actual={:?}, expected={:?}] ", bench.checksum(), expected);
+            print!(
+                "ERR[actual={:?}, expected={:?}] ",
+                bench.checksum(),
+                expected
+            );
             fails += 1;
         }
 
@@ -217,7 +226,13 @@ fn run_benchmarks(single_bench: Option<&str>) {
         let _ = std::fs::write("/tmp/results.js", json);
     }
 
-    println!("Summary: {:.4}s, {}, {}, {}", summary_time, ok + fails, ok, fails);
+    println!(
+        "Summary: {:.4}s, {}, {}, {}",
+        summary_time,
+        ok + fails,
+        ok,
+        fails
+    );
 
     let _ = fs::write("/tmp/recompile_marker", "RECOMPILE_MARKER_0");
 

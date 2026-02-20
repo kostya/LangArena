@@ -5,35 +5,53 @@ import java.util.*
 
 class MazeGenerator : Benchmark() {
     public enum class Cell {
-        WALL, PATH
+        WALL,
+        PATH,
     }
 
-    public class Maze(private val width: Int, private val height: Int) {
+    public class Maze(
+        private val width: Int,
+        private val height: Int,
+    ) {
         private val cells = Array(height) { Array(width) { Cell.WALL } }
 
-        fun get(x: Int, y: Int): Cell = cells[y][x]
-        fun set(x: Int, y: Int, cell: Cell) {
+        fun get(
+            x: Int,
+            y: Int,
+        ): Cell = cells[y][x]
+
+        fun set(
+            x: Int,
+            y: Int,
+            cell: Cell,
+        ) {
             cells[y][x] = cell
         }
 
         private fun addRandomPaths() {
-            val numExtraPaths = (width * height) / 20 
+            val numExtraPaths = (width * height) / 20
 
             for (i in 0 until numExtraPaths) {
-                val x = Helper.nextInt(width - 2) + 1 
+                val x = Helper.nextInt(width - 2) + 1
                 val y = Helper.nextInt(height - 2) + 1
 
                 if (get(x, y) == Cell.WALL &&
                     get(x - 1, y) == Cell.WALL &&
                     get(x + 1, y) == Cell.WALL &&
                     get(x, y - 1) == Cell.WALL &&
-                    get(x, y + 1) == Cell.WALL) {
+                    get(x, y + 1) == Cell.WALL
+                ) {
                     set(x, y, Cell.PATH)
                 }
             }
         }
 
-        private fun divide(x1: Int, y1: Int, x2: Int, y2: Int) {
+        private fun divide(
+            x1: Int,
+            y1: Int,
+            x2: Int,
+            y2: Int,
+        ) {
             val width = x2 - x1
             val height = y2 - y1
 
@@ -45,10 +63,12 @@ class MazeGenerator : Benchmark() {
             val heightForHole = maxOf(height - 1, 0)
 
             if (widthForWall == 0 || heightForWall == 0 ||
-                widthForHole == 0 || heightForHole == 0) return
+                widthForHole == 0 || heightForHole == 0
+            ) {
+                return
+            }
 
             if (width > height) {
-
                 val wallRange = maxOf(widthForWall / 2, 1)
                 val wallOffset = if (wallRange > 0) Helper.nextInt(wallRange) * 2 else 0
                 val wallX = x1 + 2 + wallOffset
@@ -68,7 +88,6 @@ class MazeGenerator : Benchmark() {
                 if (wallX > x1 + 1) divide(x1, y1, wallX - 1, y2)
                 if (wallX + 1 < x2) divide(wallX + 1, y1, x2, y2)
             } else {
-
                 val wallRange = maxOf(heightForWall / 2, 1)
                 val wallOffset = if (wallRange > 0) Helper.nextInt(wallRange) * 2 else 0
                 val wallY = y1 + 2 + wallOffset
@@ -90,9 +109,15 @@ class MazeGenerator : Benchmark() {
             }
         }
 
-        private fun isConnectedImpl(startX: Int, startY: Int, goalX: Int, goalY: Int): Boolean {
+        private fun isConnectedImpl(
+            startX: Int,
+            startY: Int,
+            goalX: Int,
+            goalY: Int,
+        ): Boolean {
             if (startX >= width || startY >= height ||
-                goalX >= width || goalY >= height) {
+                goalX >= width || goalY >= height
+            ) {
                 return false
             }
 
@@ -153,12 +178,18 @@ class MazeGenerator : Benchmark() {
             return result
         }
 
-        fun isConnected(startX: Int, startY: Int, goalX: Int, goalY: Int): Boolean {
-            return isConnectedImpl(startX, startY, goalX, goalY)
-        }
+        fun isConnected(
+            startX: Int,
+            startY: Int,
+            goalX: Int,
+            goalY: Int,
+        ): Boolean = isConnectedImpl(startX, startY, goalX, goalY)
 
         companion object {
-            fun generateWalkableMaze(width: Int, height: Int): Array<BooleanArray> {
+            fun generateWalkableMaze(
+                width: Int,
+                height: Int,
+            ): Array<BooleanArray> {
                 val maze = Maze(width, height)
                 maze.generate()
 
@@ -195,13 +226,13 @@ class MazeGenerator : Benchmark() {
     }
 
     private fun gridChecksum(grid: Array<BooleanArray>): UInt {
-        var hasher = 2166136261UL      
-        val prime = 16777619UL         
+        var hasher = 2166136261UL
+        val prime = 16777619UL
 
         for (i in grid.indices) {
             val row = grid[i]
             for (j in row.indices) {
-                if (row[j]) {  
+                if (row[j]) {
                     val jSquared = (j * j).toULong()
                     hasher = (hasher xor jSquared) * prime
                 }

@@ -4,16 +4,22 @@ import Benchmark
 import java.util.*
 
 abstract class GraphPathBenchmark : Benchmark() {
-    protected class Graph(val vertices: Int, val jumps: Int = 3, val jumpLen: Int = 100) {
+    protected class Graph(
+        val vertices: Int,
+        val jumps: Int = 3,
+        val jumpLen: Int = 100,
+    ) {
         val adj = Array(vertices) { mutableListOf<Int>() }
 
-        fun addEdge(u: Int, v: Int) {
+        fun addEdge(
+            u: Int,
+            v: Int,
+        ) {
             adj[u].add(v)
             adj[v].add(u)
         }
 
         fun generateRandom() {
-
             for (i in 1 until vertices) {
                 addEdge(i, i - 1)
             }
@@ -54,7 +60,10 @@ abstract class GraphPathBenchmark : Benchmark() {
 }
 
 class GraphPathBFS : GraphPathBenchmark() {
-    private fun bfsShortestPath(start: Int, target: Int): Int {
+    private fun bfsShortestPath(
+        start: Int,
+        target: Int,
+    ): Int {
         if (start == target) return 0
 
         val visited = BooleanArray(graph.vertices)
@@ -79,15 +88,16 @@ class GraphPathBFS : GraphPathBenchmark() {
         return -1
     }
 
-    override fun test(): Long {
-        return bfsShortestPath(0, graph.vertices - 1).toLong()
-    }
+    override fun test(): Long = bfsShortestPath(0, graph.vertices - 1).toLong()
 
     override fun name(): String = "GraphPathBFS"
 }
 
 class GraphPathDFS : GraphPathBenchmark() {
-    private fun dfsFindPath(start: Int, target: Int): Int {
+    private fun dfsFindPath(
+        start: Int,
+        target: Int,
+    ): Int {
         if (start == target) return 0
 
         val visited = BooleanArray(graph.vertices)
@@ -114,21 +124,28 @@ class GraphPathDFS : GraphPathBenchmark() {
         return if (bestPath == Int.MAX_VALUE) -1 else bestPath
     }
 
-    override fun test(): Long {
-        return dfsFindPath(0, graph.vertices - 1).toLong()
-    }
+    override fun test(): Long = dfsFindPath(0, graph.vertices - 1).toLong()
 
     override fun name(): String = "GraphPathDFS"
 }
 
 class GraphPathAStar : GraphPathBenchmark() {
-    private data class Node(val vertex: Int, val priority: Int) : Comparable<Node> {
+    private data class Node(
+        val vertex: Int,
+        val priority: Int,
+    ) : Comparable<Node> {
         override fun compareTo(other: Node): Int = this.priority.compareTo(other.priority)
     }
 
-    private fun heuristic(v: Int, target: Int): Int = target - v
+    private fun heuristic(
+        v: Int,
+        target: Int,
+    ): Int = target - v
 
-    private fun aStarShortestPath(start: Int, target: Int): Int {
+    private fun aStarShortestPath(
+        start: Int,
+        target: Int,
+    ): Int {
         if (start == target) return 0
 
         val gScore = IntArray(graph.vertices) { Int.MAX_VALUE }
@@ -174,9 +191,7 @@ class GraphPathAStar : GraphPathBenchmark() {
         return -1
     }
 
-    override fun test(): Long {
-        return aStarShortestPath(0, graph.vertices - 1).toLong()
-    }
+    override fun test(): Long = aStarShortestPath(0, graph.vertices - 1).toLong()
 
     override fun name(): String = "GraphPathAStar"
 }
