@@ -50,7 +50,14 @@ class Gen
       end 
       @runs_all << k     
     end
-	end
+
+    if @j["#{@tests[0]}-runtime"].size != @runs_all.size
+      # not full document
+      puts "WARNING NOT FULL, Adjust"
+      @runs_prod &= @j["#{@tests[0]}-runtime"].keys
+      @runs_all &= @j["#{@tests[0]}-runtime"].keys
+    end
+  end
 
   def all_langs
     @langs.map { |l| _to_lang(l) } 
@@ -121,6 +128,7 @@ class Gen
       max = 0
       t[:up_header].size.times do |ri|
         sum += line[ri]
+
         if line[ri] < min
           min = line[ri]
         end
@@ -136,30 +144,36 @@ class Gen
     end
 
     new_m = []
+    summaries = Array.new(runs.size, 0.0)
     m.each_with_index do |line, i|
+      j = 0
       d = line.map do |v|
-        if v <= mins[i]
+        point = if v <= mins[i]
           100.0
         elsif v <= avg1[i]
           100 - ((v - mins[i]) / (avg1[i] - mins[i])) * 10
         elsif v <= avg2[i]
           90 - ((v - avg1[i]) / (avg2[i] - avg1[i])) * 40
         else
-          # Используем maxs[i] для определения затухания
-          if v >= maxs[i] * 0.99  # очень близко к максимальному
+          if v >= maxs[i] * 0.99
             0.0
           else
-            # Плавное затухание от avg2 к max
-            # avg2 → 50, max → 0
             ratio = (v - avg2[i]) / (maxs[i] - avg2[i])
             50 - 50 * ratio
           end
         end
+        summaries[j] += point
+        j += 1
+        point
       end
       new_m << d.map { |v| v.round(1) }
     end
 
     t[:map] = new_m
+    t[:summary] = {
+      "desc": "Average",
+      "data": summaries.map { |v| (v / @tests.size).round(1) }
+    }
     t[:description] = <<-DESC
 This table shows normalized runtime performance rankings from 0 to 100 for each benchmark.<br>
 <br>
@@ -178,7 +192,6 @@ This normalization method helps mitigate outlier issues where:<br>
 • One language might have a single poor result due to a bug<br>
 • One language might use an extremely optimized library and outperform others significantly<br>
 DESC
-    t[:summary] = "avg"
     t
   end
 
@@ -211,17 +224,34 @@ Heatmap: greener = faster, redder = slower.
   end
 
   def main_table(field, runs = @runs_prod)
+    summaries = Array.new(runs.size, 0.0)
+
     m = @tests.map do |test|
+      i = -1
       runs.map do |run|
+        i += 1
+
         if @j["#{test}-#{field}"][run]
-          format_float @j["#{test}-#{field}"][run]
+          v = @j["#{test}-#{field}"][run]
+          summaries[i] += v
+          format_float v
         else
-          puts "Warning missing value for #{test} #{field} #{run}"
+          # puts "Warning missing value for #{test} #{field} #{run}"
           nil
-        end
+        end        
       end
     end
-    {map: m, up_header: runs, left_header: @tests, summary: field == 'runtime' ? 'sum' : 'avg', lang: :up, first_row: "Test"}
+
+    summary = {}
+    if field == 'runtime'
+      summary['desc'] = "Summary"
+      summary['data'] = summaries.map { |v| format_float v }
+    else
+      summary['desc'] = "Average"
+      summary['data'] = summaries.map { |s| s / @tests.size }.map { |v| format_float v }
+    end
+
+    {map: m, up_header: runs, left_header: @tests, summary: summary, lang: :up, first_row: "Test"}
   end
 
   def source
@@ -747,10 +777,32 @@ DESC
     [result, up_header]
   end
 
+  def custom_json(data, max_depth = 2, current_depth = 0)
+    if current_depth >= max_depth || !data.is_a?(Hash)
+      return data.to_json
+    end
+    
+    indent = "  " * current_depth
+    next_indent = "  " * (current_depth + 1)
+    
+    json = "{\n"
+    data.each_with_index do |(key, value), index|
+      json << "#{next_indent}\"#{key}\": "
+      if value.is_a?(Hash) && current_depth < max_depth - 1
+        json << custom_json(value, max_depth, current_depth + 1)
+      else
+        json << value.to_json
+      end
+      json << ",\n" unless index == data.size - 1
+    end
+    json << "\n#{indent}}"
+    json
+  end
+
   def generate
     File.open("data.js", 'w') do |f|
       f.write("var Data = ")
-      f.write(to_h.to_json)
+      f.write(custom_json(to_h, 3))
       f.write(";")
     end
   end
@@ -759,6 +811,7 @@ DESC
     res = {}
     @langs.each do |lang|
       runs = @runs_all.select { |run| _lang_for(run) == lang }
+      next if runs.empty?
       res[lang] = main_table('runtime', runs)
       desc = <<-DESC
 This table shows special "hacked" configurations — excluded from official rankings. <br>
@@ -847,18 +900,29 @@ DESC
     return unless hist
     field = 'runtime'
 
+    summaries1 = Array.new(@runs_prod.size, 0.0)
+    summaries2 = Array.new(@runs_prod.size, 0.0)
+
     m = @tests.map do |test|
+      k = -1
       @runs_prod.map do |run|
+        k += 1
         if @j["#{test}-#{field}"][run]
           v = @j["#{test}-#{field}"][run]
 
+          summaries2[k] += v
+
           if (rt = hist["#{test}-#{field}"]) && rt[run]
-            v -= rt[run]
+            summaries1[k] += rt[run]
+            diff = v - rt[run]
+            v = (diff / v.to_f) * 100
+          else
+            v = 100
           end
 
-          format_float v
+          v.round(1)
         else
-          puts "Warning missing value for #{test} #{field} #{run}"
+          # puts "Warning missing value for #{test} #{field} #{run}"
           nil
         end
       end
@@ -874,7 +938,18 @@ DESC
         </p>
       DESC
     end
-    {map: m, up_header: @runs_prod, left_header: @tests, summary: 'sum', lang: :up, description: desc, first_row: "Test"}
+    summary_data = summaries2.each_with_index.map do |s2, i| 
+      s1 = summaries1[i]
+      if s1 == 0
+        # new lang
+        100
+      else
+        diff = s2 - s1
+        (diff / s1 * 100).round(1)
+      end
+    end
+    summary = {desc: 'Summary, %', data: summary_data }
+    {map: m, up_header: @runs_prod, left_header: @tests, summary: summary, lang: :up, description: desc, first_row: "Test"}
   end
 
   def to_h
@@ -889,10 +964,12 @@ DESC
       'langs': all_langs,
 
       'runtime_table': runtime_table,
+      'runtime_table_by_lang': runtime_table_by_best_run,
+
       'runtime_table_rel': runtime_table_rel,
       'runtime_table_by_lang_rel': runtime_table_by_best_run_rel,
-      'memory_table': memory_table,
-      'runtime_table_by_lang': runtime_table_by_best_run,
+
+      'memory_table': memory_table,      
       'memory_table_by_lang': memory_table_by_best_run,
 
       'source': source,
@@ -910,7 +987,6 @@ DESC
       # 'test_rank_mem': test_rank('mem-mb'),
       'awards': awards,
       'main_legend': main_legend,
-
     }
   end
 
@@ -935,7 +1011,8 @@ DESC
 
     # Find best result for each language
     h2 = {}
-    @langs.each do |lang|
+    _langs = h.keys.map { |k| _lang_for(k) }.uniq.sort
+    _langs.each do |lang|
       keys = h.keys.select { |k| _lang_for(k) == lang }
 
       min_runtime = 100000000.0
@@ -952,20 +1029,16 @@ DESC
   end
 
   def _assign_stars(values)
-    # Сортируем значения
     sorted = values.sort
     n = sorted.size
 
-    # Создаем маппинг значение->звезды
     value_to_stars = {}
     sorted.each_with_index do |val, idx|
-      # Определяем группу (0-4) и преобразуем в звезды (5-1)
       group = (idx * 5 / n.to_f).floor
       stars = 5 - group
-      value_to_stars[val] = stars unless value_to_stars[val]  # сохраняем первое вхождение
+      value_to_stars[val] = stars unless value_to_stars[val]
     end
 
-    # Возвращаем звезды в исходном порядке
     values.map { |val| value_to_stars[val] }
   end
 
