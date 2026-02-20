@@ -108,7 +108,8 @@ class Gen
       avg1 << sum / rel_indexes.size
     end
 
-    # p t[:left_header].zip(avg1.map { |v| v.round(2) })
+    # print "Shifts: "
+    # p t[:left_header].zip(avg1.map { |v| v.round(2) }).sort_by { |(run, v)| -v }
 
     mins = []
     avg2 = []
@@ -298,15 +299,15 @@ This table compares how concisely different programming languages express the sa
     m = []
     runs.each do |run|
       a = []
-      a << run
-      p run
-      a << format_float(@j['compile-time-cold'][run])
-      a << format_float(@j['compile-memory-cold'][run])
-      a << format_float(@j['compile-time-incremental'][run])
-      a << format_float(@j['compile-memory-incremental'][run])
-      a << format_float(@j['binary-size-kb'][run] / 1024.0)
-      p a
-      m << a
+      unless @j["build-cmd"][run] == "true"
+        a << run
+        a << format_float(@j['compile-time-cold'][run])
+        a << format_float(@j['compile-memory-cold'][run])
+        a << format_float(@j['compile-time-incremental'][run])
+        a << format_float(@j['compile-memory-incremental'][run])
+        a << format_float(@j['binary-size-kb'][run] / 1024.0)
+        m << a
+      end
     end
 
     m.sort_by! do |line|
@@ -373,8 +374,8 @@ This table compares how concisely different programming languages express the sa
     wins = _vert(b[:map], b[:up_header].index("Wins Count")).map { |s| s =~ /([0-9\.]+)/; $1.to_i }
     wins = b[:left_header].zip(wins).sort_by { |lang, win| -win }.map { |a, v| [a, "#{v}"] }
 
-    ct = _vert(b[:map], b[:up_header].index("Compile Time Inc, s")).map { |s| s =~ /([0-9\.]+)/; $1.to_f.round(1) }
-    ct = b[:left_header].zip(ct).sort_by { |lang, v| v }.map { |a, v| [a, "#{v}s"] }.reject { |(lang, v)| lang == "python" || lang == "julia" }
+    ct = _vert(b[:map], b[:up_header].index("Compile Time Inc, s")).map { |s| s =~ /([0-9\.]+)/; $1 == nil ? 100000 : $1.to_f.round(1) }
+    ct = b[:left_header].zip(ct).sort_by { |lang, v| v }.map { |a, v| [a, "#{v}s"] }
 
     exp = _vert(b[:map], b[:up_header].index("Expressiveness")).map { |s| s =~ /([\-0-9\.]+)/; $1.to_f.round(1) }
     exp = b[:left_header].zip(exp).sort_by { |lang, v| -v }.map { |a, v| [a, "#{v}%"] }
@@ -406,7 +407,11 @@ This table compares how concisely different programming languages express the sa
       data.each_with_index do |d, index|
         next if index == 0
         values = v3[index]
-        values = (up_header[index] == "Wins Count" || up_header[index] == "Expressiveness" || up_header[index] == "Runtime Score") ? values.sort_by { |(a, b)| -b } : values.sort_by { |(a, b)| b }
+        values = if (up_header[index] == "Wins Count" || up_header[index] == "Expressiveness" || up_header[index] == "Runtime Score")
+          values.sort_by { |(a, b)| b == '-' ? -1000000 : -b }
+        else 
+          values.sort_by { |(a, b)| b == '-' ? 1000000 : b }
+        end
         best = values[0][1]
 
         v = if up_header[index] == "Wins Count"
@@ -421,6 +426,12 @@ This table compares how concisely different programming languages express the sa
           ((d / best.to_f) * 100).round(1)
         elsif up_header[index] == "Runtime Score"
           ((d / best.to_f) * 100).round(1)
+        elsif up_header[index] == "Compile Time Inc, s" || up_header[index] == "Compile Memory Inc, Mb"
+          if d == '-'
+            100
+          else
+            ((best / d.to_f) * 100).round(1)
+          end
         else
           ((best / d.to_f) * 100).round(1)
         end
@@ -524,7 +535,11 @@ DESC
       data.each_with_index do |d, index|
         next if index == 0
         values = v3[index]
-        values = (up_header[index] == "Wins Count" || up_header[index] == "Expressiveness"|| up_header[index] == "Runtime Score") ? values.sort_by { |(a, b)| -b } : values.sort_by { |(a, b)| b }
+        values = if (up_header[index] == "Wins Count" || up_header[index] == "Expressiveness"|| up_header[index] == "Runtime Score")
+          values.sort_by { |(a, b)| b == '-' ? -1000000 : -b }
+        else 
+          values.sort_by { |(a, b)| b == '-' ? 1000000 : b }
+        end
 
         data[index] = if values[0][0] == lang
           %Q{<span class="value_badge gold">#{d}</span>}
@@ -682,7 +697,11 @@ DESC
 
     up_header << "Compile Time Inc, s"
     runs.each do |run|
-      result[_lang_for run] << format_float(@j['compile-time-incremental'][run])
+      unless @j["build-cmd"][run] == "true"
+        result[_lang_for run] << format_float(@j['compile-time-incremental'][run])
+      else
+        result[_lang_for run] << '-'
+      end
     end
 
     # compile memory
@@ -695,7 +714,11 @@ DESC
     up_header << "Compile Memory Inc, Mb"
     # up_header << "Compile Memory vs Fastest"
     runs.each do |run|
-      result[_lang_for run] << format_float(@j['compile-memory-incremental'][run])
+      unless @j["build-cmd"][run] == "true"
+        result[_lang_for run] << format_float(@j['compile-memory-incremental'][run])
+      else
+        result[_lang_for run] << '-'
+      end
     end
 
     # binary size
