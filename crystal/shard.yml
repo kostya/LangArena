@@ -4,3 +4,5 @@ version: 0.1.0
 dependencies:
   cryyjson:
     github: syeopite/cryyjson
+  mut_gmp:
+    github: ralsina/mut_gmp
