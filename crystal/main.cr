@@ -1,7 +1,9 @@
-require "big"
 require "base64"
+require "big"
+require "cryyjson"
 require "json"
 require "complex"
+require "mut_gmp"
 
 puts "start: #{Time.local.to_unix_ms}"
 Benchmark.run(ARGV[1]?)
@@ -190,35 +192,72 @@ class Pidigits < Benchmark
   def run(iteration_id)
     i = 0
     k = 0
-    ns = 0.to_big_i
-    a = 0.to_big_i
-    t = 0
-    u = 0.to_big_i
+    ns = MutGMP::MpZ.new(0)
+    a = MutGMP::MpZ.new(0)
+    t = MutGMP::MpZ.new(0)
+    u = MutGMP::MpZ.new(0)
     k1 = 1
-    n = 1.to_big_i
-    d = 1.to_big_i
+    n = MutGMP::MpZ.new(1)
+    d = MutGMP::MpZ.new(1)
 
-    while true
+    # Temporary variables for intermediate calculations
+    tmp1 = MutGMP::MpZ.new(0)
+    tmp2 = MutGMP::MpZ.new(0)
+
+    loop do
       k += 1
-      t = n << 1
-      n *= k
+      # t = n << 1
+      tmp1.set!(n)
+      tmp1.shl!(1)
+      t.set!(tmp1)
+
+      # n *= k
+      n.mul!(k)
+
       k1 += 2
-      a = (a + t) * k1
-      d *= k1
+
+      # a = (a + t) * k1
+      tmp1.set!(a)
+      tmp1.add!(t)
+      tmp1.mul!(k1)
+      a.set!(tmp1)
+
+      # d *= k1
+      d.mul!(k1)
+
       if a >= n
-        t, u = (n * 3 + a).divmod(d)
-        u += n
-        if d > u
-          ns = ns * 10 + t
+        # t, u = (n * 3 + a).divmod(d)
+        tmp1.set!(n)
+        tmp1.mul!(3)
+        tmp1.add!(a)
+        # tmp1 is now numerator
+
+        # Use GMP's fdiv_qr for efficient divmod (quotient in t, remainder in u)
+        LibGMP.fdiv_qr(t.to_unsafe, u.to_unsafe, tmp1.to_unsafe, d.to_unsafe)
+
+        # u += n
+        u.add!(n)
+
+        if d >= u
+          # ns = ns * 10 + t
+          ns.mul!(10)
+          ns.add!(t)
+
           i += 1
           if i % 10 == 0
             @result << "%010d\t:%d\n" % {ns.to_u64, i}
-            ns = 0
+            ns.set!(0)
           end
           break if i >= @nn
 
-          a = (a - (d * t)) * 10
-          n *= 10
+          # a = (a - (d * t)) * 10
+          tmp1.set!(d)
+          tmp1.mul!(t)
+          a.sub!(tmp1)
+          a.mul!(10)
+
+          # n *= 10
+          n.mul!(10)
         end
       end
     end
@@ -535,7 +574,7 @@ class Fannkuchredux < Benchmark
     n = 32 if n > 32
     r = n
 
-    while true
+    loop do
       while r > 1
         count[r - 1] = r
         r -= 1
@@ -556,7 +595,7 @@ class Fannkuchredux < Benchmark
       maxFlipsCount = flipsCount if flipsCount > maxFlipsCount
       checksum += (permCount % 2 == 0) ? flipsCount : -flipsCount
 
-      while true
+      loop do
         return {checksum, maxFlipsCount} if r == n
 
         perm0 = perm1[0]
@@ -1351,7 +1390,7 @@ end
 
 class JsonParseDom < Benchmark
   def calc(text)
-    jobj = JSON.parse(text)
+    jobj = Cryyjson.parse(text)
     coordinates = jobj["coordinates"].as_a
     len = coordinates.size.to_f
     x = y = z = 0.0
@@ -3572,7 +3611,7 @@ class BWTHuffEncode < Benchmark
 
     private def sift_down(index : Int32)
       size = @heap.size
-      while true
+      loop do
         left = index * 2 + 1
         right = index * 2 + 2
         smallest = index

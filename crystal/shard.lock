@@ -1,0 +1,10 @@
+version: 2.0
+shards:
+  cryyjson:
+    git: https://github.com/syeopite/cryyjson.git
+    version: 0.1.0+git.commit.2b818b5ae72790e75a9237a33789436dcdbfc3b3
+
+  mut_gmp:
+    git: https://github.com/ralsina/mut_gmp.git
+    version: 0.1.0+git.commit.0c9c4dcc45f7f6ea2c10d463d1e215e8521e02d1
+
