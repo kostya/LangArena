@@ -353,14 +353,13 @@ class BrainfuckArray < Benchmark
     _run(commands, jumps)
   end
 
-  private def parse_commands(source : String) : Array(Char)?
-    source.chars
-      .select(&.ascii?)
-      .select { |c| "+-<>[].,".includes?(c) }
-      .to_a
+  private def parse_commands(source : String) : Bytes?
+    valid_chars = "+-<>[].,".to_slice
+    bytes = source.bytes.select { |b| valid_chars.includes?(b) }
+    Bytes.new(bytes.to_unsafe, bytes.size)
   end
 
-  private def build_jump_array(commands : Array(Char)) : Array(Int32)?
+  private def build_jump_array(commands : Bytes) : Array(Int32)?
     jumps = Array.new(commands.size, 0)
     stack = [] of Int32
 
@@ -379,59 +378,53 @@ class BrainfuckArray < Benchmark
     stack.empty? ? jumps : nil
   end
 
-  struct Tape
-    getter tape = Array(UInt8).new(30000, 0_u8)
-    property pos = 0
-
-    def get
-      @tape[@pos]
-    end
-
-    def inc
-      @tape[@pos] &+= 1
-    end
-
-    def dec
-      @tape[@pos] &-= 1
-    end
-
-    def adv
-      @pos += 1
-      @tape << 0 if @pos >= @tape.size
-    end
-
-    def dev
-      @pos -= 1
-      @pos = 0 if @pos < 0
-    end
-  end
-
-  private def _run(commands : Array(Char), jumps : Array(Int32)) : UInt32?
-    tape = Tape.new
-    pc = 0
+  private def _run(commands : Bytes, jumps : Array(Int32)) : UInt32?
+    tape_mem = Array(UInt8).new(30000, 0_u8)
+    tape_ptr = tape_mem.to_unsafe
+    tape_pos = 0
+    tape_size = 30000
+    cmd_ptr = commands.to_unsafe
+    cmd_end = cmd_ptr + commands.size
+    jumps_ptr = jumps.to_unsafe
     result = 0_u32
 
-    while pc < commands.size
-      case commands[pc]
-      when '+'; tape.inc
-      when '-'; tape.dec
-      when '>'; tape.adv
-      when '<'; tape.dev
-      when '['
-        if tape.get == 0
-          pc = jumps[pc]
+    while cmd_ptr < cmd_end
+      cmd = cmd_ptr.value
+      case cmd
+      when 43_u8 # '+'
+        tape_ptr[tape_pos] &+= 1
+      when 45_u8 # '-'
+        tape_ptr[tape_pos] &-= 1
+      when 62_u8 # '>'
+        tape_pos += 1
+        if tape_pos >= tape_size
+          new_size = tape_size * 2
+          tape_mem.concat(Array.new(new_size - tape_size, 0_u8))
+          tape_ptr = tape_mem.to_unsafe
+          tape_size = new_size
+        end
+      when 60_u8 # '<'
+        tape_pos -= 1
+        tape_pos = 0 if tape_pos < 0
+      when 91_u8 # '['
+        if tape_ptr[tape_pos] == 0
+          offset = (cmd_ptr - commands.to_unsafe).to_i32
+          cmd_ptr = commands.to_unsafe + jumps_ptr[offset]
+          cmd_ptr += 1
           next
         end
-      when ']'
-        if tape.get != 0
-          pc = jumps[pc]
+      when 93_u8 # ']'
+        if tape_ptr[tape_pos] != 0
+          offset = (cmd_ptr - commands.to_unsafe).to_i32
+          cmd_ptr = commands.to_unsafe + jumps_ptr[offset]
+          cmd_ptr += 1
           next
         end
-      when '.'
+      when 46_u8 # '.'
         result <<= 2
-        result &+= tape.get
+        result &+= tape_ptr[tape_pos]
       end
-      pc += 1
+      cmd_ptr += 1
     end
     result
   rescue
@@ -453,25 +446,31 @@ class BrainfuckRecursion < Benchmark
       @pos = 0
     end
 
+    @[AlwaysInline]
     def get : UInt8
-      @tape[@pos]
+      @tape.to_unsafe[@pos]
     end
 
+    @[AlwaysInline]
     def inc
-      @tape[@pos] &+= 1
+      @tape.to_unsafe[@pos] &+= 1
     end
 
+    @[AlwaysInline]
     def dec
-      @tape[@pos] &-= 1
+      @tape.to_unsafe[@pos] &-= 1
     end
 
+    @[AlwaysInline]
     def advance
       @pos += 1
       if @pos >= @tape.size
-        @tape << 0_u8
+        new_size = @tape.size * 2
+        @tape.concat(Array.new(new_size - @tape.size, 0_u8))
       end
     end
 
+    @[AlwaysInline]
     def devance
       if @pos > 0
         @pos -= 1
@@ -499,7 +498,11 @@ class BrainfuckRecursion < Benchmark
     end
 
     def run_ops(ops : Array(Op), tape)
-      ops.each do |op|
+      i = 0
+      n = ops.size
+      ops_ptr = ops.to_unsafe
+      while i < n
+        op = ops_ptr[i]
         case op
         when Inc
           tape.inc
@@ -516,6 +519,7 @@ class BrainfuckRecursion < Benchmark
             run_ops(op, tape)
           end
         end
+        i += 1
       end
     end
 
@@ -2327,7 +2331,7 @@ class GraphPathAStar < GraphPathBenchmark
         last = @heap[@size]
         i = 0
 
-        while true
+        loop do
           left = 2*i + 1
           right = 2*i + 2
           smallest = i
