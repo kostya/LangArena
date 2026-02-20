@@ -1,6 +1,7 @@
 #!/bin/sh
 mkdir -p target
 rm -f ./target/bin_crystal
+shards
 crystal build main.cr --release -Dpreview_mt -o target/bin_crystal
 export CRYSTAL_WORKERS=16
 ./target/bin_crystal ../run.js "$@"
