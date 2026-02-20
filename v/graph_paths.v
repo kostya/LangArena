@@ -123,7 +123,6 @@ pub fn (mut b GraphPathBFS) prepare() {
 }
 
 pub fn (mut b GraphPathBFS) run(iteration_id int) {
-	_ = iteration_id
 	length := bfs_shortest_path(b.graph, 0, b.graph.vertices - 1)
 	b.result_val += u32(length)
 }
@@ -193,7 +192,6 @@ pub fn (mut b GraphPathDFS) prepare() {
 }
 
 pub fn (mut b GraphPathDFS) run(iteration_id int) {
-	_ = iteration_id
 	length := dfs_find_path(b.graph, 0, b.graph.vertices - 1)
 	b.result_val += u32(length)
 }
@@ -352,7 +350,6 @@ pub fn (mut b GraphPathAStar) prepare() {
 }
 
 pub fn (mut b GraphPathAStar) run(iteration_id int) {
-	_ = iteration_id
 	length := a_star_shortest_path(b.graph, 0, b.graph.vertices - 1)
 	b.result_val += u32(length)
 }

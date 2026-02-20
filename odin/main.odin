@@ -50,8 +50,14 @@ main :: proc() {
     benchmark.register_benchmark_factory(benchmark.create_gameoflife)
     benchmark.register_benchmark_factory(benchmark.create_mazegenerator)
     benchmark.register_benchmark_factory(benchmark.create_astarpathfinder)
-    benchmark.register_benchmark_factory(benchmark.create_bwthuffencode)
-    benchmark.register_benchmark_factory(benchmark.create_bwthuffdecode)
+    benchmark.register_benchmark_factory(benchmark.create_bwtencode)
+    benchmark.register_benchmark_factory(benchmark.create_bwtdecode)
+    benchmark.register_benchmark_factory(benchmark.create_huffencode)
+    benchmark.register_benchmark_factory(benchmark.create_huffdecode)
+    benchmark.register_benchmark_factory(benchmark.create_arithencode)
+    benchmark.register_benchmark_factory(benchmark.create_arithdecode)
+    benchmark.register_benchmark_factory(benchmark.create_lzwencode)
+    benchmark.register_benchmark_factory(benchmark.create_lzwdecode)
 
     config_file := "../test.json"
     if len(os.args) > 1 {

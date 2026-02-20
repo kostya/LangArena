@@ -29,7 +29,6 @@ const iter = 50
 const limit = 2.0
 
 pub fn (mut m Mandelbrot) run(iteration_id int) {
-	_ = iteration_id
 	w := int(m.w)
 	h := int(m.h)
 

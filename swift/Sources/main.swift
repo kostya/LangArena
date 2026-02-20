@@ -46,8 +46,14 @@ func main() {
   BenchmarkManager.register { GameOfLife() }
   BenchmarkManager.register { MazeGenerator() }
   BenchmarkManager.register { AStarPathfinder() }
-  BenchmarkManager.register { BWTHuffEncode() }
-  BenchmarkManager.register { BWTHuffDecode() }
+  BenchmarkManager.register { BWTEncode() }
+  BenchmarkManager.register { BWTDecode() }
+  BenchmarkManager.register { HuffEncode() }
+  BenchmarkManager.register { HuffDecode() }
+  BenchmarkManager.register { ArithEncode() }
+  BenchmarkManager.register { ArithDecode() }
+  BenchmarkManager.register { LZWEncode() }
+  BenchmarkManager.register { LZWDecode() }
 
   let args = CommandLine.arguments.dropFirst()
   let configFile = args.first { $0.hasSuffix(".txt") || $0.hasSuffix(".js") }

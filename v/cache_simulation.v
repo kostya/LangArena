@@ -149,8 +149,6 @@ pub fn (mut b CacheSimulation) prepare() {
 }
 
 pub fn (mut b CacheSimulation) run(iteration_id int) {
-	_ = iteration_id
-
 	key_idx := helper.next_int(b.values_size)
 	key := 'item_${key_idx}'
 

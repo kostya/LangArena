@@ -98,8 +98,6 @@ fn (mut f Fasta) make_repeat_fasta(id string, desc string, s string, n_iter int)
 }
 
 pub fn (mut f Fasta) run(iteration_id int) {
-	_ = iteration_id
-
 	iub := [
 		Gene{`a`, 0.27},
 		Gene{`c`, 0.39},

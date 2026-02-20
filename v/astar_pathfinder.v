@@ -251,7 +251,6 @@ pub fn (mut b AStarPathfinder) prepare() {
 }
 
 pub fn (mut b AStarPathfinder) run(iteration_id int) {
-	_ = iteration_id
 	path, nodes_explored := b.find_path()
 
 	mut local_result := u32(0)

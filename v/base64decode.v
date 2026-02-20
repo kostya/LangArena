@@ -33,7 +33,6 @@ pub fn (b Base64Decode) name() string {
 }
 
 pub fn (mut b Base64Decode) run(iteration_id int) {
-	_ = iteration_id
 	b.decoded = b64.decode(b.encoded)
 	b.result_val += u32(b.decoded.len)
 }

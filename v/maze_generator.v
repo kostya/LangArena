@@ -265,7 +265,6 @@ pub fn (mut b MazeGenerator) prepare() {
 }
 
 pub fn (mut b MazeGenerator) run(iteration_id int) {
-	_ = iteration_id
 	b.bool_grid = generate_walkable_maze(b.width, b.height)
 }
 

@@ -151,7 +151,6 @@ fn run_program_impl(text string) u64 {
 }
 
 pub fn (mut b BrainfuckArray) run(iteration_id int) {
-	_ = iteration_id
 	result := run_program_impl(b.program_text)
 	b.result_val += u32(result)
 }

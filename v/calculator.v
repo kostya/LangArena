@@ -315,7 +315,6 @@ pub fn (mut b CalculatorAst) prepare() {
 }
 
 pub fn (mut b CalculatorAst) run(iteration_id int) {
-	_ = iteration_id
 	mut parser := new_parser(b.text)
 	b.expressions = parser.parse()
 	b.result_val += u32(b.expressions.len)
@@ -444,7 +443,6 @@ pub fn (mut b CalculatorInterpreter) prepare() {
 }
 
 pub fn (mut b CalculatorInterpreter) run(iteration_id int) {
-	_ = iteration_id
 	mut interpreter := Interpreter{
 		variables: map[string]i64{}
 	}

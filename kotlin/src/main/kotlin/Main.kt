@@ -47,8 +47,14 @@ fun main(args: Array<String>) {
     Benchmark.registerBenchmark { GameOfLife() }
     Benchmark.registerBenchmark { MazeGenerator() }
     Benchmark.registerBenchmark { AStarPathfinder() }
-    Benchmark.registerBenchmark { BWTHuffEncode() }
-    Benchmark.registerBenchmark { BWTHuffDecode() }
+    Benchmark.registerBenchmark { BWTEncode() }
+    Benchmark.registerBenchmark { BWTDecode() }
+    Benchmark.registerBenchmark { HuffEncode() }
+    Benchmark.registerBenchmark { HuffDecode() }
+    Benchmark.registerBenchmark { ArithEncode() }
+    Benchmark.registerBenchmark { ArithDecode() }
+    Benchmark.registerBenchmark { LZWEncode() }
+    Benchmark.registerBenchmark { LZWDecode() }
 
     val now = Instant.now().toEpochMilli()
     println("start: $now")

@@ -26,8 +26,6 @@ pub fn (b PidigitsBenchmark) name() string {
 }
 
 pub fn (mut b PidigitsBenchmark) run(iteration_id int) {
-	_ = iteration_id
-
 	mut i := 0
 	mut k := 0
 	mut ns := big.zero_int

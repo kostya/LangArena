@@ -3426,454 +3426,858 @@ class AStarPathfinder < Benchmark
   end
 end
 
-class BWTHuffEncode < Benchmark
-  struct BWTResult
-    property transformed : Bytes
-    property original_idx : Int32
-
-    def initialize(@transformed : Bytes, @original_idx : Int32)
-    end
-  end
-
-  private def bwt_transform(input : Bytes) : BWTResult
-    n = input.size
-    return BWTResult.new(Bytes.new(0), 0) if n == 0
-
-    sa = Array.new(n) { |i| i }
-
-    buckets = Array.new(256) { [] of Int32 }
-    sa.each do |idx|
-      first_char = input[idx]
-      buckets[first_char] << idx
-    end
-
-    pos = 0
-    buckets.each do |bucket|
-      bucket.each do |idx|
-        sa[pos] = idx
-        pos += 1
-      end
-    end
-
-    if n > 1
-      rank = Array.new(n, 0)
-      current_rank = 0
-      prev_char = input[sa[0]]
-
-      sa.each_with_index do |idx, i|
-        if input[idx] != prev_char
-          current_rank += 1
-          prev_char = input[idx]
-        end
-        rank[idx] = current_rank
-      end
-
-      k = 1
-      while k < n
-        pairs = Array.new(n) { |i| {rank[i], rank[(i + k) % n]} }
-
-        sa.sort! do |a, b|
-          pair_a = pairs[a]
-          pair_b = pairs[b]
-          if pair_a[0] != pair_b[0]
-            pair_a[0] <=> pair_b[0]
-          else
-            pair_a[1] <=> pair_b[1]
-          end
-        end
-
-        new_rank = Array.new(n, 0)
-        new_rank[sa[0]] = 0
-        (1...n).each do |i|
-          prev_pair = pairs[sa[i - 1]]
-          curr_pair = pairs[sa[i]]
-          new_rank[sa[i]] = new_rank[sa[i - 1]] + (prev_pair != curr_pair ? 1 : 0)
-        end
-
-        rank = new_rank
-        k *= 2
-      end
-    end
-
-    transformed = Bytes.new(n)
-    original_idx = 0
-
-    sa.each_with_index do |suffix, i|
-      if suffix == 0
-        transformed[i] = input[n - 1]
-        original_idx = i
-      else
-        transformed[i] = input[suffix - 1]
-      end
-    end
-
-    BWTResult.new(transformed, original_idx)
-  end
-
-  private def bwt_inverse(bwt_result : BWTResult) : Bytes
-    bwt = bwt_result.transformed
-    n = bwt.size
-    return Bytes.new(0) if n == 0
-
-    counts = StaticArray(Int32, 256).new(0)
-    bwt.each do |byte|
-      counts[byte] += 1
-    end
-
-    positions = StaticArray(Int32, 256).new(0)
-    total = 0
-    counts.each_with_index do |count, i|
-      positions[i] = total
-      total += count
-    end
-
-    next_arr = Array.new(n, 0)
-    temp_counts = StaticArray(Int32, 256).new(0)
-
-    bwt.each_with_index do |byte, i|
-      byte_idx = byte.to_i32
-      pos = positions[byte_idx] + temp_counts[byte_idx]
-      next_arr[pos] = i
-      temp_counts[byte_idx] += 1
-    end
-
-    result = Bytes.new(n)
-    idx = bwt_result.original_idx
-
-    n.times do |i|
-      idx = next_arr[idx]
-      result[i] = bwt[idx]
-    end
-
-    result
-  end
-
-  class HuffmanNode
-    property frequency : Int32
-    property byte_val : UInt8?
-    property is_leaf : Bool
-    property left : HuffmanNode?
-    property right : HuffmanNode?
-    property index : Int32
-
-    def initialize(@frequency : Int32, @byte_val : UInt8? = nil, @is_leaf : Bool = true)
-      @index = 0
-    end
-  end
-
-  class PriorityQueue
-    @heap : Array(HuffmanNode)
-
-    def initialize
-      @heap = [] of HuffmanNode
-    end
-
-    def push(node : HuffmanNode)
-      @heap << node
-      node.index = @heap.size - 1
-      sift_up(@heap.size - 1)
-    end
-
-    def pop : HuffmanNode
-      return @heap.pop if @heap.size <= 1
-
-      root = @heap[0]
-      @heap[0] = @heap.pop
-      @heap[0].index = 0
-      sift_down(0)
-      root
-    end
-
-    def size : Int32
-      @heap.size
-    end
-
-    def empty? : Bool
-      @heap.empty?
-    end
-
-    private def sift_up(index : Int32)
-      while index > 0
-        parent = (index - 1) // 2
-        break if @heap[parent].frequency <= @heap[index].frequency
-        swap(index, parent)
-        index = parent
-      end
-    end
-
-    private def sift_down(index : Int32)
-      size = @heap.size
-      while true
-        left = index * 2 + 1
-        right = index * 2 + 2
-        smallest = index
-
-        smallest = left if left < size && @heap[left].frequency < @heap[smallest].frequency
-        smallest = right if right < size && @heap[right].frequency < @heap[smallest].frequency
-
-        break if smallest == index
-
-        swap(index, smallest)
-        index = smallest
-      end
-    end
-
-    private def swap(i : Int32, j : Int32)
-      @heap[i], @heap[j] = @heap[j], @heap[i]
-      @heap[i].index = i
-      @heap[j].index = j
-    end
-  end
-
-  private def build_huffman_tree(frequencies : Array(Int32)) : HuffmanNode
-    heap = PriorityQueue.new
-
-    frequencies.each_with_index do |freq, i|
-      if freq > 0
-        heap.push(HuffmanNode.new(freq, i.to_u8))
-      end
-    end
-
-    if heap.size == 1
-      node = heap.pop
-      root = HuffmanNode.new(node.frequency, nil, false)
-      root.left = node
-      root.right = HuffmanNode.new(0, 0_u8)
-      return root
-    end
-
-    while heap.size > 1
-      left = heap.pop
-      right = heap.pop
-
-      parent = HuffmanNode.new(
-        left.frequency + right.frequency,
-        nil,
-        false
-      )
-      parent.left = left
-      parent.right = right
-
-      heap.push(parent)
-    end
-
-    heap.pop
-  end
-
-  class HuffmanCodes
-    property code_lengths : Array(Int32)
-    property codes : Array(Int32)
-
-    def initialize
-      @code_lengths = Array.new(256, 0)
-      @codes = Array.new(256, 0)
-    end
-  end
-
-  private def build_huffman_codes(node : HuffmanNode, code : Int32, length : Int32, huffman_codes : HuffmanCodes)
-    if node.is_leaf
-      if length > 0 || node.byte_val != 0
-        idx = node.byte_val.not_nil!
-        huffman_codes.code_lengths[idx] = length
-        huffman_codes.codes[idx] = code
-      end
-    else
-      if left = node.left
-        build_huffman_codes(left, code << 1, length + 1, huffman_codes)
-      end
-      if right = node.right
-        build_huffman_codes(right, (code << 1) | 1, length + 1, huffman_codes)
-      end
-    end
-  end
-
-  struct EncodedResult
-    property data : Bytes
-    property bit_count : Int32
-
-    def initialize(@data : Bytes, @bit_count : Int32)
-    end
-  end
-
-  private def huffman_encode(data : Bytes, huffman_codes : HuffmanCodes) : EncodedResult
-    result = Bytes.new(data.size * 2)
-    current_byte = 0_u8
-    bit_pos = 0
-    byte_index = 0
-    total_bits = 0
-
-    data.each do |byte|
-      idx = byte.to_i32
-      code = huffman_codes.codes[idx]
-      length = huffman_codes.code_lengths[idx]
-
-      (length - 1).downto(0) do |i|
-        if (code & (1 << i)) != 0
-          current_byte |= 1 << (7 - bit_pos)
-        end
-        bit_pos += 1
-        total_bits += 1
-
-        if bit_pos == 8
-          result[byte_index] = current_byte
-          byte_index += 1
-          current_byte = 0_u8
-          bit_pos = 0
-        end
-      end
-    end
-
-    if bit_pos > 0
-      result[byte_index] = current_byte
-      byte_index += 1
-    end
-
-    EncodedResult.new(result[0, byte_index], total_bits)
-  end
-
-  private def huffman_decode(encoded : Bytes, root : HuffmanNode, bit_count : Int32) : Bytes
-    result = Bytes.new(bit_count // 4 + 1)
-    result_idx = 0
-    current_node = root
-    bits_processed = 0
-    byte_index = 0
-
-    while bits_processed < bit_count && byte_index < encoded.size
-      byte_val = encoded[byte_index]
-      byte_index += 1
-
-      7.downto(0) do |bit_pos|
-        break if bits_processed >= bit_count
-
-        bit = ((byte_val >> bit_pos) & 1) == 1
-        bits_processed += 1
-
-        current_node = bit ? current_node.right.not_nil! : current_node.left.not_nil!
-
-        if current_node.is_leaf
-          if current_node.byte_val != 0
-            if result_idx >= result.size
-              new_size = result.size * 2
-              new_result = Bytes.new(new_size)
-              result.copy_to(new_result)
-              result = new_result
-            end
-            result[result_idx] = current_node.byte_val.not_nil!
-            result_idx += 1
-          end
-          current_node = root
-        end
-      end
-    end
-
-    result[0, result_idx]
-  end
-
-  struct CompressedData
-    property bwt_result : BWTResult
-    property frequencies : Array(Int32)
-    property encoded_bits : Bytes
-    property original_bit_count : Int32
-
-    def initialize(@bwt_result : BWTResult, @frequencies : Array(Int32),
-                   @encoded_bits : Bytes, @original_bit_count : Int32)
-    end
-  end
-
-  private def compress(data : Bytes) : CompressedData
-    bwt_result = bwt_transform(data)
-
-    frequencies = Array.new(256, 0)
-    bwt_result.transformed.each do |byte|
-      frequencies[byte] += 1
-    end
-
-    huffman_tree = build_huffman_tree(frequencies)
-
-    huffman_codes = HuffmanCodes.new
-    build_huffman_codes(huffman_tree, 0, 0, huffman_codes)
-
-    encoded = huffman_encode(bwt_result.transformed, huffman_codes)
-
-    CompressedData.new(
-      bwt_result,
-      frequencies,
-      encoded.data,
-      encoded.bit_count
-    )
-  end
-
-  private def decompress(compressed : CompressedData) : Bytes
-    huffman_tree = build_huffman_tree(compressed.frequencies)
-
-    decoded = huffman_decode(
-      compressed.encoded_bits,
-      huffman_tree,
-      compressed.original_bit_count
-    )
-
-    bwt_result = BWTResult.new(
-      decoded,
-      compressed.bwt_result.original_idx
-    )
-
-    bwt_inverse(bwt_result)
-  end
-
-  property size : Int64
-  property result : UInt32
-  @test_data : Bytes?
-
-  def initialize
-    @size = config_val("size")
-    @result = 0_u32
-  end
-
-  private def generate_test_data(size : Int64) : Bytes
+module Compress
+  def self.generate_test_data(size : Int64) : Bytes
     pattern = "ABRACADABRA"
     data = Bytes.new(size)
 
     size.times do |i|
-      data[i] = pattern[i % pattern.size].ord.to_u8
+      data[i] = pattern[i % pattern.bytesize].ord.to_u8
     end
 
     data
   end
 
-  def prepare
-    @test_data = generate_test_data(@size)
-  end
+  class BWTEncode < Benchmark
+    struct BWTResult
+      property transformed : Bytes
+      property original_idx : Int32
 
-  def run(iteration_id)
-    compressed = compress(@test_data.not_nil!)
-    @result &+= compressed.encoded_bits.size.to_u32
-  end
-
-  def checksum : UInt32
-    @result
-  end
-end
-
-class BWTHuffDecode < BWTHuffEncode
-  @compressed : CompressedData?
-  @decompressed : Bytes?
-
-  def prepare
-    @test_data = generate_test_data(@size)
-    @compressed = compress(@test_data.not_nil!)
-  end
-
-  def run(iteration_id)
-    @decompressed = decompressed = decompress(@compressed.not_nil!)
-    @result &+= decompressed.size.to_u32
-  end
-
-  def checksum : UInt32
-    res = @result
-    if @decompressed.not_nil! == @test_data.not_nil!
-      res &+= 1000000
+      def initialize(@transformed : Bytes = Bytes.new(0), @original_idx : Int32 = 0)
+      end
     end
-    res
+
+    private def bwt_transform(input : Bytes) : BWTResult
+      n = input.bytesize
+      return BWTResult.new(Bytes.new(0), 0) if n == 0
+
+      sa = Array.new(n) { |i| i }
+
+      buckets = Array.new(256) { [] of Int32 }
+      sa.each do |idx|
+        first_char = input[idx]
+        buckets[first_char] << idx
+      end
+
+      pos = 0
+      buckets.each do |bucket|
+        bucket.each do |idx|
+          sa[pos] = idx
+          pos += 1
+        end
+      end
+
+      if n > 1
+        rank = Array.new(n, 0)
+        current_rank = 0
+        prev_char = input[sa[0]]
+
+        sa.each_with_index do |idx, i|
+          if input[idx] != prev_char
+            current_rank += 1
+            prev_char = input[idx]
+          end
+          rank[idx] = current_rank
+        end
+
+        k = 1
+        while k < n
+          pairs = Array.new(n) { |i| {rank[i], rank[(i + k) % n]} }
+
+          sa.sort! do |a, b|
+            pair_a = pairs[a]
+            pair_b = pairs[b]
+            if pair_a[0] != pair_b[0]
+              pair_a[0] <=> pair_b[0]
+            else
+              pair_a[1] <=> pair_b[1]
+            end
+          end
+
+          new_rank = Array.new(n, 0)
+          new_rank[sa[0]] = 0
+          (1...n).each do |i|
+            prev_pair = pairs[sa[i - 1]]
+            curr_pair = pairs[sa[i]]
+            new_rank[sa[i]] = new_rank[sa[i - 1]] + (prev_pair != curr_pair ? 1 : 0)
+          end
+
+          rank = new_rank
+          k *= 2
+        end
+      end
+
+      transformed = Bytes.new(n)
+      original_idx = 0
+
+      sa.each_with_index do |suffix, i|
+        if suffix == 0
+          transformed[i] = input[n - 1]
+          original_idx = i
+        else
+          transformed[i] = input[suffix - 1]
+        end
+      end
+
+      BWTResult.new(transformed, original_idx)
+    end
+
+    property size : Int64
+    property result : UInt32
+    getter test_data : Bytes
+    getter bwt_result : BWTResult
+
+    def initialize
+      @size = config_val("size")
+      @result = 0_u32
+      @test_data = Bytes.new(0)
+      @bwt_result = BWTResult.new
+    end
+
+    def prepare
+      @test_data = Compress.generate_test_data(@size)
+    end
+
+    def run(iteration_id)
+      @bwt_result = bwt_transform(@test_data)
+      @result &+= @bwt_result.transformed.bytesize.to_u32
+    end
+
+    def checksum : UInt32
+      @result
+    end
+  end
+
+  class BWTDecode < Benchmark
+    private def bwt_inverse(bwt_result : BWTEncode::BWTResult) : Bytes
+      bwt = bwt_result.transformed
+      n = bwt.bytesize
+      return Bytes.new(0) if n == 0
+
+      counts = StaticArray(Int32, 256).new(0)
+      bwt.each do |byte|
+        counts[byte] += 1
+      end
+
+      positions = StaticArray(Int32, 256).new(0)
+      total = 0
+      counts.each_with_index do |count, i|
+        positions[i] = total
+        total += count
+      end
+
+      next_arr = Array.new(n, 0)
+      temp_counts = StaticArray(Int32, 256).new(0)
+
+      bwt.each_with_index do |byte, i|
+        pos = positions[byte] + temp_counts[byte]
+        next_arr[pos] = i
+        temp_counts[byte] += 1
+      end
+
+      result = Bytes.new(n)
+      idx = bwt_result.original_idx
+
+      n.times do |i|
+        idx = next_arr[idx]
+        result[i] = bwt[idx]
+      end
+
+      Slice.new(result.to_unsafe, result.size)
+    end
+
+    property size : Int64
+    property result : UInt32
+    getter test_data : Bytes
+    getter inverted : Bytes
+
+    def initialize
+      @size = config_val("size")
+      @result = 0_u32
+      @test_data = Bytes.new(0)
+      @inverted = Bytes.new(0)
+      @bwt_result = BWTEncode::BWTResult.new
+    end
+
+    def prepare
+      encoder = BWTEncode.new
+      encoder.size = @size
+      encoder.prepare
+      encoder.run(0)
+      @test_data = encoder.test_data
+      @bwt_result = encoder.bwt_result
+    end
+
+    def run(iteration_id)
+      @inverted = bwt_inverse(@bwt_result)
+      @result &+= @inverted.bytesize.to_u32
+    end
+
+    def checksum : UInt32
+      if @inverted == @test_data
+        @result &+= 100_000
+      end
+      @result
+    end
+  end
+
+  class HuffEncode < Benchmark
+    class HuffmanNode
+      property frequency : Int32
+      property byte_val : UInt8
+      property is_leaf : Bool
+      property left : HuffmanNode?
+      property right : HuffmanNode?
+      property index : Int32
+
+      def initialize(@frequency : Int32 = 0, @byte_val : UInt8 = 0, @is_leaf : Bool = true)
+        @index = 0
+      end
+    end
+
+    class HuffmanCodes
+      property code_lengths : Array(Int32)
+      property codes : Array(Int32)
+
+      def initialize
+        @code_lengths = Array.new(256, 0)
+        @codes = Array.new(256, 0)
+      end
+    end
+
+    struct EncodedResult
+      property frequencies : Array(Int32)
+      property data : Bytes
+      property bit_count : Int32
+
+      def initialize(@data : Bytes = Bytes.new(0), @bit_count : Int32 = 0, @frequencies = Array(Int32).new)
+      end
+    end
+
+    def self.build_huffman_tree(frequencies : Array(Int32)) : HuffmanNode
+      nodes = [] of HuffmanNode
+      frequencies.each_with_index do |freq, i|
+        nodes << HuffmanNode.new(freq, i.to_u8) if freq > 0
+      end
+
+      nodes.sort_by! { |node| node.frequency }
+
+      if nodes.size == 1
+        node = nodes.first
+        root = HuffmanNode.new(node.frequency, 0_u8, false)
+        root.left = node
+        root.right = HuffmanNode.new(0, 0_u8)
+        return root
+      end
+
+      while nodes.size > 1
+        left = nodes.shift
+        right = nodes.shift
+
+        parent = HuffmanNode.new(
+          left.frequency + right.frequency,
+          0_u8,
+          false
+        )
+        parent.left = left
+        parent.right = right
+
+        insert_index = nodes.bsearch_index { |n| n.frequency >= parent.frequency }
+        if insert_index
+          nodes.insert(insert_index, parent)
+        else
+          nodes << parent
+        end
+      end
+
+      nodes.first
+    end
+
+    private def build_huffman_codes(node : HuffmanNode, code : Int32, length : Int32, huffman_codes : HuffmanCodes)
+      if node.is_leaf
+        if length > 0 || node.byte_val != 0
+          idx = node.byte_val
+          huffman_codes.code_lengths[idx] = length
+          huffman_codes.codes[idx] = code
+        end
+      else
+        if left = node.left
+          build_huffman_codes(left, code << 1, length + 1, huffman_codes)
+        end
+        if right = node.right
+          build_huffman_codes(right, (code << 1) | 1, length + 1, huffman_codes)
+        end
+      end
+    end
+
+    private def huffman_encode(data : Bytes, huffman_codes : HuffmanCodes, frequencies) : EncodedResult
+      result = Array(UInt8).new(initial_capacity: data.size * 2)
+      current_byte = 0_u8
+      bit_pos = 0
+      byte_index = 0
+      total_bits = 0
+
+      codes = huffman_codes.codes
+      code_lengths = huffman_codes.code_lengths
+
+      data.each do |byte|
+        code = codes[byte]
+        length = code_lengths[byte]
+
+        (length - 1).downto(0) do |i|
+          if (code & (1 << i)) != 0
+            current_byte |= 1 << (7 - bit_pos)
+          end
+          bit_pos += 1
+          total_bits += 1
+
+          if bit_pos == 8
+            result << current_byte
+            current_byte = 0_u8
+            bit_pos = 0
+          end
+        end
+      end
+
+      if bit_pos > 0
+        result << current_byte
+      end
+      EncodedResult.new(Slice.new(result.to_unsafe, result.size), total_bits, frequencies)
+    end
+
+    property size : Int64
+    property result : UInt32
+    getter test_data : Bytes
+    getter encoded : EncodedResult
+
+    def initialize
+      @size = config_val("size")
+      @result = 0_u32
+      @test_data = Bytes.new(0)
+      @encoded = EncodedResult.new(Bytes.new(0), 0)
+    end
+
+    def prepare
+      @test_data = Compress.generate_test_data(@size)
+    end
+
+    def run(iteration_id)
+      frequencies = Array.new(256, 0)
+      @test_data.each do |byte|
+        frequencies[byte] += 1
+      end
+
+      tree = HuffEncode.build_huffman_tree(frequencies)
+      codes = HuffmanCodes.new
+      build_huffman_codes(tree, 0, 0, codes)
+      @encoded = huffman_encode(@test_data, codes, frequencies)
+      @result &+= @encoded.data.bytesize.to_u32
+    end
+
+    def checksum : UInt32
+      @result
+    end
+  end
+
+  class HuffDecode < Benchmark
+    private def huffman_decode(encoded : Bytes, root : HuffEncode::HuffmanNode, bit_count : Int32) : Bytes
+      result = Bytes.new(bit_count)
+
+      current_node = root
+      bits_processed = 0
+      byte_index = 0
+      result_size = 0
+
+      while bits_processed < bit_count && byte_index < encoded.size
+        byte_val = encoded[byte_index]
+        byte_index += 1
+
+        7.downto(0) do |bit_pos|
+          break if bits_processed >= bit_count
+
+          bit = ((byte_val >> bit_pos) & 1) == 1
+          bits_processed += 1
+
+          current_node = bit ? current_node.right.not_nil! : current_node.left.not_nil!
+
+          if current_node.is_leaf
+            result[result_size] = current_node.byte_val
+            result_size += 1
+            current_node = root
+          end
+        end
+      end
+
+      result[0...result_size]
+    end
+
+    property size : Int64
+    property result : UInt32
+    getter test_data : Bytes
+    getter decoded : Bytes
+    private property encoded : HuffEncode::EncodedResult
+
+    def initialize
+      @size = config_val("size")
+      @result = 0_u32
+      @test_data = Bytes.new(0)
+      @decoded = Bytes.new(0)
+      @encoded = HuffEncode::EncodedResult.new
+    end
+
+    def prepare
+      @test_data = Compress.generate_test_data(@size)
+      encoder = HuffEncode.new
+      encoder.size = @size
+      encoder.prepare
+      encoder.run(0)
+      @encoded = encoder.encoded
+    end
+
+    def run(iteration_id)
+      tree = HuffEncode.build_huffman_tree(@encoded.frequencies)
+      @decoded = huffman_decode(@encoded.data, tree, @encoded.bit_count)
+      @result &+= @decoded.bytesize.to_u32
+    end
+
+    def checksum : UInt32
+      if @decoded == @test_data
+        @result &+= 100_000
+      end
+      @result
+    end
+  end
+
+  class ArithEncode < Benchmark
+    struct ArithEncodedResult
+      property data : Bytes
+      property bit_count : Int32
+      property frequencies : Array(Int32)
+
+      def initialize(@data : Bytes = Bytes.new(0), @bit_count : Int32 = 0, @frequencies : Array(Int32) = Array(Int32).new)
+      end
+    end
+
+    class ArithFreqTable
+      property total : Int32
+      property low : Array(Int32)
+      property high : Array(Int32)
+
+      def initialize(frequencies : Array(Int32))
+        @total = frequencies.sum
+        @low = Array.new(256, 0)
+        @high = Array.new(256, 0)
+
+        cum = 0
+        256.times do |i|
+          @low[i] = cum
+          cum += frequencies[i]
+          @high[i] = cum
+        end
+      end
+
+      def initialize(@total : Int32, @low : Array(Int32), @high : Array(Int32))
+      end
+    end
+
+    class BitOutputStream
+      @buffer : UInt8 = 0_u8
+      @bit_pos : Int32 = 0
+      @bytes : Array(UInt8) = [] of UInt8
+      @bits_written : Int32 = 0
+
+      def write_bit(bit : Int32)
+        @buffer <<= 1
+        @buffer |= 1 if bit == 1
+        @bit_pos += 1
+        @bits_written += 1
+
+        if @bit_pos == 8
+          @bytes << @buffer
+          @buffer = 0_u8
+          @bit_pos = 0
+        end
+      end
+
+      def flush : Bytes
+        if @bit_pos > 0
+          @buffer <<= (8 - @bit_pos)
+          @bytes << @buffer
+        end
+        Bytes.new(@bytes.to_unsafe, @bytes.size)
+      end
+
+      def bits_written : Int32
+        @bits_written
+      end
+    end
+
+    private def arith_encode(data : Bytes) : ArithEncodedResult
+      frequencies = Array.new(256, 0)
+      data.each do |byte|
+        frequencies[byte] += 1
+      end
+
+      freq_table = ArithFreqTable.new(frequencies)
+
+      low = 0_u64
+      high = 0xFFFFFFFF_u64
+      pending = 0
+      output = BitOutputStream.new
+
+      ht = freq_table.high
+      lt = freq_table.low
+      data.each do |byte|
+        range = (high - low + 1).to_u64
+
+        high = low + (range * ht[byte] // freq_table.total) - 1
+        low = low + (range * lt[byte] // freq_table.total)
+
+        loop do
+          if high < 0x80000000_u64
+            output.write_bit(0)
+            pending.times { output.write_bit(1) }
+            pending = 0
+          elsif low >= 0x80000000_u64
+            output.write_bit(1)
+            pending.times { output.write_bit(0) }
+            pending = 0
+            low -= 0x80000000_u64
+            high -= 0x80000000_u64
+          elsif low >= 0x40000000_u64 && high < 0xC0000000_u64
+            pending += 1
+            low -= 0x40000000_u64
+            high -= 0x40000000_u64
+          else
+            break
+          end
+
+          low <<= 1
+          high = (high << 1) | 1
+          high &= 0xFFFFFFFF_u64
+        end
+      end
+
+      pending += 1
+      if low < 0x40000000_u64
+        output.write_bit(0)
+        pending.times { output.write_bit(1) }
+      else
+        output.write_bit(1)
+        pending.times { output.write_bit(0) }
+      end
+
+      ArithEncodedResult.new(
+        output.flush,
+        output.bits_written,
+        frequencies
+      )
+    end
+
+    property size : Int64
+    property result : UInt32
+    getter test_data : Bytes
+    getter encoded : ArithEncodedResult
+
+    def initialize
+      @size = config_val("size")
+      @result = 0_u32
+      @test_data = Bytes.new(0)
+      @encoded = ArithEncodedResult.new
+    end
+
+    def prepare
+      @test_data = Compress.generate_test_data(@size)
+    end
+
+    def run(iteration_id)
+      @encoded = arith_encode(@test_data)
+      @result &+= @encoded.data.size.to_u32
+    end
+
+    def checksum : UInt32
+      @result
+    end
+  end
+
+  class ArithDecode < Benchmark
+    class BitInputStream
+      @bytes : Bytes
+      @byte_pos : Int32 = 0
+      @bit_pos : Int32 = 0
+      @current_byte : UInt8 = 0_u8
+
+      def initialize(@bytes : Bytes)
+        @current_byte = @bytes[0] if @bytes.size > 0
+      end
+
+      def read_bit : Int32
+        if @bit_pos == 8
+          @byte_pos += 1
+          @bit_pos = 0
+          @current_byte = @byte_pos < @bytes.size ? @bytes[@byte_pos] : 0_u8
+        end
+
+        bit = (@current_byte >> (7 - @bit_pos)) & 1
+        @bit_pos += 1
+        bit.to_i32
+      end
+    end
+
+    property size : Int64
+    property result : UInt32
+    getter test_data : Bytes
+    getter decoded : Bytes
+    property encoded : ArithEncode::ArithEncodedResult
+
+    def initialize
+      @size = config_val("size")
+      @result = 0_u32
+      @test_data = Bytes.new(0)
+      @decoded = Bytes.new(0)
+      @encoded = ArithEncode::ArithEncodedResult.new
+    end
+
+    def prepare
+      @test_data = Compress.generate_test_data(@size)
+
+      encoder = ArithEncode.new
+      encoder.size = @size
+      encoder.prepare
+      encoder.run(0)
+      @encoded = encoder.encoded
+    end
+
+    def run(iteration_id)
+      @decoded = arith_decode(@encoded)
+      @result &+= @decoded.size.to_u32
+    end
+
+    def checksum : UInt32
+      if @decoded == @test_data
+        @result &+= 100_000
+      end
+      @result
+    end
+
+    private def arith_decode(encoded : ArithEncode::ArithEncodedResult) : Bytes
+      frequencies = encoded.frequencies
+      total = frequencies.sum
+      data_size = total
+
+      low_table = StaticArray(Int32, 256).new(0)
+      high_table = StaticArray(Int32, 256).new(0)
+      cum = 0
+      256.times do |i|
+        low_table[i] = cum
+        cum += frequencies[i]
+        high_table[i] = cum
+      end
+
+      result = Bytes.new(data_size)
+      input = BitInputStream.new(encoded.data)
+
+      value = 0_u64
+      32.times do
+        value = (value << 1) | input.read_bit.to_u64
+      end
+
+      low = 0_u64
+      high = 0xFFFFFFFF_u64
+
+      data_size.times do |j|
+        range = (high - low + 1).to_u64
+        scaled = ((value - low + 1) * total - 1) // range
+
+        symbol = 0_u8
+        while symbol < 255 && high_table[symbol] <= scaled
+          symbol += 1_u8
+        end
+
+        result[j] = symbol
+
+        high = low + (range * high_table[symbol] // total) - 1
+        low = low + (range * low_table[symbol] // total)
+
+        loop do
+          if high < 0x80000000_u64
+          elsif low >= 0x80000000_u64
+            value -= 0x80000000_u64
+            low -= 0x80000000_u64
+            high -= 0x80000000_u64
+          elsif low >= 0x40000000_u64 && high < 0xC0000000_u64
+            value -= 0x40000000_u64
+            low -= 0x40000000_u64
+            high -= 0x40000000_u64
+          else
+            break
+          end
+
+          low <<= 1
+          high = (high << 1) | 1
+          value = (value << 1) | input.read_bit.to_u64
+        end
+      end
+
+      result
+    end
+  end
+
+  class LZWEncode < Benchmark
+    struct LZWResult
+      property data : Bytes
+      property dict_size : Int32
+
+      def initialize(@data = Bytes.new(0), @dict_size = 0)
+      end
+    end
+
+    def lzw_encode(input : Bytes) : LZWResult
+      return LZWResult.new(Bytes.new(0), 256) if input.empty?
+
+      dict = Hash(String, Int32).new(initial_capacity: 4096)
+      256.times do |i|
+        dict[i.chr.to_s] = i
+      end
+
+      next_code = 256
+      result = IO::Memory.new(input.size * 2)
+
+      current = input[0].chr.to_s
+
+      (1...input.size).each do |i|
+        next_char = input[i].chr
+        new_str = current + next_char
+
+        if dict.has_key?(new_str)
+          current = new_str
+        else
+          code = dict[current]
+          result.write_byte((code >> 8).to_u8)
+          result.write_byte((code & 0xFF).to_u8)
+
+          dict[new_str] = next_code
+          next_code += 1
+          current = next_char.to_s
+        end
+      end
+
+      code = dict[current]
+      result.write_byte((code >> 8).to_u8)
+      result.write_byte((code & 0xFF).to_u8)
+
+      LZWResult.new(result.to_slice, next_code)
+    end
+
+    property size : Int64
+    property result : UInt32
+    getter test_data : Bytes
+    getter encoded : LZWResult
+
+    def initialize
+      @size = config_val("size")
+      @result = 0_u32
+      @test_data = Bytes.new(0)
+      @encoded = LZWResult.new
+    end
+
+    def prepare
+      @test_data = Compress.generate_test_data(@size)
+    end
+
+    def run(iteration_id)
+      @encoded = lzw_encode(@test_data)
+      @result &+= @encoded.data.size.to_u32
+    end
+
+    def checksum : UInt32
+      @result
+    end
+  end
+
+  class LZWDecode < Benchmark
+    def lzw_decode(encoded : LZWEncode::LZWResult) : Bytes
+      return Bytes.new(0) if encoded.data.empty?
+
+      dict = Array(String).new(4096)
+
+      256.times do |i|
+        dict << i.chr.to_s
+      end
+
+      result = IO::Memory.new(encoded.data.bytesize * 2)
+      data = encoded.data
+      pos = 0
+
+      high = data[pos].to_u16
+      low = data[pos + 1].to_u16
+      old_code = (high << 8) | low
+      pos += 2
+
+      old_str = dict[old_code]
+      result.write(old_str.to_slice)
+
+      next_code = 256
+
+      while pos < data.size
+        high = data[pos].to_u16
+        low = data[pos + 1].to_u16
+        new_code = (high << 8) | low
+        pos += 2
+
+        if new_code < dict.size
+          new_str = dict[new_code]
+        elsif new_code == next_code
+          new_str = old_str + old_str[0]
+        else
+          raise "Error decode"
+        end
+
+        result.write(new_str.to_slice)
+
+        dict << old_str + new_str[0]
+        next_code += 1
+
+        old_str = new_str
+      end
+
+      result.to_slice
+    end
+
+    property size : Int64
+    property result : UInt32
+    getter test_data : Bytes
+    getter decoded : Bytes
+    private property encoded : LZWEncode::LZWResult
+
+    def initialize
+      @size = config_val("size")
+      @result = 0_u32
+      @test_data = Bytes.new(0)
+      @decoded = Bytes.new(0)
+      @encoded = LZWEncode::LZWResult.new
+    end
+
+    def prepare
+      @test_data = Compress.generate_test_data(@size)
+      encoder = LZWEncode.new
+      encoder.size = @size
+      encoder.prepare
+      encoder.run(0)
+      @encoded = encoder.encoded
+    end
+
+    def run(iteration_id)
+      @decoded = lzw_decode(@encoded)
+      @result &+= @decoded.bytesize.to_u32
+    end
+
+    def checksum : UInt32
+      if @decoded == @test_data
+        @result &+= 100_000
+      end
+      @result
+    end
   end
 end
 

@@ -137,8 +137,6 @@ fn find_primes_with_prefix(trie_root &TrieNode, prefix int) []int {
 }
 
 pub fn (mut p Primes) run(iteration_id int) {
-	_ = iteration_id
-
 	primes_list := generate_primes(int(p.n))
 
 	trie_root := build_trie(primes_list)

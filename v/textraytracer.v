@@ -163,7 +163,6 @@ fn diffuse_shading(pi Vector, obj Sphere, light Light) Color {
 }
 
 pub fn (mut t TextRaytracer) run(iteration_id int) {
-	_ = iteration_id
 	w := int(t.w)
 	h := int(t.h)
 	fw := f64(w)

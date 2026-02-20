@@ -73,7 +73,6 @@ pub fn (mut b SortQuick) prepare() {
 }
 
 pub fn (mut b SortQuick) run(iteration_id int) {
-	_ = iteration_id
 	size := int(b.size_val)
 
 	b.result_val += u32(b.data[helper.next_int(size)])
@@ -155,7 +154,6 @@ pub fn (mut b SortMerge) prepare() {
 }
 
 pub fn (mut b SortMerge) run(iteration_id int) {
-	_ = iteration_id
 	size := int(b.size_val)
 
 	b.result_val += u32(b.data[helper.next_int(size)])
@@ -194,7 +192,6 @@ pub fn (mut b SortSelf) prepare() {
 }
 
 pub fn (mut b SortSelf) run(iteration_id int) {
-	_ = iteration_id
 	size := int(b.size_val)
 
 	b.result_val += u32(b.data[helper.next_int(size)])

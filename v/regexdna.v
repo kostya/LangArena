@@ -100,8 +100,6 @@ pub fn (mut r RegexDna) prepare() {
 }
 
 pub fn (mut r RegexDna) run(iteration_id int) {
-	_ = iteration_id
-
 	for pattern in patterns {
 		count := count_pattern_fast(r.seq, pattern)
 		r.result_buf.write_string('${pattern} ${count}\n')

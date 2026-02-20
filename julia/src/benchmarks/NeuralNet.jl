@@ -268,16 +268,16 @@ function checksum(b::NeuralNet)::UInt32
     total = 0.0
 
     feed_forward!(net, [0.0, 0.0])
-    total += sum(current_outputs(net))
+    total += Base.sum(current_outputs(net))
 
     feed_forward!(net, [0.0, 1.0])
-    total += sum(current_outputs(net))
+    total += Base.sum(current_outputs(net))
 
     feed_forward!(net, [1.0, 0.0])
-    total += sum(current_outputs(net))
+    total += Base.sum(current_outputs(net))
 
     feed_forward!(net, [1.0, 1.0])
-    total += sum(current_outputs(net))
+    total += Base.sum(current_outputs(net))
 
     return Helper.checksum_f64(total)
 end

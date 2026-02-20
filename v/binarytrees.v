@@ -57,8 +57,6 @@ pub fn (b BinarytreesObjBenchmark) name() string {
 }
 
 pub fn (mut b BinarytreesObjBenchmark) run(iteration_id int) {
-	_ = iteration_id
-
 	tree := new_tree_node(0, int(b.n))
 	b.result_val += tree.sum()
 }
@@ -141,8 +139,6 @@ pub fn (b BinarytreesArenaBenchmark) name() string {
 }
 
 pub fn (mut b BinarytreesArenaBenchmark) run(iteration_id int) {
-	_ = iteration_id
-
 	mut arena := new_tree_arena()
 	root_idx := arena.build(0, int(b.n))
 	b.result_val += arena.sum(root_idx)

@@ -176,7 +176,6 @@ fn run_bf_program(text string) i64 {
 }
 
 pub fn (mut b BrainfuckRecursion) run(iteration_id int) {
-	_ = iteration_id
 	result := run_bf_program(b.text)
 	b.result_val += u32(result)
 }

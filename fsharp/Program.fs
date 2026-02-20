@@ -13,56 +13,66 @@ type BenchmarkInfo = {
 }
 
 module BenchmarkRunner =
-
-    let private createBenchmarkInfo<'T when 'T :> Benchmark and 'T : (new : unit -> 'T)> () =
+    let private createBenchmarkInfo<'T when 'T :> Benchmark and 'T : (new : unit -> 'T)> (prefix: string option) =
+        let typeName = typeof<'T>.Name
+        let name = 
+            match prefix with
+            | Some p -> $"{p}::{typeName}"
+            | None -> typeName
         {
-            Name = typeof<'T>.Name
+            Name = name
             Creator = fun () -> new 'T() :> Benchmark
         }
 
     let private benchmarkFactories = [
-        createBenchmarkInfo<Pidigits> ()
-        createBenchmarkInfo<BinarytreesObj> ()
-        createBenchmarkInfo<BinarytreesArena> ()
-        createBenchmarkInfo<BrainfuckArray> ()
-        createBenchmarkInfo<BrainfuckRecursion> ()
-        createBenchmarkInfo<Fannkuchredux> ()
-        createBenchmarkInfo<Fasta> ()
-        createBenchmarkInfo<Knuckeotide> ()
-        createBenchmarkInfo<Mandelbrot> ()
-        createBenchmarkInfo<Matmul1T> ()
-        createBenchmarkInfo<Matmul4T> ()
-        createBenchmarkInfo<Matmul8T> ()
-        createBenchmarkInfo<Matmul16T> ()
-        createBenchmarkInfo<Nbody> ()
-        createBenchmarkInfo<RegexDna> ()
-        createBenchmarkInfo<Revcomp> ()
-        createBenchmarkInfo<Spectralnorm> ()
-        createBenchmarkInfo<Base64Encode> ()
-        createBenchmarkInfo<Base64Decode> ()
-        createBenchmarkInfo<JsonGenerate> ()
-        createBenchmarkInfo<JsonParseDom> ()
-        createBenchmarkInfo<JsonParseMapping> ()
-        createBenchmarkInfo<Primes> ()
-        createBenchmarkInfo<Noise> ()
-        createBenchmarkInfo<TextRaytracer> ()
-        createBenchmarkInfo<NeuralNet> ()
-        createBenchmarkInfo<SortQuick> ()
-        createBenchmarkInfo<SortMerge> ()
-        createBenchmarkInfo<SortSelf> ()
-        createBenchmarkInfo<GraphPathBFS> ()
-        createBenchmarkInfo<GraphPathDFS> ()
-        createBenchmarkInfo<GraphPathAStar> ()
-        createBenchmarkInfo<BufferHashSHA256> ()
-        createBenchmarkInfo<BufferHashCRC32> ()
-        createBenchmarkInfo<CacheSimulation> ()
-        createBenchmarkInfo<CalculatorAst> ()
-        createBenchmarkInfo<CalculatorInterpreter> ()
-        createBenchmarkInfo<GameOfLife> ()
-        createBenchmarkInfo<MazeGenerator> ()
-        createBenchmarkInfo<AStarPathfinder> ()
-        createBenchmarkInfo<BWTHuffEncode> ()
-        createBenchmarkInfo<BWTHuffDecode> ()
+        createBenchmarkInfo<Pidigits> None
+        createBenchmarkInfo<BinarytreesObj> None
+        createBenchmarkInfo<BinarytreesArena> None
+        createBenchmarkInfo<BrainfuckArray> None
+        createBenchmarkInfo<BrainfuckRecursion> None
+        createBenchmarkInfo<Fannkuchredux> None
+        createBenchmarkInfo<Fasta> None
+        createBenchmarkInfo<Knuckeotide> None
+        createBenchmarkInfo<Mandelbrot> None
+        createBenchmarkInfo<Matmul1T> None
+        createBenchmarkInfo<Matmul4T> None
+        createBenchmarkInfo<Matmul8T> None
+        createBenchmarkInfo<Matmul16T> None
+        createBenchmarkInfo<Nbody> None
+        createBenchmarkInfo<RegexDna> None
+        createBenchmarkInfo<Revcomp> None
+        createBenchmarkInfo<Spectralnorm> None
+        createBenchmarkInfo<Base64Encode> None
+        createBenchmarkInfo<Base64Decode> None
+        createBenchmarkInfo<JsonGenerate> None
+        createBenchmarkInfo<JsonParseDom> None
+        createBenchmarkInfo<JsonParseMapping> None
+        createBenchmarkInfo<Primes> None
+        createBenchmarkInfo<Noise> None
+        createBenchmarkInfo<TextRaytracer> None
+        createBenchmarkInfo<NeuralNet> None
+        createBenchmarkInfo<SortQuick> None
+        createBenchmarkInfo<SortMerge> None
+        createBenchmarkInfo<SortSelf> None
+        createBenchmarkInfo<GraphPathBFS> None
+        createBenchmarkInfo<GraphPathDFS> None
+        createBenchmarkInfo<GraphPathAStar> None
+        createBenchmarkInfo<BufferHashSHA256> None
+        createBenchmarkInfo<BufferHashCRC32> None
+        createBenchmarkInfo<CacheSimulation> None
+        createBenchmarkInfo<CalculatorAst> None
+        createBenchmarkInfo<CalculatorInterpreter> None
+        createBenchmarkInfo<GameOfLife> None
+        createBenchmarkInfo<MazeGenerator> None
+        createBenchmarkInfo<AStarPathfinder> None
+        createBenchmarkInfo<BWTEncode> (Some "Compress")
+        createBenchmarkInfo<BWTDecode> (Some "Compress")
+        createBenchmarkInfo<HuffEncode> (Some "Compress")
+        createBenchmarkInfo<HuffDecode> (Some "Compress")
+        createBenchmarkInfo<ArithEncode> (Some "Compress")
+        createBenchmarkInfo<ArithDecode> (Some "Compress")
+        createBenchmarkInfo<LZWEncode> (Some "Compress")
+        createBenchmarkInfo<LZWDecode> (Some "Compress")
     ]
 
     let private runBenchmark (factory: BenchmarkInfo) (singleBench: string option) =
@@ -130,9 +140,9 @@ module BenchmarkRunner =
                     results.[className] <- timeDelta
                     summaryTime <- summaryTime + timeDelta
 
+                Console.WriteLine($"in {timeDelta:F3}s")
                 if success then
                     ok <- ok + 1
-                    Console.WriteLine($"in {timeDelta:F3}s")
                 else
                     fails <- fails + 1
             | None -> ()

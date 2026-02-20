@@ -32,7 +32,7 @@ import calculator
 import game_of_life
 import maze_generator
 import astar_pathfinder
-import compression
+import compress
 import json_benchmarks
 
 fn get_benchmark_factories() []benchmark.BenchmarkInfo {
@@ -157,11 +157,29 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		benchmark.BenchmarkInfo{'CalculatorInterpreter', fn () &benchmark.IBenchmark {
 			return calculator.new_calculatorinterpreter()
 		}},
-		benchmark.BenchmarkInfo{'BWTHuffEncode', fn () &benchmark.IBenchmark {
-			return compression.new_bwthuffencode()
+		benchmark.BenchmarkInfo{'Compress::BWTEncode', fn () &benchmark.IBenchmark {
+			return compress.new_bwtencode()
 		}},
-		benchmark.BenchmarkInfo{'BWTHuffDecode', fn () &benchmark.IBenchmark {
-			return compression.new_bwthuffdecode()
+		benchmark.BenchmarkInfo{'Compress::BWTDecode', fn () &benchmark.IBenchmark {
+			return compress.new_bwtdecode()
+		}},
+		benchmark.BenchmarkInfo{'Compress::HuffEncode', fn () &benchmark.IBenchmark {
+			return compress.new_huffencode()
+		}},
+		benchmark.BenchmarkInfo{'Compress::HuffDecode', fn () &benchmark.IBenchmark {
+			return compress.new_huffdecode()
+		}},
+		benchmark.BenchmarkInfo{'Compress::ArithEncode', fn () &benchmark.IBenchmark {
+			return compress.new_arithencode()
+		}},
+		benchmark.BenchmarkInfo{'Compress::ArithDecode', fn () &benchmark.IBenchmark {
+			return compress.new_arithdecode()
+		}},
+		benchmark.BenchmarkInfo{'Compress::LZWEncode', fn () &benchmark.IBenchmark {
+			return compress.new_lzwencode()
+		}},
+		benchmark.BenchmarkInfo{'Compress::LZWDecode', fn () &benchmark.IBenchmark {
+			return compress.new_lzwdecode()
 		}},
 	]
 }

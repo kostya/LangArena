@@ -214,14 +214,44 @@
     "h": 4001,
     "iterations": 100
   },
-  "BWTHuffEncode": {
-    "checksum": 1097760,
-    "size": 35000,
+  "Compress::BWTEncode": {
+    "checksum": 3600000,
+    "size": 100000,
+    "iterations": 30
+  },
+  "Compress::BWTDecode": {
+    "checksum": 216100216,
+    "size": 1000001,
+    "iterations": 180
+  },
+  "Compress::HuffEncode": {
+    "checksum": 62727600,
+    "size": 1000002,
+    "iterations": 200
+  },
+  "Compress::HuffDecode": {
+    "checksum": 420101260,
+    "size": 1000003,
+    "iterations": 350
+  },
+  "Compress::ArithEncode": {
+    "checksum": 15303600,
+    "size": 100004,
+    "iterations": 500
+  },
+  "Compress::ArithDecode": {
+    "checksum": 26501320,
+    "size": 100005,
+    "iterations": 220
+  },
+  "Compress::LZWEncode": {
+    "checksum": 500880,
+    "size": 200006,
     "iterations": 100
   },
-  "BWTHuffDecode": {
-    "checksum": 127000000,
-    "size": 350000,
-    "iterations": 300
+  "Compress::LZWDecode": {
+    "checksum": 1920113440,
+    "size": 1000007,
+    "iterations": 1600
   }
 }

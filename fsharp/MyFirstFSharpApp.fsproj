@@ -36,8 +36,7 @@
     <Compile Include="GameOfLife.fs" />
     <Compile Include="MazeGenerator.fs" />
     <Compile Include="AStarPathfinder.fs" />
-    <Compile Include="BWTHuffEncode.fs" />
-    <Compile Include="BWTHuffDecode.fs" />
+    <Compile Include="Compress.fs" />
     
     <Compile Include="Program.fs" />
   </ItemGroup>

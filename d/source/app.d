@@ -43,19 +43,32 @@ import benchmarks.calculatorinterpreter;
 import benchmarks.gameoflife;
 import benchmarks.mazegenerator;
 import benchmarks.astarpathfinder;
-import benchmarks.bwthuff;
+import benchmarks.compress;
 import benchmarks.jsonbench;
 
-mixin(registerAllBenchmarks!(Pidigits, BinarytreesObj, BinarytreesArena,
-        BrainfuckArray, BrainfuckRecursion, Fannkuchredux,
-        Fasta, Knuckeotide, Mandelbrot, Matmul1T, Matmul4T, Matmul8T,
-        Matmul16T, Nbody, RegexDna, Revcomp, Spectralnorm,
-        Base64Encode, Base64Decode, JsonGenerate, JsonParseDom, JsonParseMapping,
-        Primes, Noise, TextRaytracer, NeuralNet, SortQuick,
-        SortMerge, SortSelf, GraphPathBFS, GraphPathDFS, GraphPathAStar,
-        BufferHashSHA256, BufferHashCRC32, CacheSimulation, CalculatorAst,
-        CalculatorInterpreter, GameOfLife, MazeGenerator, AStarPathfinder,
-        BWTHuffEncode, BWTHuffDecode));
+mixin(registerAllBenchmarks!("Pidigits", Pidigits, "BinarytreesObj",
+        BinarytreesObj, "BinarytreesArena", BinarytreesArena, "BrainfuckArray",
+        BrainfuckArray, "BrainfuckRecursion", BrainfuckRecursion,
+        "Fannkuchredux", Fannkuchredux, "Fasta", Fasta, "Knuckeotide",
+        Knuckeotide, "Mandelbrot", Mandelbrot, "Matmul1T", Matmul1T, "Matmul4T", Matmul4T, "Matmul8T", Matmul8T,
+        "Matmul16T", Matmul16T, "Nbody", Nbody, "RegexDna", RegexDna,
+        "Revcomp", Revcomp, "Spectralnorm", Spectralnorm, "Base64Encode",
+        Base64Encode, "Base64Decode", Base64Decode, "JsonGenerate",
+        JsonGenerate, "JsonParseDom", JsonParseDom, "JsonParseMapping",
+        JsonParseMapping, "Primes", Primes, "Noise", Noise, "TextRaytracer",
+        TextRaytracer, "NeuralNet", NeuralNet, "SortQuick",
+        SortQuick, "SortMerge", SortMerge, "SortSelf", SortSelf, "GraphPathBFS",
+        GraphPathBFS, "GraphPathDFS", GraphPathDFS, "GraphPathAStar",
+        GraphPathAStar, "BufferHashSHA256", BufferHashSHA256,
+        "BufferHashCRC32", BufferHashCRC32, "CacheSimulation", CacheSimulation,
+        "CalculatorAst", CalculatorAst, "CalculatorInterpreter",
+        CalculatorInterpreter, "GameOfLife",
+        GameOfLife, "MazeGenerator", MazeGenerator, "AStarPathfinder",
+        AStarPathfinder, "Compress::BWTEncode", BWTEncode, "Compress::BWTDecode", BWTDecode,
+        "Compress::HuffEncode", HuffEncode, "Compress::HuffDecode", HuffDecode,
+        "Compress::ArithEncode",
+        ArithEncode, "Compress::ArithDecode", ArithDecode,
+        "Compress::LZWEncode", LZWEncode, "Compress::LZWDecode", LZWDecode));
 
 void benchmarkAll(string singleBench = "")
 {
@@ -74,10 +87,9 @@ void benchmarkAll(string singleBench = "")
             continue;
         }
 
-        std.stdio.write(benchName, ": ");
-        stdout.flush();
-
         Benchmark bench = createBenchmark(benchName);
+        std.stdio.write(bench.name(), ": ");
+        stdout.flush();
 
         Helper.reset();
         bench.prepare();
@@ -91,7 +103,7 @@ void benchmarkAll(string singleBench = "")
         auto duration = (end - start).total!"msecs" / 1000.0;
 
         bench.setTimeDelta(duration);
-        results[benchName] = duration;
+        results[bench.name()] = duration;
 
         if (bench.checksum == bench.expectedChecksum)
         {

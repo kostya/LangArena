@@ -36,8 +36,7 @@ import benchmarks/calculatorinterpreter
 import benchmarks/gameoflife
 import benchmarks/mazegenerator
 import benchmarks/astarpathfinder
-import benchmarks/bwthuffencode
-import benchmarks/bwthuffdecode
+import benchmarks/compress
 
 proc main() =
   let now = (epochTime() * 1000).int64

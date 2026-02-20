@@ -171,7 +171,6 @@ fn matmul_parallel_impl(a [][]f64, b [][]f64, num_threads int) [][]f64 {
 }
 
 pub fn (mut m MatmulParallel) run(iteration_id int) {
-	_ = iteration_id
 	n := int(m.n)
 
 	a := matgen(n)

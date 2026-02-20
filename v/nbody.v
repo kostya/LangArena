@@ -139,7 +139,6 @@ pub fn (mut b Nbody) prepare() {
 }
 
 pub fn (mut b Nbody) run(iteration_id int) {
-	_ = iteration_id
 	dt := 0.01
 
 	mut j := 0

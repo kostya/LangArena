@@ -99,8 +99,6 @@ pub fn (mut r Revcomp) prepare() {
 }
 
 pub fn (mut r Revcomp) run(iteration_id int) {
-	_ = iteration_id
-
 	r.revcomp_impl(r.input)
 
 	result := r.result_buf.str()

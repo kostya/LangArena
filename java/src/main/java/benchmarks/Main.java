@@ -45,8 +45,14 @@ public class Main {
         Benchmark.registerBenchmark(() -> new GameOfLife());
         Benchmark.registerBenchmark(() -> new MazeGenerator());
         Benchmark.registerBenchmark(() -> new AStarPathfinder());
-        Benchmark.registerBenchmark(() -> new BWTHuffEncode());
-        Benchmark.registerBenchmark(() -> new BWTHuffDecode());
+        Benchmark.registerBenchmark(() -> new BWTEncode());
+        Benchmark.registerBenchmark(() -> new BWTDecode());
+        Benchmark.registerBenchmark(() -> new HuffEncode());
+        Benchmark.registerBenchmark(() -> new HuffDecode());
+        Benchmark.registerBenchmark(() -> new ArithEncode());
+        Benchmark.registerBenchmark(() -> new ArithDecode());
+        Benchmark.registerBenchmark(() -> new LZWEncode());
+        Benchmark.registerBenchmark(() -> new LZWDecode());
 
         long now = Instant.now().toEpochMilli();
         System.out.println("start: " + now);

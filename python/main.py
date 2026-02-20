@@ -154,27 +154,6 @@ class Helper:
             f'Config for {className}, not found string field: {fieldName}')
 
 
-class TreeNode:
-
-    def __init__(self, item: int, depth: int = 0):
-        self.item = item
-        self.left: Optional[TreeNode] = None
-        self.right: Optional[TreeNode] = None
-
-        if depth > 0:
-            self.left = TreeNode(2 * item - 1, depth - 1)
-            self.right = TreeNode(2 * item, depth - 1)
-
-    @staticmethod
-    def create(item: int, depth: int) -> 'TreeNode':
-        return TreeNode(item, depth - 1)
-
-    def check(self) -> int:
-        if self.left is None or self.right is None:
-            return self.item
-        return self.left.check() - self.right.check() + self.item
-
-
 class Benchmark(ABC):
 
     def __init__(self):
@@ -191,12 +170,14 @@ class Benchmark(ABC):
     def prepare(self) -> None:
         pass
 
+    def name(self) -> str:
+        return self.__class__.__name__
+
     @property
     def config(self) -> Dict[str, Any]:
         config = Helper._config
-        class_name = self.__class__.__name__
         if config and class_name in config:
-            return config[class_name]
+            return config[self.name()]
         return {}
 
     @property
@@ -219,9 +200,8 @@ class Benchmark(ABC):
     def iterations(self) -> int:
         if self._iterations_cache is None:
             try:
-                class_name = self.__class__.__name__
                 self._iterations_cache = Helper.config_i64(
-                    class_name, 'iterations')
+                    self.name(), 'iterations')
             except:
                 self._iterations_cache = 1
         return self._iterations_cache
@@ -229,8 +209,7 @@ class Benchmark(ABC):
     @property
     def expected_checksum(self) -> int:
         try:
-            class_name = self.__class__.__name__
-            return Helper.config_i64(class_name, 'checksum')
+            return Helper.config_i64(self.name(), 'checksum')
         except:
             return 0
 
@@ -243,7 +222,7 @@ class Benchmark(ABC):
 
         for benchmark_class in Benchmark._benchmark_classes:
             bench_instance = benchmark_class()
-            class_name = bench_instance.__class__.__name__
+            class_name = bench_instance.name()
 
             if single_bench and single_bench.lower() not in class_name.lower():
                 continue
@@ -337,8 +316,7 @@ class BinarytreesObj(Benchmark):
 
     def __init__(self):
         super().__init__()
-        class_name = self.__class__.__name__
-        self.n = Helper.config_i64(class_name, 'depth')
+        self.n = Helper.config_i64(self.name(), 'depth')
         self.result = 0
 
     def run_benchmark(self, iteration_id: int) -> None:
@@ -390,8 +368,7 @@ class BinarytreesArena(Benchmark):
 
     def __init__(self):
         super().__init__()
-        class_name = self.__class__.__name__
-        self.n = Helper.config_i64(class_name, 'depth')
+        self.n = Helper.config_i64(self.name(), 'depth')
         self.result = 0
 
     def run_benchmark(self, iteration_id: int) -> None:
@@ -496,9 +473,8 @@ class BrainfuckArray(Benchmark):
         self._result_value = 0
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self._program_text = Helper.config_s(class_name, "program")
-        self._warmup_text = Helper.config_s(class_name, "warmup_program")
+        self._program_text = Helper.config_s(self.name(), "program")
+        self._warmup_text = Helper.config_s(self.name(), "warmup_program")
 
     def warmup(self):
         prepare_iters = self.warmup_iterations
@@ -651,12 +627,10 @@ class BrainfuckRecursion(Benchmark):
         self._result_value = 0
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self._text = Helper.config_s(class_name, "program")
+        self._text = Helper.config_s(self.name(), "program")
 
     def warmup(self):
-        class_name = self.__class__.__name__
-        warmup_program = Helper.config_s(class_name, "warmup_program")
+        warmup_program = Helper.config_s(self.name(), "warmup_program")
         for i in range(self.warmup_iterations):
             program = BrainfuckProgram2(warmup_program)
             program.run()
@@ -677,8 +651,7 @@ class Pidigits(Benchmark):
         self._result_buffer = []
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.nn = Helper.config_i64(class_name, "amount")
+        self.nn = Helper.config_i64(self.name(), "amount")
 
     def run_benchmark(self, iteration_id: int):
         i = 0
@@ -736,8 +709,7 @@ class Fannkuchredux(Benchmark):
         self._result_value = 0
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.n = Helper.config_i64(class_name, "n")
+        self.n = Helper.config_i64(self.name(), "n")
 
     def _fannkuchredux(self, n: int) -> Tuple[int, int]:
         perm1 = list(range(n))
@@ -844,8 +816,7 @@ class Fasta(Benchmark):
 
     def __init__(self):
         super().__init__()
-        class_name = self.__class__.__name__
-        self.n = Helper.config_i64(class_name, "n")
+        self.n = Helper.config_i64(self.name(), "n")
         self.result_buffer = StringIO()
 
     def set_iterations(self, count: int):
@@ -961,8 +932,7 @@ class Knuckeotide(Benchmark):
         self._result_str += f"{count}\t{s.upper()}\n"
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        n = Helper.config_i64(class_name, "n")
+        n = Helper.config_i64(self.name(), "n")
 
         fasta = Fasta()
         fasta.set_iterations(n)
@@ -1011,9 +981,8 @@ class Mandelbrot(Benchmark):
         self._result_bytes = []
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.w = Helper.config_i64(class_name, "w")
-        self.h = Helper.config_i64(class_name, "h")
+        self.w = Helper.config_i64(self.name(), "w")
+        self.h = Helper.config_i64(self.name(), "h")
         self._result_bytes = []
 
     def run_benchmark(self, iteration_id: int):
@@ -1069,8 +1038,7 @@ class MatmulBase(Benchmark):
         self._result_value = 0
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.n = Helper.config_i64(class_name, "n")
+        self.n = Helper.config_i64(self.name(), "n")
 
     def _matgen(self, n: int) -> List[List[float]]:
         tmp = 1.0 / n / n
@@ -1283,8 +1251,6 @@ class Nbody(Benchmark):
         self._v1 = 0.0
 
     def prepare(self):
-        class_name = self.__class__.__name__
-
         self.bodies = []
         for p in self._INITIAL_BODIES:
             new_planet = Planet(p.x, p.y, p.z, p.vx / self.DAYS_PER_YEAR,
@@ -1356,8 +1322,7 @@ class RegexDna(Benchmark):
         self.n = 0
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.n = Helper.config_i64(class_name, "n")
+        self.n = Helper.config_i64(self.name(), "n")
 
         fasta = Fasta()
         fasta.set_iterations(self.n)
@@ -1445,8 +1410,7 @@ class Revcomp(Benchmark):
         return lookup
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        n = Helper.config_i64(class_name, "n")
+        n = Helper.config_i64(self.name(), "n")
 
         fasta = Fasta()
         fasta.n = n
@@ -1506,8 +1470,7 @@ class Spectralnorm(Benchmark):
         self.v = []
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.size = Helper.config_i64(class_name, "size")
+        self.size = Helper.config_i64(self.name(), "size")
         self.u = [1.0] * self.size
         self.v = [1.0] * self.size
 
@@ -1567,8 +1530,7 @@ class Base64Encode(Benchmark):
         self._result_value = 0
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.n = Helper.config_i64(class_name, "size")
+        self.n = Helper.config_i64(self.name(), "size")
 
         _str = 'a' * self.n
         self._bytes = b'a' * self.n
@@ -1596,8 +1558,7 @@ class Base64Decode(Benchmark):
         self._result_value = 0
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.n = Helper.config_i64(class_name, "size")
+        self.n = Helper.config_i64(self.name(), "size")
 
         self._bytes = b'a' * self.n
         self._str2 = base64.b64encode(self._bytes).decode('ascii')
@@ -1619,8 +1580,7 @@ class JsonGenerate(Benchmark):
 
     def __init__(self):
         super().__init__()
-        class_name = self.__class__.__name__
-        self.n = Helper.config_i64(class_name, "coords")
+        self.n = Helper.config_i64(self.name(), "coords")
         self.data = []
         self.text = ''
         self.result = 0
@@ -1666,8 +1626,7 @@ class JsonParseDom(Benchmark):
 
     def prepare(self):
         json_gen = JsonGenerate()
-        class_name = self.__class__.__name__
-        json_gen.n = Helper.config_i64(class_name, "coords")
+        json_gen.n = Helper.config_i64(self.name(), "coords")
         json_gen.prepare()
         json_gen.run_benchmark(0)
         self.text = json_gen.get_text()
@@ -1716,8 +1675,7 @@ class JsonParseMapping(Benchmark):
 
     def prepare(self):
         json_gen = JsonGenerate()
-        class_name = self.__class__.__name__
-        json_gen.n = Helper.config_i64(class_name, "coords")
+        json_gen.n = Helper.config_i64(self.name(), "coords")
         json_gen.prepare()
         json_gen.run_benchmark(0)
         self.text = json_gen.get_text()
@@ -1814,9 +1772,8 @@ class Primes(Benchmark):
         self.result = 5432
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.n = Helper.config_i64(class_name, "limit")
-        self.prefix = Helper.config_i64(class_name, "prefix")
+        self.n = Helper.config_i64(self.name(), "limit")
+        self.prefix = Helper.config_i64(self.name(), "prefix")
 
     def _generate_trie(self, primes: List[int]) -> PrimesNode:
 
@@ -1997,8 +1954,7 @@ class Noise(Benchmark):
         self.n2d: Optional[Noise2DContext] = None
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.size = Helper.config_i64(class_name, "size")
+        self.size = Helper.config_i64(self.name(), "size")
         self.n2d = Noise2DContext(self.size)
 
     def run_benchmark(self, iteration_id: int):
@@ -2101,9 +2057,8 @@ class TextRaytracer(Benchmark):
         self.res = 0
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.w = Helper.config_i64(class_name, "w")
-        self.h = Helper.config_i64(class_name, "h")
+        self.w = Helper.config_i64(self.name(), "w")
+        self.h = Helper.config_i64(self.name(), "h")
 
     def intersect_sphere(self, ray: Ray, center: Vector,
                          radius: float) -> Optional[float]:
@@ -2333,8 +2288,7 @@ class SortBenchmark(Benchmark, ABC):
         self._result_value = 0
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.size = Helper.config_i64(class_name, "size")
+        self.size = Helper.config_i64(self.name(), "size")
 
         self._data = []
         for i in range(self.size):
@@ -2342,7 +2296,6 @@ class SortBenchmark(Benchmark, ABC):
 
     @abstractmethod
     def test(self) -> List[int]:
-
         pass
 
     def run_benchmark(self, iteration_id: int):
@@ -2459,7 +2412,6 @@ class GraphPathGraph:
         self._adj[v].append(u)
 
     def generate_random(self):
-
         for i in range(1, self.vertices):
             self.add_edge(i, i - 1)
 
@@ -2487,10 +2439,9 @@ class GraphPathBenchmark(Benchmark, ABC):
         self._result_value = 0
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        vertices = Helper.config_i64(class_name, "vertices")
-        jumps = Helper.config_i64(class_name, "jumps")
-        jump_len = Helper.config_i64(class_name, "jump_len")
+        vertices = Helper.config_i64(self.name(), "vertices")
+        jumps = Helper.config_i64(self.name(), "jumps")
+        jump_len = Helper.config_i64(self.name(), "jump_len")
 
         self._graph = GraphPathGraph(vertices, jumps, jump_len)
         self._graph.generate_random()
@@ -2627,8 +2578,7 @@ class BufferHashBenchmark(Benchmark, ABC):
         self._result = 0
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self._n = Helper.config_i64(class_name, "size")
+        self._n = Helper.config_i64(self.name(), "size")
 
         self._data = bytearray(self._n)
 
@@ -2651,9 +2601,7 @@ class BufferHashBenchmark(Benchmark, ABC):
 class BufferHashCRC32(BufferHashBenchmark):
 
     def test(self) -> int:
-
         crc = 0xFFFFFFFF
-
         for byte in self._data:
             crc ^= byte
 
@@ -2670,7 +2618,6 @@ class BufferHashCRC32(BufferHashBenchmark):
 class BufferHashSHA256(BufferHashBenchmark):
 
     def test(self) -> int:
-
         hashes = [
             0x6a09e667,
             0xbb67ae85,
@@ -2747,9 +2694,8 @@ class CacheSimulation(Benchmark):
         self.misses = 0
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.values_size = Helper.config_i64(class_name, "values")
-        cache_size = Helper.config_i64(class_name, "size")
+        self.values_size = Helper.config_i64(self.name(), "values")
+        cache_size = Helper.config_i64(self.name(), "size")
         self.cache = LRUCacheOrderedDict(cache_size)
         self.hits = 0
         self.misses = 0
@@ -2774,7 +2720,6 @@ class CacheSimulation(Benchmark):
 
 
 class Node2(ABC):
-
     pass
 
 
@@ -2815,7 +2760,6 @@ class Parser2:
         self.expressions: List[Node2] = []
 
     def parse(self):
-
         while self.pos < len(self.chars):
             self._skip_whitespace()
             if self.pos >= len(self.chars):
@@ -2825,7 +2769,6 @@ class Parser2:
             self.expressions.append(expr)
 
     def _parse_expression(self) -> Node2:
-
         node = self._parse_term()
 
         while self.pos < len(self.chars):
@@ -2844,7 +2787,6 @@ class Parser2:
         return node
 
     def _parse_term(self) -> Node2:
-
         node = self._parse_factor()
 
         while self.pos < len(self.chars):
@@ -2863,7 +2805,6 @@ class Parser2:
         return node
 
     def _parse_factor(self) -> Node2:
-
         self._skip_whitespace()
         if self.pos >= len(self.chars):
             return NumberNode(0)
@@ -2885,7 +2826,6 @@ class Parser2:
             return NumberNode(0)
 
     def _parse_number(self) -> NumberNode:
-
         value = 0
         while self.pos < len(self.chars) and self._is_digit(self.current_char):
             digit = ord(self.current_char) - ord('0')
@@ -2894,7 +2834,6 @@ class Parser2:
         return NumberNode(value)
 
     def _parse_variable(self) -> Node2:
-
         start = self.pos
         while (self.pos < len(self.chars) and
                (self._is_letter(self.current_char) or
@@ -2912,7 +2851,6 @@ class Parser2:
         return VariableNode(var_name)
 
     def _advance(self):
-
         self.pos += 1
         if self.pos >= len(self.chars):
             self.current_char = '\0'
@@ -2920,7 +2858,6 @@ class Parser2:
             self.current_char = self.chars[self.pos]
 
     def _skip_whitespace(self):
-
         while self.pos < len(self.chars) and self._is_whitespace(
                 self.current_char):
             self._advance()
@@ -2946,8 +2883,7 @@ class CalculatorAst(Benchmark):
         self._text = ''
         self._expressions: List[Node2] = []
         self._result_value = 0
-        class_name = self.__class__.__name__
-        self.n = Helper.config_i64(class_name, "operations")
+        self.n = Helper.config_i64(self.name(), "operations")
 
     def prepare(self):
         self._text = self._generate_random_program(self.n)
@@ -3119,8 +3055,7 @@ class CalculatorInterpreter(Benchmark):
         self._result_value = 0
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        operations = Helper.config_i64(class_name, "operations")
+        operations = Helper.config_i64(self.name(), "operations")
 
         calculator_ast = CalculatorAst()
         calculator_ast.n = operations
@@ -3229,9 +3164,8 @@ class GameOfLife(Benchmark):
         self.grid: Optional[Grid] = None
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.width = Helper.config_i64(class_name, "w")
-        self.height = Helper.config_i64(class_name, "h")
+        self.width = Helper.config_i64(self.name(), "w")
+        self.height = Helper.config_i64(self.name(), "h")
 
         self.grid = Grid(self.width, self.height)
 
@@ -3404,7 +3338,6 @@ class Maze:
 
     @staticmethod
     def generate_walkable_maze(width: int, height: int) -> List[List[bool]]:
-
         maze = Maze(width, height)
         maze.generate()
 
@@ -3432,9 +3365,8 @@ class MazeGenerator(Benchmark):
         self.bool_grid: List[List[bool]] = []
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.width = Helper.config_i64(class_name, "w")
-        self.height = Helper.config_i64(class_name, "h")
+        self.width = Helper.config_i64(self.name(), "w")
+        self.height = Helper.config_i64(self.name(), "h")
 
     def run_benchmark(self, iteration_id: int):
 
@@ -3498,9 +3430,8 @@ class AStarPathfinder(Benchmark):
         self.goal_y = 0
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.width = Helper.config_i64(class_name, "w")
-        self.height = Helper.config_i64(class_name, "h")
+        self.width = Helper.config_i64(self.name(), "w")
+        self.height = Helper.config_i64(self.name(), "h")
         self.goal_x = self.width - 2
         self.goal_y = self.height - 2
 
@@ -3591,49 +3522,47 @@ class AStarPathfinder(Benchmark):
         return self.result & 0xFFFFFFFF
 
 
+class Compress:
+
+    def _generate_test_data(size: int) -> bytes:
+        pattern = b"ABRACADABRA"
+        data = bytearray(size)
+        for i in range(size):
+            data[i] = pattern[i % len(pattern)]
+        return bytes(data)
+
+
 class BWTResult(NamedTuple):
     transformed: bytes
     original_idx: int
 
 
-class HuffmanNode:
-
-    def __init__(self,
-                 frequency: int,
-                 byte_val: Optional[int] = None,
-                 is_leaf: bool = True):
-        self.frequency = frequency
-        self.byte_val = byte_val
-        self.is_leaf = is_leaf
-        self.left: Optional[HuffmanNode] = None
-        self.right: Optional[HuffmanNode] = None
-        self.index = 0
-
-
-class HuffmanCodes:
+class BWTEncode(Benchmark):
 
     def __init__(self):
-        self.code_lengths = [0] * 256
-        self.codes = [0] * 256
+        super().__init__()
+        self.size_val = 0
+        self.result_val = 0
+        self.test_data: Optional[bytes] = None
+        self.bwt_result: Optional[BWTResult] = None
+        self.size_val = Helper.config_i64(self.name(), 'size')
 
+    def name(self) -> str:
+        return "Compress::BWTEncode"
 
-class EncodedResult(NamedTuple):
-    data: bytes
-    bit_count: int
+    def prepare(self):
+        self.test_data = Compress._generate_test_data(self.size_val)
+        self.result_val = 0
 
+    def run_benchmark(self, iteration_id: int):
+        self.bwt_result = self._bwt_transform(self.test_data)
+        self.result_val = (self.result_val +
+                           len(self.bwt_result.transformed)) & 0xFFFFFFFF
 
-class CompressedData(NamedTuple):
-    bwt_result: BWTResult
-    frequencies: List[int]
-    encoded_bits: bytes
-    original_bit_count: int
+    def checksum(self) -> int:
+        return self.result_val & 0xFFFFFFFF
 
-
-class BWTHuffBase(Benchmark):
-
-    @staticmethod
-    def bwt_transform(input_data: bytes) -> BWTResult:
-
+    def _bwt_transform(self, input_data: bytes) -> BWTResult:
         n = len(input_data)
         if n == 0:
             return BWTResult(b'', 0)
@@ -3642,15 +3571,13 @@ class BWTHuffBase(Benchmark):
 
         buckets = [[] for _ in range(256)]
         for idx in sa:
-            first_char = input_data[idx]
-            buckets[first_char].append(idx)
+            buckets[input_data[idx]].append(idx)
 
         sa = []
         for bucket in buckets:
             sa.extend(bucket)
 
         if n > 1:
-
             rank = [0] * n
             current_rank = 0
             prev_char = input_data[sa[0]]
@@ -3663,9 +3590,7 @@ class BWTHuffBase(Benchmark):
 
             k = 1
             while k < n:
-
                 pairs = [(rank[i], rank[(i + k) % n]) for i in range(n)]
-
                 sa.sort(key=lambda i: (pairs[i][0], pairs[i][1]))
 
                 new_rank = [0] * n
@@ -3691,9 +3616,42 @@ class BWTHuffBase(Benchmark):
 
         return BWTResult(bytes(transformed), original_idx)
 
-    @staticmethod
-    def bwt_inverse(bwt_result: BWTResult) -> bytes:
 
+class BWTDecode(Benchmark):
+
+    def __init__(self):
+        super().__init__()
+        self.size_val = 0
+        self.result_val = 0
+        self.test_data: Optional[bytes] = None
+        self.inverted: Optional[bytes] = None
+        self.bwt_result: Optional[BWTResult] = None
+
+    def name(self) -> str:
+        return "Compress::BWTDecode"
+
+    def prepare(self):
+        self.size_val = Helper.config_i64(self.name(), 'size')
+        self.test_data = Compress._generate_test_data(self.size_val)
+
+        encoder = BWTEncode()
+        encoder.size_val = self.size_val
+        encoder.prepare()
+        encoder.run_benchmark(0)
+        self.bwt_result = encoder.bwt_result
+        self.result_val = 0
+
+    def run_benchmark(self, iteration_id: int):
+        self.inverted = self._bwt_inverse(self.bwt_result)
+        self.result_val = (self.result_val + len(self.inverted)) & 0xFFFFFFFF
+
+    def checksum(self) -> int:
+        res = self.result_val
+        if self.inverted == self.test_data:
+            res = (res + 100000) & 0xFFFFFFFF
+        return res
+
+    def _bwt_inverse(self, bwt_result: BWTResult) -> bytes:
         bwt = bwt_result.transformed
         n = len(bwt)
         if n == 0:
@@ -3727,27 +3685,83 @@ class BWTHuffBase(Benchmark):
 
         return bytes(result)
 
+
+class HuffmanNode:
+
+    def __init__(self, frequency: int, byte_val: int, is_leaf: bool = True):
+        self.frequency = frequency
+        self.byte_val = byte_val
+        self.is_leaf = is_leaf
+        self.left: Optional[HuffmanNode] = None
+        self.right: Optional[HuffmanNode] = None
+
+
+class HuffmanCodes:
+
+    def __init__(self):
+        self.code_lengths = [0] * 256
+        self.codes = [0] * 256
+
+
+class EncodedResult(NamedTuple):
+    data: bytes
+    bit_count: int
+    frequencies: List[int]
+
+
+class HuffEncode(Benchmark):
+
+    def __init__(self):
+        super().__init__()
+        self.size_val = 0
+        self.result_val = 0
+        self.test_data: Optional[bytes] = None
+        self.encoded: Optional[EncodedResult] = None
+        self.size_val = Helper.config_i64(self.name(), 'size')
+
+    def name(self) -> str:
+        return "Compress::HuffEncode"
+
+    def prepare(self):
+        self.test_data = Compress._generate_test_data(self.size_val)
+        self.result_val = 0
+
+    def run_benchmark(self, iteration_id: int):
+        frequencies = [0] * 256
+        for byte in self.test_data:
+            frequencies[byte] += 1
+
+        tree = HuffEncode._build_huffman_tree(frequencies)
+
+        codes = HuffmanCodes()
+        self._build_huffman_codes(tree, 0, 0, codes)
+
+        self.encoded = self._huffman_encode(self.test_data, codes, frequencies)
+        self.result_val = (self.result_val +
+                           len(self.encoded.data)) & 0xFFFFFFFF
+
+    def checksum(self) -> int:
+        return self.result_val & 0xFFFFFFFF
+
     @staticmethod
-    def build_huffman_tree(frequencies: List[int]) -> HuffmanNode:
-
+    def _build_huffman_tree(frequencies: List[int]) -> HuffmanNode:
         heap = []
-
         for i, freq in enumerate(frequencies):
             if freq > 0:
                 heapq.heappush(heap, (freq, i, HuffmanNode(freq, i, True)))
 
         if len(heap) == 1:
-            _, byte_val, node = heapq.heappop(heap)
-            root = HuffmanNode(node.frequency, None, False)
+            _, _, node = heapq.heappop(heap)
+            root = HuffmanNode(node.frequency, 0, False)
             root.left = node
             root.right = HuffmanNode(0, 0, True)
             return root
 
         while len(heap) > 1:
-            freq1, _, left = heapq.heappop(heap)
-            freq2, _, right = heapq.heappop(heap)
+            _, _, left = heapq.heappop(heap)
+            _, _, right = heapq.heappop(heap)
 
-            parent = HuffmanNode(freq1 + freq2, None, False)
+            parent = HuffmanNode(left.frequency + right.frequency, 0, False)
             parent.left = left
             parent.right = right
 
@@ -3756,10 +3770,8 @@ class BWTHuffBase(Benchmark):
         _, _, root = heapq.heappop(heap)
         return root
 
-    @staticmethod
-    def build_huffman_codes(node: HuffmanNode, code: int, length: int,
-                            huffman_codes: HuffmanCodes):
-
+    def _build_huffman_codes(self, node: HuffmanNode, code: int, length: int,
+                             huffman_codes: HuffmanCodes):
         if node.is_leaf:
             if length > 0 or node.byte_val != 0:
                 idx = node.byte_val
@@ -3768,16 +3780,14 @@ class BWTHuffBase(Benchmark):
                     huffman_codes.codes[idx] = code
         else:
             if node.left:
-                BWTHuffBase.build_huffman_codes(node.left, code << 1,
-                                                length + 1, huffman_codes)
+                self._build_huffman_codes(node.left, code << 1, length + 1,
+                                          huffman_codes)
             if node.right:
-                BWTHuffBase.build_huffman_codes(node.right, (code << 1) | 1,
-                                                length + 1, huffman_codes)
+                self._build_huffman_codes(node.right, (code << 1) | 1,
+                                          length + 1, huffman_codes)
 
-    @staticmethod
-    def huffman_encode(data: bytes,
-                       huffman_codes: HuffmanCodes) -> EncodedResult:
-
+    def _huffman_encode(self, data: bytes, huffman_codes: HuffmanCodes,
+                        frequencies: List[int]) -> EncodedResult:
         result = bytearray(len(data) * 2)
         current_byte = 0
         bit_pos = 0
@@ -3806,14 +3816,51 @@ class BWTHuffBase(Benchmark):
             result[byte_index] = current_byte
             byte_index += 1
 
-        return EncodedResult(bytes(result[:byte_index]), total_bits)
+        return EncodedResult(bytes(result[:byte_index]), total_bits,
+                             frequencies)
 
-    @staticmethod
-    def huffman_decode(encoded: bytes, root: HuffmanNode,
-                       bit_count: int) -> bytes:
 
-        result = bytearray(bit_count // 4 + 1)
+class HuffDecode(Benchmark):
+
+    def __init__(self):
+        super().__init__()
+        self.size_val = 0
+        self.result_val = 0
+        self.test_data: Optional[bytes] = None
+        self.decoded: Optional[bytes] = None
+        self.encoded: Optional[EncodedResult] = None
+
+    def name(self) -> str:
+        return "Compress::HuffDecode"
+
+    def prepare(self):
+        self.size_val = Helper.config_i64(self.name(), 'size')
+        self.test_data = Compress._generate_test_data(self.size_val)
+
+        encoder = HuffEncode()
+        encoder.size_val = self.size_val
+        encoder.prepare()
+        encoder.run_benchmark(0)
+        self.encoded = encoder.encoded
+        self.result_val = 0
+
+    def run_benchmark(self, iteration_id: int):
+        tree = HuffEncode._build_huffman_tree(self.encoded.frequencies)
+        self.decoded = self._huffman_decode(self.encoded.data, tree,
+                                            self.encoded.bit_count)
+        self.result_val = (self.result_val + len(self.decoded)) & 0xFFFFFFFF
+
+    def checksum(self) -> int:
+        res = self.result_val
+        if self.decoded == self.test_data:
+            res = (res + 100000) & 0xFFFFFFFF
+        return res
+
+    def _huffman_decode(self, encoded: bytes, root: HuffmanNode,
+                        bit_count: int) -> bytes:
+        result = bytearray(bit_count)
         result_idx = 0
+
         current_node = root
         bits_processed = 0
         byte_index = 0
@@ -3832,121 +3879,393 @@ class BWTHuffBase(Benchmark):
                 current_node = current_node.right if bit else current_node.left
 
                 if current_node.is_leaf:
-                    if current_node.byte_val is not None:
 
-                        if result_idx >= len(result):
-                            result.extend([0] * len(result))
-
-                        result[result_idx] = current_node.byte_val
-                        result_idx += 1
-
+                    result[result_idx] = current_node.byte_val
+                    result_idx += 1
                     current_node = root
 
         return bytes(result[:result_idx])
 
-    @staticmethod
-    def compress(data: bytes) -> CompressedData:
 
-        bwt_result = BWTHuffBase.bwt_transform(data)
+class ArithFreqTable:
 
+    def __init__(self, frequencies: List[int]):
+        self.total = sum(frequencies)
+        self.low = [0] * 256
+        self.high = [0] * 256
+
+        cum = 0
+        for i in range(256):
+            self.low[i] = cum
+            cum += frequencies[i]
+            self.high[i] = cum
+
+
+class BitOutputStream:
+
+    def __init__(self):
+        self.buffer = 0
+        self.bit_pos = 0
+        self.bytes = bytearray()
+        self.bits_written = 0
+
+    def write_bit(self, bit: int):
+        self.buffer = (self.buffer << 1) | (bit & 1)
+        self.bit_pos += 1
+        self.bits_written += 1
+
+        if self.bit_pos == 8:
+            self.bytes.append(self.buffer)
+            self.buffer = 0
+            self.bit_pos = 0
+
+    def flush(self) -> bytes:
+        if self.bit_pos > 0:
+            self.buffer <<= (8 - self.bit_pos)
+            self.bytes.append(self.buffer)
+        return bytes(self.bytes)
+
+
+class ArithEncodedResult(NamedTuple):
+    data: bytes
+    bit_count: int
+    frequencies: List[int]
+
+
+class ArithEncode(Benchmark):
+
+    def __init__(self):
+        super().__init__()
+        self.size_val = 0
+        self.result_val = 0
+        self.test_data: Optional[bytes] = None
+        self.encoded: Optional[ArithEncodedResult] = None
+        self.size_val = Helper.config_i64(self.name(), 'size')
+
+    def name(self) -> str:
+        return "Compress::ArithEncode"
+
+    def prepare(self):
+        self.test_data = Compress._generate_test_data(self.size_val)
+        self.result_val = 0
+
+    def run_benchmark(self, iteration_id: int):
+        self.encoded = self._arith_encode(self.test_data)
+        self.result_val = (self.result_val +
+                           len(self.encoded.data)) & 0xFFFFFFFF
+
+    def checksum(self) -> int:
+        return self.result_val & 0xFFFFFFFF
+
+    def _arith_encode(self, data: bytes) -> ArithEncodedResult:
         frequencies = [0] * 256
-        for byte in bwt_result.transformed:
+        for byte in data:
             frequencies[byte] += 1
 
-        huffman_tree = BWTHuffBase.build_huffman_tree(frequencies)
-        huffman_codes = HuffmanCodes()
-        BWTHuffBase.build_huffman_codes(huffman_tree, 0, 0, huffman_codes)
+        freq_table = ArithFreqTable(frequencies)
 
-        encoded = BWTHuffBase.huffman_encode(bwt_result.transformed,
-                                             huffman_codes)
+        low = 0
+        high = 0xFFFFFFFF
+        pending = 0
+        output = BitOutputStream()
 
-        return CompressedData(bwt_result, frequencies, encoded.data,
-                              encoded.bit_count)
+        for byte in data:
+            idx = byte
+            range_val = high - low + 1
 
-    @staticmethod
-    def decompress(compressed: CompressedData) -> bytes:
+            high = low + (range_val * freq_table.high[idx] //
+                          freq_table.total) - 1
+            low = low + (range_val * freq_table.low[idx] // freq_table.total)
 
-        huffman_tree = BWTHuffBase.build_huffman_tree(compressed.frequencies)
+            while True:
+                if high < 0x80000000:
+                    output.write_bit(0)
+                    for _ in range(pending):
+                        output.write_bit(1)
+                    pending = 0
+                elif low >= 0x80000000:
+                    output.write_bit(1)
+                    for _ in range(pending):
+                        output.write_bit(0)
+                    pending = 0
+                    low -= 0x80000000
+                    high -= 0x80000000
+                elif low >= 0x40000000 and high < 0xC0000000:
+                    pending += 1
+                    low -= 0x40000000
+                    high -= 0x40000000
+                else:
+                    break
 
-        decoded = BWTHuffBase.huffman_decode(compressed.encoded_bits,
-                                             huffman_tree,
-                                             compressed.original_bit_count)
+                low <<= 1
+                high = (high << 1) | 1
+                high &= 0xFFFFFFFF
 
-        bwt_result = BWTResult(decoded, compressed.bwt_result.original_idx)
-        return BWTHuffBase.bwt_inverse(bwt_result)
+        pending += 1
+        if low < 0x40000000:
+            output.write_bit(0)
+            for _ in range(pending):
+                output.write_bit(1)
+        else:
+            output.write_bit(1)
+            for _ in range(pending):
+                output.write_bit(0)
+
+        return ArithEncodedResult(output.flush(), output.bits_written,
+                                  frequencies)
 
 
-class BWTHuffEncode(BWTHuffBase):
+class BitInputStream:
+
+    def __init__(self, data: bytes):
+        self.bytes = data
+        self.byte_pos = 0
+        self.bit_pos = 0
+        self.current_byte = data[0] if data else 0
+
+    def read_bit(self) -> int:
+        if self.bit_pos == 8:
+            self.byte_pos += 1
+            self.bit_pos = 0
+            self.current_byte = self.bytes[
+                self.byte_pos] if self.byte_pos < len(self.bytes) else 0
+
+        bit = (self.current_byte >> (7 - self.bit_pos)) & 1
+        self.bit_pos += 1
+        return bit
+
+
+class ArithDecode(Benchmark):
 
     def __init__(self):
         super().__init__()
-        self.size = 0
-        self.result = 0
+        self.size_val = 0
+        self.result_val = 0
         self.test_data: Optional[bytes] = None
+        self.decoded: Optional[bytes] = None
+        self.encoded: Optional[ArithEncodedResult] = None
+
+    def name(self) -> str:
+        return "Compress::ArithDecode"
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.size = Helper.config_i64(class_name, "size")
-        self.test_data = self._generate_test_data(self.size)
+        self.size_val = Helper.config_i64(self.name(), 'size')
+        self.test_data = Compress._generate_test_data(self.size_val)
 
-    def _generate_test_data(self, size: int) -> bytes:
-
-        pattern = b"ABRACADABRA"
-        data = bytearray(size)
-
-        for i in range(size):
-            data[i] = pattern[i % len(pattern)]
-
-        return bytes(data)
+        encoder = ArithEncode()
+        encoder.size_val = self.size_val
+        encoder.prepare()
+        encoder.run_benchmark(0)
+        self.encoded = encoder.encoded
+        self.result_val = 0
 
     def run_benchmark(self, iteration_id: int):
-        compressed = self.compress(self.test_data)
-        self.result = (self.result + len(compressed.encoded_bits)) & 0xFFFFFFFF
+        self.decoded = self._arith_decode(self.encoded)
+        self.result_val = (self.result_val + len(self.decoded)) & 0xFFFFFFFF
 
     def checksum(self) -> int:
-        return self.result & 0xFFFFFFFF
+        res = self.result_val
+        if self.decoded == self.test_data:
+            res = (res + 100000) & 0xFFFFFFFF
+        return res
+
+    def _arith_decode(self, encoded: ArithEncodedResult) -> bytes:
+        frequencies = encoded.frequencies
+        total = sum(frequencies)
+        data_size = total
+
+        low_table = [0] * 256
+        high_table = [0] * 256
+        cum = 0
+        for i in range(256):
+            low_table[i] = cum
+            cum += frequencies[i]
+            high_table[i] = cum
+
+        result = bytearray(data_size)
+        inp = BitInputStream(encoded.data)
+
+        value = 0
+        for _ in range(32):
+            value = (value << 1) | inp.read_bit()
+
+        low = 0
+        high = 0xFFFFFFFF
+
+        for j in range(data_size):
+            range_val = high - low + 1
+            scaled = ((value - low + 1) * total - 1) // range_val
+
+            symbol = 0
+            while symbol < 255 and high_table[symbol] <= scaled:
+                symbol += 1
+
+            result[j] = symbol
+
+            high = low + (range_val * high_table[symbol] // total) - 1
+            low = low + (range_val * low_table[symbol] // total)
+
+            while True:
+                if high < 0x80000000:
+                    pass
+                elif low >= 0x80000000:
+                    value -= 0x80000000
+                    low -= 0x80000000
+                    high -= 0x80000000
+                elif low >= 0x40000000 and high < 0xC0000000:
+                    value -= 0x40000000
+                    low -= 0x40000000
+                    high -= 0x40000000
+                else:
+                    break
+
+                low <<= 1
+                high = (high << 1) | 1
+                value = (value << 1) | inp.read_bit()
+
+        return bytes(result)
 
 
-class BWTHuffDecode(BWTHuffBase):
+class LZWResult(NamedTuple):
+    data: bytes
+    dict_size: int
+
+
+class LZWEncode(Benchmark):
 
     def __init__(self):
         super().__init__()
-        self.size = 0
-        self.result = 0
+        self.size_val = 0
+        self.result_val = 0
         self.test_data: Optional[bytes] = None
-        self.compressed: Optional[CompressedData] = None
-        self.decompressed: Optional[bytes] = None
+        self.encoded: Optional[LZWResult] = None
+        self.size_val = Helper.config_i64(self.name(), 'size')
+
+    def name(self) -> str:
+        return "Compress::LZWEncode"
 
     def prepare(self):
-        class_name = self.__class__.__name__
-        self.size = Helper.config_i64(class_name, "size")
-        self.test_data = self._generate_test_data(self.size)
-        self.compressed = self.compress(self.test_data)
-
-    def _generate_test_data(self, size: int) -> bytes:
-
-        pattern = b"ABRACADABRA"
-        data = bytearray(size)
-
-        for i in range(size):
-            data[i] = pattern[i % len(pattern)]
-
-        return bytes(data)
+        self.test_data = Compress._generate_test_data(self.size_val)
+        self.result_val = 0
 
     def run_benchmark(self, iteration_id: int):
-        decompressed = self.decompress(self.compressed)
-        self.decompressed = decompressed
-        self.result = (self.result + len(decompressed)) & 0xFFFFFFFF
+        self.encoded = self._lzw_encode(self.test_data)
+        self.result_val = (self.result_val +
+                           len(self.encoded.data)) & 0xFFFFFFFF
 
     def checksum(self) -> int:
+        return self.result_val & 0xFFFFFFFF
 
-        if self.decompressed == self.test_data:
-            self.result = (self.result + 1000000) & 0xFFFFFFFF
-        return self.result & 0xFFFFFFFF
+    def _lzw_encode(self, input_data: bytes) -> LZWResult:
+        if not input_data:
+            return LZWResult(b'', 256)
+
+        dictionary = {bytes([i]): i for i in range(256)}
+        next_code = 256
+        result = bytearray()
+
+        current = bytes([input_data[0]])
+
+        for i in range(1, len(input_data)):
+            next_char = bytes([input_data[i]])
+            new_str = current + next_char
+
+            if new_str in dictionary:
+                current = new_str
+            else:
+                code = dictionary[current]
+                result.append((code >> 8) & 0xFF)
+                result.append(code & 0xFF)
+
+                dictionary[new_str] = next_code
+                next_code += 1
+                current = next_char
+
+        code = dictionary[current]
+        result.append((code >> 8) & 0xFF)
+        result.append(code & 0xFF)
+
+        return LZWResult(bytes(result), next_code)
+
+
+class LZWDecode(Benchmark):
+
+    def __init__(self):
+        super().__init__()
+        self.size_val = 0
+        self.result_val = 0
+        self.test_data: Optional[bytes] = None
+        self.decoded: Optional[bytes] = None
+        self.encoded: Optional[LZWResult] = None
+
+    def name(self) -> str:
+        return "Compress::LZWDecode"
+
+    def prepare(self):
+        self.size_val = Helper.config_i64(self.name(), 'size')
+        self.test_data = Compress._generate_test_data(self.size_val)
+
+        encoder = LZWEncode()
+        encoder.size_val = self.size_val
+        encoder.prepare()
+        encoder.run_benchmark(0)
+        self.encoded = encoder.encoded
+        self.result_val = 0
+
+    def run_benchmark(self, iteration_id: int):
+        self.decoded = self._lzw_decode(self.encoded)
+        self.result_val = (self.result_val + len(self.decoded)) & 0xFFFFFFFF
+
+    def checksum(self) -> int:
+        res = self.result_val
+        if self.decoded == self.test_data:
+            res = (res + 100000) & 0xFFFFFFFF
+        return res
+
+    def _lzw_decode(self, encoded: LZWResult) -> bytes:
+        if not encoded.data:
+            return b''
+
+        dictionary = [bytes([i]) for i in range(256)]
+        result = bytearray()
+
+        data = encoded.data
+        pos = 0
+
+        high = data[pos]
+        low = data[pos + 1]
+        old_code = (high << 8) | low
+        pos += 2
+
+        old_str = dictionary[old_code]
+        result.extend(old_str)
+
+        next_code = 256
+
+        while pos < len(data):
+            high = data[pos]
+            low = data[pos + 1]
+            new_code = (high << 8) | low
+            pos += 2
+
+            if new_code < len(dictionary):
+                new_str = dictionary[new_code]
+            elif new_code == next_code:
+                new_str = dictionary[old_code] + dictionary[old_code][:1]
+            else:
+                raise ValueError(f"Error decode: code {new_code} not found")
+
+            result.extend(new_str)
+
+            dictionary.append(dictionary[old_code] + new_str[:1])
+            next_code += 1
+
+            old_code = new_code
+
+        return bytes(result)
 
 
 def register_benchmarks():
-
     Benchmark.register_benchmark(Pidigits)
     Benchmark.register_benchmark(BinarytreesObj)
     Benchmark.register_benchmark(BinarytreesArena)
@@ -3987,8 +4306,14 @@ def register_benchmarks():
     Benchmark.register_benchmark(GameOfLife)
     Benchmark.register_benchmark(MazeGenerator)
     Benchmark.register_benchmark(AStarPathfinder)
-    Benchmark.register_benchmark(BWTHuffEncode)
-    Benchmark.register_benchmark(BWTHuffDecode)
+    Benchmark.register_benchmark(BWTEncode)
+    Benchmark.register_benchmark(BWTDecode)
+    Benchmark.register_benchmark(HuffEncode)
+    Benchmark.register_benchmark(HuffDecode)
+    Benchmark.register_benchmark(ArithEncode)
+    Benchmark.register_benchmark(ArithDecode)
+    Benchmark.register_benchmark(LZWEncode)
+    Benchmark.register_benchmark(LZWDecode)
 
 
 def main():

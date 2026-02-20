@@ -39,7 +39,7 @@ include("benchmarks/Calculator.jl")
 include("benchmarks/GameOfLife.jl")
 include("benchmarks/MazeGenerator.jl")
 include("benchmarks/AStarPathfinder.jl")
-include("benchmarks/BWTHuff.jl")
+include("benchmarks/Compress.jl")
 
 const ALL_BENCHMARKS = [
     ("Pidigits", Pidigits),
@@ -82,8 +82,14 @@ const ALL_BENCHMARKS = [
     ("GameOfLife", GameOfLife),
     ("MazeGenerator", MazeGenerator),
     ("AStarPathfinder", AStarPathfinder),
-    ("BWTHuffEncode", BWTHuffEncode),
-    ("BWTHuffDecode", BWTHuffDecode),
+    ("Compress::BWTEncode", BWTEncode),
+    ("Compress::BWTDecode", BWTDecode),
+    ("Compress::HuffEncode", HuffEncode),
+    ("Compress::HuffDecode", HuffDecode),
+    ("Compress::ArithEncode", ArithEncode),
+    ("Compress::ArithDecode", ArithDecode),
+    ("Compress::LZWEncode", LZWEncode),
+    ("Compress::LZWDecode", LZWDecode),
 ]
 
 function run_all_benchmarks(single_bench::String = "")

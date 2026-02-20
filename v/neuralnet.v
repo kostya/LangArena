@@ -207,8 +207,6 @@ pub fn (mut n NeuralNet) prepare() {
 }
 
 pub fn (mut n NeuralNet) run(iteration_id int) {
-	_ = iteration_id
-
 	mut net := n.xor_net
 	net.train([0, 0], [0])
 	net.train([1, 0], [1])

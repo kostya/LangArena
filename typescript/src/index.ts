@@ -285,7 +285,6 @@ async function main(): Promise<void> {
       testName = args[0];
     }
   }
-
   console.log(`start: ${Date.now()}`);
   await Helper.loadConfig(configFile);
   Benchmark.run(testName);
@@ -295,13 +294,15 @@ export abstract class Benchmark {
   abstract run(iteration_id: number): void;
   abstract checksum(): number;
 
+  get name(): string {
+    return this.constructor.name;
+  }
+
   prepare(): void {}
 
   get config(): Record<string, any> {
     const config = (Helper as any).CONFIG;
-    return config && config[this.constructor.name]
-      ? config[this.constructor.name]
-      : {};
+    return config && config[this.name] ? config[this.name] : {};
   }
 
   get warmupIterations(): number {
@@ -326,7 +327,7 @@ export abstract class Benchmark {
 
   get iterations(): number {
     try {
-      return Number(Helper.configI64(this.constructor.name, "iterations"));
+      return Number(Helper.configI64(this.name, "iterations"));
     } catch {
       return 1;
     }
@@ -334,7 +335,7 @@ export abstract class Benchmark {
 
   get expectedChecksum(): bigint {
     try {
-      return Helper.configI64(this.constructor.name, "checksum");
+      return Helper.configI64(this.name, "checksum");
     } catch {
       return 0n;
     }
@@ -349,19 +350,12 @@ export abstract class Benchmark {
     const benchmarkClasses = Benchmark.getBenchmarkClasses();
 
     for (const BenchmarkClass of benchmarkClasses) {
-      const className = BenchmarkClass.name;
+      const bench = new BenchmarkClass();
+      const benchName = bench.name;
 
       if (
         singleBench &&
-        !className.toLowerCase().includes(singleBench.toLowerCase())
-      ) {
-        continue;
-      }
-
-      if (
-        className === "SortBenchmark" ||
-        className === "BufferHashBenchmark" ||
-        className === "GraphPathBenchmark"
+        !benchName.toLowerCase().includes(singleBench.toLowerCase())
       ) {
         continue;
       }
@@ -369,18 +363,17 @@ export abstract class Benchmark {
       try {
         if (isNode || isBun) {
           // @ts-ignore
-          process.stdout.write(`${className}: `);
+          process.stdout.write(`${benchName}: `);
         } else if (isDeno) {
           // @ts-ignore
-          Deno.stdout.write(new TextEncoder().encode(`${className}: `));
+          Deno.stdout.write(new TextEncoder().encode(`${benchName}: `));
         } else {
-          console.log(`${className}: starting...`);
+          console.log(`${benchName}: starting...`);
         }
       } catch {
-        console.log(`${className}: `);
+        console.log(`${benchName}: `);
       }
 
-      const bench = new BenchmarkClass();
       Helper.reset();
       bench.prepare();
       bench.warmup();
@@ -392,7 +385,7 @@ export abstract class Benchmark {
       const endTime = performance.now();
       const timeDelta = (endTime - startTime) / 1000;
 
-      results[className] = timeDelta;
+      results[benchName] = timeDelta;
 
       try {
         // @ts-ignore
@@ -4735,63 +4728,70 @@ export class AStarPathfinder extends Benchmark {
   }
 }
 
-class CompressionBWTResult {
+class Compress {
+  static generateTestData(size: bigint): Uint8Array {
+    const pattern = new TextEncoder().encode("ABRACADABRA");
+    const sizeNum = Number(size);
+    const data = new Uint8Array(sizeNum);
+    const patternLength = pattern.length;
+
+    for (let i = 0; i < sizeNum; i++) {
+      data[i] = pattern[i % patternLength];
+    }
+
+    return data;
+  }
+
+  static arraysEqual(a: Uint8Array, b: Uint8Array): boolean {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }
+}
+
+class BWTResult {
   constructor(
     public transformed: Uint8Array,
     public originalIdx: number,
   ) {}
 }
 
-class CompressionHuffmanNode {
-  constructor(
-    public frequency: number,
-    public byteVal: number | null = null,
-    public isLeaf: boolean = true,
-    public left: CompressionHuffmanNode | null = null,
-    public right: CompressionHuffmanNode | null = null,
-  ) {}
-}
-
-class CompressionHuffmanCodes {
-  codeLengths: number[] = new Array(256).fill(0);
-  codes: number[] = new Array(256).fill(0);
-}
-
-class CompressionEncodedResult {
-  constructor(
-    public data: Uint8Array,
-    public bitCount: number,
-  ) {}
-}
-
-class CompressionCompressedData {
-  constructor(
-    public bwtResult: CompressionBWTResult,
-    public frequencies: number[],
-    public encodedBits: Uint8Array,
-    public originalBitCount: number,
-  ) {}
-}
-
-export class BWTHuffEncode extends Benchmark {
-  protected result: number = 0;
+export class BWTEncode extends Benchmark {
+  public sizeVal: bigint;
   protected testData: Uint8Array = new Uint8Array();
-  protected size: bigint;
+  public bwtResult: BWTResult | null = null;
+  protected resultVal: number = 0;
 
   constructor() {
     super();
-    this.size = Helper.configI64(this.constructor.name, "size");
+    this.sizeVal = Helper.configI64("Compress::BWTEncode", "size");
   }
 
-  protected bwtTransform(input: Uint8Array): CompressionBWTResult {
+  override get name(): string {
+    return "Compress::BWTEncode";
+  }
+
+  override prepare(): void {
+    this.testData = Compress.generateTestData(this.sizeVal);
+    this.resultVal = 0;
+  }
+
+  override run(_iteration_id: number): void {
+    this.bwtResult = this.bwtTransform(this.testData);
+    this.resultVal = (this.resultVal + this.bwtResult.transformed.length) >>> 0;
+  }
+
+  override checksum(): number {
+    return this.resultVal >>> 0;
+  }
+
+  protected bwtTransform(input: Uint8Array): BWTResult {
     const n = input.length;
     if (n === 0) {
-      return new CompressionBWTResult(new Uint8Array(), 0);
+      return new BWTResult(new Uint8Array(), 0);
     }
-
-    const doubled = new Uint8Array(n * 2);
-    doubled.set(input, 0);
-    doubled.set(input, n);
 
     let sa: number[] = Array.from({ length: n }, (_, i) => i);
 
@@ -4872,10 +4872,51 @@ export class BWTHuffEncode extends Benchmark {
       }
     }
 
-    return new CompressionBWTResult(transformed, originalIdx);
+    return new BWTResult(transformed, originalIdx);
+  }
+}
+
+export class BWTDecode extends Benchmark {
+  protected sizeVal: bigint;
+  protected testData: Uint8Array = new Uint8Array();
+  protected inverted: Uint8Array = new Uint8Array();
+  protected bwtResult: BWTResult | null = null;
+  protected resultVal: number = 0;
+
+  constructor() {
+    super();
+    this.sizeVal = Helper.configI64("Compress::BWTDecode", "size");
   }
 
-  protected bwtInverse(bwtResult: CompressionBWTResult): Uint8Array {
+  override get name(): string {
+    return "Compress::BWTDecode";
+  }
+
+  override prepare(): void {
+    this.testData = Compress.generateTestData(this.sizeVal);
+
+    const encoder = new BWTEncode();
+    encoder.sizeVal = this.sizeVal;
+    encoder.prepare();
+    encoder.run(0);
+    this.bwtResult = encoder.bwtResult;
+    this.resultVal = 0;
+  }
+
+  override run(_iteration_id: number): void {
+    this.inverted = this.bwtInverse(this.bwtResult!);
+    this.resultVal = (this.resultVal + this.inverted.length) >>> 0;
+  }
+
+  override checksum(): number {
+    let res = this.resultVal;
+    if (Compress.arraysEqual(this.inverted, this.testData)) {
+      res += 100000;
+    }
+    return res >>> 0;
+  }
+
+  protected bwtInverse(bwtResult: BWTResult): Uint8Array {
     const bwt = bwtResult.transformed;
     const n = bwt.length;
     if (n === 0) {
@@ -4914,13 +4955,76 @@ export class BWTHuffEncode extends Benchmark {
 
     return result;
   }
+}
 
-  protected buildHuffmanTree(frequencies: number[]): CompressionHuffmanNode {
-    const heap: CompressionHuffmanNode[] = [];
+class HuffmanNode {
+  constructor(
+    public frequency: number,
+    public byteVal: number = 0,
+    public isLeaf: boolean = true,
+    public left: HuffmanNode | null = null,
+    public right: HuffmanNode | null = null,
+  ) {}
+}
+
+class HuffmanCodes {
+  codeLengths: number[] = new Array(256).fill(0);
+  codes: number[] = new Array(256).fill(0);
+}
+
+class EncodedResult {
+  constructor(
+    public data: Uint8Array,
+    public bitCount: number,
+    public frequencies: number[],
+  ) {}
+}
+
+export class HuffEncode extends Benchmark {
+  public sizeVal: bigint;
+  protected testData: Uint8Array = new Uint8Array();
+  public encoded: EncodedResult | null = null;
+  protected resultVal: number = 0;
+
+  constructor() {
+    super();
+    this.sizeVal = Helper.configI64("Compress::HuffEncode", "size");
+  }
+
+  override get name(): string {
+    return "Compress::HuffEncode";
+  }
+
+  override prepare(): void {
+    this.testData = Compress.generateTestData(this.sizeVal);
+    this.resultVal = 0;
+  }
+
+  override run(_iteration_id: number): void {
+    const frequencies = new Array(256).fill(0);
+    for (const byte of this.testData) {
+      frequencies[byte]++;
+    }
+
+    const tree = HuffEncode.buildHuffmanTree(frequencies);
+
+    const codes = new HuffmanCodes();
+    this.buildHuffmanCodes(tree, 0, 0, codes);
+
+    this.encoded = this.huffmanEncode(this.testData, codes, frequencies);
+    this.resultVal = (this.resultVal + this.encoded.data.length) >>> 0;
+  }
+
+  override checksum(): number {
+    return this.resultVal >>> 0;
+  }
+
+  static buildHuffmanTree(frequencies: number[]): HuffmanNode {
+    const heap: HuffmanNode[] = [];
 
     for (let i = 0; i < frequencies.length; i++) {
       if (frequencies[i] > 0) {
-        heap.push(new CompressionHuffmanNode(frequencies[i], i));
+        heap.push(new HuffmanNode(frequencies[i], i));
       }
     }
 
@@ -4928,12 +5032,12 @@ export class BWTHuffEncode extends Benchmark {
 
     if (heap.length === 1) {
       const node = heap[0];
-      return new CompressionHuffmanNode(
+      return new HuffmanNode(
         node.frequency,
-        null,
+        0,
         false,
         node,
-        new CompressionHuffmanNode(0, 0),
+        new HuffmanNode(0, 0),
       );
     }
 
@@ -4941,9 +5045,9 @@ export class BWTHuffEncode extends Benchmark {
       const left = heap.shift()!;
       const right = heap.shift()!;
 
-      const parent = new CompressionHuffmanNode(
+      const parent = new HuffmanNode(
         left.frequency + right.frequency,
-        null,
+        0,
         false,
         left,
         right,
@@ -4966,14 +5070,14 @@ export class BWTHuffEncode extends Benchmark {
   }
 
   protected buildHuffmanCodes(
-    node: CompressionHuffmanNode,
-    code: number = 0,
-    length: number = 0,
-    huffmanCodes: CompressionHuffmanCodes = new CompressionHuffmanCodes(),
-  ): CompressionHuffmanCodes {
+    node: HuffmanNode,
+    code: number,
+    length: number,
+    huffmanCodes: HuffmanCodes,
+  ): void {
     if (node.isLeaf) {
       if (length > 0 || node.byteVal !== 0) {
-        const idx = node.byteVal!;
+        const idx = node.byteVal;
         huffmanCodes.codeLengths[idx] = length;
         huffmanCodes.codes[idx] = code;
       }
@@ -4990,13 +5094,13 @@ export class BWTHuffEncode extends Benchmark {
         );
       }
     }
-    return huffmanCodes;
   }
 
   protected huffmanEncode(
     data: Uint8Array,
-    huffmanCodes: CompressionHuffmanCodes,
-  ): CompressionEncodedResult {
+    huffmanCodes: HuffmanCodes,
+    frequencies: number[],
+  ): EncodedResult {
     const result = new Uint8Array(data.length * 2);
     let currentByte = 0;
     let bitPos = 0;
@@ -5027,12 +5131,62 @@ export class BWTHuffEncode extends Benchmark {
       result[byteIndex++] = currentByte;
     }
 
-    return new CompressionEncodedResult(result.slice(0, byteIndex), totalBits);
+    return new EncodedResult(
+      result.slice(0, byteIndex),
+      totalBits,
+      frequencies,
+    );
+  }
+}
+
+export class HuffDecode extends Benchmark {
+  protected sizeVal: bigint;
+  protected testData: Uint8Array = new Uint8Array();
+  protected decoded: Uint8Array = new Uint8Array();
+  protected encoded: EncodedResult | null = null;
+  protected resultVal: number = 0;
+
+  constructor() {
+    super();
+    this.sizeVal = Helper.configI64("Compress::HuffDecode", "size");
+  }
+
+  override get name(): string {
+    return "Compress::HuffDecode";
+  }
+
+  override prepare(): void {
+    this.testData = Compress.generateTestData(this.sizeVal);
+
+    const encoder = new HuffEncode();
+    encoder.sizeVal = this.sizeVal;
+    encoder.prepare();
+    encoder.run(0);
+    this.encoded = encoder.encoded;
+    this.resultVal = 0;
+  }
+
+  override run(_iteration_id: number): void {
+    const tree = HuffEncode.buildHuffmanTree(this.encoded!.frequencies);
+    this.decoded = this.huffmanDecode(
+      this.encoded!.data,
+      tree,
+      this.encoded!.bitCount,
+    );
+    this.resultVal = (this.resultVal + this.decoded.length) >>> 0;
+  }
+
+  override checksum(): number {
+    let res = this.resultVal;
+    if (Compress.arraysEqual(this.decoded, this.testData)) {
+      res += 100000;
+    }
+    return res >>> 0;
   }
 
   protected huffmanDecode(
     encoded: Uint8Array,
-    root: CompressionHuffmanNode,
+    root: HuffmanNode,
     bitCount: number,
   ): Uint8Array {
     const result: number[] = [];
@@ -5051,9 +5205,7 @@ export class BWTHuffEncode extends Benchmark {
         currentNode = bit ? currentNode.right! : currentNode.left!;
 
         if (currentNode.isLeaf) {
-          if (currentNode.byteVal !== 0) {
-            result.push(currentNode.byteVal!);
-          }
+          result.push(currentNode.byteVal);
           currentNode = root;
         }
       }
@@ -5061,104 +5213,451 @@ export class BWTHuffEncode extends Benchmark {
 
     return new Uint8Array(result);
   }
+}
 
-  protected compress(data: Uint8Array): CompressionCompressedData {
-    const bwtResult = this.bwtTransform(data);
+class ArithFreqTable {
+  total: number;
+  low: number[];
+  high: number[];
 
-    const frequencies = new Array(256).fill(0);
-    for (const byte of bwtResult.transformed) {
-      frequencies[byte]++;
+  constructor(frequencies: number[]) {
+    this.total = frequencies.reduce((a, b) => a + b, 0);
+    this.low = new Array(256).fill(0);
+    this.high = new Array(256).fill(0);
+
+    let cum = 0;
+    for (let i = 0; i < 256; i++) {
+      this.low[i] = cum;
+      cum += frequencies[i];
+      this.high[i] = cum;
     }
-
-    const huffmanTree = this.buildHuffmanTree(frequencies);
-
-    const huffmanCodes = this.buildHuffmanCodes(huffmanTree);
-
-    const encoded = this.huffmanEncode(bwtResult.transformed, huffmanCodes);
-
-    return new CompressionCompressedData(
-      bwtResult,
-      frequencies,
-      encoded.data,
-      encoded.bitCount,
-    );
-  }
-
-  protected decompress(compressed: CompressionCompressedData): Uint8Array {
-    const huffmanTree = this.buildHuffmanTree(compressed.frequencies);
-
-    const decoded = this.huffmanDecode(
-      compressed.encodedBits,
-      huffmanTree,
-      compressed.originalBitCount,
-    );
-
-    const bwtResult = new CompressionBWTResult(
-      decoded,
-      compressed.bwtResult.originalIdx,
-    );
-
-    return this.bwtInverse(bwtResult);
-  }
-
-  protected generateTestData(size: bigint): Uint8Array {
-    const pattern = new TextEncoder().encode("ABRACADABRA");
-    const sizeNum = Number(size);
-    const data = new Uint8Array(sizeNum);
-    const patternLength = pattern.length;
-
-    for (let i = 0; i < sizeNum; i++) {
-      data[i] = pattern[i % patternLength];
-    }
-
-    return data;
-  }
-
-  prepare(): void {
-    this.testData = this.generateTestData(this.size);
-    this.result = 0;
-  }
-
-  run(_iteration_id: number): void {
-    const compressed = this.compress(this.testData);
-    this.result = (this.result + compressed.encodedBits.length) & 0xffffffff;
-  }
-
-  checksum(): number {
-    return this.result >>> 0;
   }
 }
 
-export class BWTHuffDecode extends BWTHuffEncode {
-  private compressed: CompressionCompressedData | null = null;
-  protected decompressed: Uint8Array = new Uint8Array();
+class BitOutputStream {
+  private buffer: number = 0;
+  private bitPos: number = 0;
+  private bytes: number[] = [];
+  private bitsWritten: number = 0;
 
-  prepare(): void {
-    this.testData = this.generateTestData(this.size);
-    this.compressed = this.compress(this.testData);
+  writeBit(bit: number): void {
+    this.buffer = (this.buffer << 1) | (bit & 1);
+    this.bitPos++;
+    this.bitsWritten++;
+
+    if (this.bitPos === 8) {
+      this.bytes.push(this.buffer & 0xff);
+      this.buffer = 0;
+      this.bitPos = 0;
+    }
   }
 
-  run(_iteration_id: number): void {
-    this.decompressed = this.decompress(this.compressed!);
-    this.result += this.decompressed.length;
+  flush(): Uint8Array {
+    if (this.bitPos > 0) {
+      this.buffer <<= 8 - this.bitPos;
+      this.bytes.push(this.buffer & 0xff);
+    }
+    return new Uint8Array(this.bytes);
   }
 
-  checksum(): number {
-    let res = this.result;
+  getBitsWritten(): number {
+    return this.bitsWritten;
+  }
+}
 
-    if (this.decompressed.length === this.testData.length) {
-      let equal = true;
-      for (let i = 0; i < this.decompressed.length; i++) {
-        if (this.decompressed[i] !== this.testData[i]) {
-          equal = false;
+class ArithEncodedResult {
+  constructor(
+    public data: Uint8Array,
+    public bitCount: number,
+    public frequencies: number[],
+  ) {}
+}
+
+export class ArithEncode extends Benchmark {
+  public sizeVal: bigint;
+  protected testData: Uint8Array = new Uint8Array();
+  public encoded: ArithEncodedResult | null = null;
+  protected resultVal: number = 0;
+
+  constructor() {
+    super();
+    this.sizeVal = Helper.configI64("Compress::ArithEncode", "size");
+  }
+
+  override get name(): string {
+    return "Compress::ArithEncode";
+  }
+
+  override prepare(): void {
+    this.testData = Compress.generateTestData(this.sizeVal);
+    this.resultVal = 0;
+  }
+
+  override run(_iteration_id: number): void {
+    this.encoded = this.arithEncode(this.testData);
+    this.resultVal = (this.resultVal + this.encoded.data.length) >>> 0;
+  }
+
+  override checksum(): number {
+    return this.resultVal >>> 0;
+  }
+
+  protected arithEncode(data: Uint8Array): ArithEncodedResult {
+    const frequencies = new Array(256).fill(0);
+    for (const byte of data) {
+      frequencies[byte]++;
+    }
+
+    const freqTable = new ArithFreqTable(frequencies);
+
+    let low: number = 0;
+    let high: number = 0xffffffff;
+    let pending = 0;
+    const output = new BitOutputStream();
+
+    for (const byte of data) {
+      const idx = byte;
+      const range = high - low + 1;
+
+      high =
+        low + Math.floor((range * freqTable.high[idx]) / freqTable.total) - 1;
+      low = low + Math.floor((range * freqTable.low[idx]) / freqTable.total);
+
+      while (true) {
+        if (high < 0x80000000) {
+          output.writeBit(0);
+          for (let i = 0; i < pending; i++) output.writeBit(1);
+          pending = 0;
+        } else if (low >= 0x80000000) {
+          output.writeBit(1);
+          for (let i = 0; i < pending; i++) output.writeBit(0);
+          pending = 0;
+          low -= 0x80000000;
+          high -= 0x80000000;
+        } else if (low >= 0x40000000 && high < 0xc0000000) {
+          pending++;
+          low -= 0x40000000;
+          high -= 0x40000000;
+        } else {
           break;
         }
-      }
-      if (equal) {
-        res += 1000000;
+
+        low <<= 1;
+        high = (high << 1) | 1;
+        high >>>= 0;
       }
     }
-    return res;
+
+    pending++;
+    if (low < 0x40000000) {
+      output.writeBit(0);
+      for (let i = 0; i < pending; i++) output.writeBit(1);
+    } else {
+      output.writeBit(1);
+      for (let i = 0; i < pending; i++) output.writeBit(0);
+    }
+
+    return new ArithEncodedResult(
+      output.flush(),
+      output.getBitsWritten(),
+      frequencies,
+    );
+  }
+}
+
+class BitInputStream {
+  private bytes: Uint8Array;
+  private bytePos: number = 0;
+  private bitPos: number = 0;
+  private currentByte: number;
+
+  constructor(bytes: Uint8Array) {
+    this.bytes = bytes;
+    this.currentByte = bytes.length > 0 ? bytes[0] : 0;
+  }
+
+  readBit(): number {
+    if (this.bitPos === 8) {
+      this.bytePos++;
+      this.bitPos = 0;
+      this.currentByte =
+        this.bytePos < this.bytes.length ? this.bytes[this.bytePos] : 0;
+    }
+
+    const bit = (this.currentByte >> (7 - this.bitPos)) & 1;
+    this.bitPos++;
+    return bit;
+  }
+}
+
+export class ArithDecode extends Benchmark {
+  protected sizeVal: bigint;
+  protected testData: Uint8Array = new Uint8Array();
+  protected decoded: Uint8Array = new Uint8Array();
+  protected encoded: ArithEncodedResult | null = null;
+  protected resultVal: number = 0;
+
+  constructor() {
+    super();
+    this.sizeVal = Helper.configI64("Compress::ArithDecode", "size");
+  }
+
+  override get name(): string {
+    return "Compress::ArithDecode";
+  }
+
+  override prepare(): void {
+    this.testData = Compress.generateTestData(this.sizeVal);
+
+    const encoder = new ArithEncode();
+    encoder.sizeVal = this.sizeVal;
+    encoder.prepare();
+    encoder.run(0);
+    this.encoded = encoder.encoded;
+    this.resultVal = 0;
+  }
+
+  override run(_iteration_id: number): void {
+    this.decoded = this.arithDecode(this.encoded!);
+    this.resultVal = (this.resultVal + this.decoded.length) >>> 0;
+  }
+
+  override checksum(): number {
+    let res = this.resultVal;
+    if (Compress.arraysEqual(this.decoded, this.testData)) {
+      res += 100000;
+    }
+    return res >>> 0;
+  }
+
+  protected arithDecode(encoded: ArithEncodedResult): Uint8Array {
+    const frequencies = encoded.frequencies;
+    const total = frequencies.reduce((a, b) => a + b, 0);
+    const dataSize = total;
+
+    const lowTable = new Array(256).fill(0);
+    const highTable = new Array(256).fill(0);
+    let cum = 0;
+    for (let i = 0; i < 256; i++) {
+      lowTable[i] = cum;
+      cum += frequencies[i];
+      highTable[i] = cum;
+    }
+
+    const result = new Uint8Array(dataSize);
+    const input = new BitInputStream(encoded.data);
+
+    let value = 0;
+    for (let i = 0; i < 32; i++) {
+      value = (value << 1) | input.readBit();
+    }
+
+    let low = 0;
+    let high = 0xffffffff;
+
+    for (let j = 0; j < dataSize; j++) {
+      const range = high - low + 1;
+      const scaled = Math.floor(((value - low + 1) * total - 1) / range);
+
+      let symbol = 0;
+      while (symbol < 255 && highTable[symbol] <= scaled) {
+        symbol++;
+      }
+
+      result[j] = symbol;
+
+      high = low + Math.floor((range * highTable[symbol]) / total) - 1;
+      low = low + Math.floor((range * lowTable[symbol]) / total);
+
+      while (true) {
+        if (high < 0x80000000) {
+        } else if (low >= 0x80000000) {
+          value -= 0x80000000;
+          low -= 0x80000000;
+          high -= 0x80000000;
+        } else if (low >= 0x40000000 && high < 0xc0000000) {
+          value -= 0x40000000;
+          low -= 0x40000000;
+          high -= 0x40000000;
+        } else {
+          break;
+        }
+
+        low <<= 1;
+        high = (high << 1) | 1;
+        value = (value << 1) | input.readBit();
+      }
+    }
+
+    return result;
+  }
+}
+
+class LZWResult {
+  constructor(
+    public data: Uint8Array,
+    public dictSize: number,
+  ) {}
+}
+
+export class LZWEncode extends Benchmark {
+  public sizeVal: bigint;
+  protected testData: Uint8Array = new Uint8Array();
+  public encoded: LZWResult | null = null;
+  protected resultVal: number = 0;
+
+  constructor() {
+    super();
+    this.sizeVal = Helper.configI64("Compress::LZWEncode", "size");
+  }
+
+  override get name(): string {
+    return "Compress::LZWEncode";
+  }
+
+  override prepare(): void {
+    this.testData = Compress.generateTestData(this.sizeVal);
+    this.resultVal = 0;
+  }
+
+  override run(_iteration_id: number): void {
+    this.encoded = this.lzwEncode(this.testData);
+    this.resultVal = (this.resultVal + this.encoded.data.length) >>> 0;
+  }
+
+  override checksum(): number {
+    return this.resultVal >>> 0;
+  }
+
+  protected lzwEncode(input: Uint8Array): LZWResult {
+    if (input.length === 0) {
+      return new LZWResult(new Uint8Array(), 256);
+    }
+
+    const dict = new Map<string, number>();
+    for (let i = 0; i < 256; i++) {
+      dict.set(String.fromCharCode(i), i);
+    }
+
+    let nextCode = 256;
+    const result: number[] = [];
+
+    let current = String.fromCharCode(input[0]);
+
+    for (let i = 1; i < input.length; i++) {
+      const nextChar = String.fromCharCode(input[i]);
+      const newStr = current + nextChar;
+
+      if (dict.has(newStr)) {
+        current = newStr;
+      } else {
+        const code = dict.get(current)!;
+        result.push((code >> 8) & 0xff);
+        result.push(code & 0xff);
+
+        dict.set(newStr, nextCode);
+        nextCode++;
+        current = nextChar;
+      }
+    }
+
+    const code = dict.get(current)!;
+    result.push((code >> 8) & 0xff);
+    result.push(code & 0xff);
+
+    return new LZWResult(new Uint8Array(result), nextCode);
+  }
+}
+
+export class LZWDecode extends Benchmark {
+  protected sizeVal: bigint;
+  protected testData: Uint8Array = new Uint8Array();
+  protected decoded: Uint8Array = new Uint8Array();
+  protected encoded: LZWResult | null = null;
+  protected resultVal: number = 0;
+
+  constructor() {
+    super();
+    this.sizeVal = Helper.configI64("Compress::LZWDecode", "size");
+  }
+
+  override get name(): string {
+    return "Compress::LZWDecode";
+  }
+
+  override prepare(): void {
+    this.testData = Compress.generateTestData(this.sizeVal);
+
+    const encoder = new LZWEncode();
+    encoder.sizeVal = this.sizeVal;
+    encoder.prepare();
+    encoder.run(0);
+    this.encoded = encoder.encoded;
+    this.resultVal = 0;
+  }
+
+  override run(_iteration_id: number): void {
+    this.decoded = this.lzwDecode(this.encoded!);
+    this.resultVal = (this.resultVal + this.decoded.length) >>> 0;
+  }
+
+  override checksum(): number {
+    let res = this.resultVal;
+    if (Compress.arraysEqual(this.decoded, this.testData)) {
+      res += 100000;
+    }
+    return res >>> 0;
+  }
+
+  protected lzwDecode(encoded: LZWResult): Uint8Array {
+    if (encoded.data.length === 0) {
+      return new Uint8Array();
+    }
+
+    const dict: string[] = new Array(4096);
+    for (let i = 0; i < 256; i++) {
+      dict[i] = String.fromCharCode(i);
+    }
+
+    const result: number[] = [];
+    const data = encoded.data;
+    let pos = 0;
+
+    let oldCode = (data[pos] << 8) | data[pos + 1];
+    pos += 2;
+
+    let oldStr = dict[oldCode];
+    for (let j = 0; j < oldStr.length; j++) {
+      result.push(oldStr.charCodeAt(j));
+    }
+
+    let nextCode = 256;
+
+    while (pos < data.length) {
+      const newCode = (data[pos] << 8) | data[pos + 1];
+      pos += 2;
+
+      let newStr: string;
+      if (newCode < dict.length && dict[newCode] !== undefined) {
+        newStr = dict[newCode];
+      } else if (newCode === nextCode) {
+        newStr = oldStr + oldStr[0];
+      } else {
+        throw new Error(`Error decode: invalid code ${newCode}`);
+      }
+
+      for (let j = 0; j < newStr.length; j++) {
+        result.push(newStr.charCodeAt(j));
+      }
+
+      dict[nextCode] = oldStr + newStr[0];
+      nextCode++;
+
+      oldCode = newCode;
+      oldStr = newStr;
+    }
+
+    return new Uint8Array(result);
   }
 }
 
@@ -5202,8 +5701,14 @@ Benchmark.registerBenchmark(CalculatorInterpreter);
 Benchmark.registerBenchmark(GameOfLife);
 Benchmark.registerBenchmark(MazeGenerator);
 Benchmark.registerBenchmark(AStarPathfinder);
-Benchmark.registerBenchmark(BWTHuffEncode);
-Benchmark.registerBenchmark(BWTHuffDecode);
+Benchmark.registerBenchmark(BWTEncode);
+Benchmark.registerBenchmark(BWTDecode);
+Benchmark.registerBenchmark(HuffEncode);
+Benchmark.registerBenchmark(HuffDecode);
+Benchmark.registerBenchmark(ArithEncode);
+
+Benchmark.registerBenchmark(LZWEncode);
+Benchmark.registerBenchmark(LZWDecode);
 
 const RECOMPILE_MARKER = "RECOMPILE_MARKER_0";
 

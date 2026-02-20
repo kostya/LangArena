@@ -142,7 +142,7 @@ def check_source_files(verbose = false)
       "lines" => content.split("\n").size
     }
     
-    puts "Language: #{lang}, Files: #{files.size}, Source: #{source_kb.round(1)}KB, Gzip: #{gzip_kb.round(1)}KB"
+    puts "Language: #{lang}, Files: #{files.size}, Source: #{source_kb.round(1)}KB, Gzip: #{gzip_kb.round(1)}KB, Boilerplace: #{(source_kb / gzip_kb).round(1)}, Lines: #{content.split("\n").size}"
   end
 
   RESULTS["source-size-kb"] = results.transform_values { |data| data["source_kb"] }

@@ -3921,35 +3921,41 @@ public:
   uint32_t checksum() override { return result_val; }
 };
 
-class BWTHuffEncode : public Benchmark {
-private:
+std::vector<uint8_t> generate_test_data(int64_t size) {
+  const char *pattern = "ABRACADABRA";
+  size_t pattern_len = strlen(pattern);
+  std::vector<uint8_t> data(static_cast<size_t>(size));
+
+  for (int64_t i = 0; i < size; i++) {
+    data[static_cast<size_t>(i)] = pattern[i % pattern_len];
+  }
+
+  return data;
+}
+
+class BWTEncode : public Benchmark {
+public:
   struct BWTResult {
     std::vector<uint8_t> transformed;
-    size_t original_idx;
+    int32_t original_idx;
 
-    BWTResult(std::vector<uint8_t> t, size_t idx)
+    BWTResult(std::vector<uint8_t> t, int32_t idx)
         : transformed(std::move(t)), original_idx(idx) {}
   };
 
+private:
   BWTResult bwt_transform(const std::vector<uint8_t> &input) {
     size_t n = input.size();
-    if (n == 0) {
+    if (n == 0)
       return BWTResult({}, 0);
-    }
-
-    std::vector<uint8_t> doubled(n * 2);
-    std::copy(input.begin(), input.end(), doubled.begin());
-    std::copy(input.begin(), input.end(), doubled.begin() + n);
 
     std::vector<size_t> sa(n);
-    for (size_t i = 0; i < n; i++) {
+    for (size_t i = 0; i < n; i++)
       sa[i] = i;
-    }
 
     std::vector<std::vector<size_t>> buckets(256);
     for (size_t idx : sa) {
-      uint8_t first_char = input[idx];
-      buckets[first_char].push_back(idx);
+      buckets[input[idx]].push_back(idx);
     }
 
     size_t pos = 0;
@@ -3960,8 +3966,8 @@ private:
     }
 
     if (n > 1) {
-      std::vector<int> rank(n, 0);
-      int current_rank = 0;
+      std::vector<int32_t> rank(n, 0);
+      int32_t current_rank = 0;
       uint8_t prev_char = input[sa[0]];
 
       for (size_t i = 0; i < n; i++) {
@@ -3976,27 +3982,23 @@ private:
 
       size_t k = 1;
       while (k < n) {
-        std::vector<std::pair<int, int>> pairs(n);
+        std::vector<std::pair<int32_t, int32_t>> pairs(n);
         for (size_t i = 0; i < n; i++) {
           pairs[i] = {rank[i], rank[(i + k) % n]};
         }
 
         std::sort(sa.begin(), sa.end(), [&pairs](size_t a, size_t b) {
-          auto pair_a = pairs[a];
-          auto pair_b = pairs[b];
-          if (pair_a.first != pair_b.first) {
-            return pair_a.first < pair_b.first;
-          }
-          return pair_a.second < pair_b.second;
+          const auto &pa = pairs[a];
+          const auto &pb = pairs[b];
+          return pa.first != pb.first ? pa.first < pb.first
+                                      : pa.second < pb.second;
         });
 
-        std::vector<int> new_rank(n, 0);
+        std::vector<int32_t> new_rank(n, 0);
         new_rank[sa[0]] = 0;
         for (size_t i = 1; i < n; i++) {
-          auto prev_pair = pairs[sa[i - 1]];
-          auto curr_pair = pairs[sa[i]];
           new_rank[sa[i]] =
-              new_rank[sa[i - 1]] + (prev_pair != curr_pair ? 1 : 0);
+              new_rank[sa[i - 1]] + (pairs[sa[i - 1]] != pairs[sa[i]] ? 1 : 0);
         }
 
         rank = std::move(new_rank);
@@ -4005,13 +4007,13 @@ private:
     }
 
     std::vector<uint8_t> transformed(n);
-    size_t original_idx = 0;
+    int32_t original_idx = 0;
 
     for (size_t i = 0; i < n; i++) {
       size_t suffix = sa[i];
       if (suffix == 0) {
         transformed[i] = input[n - 1];
-        original_idx = i;
+        original_idx = static_cast<int32_t>(i);
       } else {
         transformed[i] = input[suffix - 1];
       }
@@ -4020,162 +4022,215 @@ private:
     return BWTResult(std::move(transformed), original_idx);
   }
 
-  std::vector<uint8_t> bwt_inverse(const BWTResult &bwt_result) {
+public:
+  int64_t size_val;
+  std::vector<uint8_t> test_data;
+  BWTResult bwt_result;
+  uint32_t result_val;
+
+  BWTEncode() : result_val(0), bwt_result({}, 0) {
+    size_val = config_val("size");
+  }
+
+  std::string name() const override { return "Compress::BWTEncode"; }
+
+  void prepare() override { test_data = generate_test_data(size_val); }
+
+  void run(int iteration_id) override {
+    bwt_result = bwt_transform(test_data);
+    result_val += static_cast<uint32_t>(bwt_result.transformed.size());
+  }
+
+  uint32_t checksum() override { return result_val; }
+};
+
+class BWTDecode : public Benchmark {
+private:
+  std::vector<uint8_t> bwt_inverse(const BWTEncode::BWTResult &bwt_result) {
     const auto &bwt = bwt_result.transformed;
     size_t n = bwt.size();
-    if (n == 0) {
+    if (n == 0)
       return {};
-    }
 
-    size_t counts[256] = {0};
-    for (uint8_t byte : bwt) {
+    int32_t counts[256] = {0};
+    for (uint8_t byte : bwt)
       counts[byte]++;
-    }
 
-    size_t positions[256] = {0};
-    size_t total = 0;
+    int32_t positions[256] = {0};
+    int32_t total = 0;
     for (int i = 0; i < 256; i++) {
       positions[i] = total;
       total += counts[i];
     }
 
     std::vector<size_t> next(n, 0);
+    int32_t temp_counts[256] = {0};
 
-    size_t temp_counts[256] = {0};
     for (size_t i = 0; i < n; i++) {
       uint8_t byte = bwt[i];
-      size_t pos = positions[byte] + temp_counts[byte];
+      size_t pos = static_cast<size_t>(positions[byte] + temp_counts[byte]);
       next[pos] = i;
       temp_counts[byte]++;
     }
 
-    std::vector<uint8_t> result;
-    result.reserve(n);
+    std::vector<uint8_t> result(n);
+    size_t idx = static_cast<size_t>(bwt_result.original_idx);
 
-    size_t idx = bwt_result.original_idx;
     for (size_t i = 0; i < n; i++) {
       idx = next[idx];
-      result.push_back(bwt[idx]);
+      result[i] = bwt[idx];
     }
 
     return result;
   }
 
-  struct HuffmanNode {
-    int frequency;
+public:
+  int64_t size_val;
+  std::vector<uint8_t> test_data;
+  std::vector<uint8_t> inverted;
+  BWTEncode::BWTResult bwt_result;
+  uint32_t result_val;
+
+  BWTDecode() : result_val(0), bwt_result({}, 0) {
+    size_val = config_val("size");
+  }
+
+  std::string name() const override { return "Compress::BWTDecode"; }
+
+  void prepare() override {
+    BWTEncode encoder;
+    encoder.size_val = size_val;
+    encoder.prepare();
+    encoder.run(0);
+    test_data = encoder.test_data;
+    bwt_result = encoder.bwt_result;
+  }
+
+  void run(int iteration_id) override {
+    inverted = bwt_inverse(bwt_result);
+    result_val += static_cast<uint32_t>(inverted.size());
+  }
+
+  uint32_t checksum() override {
+    if (inverted == test_data)
+      result_val += 100000;
+    return result_val;
+  }
+};
+
+class HuffEncode : public Benchmark {
+public:
+  class HuffmanNode {
+  public:
+    int32_t frequency;
     uint8_t byte_val;
     bool is_leaf;
     std::shared_ptr<HuffmanNode> left;
     std::shared_ptr<HuffmanNode> right;
 
-    HuffmanNode(int freq, uint8_t byte = 0, bool leaf = true)
+    HuffmanNode(int32_t freq, uint8_t byte = 0, bool leaf = true)
         : frequency(freq), byte_val(byte), is_leaf(leaf) {}
   };
 
-  struct HuffmanNodeCompare {
-    bool operator()(const std::shared_ptr<HuffmanNode> &a,
-                    const std::shared_ptr<HuffmanNode> &b) const {
-      return a->frequency > b->frequency;
-    }
+  struct HuffmanCodes {
+    std::vector<int32_t> code_lengths;
+    std::vector<int32_t> codes;
+
+    HuffmanCodes() : code_lengths(256, 0), codes(256, 0) {}
   };
 
-  std::shared_ptr<HuffmanNode>
-  build_huffman_tree(const std::vector<int> &frequencies) {
-    std::priority_queue<std::shared_ptr<HuffmanNode>,
-                        std::vector<std::shared_ptr<HuffmanNode>>,
-                        HuffmanNodeCompare>
-        heap;
+  struct EncodedResult {
+    std::vector<uint8_t> data;
+    int32_t bit_count;
+    std::vector<int32_t> frequencies;
 
+    EncodedResult(std::vector<uint8_t> d, int32_t bc, std::vector<int32_t> f)
+        : data(std::move(d)), bit_count(bc), frequencies(std::move(f)) {}
+  };
+
+public:
+  static std::shared_ptr<HuffmanNode>
+  build_huffman_tree(const std::vector<int32_t> &frequencies) {
+    std::vector<std::shared_ptr<HuffmanNode>> nodes;
     for (int i = 0; i < 256; i++) {
       if (frequencies[i] > 0) {
-        heap.push(std::make_unique<HuffmanNode>(frequencies[i],
-                                                static_cast<uint8_t>(i)));
+        nodes.push_back(std::make_shared<HuffmanNode>(frequencies[i],
+                                                      static_cast<uint8_t>(i)));
       }
     }
 
-    if (heap.size() == 1) {
-      auto node = heap.top();
-      heap.pop();
+    std::sort(nodes.begin(), nodes.end(), [](const auto &a, const auto &b) {
+      return a->frequency < b->frequency;
+    });
 
+    if (nodes.size() == 1) {
+      auto node = nodes[0];
       auto root = std::make_shared<HuffmanNode>(node->frequency, 0, false);
       root->left = node;
       root->right = std::make_shared<HuffmanNode>(0, 0);
       return root;
     }
 
-    while (heap.size() > 1) {
-      auto left = heap.top();
-      heap.pop();
-      auto right = heap.top();
-      heap.pop();
+    while (nodes.size() > 1) {
+      auto left = nodes[0];
+      auto right = nodes[1];
+
+      nodes.erase(nodes.begin());
+      nodes.erase(nodes.begin());
 
       auto parent = std::make_shared<HuffmanNode>(
           left->frequency + right->frequency, 0, false);
       parent->left = left;
       parent->right = right;
 
-      heap.push(parent);
+      auto pos = std::lower_bound(nodes.begin(), nodes.end(), parent,
+                                  [](const auto &n, const auto &p) {
+                                    return n->frequency < p->frequency;
+                                  });
+      nodes.insert(pos, parent);
     }
 
-    return heap.top();
+    return nodes[0];
   }
 
-  struct HuffmanCodes {
-    std::vector<int> code_lengths;
-    std::vector<int> codes;
-
-    HuffmanCodes() : code_lengths(256, 0), codes(256, 0) {}
-  };
-
-  void build_huffman_codes(const std::shared_ptr<HuffmanNode> &node, int code,
-                           int length, HuffmanCodes &huffman_codes) {
+  void build_huffman_codes(const std::shared_ptr<HuffmanNode> &node,
+                           int32_t code, int32_t length, HuffmanCodes &codes) {
     if (node->is_leaf) {
       if (length > 0 || node->byte_val != 0) {
         int idx = node->byte_val;
-        huffman_codes.code_lengths[idx] = length;
-        huffman_codes.codes[idx] = code;
+        codes.code_lengths[idx] = length;
+        codes.codes[idx] = code;
       }
     } else {
-      if (node->left) {
-        build_huffman_codes(node->left, code << 1, length + 1, huffman_codes);
-      }
-      if (node->right) {
-        build_huffman_codes(node->right, (code << 1) | 1, length + 1,
-                            huffman_codes);
-      }
+      if (node->left)
+        build_huffman_codes(node->left, code << 1, length + 1, codes);
+      if (node->right)
+        build_huffman_codes(node->right, (code << 1) | 1, length + 1, codes);
     }
   }
 
-  struct EncodedResult {
-    std::vector<uint8_t> data;
-    int bit_count;
-
-    EncodedResult(std::vector<uint8_t> d, int bc)
-        : data(std::move(d)), bit_count(bc) {}
-  };
-
   EncodedResult huffman_encode(const std::vector<uint8_t> &data,
-                               const HuffmanCodes &huffman_codes) {
-    std::vector<uint8_t> result(data.size() * 2);
+                               const HuffmanCodes &codes,
+                               const std::vector<int32_t> &frequencies) {
+    std::vector<uint8_t> result;
+    result.reserve(data.size() * 2);
     uint8_t current_byte = 0;
-    int bit_pos = 0;
-    size_t byte_index = 0;
-    int total_bits = 0;
+    int32_t bit_pos = 0;
+    int32_t total_bits = 0;
 
     for (uint8_t byte : data) {
       int idx = byte;
-      int code = huffman_codes.codes[idx];
-      int length = huffman_codes.code_lengths[idx];
+      int32_t code = codes.codes[idx];
+      int32_t length = codes.code_lengths[idx];
 
       for (int i = length - 1; i >= 0; i--) {
-        if ((code & (1 << i)) != 0) {
+        if ((code & (1 << i)) != 0)
           current_byte |= 1 << (7 - bit_pos);
-        }
         bit_pos++;
         total_bits++;
 
         if (bit_pos == 8) {
-          result[byte_index++] = current_byte;
+          result.push_back(current_byte);
           current_byte = 0;
           bit_pos = 0;
         }
@@ -4183,53 +4238,360 @@ private:
     }
 
     if (bit_pos > 0) {
-      result[byte_index++] = current_byte;
+      result.push_back(current_byte);
     }
 
-    result.resize(byte_index);
-    return EncodedResult(std::move(result), total_bits);
+    return EncodedResult(std::move(result), total_bits, frequencies);
   }
 
-  std::vector<uint8_t> huffman_decode(const std::vector<uint8_t> &encoded,
-                                      const std::shared_ptr<HuffmanNode> &root,
-                                      int bit_count) {
-    std::vector<uint8_t> result;
-    result.reserve(bit_count / 4 + 1);
+public:
+  int64_t size_val;
+  std::vector<uint8_t> test_data;
+  EncodedResult encoded;
+  uint32_t result_val;
 
-    const HuffmanNode *current_node = root.get();
-    int bits_processed = 0;
+  HuffEncode() : result_val(0), encoded({}, 0, {}) {
+    size_val = config_val("size");
+  }
+
+  std::string name() const override { return "Compress::HuffEncode"; }
+
+  void prepare() override { test_data = generate_test_data(size_val); }
+
+  void run(int iteration_id) override {
+    std::vector<int32_t> frequencies(256, 0);
+    for (uint8_t byte : test_data)
+      frequencies[byte]++;
+
+    auto tree = build_huffman_tree(frequencies);
+
+    HuffmanCodes codes;
+    build_huffman_codes(tree, 0, 0, codes);
+
+    encoded = huffman_encode(test_data, codes, frequencies);
+    result_val += static_cast<uint32_t>(encoded.data.size());
+  }
+
+  uint32_t checksum() override { return result_val; }
+};
+
+class HuffDecode : public Benchmark {
+private:
+  std::vector<uint8_t>
+  huffman_decode(const std::vector<uint8_t> &encoded,
+                 const std::shared_ptr<HuffEncode::HuffmanNode> &root,
+                 int32_t bit_count) {
+
+    std::vector<uint8_t> result(bit_count);
+    size_t result_size = 0;
+
+    const HuffEncode::HuffmanNode *current_node = root.get();
+    int32_t bits_processed = 0;
     size_t byte_index = 0;
 
     while (bits_processed < bit_count && byte_index < encoded.size()) {
       uint8_t byte_val = encoded[byte_index++];
 
-      if (bits_processed + 8 <= bit_count) {
+      for (int bit_pos = 7; bit_pos >= 0 && bits_processed < bit_count;
+           bit_pos--) {
+        bool bit = ((byte_val >> bit_pos) & 1) == 1;
+        current_node =
+            bit ? current_node->right.get() : current_node->left.get();
+        bits_processed++;
 
-        for (int bit_pos = 7; bit_pos >= 0; bit_pos--) {
-          bool bit = ((byte_val >> bit_pos) & 1) == 1;
-          current_node =
-              bit ? current_node->right.get() : current_node->left.get();
-
-          if (current_node->is_leaf) {
-            result.push_back(current_node->byte_val);
-            current_node = root.get();
-          }
+        if (current_node->is_leaf) {
+          result[result_size++] = current_node->byte_val;
+          current_node = root.get();
         }
-        bits_processed += 8;
-      } else {
+      }
+    }
 
-        for (int bit_pos = 7; bit_pos >= 0 && bits_processed < bit_count;
-             bit_pos--) {
-          bool bit = ((byte_val >> bit_pos) & 1) == 1;
-          current_node =
-              bit ? current_node->right.get() : current_node->left.get();
-          bits_processed++;
+    result.resize(result_size);
+    return result;
+  }
 
-          if (current_node->is_leaf) {
-            result.push_back(current_node->byte_val);
-            current_node = root.get();
-          }
+public:
+  int64_t size_val;
+  std::vector<uint8_t> test_data;
+  std::vector<uint8_t> decoded;
+  HuffEncode::EncodedResult encoded;
+  uint32_t result_val;
+
+  HuffDecode() : result_val(0), encoded({}, 0, {}) {
+    size_val = config_val("size");
+  }
+
+  std::string name() const override { return "Compress::HuffDecode"; }
+
+  void prepare() override {
+    test_data = generate_test_data(size_val);
+
+    HuffEncode encoder;
+    encoder.size_val = size_val;
+    encoder.prepare();
+    encoder.run(0);
+    encoded = encoder.encoded;
+  }
+
+  void run(int iteration_id) override {
+    auto tree = HuffEncode::build_huffman_tree(encoded.frequencies);
+    decoded = huffman_decode(encoded.data, tree, encoded.bit_count);
+    result_val += static_cast<uint32_t>(decoded.size());
+  }
+
+  uint32_t checksum() override {
+    uint32_t res = result_val;
+    if (decoded == test_data)
+      res += 100000;
+    return res;
+  }
+};
+
+class ArithEncode : public Benchmark {
+public:
+  struct ArithEncodedResult {
+    std::vector<uint8_t> data;
+    int32_t bit_count;
+    std::vector<int32_t> frequencies;
+
+    ArithEncodedResult() : bit_count(0) {}
+    ArithEncodedResult(std::vector<uint8_t> d, int32_t bc,
+                       std::vector<int32_t> f)
+        : data(std::move(d)), bit_count(bc), frequencies(std::move(f)) {}
+  };
+
+  class ArithFreqTable {
+  public:
+    int32_t total;
+    std::vector<int32_t> low;
+    std::vector<int32_t> high;
+
+    ArithFreqTable(const std::vector<int32_t> &frequencies)
+        : total(0), low(256, 0), high(256, 0) {
+      for (int32_t f : frequencies)
+        total += f;
+
+      int32_t cum = 0;
+      for (int i = 0; i < 256; i++) {
+        low[i] = cum;
+        cum += frequencies[i];
+        high[i] = cum;
+      }
+    }
+
+    ArithFreqTable(int32_t t, std::vector<int32_t> l, std::vector<int32_t> h)
+        : total(t), low(std::move(l)), high(std::move(h)) {}
+  };
+
+  class BitOutputStream {
+  private:
+    uint8_t buffer = 0;
+    int32_t bit_pos = 0;
+    std::vector<uint8_t> bytes;
+    int32_t bits_written = 0;
+
+  public:
+    void write_bit(int32_t bit) {
+      buffer = (buffer << 1) | (bit & 1);
+      bit_pos++;
+      bits_written++;
+
+      if (bit_pos == 8) {
+        bytes.push_back(buffer);
+        buffer = 0;
+        bit_pos = 0;
+      }
+    }
+
+    std::vector<uint8_t> flush() {
+      if (bit_pos > 0) {
+        buffer <<= (8 - bit_pos);
+        bytes.push_back(buffer);
+      }
+      return bytes;
+    }
+
+    int32_t get_bits_written() const { return bits_written; }
+    void clear() {
+      buffer = 0;
+      bit_pos = 0;
+      bytes.clear();
+      bits_written = 0;
+    }
+  };
+
+private:
+  ArithEncodedResult arith_encode(const std::vector<uint8_t> &data) {
+    std::vector<int32_t> frequencies(256, 0);
+    for (uint8_t byte : data) {
+      frequencies[byte]++;
+    }
+
+    ArithFreqTable freq_table(frequencies);
+
+    uint64_t low = 0;
+    uint64_t high = 0xFFFFFFFF;
+    int32_t pending = 0;
+    BitOutputStream output;
+
+    for (uint8_t byte : data) {
+      int32_t idx = byte;
+      uint64_t range = high - low + 1;
+
+      high = low + (range * freq_table.high[idx] / freq_table.total) - 1;
+      low = low + (range * freq_table.low[idx] / freq_table.total);
+
+      while (true) {
+        if (high < 0x80000000) {
+          output.write_bit(0);
+          for (int i = 0; i < pending; i++)
+            output.write_bit(1);
+          pending = 0;
+        } else if (low >= 0x80000000) {
+          output.write_bit(1);
+          for (int i = 0; i < pending; i++)
+            output.write_bit(0);
+          pending = 0;
+          low -= 0x80000000;
+          high -= 0x80000000;
+        } else if (low >= 0x40000000 && high < 0xC0000000) {
+          pending++;
+          low -= 0x40000000;
+          high -= 0x40000000;
+        } else {
+          break;
         }
+
+        low <<= 1;
+        high = (high << 1) | 1;
+        high &= 0xFFFFFFFF;
+      }
+    }
+
+    pending++;
+    if (low < 0x40000000) {
+      output.write_bit(0);
+      for (int i = 0; i < pending; i++)
+        output.write_bit(1);
+    } else {
+      output.write_bit(1);
+      for (int i = 0; i < pending; i++)
+        output.write_bit(0);
+    }
+
+    return ArithEncodedResult(output.flush(), output.get_bits_written(),
+                              frequencies);
+  }
+
+public:
+  int64_t size_val = 0;
+  uint32_t result_val = 0;
+  std::vector<uint8_t> test_data;
+  ArithEncodedResult encoded;
+
+  ArithEncode() { size_val = config_val("size"); }
+
+  std::string name() const override { return "Compress::ArithEncode"; }
+
+  void prepare() override { test_data = generate_test_data(size_val); }
+
+  void run(int iteration_id) override {
+    encoded = arith_encode(test_data);
+    result_val += static_cast<uint32_t>(encoded.data.size());
+  }
+
+  uint32_t checksum() override { return result_val; }
+};
+
+class ArithDecode : public Benchmark {
+public:
+  class BitInputStream {
+  private:
+    const std::vector<uint8_t> &bytes;
+    size_t byte_pos = 0;
+    int32_t bit_pos = 0;
+    uint8_t current_byte = 0;
+
+  public:
+    BitInputStream(const std::vector<uint8_t> &b) : bytes(b) {
+      if (!bytes.empty())
+        current_byte = bytes[0];
+    }
+
+    int32_t read_bit() {
+      if (bit_pos == 8) {
+        byte_pos++;
+        bit_pos = 0;
+        current_byte = byte_pos < bytes.size() ? bytes[byte_pos] : 0;
+      }
+
+      int32_t bit = (current_byte >> (7 - bit_pos)) & 1;
+      bit_pos++;
+      return bit;
+    }
+  };
+
+private:
+  std::vector<uint8_t>
+  arith_decode(const ArithEncode::ArithEncodedResult &encoded) {
+    const auto &frequencies = encoded.frequencies;
+    int32_t total = 0;
+    for (int32_t f : frequencies)
+      total += f;
+    int32_t data_size = total;
+
+    std::array<int32_t, 256> low_table = {0};
+    std::array<int32_t, 256> high_table = {0};
+    int32_t cum = 0;
+    for (int i = 0; i < 256; i++) {
+      low_table[i] = cum;
+      cum += frequencies[i];
+      high_table[i] = cum;
+    }
+
+    std::vector<uint8_t> result(data_size);
+    BitInputStream input(encoded.data);
+
+    uint64_t value = 0;
+    for (int i = 0; i < 32; i++) {
+      value = (value << 1) | input.read_bit();
+    }
+
+    uint64_t low = 0;
+    uint64_t high = 0xFFFFFFFF;
+
+    for (int32_t j = 0; j < data_size; j++) {
+      uint64_t range = high - low + 1;
+      uint64_t scaled = ((value - low + 1) * total - 1) / range;
+
+      uint8_t symbol = 0;
+      while (symbol < 255 && high_table[symbol] <= scaled) {
+        symbol++;
+      }
+
+      result[j] = symbol;
+
+      high = low + (range * high_table[symbol] / total) - 1;
+      low = low + (range * low_table[symbol] / total);
+
+      while (true) {
+        if (high < 0x80000000) {
+
+        } else if (low >= 0x80000000) {
+          value -= 0x80000000;
+          low -= 0x80000000;
+          high -= 0x80000000;
+        } else if (low >= 0x40000000 && high < 0xC0000000) {
+          value -= 0x40000000;
+          low -= 0x40000000;
+          high -= 0x40000000;
+        } else {
+          break;
+        }
+
+        low <<= 1;
+        high = (high << 1) | 1;
+        value = (value << 1) | input.read_bit();
       }
     }
 
@@ -4237,106 +4599,196 @@ private:
   }
 
 public:
-  struct CompressedData {
-    BWTResult bwt_result;
-    std::vector<int> frequencies;
-    std::vector<uint8_t> encoded_bits;
-    int original_bit_count;
+  int64_t size_val = 0;
+  uint32_t result_val = 0;
+  std::vector<uint8_t> test_data;
+  std::vector<uint8_t> decoded;
+  ArithEncode::ArithEncodedResult encoded;
 
-    CompressedData(BWTResult bwt, std::vector<int> freq,
-                   std::vector<uint8_t> encoded, int bit_count)
-        : bwt_result(std::move(bwt)), frequencies(std::move(freq)),
-          encoded_bits(std::move(encoded)), original_bit_count(bit_count) {}
+  ArithDecode() { size_val = config_val("size"); }
+
+  std::string name() const override { return "Compress::ArithDecode"; }
+
+  void prepare() override {
+    test_data = generate_test_data(size_val);
+
+    ArithEncode encoder;
+    encoder.size_val = size_val;
+    encoder.prepare();
+    encoder.run(0);
+    encoded = encoder.encoded;
+  }
+
+  void run(int iteration_id) override {
+    decoded = arith_decode(encoded);
+    result_val += static_cast<uint32_t>(decoded.size());
+  }
+
+  uint32_t checksum() override {
+    if (decoded == test_data) {
+      result_val += 100000;
+    }
+    return result_val;
+  }
+};
+
+class LZWEncode : public Benchmark {
+public:
+  struct LZWResult {
+    std::vector<uint8_t> data;
+    int32_t dict_size;
+
+    LZWResult() : dict_size(256) {}
+    LZWResult(std::vector<uint8_t> d, int32_t ds)
+        : data(std::move(d)), dict_size(ds) {}
   };
 
-  CompressedData compress(const std::vector<uint8_t> &data) {
-    BWTResult bwt_result = bwt_transform(data);
+private:
+  LZWResult lzw_encode(const std::vector<uint8_t> &input) {
+    if (input.empty())
+      return LZWResult();
 
-    std::vector<int> frequencies(256, 0);
-    for (uint8_t byte : bwt_result.transformed) {
-      frequencies[byte]++;
+    std::unordered_map<std::string, int32_t> dict;
+    dict.reserve(4096);
+    for (int i = 0; i < 256; i++) {
+      dict[std::string(1, static_cast<char>(i))] = i;
     }
 
-    std::shared_ptr<HuffmanNode> huffman_tree = build_huffman_tree(frequencies);
+    int32_t next_code = 256;
 
-    HuffmanCodes huffman_codes;
-    build_huffman_codes(huffman_tree, 0, 0, huffman_codes);
+    std::vector<uint8_t> result;
+    result.reserve(input.size() * 2);
 
-    EncodedResult encoded =
-        huffman_encode(bwt_result.transformed, huffman_codes);
+    std::string current(1, static_cast<char>(input[0]));
 
-    return CompressedData(std::move(bwt_result), std::move(frequencies),
-                          std::move(encoded.data), encoded.bit_count);
-  }
+    for (size_t i = 1; i < input.size(); i++) {
+      char next_char(static_cast<char>(input[i]));
+      std::string new_str = current + next_char;
 
-  std::vector<uint8_t> decompress(const CompressedData &compressed) {
-    std::shared_ptr<HuffmanNode> huffman_tree =
-        build_huffman_tree(compressed.frequencies);
+      if (dict.find(new_str) != dict.end()) {
+        current = new_str;
+      } else {
+        int32_t code = dict[current];
+        result.push_back((code >> 8) & 0xFF);
+        result.push_back(code & 0xFF);
 
-    std::vector<uint8_t> decoded = huffman_decode(
-        compressed.encoded_bits, huffman_tree, compressed.original_bit_count);
-
-    BWTResult bwt_result(std::move(decoded),
-                         compressed.bwt_result.original_idx);
-
-    return bwt_inverse(bwt_result);
-  }
-
-  std::vector<uint8_t> generate_test_data(int64_t data_size) {
-    std::string pattern = "ABRACADABRA";
-    std::vector<uint8_t> data(static_cast<size_t>(data_size));
-    for (int64_t i = 0; i < data_size; i++) {
-      data[static_cast<size_t>(i)] = pattern[i % pattern.size()];
+        dict[new_str] = next_code++;
+        current = std::string(1, next_char);
+      }
     }
 
-    return data;
+    int32_t code = dict[current];
+    result.push_back((code >> 8) & 0xFF);
+    result.push_back(code & 0xFF);
+
+    return LZWResult(result, next_code);
   }
 
 public:
-  int64_t size_val;
+  int64_t size_val = 0;
+  uint32_t result_val = 0;
   std::vector<uint8_t> test_data;
-  uint32_t result_val;
+  LZWResult encoded;
 
-  BWTHuffEncode() : result_val(0) { size_val = config_val("size"); }
+  LZWEncode() { size_val = config_val("size"); }
 
-  std::string name() const override { return "BWTHuffEncode"; }
+  std::string name() const override { return "Compress::LZWEncode"; }
 
   void prepare() override { test_data = generate_test_data(size_val); }
 
   void run(int iteration_id) override {
-    CompressedData compressed = compress(test_data);
-    result_val += compressed.encoded_bits.size();
+    encoded = lzw_encode(test_data);
+    result_val += static_cast<uint32_t>(encoded.data.size());
   }
 
   uint32_t checksum() override { return result_val; }
 };
 
-class BWTHuffDecode : public BWTHuffEncode {
+class LZWDecode : public Benchmark {
 private:
-  std::optional<CompressedData> compressed_data;
-  std::vector<uint8_t> decompressed;
+  std::vector<uint8_t> lzw_decode(const LZWEncode::LZWResult &encoded) {
+    if (encoded.data.empty())
+      return std::vector<uint8_t>();
+
+    std::vector<std::string> dict;
+    dict.reserve(4096);
+    for (int i = 0; i < 256; i++) {
+      dict.emplace_back(1, static_cast<char>(i));
+    }
+
+    std::vector<uint8_t> result;
+    result.reserve(encoded.data.size() * 2);
+
+    const auto &data = encoded.data;
+    size_t pos = 0;
+
+    uint16_t high = data[pos];
+    uint16_t low = data[pos + 1];
+    int32_t old_code = (high << 8) | low;
+    pos += 2;
+
+    const std::string &old_str = dict[old_code];
+    result.insert(result.end(), old_str.begin(), old_str.end());
+
+    int32_t next_code = 256;
+
+    while (pos < data.size()) {
+      high = data[pos];
+      low = data[pos + 1];
+      int32_t new_code = (high << 8) | low;
+      pos += 2;
+
+      std::string new_str;
+      if (new_code < static_cast<int32_t>(dict.size())) {
+        new_str = dict[new_code];
+      } else if (new_code == next_code) {
+        new_str = dict[old_code] + dict[old_code][0];
+      } else {
+        throw std::runtime_error("Error decode");
+      }
+
+      result.insert(result.end(), new_str.begin(), new_str.end());
+
+      dict.emplace_back(dict[old_code] + new_str[0]);
+      next_code++;
+
+      old_code = new_code;
+    }
+
+    return result;
+  }
 
 public:
-  BWTHuffDecode() { size_val = config_val("size"); }
+  int64_t size_val = 0;
+  uint32_t result_val = 0;
+  std::vector<uint8_t> test_data;
+  std::vector<uint8_t> decoded;
+  LZWEncode::LZWResult encoded;
 
-  std::string name() const override { return "BWTHuffDecode"; }
+  LZWDecode() { size_val = config_val("size"); }
+
+  std::string name() const override { return "Compress::LZWDecode"; }
 
   void prepare() override {
     test_data = generate_test_data(size_val);
-    compressed_data = compress(test_data);
+
+    LZWEncode encoder;
+    encoder.size_val = size_val;
+    encoder.prepare();
+    encoder.run(0);
+    encoded = encoder.encoded;
   }
 
   void run(int iteration_id) override {
-    decompressed = decompress(*compressed_data);
-    result_val += decompressed.size();
+    decoded = lzw_decode(encoded);
+    result_val += static_cast<uint32_t>(decoded.size());
   }
 
   uint32_t checksum() override {
-    uint32_t res = result_val;
-    if (test_data == decompressed) {
-      res += 1000000;
+    if (decoded == test_data) {
+      result_val += 100000;
     }
-    return res;
+    return result_val;
   }
 };
 
@@ -4407,8 +4859,22 @@ void Benchmark::all(const std::string &single_bench) {
           {"MazeGenerator", []() { return std::make_unique<MazeGenerator>(); }},
           {"AStarPathfinder",
            []() { return std::make_unique<AStarPathfinder>(); }},
-          {"BWTHuffEncode", []() { return std::make_unique<BWTHuffEncode>(); }},
-          {"BWTHuffDecode", []() { return std::make_unique<BWTHuffDecode>(); }},
+          {"Compress::BWTEncode",
+           []() { return std::make_unique<BWTEncode>(); }},
+          {"Compress::BWTDecode",
+           []() { return std::make_unique<BWTDecode>(); }},
+          {"Compress::HuffEncode",
+           []() { return std::make_unique<HuffEncode>(); }},
+          {"Compress::HuffDecode",
+           []() { return std::make_unique<HuffDecode>(); }},
+          {"Compress::ArithEncode",
+           []() { return std::make_unique<ArithEncode>(); }},
+          {"Compress::ArithDecode",
+           []() { return std::make_unique<ArithDecode>(); }},
+          {"Compress::LZWEncode",
+           []() { return std::make_unique<LZWEncode>(); }},
+          {"Compress::LZWDecode",
+           []() { return std::make_unique<LZWDecode>(); }},
       };
 
   for (auto &[name, create_benchmark] : benchmarks) {

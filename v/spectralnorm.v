@@ -67,8 +67,6 @@ fn eval_ata_times_u(u []f64) []f64 {
 }
 
 pub fn (mut s Spectralnorm) run(iteration_id int) {
-	_ = iteration_id
-
 	s.v = eval_ata_times_u(s.u)
 	s.u = eval_ata_times_u(s.v)
 }

@@ -138,8 +138,6 @@ pub fn (mut k Knuckeotide) prepare() {
 }
 
 pub fn (mut k Knuckeotide) run(iteration_id int) {
-	_ = iteration_id
-
 	for i in 1 .. 3 {
 		k.sort_by_freq(k.seq, i)
 	}

@@ -78,8 +78,6 @@ fn round_f64(value f64, decimals int) f64 {
 }
 
 pub fn (mut b JsonGenerate) run(iteration_id int) {
-	_ = iteration_id
-
 	b.text = json.encode(b.data)
 
 	if b.text.starts_with('{"coordinates":') {
@@ -126,8 +124,6 @@ pub fn (mut b JsonParseDom) prepare() {
 }
 
 pub fn (mut b JsonParseDom) run(iteration_id int) {
-	_ = iteration_id
-
 	any_json_value := json2.decode[json2.Any](b.text) or {
 		eprintln('Failed to decode: ${err}')
 		return
@@ -214,8 +210,6 @@ pub fn (mut b JsonParseMapping) prepare() {
 }
 
 pub fn (mut b JsonParseMapping) run(iteration_id int) {
-	_ = iteration_id
-
 	j := json.decode(Coordinates, b.text) or { return }
 
 	mut x_sum := f64(0)

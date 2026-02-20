@@ -1,43 +1,46 @@
 module benchmark_registry;
 
-import std.stdio;
-import std.string;
-import std.meta;
+import std.functional;
 import benchmark;
 
-template registerAllBenchmarks(Benchmarks...)
+template registerAllBenchmarks(pairs...)
 {
+    static assert(pairs.length % 2 == 0, "Must be even number of arguments (key-value pairs)");
 
-    string generateCasesCode()
+    static string generateMapEntries()
     {
-        string code;
-        static foreach (bench; Benchmarks)
+        string result;
+        static foreach (idx; 0 .. pairs.length)
         {
-
+            static if (idx % 2 == 0)
             {
-                string name = __traits(identifier, bench);
-                string lowerName = name.toLower;
-                code ~= "case \"" ~ lowerName ~ "\": return new " ~ name ~ "();\n";
+                result ~= "    \"" ~ pairs[idx] ~ "\": cast(Benchmark function()) (() => new "
+                    ~ pairs[idx + 1].stringof ~ "()),\n";
             }
         }
-        return code;
+        return result;
     }
 
-    string generateNameListCode()
+    static string generateNameList()
     {
-        string code = "string[] names;\n";
-        static foreach (bench; Benchmarks)
+        string result = "static immutable string[] benchmarkNames = [\n";
+        static foreach (idx; 0 .. pairs.length)
         {
+            static if (idx % 2 == 0)
             {
-                string name = __traits(identifier, bench);
-                code ~= "names ~= \"" ~ name ~ "\";\n";
+                result ~= "    \"" ~ pairs[idx] ~ "\",\n";
             }
         }
-        code ~= "return names;";
-        return code;
+        result ~= "];\n";
+        return result;
     }
 
-    enum registerAllBenchmarks = "string[] getAllBenchmarkNames() {\n" ~ generateNameListCode() ~ "\n" ~ "}\n\n" ~ "Benchmark createBenchmark(string name) {\n"
-        ~ "switch (name.toLower) {\n" ~ generateCasesCode()
-        ~ "default: throw new Exception(\"Unknown benchmark: \" ~ name);\n" ~ "}\n" ~ "}\n";
+    enum registerAllBenchmarks = "alias BenchmarkFunc = Benchmark function();\n"
+        ~ "static immutable BenchmarkFunc[string] benchmarkMap = [\n"
+        ~ generateMapEntries() ~ "];\n" ~ "\n" ~ generateNameList() ~ "\n"
+        ~ "string[] getAllBenchmarkNames() {\n" ~ "    return benchmarkNames.dup;\n" ~ "}\n" ~ "\n"
+        ~ "Benchmark createBenchmark(string name) {\n"
+        ~ "    auto p = name in benchmarkMap;\n"
+        ~ "    if (p !is null) return (*p)();\n"
+        ~ "    throw new Exception(\"Unknown benchmark: \" ~ name);\n" ~ "}\n";
 }

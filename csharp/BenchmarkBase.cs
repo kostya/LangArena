@@ -15,8 +15,7 @@ public abstract class Benchmark
     {
         get
         {
-            var className = GetType().Name;
-            if (Helper.Config.RootElement.TryGetProperty(className, out var benchObj))
+            if (Helper.Config.RootElement.TryGetProperty(TypeName(), out var benchObj))
             {
                 if (benchObj.TryGetProperty("warmup_iterations", out var warmupProp))
                 {
@@ -48,16 +47,14 @@ public abstract class Benchmark
 
     public long ConfigVal(string fieldName)
     {
-        var className = GetType().Name;
-        return Helper.Config_i64(className, fieldName);
+        return Helper.Config_i64(TypeName(), fieldName);
     }
 
     public long Iterations
     {
         get
         {
-            var className = GetType().Name;
-            return Helper.Config_i64(className, "iterations");
+            return Helper.Config_i64(TypeName(), "iterations");
         }
     }
 
@@ -65,9 +62,13 @@ public abstract class Benchmark
     {
         get
         {
-            var className = GetType().Name;
-            return Helper.Config_i64(className, "checksum");
+            return Helper.Config_i64(TypeName(), "checksum");
         }
+    }
+
+    public string TypeName()
+    {
+        return GetType().FullName?.Replace(".", "::") ?? GetType().Name;
     }
 
     public double TimeDelta
@@ -126,16 +127,37 @@ public abstract class Benchmark
             CreateBenchmarkInfo<GameOfLife>(),
             CreateBenchmarkInfo<MazeGenerator>(),
             CreateBenchmarkInfo<AStarPathfinder>(),
-            CreateBenchmarkInfo<BWTHuffEncode>(),
-            CreateBenchmarkInfo<BWTHuffDecode>(),
+            CreateBenchmarkInfo<Compress.BWTEncode>(),
+            CreateBenchmarkInfo<Compress.BWTDecode>(),
+            CreateBenchmarkInfo<Compress.HuffEncode>(),
+            CreateBenchmarkInfo<Compress.HuffDecode>(),
+            CreateBenchmarkInfo<Compress.ArithEncode>(),
+            CreateBenchmarkInfo<Compress.ArithDecode>(),
+            CreateBenchmarkInfo<Compress.LZWEncode>(),
+            CreateBenchmarkInfo<Compress.LZWDecode>(),
         };
     }
 
     private static BenchmarkInfo CreateBenchmarkInfo<T>() where T : Benchmark, new()
     {
+        var type = typeof(T);
+        var name = type.Name;
+
+        var namespace_name = type.Namespace;
+
+        if (!string.IsNullOrEmpty(namespace_name))
+        {
+            name = $"{namespace_name}::{name}";
+        }
+
+        else if (type.DeclaringType != null)
+        {
+            name = $"{type.DeclaringType.Name}::{name}";
+        }
+
         return new BenchmarkInfo
         {
-            Name = typeof(T).Name,
+            Name = name,
             Creator = () => new T()
         };
     }

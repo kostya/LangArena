@@ -141,6 +141,7 @@ class Helper {
 }
 
 abstract class Benchmark {
+  String get benchmarkName => runtimeType.toString().split('.').last;
   FutureOr<void> runBenchmark(int iterationId);
   int checksum();
 
@@ -148,9 +149,8 @@ abstract class Benchmark {
 
   Map<String, dynamic> get config {
     final config = Helper._config;
-    final className = runtimeType.toString().split('.').last;
-    if (config != null && config[className] != null) {
-      return config[className] as Map<String, dynamic>;
+    if (config != null && config[benchmarkName] != null) {
+      return config[benchmarkName] as Map<String, dynamic>;
     }
     return {};
   }
@@ -183,8 +183,7 @@ abstract class Benchmark {
 
   int get iterations {
     try {
-      final className = runtimeType.toString().split('.').last;
-      return Helper.configI64(className, 'iterations').toInt();
+      return Helper.configI64(benchmarkName, 'iterations').toInt();
     } catch (_) {
       return 1;
     }
@@ -192,17 +191,10 @@ abstract class Benchmark {
 
   BigInt get expectedChecksum {
     try {
-      final className = runtimeType.toString().split('.').last;
-      return Helper.configI64(className, 'checksum');
+      return Helper.configI64(benchmarkName, 'checksum');
     } catch (_) {
       return BigInt.zero;
     }
-  }
-
-  static String _getBenchmarkName(Function() constructor) {
-    final instance = constructor();
-    final fullName = instance.runtimeType.toString();
-    return fullName.split('.').last;
   }
 
   static Future<void> run([String? singleBench]) async {
@@ -215,7 +207,7 @@ abstract class Benchmark {
 
     for (final benchmarkClass in benchmarkClasses) {
       final benchInstance = benchmarkClass();
-      final className = benchInstance.runtimeType.toString().split('.').last;
+      final className = benchInstance.benchmarkName;
 
       if (singleBench != null &&
           !className.toLowerCase().contains(singleBench.toLowerCase())) {
@@ -323,8 +315,7 @@ class BinarytreesObj extends Benchmark {
   int result = 0;
 
   BinarytreesObj() {
-    final className = runtimeType.toString().split('.').last;
-    n = Helper.configI64(className, 'depth').toInt();
+    n = Helper.configI64(benchmarkName, 'depth').toInt();
   }
 
   @override
@@ -374,8 +365,7 @@ class BinarytreesArena extends Benchmark {
   int result = 0;
 
   BinarytreesArena() {
-    final className = runtimeType.toString().split('.').last;
-    n = Helper.configI64(className, 'depth').toInt();
+    n = Helper.configI64(benchmarkName, 'depth').toInt();
   }
 
   @override
@@ -553,9 +543,8 @@ class BrainfuckArray extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    _programText = Helper.configS(className, "program");
-    _warmupText = Helper.configS(className, "warmup_program");
+    _programText = Helper.configS(benchmarkName, "program");
+    _warmupText = Helper.configS(benchmarkName, "warmup_program");
   }
 
   @override
@@ -725,16 +714,12 @@ class BrainfuckRecursion extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    _text = Helper.configS(className, "program");
+    _text = Helper.configS(benchmarkName, "program");
   }
 
   @override
   void warmup() {
-    final warmupProgram = Helper.configS(
-      runtimeType.toString().split('.').last,
-      "warmup_program",
-    );
+    final warmupProgram = Helper.configS(benchmarkName, "warmup_program");
     for (int i = 0; i < warmupIterations; i++) {
       final program = BrainfuckProgram2(warmupProgram);
       program.run();
@@ -759,8 +744,7 @@ class Pidigits extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    nn = Helper.configI64(className, "amount").toInt();
+    nn = Helper.configI64(benchmarkName, "amount").toInt();
   }
 
   @override
@@ -828,8 +812,7 @@ class Fannkuchredux extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    n = Helper.configI64(className, "n").toInt();
+    n = Helper.configI64(benchmarkName, "n").toInt();
   }
 
   (int, int) _fannkuchredux(int n) {
@@ -943,8 +926,7 @@ class Fasta extends Benchmark {
   late StringBuffer resultBuffer;
 
   Fasta() {
-    final className = runtimeType.toString().split('.').last;
-    n = Helper.configI64(className, "n").toInt();
+    n = Helper.configI64(benchmarkName, "n").toInt();
   }
 
   void setIterations(int count) {
@@ -1080,8 +1062,7 @@ class Knuckeotide extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    final n = Helper.configI64(className, "n").toInt();
+    final n = Helper.configI64(benchmarkName, "n").toInt();
 
     final fasta = Fasta();
     fasta.setIterations(n);
@@ -1145,9 +1126,8 @@ class Mandelbrot extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    w = Helper.configI64(className, "w").toInt();
-    h = Helper.configI64(className, "h").toInt();
+    w = Helper.configI64(benchmarkName, "w").toInt();
+    h = Helper.configI64(benchmarkName, "h").toInt();
   }
 
   @override
@@ -1209,8 +1189,7 @@ abstract class MatmulBase extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    n = Helper.configI64(className, "n").toInt();
+    n = Helper.configI64(benchmarkName, "n").toInt();
   }
 
   List<List<double>> _matgen(int n) {
@@ -1492,8 +1471,7 @@ class Nbody extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    final iterations = Helper.configI64(className, "iterations").toInt();
+    final iterations = Helper.configI64(benchmarkName, "iterations").toInt();
 
     bodies = _initialBodies
         .map(
@@ -1579,8 +1557,7 @@ class RegexDna extends Benchmark {
   late int n;
 
   RegexDna() {
-    final className = runtimeType.toString().split('.').last;
-    n = Helper.configI64(className, "n").toInt();
+    n = Helper.configI64(benchmarkName, "n").toInt();
   }
 
   @override
@@ -1671,10 +1648,7 @@ class Revcomp extends Benchmark {
 
   @override
   void prepare() {
-    final n = Helper.configI64(
-      runtimeType.toString().split('.').last,
-      "n",
-    ).toInt();
+    final n = Helper.configI64(benchmarkName, "n").toInt();
 
     final fasta = Fasta();
     fasta.n = n;
@@ -1759,8 +1733,7 @@ class Spectralnorm extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    size = Helper.configI64(className, "size").toInt();
+    size = Helper.configI64(benchmarkName, "size").toInt();
     u = List.filled(size, 1.0);
     v = List.filled(size, 1.0);
   }
@@ -1836,8 +1809,7 @@ class Base64Encode extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    n = Helper.configI64(className, "size").toInt();
+    n = Helper.configI64(benchmarkName, "size").toInt();
 
     _bytes = Uint8List(n);
     for (int i = 0; i < n; i++) {
@@ -1870,8 +1842,7 @@ class Base64Decode extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    n = Helper.configI64(className, "size").toInt();
+    n = Helper.configI64(benchmarkName, "size").toInt();
 
     _bytes = Uint8List(n);
     for (int i = 0; i < n; i++) {
@@ -1903,8 +1874,7 @@ class JsonGenerate extends Benchmark {
   int result = 0;
 
   JsonGenerate() {
-    final className = runtimeType.toString().split('.').last;
-    n = Helper.configI64(className, "coords").toInt();
+    n = Helper.configI64(benchmarkName, "coords").toInt();
   }
 
   @override
@@ -1952,8 +1922,7 @@ class JsonParseDom extends Benchmark {
   @override
   void prepare() {
     final jsonGen = JsonGenerate();
-    final className = runtimeType.toString().split('.').last;
-    jsonGen.n = Helper.configI64(className, "coords").toInt();
+    jsonGen.n = Helper.configI64(benchmarkName, "coords").toInt();
     jsonGen.prepare();
     jsonGen.runBenchmark(0);
     text = jsonGen.getText();
@@ -1998,8 +1967,7 @@ class JsonParseMapping extends Benchmark {
   @override
   void prepare() {
     final jsonGen = JsonGenerate();
-    final className = runtimeType.toString().split('.').last;
-    jsonGen.n = Helper.configI64(className, "coords").toInt();
+    jsonGen.n = Helper.configI64(benchmarkName, "coords").toInt();
     jsonGen.prepare();
     jsonGen.runBenchmark(0);
     text = jsonGen.getText();
@@ -2049,9 +2017,8 @@ class Primes extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    n = Helper.configI64(className, "limit");
-    prefix = Helper.configI64(className, "prefix");
+    n = Helper.configI64(benchmarkName, "limit");
+    prefix = Helper.configI64(benchmarkName, "prefix");
   }
 
   List<int> _generatePrimes(int limit) {
@@ -2233,8 +2200,7 @@ class Noise extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    size = Helper.configI64(className, "size").toInt();
+    size = Helper.configI64(benchmarkName, "size").toInt();
     _n2d = Noise2DContext(size);
   }
 
@@ -2282,9 +2248,8 @@ class TextRaytracer extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    w = Helper.configI64(className, "w").toInt();
-    h = Helper.configI64(className, "h").toInt();
+    w = Helper.configI64(benchmarkName, "w").toInt();
+    h = Helper.configI64(benchmarkName, "h").toInt();
   }
 
   @pragma('vm:prefer-inline')
@@ -2636,8 +2601,7 @@ abstract class SortBenchmark extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    size = Helper.configI64(className, "size").toInt();
+    size = Helper.configI64(benchmarkName, "size").toInt();
 
     Helper.reset();
     _data = [];
@@ -2792,10 +2756,9 @@ abstract class GraphPathBenchmark extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    final vertices = Helper.configI64(className, "vertices").toInt();
-    final jumps = Helper.configI64(className, "jumps").toInt();
-    final jumpLen = Helper.configI64(className, "jump_len").toInt();
+    final vertices = Helper.configI64(benchmarkName, "vertices").toInt();
+    final jumps = Helper.configI64(benchmarkName, "jumps").toInt();
+    final jumpLen = Helper.configI64(benchmarkName, "jump_len").toInt();
 
     _graph = GraphPathGraph(vertices, jumps: jumps, jumpLen: jumpLen);
     _graph.generateRandom();
@@ -2954,8 +2917,7 @@ abstract class BufferHashBenchmark extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    _n = Helper.configI64(className, "size").toInt();
+    _n = Helper.configI64(benchmarkName, "size").toInt();
 
     _data = Uint8List(_n);
 
@@ -3148,9 +3110,8 @@ class CacheSimulation extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    _valuesSize = Helper.configI64(className, "values").toInt();
-    _cacheSize = Helper.configI64(className, "size").toInt();
+    _valuesSize = Helper.configI64(benchmarkName, "values").toInt();
+    _cacheSize = Helper.configI64(benchmarkName, "size").toInt();
     _cache = FastLRUCache(_cacheSize);
 
     _hits = 0;
@@ -3355,8 +3316,7 @@ class CalculatorAst extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    n = Helper.configI64(className, "operations").toInt();
+    n = Helper.configI64(benchmarkName, "operations").toInt();
     _text = _generateRandomProgram(n);
   }
 
@@ -3510,8 +3470,7 @@ class CalculatorInterpreter extends Benchmark {
 
   @override
   void prepare() {
-    final className = runtimeType.toString().split('.').last;
-    final operations = Helper.configI64(className, "operations").toInt();
+    final operations = Helper.configI64(benchmarkName, "operations").toInt();
 
     final text = CalculatorAst()._generateRandomProgram(operations);
     final parser = Parser2(text);
@@ -3647,9 +3606,8 @@ class GameOfLife extends Benchmark {
   late GameOfLifeGrid grid;
 
   GameOfLife() {
-    final className = runtimeType.toString().split('.').last;
-    width = Helper.configI64(className, "w").toInt();
-    height = Helper.configI64(className, "h").toInt();
+    width = Helper.configI64(benchmarkName, "w").toInt();
+    height = Helper.configI64(benchmarkName, "h").toInt();
     grid = GameOfLifeGrid(width, height);
   }
 
@@ -3878,9 +3836,8 @@ class MazeGenerator extends Benchmark {
   List<List<bool>> boolGrid = [];
 
   MazeGenerator() {
-    final className = runtimeType.toString().split('.').last;
-    width = Helper.configI64(className, "w").toInt();
-    height = Helper.configI64(className, "h").toInt();
+    width = Helper.configI64(benchmarkName, "w").toInt();
+    height = Helper.configI64(benchmarkName, "h").toInt();
   }
 
   @override
@@ -4003,6 +3960,65 @@ class AStarBinaryHeap {
   }
 }
 
+class PriorityQueue<E extends Comparable<E>> {
+  final List<E> _heap = [];
+
+  int get length => _heap.length;
+  bool get isEmpty => _heap.isEmpty;
+  bool get isNotEmpty => _heap.isNotEmpty;
+
+  void add(E element) {
+    _heap.add(element);
+    _siftUp(_heap.length - 1);
+  }
+
+  E removeFirst() {
+    if (_heap.isEmpty) {
+      throw StateError("Cannot remove from empty priority queue");
+    }
+    final result = _heap[0];
+    final last = _heap.removeLast();
+    if (_heap.isNotEmpty) {
+      _heap[0] = last;
+      _siftDown(0);
+    }
+    return result;
+  }
+
+  void _siftUp(int index) {
+    final element = _heap[index];
+    while (index > 0) {
+      final parent = (index - 1) ~/ 2;
+      if (element.compareTo(_heap[parent]) >= 0) break;
+      _heap[index] = _heap[parent];
+      _heap[parent] = element;
+      index = parent;
+    }
+  }
+
+  void _siftDown(int index) {
+    final size = _heap.length;
+    final element = _heap[index];
+    while (true) {
+      final left = 2 * index + 1;
+      final right = left + 1;
+      var smallest = index;
+
+      if (left < size && _heap[left].compareTo(_heap[smallest]) < 0) {
+        smallest = left;
+      }
+      if (right < size && _heap[right].compareTo(_heap[smallest]) < 0) {
+        smallest = right;
+      }
+      if (smallest == index) break;
+
+      _heap[index] = _heap[smallest];
+      _heap[smallest] = element;
+      index = smallest;
+    }
+  }
+}
+
 class AStarPathfinder extends Benchmark {
   int resultVal = 0;
   late int startX;
@@ -4026,9 +4042,8 @@ class AStarPathfinder extends Benchmark {
   static const int inf = 0x7FFFFFFF;
 
   AStarPathfinder() {
-    final className = runtimeType.toString().split('.').last;
-    width = Helper.configI64(className, "w").toInt();
-    height = Helper.configI64(className, "h").toInt();
+    width = Helper.configI64(benchmarkName, "w").toInt();
+    height = Helper.configI64(benchmarkName, "h").toInt();
     startX = 1;
     startY = 1;
     goalX = width - 2;
@@ -4141,104 +4156,49 @@ class AStarPathfinder extends Benchmark {
   }
 }
 
-class CompressionBWTResult {
+Uint8List generateTestData(int size) {
+  const pattern = 'ABRACADABRA';
+  var data = Uint8List(size);
+  for (int i = 0; i < size; i++) {
+    data[i] = pattern.codeUnitAt(i % pattern.length);
+  }
+  return data;
+}
+
+class BWTResult {
   final Uint8List transformed;
   final int originalIdx;
 
-  CompressionBWTResult(this.transformed, this.originalIdx);
+  BWTResult(this.transformed, this.originalIdx);
 }
 
-class CompressionHuffmanNode implements Comparable<CompressionHuffmanNode> {
-  final int frequency;
-  final int? byteVal;
-  final bool isLeaf;
-  final CompressionHuffmanNode? left;
-  final CompressionHuffmanNode? right;
+class BWTEncode extends Benchmark {
+  BWTResult bwtTransform(Uint8List input) {
+    int n = input.length;
+    if (n == 0) return BWTResult(Uint8List(0), 0);
 
-  CompressionHuffmanNode({
-    required this.frequency,
-    this.byteVal,
-    this.isLeaf = true,
-    this.left,
-    this.right,
-  });
+    List<int> sa = List<int>.generate(n, (i) => i);
 
-  @override
-  int compareTo(CompressionHuffmanNode other) {
-    return frequency - other.frequency;
-  }
-}
-
-class CompressionHuffmanCodes {
-  final List<int> codeLengths = List.filled(256, 0);
-  final List<int> codes = List.filled(256, 0);
-}
-
-class CompressionEncodedResult {
-  final Uint8List data;
-  final int bitCount;
-
-  CompressionEncodedResult(this.data, this.bitCount);
-}
-
-class CompressionCompressedData {
-  final CompressionBWTResult bwtResult;
-  final List<int> frequencies;
-  final Uint8List encodedBits;
-  final int originalBitCount;
-
-  CompressionCompressedData(
-    this.bwtResult,
-    this.frequencies,
-    this.encodedBits,
-    this.originalBitCount,
-  );
-}
-
-class BWTHuffEncode extends Benchmark {
-  int result = 0;
-  late Uint8List testData;
-  late int size;
-
-  BWTHuffEncode() {
-    final className = runtimeType.toString().split('.').last;
-    size = Helper.configI64(className, "size").toInt();
-  }
-
-  CompressionBWTResult bwtTransform(Uint8List input) {
-    final n = input.length;
-    if (n == 0) {
-      return CompressionBWTResult(Uint8List(0), 0);
+    List<List<int>> buckets = List.generate(256, (_) => []);
+    for (int idx in sa) {
+      buckets[input[idx]].add(idx);
     }
 
-    final doubled = Uint8List(n * 2);
-    doubled.setAll(0, input);
-    doubled.setAll(n, input);
-
-    var sa = List<int>.generate(n, (i) => i);
-
-    final buckets = List<List<int>>.generate(256, (_) => []);
-
-    for (final idx in sa) {
-      final firstChar = input[idx];
-      buckets[firstChar].add(idx);
-    }
-
-    var pos = 0;
-    for (final bucket in buckets) {
-      for (final idx in bucket) {
+    int pos = 0;
+    for (var bucket in buckets) {
+      for (int idx in bucket) {
         sa[pos++] = idx;
       }
     }
 
     if (n > 1) {
-      final rank = List<int>.filled(n, 0);
-      var currentRank = 0;
-      var prevChar = input[sa[0]];
+      List<int> rank = List<int>.filled(n, 0);
+      int currentRank = 0;
+      int prevChar = input[sa[0]];
 
       for (int i = 0; i < n; i++) {
-        final idx = sa[i];
-        final currChar = input[idx];
+        int idx = sa[i];
+        int currChar = input[idx];
         if (currChar != prevChar) {
           currentRank++;
           prevChar = currChar;
@@ -4246,27 +4206,25 @@ class BWTHuffEncode extends Benchmark {
         rank[idx] = currentRank;
       }
 
-      var k = 1;
+      int k = 1;
       while (k < n) {
-        final pairs = List<(int, int)>.generate(
+        List<(int, int)> pairs = List.generate(
           n,
           (i) => (rank[i], rank[(i + k) % n]),
         );
 
         sa.sort((a, b) {
-          final pairA = pairs[a];
-          final pairB = pairs[b];
-          if (pairA.$1 != pairB.$1) {
-            return pairA.$1 - pairB.$1;
-          }
+          var pairA = pairs[a];
+          var pairB = pairs[b];
+          if (pairA.$1 != pairB.$1) return pairA.$1 - pairB.$1;
           return pairA.$2 - pairB.$2;
         });
 
-        final newRank = List<int>.filled(n, 0);
+        List<int> newRank = List<int>.filled(n, 0);
         newRank[sa[0]] = 0;
         for (int i = 1; i < n; i++) {
-          final prevPair = pairs[sa[i - 1]];
-          final currPair = pairs[sa[i]];
+          var prevPair = pairs[sa[i - 1]];
+          var currPair = pairs[sa[i]];
           newRank[sa[i]] =
               newRank[sa[i - 1]] +
               ((prevPair.$1 != currPair.$1 || prevPair.$2 != currPair.$2)
@@ -4274,18 +4232,16 @@ class BWTHuffEncode extends Benchmark {
                   : 0);
         }
 
-        for (int i = 0; i < n; i++) {
-          rank[i] = newRank[i];
-        }
+        rank = newRank;
         k *= 2;
       }
     }
 
-    final transformed = Uint8List(n);
-    var originalIdx = 0;
+    Uint8List transformed = Uint8List(n);
+    int originalIdx = 0;
 
     for (int i = 0; i < n; i++) {
-      final suffix = sa[i];
+      int suffix = sa[i];
       if (suffix == 0) {
         transformed[i] = input[n - 1];
         originalIdx = i;
@@ -4294,40 +4250,78 @@ class BWTHuffEncode extends Benchmark {
       }
     }
 
-    return CompressionBWTResult(transformed, originalIdx);
+    return BWTResult(transformed, originalIdx);
   }
 
-  Uint8List bwtInverse(CompressionBWTResult bwtResult) {
-    final bwt = bwtResult.transformed;
-    final n = bwt.length;
-    if (n == 0) {
-      return Uint8List(0);
-    }
+  late int sizeVal;
+  late Uint8List testData;
+  late BWTResult bwtResult;
+  int resultVal = 0;
 
-    final counts = List<int>.filled(256, 0);
-    for (final byte in bwt) {
-      counts[byte]++;
-    }
+  BWTEncode() {
+    sizeVal = Helper.configI64(benchmarkName, 'size').toInt();
+  }
 
-    final positions = List<int>.filled(256, 0);
-    var total = 0;
+  @override
+  String get benchmarkName => 'Compress::BWTEncode';
+
+  @override
+  void prepare() {
+    testData = generateTestData(sizeVal);
+    resultVal = 0;
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    bwtResult = bwtTransform(testData);
+    resultVal += bwtResult.transformed.length;
+  }
+
+  @override
+  int checksum() => resultVal & 0xFFFFFFFF;
+}
+
+class BWTDecode extends Benchmark {
+  late int sizeVal;
+  late Uint8List testData;
+  late Uint8List inverted;
+  late BWTResult bwtResult;
+  int resultVal = 0;
+
+  BWTDecode() {
+    sizeVal = Helper.configI64(benchmarkName, 'size').toInt();
+  }
+
+  @override
+  String get benchmarkName => 'Compress::BWTDecode';
+
+  Uint8List bwtInverse(BWTResult bwtResult) {
+    Uint8List bwt = bwtResult.transformed;
+    int n = bwt.length;
+    if (n == 0) return Uint8List(0);
+
+    List<int> counts = List<int>.filled(256, 0);
+    for (int byte in bwt) counts[byte]++;
+
+    List<int> positions = List<int>.filled(256, 0);
+    int total = 0;
     for (int i = 0; i < 256; i++) {
       positions[i] = total;
       total += counts[i];
     }
 
-    final next = List<int>.filled(n, 0);
-    final tempCounts = List<int>.filled(256, 0);
+    List<int> next = List<int>.filled(n, 0);
+    List<int> tempCounts = List<int>.filled(256, 0);
 
     for (int i = 0; i < n; i++) {
-      final byteIdx = bwt[i];
-      final pos = positions[byteIdx] + tempCounts[byteIdx];
+      int byteIdx = bwt[i];
+      int pos = positions[byteIdx] + tempCounts[byteIdx];
       next[pos] = i;
       tempCounts[byteIdx]++;
     }
 
-    final result = Uint8List(n);
-    var idx = bwtResult.originalIdx;
+    Uint8List result = Uint8List(n);
+    int idx = bwtResult.originalIdx;
 
     for (int i = 0; i < n; i++) {
       idx = next[idx];
@@ -4337,353 +4331,703 @@ class BWTHuffEncode extends Benchmark {
     return result;
   }
 
-  CompressionHuffmanNode buildHuffmanTree(List<int> frequencies) {
-    final heap = PriorityQueue<CompressionHuffmanNode>();
-
-    for (int i = 0; i < frequencies.length; i++) {
-      if (frequencies[i] > 0) {
-        heap.add(CompressionHuffmanNode(frequency: frequencies[i], byteVal: i));
-      }
-    }
-
-    if (heap.isEmpty) {
-      return CompressionHuffmanNode(frequency: 0, byteVal: 0);
-    }
-
-    if (heap.length == 1) {
-      final node = heap.removeFirst();
-      return CompressionHuffmanNode(
-        frequency: node.frequency,
-        byteVal: null,
-        isLeaf: false,
-        left: node,
-        right: CompressionHuffmanNode(frequency: 0, byteVal: 0),
-      );
-    }
-
-    while (heap.length > 1) {
-      final left = heap.removeFirst();
-      final right = heap.removeFirst();
-
-      final parent = CompressionHuffmanNode(
-        frequency: left.frequency + right.frequency,
-        byteVal: null,
-        isLeaf: false,
-        left: left,
-        right: right,
-      );
-
-      heap.add(parent);
-    }
-
-    return heap.removeFirst();
-  }
-
-  CompressionHuffmanCodes buildHuffmanCodes(
-    CompressionHuffmanNode node, {
-    int code = 0,
-    int length = 0,
-    CompressionHuffmanCodes? huffmanCodes,
-  }) {
-    final codes = huffmanCodes ?? CompressionHuffmanCodes();
-
-    if (node.isLeaf) {
-      if (length > 0 || node.byteVal != 0) {
-        final idx = node.byteVal!;
-        codes.codeLengths[idx] = length;
-        codes.codes[idx] = code;
-      }
-    } else {
-      if (node.left != null) {
-        buildHuffmanCodes(
-          node.left!,
-          code: code << 1,
-          length: length + 1,
-          huffmanCodes: codes,
-        );
-      }
-      if (node.right != null) {
-        buildHuffmanCodes(
-          node.right!,
-          code: (code << 1) | 1,
-          length: length + 1,
-          huffmanCodes: codes,
-        );
-      }
-    }
-    return codes;
-  }
-
-  CompressionEncodedResult huffmanEncode(
-    Uint8List data,
-    CompressionHuffmanCodes huffmanCodes,
-  ) {
-    final result = Uint8List(data.length * 2);
-    var currentByte = 0;
-    var bitPos = 0;
-    var byteIndex = 0;
-    var totalBits = 0;
-
-    for (final byte in data) {
-      final idx = byte;
-      final code = huffmanCodes.codes[idx];
-      final length = huffmanCodes.codeLengths[idx];
-
-      for (int i = length - 1; i >= 0; i--) {
-        if ((code & (1 << i)) != 0) {
-          currentByte |= 1 << (7 - bitPos);
-        }
-        bitPos++;
-        totalBits++;
-
-        if (bitPos == 8) {
-          result[byteIndex++] = currentByte;
-          currentByte = 0;
-          bitPos = 0;
-        }
-      }
-    }
-
-    if (bitPos > 0) {
-      result[byteIndex++] = currentByte;
-    }
-
-    return CompressionEncodedResult(result.sublist(0, byteIndex), totalBits);
-  }
-
-  Uint8List huffmanDecode(
-    Uint8List encoded,
-    CompressionHuffmanNode root,
-    int bitCount,
-  ) {
-    final result = <int>[];
-
-    var currentNode = root;
-    var bitsProcessed = 0;
-    var byteIndex = 0;
-
-    while (bitsProcessed < bitCount && byteIndex < encoded.length) {
-      final byteVal = encoded[byteIndex++];
-
-      for (int bitPos = 7; bitPos >= 0 && bitsProcessed < bitCount; bitPos--) {
-        final bit = ((byteVal >> bitPos) & 1) == 1;
-        bitsProcessed++;
-
-        currentNode = bit ? currentNode.right! : currentNode.left!;
-
-        if (currentNode.isLeaf) {
-          if (currentNode.byteVal != 0) {
-            result.add(currentNode.byteVal!);
-          }
-          currentNode = root;
-        }
-      }
-    }
-
-    return Uint8List.fromList(result);
-  }
-
-  CompressionCompressedData compress(Uint8List data) {
-    final bwtResult = bwtTransform(data);
-
-    final frequencies = List<int>.filled(256, 0);
-    for (final byte in bwtResult.transformed) {
-      frequencies[byte]++;
-    }
-
-    final huffmanTree = buildHuffmanTree(frequencies);
-    final huffmanCodes = buildHuffmanCodes(huffmanTree);
-    final encoded = huffmanEncode(bwtResult.transformed, huffmanCodes);
-
-    return CompressionCompressedData(
-      bwtResult,
-      frequencies,
-      encoded.data,
-      encoded.bitCount,
-    );
-  }
-
-  Uint8List decompress(CompressionCompressedData compressed) {
-    final huffmanTree = buildHuffmanTree(compressed.frequencies);
-    final decoded = huffmanDecode(
-      compressed.encodedBits,
-      huffmanTree,
-      compressed.originalBitCount,
-    );
-    final bwtResult = CompressionBWTResult(
-      decoded,
-      compressed.bwtResult.originalIdx,
-    );
-    return bwtInverse(bwtResult);
-  }
-
-  Uint8List generateTestData(int size) {
-    const pattern = "ABRACADABRA";
-    final patternBytes = utf8.encode(pattern);
-    final data = Uint8List(size);
-    final patternLength = patternBytes.length;
-
-    for (int i = 0; i < size; i++) {
-      data[i] = patternBytes[i % patternLength];
-    }
-
-    return data;
-  }
-
   @override
   void prepare() {
-    testData = generateTestData(size);
-    result = 0;
+    var encoder = BWTEncode();
+    encoder.sizeVal = sizeVal;
+    encoder.prepare();
+    encoder.runBenchmark(0);
+    testData = encoder.testData;
+    bwtResult = encoder.bwtResult;
+    resultVal = 0;
   }
 
   @override
   void runBenchmark(int iterationId) {
-    final compressed = compress(testData);
-    result = (result + compressed.encodedBits.length) & 0xFFFFFFFF;
+    inverted = bwtInverse(bwtResult);
+    resultVal += inverted.length;
   }
 
   @override
   int checksum() {
-    return result & 0xFFFFFFFF;
+    int res = resultVal;
+    if (listEquals(inverted, testData)) res += 100000;
+    return res & 0xFFFFFFFF;
   }
 }
 
-class BWTHuffDecode extends BWTHuffEncode {
-  CompressionCompressedData? compressed;
-  late Uint8List decompressed;
+class HuffmanNode {
+  int frequency;
+  int byteVal;
+  bool isLeaf;
+  HuffmanNode? left;
+  HuffmanNode? right;
+
+  HuffmanNode(this.frequency, [this.byteVal = 0, this.isLeaf = true])
+    : left = null,
+      right = null;
+}
+
+class HuffmanCodes {
+  final List<int> codeLengths = List<int>.filled(256, 0);
+  final List<int> codes = List<int>.filled(256, 0);
+}
+
+class EncodedResult {
+  final Uint8List data;
+  final int bitCount;
+  final List<int> frequencies;
+
+  EncodedResult(this.data, this.bitCount, this.frequencies);
+}
+
+HuffmanNode buildHuffmanTree(List<int> frequencies) {
+  var nodes = <HuffmanNode>[];
+  for (int i = 0; i < 256; i++) {
+    if (frequencies[i] > 0) {
+      nodes.add(HuffmanNode(frequencies[i], i));
+    }
+  }
+
+  nodes.sort((a, b) => a.frequency - b.frequency);
+
+  if (nodes.length == 1) {
+    var node = nodes[0];
+    var root = HuffmanNode(node.frequency, 0, false);
+    root.left = node;
+    root.right = HuffmanNode(0, 0);
+    return root;
+  }
+
+  while (nodes.length > 1) {
+    var left = nodes.removeAt(0);
+    var right = nodes.removeAt(0);
+
+    var parent = HuffmanNode(left.frequency + right.frequency, 0, false);
+    parent.left = left;
+    parent.right = right;
+
+    int pos = 0;
+    while (pos < nodes.length && nodes[pos].frequency < parent.frequency) {
+      pos++;
+    }
+    nodes.insert(pos, parent);
+  }
+
+  return nodes[0];
+}
+
+void buildHuffmanCodes(
+  HuffmanNode node,
+  int code,
+  int length,
+  HuffmanCodes codes,
+) {
+  if (node.isLeaf) {
+    if (length > 0 || node.byteVal != 0) {
+      int idx = node.byteVal;
+      codes.codeLengths[idx] = length;
+      codes.codes[idx] = code;
+    }
+  } else {
+    if (node.left != null) {
+      buildHuffmanCodes(node.left!, code << 1, length + 1, codes);
+    }
+    if (node.right != null) {
+      buildHuffmanCodes(node.right!, (code << 1) | 1, length + 1, codes);
+    }
+  }
+}
+
+EncodedResult huffmanEncode(
+  Uint8List data,
+  HuffmanCodes codes,
+  List<int> frequencies,
+) {
+  var result = <int>[];
+  int currentByte = 0;
+  int bitPos = 0;
+  int totalBits = 0;
+
+  for (int byte in data) {
+    int idx = byte;
+    int code = codes.codes[idx];
+    int length = codes.codeLengths[idx];
+
+    for (int i = length - 1; i >= 0; i--) {
+      if ((code & (1 << i)) != 0) {
+        currentByte |= 1 << (7 - bitPos);
+      }
+      bitPos++;
+      totalBits++;
+
+      if (bitPos == 8) {
+        result.add(currentByte);
+        currentByte = 0;
+        bitPos = 0;
+      }
+    }
+  }
+
+  if (bitPos > 0) {
+    result.add(currentByte);
+  }
+
+  return EncodedResult(Uint8List.fromList(result), totalBits, frequencies);
+}
+
+Uint8List huffmanDecode(Uint8List encoded, HuffmanNode root, int bitCount) {
+  var result = Uint8List(bitCount);
+
+  var currentNode = root;
+  int bitsProcessed = 0;
+  int byteIndex = 0;
+  int resultSize = 0;
+
+  while (bitsProcessed < bitCount && byteIndex < encoded.length) {
+    int byteVal = encoded[byteIndex++];
+
+    for (int bitPos = 7; bitPos >= 0; bitPos--) {
+      if (bitsProcessed >= bitCount) break;
+
+      int bit = (byteVal >> bitPos) & 1;
+      bitsProcessed++;
+
+      currentNode = bit == 1 ? currentNode.right! : currentNode.left!;
+
+      if (currentNode.isLeaf) {
+        result[resultSize++] = currentNode.byteVal;
+        currentNode = root;
+      }
+    }
+  }
+
+  if (resultSize < bitCount) {
+    return Uint8List.sublistView(result, 0, resultSize);
+  }
+
+  return result;
+}
+
+class HuffEncode extends Benchmark {
+  late int sizeVal;
+  late Uint8List testData;
+  late EncodedResult encoded;
+  int resultVal = 0;
+
+  HuffEncode() {
+    sizeVal = Helper.configI64(benchmarkName, "size").toInt();
+  }
+
+  @override
+  String get benchmarkName => 'Compress::HuffEncode';
 
   @override
   void prepare() {
-    testData = generateTestData(size);
-    compressed = compress(testData);
-    result = 0;
+    testData = generateTestData(sizeVal);
+    resultVal = 0;
   }
 
   @override
   void runBenchmark(int iterationId) {
-    decompressed = decompress(compressed!);
-    result += decompressed.length;
+    var frequencies = List<int>.filled(256, 0);
+    for (int byte in testData) {
+      frequencies[byte]++;
+    }
+
+    var tree = buildHuffmanTree(frequencies);
+
+    var codes = HuffmanCodes();
+    buildHuffmanCodes(tree, 0, 0, codes);
+
+    encoded = huffmanEncode(testData, codes, frequencies);
+    resultVal += encoded.data.length;
   }
 
   @override
   int checksum() {
-    var res = result;
+    return resultVal & 0xFFFFFFFF;
+  }
+}
 
-    if (decompressed.length == testData.length) {
-      var equal = true;
-      for (int i = 0; i < decompressed.length; i++) {
-        if (decompressed[i] != testData[i]) {
+class HuffDecode extends Benchmark {
+  late int sizeVal;
+  late Uint8List testData;
+  late Uint8List decoded;
+  late EncodedResult encoded;
+  int resultVal = 0;
+
+  HuffDecode() {
+    sizeVal = Helper.configI64(benchmarkName, "size").toInt();
+  }
+
+  @override
+  String get benchmarkName => 'Compress::HuffDecode';
+
+  @override
+  void prepare() {
+    testData = generateTestData(sizeVal);
+
+    var encoder = HuffEncode();
+    encoder.sizeVal = sizeVal;
+    encoder.prepare();
+    encoder.runBenchmark(0);
+    encoded = encoder.encoded;
+    resultVal = 0;
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    var tree = buildHuffmanTree(encoded.frequencies);
+    decoded = huffmanDecode(encoded.data, tree, encoded.bitCount);
+    resultVal += decoded.length;
+  }
+
+  @override
+  int checksum() {
+    int res = resultVal;
+    if (decoded.length == testData.length) {
+      bool equal = true;
+      for (int i = 0; i < decoded.length; i++) {
+        if (decoded[i] != testData[i]) {
           equal = false;
           break;
         }
       }
       if (equal) {
-        res += 1000000;
+        res += 100000;
       }
     }
     return res & 0xFFFFFFFF;
   }
 }
 
-class PriorityQueue<E extends Comparable<E>> {
-  final List<E> _heap = [];
+class ArithEncodedResult {
+  final Uint8List data;
+  final int bitCount;
+  final List<int> frequencies;
 
-  int get length => _heap.length;
-  bool get isEmpty => _heap.isEmpty;
-  bool get isNotEmpty => _heap.isNotEmpty;
+  ArithEncodedResult(this.data, this.bitCount, this.frequencies);
+}
 
-  void add(E element) {
-    _heap.add(element);
-    _siftUp(_heap.length - 1);
-  }
+class ArithFreqTable {
+  int total = 0;
+  List<int> low = List<int>.filled(256, 0);
+  List<int> high = List<int>.filled(256, 0);
 
-  E removeFirst() {
-    if (_heap.isEmpty) {
-      throw StateError("Cannot remove from empty priority queue");
-    }
-    final result = _heap[0];
-    final last = _heap.removeLast();
-    if (_heap.isNotEmpty) {
-      _heap[0] = last;
-      _siftDown(0);
-    }
-    return result;
-  }
+  ArithFreqTable(List<int> frequencies) {
+    total = frequencies.reduce((a, b) => a + b);
 
-  void _siftUp(int index) {
-    final element = _heap[index];
-    while (index > 0) {
-      final parent = (index - 1) ~/ 2;
-      if (element.compareTo(_heap[parent]) >= 0) break;
-      _heap[index] = _heap[parent];
-      _heap[parent] = element;
-      index = parent;
-    }
-  }
-
-  void _siftDown(int index) {
-    final size = _heap.length;
-    final element = _heap[index];
-    while (true) {
-      final left = 2 * index + 1;
-      final right = left + 1;
-      var smallest = index;
-
-      if (left < size && _heap[left].compareTo(_heap[smallest]) < 0) {
-        smallest = left;
-      }
-      if (right < size && _heap[right].compareTo(_heap[smallest]) < 0) {
-        smallest = right;
-      }
-      if (smallest == index) break;
-
-      _heap[index] = _heap[smallest];
-      _heap[smallest] = element;
-      index = smallest;
+    int cum = 0;
+    for (int i = 0; i < 256; i++) {
+      low[i] = cum;
+      cum += frequencies[i];
+      high[i] = cum;
     }
   }
 }
 
-CompressionHuffmanNode buildHuffmanTree(List<int> frequencies) {
-  final heap = PriorityQueue<CompressionHuffmanNode>();
+class BitOutputStream {
+  int buffer = 0;
+  int bitPos = 0;
+  List<int> bytes = [];
+  int bitsWritten = 0;
 
-  for (int i = 0; i < frequencies.length; i++) {
-    if (frequencies[i] > 0) {
-      heap.add(CompressionHuffmanNode(frequency: frequencies[i], byteVal: i));
+  void writeBit(int bit) {
+    buffer = (buffer << 1) | (bit & 1);
+    bitPos++;
+    bitsWritten++;
+
+    if (bitPos == 8) {
+      bytes.add(buffer);
+      buffer = 0;
+      bitPos = 0;
     }
   }
 
-  if (heap.isEmpty) {
-    return CompressionHuffmanNode(frequency: 0, byteVal: 0);
+  Uint8List flush() {
+    if (bitPos > 0) {
+      buffer <<= (8 - bitPos);
+      bytes.add(buffer);
+    }
+    return Uint8List.fromList(bytes);
+  }
+}
+
+class ArithEncode extends Benchmark {
+  ArithEncodedResult arithEncode(Uint8List data) {
+    var frequencies = List<int>.filled(256, 0);
+    for (int byte in data) frequencies[byte]++;
+
+    var freqTable = ArithFreqTable(frequencies);
+
+    int low = 0;
+    int high = 0xFFFFFFFF;
+    int pending = 0;
+    var output = BitOutputStream();
+
+    for (int byte in data) {
+      int idx = byte;
+      int range = high - low + 1;
+
+      high = low + ((range * freqTable.high[idx]) ~/ freqTable.total) - 1;
+      low = low + ((range * freqTable.low[idx]) ~/ freqTable.total);
+
+      while (true) {
+        if (high < 0x80000000) {
+          output.writeBit(0);
+          for (int i = 0; i < pending; i++) output.writeBit(1);
+          pending = 0;
+        } else if (low >= 0x80000000) {
+          output.writeBit(1);
+          for (int i = 0; i < pending; i++) output.writeBit(0);
+          pending = 0;
+          low -= 0x80000000;
+          high -= 0x80000000;
+        } else if (low >= 0x40000000 && high < 0xC0000000) {
+          pending++;
+          low -= 0x40000000;
+          high -= 0x40000000;
+        } else {
+          break;
+        }
+
+        low <<= 1;
+        high = (high << 1) | 1;
+        high &= 0xFFFFFFFF;
+      }
+    }
+
+    pending++;
+    if (low < 0x40000000) {
+      output.writeBit(0);
+      for (int i = 0; i < pending; i++) output.writeBit(1);
+    } else {
+      output.writeBit(1);
+      for (int i = 0; i < pending; i++) output.writeBit(0);
+    }
+
+    return ArithEncodedResult(output.flush(), output.bitsWritten, frequencies);
   }
 
-  if (heap.length == 1) {
-    final node = heap.removeFirst();
-    return CompressionHuffmanNode(
-      frequency: node.frequency,
-      byteVal: null,
-      isLeaf: false,
-      left: node,
-      right: CompressionHuffmanNode(frequency: 0, byteVal: 0),
-    );
+  late int sizeVal;
+  late Uint8List testData;
+  late ArithEncodedResult encoded;
+  int resultVal = 0;
+
+  ArithEncode() {
+    sizeVal = Helper.configI64(benchmarkName, 'size').toInt();
   }
 
-  while (heap.length > 1) {
-    final left = heap.removeFirst();
-    final right = heap.removeFirst();
+  @override
+  String get benchmarkName => 'Compress::ArithEncode';
 
-    final parent = CompressionHuffmanNode(
-      frequency: left.frequency + right.frequency,
-      byteVal: null,
-      isLeaf: false,
-      left: left,
-      right: right,
-    );
-
-    heap.add(parent);
+  @override
+  void prepare() {
+    testData = generateTestData(sizeVal);
+    resultVal = 0;
   }
 
-  return heap.removeFirst();
+  @override
+  void runBenchmark(int iterationId) {
+    encoded = arithEncode(testData);
+    resultVal += encoded.data.length;
+  }
+
+  @override
+  int checksum() => resultVal & 0xFFFFFFFF;
+}
+
+class BitInputStream {
+  final Uint8List bytes;
+  int bytePos = 0;
+  int bitPos = 0;
+  int currentByte;
+
+  BitInputStream(this.bytes) : currentByte = bytes.isNotEmpty ? bytes[0] : 0;
+
+  int readBit() {
+    if (bitPos == 8) {
+      bytePos++;
+      bitPos = 0;
+      currentByte = bytePos < bytes.length ? bytes[bytePos] : 0;
+    }
+
+    int bit = (currentByte >> (7 - bitPos)) & 1;
+    bitPos++;
+    return bit;
+  }
+}
+
+class ArithDecode extends Benchmark {
+  Uint8List arithDecode(ArithEncodedResult encoded) {
+    var frequencies = encoded.frequencies;
+    int total = frequencies.reduce((a, b) => a + b);
+    int dataSize = total;
+
+    var lowTable = List<int>.filled(256, 0);
+    var highTable = List<int>.filled(256, 0);
+    int cum = 0;
+    for (int i = 0; i < 256; i++) {
+      lowTable[i] = cum;
+      cum += frequencies[i];
+      highTable[i] = cum;
+    }
+
+    var result = Uint8List(dataSize);
+    var input = BitInputStream(encoded.data);
+
+    int value = 0;
+    for (int i = 0; i < 32; i++) {
+      value = (value << 1) | input.readBit();
+    }
+
+    int low = 0;
+    int high = 0xFFFFFFFF;
+
+    for (int j = 0; j < dataSize; j++) {
+      int range = high - low + 1;
+      int scaled = ((value - low + 1) * total - 1) ~/ range;
+
+      int symbol = 0;
+      while (symbol < 255 && highTable[symbol] <= scaled) {
+        symbol++;
+      }
+
+      result[j] = symbol;
+
+      high = low + ((range * highTable[symbol]) ~/ total) - 1;
+      low = low + ((range * lowTable[symbol]) ~/ total);
+
+      while (true) {
+        if (high < 0x80000000) {
+        } else if (low >= 0x80000000) {
+          value -= 0x80000000;
+          low -= 0x80000000;
+          high -= 0x80000000;
+        } else if (low >= 0x40000000 && high < 0xC0000000) {
+          value -= 0x40000000;
+          low -= 0x40000000;
+          high -= 0x40000000;
+        } else {
+          break;
+        }
+
+        low <<= 1;
+        high = (high << 1) | 1;
+        value = (value << 1) | input.readBit();
+      }
+    }
+
+    return result;
+  }
+
+  late int sizeVal;
+  late Uint8List testData;
+  late Uint8List decoded;
+  late ArithEncodedResult encoded;
+  int resultVal = 0;
+
+  ArithDecode() {
+    sizeVal = Helper.configI64(benchmarkName, 'size').toInt();
+  }
+
+  @override
+  String get benchmarkName => 'Compress::ArithDecode';
+
+  @override
+  void prepare() {
+    var encoder = ArithEncode();
+    encoder.sizeVal = sizeVal;
+    encoder.prepare();
+    encoder.runBenchmark(0);
+    testData = encoder.testData;
+    encoded = encoder.encoded;
+    resultVal = 0;
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    decoded = arithDecode(encoded);
+    resultVal += decoded.length;
+  }
+
+  @override
+  int checksum() {
+    int res = resultVal;
+    if (listEquals(decoded, testData)) res += 100000;
+    return res & 0xFFFFFFFF;
+  }
+}
+
+class LZWResult {
+  final Uint8List data;
+  final int dictSize;
+
+  LZWResult(this.data, this.dictSize);
+}
+
+class LZWEncode extends Benchmark {
+  LZWResult lzwEncode(Uint8List input) {
+    if (input.isEmpty) return LZWResult(Uint8List(0), 256);
+
+    var dict = HashMap<String, int>();
+    for (int i = 0; i < 256; i++) {
+      dict[String.fromCharCode(i)] = i;
+    }
+
+    int nextCode = 256;
+    var result = <int>[];
+
+    String current = String.fromCharCode(input[0]);
+
+    for (int i = 1; i < input.length; i++) {
+      String nextChar = String.fromCharCode(input[i]);
+      String newStr = current + nextChar;
+
+      if (dict.containsKey(newStr)) {
+        current = newStr;
+      } else {
+        int code = dict[current]!;
+        result.add((code >> 8) & 0xFF);
+        result.add(code & 0xFF);
+
+        dict[newStr] = nextCode++;
+        current = nextChar;
+      }
+    }
+
+    int lastCode = dict[current]!;
+    result.add((lastCode >> 8) & 0xFF);
+    result.add(lastCode & 0xFF);
+
+    return LZWResult(Uint8List.fromList(result), nextCode);
+  }
+
+  late int sizeVal;
+  late Uint8List testData;
+  late LZWResult encoded;
+  int resultVal = 0;
+
+  LZWEncode() {
+    sizeVal = Helper.configI64(benchmarkName, 'size').toInt();
+  }
+
+  @override
+  String get benchmarkName => 'Compress::LZWEncode';
+
+  @override
+  void prepare() {
+    testData = generateTestData(sizeVal);
+    resultVal = 0;
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    encoded = lzwEncode(testData);
+    resultVal += encoded.data.length;
+  }
+
+  @override
+  int checksum() => resultVal & 0xFFFFFFFF;
+}
+
+class LZWDecode extends Benchmark {
+  Uint8List lzwDecode(LZWResult encoded) {
+    if (encoded.data.isEmpty) return Uint8List(0);
+
+    var dict = <String>[];
+    dict.length = 0;
+
+    for (int i = 0; i < 256; i++) {
+      dict.add(String.fromCharCode(i));
+    }
+
+    var result = BytesBuilder(copy: false);
+    var data = encoded.data;
+    int pos = 0;
+
+    int high = data[pos];
+    int low = data[pos + 1];
+    int oldCode = (high << 8) | low;
+    pos += 2;
+
+    String oldStr = dict[oldCode];
+    result.add(oldStr.codeUnits);
+
+    int nextCode = 256;
+
+    while (pos < data.length) {
+      high = data[pos];
+      low = data[pos + 1];
+      int newCode = (high << 8) | low;
+      pos += 2;
+
+      String newStr;
+      if (newCode < dict.length) {
+        newStr = dict[newCode];
+      } else if (newCode == nextCode) {
+        newStr = oldStr + oldStr[0];
+      } else {
+        throw Exception("Error decode");
+      }
+
+      result.add(newStr.codeUnits);
+
+      dict.add(oldStr + newStr[0]);
+      nextCode++;
+
+      oldStr = newStr;
+    }
+
+    return result.toBytes();
+  }
+
+  late int sizeVal;
+  late Uint8List testData;
+  late Uint8List decoded;
+  late LZWResult encoded;
+  int resultVal = 0;
+
+  LZWDecode() {
+    sizeVal = Helper.configI64(benchmarkName, 'size').toInt();
+  }
+
+  @override
+  String get benchmarkName => 'Compress::LZWDecode';
+
+  @override
+  void prepare() {
+    var encoder = LZWEncode();
+    encoder.sizeVal = sizeVal;
+    encoder.prepare();
+    encoder.runBenchmark(0);
+    testData = encoder.testData;
+    encoded = encoder.encoded;
+    resultVal = 0;
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    decoded = lzwDecode(encoded);
+    resultVal += decoded.length;
+  }
+
+  @override
+  int checksum() {
+    int res = resultVal;
+    if (listEquals(decoded, testData)) res += 100000;
+    return res & 0xFFFFFFFF;
+  }
+}
+
+bool listEquals(List? a, List? b) {
+  if (a == null) return b == null;
+  if (b == null || a.length != b.length) return false;
+  for (int i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }
 
 void registerBenchmarks() {
@@ -4727,8 +5071,14 @@ void registerBenchmarks() {
   Benchmark.registerBenchmark(() => GameOfLife());
   Benchmark.registerBenchmark(() => MazeGenerator());
   Benchmark.registerBenchmark(() => AStarPathfinder());
-  Benchmark.registerBenchmark(() => BWTHuffEncode());
-  Benchmark.registerBenchmark(() => BWTHuffDecode());
+  Benchmark.registerBenchmark(() => BWTEncode());
+  Benchmark.registerBenchmark(() => BWTDecode());
+  Benchmark.registerBenchmark(() => HuffEncode());
+  Benchmark.registerBenchmark(() => HuffDecode());
+  Benchmark.registerBenchmark(() => ArithEncode());
+  Benchmark.registerBenchmark(() => ArithDecode());
+  Benchmark.registerBenchmark(() => LZWEncode());
+  Benchmark.registerBenchmark(() => LZWDecode());
 }
 
 Future<void> main(List<String> args) async {

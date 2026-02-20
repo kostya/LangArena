@@ -7,12 +7,13 @@ protocol BenchmarkProtocol: AnyObject {
   func prepare()
   func warmup()
   func runAll()
+  func name() -> String
 }
 
 extension BenchmarkProtocol {
   var iterations: Int {
 
-    if let config = Helper.config[name] as? [String: Any],
+    if let config = Helper.config[name()] as? [String: Any],
       let iterations = config["iterations"] as? Int
     {
       return iterations
@@ -21,7 +22,7 @@ extension BenchmarkProtocol {
   }
 
   var warmupIterations: Int {
-    if let config = Helper.config[name] as? [String: Any],
+    if let config = Helper.config[name()] as? [String: Any],
       let warmup = config["warmup_iterations"] as? Int
     {
       return warmup
@@ -31,7 +32,7 @@ extension BenchmarkProtocol {
   }
 
   var expectedChecksum: Int64 {
-    if let config = Helper.config[name] as? [String: Any],
+    if let config = Helper.config[name()] as? [String: Any],
       let checksum = config["checksum"] as? Int64
     {
       return checksum
@@ -40,13 +41,13 @@ extension BenchmarkProtocol {
   }
 
   func configValue<T>(_ field: String) -> T? {
-    if let config = Helper.config[name] as? [String: Any] {
+    if let config = Helper.config[name()] as? [String: Any] {
       return config[field] as? T
     }
     return nil
   }
 
-  var name: String {
+  func name() -> String {
     return String(describing: type(of: self))
   }
 
@@ -85,7 +86,7 @@ class BenchmarkManager {
 
     for factory in benchmarks {
       let bench = factory()
-      let className = bench.name
+      let className = bench.name()
 
       if className == "SortBenchmark" || className == "BufferHashBenchmark"
         || className == "GraphPathBenchmark"

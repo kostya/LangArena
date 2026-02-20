@@ -185,8 +185,14 @@ pub const all_benchmarks_list = blk: {
         createBenchInfo("GameOfLife", @import("game_of_life.zig").GameOfLife),
         createBenchInfo("MazeGenerator", @import("maze_generator.zig").MazeGenerator),
         createBenchInfo("AStarPathfinder", @import("astar_pathfinder.zig").AStarPathfinder),
-        createBenchInfo("BWTHuffEncode", @import("bwthuffencode.zig").BWTHuffEncode),
-        createBenchInfo("BWTHuffDecode", @import("bwthuffdecode.zig").BWTHuffDecode),
+        createBenchInfo("Compress::BWTEncode", @import("compress.zig").BWTEncode),
+        createBenchInfo("Compress::BWTDecode", @import("compress.zig").BWTDecode),
+        createBenchInfo("Compress::HuffEncode", @import("compress.zig").HuffEncode),
+        createBenchInfo("Compress::HuffDecode", @import("compress.zig").HuffDecode),
+        createBenchInfo("Compress::ArithEncode", @import("compress.zig").ArithEncode),
+        createBenchInfo("Compress::ArithDecode", @import("compress.zig").ArithDecode),
+        createBenchInfo("Compress::LZWEncode", @import("compress.zig").LZWEncode),
+        createBenchInfo("Compress::LZWDecode", @import("compress.zig").LZWDecode),
     };
     break :blk list;
 };

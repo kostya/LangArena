@@ -96,7 +96,6 @@ fn fannkuchredux_impl(n int) (int, int) {
 }
 
 pub fn (mut b Fannkuchredux) run(iteration_id int) {
-	_ = iteration_id
 	checksum, max_flips := fannkuchredux_impl(int(b.n))
 	b.result_val += u32(checksum) * 100 + u32(max_flips)
 }

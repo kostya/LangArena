@@ -75,7 +75,6 @@ fn matmul(a [][]f64, b [][]f64) [][]f64 {
 }
 
 pub fn (mut m Matmul1T) run(iteration_id int) {
-	_ = iteration_id
 	n := int(m.n)
 
 	a := matgen(n)

@@ -75,7 +75,6 @@ pub fn (mut b BufferHashSHA256) prepare() {
 }
 
 pub fn (mut b BufferHashSHA256) run(iteration_id int) {
-	_ = iteration_id
 	bytes := simple_sha256_digest(b.data)
 
 	mut hash_val := u32(0)
@@ -131,7 +130,6 @@ pub fn (mut b BufferHashCRC32) prepare() {
 }
 
 pub fn (mut b BufferHashCRC32) run(iteration_id int) {
-	_ = iteration_id
 	hash_val := crc32(b.data)
 	b.result_val += hash_val
 }

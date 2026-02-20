@@ -18,7 +18,7 @@ macro_rules! benchmark_list {
     ($($name:ident: $path:ty),* $(,)?) => {
         vec![
             $(BenchmarkInfo {
-                name: stringify!($name).to_string(),
+                name: stringify!($name).replace("_", "::"),
                 creator: Box::new(|| Box::new(<$path>::new())),
             }),*
         ]
@@ -161,8 +161,14 @@ fn run_benchmarks(single_bench: Option<&str>) {
         GameOfLife: benchmarks::game_of_life::GameOfLife,
         MazeGenerator: benchmarks::maze_generator::MazeGenerator,
         AStarPathfinder: benchmarks::a_star_pathfinder::AStarPathfinder,
-        BWTHuffEncode: benchmarks::bwthuff::BWTHuffEncode,
-        BWTHuffDecode: benchmarks::bwthuff::BWTHuffDecode,
+        Compress_BWTEncode: benchmarks::compress::BWTEncode,
+        Compress_BWTDecode: benchmarks::compress::BWTDecode,
+        Compress_HuffEncode: benchmarks::compress::HuffEncode,
+        Compress_HuffDecode: benchmarks::compress::HuffDecode,
+        Compress_ArithEncode: benchmarks::compress::ArithEncode,
+        Compress_ArithDecode: benchmarks::compress::ArithDecode,
+        Compress_LZWEncode: benchmarks::compress::LZWEncode,
+        Compress_LZWDecode: benchmarks::compress::LZWDecode,
     ];
 
     let mut results = HashMap::new();

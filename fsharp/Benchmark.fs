@@ -10,6 +10,10 @@ open System.Threading
 
 [<AbstractClass>]
 type Benchmark() =
+
+    abstract member Name: string
+    default this.Name = this.GetType().Name
+
     abstract member Run: int64 -> unit
     abstract member Checksum: uint32
     abstract member Prepare: unit -> unit
@@ -22,8 +26,6 @@ type Benchmark() =
             this.Run(i)
 
     member val TimeDelta = 0.0 with get, set
-
-    member this.Name = this.GetType().Name
 
     member this.WarmupIterations : int64 =
         let className = this.Name
