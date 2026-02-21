@@ -200,46 +200,37 @@ class Pidigits < Benchmark
     n = MutGMP::MpZ.new(1)
     d = MutGMP::MpZ.new(1)
 
-    # Temporary variables for intermediate calculations
     tmp1 = MutGMP::MpZ.new(0)
     tmp2 = MutGMP::MpZ.new(0)
 
     loop do
       k += 1
-      # t = n << 1
+
       tmp1.set!(n)
       tmp1.shl!(1)
       t.set!(tmp1)
 
-      # n *= k
       n.mul!(k)
 
       k1 += 2
 
-      # a = (a + t) * k1
       tmp1.set!(a)
       tmp1.add!(t)
       tmp1.mul!(k1)
       a.set!(tmp1)
 
-      # d *= k1
       d.mul!(k1)
 
       if a >= n
-        # t, u = (n * 3 + a).divmod(d)
         tmp1.set!(n)
         tmp1.mul!(3)
         tmp1.add!(a)
-        # tmp1 is now numerator
 
-        # Use GMP's fdiv_qr for efficient divmod (quotient in t, remainder in u)
         LibGMP.fdiv_qr(t.to_unsafe, u.to_unsafe, tmp1.to_unsafe, d.to_unsafe)
 
-        # u += n
         u.add!(n)
 
         if d >= u
-          # ns = ns * 10 + t
           ns.mul!(10)
           ns.add!(t)
 
@@ -250,13 +241,11 @@ class Pidigits < Benchmark
           end
           break if i >= @nn
 
-          # a = (a - (d * t)) * 10
           tmp1.set!(d)
           tmp1.mul!(t)
           a.sub!(tmp1)
           a.mul!(10)
 
-          # n *= 10
           n.mul!(10)
         end
       end
