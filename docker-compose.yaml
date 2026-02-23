@@ -34,6 +34,7 @@ services:
 
       - ./cache/deps/crystal/lib:/usr/local/crystal/lib
       - ./cache/deps/crystal/shards:/root/.cache/shards
+      - ./cache/deps/crystal/project-lib:/src/crystal/lib
 
       - ./cache/build/crystal/target:/src/crystal/target
       - ./cache/build/crystal/cache:/root/.cache/crystal

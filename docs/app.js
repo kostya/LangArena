@@ -192,8 +192,6 @@ function create_table($parent_div, title, data, use_color_compare = 0, group_lan
         if (lang_sticky_up) $td.attr('class', 'lang_' + run_name_to_lang_class_name(h));
     }
 
-    const summaries = new Array(up_header.length).fill(0);
-
     for (let i = 0; i < map.length; i++) {
         const line = map[i];
         const $tr = $('<tr>');
@@ -210,7 +208,6 @@ function create_table($parent_div, title, data, use_color_compare = 0, group_lan
 
         for (let j = 0; j < line.length; j++) {
             const v = line[j];
-            summaries[j] += v;
             const $td = $('<td>', {title: `${left_header[i]}[${up_header[j]}]: ${v}`}).html(v);
             if (use_color_compare != 0) $td.attr('class', speed_class(v));
             $tr.append($td);
@@ -223,14 +220,9 @@ function create_table($parent_div, title, data, use_color_compare = 0, group_lan
         $tfoot.append($tr2);
         const $td = $('<td>', {class: "lang_all"});
         $tr2.append($td)
-        if (data.summary == 'avg') {
-            for (let j = 0; j < summaries.length; j++) {    
-                summaries[j] = summaries[j] / map.length;
-            }
-            $td.text("Average");
-        } else {
-            $td.text("Summary");
-        }
+        $td.text(data.summary.desc);
+
+        const summaries = data.summary.data;
 
         if (use_color_compare == 1) {
             speed_class = createSpeedClassFunction(summaries);
@@ -240,7 +232,7 @@ function create_table($parent_div, title, data, use_color_compare = 0, group_lan
 
         for (let j = 0; j < summaries.length; j++) {
             const s = summaries[j];
-            const $td = $('<td>', {title: `${up_header[j]}: ${value_fixed(s)}`}).text(value_fixed(s));
+            const $td = $('<td>', {title: `${up_header[j]}: ${s}`}).text(s);
             if (use_color_compare != 0) $td.attr('class', speed_class(s));
             $tr2.append($td);
         }
@@ -638,9 +630,9 @@ function prev_run_tab() {
     const $results = $('#results');
     $results.empty();
     if (window.Data.prev_diff) {
-        create_table($results, "Previous Run runtime diff, s", window.Data.prev_diff, 1);
+        create_table($results, "Previous update runtime diff, %", window.Data.prev_diff, 1);
     } else {
-        $results.append(`<h2>Previous Run runtime diff, s</h2><br><br>No Data ...`);
+        $results.append(`<h2>Previous update runtime diff, %</h2><br><br>No Data ...`);
     }
 }
 

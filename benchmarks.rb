@@ -52,7 +52,7 @@ LANG_MASKS = {
   'c' => ['./c', ['.c', '.h'], ['target', 'deps']],
   'cpp' => ['./cpp', ['.cpp', '.hpp', '.h', '.cc', '.cxx'], ['target', 'deps']],
   'golang' => ['./golang', ['.go'], ['target']],
-  'crystal' => ['./crystal', ['.cr'], ['target']],
+  'crystal' => ['./crystal', ['.cr'], ['target', 'lib']],
   'rust' => ['./rust', ['.rs'], ['target']],
   'csharp' => ['./csharp', ['.cs'], ['obj', 'bin']],
   'swift' => ['./swift', ['.swift'], ['.build', 'Package.swift']],
@@ -631,7 +631,7 @@ RUNS = [
     dir: "/src/crystal",
     container: "crystal",
     group: :prod,
-    deps_cmd: "mkdir -p target",
+    deps_cmd: "mkdir -p target ; shards install",
   ),
 
   # ======================================= D ======================================================
