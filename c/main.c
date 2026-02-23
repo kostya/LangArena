@@ -65,19 +65,6 @@ uint32_t Helper_checksum_f64(double v) {
   return Helper_checksum_string(buffer);
 }
 
-static inline int64_t crystal_add(int64_t a, int64_t b) {
-  uint64_t ua = (uint64_t)a;
-  uint64_t ub = (uint64_t)b;
-  uint64_t result = ua + ub;
-  return (int64_t)result;
-}
-
-static inline int64_t crystal_shl(int64_t a, int shift) {
-  uint64_t ua = (uint64_t)a;
-  uint64_t result = ua << shift;
-  return (int64_t)result;
-}
-
 void Helper_load_config(const char *filename) {
 
   FILE *file = fopen(filename, "rb");
@@ -3464,7 +3451,7 @@ uint32_t Nbody_checksum(Benchmark *self) {
   uint32_t checksum_before = Helper_checksum_f64(data->energy_before);
   uint32_t checksum_after = Helper_checksum_f64(energy_after);
 
-  return crystal_shl((int64_t)checksum_before, 5) & checksum_after;
+  return ((int64_t)checksum_before << 5) & checksum_after;
 }
 
 void Nbody_cleanup(Benchmark *self) {
@@ -4217,7 +4204,7 @@ void JsonGenerate_run(Benchmark *self, int iteration_id) {
 
   if (data->result_str && strlen(data->result_str) >= 15 &&
       strncmp(data->result_str, "{\"coordinates\":", 15) == 0) {
-    data->result_val = crystal_add((int64_t)data->result_val, 1);
+    data->result_val++;
   }
 
   yyjson_mut_doc_free(doc);
@@ -4343,8 +4330,7 @@ void JsonParseDom_run(Benchmark *self, int iteration_id) {
 
     uint32_t checksum = Helper_checksum_f64(x_avg) +
                         Helper_checksum_f64(y_avg) + Helper_checksum_f64(z_avg);
-    data->result_val =
-        crystal_add((int64_t)data->result_val, (int64_t)checksum);
+    data->result_val += checksum;
   }
 }
 
@@ -4446,8 +4432,7 @@ void JsonParseMapping_run(Benchmark *self, int iteration_id) {
 
     uint32_t checksum = Helper_checksum_f64(x_avg) +
                         Helper_checksum_f64(y_avg) + Helper_checksum_f64(z_avg);
-    data->result_val =
-        crystal_add((int64_t)data->result_val, (int64_t)checksum);
+    data->result_val += checksum;
   }
 }
 
@@ -4880,8 +4865,7 @@ void TextRaytracer_run(Benchmark *self, int iteration_id) {
     }
   }
 
-  data->result_val =
-      crystal_add((int64_t)data->result_val, (int64_t)iteration_result);
+  data->result_val += iteration_result;
 }
 
 uint32_t TextRaytracer_checksum(Benchmark *self) {
@@ -5354,8 +5338,7 @@ void SortQuick_run(Benchmark *self, int iteration_id) {
 
   uint32_t iteration_result = (uint32_t)data->base.data[random_index1] +
                               (uint32_t)data->sorted_data[random_index2];
-  data->base.result_val =
-      crystal_add((int64_t)data->base.result_val, (int64_t)iteration_result);
+  data->base.result_val += iteration_result;
 }
 
 uint32_t SortQuick_checksum(Benchmark *self) {
@@ -5464,8 +5447,7 @@ void SortMerge_run(Benchmark *self, int iteration_id) {
 
   uint32_t iteration_result = (uint32_t)data->base.data[random_index1] +
                               (uint32_t)data->sorted_data[random_index2];
-  data->base.result_val =
-      crystal_add((int64_t)data->base.result_val, (int64_t)iteration_result);
+  data->base.result_val += iteration_result;
 }
 
 uint32_t SortMerge_checksum(Benchmark *self) {
@@ -5538,8 +5520,7 @@ void SortSelf_run(Benchmark *self, int iteration_id) {
 
   uint32_t iteration_result = (uint32_t)data->base.data[random_index1] +
                               (uint32_t)data->sorted_data[random_index2];
-  data->base.result_val =
-      crystal_add((int64_t)data->base.result_val, (int64_t)iteration_result);
+  data->base.result_val += iteration_result;
 }
 
 uint32_t SortSelf_checksum(Benchmark *self) {
@@ -5726,7 +5707,7 @@ void GraphPathBFS_run(Benchmark *self, int iteration_id) {
   GraphPathBFSData *data = (GraphPathBFSData *)self->data;
   int length = graph_path_bfs_search(data->base.graph, 0,
                                      data->base.graph->vertices - 1);
-  data->base.result_val = crystal_add((int64_t)data->base.result_val, length);
+  data->base.result_val += length;
 }
 
 uint32_t GraphPathBFS_checksum(Benchmark *self) {
@@ -5801,7 +5782,7 @@ void GraphPathDFS_run(Benchmark *self, int iteration_id) {
   GraphPathDFSData *data = (GraphPathDFSData *)self->data;
   int length = graph_path_dfs_search(data->base.graph, 0,
                                      data->base.graph->vertices - 1);
-  data->base.result_val = crystal_add((int64_t)data->base.result_val, length);
+  data->base.result_val += length;
 }
 
 uint32_t GraphPathDFS_checksum(Benchmark *self) {
@@ -5965,7 +5946,7 @@ void GraphPathAStar_run(Benchmark *self, int iteration_id) {
   GraphPathAStarData *data = (GraphPathAStarData *)self->data;
   int length = graph_path_astar_search(data->base.graph, 0,
                                        data->base.graph->vertices - 1);
-  data->base.result_val = crystal_add((int64_t)data->base.result_val, length);
+  data->base.result_val += length;
 }
 
 uint32_t GraphPathAStar_checksum(Benchmark *self) {
@@ -6340,10 +6321,9 @@ uint32_t CacheSimulation_checksum(Benchmark *self) {
   CacheSimulationData *data = (CacheSimulationData *)self->data;
 
   uint32_t final_result = data->result_val;
-  final_result = crystal_shl((int64_t)final_result, 5) + (uint32_t)data->hits;
-  final_result = crystal_shl((int64_t)final_result, 5) + (uint32_t)data->misses;
-  final_result =
-      crystal_shl((int64_t)final_result, 5) + (uint32_t)data->cache->size;
+  final_result = ((int64_t)final_result << 5) + (uint32_t)data->hits;
+  final_result = ((int64_t)final_result << 5) + (uint32_t)data->misses;
+  final_result = ((int64_t)final_result << 5) + (uint32_t)data->cache->size;
 
   return final_result;
 }
@@ -6756,8 +6736,7 @@ void CalculatorAst_run(Benchmark *self, int iteration_id) {
     iteration_result += Helper_checksum_string(last->data.assignment->var_name);
   }
 
-  data->result_val =
-      crystal_add((int64_t)data->result_val, (int64_t)iteration_result);
+  data->result_val += iteration_result;
 }
 
 uint32_t CalculatorAst_checksum(Benchmark *self) {
@@ -6954,7 +6933,7 @@ void CalculatorInterpreter_run(Benchmark *self, int iteration_id) {
 
   calculator_interpreter_context_free(ctx);
 
-  data->result_val = crystal_add((int64_t)data->result_val, iteration_result);
+  data->result_val += iteration_result;
 }
 
 uint32_t CalculatorInterpreter_checksum(Benchmark *self) {
