@@ -83,4 +83,7 @@ final class Knuckeotide: BenchmarkProtocol {
   var checksum: UInt32 {
     return Helper.checksum(output)
   }
+  func name() -> String {
+    return "CLBG::Knuckeotide"
+  }
 }

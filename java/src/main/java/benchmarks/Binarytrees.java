@@ -44,7 +44,7 @@ class BinarytreesObj extends Benchmark {
 
     @Override
     public String name() {
-        return "BinarytreesObj";
+        return "Binarytrees::Obj";
     }
 
     @Override
@@ -115,7 +115,7 @@ class BinarytreesArena extends Benchmark {
 
     @Override
     public String name() {
-        return "BinarytreesArena";
+        return "Binarytrees::Arena";
     }
 
     @Override

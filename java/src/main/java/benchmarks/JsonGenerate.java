@@ -19,7 +19,7 @@ public class JsonGenerate extends Benchmark {
 
     @Override
     public String name() {
-        return "JsonGenerate";
+        return "Json::Generate";
     }
 
     @Override

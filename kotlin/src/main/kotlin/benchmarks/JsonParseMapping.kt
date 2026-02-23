@@ -52,5 +52,5 @@ class JsonParseMapping : Benchmark() {
 
     override fun checksum(): UInt = resultVal
 
-    override fun name(): String = "JsonParseMapping"
+    override fun name(): String = "Json::ParseMapping"
 }

@@ -141,7 +141,7 @@ graphbfs_test :: proc(bench: ^GraphPathBenchmark) -> i64 {
 create_graphbfs :: proc() -> ^Benchmark {
     gb := new(GraphPathBFS)
 
-    gb.base.name = "GraphPathBFS"
+    gb.base.name = "Graph::BFS"
     gb.base.vertices = 0
     gb.base.result_val = 0
 
@@ -215,7 +215,7 @@ graphdfs_test :: proc(bench: ^GraphPathBenchmark) -> i64 {
 create_graphdfs :: proc() -> ^Benchmark {
     gd := new(GraphPathDFS)
 
-    gd.base.name = "GraphPathDFS"
+    gd.base.name = "Graph::DFS"
     gd.base.vertices = 0
     gd.base.result_val = 0
 
@@ -336,7 +336,7 @@ graphastar_test :: proc(bench: ^GraphPathBenchmark) -> i64 {
 create_graphastar :: proc() -> ^Benchmark {
     ga := new(GraphPathAStar)
 
-    ga.base.name = "GraphPathAStar"
+    ga.base.name = "Graph::AStar"
     ga.base.vertices = 0
     ga.base.result_val = 0
 

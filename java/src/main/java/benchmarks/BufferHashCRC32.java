@@ -4,7 +4,7 @@ public class BufferHashCRC32 extends BufferHashBenchmark {
 
     @Override
     public String name() {
-        return "BufferHashCRC32";
+        return "Hash::CRC32";
     }
 
     @Override

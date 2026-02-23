@@ -73,9 +73,10 @@ type Noise() =
     let mutable n2d : Noise2DContext = Unchecked.defaultof<Noise2DContext>
 
     override this.Checksum = result
+    override this.Name = "Etc::Noise"
 
     override this.Prepare() =
-        size <- Helper.Config_i64("Noise", "size")
+        size <- Helper.Config_i64("Etc::Noise", "size")
         result <- 0u
         n2d <- Noise2DContext(int size)
 

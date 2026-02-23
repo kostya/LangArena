@@ -11,7 +11,7 @@ public class Fannkuchredux extends Benchmark {
 
     @Override
     public String name() {
-        return "Fannkuchredux";
+        return "CLBG::Fannkuchredux";
     }
 
     private static class Result {

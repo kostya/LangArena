@@ -48,14 +48,14 @@ pub struct BinarytreesObj {
 
 impl BinarytreesObj {
     pub fn new() -> Self {
-        let n = config_i64("BinarytreesObj", "depth");
+        let n = config_i64("Binarytrees::Obj", "depth");
         Self { n, result_val: 0 }
     }
 }
 
 impl Benchmark for BinarytreesObj {
     fn name(&self) -> String {
-        "BinarytreesObj".to_string()
+        "Binarytrees::Obj".to_string()
     }
 
     fn run(&mut self, _iteration_id: i64) {
@@ -92,7 +92,7 @@ pub struct BinarytreesArena {
 
 impl BinarytreesArena {
     pub fn new() -> Self {
-        let n = config_i64("BinarytreesArena", "depth");
+        let n = config_i64("Binarytrees::Arena", "depth");
         Self {
             arena: Vec::new(),
             n,
@@ -134,7 +134,7 @@ impl BinarytreesArena {
 
 impl Benchmark for BinarytreesArena {
     fn name(&self) -> String {
-        "BinarytreesArena".to_string()
+        "Binarytrees::Arena".to_string()
     }
 
     fn run(&mut self, _iteration_id: i64) {

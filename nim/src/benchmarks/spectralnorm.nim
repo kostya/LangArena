@@ -11,7 +11,7 @@ type
 proc newSpectralnorm(): Benchmark =
   Spectralnorm()
 
-method name(self: Spectralnorm): string = "Spectralnorm"
+method name(self: Spectralnorm): string = "CLBG::Spectralnorm"
 
 method prepare(self: Spectralnorm) =
   self.sizeVal = self.config_val("size")
@@ -56,4 +56,4 @@ method checksum(self: Spectralnorm): uint32 =
 
   checksumF64(sqrt(vBv / vv))
 
-registerBenchmark("Spectralnorm", newSpectralnorm)
+registerBenchmark("CLBG::Spectralnorm", newSpectralnorm)

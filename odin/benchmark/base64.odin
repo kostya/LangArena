@@ -88,7 +88,7 @@ base64encode_cleanup :: proc(bench: ^Benchmark) {
 
 create_base64encode :: proc() -> ^Benchmark {
     bench := new(Base64Encode)
-    bench.name = "Base64Encode"
+    bench.name = "Base64::Encode"
     bench.vtable = default_vtable()
 
     bench.vtable.run = base64encode_run
@@ -187,7 +187,7 @@ base64decode_cleanup :: proc(bench: ^Benchmark) {
 
 create_base64decode :: proc() -> ^Benchmark {
     bench := new(Base64Decode)
-    bench.name = "Base64Decode"
+    bench.name = "Base64::Decode"
     bench.vtable = default_vtable()
 
     bench.vtable.run = base64decode_run

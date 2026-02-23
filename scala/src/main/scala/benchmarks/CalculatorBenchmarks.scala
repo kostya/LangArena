@@ -182,14 +182,14 @@ class CalculatorAst extends Benchmark:
 
   override def checksum(): Long = resultVal & 0xffffffffL
 
-  override def name(): String = "CalculatorAst"
+  override def name(): String = "Calculator::Ast"
 
 class CalculatorInterpreter extends Benchmark:
   private var n: Long = 0L
   private var resultVal: Long = 0L
   private var ast: List[CalculatorAst#Node] = _
 
-  override def name(): String = "CalculatorInterpreter"
+  override def name(): String = "Calculator::Interpreter"
 
   override def prepare(): Unit = {
     n = configVal("operations")

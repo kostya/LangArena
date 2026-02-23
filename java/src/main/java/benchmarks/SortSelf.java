@@ -6,7 +6,7 @@ public class SortSelf extends SortBenchmark {
 
     @Override
     public String name() {
-        return "SortSelf";
+        return "Sort::Self";
     }
 
     @Override

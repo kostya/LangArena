@@ -19,7 +19,7 @@ type
 proc newNoise(): Benchmark =
   Noise()
 
-method name(self: Noise): string = "Noise"
+method name(self: Noise): string = "Etc::Noise"
 
 proc randomGradient(): Vec2 =
   let v = nextFloat() * PI * 2.0
@@ -117,4 +117,4 @@ method run(self: Noise, iteration_id: int) =
 method checksum(self: Noise): uint32 =
   self.resultVal
 
-registerBenchmark("Noise", newNoise)
+registerBenchmark("Etc::Noise", newNoise)

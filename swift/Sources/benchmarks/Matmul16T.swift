@@ -7,9 +7,11 @@ final class Matmul16T: Matmul4T {
     n = configValue("n") ?? 0
   }
 
-  override var name: String { return "Matmul16T" }
-
   override func getNumThreads() -> Int {
     return 16
+  }
+
+  override func name() -> String {
+    return "Matmul::T16"
   }
 }

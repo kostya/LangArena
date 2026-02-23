@@ -26,7 +26,7 @@ type
 proc newTextRaytracer(): Benchmark =
   TextRaytracer()
 
-method name(self: TextRaytracer): string = "TextRaytracer"
+method name(self: TextRaytracer): string = "Etc::TextRaytracer"
 
 proc scale(v: Vector, s: float): Vector =
   Vector(x: v.x * s, y: v.y * s, z: v.z * s)
@@ -153,4 +153,4 @@ method run(self: TextRaytracer, iteration_id: int) =
 method checksum(self: TextRaytracer): uint32 =
   self.resultVal
 
-registerBenchmark("TextRaytracer", newTextRaytracer)
+registerBenchmark("Etc::TextRaytracer", newTextRaytracer)

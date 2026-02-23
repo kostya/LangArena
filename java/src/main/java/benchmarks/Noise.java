@@ -115,7 +115,7 @@ public class Noise extends Benchmark {
 
     @Override
     public String name() {
-        return "Noise";
+        return "Etc::Noise";
     }
 
     private static final char[] SYM = {' ', '░', '▒', '▓', '█', '█'};

@@ -11,7 +11,7 @@ type
 proc newJsonParseDom(): Benchmark =
   JsonParseDom()
 
-method name(self: JsonParseDom): string = "JsonParseDom"
+method name(self: JsonParseDom): string = "Json::ParseDom"
 
 method prepare(self: JsonParseDom) =
   let n = self.config_val("coords")
@@ -43,4 +43,4 @@ method run(self: JsonParseDom, iteration_id: int) =
 method checksum(self: JsonParseDom): uint32 =
   self.resultVal
 
-registerBenchmark("JsonParseDom", newJsonParseDom)
+registerBenchmark("Json::ParseDom", newJsonParseDom)

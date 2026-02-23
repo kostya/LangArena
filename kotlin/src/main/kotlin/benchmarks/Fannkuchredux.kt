@@ -83,5 +83,5 @@ class Fannkuchredux : Benchmark() {
 
     override fun checksum(): UInt = resultVal
 
-    override fun name(): String = "Fannkuchredux"
+    override fun name(): String = "CLBG::Fannkuchredux"
 }

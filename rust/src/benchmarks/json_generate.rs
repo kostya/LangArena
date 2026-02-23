@@ -30,7 +30,7 @@ pub struct JsonGenerate {
 
 impl JsonGenerate {
     pub fn new() -> Self {
-        let n = config_i64("JsonGenerate", "coords");
+        let n = config_i64("Json::Generate", "coords");
 
         Self {
             n,
@@ -54,7 +54,7 @@ impl JsonGenerate {
 
 impl Benchmark for JsonGenerate {
     fn name(&self) -> String {
-        "JsonGenerate".to_string()
+        "Json::Generate".to_string()
     }
 
     fn prepare(&mut self) {

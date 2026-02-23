@@ -138,7 +138,7 @@ public class GameOfLife extends Benchmark {
 
     @Override
     public String name() {
-        return "GameOfLife";
+        return "Etc::GameOfLife";
     }
 
     @Override

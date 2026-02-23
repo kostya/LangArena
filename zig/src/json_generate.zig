@@ -25,7 +25,7 @@ pub const JsonGenerate = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*JsonGenerate {
-        const n = helper.config_i64("JsonGenerate", "coords");
+        const n = helper.config_i64("Json::Generate", "coords");
 
         const self = try allocator.create(JsonGenerate);
         errdefer allocator.destroy(self);
@@ -52,7 +52,7 @@ pub const JsonGenerate = struct {
     }
 
     pub fn asBenchmark(self: *JsonGenerate) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "JsonGenerate");
+        return Benchmark.init(self, &vtable, self.helper, "Json::Generate");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {

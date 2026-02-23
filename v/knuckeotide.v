@@ -13,7 +13,7 @@ mut:
 
 pub fn new_knuckeotide() &benchmark.IBenchmark {
 	mut bench := &Knuckeotide{
-		BaseBenchmark: benchmark.new_base_benchmark('Knuckeotide')
+		BaseBenchmark: benchmark.new_base_benchmark('CLBG::Knuckeotide')
 		seq:           ''
 		result_str:    ''
 	}
@@ -21,7 +21,7 @@ pub fn new_knuckeotide() &benchmark.IBenchmark {
 }
 
 pub fn (b Knuckeotide) name() string {
-	return 'Knuckeotide'
+	return 'CLBG::Knuckeotide'
 }
 
 struct FrequencyResult {
@@ -112,7 +112,7 @@ pub fn (mut k Knuckeotide) prepare() {
 
 	mut fasta_bench := fasta_bench_raw as &fasta.Fasta
 
-	n_val := helper.config_i64('Knuckeotide', 'n')
+	n_val := helper.config_i64('CLBG::Knuckeotide', 'n')
 	fasta_bench.n = n_val
 
 	fasta_bench.prepare()

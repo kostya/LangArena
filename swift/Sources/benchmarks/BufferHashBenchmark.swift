@@ -31,5 +31,7 @@ class BufferHashBenchmark: BenchmarkProtocol {
     return resultVal
   }
 
-  var name: String { return "BufferHashBenchmark" }
+  func name() -> String {
+    return ""
+  }
 }

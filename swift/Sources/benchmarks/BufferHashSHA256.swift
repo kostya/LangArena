@@ -5,8 +5,6 @@ final class BufferHashSHA256: BufferHashBenchmark {
     super.init()
   }
 
-  override var name: String { return "BufferHashSHA256" }
-
   struct SimpleSHA256 {
     static func digest(_ data: [UInt8]) -> [UInt8] {
       var result = [UInt8](repeating: 0, count: 32)
@@ -45,5 +43,8 @@ final class BufferHashSHA256: BufferHashBenchmark {
     let bytes = SimpleSHA256.digest(self.data)
     return (UInt32(bytes[3]) << 24) | (UInt32(bytes[2]) << 16) | (UInt32(bytes[1]) << 8)
       | UInt32(bytes[0])
+  }
+  override func name() -> String {
+    return "Hash::SHA256"
   }
 }

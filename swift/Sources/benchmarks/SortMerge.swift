@@ -4,9 +4,6 @@ final class SortMerge: SortBenchmark {
   override init() {
     super.init()
   }
-
-  override var name: String { return "SortMerge" }
-
   private func mergeSortHelper(_ arr: inout [Int], _ temp: inout [Int], _ left: Int, _ right: Int) {
     if left >= right { return }
 
@@ -51,5 +48,9 @@ final class SortMerge: SortBenchmark {
     var arr = data
     mergeSort(&arr)
     return arr
+  }
+
+  override func name() -> String {
+    return "Sort::Merge"
   }
 }

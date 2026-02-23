@@ -4,11 +4,11 @@ mutable struct BinarytreesObj <: AbstractBenchmark
 end
 
 function BinarytreesObj()
-    n = Helper.config_i64("BinarytreesObj", "depth")
+    n = Helper.config_i64("Binarytrees::Obj", "depth")
     return BinarytreesObj(n, UInt32(0))
 end
 
-name(b::BinarytreesObj)::String = "BinarytreesObj"
+name(b::BinarytreesObj)::String = "Binarytrees::Obj"
 
 mutable struct TreeNodeObj
     left::Union{Nothing,TreeNodeObj}
@@ -63,11 +63,11 @@ mutable struct BinarytreesArena <: AbstractBenchmark
 end
 
 function BinarytreesArena()
-    n = Helper.config_i64("BinarytreesArena", "depth")
+    n = Helper.config_i64("Binarytrees::Arena", "depth")
     return BinarytreesArena(n, UInt32(0))
 end
 
-name(b::BinarytreesArena)::String = "BinarytreesArena"
+name(b::BinarytreesArena)::String = "Binarytrees::Arena"
 
 function build!(nodes::Vector{TreeNodeArena}, item::Int64, depth::Int64)::Int64
     idx = length(nodes) + 1

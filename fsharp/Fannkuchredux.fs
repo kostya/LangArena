@@ -82,6 +82,7 @@ type Fannkuchredux() =
         finalResult
 
     override this.Checksum = result
+    override this.Name = "CLBG::Fannkuchredux"
 
     override this.Prepare() =
         n <- this.ConfigVal("n")

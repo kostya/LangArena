@@ -5,12 +5,12 @@ mutable struct Fannkuchredux <: AbstractBenchmark
     result::UInt32
 
     function Fannkuchredux()
-        n = Helper.config_i64("Fannkuchredux", "n")
+        n = Helper.config_i64("CLBG::Fannkuchredux", "n")
         new(n, UInt32(0))
     end
 end
 
-name(b::Fannkuchredux)::String = "Fannkuchredux"
+name(b::Fannkuchredux)::String = "CLBG::Fannkuchredux"
 
 function run(b::Fannkuchredux, iteration_id::Int64)
     n = Int32(b.n)

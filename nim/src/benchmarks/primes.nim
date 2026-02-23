@@ -15,7 +15,7 @@ type
 proc newPrimes(): Benchmark =
   Primes()
 
-method name(self: Primes): string = "Primes"
+method name(self: Primes): string = "Etc::Primes"
 
 method prepare(self: Primes) =
   self.n = self.config_val("limit")
@@ -102,4 +102,4 @@ method run(self: Primes, iteration_id: int) =
 method checksum(self: Primes): uint32 =
   self.resultVal
 
-registerBenchmark("Primes", newPrimes)
+registerBenchmark("Etc::Primes", newPrimes)

@@ -45,7 +45,7 @@ class BinarytreesObj : Benchmark() {
 
     override fun checksum(): UInt = resultVal
 
-    override fun name(): String = "BinarytreesObj"
+    override fun name(): String = "Binarytrees::Obj"
 }
 
 class BinarytreesArena : Benchmark() {
@@ -102,5 +102,5 @@ class BinarytreesArena : Benchmark() {
 
     override fun checksum(): UInt = resultVal
 
-    override fun name(): String = "BinarytreesArena"
+    override fun name(): String = "Binarytrees::Arena"
 }

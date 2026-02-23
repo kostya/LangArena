@@ -5,12 +5,12 @@ mutable struct Base64Decode <: AbstractBenchmark
     result::UInt32
 
     function Base64Decode()
-        n = Helper.config_i64("Base64Decode", "size")
+        n = Helper.config_i64("Base64::Decode", "size")
         new(n, "", [], UInt32(0))
     end
 end
 
-name(b::Base64Decode)::String = "Base64Decode"
+name(b::Base64Decode)::String = "Base64::Decode"
 
 function prepare(b::Base64Decode)
     str = "a" ^ b.n

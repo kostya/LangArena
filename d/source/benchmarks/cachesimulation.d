@@ -144,7 +144,7 @@ private:
 protected:
     override string className() const
     {
-        return "CacheSimulation";
+        return "Etc::CacheSimulation";
     }
 
 public:

@@ -56,6 +56,7 @@ type Matmul1T() =
     let mutable result = 0u
 
     override this.Checksum = result
+    override this.Name = "Matmul::T1"
 
     override this.Prepare() =
         n <- int (this.ConfigVal("n"))
@@ -76,6 +77,7 @@ type Matmul4T() =
     let mutable result = 0u
 
     override this.Checksum = result
+    override this.Name = "Matmul::T4"
 
     override this.Prepare() =
         n <- int (this.ConfigVal("n"))
@@ -96,6 +98,7 @@ type Matmul8T() =
     let mutable result = 0u
 
     override this.Checksum = result
+    override this.Name = "Matmul::T8"
 
     override this.Prepare() =
         n <- int (this.ConfigVal("n"))
@@ -116,6 +119,7 @@ type Matmul16T() =
     let mutable result = 0u
 
     override this.Checksum = result
+    override this.Name = "Matmul::T16"
 
     override this.Prepare() =
         n <- int (this.ConfigVal("n"))

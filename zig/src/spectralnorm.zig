@@ -18,7 +18,7 @@ pub const Spectralnorm = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Spectralnorm {
-        const size_val = helper.config_i64("Spectralnorm", "size");
+        const size_val = helper.config_i64("CLBG::Spectralnorm", "size");
 
         const self = try allocator.create(Spectralnorm);
         errdefer allocator.destroy(self);
@@ -42,7 +42,7 @@ pub const Spectralnorm = struct {
     }
 
     pub fn asBenchmark(self: *Spectralnorm) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "Spectralnorm");
+        return Benchmark.init(self, &vtable, self.helper, "CLBG::Spectralnorm");
     }
 
     fn eval_A(i: usize, j: usize) f64 {

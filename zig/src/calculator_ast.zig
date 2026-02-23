@@ -18,7 +18,7 @@ pub const CalculatorAst = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*CalculatorAst {
-        const operations = helper.config_i64("CalculatorAst", "operations");
+        const operations = helper.config_i64("Calculator::Ast", "operations");
 
         const self = try allocator.create(CalculatorAst);
         errdefer allocator.destroy(self);
@@ -42,7 +42,7 @@ pub const CalculatorAst = struct {
     }
 
     pub fn asBenchmark(self: *CalculatorAst) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "CalculatorAst");
+        return Benchmark.init(self, &vtable, self.helper, "Calculator::Ast");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {

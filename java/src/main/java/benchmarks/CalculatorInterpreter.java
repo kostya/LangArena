@@ -81,7 +81,7 @@ public class CalculatorInterpreter extends Benchmark {
 
     @Override
     public String name() {
-        return "CalculatorInterpreter";
+        return "Calculator::Interpreter";
     }
 
     @Override

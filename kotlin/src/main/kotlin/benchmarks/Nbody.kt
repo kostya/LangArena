@@ -174,5 +174,5 @@ class Nbody : Benchmark() {
         return (Helper.checksumF64(v1) shl 5) and Helper.checksumF64(v2)
     }
 
-    override fun name(): String = "Nbody"
+    override fun name(): String = "CLBG::Nbody"
 }

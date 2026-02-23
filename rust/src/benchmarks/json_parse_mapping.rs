@@ -22,7 +22,7 @@ pub struct JsonParseMapping {
 
 impl JsonParseMapping {
     pub fn new() -> Self {
-        let n = config_i64("JsonParseMapping", "coords");
+        let n = config_i64("Json::ParseMapping", "coords");
 
         Self {
             n,
@@ -55,7 +55,7 @@ impl JsonParseMapping {
 
 impl Benchmark for JsonParseMapping {
     fn name(&self) -> String {
-        "JsonParseMapping".to_string()
+        "Json::ParseMapping".to_string()
     }
 
     fn prepare(&mut self) {

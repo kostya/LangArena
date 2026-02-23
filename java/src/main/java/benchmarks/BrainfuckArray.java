@@ -140,7 +140,7 @@ public class BrainfuckArray extends Benchmark {
 
     @Override
     public String name() {
-        return "BrainfuckArray";
+        return "Brainfuck::Array";
     }
 
     private long runProgram(String programText) {

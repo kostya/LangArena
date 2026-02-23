@@ -53,7 +53,7 @@ proc moveFromI(bodies: var seq[Planet], dt: float, start: int) =
 proc newNbody(): Benchmark =
   Nbody(resultVal: 0, v1: 0.0)
 
-method name(self: Nbody): string = "Nbody"
+method name(self: Nbody): string = "CLBG::Nbody"
 
 method prepare(self: Nbody) =
 
@@ -127,4 +127,4 @@ method checksum(self: Nbody): uint32 =
   let checksum2 = checksumF64(v2)
   (checksum1 shl 5) and checksum2
 
-registerBenchmark("Nbody", newNbody)
+registerBenchmark("CLBG::Nbody", newNbody)

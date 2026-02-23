@@ -60,7 +60,7 @@ class SortMerge extends SortBenchmark:
     mergeSortInplace(arr)
     arr
 
-  override def name(): String = "SortMerge"
+  override def name(): String = "Sort::Merge"
 
 class SortQuick extends SortBenchmark:
   private def quickSort(arr: Array[Int], low: Int, high: Int): Unit =
@@ -88,7 +88,7 @@ class SortQuick extends SortBenchmark:
     quickSort(arr, 0, arr.length - 1)
     arr
 
-  override def name(): String = "SortQuick"
+  override def name(): String = "Sort::Quick"
 
 class SortSelf extends SortBenchmark:
   override def test(): Array[Int] =
@@ -96,4 +96,4 @@ class SortSelf extends SortBenchmark:
     scala.util.Sorting.quickSort(arr)
     arr
 
-  override def name(): String = "SortSelf"
+  override def name(): String = "Sort::Self"

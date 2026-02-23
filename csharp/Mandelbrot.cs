@@ -72,4 +72,5 @@ public class Mandelbrot : Benchmark
     }
 
     public override uint Checksum => Helper.Checksum(_resultStream.ToArray());
+    public override string TypeName => "CLBG::Mandelbrot";
 }

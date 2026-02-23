@@ -21,15 +21,15 @@ mut:
 
 pub fn new_fasta() &Fasta {
 	mut bench := &Fasta{
-		BaseBenchmark: benchmark.new_base_benchmark('Fasta')
-		n:             helper.config_i64('Fasta', 'n')
+		BaseBenchmark: benchmark.new_base_benchmark('CLBG::Fasta')
+		n:             helper.config_i64('CLBG::Fasta', 'n')
 		result_buf:    strings.new_builder(0)
 	}
 	return bench
 }
 
 pub fn (b Fasta) name() string {
-	return 'Fasta'
+	return 'CLBG::Fasta'
 }
 
 fn select_random(genelist []Gene) u8 {

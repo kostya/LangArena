@@ -8,7 +8,7 @@ type
 proc newBufferHashSHA256(): Benchmark =
   BufferHashSHA256()
 
-method name(self: BufferHashSHA256): string = "BufferHashSHA256"
+method name(self: BufferHashSHA256): string = "Hash::SHA256"
 
 proc simpleSHA256(data: seq[byte]): uint32 =
   var hashes: array[8, uint32] = [
@@ -39,4 +39,4 @@ proc simpleSHA256(data: seq[byte]): uint32 =
 method test(self: BufferHashSHA256): uint32 =
   simpleSHA256(self.data)
 
-registerBenchmark("BufferHashSHA256", newBufferHashSHA256)
+registerBenchmark("Hash::SHA256", newBufferHashSHA256)

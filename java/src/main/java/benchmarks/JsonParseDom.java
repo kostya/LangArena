@@ -9,7 +9,7 @@ public class JsonParseDom extends Benchmark {
 
     @Override
     public String name() {
-        return "JsonParseDom";
+        return "Json::ParseDom";
     }
 
     @Override

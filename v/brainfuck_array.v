@@ -133,7 +133,7 @@ mut:
 
 pub fn new_brainfuck_array() &benchmark.IBenchmark {
 	mut bench := &BrainfuckArray{
-		BaseBenchmark: benchmark.new_base_benchmark('BrainfuckArray')
+		BaseBenchmark: benchmark.new_base_benchmark('Brainfuck::Array')
 		program_text:  ''
 		warmup_text:   ''
 		result_val:    0
@@ -142,7 +142,7 @@ pub fn new_brainfuck_array() &benchmark.IBenchmark {
 }
 
 pub fn (b BrainfuckArray) name() string {
-	return 'BrainfuckArray'
+	return 'Brainfuck::Array'
 }
 
 fn run_program_impl(text string) u64 {
@@ -160,8 +160,8 @@ pub fn (b BrainfuckArray) checksum() u32 {
 }
 
 pub fn (mut b BrainfuckArray) prepare() {
-	b.program_text = helper.config_string('BrainfuckArray', 'program')
-	b.warmup_text = helper.config_string('BrainfuckArray', 'warmup_program')
+	b.program_text = helper.config_string('Brainfuck::Array', 'program')
+	b.warmup_text = helper.config_string('Brainfuck::Array', 'warmup_program')
 	b.result_val = 0
 }
 

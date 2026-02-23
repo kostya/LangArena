@@ -35,12 +35,12 @@ mutable struct Fasta <: AbstractBenchmark
     io::IOBuffer
 
     function Fasta()
-        n = Helper.config_i64("Fasta", "n")
+        n = Helper.config_i64("CLBG::Fasta", "n")
         new(n, IOBuffer())
     end
 end
 
-name(b::Fasta)::String = "Fasta"
+name(b::Fasta)::String = "CLBG::Fasta"
 
 const LINE_LENGTH = 60
 

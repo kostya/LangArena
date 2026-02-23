@@ -121,7 +121,7 @@ fasta_cleanup :: proc(bench: ^Benchmark) {
 
 create_fasta :: proc() -> ^Benchmark {
     fasta := new(Fasta)
-    fasta.name = "Fasta"
+    fasta.name = "CLBG::Fasta"
     fasta.vtable = default_vtable()
 
     fasta.vtable.run = fasta_run
@@ -129,7 +129,7 @@ create_fasta :: proc() -> ^Benchmark {
     fasta.vtable.prepare = fasta_prepare
     fasta.vtable.cleanup = fasta_cleanup
 
-    fasta.n = int(config_i64("Fasta", "n"))
+    fasta.n = int(config_i64("CLBG::Fasta", "n"))
 
     return cast(^Benchmark)fasta
 }

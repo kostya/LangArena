@@ -12,7 +12,7 @@ class Fasta extends Benchmark:
   private val result = new ByteArrayOutputStream()
   private val LINE_LENGTH = 60
 
-  override def name(): String = "Fasta"
+  override def name(): String = "CLBG::Fasta"
 
   override def prepare(): Unit =
     _n = configVal("n").toInt

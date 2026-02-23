@@ -185,4 +185,7 @@ class BrainfuckArray: BenchmarkProtocol {
     }
     return program.run()
   }
+  func name() -> String {
+    return "Brainfuck::Array"
+  }
 }

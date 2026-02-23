@@ -15,7 +15,7 @@ public class Matmul4T extends Benchmark {
 
     @Override
     public String name() {
-        return "Matmul4T";
+        return "Matmul::T4";
     }
 
     private double[][] matgen(int n) {

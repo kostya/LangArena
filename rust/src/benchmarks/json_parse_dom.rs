@@ -10,7 +10,7 @@ pub struct JsonParseDom {
 
 impl JsonParseDom {
     pub fn new() -> Self {
-        let n = config_i64("JsonParseDom", "coords");
+        let n = config_i64("Json::ParseDom", "coords");
 
         Self {
             n,
@@ -40,7 +40,7 @@ impl JsonParseDom {
 
 impl Benchmark for JsonParseDom {
     fn name(&self) -> String {
-        "JsonParseDom".to_string()
+        "Json::ParseDom".to_string()
     }
 
     fn prepare(&mut self) {

@@ -7,12 +7,12 @@ mutable struct Base64Encode <: AbstractBenchmark
     result::UInt32
 
     function Base64Encode()
-        n = Helper.config_i64("Base64Encode", "size")
+        n = Helper.config_i64("Base64::Encode", "size")
         new(n, "", "", UInt32(0))
     end
 end
 
-name(b::Base64Encode)::String = "Base64Encode"
+name(b::Base64Encode)::String = "Base64::Encode"
 
 function prepare(b::Base64Encode)
     b.str = "a" ^ b.n

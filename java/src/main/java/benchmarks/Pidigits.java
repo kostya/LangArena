@@ -14,7 +14,7 @@ public class Pidigits extends Benchmark {
 
     @Override
     public String name() {
-        return "Pidigits";
+        return "CLBG::Pidigits";
     }
 
     @Override

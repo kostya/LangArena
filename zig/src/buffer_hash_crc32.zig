@@ -37,14 +37,14 @@ pub const BufferHashCRC32 = struct {
     }
 
     pub fn asBenchmark(self: *BufferHashCRC32) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "BufferHashCRC32");
+        return Benchmark.init(self, &vtable, self.helper, "Hash::CRC32");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *BufferHashCRC32 = @ptrCast(@alignCast(ptr));
 
         if (self.size_val == 0) {
-            self.size_val = self.helper.config_i64("BufferHashCRC32", "size");
+            self.size_val = self.helper.config_i64("Hash::CRC32", "size");
             const size = @as(usize, @intCast(self.size_val));
 
             self.data.clearAndFree(self.allocator);

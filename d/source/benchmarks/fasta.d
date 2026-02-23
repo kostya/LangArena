@@ -86,7 +86,7 @@ private:
 protected:
     override string className() const
     {
-        return "Fasta";
+        return "CLBG::Fasta";
     }
 
 public:

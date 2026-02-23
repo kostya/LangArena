@@ -105,6 +105,7 @@ type Nbody() =
     override this.Checksum =
         let v2 = energy()
         (Helper.Checksum(v1) <<< 5) &&& Helper.Checksum(v2)
+    override this.Name = "CLBG::Nbody"
 
     override this.Prepare() =
         bodies <- Array.init planetData.Length (fun i ->

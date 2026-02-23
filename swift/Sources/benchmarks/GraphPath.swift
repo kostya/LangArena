@@ -65,15 +65,15 @@ class GraphPathBenchmark: BenchmarkProtocol {
     return resultVal
   }
 
-  var name: String { return "GraphPathBenchmark" }
+  func name() -> String {
+    return ""
+  }
 }
 
 final class GraphPathBFS: GraphPathBenchmark {
   override init() {
     super.init()
   }
-
-  override var name: String { return "GraphPathBFS" }
 
   private func bfsShortestPath(_ start: Int, _ target: Int) -> Int {
     if start == target { return 0 }
@@ -103,14 +103,16 @@ final class GraphPathBFS: GraphPathBenchmark {
   override func test() -> Int64 {
     return Int64(bfsShortestPath(0, graph.vertices - 1))
   }
+
+  override func name() -> String {
+    return "Graph::BFS"
+  }
 }
 
 final class GraphPathDFS: GraphPathBenchmark {
   override init() {
     super.init()
   }
-
-  override var name: String { return "GraphPathDFS" }
 
   private func dfsFindPath(_ start: Int, _ target: Int) -> Int {
     if start == target { return 0 }
@@ -145,14 +147,16 @@ final class GraphPathDFS: GraphPathBenchmark {
   override func test() -> Int64 {
     return Int64(dfsFindPath(0, graph.vertices - 1))
   }
+
+  override func name() -> String {
+    return "Graph::DFS"
+  }
 }
 
 final class GraphPathAStar: GraphPathBenchmark {
   override init() {
     super.init()
   }
-
-  override var name: String { return "GraphPathAStar" }
 
   private func heuristic(_ v: Int, _ target: Int) -> Int {
     return target - v
@@ -274,5 +278,9 @@ final class GraphPathAStar: GraphPathBenchmark {
 
   override func test() -> Int64 {
     return Int64(aStarShortestPath(0, graph.vertices - 1))
+  }
+
+  override func name() -> String {
+    return "Graph::AStar"
   }
 }

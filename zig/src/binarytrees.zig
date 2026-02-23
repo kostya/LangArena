@@ -50,7 +50,7 @@ pub const BinarytreesObj = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*BinarytreesObj {
-        const n = helper.config_i64("BinarytreesObj", "depth");
+        const n = helper.config_i64("Binarytrees::Obj", "depth");
 
         const self = try allocator.create(BinarytreesObj);
         errdefer allocator.destroy(self);
@@ -69,7 +69,7 @@ pub const BinarytreesObj = struct {
     }
 
     pub fn asBenchmark(self: *BinarytreesObj) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "BinarytreesObj");
+        return Benchmark.init(self, &vtable, self.helper, "Binarytrees::Obj");
     }
 
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
@@ -135,7 +135,7 @@ pub const BinarytreesArena = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*BinarytreesArena {
-        const n = helper.config_i64("BinarytreesArena", "depth");
+        const n = helper.config_i64("Binarytrees::Arena", "depth");
 
         const self = try allocator.create(BinarytreesArena);
         errdefer allocator.destroy(self);
@@ -154,7 +154,7 @@ pub const BinarytreesArena = struct {
     }
 
     pub fn asBenchmark(self: *BinarytreesArena) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "BinarytreesArena");
+        return Benchmark.init(self, &vtable, self.helper, "Binarytrees::Arena");
     }
 
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {

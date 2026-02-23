@@ -348,6 +348,9 @@ class BinarytreesObj(Benchmark):
     def checksum(self) -> int:
         return self.result & 0xFFFFFFFF
 
+    def name(self) -> str:
+        return "Binarytrees::Obj"
+
 
 class BinarytreesArena(Benchmark):
 
@@ -400,6 +403,9 @@ class BinarytreesArena(Benchmark):
 
     def checksum(self) -> int:
         return self.result & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Binarytrees::Arena"
 
 
 class Tape:
@@ -509,6 +515,9 @@ class BrainfuckArray(Benchmark):
 
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Brainfuck::Array"
 
 
 class Op:
@@ -664,6 +673,9 @@ class BrainfuckRecursion(Benchmark):
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
 
+    def name(self) -> str:
+        return "Brainfuck::Recursion"
+
 
 class Pidigits(Benchmark):
 
@@ -721,6 +733,9 @@ class Pidigits(Benchmark):
 
     def checksum(self) -> int:
         return Helper.checksum_string(''.join(self._result_buffer))
+
+    def name(self) -> str:
+        return "CLBG::Pidigits"
 
 
 class Fannkuchredux(Benchmark):
@@ -794,6 +809,9 @@ class Fannkuchredux(Benchmark):
 
     def checksum(self) -> int:
         return self._result_value
+
+    def name(self) -> str:
+        return "CLBG::Fannkuchredux"
 
 
 @dataclass
@@ -918,6 +936,9 @@ class Fasta(Benchmark):
     def checksum(self) -> int:
         return Helper.checksum_string(self.result_buffer.getvalue())
 
+    def name(self) -> str:
+        return "CLBG::Fasta"
+
 
 class Knuckeotide(Benchmark):
 
@@ -991,6 +1012,9 @@ class Knuckeotide(Benchmark):
     def checksum(self) -> int:
         return Helper.checksum_string(self._result_str)
 
+    def name(self) -> str:
+        return "CLBG::Knuckeotide"
+
 
 class Mandelbrot(Benchmark):
     ITER = 50
@@ -1051,6 +1075,9 @@ class Mandelbrot(Benchmark):
     def checksum(self) -> int:
         return Helper.checksum_bytes(bytes(self._result_bytes))
 
+    def name(self) -> str:
+        return "CLBG::Mandelbrot"
+
 
 class MatmulBase(Benchmark):
 
@@ -1091,8 +1118,10 @@ class MatmulBase(Benchmark):
         return c
 
     def checksum(self) -> int:
-
         return self._result_value & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Matmul"
 
 
 class Matmul1T(MatmulBase):
@@ -1105,6 +1134,9 @@ class Matmul1T(MatmulBase):
 
         self._result_value = (self._result_value +
                               Helper.checksum_float(value)) & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Matmul::T1"
 
 
 class MatmulParallelBase(MatmulBase):
@@ -1168,17 +1200,26 @@ class Matmul4T(MatmulParallelBase):
     def __init__(self):
         super().__init__(num_threads=4)
 
+    def name(self) -> str:
+        return "Matmul::T4"
+
 
 class Matmul8T(MatmulParallelBase):
 
     def __init__(self):
         super().__init__(num_threads=8)
 
+    def name(self) -> str:
+        return "Matmul::T8"
+
 
 class Matmul16T(MatmulParallelBase):
 
     def __init__(self):
         super().__init__(num_threads=16)
+
+    def name(self) -> str:
+        return "Matmul::T16"
 
 
 class Planet:
@@ -1332,6 +1373,9 @@ class Nbody(Benchmark):
 
         return ((checksum1 << 5) & checksum2) & 0xFFFFFFFF
 
+    def name(self) -> str:
+        return "CLBG::Nbody"
+
 
 class RegexDna(Benchmark):
 
@@ -1404,6 +1448,9 @@ class RegexDna(Benchmark):
 
     def checksum(self) -> int:
         return Helper.checksum_string(self.result_str)
+
+    def name(self) -> str:
+        return "CLBG::RegexDna"
 
 
 class Revcomp(Benchmark):
@@ -1482,6 +1529,9 @@ class Revcomp(Benchmark):
     def checksum(self) -> int:
         return self.result_value & 0xFFFFFFFF
 
+    def name(self) -> str:
+        return "CLBG::Revcomp"
+
 
 class Spectralnorm(Benchmark):
 
@@ -1541,6 +1591,9 @@ class Spectralnorm(Benchmark):
         result = math.sqrt(v_bv / vv)
         return Helper.checksum_float(result)
 
+    def name(self) -> str:
+        return "CLBG::Spectralnorm"
+
 
 class Base64Encode(Benchmark):
 
@@ -1569,6 +1622,9 @@ class Base64Encode(Benchmark):
         output += f"to {self._str2[:min(4, len(self._str2))]}...: {self._result_value}"
         return Helper.checksum_string(output)
 
+    def name(self) -> str:
+        return "Base64::Encode"
+
 
 class Base64Decode(Benchmark):
 
@@ -1596,6 +1652,9 @@ class Base64Decode(Benchmark):
         output = f"decode {self._str2[:min(4, len(self._str2))]}... "
         output += f"to {str3[:min(4, len(str3))]}...: {self._result_value}"
         return Helper.checksum_string(output)
+
+    def name(self) -> str:
+        return "Base64::Decode"
 
 
 class JsonGenerate(Benchmark):
@@ -1637,6 +1696,9 @@ class JsonGenerate(Benchmark):
 
     def checksum(self) -> int:
         return self.result & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Json::Generate"
 
 
 class JsonParseDom(Benchmark):
@@ -1680,6 +1742,9 @@ class JsonParseDom(Benchmark):
 
     def checksum(self) -> int:
         return self.result_value & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Json::ParseDom"
 
 
 class CoordinateResult(NamedTuple):
@@ -1729,6 +1794,9 @@ class JsonParseMapping(Benchmark):
 
     def checksum(self) -> int:
         return self.result_value & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Json::ParseMapping"
 
 
 class PrimesNode:
@@ -1874,6 +1942,9 @@ class Primes(Benchmark):
     def checksum(self) -> int:
         return self.result & 0xFFFFFFFF
 
+    def name(self) -> str:
+        return "Etc::Primes"
+
 
 @dataclass
 class Vec2:
@@ -1989,6 +2060,9 @@ class Noise(Benchmark):
 
     def checksum(self) -> int:
         return self.result & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Etc::Noise"
 
 
 @dataclass
@@ -2159,6 +2233,9 @@ class TextRaytracer(Benchmark):
     def checksum(self) -> int:
         return self.res & 0xFFFFFFFF
 
+    def name(self) -> str:
+        return "Etc::TextRaytracer"
+
 
 class Synapse:
 
@@ -2300,6 +2377,9 @@ class NeuralNet(Benchmark):
         total = sum(outputs)
         return Helper.checksum_float(total)
 
+    def name(self) -> str:
+        return "Etc::NeuralNet"
+
 
 class SortBenchmark(Benchmark, ABC):
 
@@ -2332,6 +2412,9 @@ class SortBenchmark(Benchmark, ABC):
     def checksum(self) -> int:
         return self._result_value
 
+    def name(self) -> str:
+        return "Sort"
+
 
 class SortQuick(SortBenchmark):
 
@@ -2363,6 +2446,9 @@ class SortQuick(SortBenchmark):
 
         self._quick_sort(arr, low, j)
         self._quick_sort(arr, i, high)
+
+    def name(self) -> str:
+        return "Sort::Quick"
 
 
 class SortMerge(SortBenchmark):
@@ -2412,6 +2498,9 @@ class SortMerge(SortBenchmark):
             i += 1
             k += 1
 
+    def name(self) -> str:
+        return "Sort::Merge"
+
 
 class SortSelf(SortBenchmark):
 
@@ -2419,6 +2508,9 @@ class SortSelf(SortBenchmark):
         arr = self._data.copy()
         arr.sort()
         return arr
+
+    def name(self) -> str:
+        return "Sort::Self"
 
 
 class GraphPathGraph:
@@ -2478,6 +2570,9 @@ class GraphPathBenchmark(Benchmark, ABC):
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
 
+    def name(self) -> str:
+        return "Graph"
+
 
 class GraphPathBFS(GraphPathBenchmark):
 
@@ -2505,6 +2600,9 @@ class GraphPathBFS(GraphPathBenchmark):
                     queue.append((neighbor, dist + 1))
 
         return -1
+
+    def name(self) -> str:
+        return "Graph::BFS"
 
 
 class GraphPathDFS(GraphPathBenchmark):
@@ -2536,6 +2634,9 @@ class GraphPathDFS(GraphPathBenchmark):
                     stack.append((neighbor, dist + 1))
 
         return -1 if best_path == 0x7FFFFFFFFFFFFFFF else best_path
+
+    def name(self) -> str:
+        return "Graph::DFS"
 
 
 class GraphPathAStar(GraphPathBenchmark):
@@ -2590,6 +2691,9 @@ class GraphPathAStar(GraphPathBenchmark):
 
         return -1
 
+    def name(self) -> str:
+        return "Graph::AStar"
+
 
 class BufferHashBenchmark(Benchmark, ABC):
 
@@ -2619,6 +2723,9 @@ class BufferHashBenchmark(Benchmark, ABC):
     def checksum(self) -> int:
         return self._result & 0xFFFFFFFF
 
+    def name(self) -> str:
+        return "Hash"
+
 
 class BufferHashCRC32(BufferHashBenchmark):
 
@@ -2635,6 +2742,9 @@ class BufferHashCRC32(BufferHashBenchmark):
                     crc = (crc >> 1) & 0x7FFFFFFF
 
         return (crc ^ 0xFFFFFFFF) & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Hash::CRC32"
 
 
 class BufferHashSHA256(BufferHashBenchmark):
@@ -2674,6 +2784,9 @@ class BufferHashSHA256(BufferHashBenchmark):
                ((result[1] & 0xFF) << 8) | \
                ((result[2] & 0xFF) << 16) | \
                ((result[3] & 0xFF) << 24)
+
+    def name(self) -> str:
+        return "Hash::SHA256"
 
 
 class LRUCacheOrderedDict:
@@ -2739,6 +2852,9 @@ class CacheSimulation(Benchmark):
         self.result = ((self.result << 5) + self.misses) & 0xFFFFFFFF
         self.result = ((self.result << 5) + self.cache.size) & 0xFFFFFFFF
         return self.result & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Etc::CacheSimulation"
 
 
 class Node2(ABC):
@@ -2969,6 +3085,9 @@ class CalculatorAst(Benchmark):
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
 
+    def name(self) -> str:
+        return "Calculator::Ast"
+
 
 class Int64:
     MASK64 = 0xFFFFFFFFFFFFFFFF
@@ -3099,6 +3218,9 @@ class CalculatorInterpreter(Benchmark):
     def checksum(self) -> int:
         return self._result_value & 0xFFFFFFFF
 
+    def name(self) -> str:
+        return "Calculator::Interpreter"
+
 
 class GCell:
     __slots__ = ('alive', 'next_state', 'neighbors')
@@ -3202,6 +3324,9 @@ class GameOfLife(Benchmark):
     def checksum(self) -> int:
         alive = self.grid.count_alive()
         return self.grid.compute_hash() + alive
+
+    def name(self) -> str:
+        return "Etc::GameOfLife"
 
 
 class Cell(Enum):
@@ -3417,6 +3542,9 @@ class MazeGenerator(Benchmark):
         result = self.grid_checksum(self.bool_grid)
         return result
 
+    def name(self) -> str:
+        return "MazeGenerator"
+
 
 class Node:
     __slots__ = ('x', 'y', 'f_score')
@@ -3542,6 +3670,9 @@ class AStarPathfinder(Benchmark):
 
     def checksum(self) -> int:
         return self.result & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "AStarPathfinder"
 
 
 class Compress:
@@ -4288,44 +4419,45 @@ class LZWDecode(Benchmark):
 
 
 def register_benchmarks():
-    Benchmark.register_benchmark('Pidigits', Pidigits)
-    Benchmark.register_benchmark('BinarytreesObj', BinarytreesObj)
-    Benchmark.register_benchmark('BinarytreesArena', BinarytreesArena)
-    Benchmark.register_benchmark('BrainfuckArray', BrainfuckArray)
-    Benchmark.register_benchmark('BrainfuckRecursion', BrainfuckRecursion)
-    Benchmark.register_benchmark('Fannkuchredux', Fannkuchredux)
-    Benchmark.register_benchmark('Fasta', Fasta)
-    Benchmark.register_benchmark('Knuckeotide', Knuckeotide)
-    Benchmark.register_benchmark('Mandelbrot', Mandelbrot)
-    Benchmark.register_benchmark('Matmul1T', Matmul1T)
-    Benchmark.register_benchmark('Matmul4T', Matmul4T)
-    Benchmark.register_benchmark('Matmul8T', Matmul8T)
-    Benchmark.register_benchmark('Matmul16T', Matmul16T)
-    Benchmark.register_benchmark('Nbody', Nbody)
-    Benchmark.register_benchmark('RegexDna', RegexDna)
-    Benchmark.register_benchmark('Revcomp', Revcomp)
-    Benchmark.register_benchmark('Spectralnorm', Spectralnorm)
-    Benchmark.register_benchmark('Base64Encode', Base64Encode)
-    Benchmark.register_benchmark('Base64Decode', Base64Decode)
-    Benchmark.register_benchmark('JsonGenerate', JsonGenerate)
-    Benchmark.register_benchmark('JsonParseDom', JsonParseDom)
-    Benchmark.register_benchmark('JsonParseMapping', JsonParseMapping)
-    Benchmark.register_benchmark('Primes', Primes)
-    Benchmark.register_benchmark('Noise', Noise)
-    Benchmark.register_benchmark('TextRaytracer', TextRaytracer)
-    Benchmark.register_benchmark('NeuralNet', NeuralNet)
-    Benchmark.register_benchmark('SortQuick', SortQuick)
-    Benchmark.register_benchmark('SortMerge', SortMerge)
-    Benchmark.register_benchmark('SortSelf', SortSelf)
-    Benchmark.register_benchmark('GraphPathBFS', GraphPathBFS)
-    Benchmark.register_benchmark('GraphPathDFS', GraphPathDFS)
-    Benchmark.register_benchmark('GraphPathAStar', GraphPathAStar)
-    Benchmark.register_benchmark('BufferHashSHA256', BufferHashSHA256)
-    Benchmark.register_benchmark('BufferHashCRC32', BufferHashCRC32)
-    Benchmark.register_benchmark('CacheSimulation', CacheSimulation)
-    Benchmark.register_benchmark('CalculatorAst', CalculatorAst)
-    Benchmark.register_benchmark('CalculatorInterpreter', CalculatorInterpreter)
-    Benchmark.register_benchmark('GameOfLife', GameOfLife)
+    Benchmark.register_benchmark('CLBG::Pidigits', Pidigits)
+    Benchmark.register_benchmark('Binarytrees::Obj', BinarytreesObj)
+    Benchmark.register_benchmark('Binarytrees::Arena', BinarytreesArena)
+    Benchmark.register_benchmark('Brainfuck::Array', BrainfuckArray)
+    Benchmark.register_benchmark('Brainfuck::Recursion', BrainfuckRecursion)
+    Benchmark.register_benchmark('CLBG::Fannkuchredux', Fannkuchredux)
+    Benchmark.register_benchmark('CLBG::Fasta', Fasta)
+    Benchmark.register_benchmark('CLBG::Knuckeotide', Knuckeotide)
+    Benchmark.register_benchmark('CLBG::Mandelbrot', Mandelbrot)
+    Benchmark.register_benchmark('Matmul::T1', Matmul1T)
+    Benchmark.register_benchmark('Matmul::T4', Matmul4T)
+    Benchmark.register_benchmark('Matmul::T8', Matmul8T)
+    Benchmark.register_benchmark('Matmul::T16', Matmul16T)
+    Benchmark.register_benchmark('CLBG::Nbody', Nbody)
+    Benchmark.register_benchmark('CLBG::RegexDna', RegexDna)
+    Benchmark.register_benchmark('CLBG::Revcomp', Revcomp)
+    Benchmark.register_benchmark('CLBG::Spectralnorm', Spectralnorm)
+    Benchmark.register_benchmark('Base64::Encode', Base64Encode)
+    Benchmark.register_benchmark('Base64::Decode', Base64Decode)
+    Benchmark.register_benchmark('Json::Generate', JsonGenerate)
+    Benchmark.register_benchmark('Json::ParseDom', JsonParseDom)
+    Benchmark.register_benchmark('Json::ParseMapping', JsonParseMapping)
+    Benchmark.register_benchmark('Etc::Primes', Primes)
+    Benchmark.register_benchmark('Etc::Noise', Noise)
+    Benchmark.register_benchmark('Etc::TextRaytracer', TextRaytracer)
+    Benchmark.register_benchmark('Etc::NeuralNet', NeuralNet)
+    Benchmark.register_benchmark('Sort::Quick', SortQuick)
+    Benchmark.register_benchmark('Sort::Merge', SortMerge)
+    Benchmark.register_benchmark('Sort::Self', SortSelf)
+    Benchmark.register_benchmark('Graph::BFS', GraphPathBFS)
+    Benchmark.register_benchmark('Graph::DFS', GraphPathDFS)
+    Benchmark.register_benchmark('Graph::AStar', GraphPathAStar)
+    Benchmark.register_benchmark('Hash::SHA256', BufferHashSHA256)
+    Benchmark.register_benchmark('Hash::CRC32', BufferHashCRC32)
+    Benchmark.register_benchmark('Etc::CacheSimulation', CacheSimulation)
+    Benchmark.register_benchmark('Calculator::Ast', CalculatorAst)
+    Benchmark.register_benchmark('Calculator::Interpreter',
+                                 CalculatorInterpreter)
+    Benchmark.register_benchmark('Etc::GameOfLife', GameOfLife)
     Benchmark.register_benchmark('MazeGenerator', MazeGenerator)
     Benchmark.register_benchmark('AStarPathfinder', AStarPathfinder)
     Benchmark.register_benchmark('Compress::BWTEncode', BWTEncode)

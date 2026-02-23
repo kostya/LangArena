@@ -10,7 +10,7 @@ pub struct Spectralnorm {
 
 impl Spectralnorm {
     pub fn new() -> Self {
-        let size_val = config_i64("Spectralnorm", "size");
+        let size_val = config_i64("CLBG::Spectralnorm", "size");
 
         Self {
             size_val,
@@ -67,7 +67,7 @@ impl Spectralnorm {
 
 impl Benchmark for Spectralnorm {
     fn name(&self) -> String {
-        "Spectralnorm".to_string()
+        "CLBG::Spectralnorm".to_string()
     }
 
     fn run(&mut self, _iteration_id: i64) {

@@ -177,8 +177,8 @@ impl TextRaytracer {
     }
 
     pub fn new() -> Self {
-        let w = config_i64("TextRaytracer", "w") as i32;
-        let h = config_i64("TextRaytracer", "h") as i32;
+        let w = config_i64("Etc::TextRaytracer", "w") as i32;
+        let h = config_i64("Etc::TextRaytracer", "h") as i32;
 
         Self {
             w,
@@ -190,7 +190,7 @@ impl TextRaytracer {
 
 impl Benchmark for TextRaytracer {
     fn name(&self) -> String {
-        "TextRaytracer".to_string()
+        "Etc::TextRaytracer".to_string()
     }
 
     fn run(&mut self, _iteration_id: i64) {

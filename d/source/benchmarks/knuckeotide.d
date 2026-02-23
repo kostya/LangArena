@@ -73,7 +73,7 @@ private:
 protected:
     override string className() const
     {
-        return "Knuckeotide";
+        return "CLBG::Knuckeotide";
     }
 
 public:

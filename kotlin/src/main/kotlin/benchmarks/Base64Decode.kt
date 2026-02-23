@@ -30,5 +30,5 @@ class Base64Decode : Benchmark() {
         return Helper.checksum(message)
     }
 
-    override fun name(): String = "Base64Decode"
+    override fun name(): String = "Base64::Decode"
 }

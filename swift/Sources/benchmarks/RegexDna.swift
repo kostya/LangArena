@@ -87,4 +87,8 @@ final class RegexDna: BenchmarkProtocol {
   var checksum: UInt32 {
     return Helper.checksum(output)
   }
+
+  func name() -> String {
+    return "CLBG::RegexDna"
+  }
 }

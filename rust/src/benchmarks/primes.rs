@@ -113,8 +113,8 @@ pub struct Primes {
 
 impl Primes {
     pub fn new() -> Self {
-        let n = config_i64("Primes", "limit");
-        let prefix = config_i64("Primes", "prefix");
+        let n = config_i64("Etc::Primes", "limit");
+        let prefix = config_i64("Etc::Primes", "prefix");
 
         Self {
             n,
@@ -126,7 +126,7 @@ impl Primes {
 
 impl Benchmark for Primes {
     fn name(&self) -> String {
-        "Primes".to_string()
+        "Etc::Primes".to_string()
     }
 
     fn run(&mut self, _iteration_id: i64) {

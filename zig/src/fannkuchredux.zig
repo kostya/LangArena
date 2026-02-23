@@ -15,7 +15,7 @@ pub const Fannkuchredux = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Fannkuchredux {
-        const n = helper.config_i64("Fannkuchredux", "n");
+        const n = helper.config_i64("CLBG::Fannkuchredux", "n");
 
         const self = try allocator.create(Fannkuchredux);
         errdefer allocator.destroy(self);
@@ -34,7 +34,7 @@ pub const Fannkuchredux = struct {
     }
 
     pub fn asBenchmark(self: *Fannkuchredux) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "Fannkuchredux");
+        return Benchmark.init(self, &vtable, self.helper, "CLBG::Fannkuchredux");
     }
 
     pub fn fannkuchredux(n: i32) struct { checksum: i32, max_flips: i32 } {

@@ -15,7 +15,7 @@ type
 proc newPidigits(): Benchmark =
   Pidigits()
 
-method name(self: Pidigits): string = "Pidigits"
+method name(self: Pidigits): string = "CLBG::Pidigits"
 
 method prepare(self: Pidigits) =
   self.nn = self.config_val("amount").int32
@@ -66,4 +66,4 @@ method run(self: Pidigits, iteration_id: int) =
 method checksum(self: Pidigits): uint32 =
   checksum(self.buffer.data)
 
-registerBenchmark("Pidigits", newPidigits)
+registerBenchmark("CLBG::Pidigits", newPidigits)

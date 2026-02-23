@@ -8,7 +8,7 @@ type
 proc newSortMerge(): Benchmark =
   SortMerge()
 
-method name(self: SortMerge): string = "SortMerge"
+method name(self: SortMerge): string = "Sort::Merge"
 
 proc mergeSortInplace(arr: var seq[int32]) =
   var temp = newSeq[int32](arr.len)
@@ -54,4 +54,4 @@ method test(self: SortMerge): seq[int32] =
   mergeSortInplace(arr)
   arr
 
-registerBenchmark("SortMerge", newSortMerge)
+registerBenchmark("Sort::Merge", newSortMerge)

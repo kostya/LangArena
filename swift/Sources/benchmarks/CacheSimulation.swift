@@ -125,4 +125,7 @@ final class CacheSimulation: BenchmarkProtocol {
     finalResult = (finalResult << 5) &+ UInt32(cache.size())
     return finalResult
   }
+  func name() -> String {
+    return "Etc::CacheSimulation"
+  }
 }

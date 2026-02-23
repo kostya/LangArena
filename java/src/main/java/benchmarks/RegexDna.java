@@ -17,7 +17,7 @@ public class RegexDna extends Benchmark {
 
     @Override
     public String name() {
-        return "RegexDna";
+        return "CLBG::RegexDna";
     }
 
     @Override

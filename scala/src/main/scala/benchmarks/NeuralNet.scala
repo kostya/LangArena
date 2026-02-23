@@ -9,7 +9,7 @@ class NeuralNet extends Benchmark:
   private var xorNet: NeuralNetwork = _
   private val allOutputs = ArrayBuffer.empty[Double]
 
-  override def name(): String = "NeuralNet"
+  override def name(): String = "Etc::NeuralNet"
 
   override def prepare(): Unit =
     xorNet = NeuralNetwork(2, 10, 1)

@@ -13,9 +13,9 @@ mut:
 }
 
 pub fn new_spectralnorm() &benchmark.IBenchmark {
-	size_val := helper.config_i64('Spectralnorm', 'size')
+	size_val := helper.config_i64('CLBG::Spectralnorm', 'size')
 	mut bench := &Spectralnorm{
-		BaseBenchmark: benchmark.new_base_benchmark('Spectralnorm')
+		BaseBenchmark: benchmark.new_base_benchmark('CLBG::Spectralnorm')
 		size_val:      size_val
 		u:             []f64{len: int(size_val), init: 1.0}
 		v:             []f64{len: int(size_val), init: 1.0}
@@ -24,7 +24,7 @@ pub fn new_spectralnorm() &benchmark.IBenchmark {
 }
 
 pub fn (b Spectralnorm) name() string {
-	return 'Spectralnorm'
+	return 'CLBG::Spectralnorm'
 }
 
 fn eval_a(i int, j int) f64 {

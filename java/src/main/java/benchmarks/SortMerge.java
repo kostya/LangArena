@@ -4,7 +4,7 @@ public class SortMerge extends SortBenchmark {
 
     @Override
     public String name() {
-        return "SortMerge";
+        return "Sort::Merge";
     }
 
     @Override

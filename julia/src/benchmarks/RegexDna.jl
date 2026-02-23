@@ -6,12 +6,12 @@ mutable struct RegexDna <: AbstractBenchmark
     fasta_n::Int64
 
     function RegexDna()
-        fasta_n = Helper.config_i64("RegexDna", "n")
+        fasta_n = Helper.config_i64("CLBG::RegexDna", "n")
         new("", Int32(0), Int32(0), IOBuffer(), fasta_n)
     end
 end
 
-name(b::RegexDna)::String = "RegexDna"
+name(b::RegexDna)::String = "CLBG::RegexDna"
 
 function prepare(b::RegexDna)
 

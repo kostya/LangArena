@@ -35,6 +35,7 @@ type BinarytreesObj() =
         result <- result + root.Sum()
 
     override this.Checksum = result
+    override this.Name = "Binarytrees::Obj"
 
     override this.Prepare() = result <- 0u
 
@@ -89,5 +90,6 @@ type BinarytreesArena() =
         result <- result + arena.Sum(rootIdx)
 
     override this.Checksum = result
+    override this.Name = "Binarytrees::Arena"
 
     override this.Prepare() = result <- 0u

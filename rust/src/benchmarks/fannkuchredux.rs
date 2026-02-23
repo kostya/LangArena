@@ -8,7 +8,7 @@ pub struct Fannkuchredux {
 
 impl Fannkuchredux {
     pub fn new() -> Self {
-        let n = config_i64("Fannkuchredux", "n");
+        let n = config_i64("CLBG::Fannkuchredux", "n");
 
         Self { n, result_val: 0 }
     }
@@ -83,7 +83,7 @@ impl Fannkuchredux {
 
 impl Benchmark for Fannkuchredux {
     fn name(&self) -> String {
-        "Fannkuchredux".to_string()
+        "CLBG::Fannkuchredux".to_string()
     }
 
     fn run(&mut self, _iteration_id: i64) {

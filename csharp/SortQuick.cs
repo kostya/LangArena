@@ -31,4 +31,5 @@ public class SortQuick : SortBenchmark
         QuickSort(arr, low, j);
         QuickSort(arr, i, high);
     }
+    public override string TypeName => "Sort::Quick";
 }

@@ -145,6 +145,7 @@ type CacheSimulation() =
         else 
             finalResult <- finalResult <<< 5
         finalResult
+    override this.Name = "Etc::CacheSimulation"
 
     override this.Prepare() =
         valuesSize <- int (this.ConfigVal("values"))

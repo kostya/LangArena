@@ -81,5 +81,5 @@ class RegexDna : Benchmark() {
 
     override fun checksum(): UInt = Helper.checksum(output.toString())
 
-    override fun name(): String = "RegexDna"
+    override fun name(): String = "CLBG::RegexDna"
 }

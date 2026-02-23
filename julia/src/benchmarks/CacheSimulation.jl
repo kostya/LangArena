@@ -130,15 +130,15 @@ mutable struct CacheSimulation <: AbstractBenchmark
     misses::Int32
 
     function CacheSimulation()
-        values_val = Helper.config_i64("CacheSimulation", "values")
-        cache_size_val = Helper.config_i64("CacheSimulation", "size")
+        values_val = Helper.config_i64("Etc::CacheSimulation", "values")
+        cache_size_val = Helper.config_i64("Etc::CacheSimulation", "size")
 
         cache = LRUCache{String,String}(Int32(cache_size_val))
         new(Int32(values_val), cache, UInt32(5432), Int32(0), Int32(0))
     end
 end
 
-name(b::CacheSimulation)::String = "CacheSimulation"
+name(b::CacheSimulation)::String = "Etc::CacheSimulation"
 
 function prepare(b::CacheSimulation)
 

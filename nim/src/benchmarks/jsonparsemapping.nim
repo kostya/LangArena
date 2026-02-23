@@ -12,7 +12,7 @@ type
 proc newJsonParseMapping(): Benchmark =
   JsonParseMapping()
 
-method name(self: JsonParseMapping): string = "JsonParseMapping"
+method name(self: JsonParseMapping): string = "Json::ParseMapping"
 
 method prepare(self: JsonParseMapping) =
   let n = self.config_val("coords")
@@ -42,4 +42,4 @@ method run(self: JsonParseMapping, iteration_id: int) =
 method checksum(self: JsonParseMapping): uint32 =
   self.resultVal
 
-registerBenchmark("JsonParseMapping", newJsonParseMapping)
+registerBenchmark("Json::ParseMapping", newJsonParseMapping)

@@ -20,6 +20,7 @@ public class Matmul1T : Benchmark
     }
 
     public override uint Checksum => _result;
+    public override string TypeName => "Matmul::T1";
 
     private double[][] MatMul(double[][] a, double[][] b)
     {

@@ -5,7 +5,7 @@ class Spectralnorm extends Benchmark:
   private var u: Array[Double] = _
   private var v: Array[Double] = _
 
-  override def name(): String = "Spectralnorm"
+  override def name(): String = "CLBG::Spectralnorm"
 
   override def prepare(): Unit =
     sizeVal = configVal("size").toInt

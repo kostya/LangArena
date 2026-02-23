@@ -154,18 +154,18 @@ mut:
 
 pub fn new_brainfuck_recursion() &benchmark.IBenchmark {
 	return &BrainfuckRecursion{
-		BaseBenchmark: benchmark.new_base_benchmark('BrainfuckRecursion')
+		BaseBenchmark: benchmark.new_base_benchmark('Brainfuck::Recursion')
 		text:          ''
 		result_val:    0
 	}
 }
 
 pub fn (b BrainfuckRecursion) name() string {
-	return 'BrainfuckRecursion'
+	return 'Brainfuck::Recursion'
 }
 
 pub fn (mut b BrainfuckRecursion) prepare() {
-	b.text = helper.config_string('BrainfuckRecursion', 'program')
+	b.text = helper.config_string('Brainfuck::Recursion', 'program')
 	b.result_val = 0
 }
 
@@ -185,7 +185,7 @@ pub fn (b BrainfuckRecursion) checksum() u32 {
 }
 
 pub fn (mut b BrainfuckRecursion) warmup(mut bench benchmark.IBenchmark) {
-	warmup_program := helper.config_string('BrainfuckRecursion', 'warmup_program')
+	warmup_program := helper.config_string('Brainfuck::Recursion', 'warmup_program')
 	wi := b.warmup_iterations()
 	for _ in 0 .. wi {
 		run_bf_program(warmup_program)

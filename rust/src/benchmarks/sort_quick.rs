@@ -48,11 +48,11 @@ impl SortQuick {
 
 impl Benchmark for SortQuick {
     fn name(&self) -> String {
-        "SortQuick".to_string()
+        "Sort::Quick".to_string()
     }
 
     fn prepare(&mut self) {
-        self.base.prepare("SortQuick");
+        self.base.prepare("Sort::Quick");
     }
 
     fn run(&mut self, _iteration_id: i64) {

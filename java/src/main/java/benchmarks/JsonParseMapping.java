@@ -60,6 +60,6 @@ public class JsonParseMapping extends Benchmark {
 
     @Override
     public String name() {
-        return "JsonParseMapping";
+        return "Json::ParseMapping";
     }
 }

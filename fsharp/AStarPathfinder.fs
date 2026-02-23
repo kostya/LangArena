@@ -216,6 +216,7 @@ type AStarPathfinder() =
         | None -> (None, nodesExplored)
 
     override this.Checksum = result
+    override this.Name = "AStarPathfinder"
 
     override this.Prepare() =
         width <- int (this.ConfigVal("w"))

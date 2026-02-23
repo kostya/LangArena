@@ -8,7 +8,7 @@ type
 proc newBufferHashCRC32(): Benchmark =
   BufferHashCRC32()
 
-method name(self: BufferHashCRC32): string = "BufferHashCRC32"
+method name(self: BufferHashCRC32): string = "Hash::CRC32"
 
 proc crc32(data: seq[byte]): uint32 =
   var crc = 0xFFFFFFFF'u32
@@ -26,4 +26,4 @@ proc crc32(data: seq[byte]): uint32 =
 method test(self: BufferHashCRC32): uint32 =
   crc32(self.data)
 
-registerBenchmark("BufferHashCRC32", newBufferHashCRC32)
+registerBenchmark("Hash::CRC32", newBufferHashCRC32)

@@ -90,7 +90,7 @@ class GraphPathBFS : GraphPathBenchmark() {
 
     override fun test(): Long = bfsShortestPath(0, graph.vertices - 1).toLong()
 
-    override fun name(): String = "GraphPathBFS"
+    override fun name(): String = "Graph::BFS"
 }
 
 class GraphPathDFS : GraphPathBenchmark() {
@@ -126,7 +126,7 @@ class GraphPathDFS : GraphPathBenchmark() {
 
     override fun test(): Long = dfsFindPath(0, graph.vertices - 1).toLong()
 
-    override fun name(): String = "GraphPathDFS"
+    override fun name(): String = "Graph::DFS"
 }
 
 class GraphPathAStar : GraphPathBenchmark() {
@@ -193,5 +193,5 @@ class GraphPathAStar : GraphPathBenchmark() {
 
     override fun test(): Long = aStarShortestPath(0, graph.vertices - 1).toLong()
 
-    override fun name(): String = "GraphPathAStar"
+    override fun name(): String = "Graph::AStar"
 }

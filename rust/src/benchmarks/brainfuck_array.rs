@@ -118,8 +118,8 @@ impl Program {
 impl BrainfuckArray {
     pub fn new() -> Self {
         Self {
-            program_text: config_s("BrainfuckArray", "program"),
-            warmup_text: config_s("BrainfuckArray", "warmup_program"),
+            program_text: config_s("Brainfuck::Array", "program"),
+            warmup_text: config_s("Brainfuck::Array", "warmup_program"),
             result_val: 0,
         }
     }
@@ -132,7 +132,7 @@ impl BrainfuckArray {
 
 impl Benchmark for BrainfuckArray {
     fn name(&self) -> String {
-        "BrainfuckArray".to_string()
+        "Brainfuck::Array".to_string()
     }
 
     fn warmup(&mut self) {

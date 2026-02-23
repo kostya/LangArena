@@ -151,10 +151,10 @@ proc parse*(p: var Parser): seq[Node] =
 proc newCalculatorAst(): Benchmark =
   CalculatorAst()
 
-method name(self: CalculatorAst): string = "CalculatorAst"
+method name(self: CalculatorAst): string = "Calculator::Ast"
 
 method prepare(self: CalculatorAst) =
-  self.n = config_i64("CalculatorAst", "operations")
+  self.n = config_i64("Calculator::Ast", "operations")
   self.text = generateRandomProgram(self.n)
   self.resultVal = 0
   self.expressions = @[]
@@ -173,4 +173,4 @@ method run(self: CalculatorAst, iteration_id: int) =
 method checksum(self: CalculatorAst): uint32 =
   self.resultVal
 
-registerBenchmark("CalculatorAst", newCalculatorAst)
+registerBenchmark("Calculator::Ast", newCalculatorAst)

@@ -10,7 +10,7 @@ type
 proc newMatmul1T(): Benchmark =
   Matmul1T()
 
-method name(self: Matmul1T): string = "Matmul1T"
+method name(self: Matmul1T): string = "Matmul::T1"
 
 method prepare(self: Matmul1T) =
   self.n = self.config_val("n")
@@ -72,4 +72,4 @@ method run(self: Matmul1T, iteration_id: int) =
 method checksum(self: Matmul1T): uint32 =
   self.resultVal
 
-registerBenchmark("Matmul1T", newMatmul1T)
+registerBenchmark("Matmul::T1", newMatmul1T)

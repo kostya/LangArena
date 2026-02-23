@@ -59,7 +59,7 @@ private:
 protected:
     override string className() const
     {
-        return "Spectralnorm";
+        return "CLBG::Spectralnorm";
     }
 
 public:

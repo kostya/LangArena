@@ -43,9 +43,10 @@ type Knuckeotide() =
 
     override _.Checksum = 
         Helper.Checksum(resultBuilder.ToString())
+    override this.Name = "CLBG::Knuckeotide"
 
     override _.Prepare() =
-        n <- Helper.Config_i64("Knuckeotide", "n")
+        n <- Helper.Config_i64("CLBG::Knuckeotide", "n")
         resultBuilder.Clear() |> ignore
         checksum <- 0u
 

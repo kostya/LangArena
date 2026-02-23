@@ -154,7 +154,7 @@ impl Nbody {
 
 impl Benchmark for Nbody {
     fn name(&self) -> String {
-        "Nbody".to_string()
+        "CLBG::Nbody".to_string()
     }
 
     fn prepare(&mut self) {

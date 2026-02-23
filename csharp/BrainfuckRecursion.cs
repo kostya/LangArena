@@ -6,8 +6,8 @@ public class BrainfuckRecursion : Benchmark
 
     public BrainfuckRecursion()
     {
-        _text = Helper.Config_s(nameof(BrainfuckRecursion), "program");
-        _warmupText = Helper.Config_s(nameof(BrainfuckRecursion), "warmup_program");
+        _text = Helper.Config_s(TypeName, "program");
+        _warmupText = Helper.Config_s(TypeName, "warmup_program");
     }
 
     private interface IOp { }
@@ -139,4 +139,5 @@ public class BrainfuckRecursion : Benchmark
     }
 
     public override uint Checksum => _result;
+    public override string TypeName => "Brainfuck::Recursion";
 }

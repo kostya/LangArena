@@ -49,9 +49,10 @@ type JsonGenerate() =
     let mutable result = 0u
 
     override this.Checksum = result
+    override this.Name = "Json::Generate"
 
     override this.Prepare() =
-        n <- Helper.Config_i64("JsonGenerate", "coords")
+        n <- Helper.Config_i64("Json::Generate", "coords")
         data <- JsonGenerator.generateData n
         result <- 0u
 
@@ -110,12 +111,13 @@ type JsonParseDom() =
         | _ -> (0.0, 0.0, 0.0)
 
     override this.Checksum = result
+    override this.Name = "Json::ParseDom"
 
     override this.Prepare() =
         text <- ""
         result <- 0u
 
-        let n = Helper.Config_i64("JsonParseDom", "coords")
+        let n = Helper.Config_i64("Json::ParseDom", "coords")
         let data = JsonGenerator.generateData n
         text <- JsonGenerator.serializeData data
 
@@ -191,12 +193,13 @@ type JsonParseMapping() =
         | _ -> (0.0, 0.0, 0.0)
 
     override this.Checksum = result
+    override this.Name = "Json::ParseMapping"
 
     override this.Prepare() =
         text <- ""
         result <- 0u
 
-        let n = Helper.Config_i64("JsonParseMapping", "coords")
+        let n = Helper.Config_i64("Json::ParseMapping", "coords")
         let data = JsonGenerator.generateData n
         text <- JsonGenerator.serializeData data
 

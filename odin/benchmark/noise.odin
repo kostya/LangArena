@@ -106,7 +106,7 @@ Noise :: struct {
 
 noise_prepare :: proc(bench: ^Benchmark) {
     n := cast(^Noise)bench
-    n.size_val = int(config_i64("Noise", "size"))
+    n.size_val = int(config_i64("Etc::Noise", "size"))
     n.ctx = create_noise_context(n.size_val)
 }
 
@@ -141,7 +141,7 @@ noise_cleanup :: proc(bench: ^Benchmark) {
 
 create_noise :: proc() -> ^Benchmark {
     n := new(Noise)
-    n.name = "Noise"
+    n.name = "Etc::Noise"
     n.vtable = default_vtable()
 
     n.vtable.run = noise_run

@@ -16,7 +16,7 @@ sortself_test :: proc(bench: ^SortBenchmark) -> []i32 {
 
 create_sortself :: proc() -> ^Benchmark {
     ss := new(SortSelf)
-    ss.base.name = "SortSelf"
+    ss.base.name = "Sort::Self"
 
     vtable := new(SortBenchmark_VTable)
     base_vtable := default_vtable()

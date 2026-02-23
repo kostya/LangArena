@@ -44,16 +44,16 @@ mutable struct GraphPathBFS <: AbstractGraphPathBenchmark
     result::UInt32
 
     function GraphPathBFS()
-        vertices_val = Helper.config_i64("GraphPathBFS", "vertices")
-        jumps_val = Helper.config_i64("GraphPathBFS", "jumps")
-        jump_len_val = Helper.config_i64("GraphPathBFS", "jump_len")
+        vertices_val = Helper.config_i64("Graph::BFS", "vertices")
+        jumps_val = Helper.config_i64("Graph::BFS", "jumps")
+        jump_len_val = Helper.config_i64("Graph::BFS", "jump_len")
 
         graph = Graph(Int32(vertices_val), Int32(jumps_val), Int32(jump_len_val))
         new(graph, UInt32(0))
     end
 end
 
-name(b::GraphPathBFS)::String = "GraphPathBFS"
+name(b::GraphPathBFS)::String = "Graph::BFS"
 
 function prepare(b::GraphPathBFS)
     generate_random(b.graph)
@@ -108,16 +108,16 @@ mutable struct GraphPathDFS <: AbstractGraphPathBenchmark
     result::UInt32
 
     function GraphPathDFS()
-        vertices_val = Helper.config_i64("GraphPathDFS", "vertices")
-        jumps_val = Helper.config_i64("GraphPathDFS", "jumps")
-        jump_len_val = Helper.config_i64("GraphPathDFS", "jump_len")
+        vertices_val = Helper.config_i64("Graph::DFS", "vertices")
+        jumps_val = Helper.config_i64("Graph::DFS", "jumps")
+        jump_len_val = Helper.config_i64("Graph::DFS", "jump_len")
 
         graph = Graph(Int32(vertices_val), Int32(jumps_val), Int32(jump_len_val))
         new(graph, UInt32(0))
     end
 end
 
-name(b::GraphPathDFS)::String = "GraphPathDFS"
+name(b::GraphPathDFS)::String = "Graph::DFS"
 
 function prepare(b::GraphPathDFS)
     generate_random(b.graph)
@@ -174,16 +174,16 @@ mutable struct GraphPathAStar <: AbstractGraphPathBenchmark
     result::UInt32
 
     function GraphPathAStar()
-        vertices_val = Helper.config_i64("GraphPathAStar", "vertices")
-        jumps_val = Helper.config_i64("GraphPathAStar", "jumps")
-        jump_len_val = Helper.config_i64("GraphPathAStar", "jump_len")
+        vertices_val = Helper.config_i64("Graph::AStar", "vertices")
+        jumps_val = Helper.config_i64("Graph::AStar", "jumps")
+        jump_len_val = Helper.config_i64("Graph::AStar", "jump_len")
 
         graph = Graph(Int32(vertices_val), Int32(jumps_val), Int32(jump_len_val))
         new(graph, UInt32(0))
     end
 end
 
-name(b::GraphPathAStar)::String = "GraphPathAStar"
+name(b::GraphPathAStar)::String = "Graph::AStar"
 
 function prepare(b::GraphPathAStar)
     generate_random(b.graph)

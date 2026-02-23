@@ -32,4 +32,8 @@ final class Base64Encode: BenchmarkProtocol {
     let message = "encode \(truncatedStr) to \(truncatedStr2): \(resultVal)"
     return Helper.checksum(message)
   }
+
+  func name() -> String {
+    return "Base64::Encode"
+  }
 }

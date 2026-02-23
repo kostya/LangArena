@@ -198,4 +198,7 @@ final class CalculatorAst: BenchmarkProtocol {
   var checksum: UInt32 {
     return resultVal
   }
+  func name() -> String {
+    return "Calculator::Ast"
+  }
 }

@@ -4,13 +4,13 @@ mutable struct Primes <: AbstractBenchmark
     result::UInt32
 
     function Primes()
-        n = Helper.config_i64("Primes", "limit")
-        prefix = Helper.config_i64("Primes", "prefix")
+        n = Helper.config_i64("Etc::Primes", "limit")
+        prefix = Helper.config_i64("Etc::Primes", "prefix")
         new(n, prefix, UInt32(5432))
     end
 end
 
-name(b::Primes)::String = "Primes"
+name(b::Primes)::String = "Etc::Primes"
 
 mutable struct PrimesNode
     children::Vector{Union{PrimesNode,Nothing}}

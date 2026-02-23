@@ -43,9 +43,10 @@ type Revcomp() =
         result.ToString()
 
     override _.Checksum = checksum
+    override this.Name = "CLBG::Revcomp"
 
     override _.Prepare() =
-        n <- Helper.Config_i64("Revcomp", "n")
+        n <- Helper.Config_i64("CLBG::Revcomp", "n")
         input <- ""
         checksum <- 0u
 

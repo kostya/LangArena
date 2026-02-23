@@ -44,7 +44,7 @@ sortquick_test :: proc(bench: ^SortBenchmark) -> []i32 {
 
 create_sortquick :: proc() -> ^Benchmark {
     sq := new(SortQuick)
-    sq.base.name = "SortQuick"
+    sq.base.name = "Sort::Quick"
 
     vtable := new(SortBenchmark_VTable)
 

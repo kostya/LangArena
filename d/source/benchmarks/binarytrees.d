@@ -49,7 +49,7 @@ public:
 
     override string className() const
     {
-        return "BinarytreesObj";
+        return "Binarytrees::Obj";
     }
 
     override void run(int iterationId)
@@ -126,7 +126,7 @@ public:
 
     override string className() const
     {
-        return "BinarytreesArena";
+        return "Binarytrees::Arena";
     }
 
     override void run(int iterationId)

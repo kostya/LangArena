@@ -31,12 +31,12 @@ matmul1t_checksum :: proc(bench: ^Benchmark) -> u32 {
 
 matmul1t_prepare :: proc(bench: ^Benchmark) {
     mt := cast(^Matmul1T)bench
-    mt.n = int(config_i64("Matmul1T", "n"))
+    mt.n = int(config_i64("Matmul::T1", "n"))
 }
 
 create_matmul1t :: proc() -> ^Benchmark {
     mt := new(Matmul1T)
-    mt.name = "Matmul1T"
+    mt.name = "Matmul::T1"
     mt.vtable = default_vtable()
 
     mt.vtable.run = matmul1t_run

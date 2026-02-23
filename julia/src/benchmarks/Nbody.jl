@@ -65,7 +65,7 @@ mutable struct Nbody <: AbstractBenchmark
     end
 end
 
-name(b::Nbody)::String = "Nbody"
+name(b::Nbody)::String = "CLBG::Nbody"
 
 const SOLAR_MASS = 4 * π * π
 const DAYS_PER_YEAR = 365.24

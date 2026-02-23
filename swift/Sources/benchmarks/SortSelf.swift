@@ -5,9 +5,11 @@ final class SortSelf: SortBenchmark {
     super.init()
   }
 
-  override var name: String { return "SortSelf" }
-
   override func test() -> [Int] {
     return data.sorted()
+  }
+
+  override func name() -> String {
+    return "Sort::Self"
   }
 }

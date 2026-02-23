@@ -89,7 +89,7 @@ revcomp_checksum :: proc(bench: ^Benchmark) -> u32 {
 revcomp_prepare :: proc(bench: ^Benchmark) {
     rc := cast(^Revcomp)bench
 
-    rc.n = config_i64("Revcomp", "n")
+    rc.n = config_i64("CLBG::Revcomp", "n")
     rc.result_val = 0
 
     fasta_bench := create_fasta()
@@ -148,7 +148,7 @@ revcomp_cleanup :: proc(bench: ^Benchmark) {
 
 create_revcomp :: proc() -> ^Benchmark {
     bench := new(Revcomp)
-    bench.name = "Revcomp"
+    bench.name = "CLBG::Revcomp"
     bench.vtable = default_vtable()
 
     bench.vtable.run = revcomp_run

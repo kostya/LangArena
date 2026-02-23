@@ -64,6 +64,7 @@ public class JsonGenerate : Benchmark
     {
         get { return _result; }
     }
+    public override string TypeName => "Json::Generate";
 
     public string GetJson() => _json;
 }

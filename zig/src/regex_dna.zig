@@ -88,7 +88,7 @@ pub const RegexDna = struct {
     }
 
     pub fn asBenchmark(self: *RegexDna) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "RegexDna");
+        return Benchmark.init(self, &vtable, self.helper, "CLBG::RegexDna");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
@@ -101,7 +101,7 @@ pub const RegexDna = struct {
         var fasta = Fasta.init(allocator, self.helper) catch return;
         defer fasta.deinit();
 
-        const n_val = self.helper.config_i64("RegexDna", "n");
+        const n_val = self.helper.config_i64("CLBG::RegexDna", "n");
         fasta.n = n_val;
 
         var fasta_bench = fasta.asBenchmark();

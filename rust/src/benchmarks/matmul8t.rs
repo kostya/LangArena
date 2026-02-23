@@ -10,7 +10,7 @@ pub struct Matmul8T {
 
 impl Matmul8T {
     pub fn new() -> Self {
-        let n = config_i64("Matmul8T", "n");
+        let n = config_i64("Matmul::T8", "n");
 
         Self { n, result_val: 0 }
     }
@@ -67,7 +67,7 @@ impl Matmul8T {
 
 impl Benchmark for Matmul8T {
     fn name(&self) -> String {
-        "Matmul8T".to_string()
+        "Matmul::T8".to_string()
     }
 
     fn run(&mut self, _iteration_id: i64) {

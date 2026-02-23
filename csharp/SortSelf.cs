@@ -7,4 +7,5 @@ public class SortSelf : SortBenchmark
         Array.Sort(arr);
         return arr;
     }
+    public override string TypeName => "Sort::Self";
 }

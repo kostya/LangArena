@@ -6,7 +6,7 @@ class JsonParseDom extends Benchmark:
   private var text: String = _
   private var resultVal: Long = 0L
 
-  override def name(): String = "JsonParseDom"
+  override def name(): String = "Json::ParseDom"
 
   override def prepare(): Unit =
     val generator = new JsonGenerate()

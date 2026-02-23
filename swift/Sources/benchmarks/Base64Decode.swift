@@ -31,4 +31,8 @@ final class Base64Decode: BenchmarkProtocol {
     let message = "decode \(truncatedStr2) to \(truncatedStr3): \(resultVal)"
     return Helper.checksum(message)
   }
+
+  func name() -> String {
+    return "Base64::Decode"
+  }
 }

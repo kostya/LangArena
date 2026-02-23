@@ -599,7 +599,7 @@ void Pidigits_cleanup(Benchmark *self) {
 }
 
 Benchmark *Pidigits_create(void) {
-  Benchmark *bench = Benchmark_create("Pidigits");
+  Benchmark *bench = Benchmark_create("CLBG::Pidigits");
 
   PidigitsData *data = malloc(sizeof(PidigitsData));
   memset(data, 0, sizeof(PidigitsData));
@@ -689,7 +689,7 @@ void BinarytreesObj_cleanup(Benchmark *self) {
 }
 
 Benchmark *BinarytreesObj_create(void) {
-  Benchmark *bench = Benchmark_create("BinarytreesObj");
+  Benchmark *bench = Benchmark_create("Binarytrees::Obj");
   if (!bench)
     return NULL;
 
@@ -867,7 +867,7 @@ void BinarytreesArena_cleanup(Benchmark *self) {
 }
 
 Benchmark *BinarytreesArena_create(void) {
-  Benchmark *bench = Benchmark_create("BinarytreesArena");
+  Benchmark *bench = Benchmark_create("Binarytrees::Arena");
   if (!bench)
     return NULL;
 
@@ -1144,7 +1144,7 @@ void BrainfuckArray_cleanup(Benchmark *self) {
 }
 
 Benchmark *BrainfuckArray_create(void) {
-  Benchmark *bench = Benchmark_create("BrainfuckArray");
+  Benchmark *bench = Benchmark_create("Brainfuck::Array");
   if (!bench)
     return NULL;
 
@@ -1416,7 +1416,7 @@ void BrainfuckRecursion_cleanup(Benchmark *self) {
 }
 
 Benchmark *BrainfuckRecursion_create(void) {
-  Benchmark *bench = Benchmark_create("BrainfuckRecursion");
+  Benchmark *bench = Benchmark_create("Brainfuck::Recursion");
 
   BrainfuckRecursionData *data = malloc(sizeof(BrainfuckRecursionData));
   data->program = NULL;
@@ -1619,10 +1619,10 @@ void Fasta_cleanup(Benchmark *self) {
 }
 
 Benchmark *Fasta_create(void) {
-  Benchmark *bench = Benchmark_create("Fasta");
+  Benchmark *bench = Benchmark_create("CLBG::Fasta");
 
   FastaData *data = malloc(sizeof(FastaData));
-  data->n = Helper_config_i64("Fasta", "n");
+  data->n = Helper_config_i64("CLBG::Fasta", "n");
   if (data->n == 0) {
     data->n = 1000;
   }
@@ -1742,7 +1742,7 @@ void Fannkuchredux_cleanup(Benchmark *self) {
 }
 
 Benchmark *Fannkuchredux_create(void) {
-  Benchmark *bench = Benchmark_create("Fannkuchredux");
+  Benchmark *bench = Benchmark_create("CLBG::Fannkuchredux");
 
   FannkuchreduxData *data = malloc(sizeof(FannkuchreduxData));
   data->n = 0;
@@ -1910,7 +1910,7 @@ void Knuckeotide_prepare(Benchmark *self) {
   Benchmark temp_bench;
   memset(&temp_bench, 0, sizeof(Benchmark));
   temp_bench.data = &fasta_instance;
-  temp_bench.name = "Fasta";
+  temp_bench.name = "CLBG::Fasta";
 
   Fasta_run(&temp_bench, 0);
 
@@ -2007,11 +2007,11 @@ void Knuckeotide_cleanup(Benchmark *self) {
 }
 
 Benchmark *Knuckeotide_create(void) {
-  Benchmark *bench = Benchmark_create("Knuckeotide");
+  Benchmark *bench = Benchmark_create("CLBG::Knuckeotide");
 
   KnuckeotideData *data = malloc(sizeof(KnuckeotideData));
 
-  data->n = Helper_config_i64("Knuckeotide", "n");
+  data->n = Helper_config_i64("CLBG::Knuckeotide", "n");
   if (data->n == 0) {
     data->n = 1000;
   }
@@ -2158,7 +2158,7 @@ void RegexDna_prepare(Benchmark *self) {
   Benchmark temp_bench;
   memset(&temp_bench, 0, sizeof(Benchmark));
   temp_bench.data = &fasta_instance;
-  temp_bench.name = "Fasta";
+  temp_bench.name = "CLBG::Fasta";
 
   Fasta_run(&temp_bench, 0);
 
@@ -2335,7 +2335,7 @@ void RegexDna_cleanup(Benchmark *self) {
 }
 
 Benchmark *RegexDna_create(void) {
-  Benchmark *bench = Benchmark_create("RegexDna");
+  Benchmark *bench = Benchmark_create("CLBG::RegexDna");
 
   RegexDnaData *data = calloc(1, sizeof(RegexDnaData));
 
@@ -2457,7 +2457,7 @@ void Revcomp_prepare(Benchmark *self) {
   Benchmark temp_bench;
   memset(&temp_bench, 0, sizeof(Benchmark));
   temp_bench.data = &fasta_instance;
-  temp_bench.name = "Fasta";
+  temp_bench.name = "CLBG::Fasta";
 
   Fasta_run(&temp_bench, 0);
 
@@ -2558,7 +2558,7 @@ void Revcomp_cleanup(Benchmark *self) {
 }
 
 Benchmark *Revcomp_create(void) {
-  Benchmark *bench = Benchmark_create("Revcomp");
+  Benchmark *bench = Benchmark_create("CLBG::Revcomp");
 
   RevcompData *data = calloc(1, sizeof(RevcompData));
 
@@ -2693,12 +2693,12 @@ void Mandelbrot_cleanup(Benchmark *self) {
 }
 
 Benchmark *Mandelbrot_create(void) {
-  Benchmark *bench = Benchmark_create("Mandelbrot");
+  Benchmark *bench = Benchmark_create("CLBG::Mandelbrot");
 
   MandelbrotData *data = calloc(1, sizeof(MandelbrotData));
 
-  data->w = Helper_config_i64("Mandelbrot", "w");
-  data->h = Helper_config_i64("Mandelbrot", "h");
+  data->w = Helper_config_i64("CLBG::Mandelbrot", "w");
+  data->h = Helper_config_i64("CLBG::Mandelbrot", "h");
 
   if (data->w == 0)
     data->w = 200;
@@ -2806,11 +2806,11 @@ void Matmul_cleanup(Benchmark *self) {
 }
 
 Benchmark *Matmul_create(void) {
-  Benchmark *bench = Benchmark_create("Matmul1T");
+  Benchmark *bench = Benchmark_create("Matmul::T1");
 
   MatmulData *data = malloc(sizeof(MatmulData));
 
-  data->n = Helper_config_i64("Matmul1T", "n");
+  data->n = Helper_config_i64("Matmul::T1", "n");
   if (data->n == 0) {
     data->n = 100;
   }
@@ -2967,11 +2967,11 @@ void Matmul4T_cleanup(Benchmark *self) {
 }
 
 Benchmark *Matmul4T_create(void) {
-  Benchmark *bench = Benchmark_create("Matmul4T");
+  Benchmark *bench = Benchmark_create("Matmul::T4");
 
   Matmul4TData *data = malloc(sizeof(Matmul4TData));
 
-  data->n = Helper_config_i64("Matmul4T", "n");
+  data->n = Helper_config_i64("Matmul::T4", "n");
   if (data->n == 0) {
     data->n = 100;
   }
@@ -3077,11 +3077,11 @@ void Matmul8T_cleanup(Benchmark *self) {
 }
 
 Benchmark *Matmul8T_create(void) {
-  Benchmark *bench = Benchmark_create("Matmul8T");
+  Benchmark *bench = Benchmark_create("Matmul::T8");
 
   Matmul8TData *data = malloc(sizeof(Matmul8TData));
 
-  data->n = Helper_config_i64("Matmul8T", "n");
+  data->n = Helper_config_i64("Matmul::T8", "n");
   if (data->n == 0) {
     data->n = 100;
   }
@@ -3187,11 +3187,11 @@ void Matmul16T_cleanup(Benchmark *self) {
 }
 
 Benchmark *Matmul16T_create(void) {
-  Benchmark *bench = Benchmark_create("Matmul16T");
+  Benchmark *bench = Benchmark_create("Matmul::T16");
 
   Matmul16TData *data = malloc(sizeof(Matmul16TData));
 
-  data->n = Helper_config_i64("Matmul16T", "n");
+  data->n = Helper_config_i64("Matmul::T16", "n");
   if (data->n == 0) {
     data->n = 100;
   }
@@ -3299,7 +3299,7 @@ void Spectralnorm_cleanup(Benchmark *self) {
 }
 
 Benchmark *Spectralnorm_create(void) {
-  Benchmark *bench = Benchmark_create("Spectralnorm");
+  Benchmark *bench = Benchmark_create("CLBG::Spectralnorm");
 
   SpectralnormData *data = malloc(sizeof(SpectralnormData));
   memset(data, 0, sizeof(SpectralnormData));
@@ -3479,7 +3479,7 @@ void Nbody_cleanup(Benchmark *self) {
 }
 
 Benchmark *Nbody_create(void) {
-  Benchmark *bench = Benchmark_create("Nbody");
+  Benchmark *bench = Benchmark_create("CLBG::Nbody");
 
   NbodyData *data = malloc(sizeof(NbodyData));
   memset(data, 0, sizeof(NbodyData));
@@ -3591,7 +3591,7 @@ void Base64Encode_cleanup(Benchmark *self) {
 }
 
 Benchmark *Base64Encode_create(void) {
-  Benchmark *bench = Benchmark_create("Base64Encode");
+  Benchmark *bench = Benchmark_create("Base64::Encode");
 
   Base64EncodeData *data = malloc(sizeof(Base64EncodeData));
   memset(data, 0, sizeof(Base64EncodeData));
@@ -3715,7 +3715,7 @@ void Base64Decode_cleanup(Benchmark *self) {
 }
 
 Benchmark *Base64Decode_create(void) {
-  Benchmark *bench = Benchmark_create("Base64Decode");
+  Benchmark *bench = Benchmark_create("Base64::Decode");
 
   Base64DecodeData *data = malloc(sizeof(Base64DecodeData));
   memset(data, 0, sizeof(Base64DecodeData));
@@ -4118,7 +4118,7 @@ uint32_t Primes_checksum(Benchmark *self) {
 }
 
 Benchmark *Primes_create(void) {
-  Benchmark *bench = Benchmark_create("Primes");
+  Benchmark *bench = Benchmark_create("Etc::Primes");
 
   PrimesData *data = malloc(sizeof(PrimesData));
   memset(data, 0, sizeof(PrimesData));
@@ -4238,7 +4238,7 @@ void JsonGenerate_cleanup(Benchmark *self) {
 }
 
 Benchmark *JsonGenerate_create(void) {
-  Benchmark *bench = Benchmark_create("JsonGenerate");
+  Benchmark *bench = Benchmark_create("Json::Generate");
 
   JsonGenerateData *data = malloc(sizeof(JsonGenerateData));
   memset(data, 0, sizeof(JsonGenerateData));
@@ -4362,7 +4362,7 @@ void JsonParseDom_cleanup(Benchmark *self) {
 }
 
 Benchmark *JsonParseDom_create(void) {
-  Benchmark *bench = Benchmark_create("JsonParseDom");
+  Benchmark *bench = Benchmark_create("Json::ParseDom");
 
   JsonParseDomData *data = malloc(sizeof(JsonParseDomData));
   memset(data, 0, sizeof(JsonParseDomData));
@@ -4465,7 +4465,7 @@ void JsonParseMapping_cleanup(Benchmark *self) {
 }
 
 Benchmark *JsonParseMapping_create(void) {
-  Benchmark *bench = Benchmark_create("JsonParseMapping");
+  Benchmark *bench = Benchmark_create("Json::ParseMapping");
 
   JsonParseMappingData *data = malloc(sizeof(JsonParseMappingData));
   memset(data, 0, sizeof(JsonParseMappingData));
@@ -4686,7 +4686,7 @@ void Noise_cleanup(Benchmark *self) {
 }
 
 Benchmark *Noise_create(void) {
-  Benchmark *bench = Benchmark_create("Noise");
+  Benchmark *bench = Benchmark_create("Etc::Noise");
 
   NoiseData *data = malloc(sizeof(NoiseData));
   if (!data)
@@ -4892,7 +4892,7 @@ uint32_t TextRaytracer_checksum(Benchmark *self) {
 void TextRaytracer_cleanup(Benchmark *self) {}
 
 Benchmark *TextRaytracer_create(void) {
-  Benchmark *bench = Benchmark_create("TextRaytracer");
+  Benchmark *bench = Benchmark_create("Etc::TextRaytracer");
 
   TextRaytracerData *data = malloc(sizeof(TextRaytracerData));
   memset(data, 0, sizeof(TextRaytracerData));
@@ -5251,7 +5251,7 @@ void NeuralNet_cleanup(Benchmark *self) {
 }
 
 Benchmark *NeuralNet_create(void) {
-  Benchmark *bench = Benchmark_create("NeuralNet");
+  Benchmark *bench = Benchmark_create("Etc::NeuralNet");
 
   NeuralNetData *data = malloc(sizeof(NeuralNetData));
   memset(data, 0, sizeof(NeuralNetData));
@@ -5340,7 +5340,7 @@ static void sort_quick_test(SortQuickData *data) {
 
 void SortQuick_prepare(Benchmark *self) {
   SortQuickData *data = (SortQuickData *)self->data;
-  sort_base_prepare(self, "SortQuick");
+  sort_base_prepare(self, "Sort::Quick");
   data->sorted_data = NULL;
 }
 
@@ -5373,7 +5373,7 @@ void SortQuick_cleanup(Benchmark *self) {
 }
 
 Benchmark *SortQuick_create(void) {
-  Benchmark *bench = Benchmark_create("SortQuick");
+  Benchmark *bench = Benchmark_create("Sort::Quick");
 
   SortQuickData *data = malloc(sizeof(SortQuickData));
   memset(data, 0, sizeof(SortQuickData));
@@ -5450,7 +5450,7 @@ static void sort_merge_test(SortMergeData *data) {
 
 void SortMerge_prepare(Benchmark *self) {
   SortMergeData *data = (SortMergeData *)self->data;
-  sort_base_prepare(self, "SortMerge");
+  sort_base_prepare(self, "Sort::Merge");
   data->sorted_data = NULL;
 }
 
@@ -5483,7 +5483,7 @@ void SortMerge_cleanup(Benchmark *self) {
 }
 
 Benchmark *SortMerge_create(void) {
-  Benchmark *bench = Benchmark_create("SortMerge");
+  Benchmark *bench = Benchmark_create("Sort::Merge");
 
   SortMergeData *data = malloc(sizeof(SortMergeData));
   memset(data, 0, sizeof(SortMergeData));
@@ -5524,7 +5524,7 @@ static void sort_self_test(SortSelfData *data) {
 
 void SortSelf_prepare(Benchmark *self) {
   SortSelfData *data = (SortSelfData *)self->data;
-  sort_base_prepare(self, "SortSelf");
+  sort_base_prepare(self, "Sort::Self");
   data->sorted_data = NULL;
 }
 
@@ -5557,7 +5557,7 @@ void SortSelf_cleanup(Benchmark *self) {
 }
 
 Benchmark *SortSelf_create(void) {
-  Benchmark *bench = Benchmark_create("SortSelf");
+  Benchmark *bench = Benchmark_create("Sort::Self");
 
   SortSelfData *data = malloc(sizeof(SortSelfData));
   memset(data, 0, sizeof(SortSelfData));
@@ -5719,7 +5719,7 @@ static int graph_path_bfs_search(GraphPathGraph *graph, int start, int target) {
 
 void GraphPathBFS_prepare(Benchmark *self) {
   GraphPathBFSData *data = (GraphPathBFSData *)self->data;
-  graph_path_base_prepare(self, "GraphPathBFS", &data->base);
+  graph_path_base_prepare(self, "Graph::BFS", &data->base);
 }
 
 void GraphPathBFS_run(Benchmark *self, int iteration_id) {
@@ -5740,7 +5740,7 @@ void GraphPathBFS_cleanup(Benchmark *self) {
 }
 
 Benchmark *GraphPathBFS_create(void) {
-  Benchmark *bench = Benchmark_create("GraphPathBFS");
+  Benchmark *bench = Benchmark_create("Graph::BFS");
   GraphPathBFSData *data = malloc(sizeof(GraphPathBFSData));
   memset(data, 0, sizeof(GraphPathBFSData));
   bench->data = data;
@@ -5794,7 +5794,7 @@ static int graph_path_dfs_search(GraphPathGraph *graph, int start, int target) {
 
 void GraphPathDFS_prepare(Benchmark *self) {
   GraphPathDFSData *data = (GraphPathDFSData *)self->data;
-  graph_path_base_prepare(self, "GraphPathDFS", &data->base);
+  graph_path_base_prepare(self, "Graph::DFS", &data->base);
 }
 
 void GraphPathDFS_run(Benchmark *self, int iteration_id) {
@@ -5815,7 +5815,7 @@ void GraphPathDFS_cleanup(Benchmark *self) {
 }
 
 Benchmark *GraphPathDFS_create(void) {
-  Benchmark *bench = Benchmark_create("GraphPathDFS");
+  Benchmark *bench = Benchmark_create("Graph::DFS");
   GraphPathDFSData *data = malloc(sizeof(GraphPathDFSData));
   memset(data, 0, sizeof(GraphPathDFSData));
   bench->data = data;
@@ -5958,7 +5958,7 @@ static int graph_path_astar_search(GraphPathGraph *graph, int start,
 
 void GraphPathAStar_prepare(Benchmark *self) {
   GraphPathAStarData *data = (GraphPathAStarData *)self->data;
-  graph_path_base_prepare(self, "GraphPathAStar", &data->base);
+  graph_path_base_prepare(self, "Graph::AStar", &data->base);
 }
 
 void GraphPathAStar_run(Benchmark *self, int iteration_id) {
@@ -5979,7 +5979,7 @@ void GraphPathAStar_cleanup(Benchmark *self) {
 }
 
 Benchmark *GraphPathAStar_create(void) {
-  Benchmark *bench = Benchmark_create("GraphPathAStar");
+  Benchmark *bench = Benchmark_create("Graph::AStar");
   GraphPathAStarData *data = malloc(sizeof(GraphPathAStarData));
   memset(data, 0, sizeof(GraphPathAStarData));
   bench->data = data;
@@ -6053,7 +6053,7 @@ static uint32_t buffer_hash_sha256_digest(uint8_t *data, int64_t size) {
 
 void BufferHashSHA256_prepare(Benchmark *self) {
   BufferHashSHA256Data *data = (BufferHashSHA256Data *)self->data;
-  buffer_hash_base_prepare(self, "BufferHashSHA256", &data->base);
+  buffer_hash_base_prepare(self, "Hash::SHA256", &data->base);
 }
 
 void BufferHashSHA256_run(Benchmark *self, int iteration_id) {
@@ -6076,7 +6076,7 @@ void BufferHashSHA256_cleanup(Benchmark *self) {
 }
 
 Benchmark *BufferHashSHA256_create(void) {
-  Benchmark *bench = Benchmark_create("BufferHashSHA256");
+  Benchmark *bench = Benchmark_create("Hash::SHA256");
 
   BufferHashSHA256Data *data = malloc(sizeof(BufferHashSHA256Data));
   memset(data, 0, sizeof(BufferHashSHA256Data));
@@ -6113,7 +6113,7 @@ static uint32_t buffer_hash_crc32_digest(uint8_t *data, int64_t size) {
 
 void BufferHashCRC32_prepare(Benchmark *self) {
   BufferHashCRC32Data *data = (BufferHashCRC32Data *)self->data;
-  buffer_hash_base_prepare(self, "BufferHashCRC32", &data->base);
+  buffer_hash_base_prepare(self, "Hash::CRC32", &data->base);
 }
 
 void BufferHashCRC32_run(Benchmark *self, int iteration_id) {
@@ -6136,7 +6136,7 @@ void BufferHashCRC32_cleanup(Benchmark *self) {
 }
 
 Benchmark *BufferHashCRC32_create(void) {
-  Benchmark *bench = Benchmark_create("BufferHashCRC32");
+  Benchmark *bench = Benchmark_create("Hash::CRC32");
 
   BufferHashCRC32Data *data = malloc(sizeof(BufferHashCRC32Data));
   memset(data, 0, sizeof(BufferHashCRC32Data));
@@ -6358,7 +6358,7 @@ void CacheSimulation_cleanup(Benchmark *self) {
 }
 
 Benchmark *CacheSimulation_create(void) {
-  Benchmark *bench = Benchmark_create("CacheSimulation");
+  Benchmark *bench = Benchmark_create("Etc::CacheSimulation");
 
   CacheSimulationData *data = malloc(sizeof(CacheSimulationData));
   memset(data, 0, sizeof(CacheSimulationData));
@@ -6783,7 +6783,7 @@ void CalculatorAst_cleanup(Benchmark *self) {
 }
 
 Benchmark *CalculatorAst_create(void) {
-  Benchmark *bench = Benchmark_create("CalculatorAst");
+  Benchmark *bench = Benchmark_create("Calculator::Ast");
 
   CalculatorAstData *data = malloc(sizeof(CalculatorAstData));
   memset(data, 0, sizeof(CalculatorAstData));
@@ -6980,7 +6980,7 @@ void CalculatorInterpreter_cleanup(Benchmark *self) {
 }
 
 Benchmark *CalculatorInterpreter_create(void) {
-  Benchmark *bench = Benchmark_create("CalculatorInterpreter");
+  Benchmark *bench = Benchmark_create("Calculator::Interpreter");
 
   CalculatorInterpreterData *data = malloc(sizeof(CalculatorInterpreterData));
   memset(data, 0, sizeof(CalculatorInterpreterData));
@@ -7186,7 +7186,7 @@ void GameOfLife_cleanup(Benchmark *self) {
 }
 
 Benchmark *GameOfLife_create(void) {
-  Benchmark *bench = Benchmark_create("GameOfLife");
+  Benchmark *bench = Benchmark_create("Etc::GameOfLife");
 
   GameOfLifeData *data = malloc(sizeof(GameOfLifeData));
   memset(data, 0, sizeof(GameOfLifeData));
@@ -9534,44 +9534,44 @@ Benchmark *LZWDecode_create(void) {
 }
 
 void register_all_benchmarks(void) {
-  Benchmark_register("Pidigits", Pidigits_create);
-  Benchmark_register("BinarytreesObj", BinarytreesObj_create);
-  Benchmark_register("BinarytreesArena", BinarytreesArena_create);
-  Benchmark_register("BrainfuckArray", BrainfuckArray_create);
-  Benchmark_register("BrainfuckRecursion", BrainfuckRecursion_create);
-  Benchmark_register("Fannkuchredux", Fannkuchredux_create);
-  Benchmark_register("Fasta", Fasta_create);
-  Benchmark_register("Knuckeotide", Knuckeotide_create);
-  Benchmark_register("Mandelbrot", Mandelbrot_create);
-  Benchmark_register("Matmul1T", Matmul_create);
-  Benchmark_register("Matmul4T", Matmul4T_create);
-  Benchmark_register("Matmul8T", Matmul8T_create);
-  Benchmark_register("Matmul16T", Matmul16T_create);
-  Benchmark_register("Nbody", Nbody_create);
-  Benchmark_register("RegexDna", RegexDna_create);
-  Benchmark_register("Revcomp", Revcomp_create);
-  Benchmark_register("Spectralnorm", Spectralnorm_create);
-  Benchmark_register("Base64Encode", Base64Encode_create);
-  Benchmark_register("Base64Decode", Base64Decode_create);
-  Benchmark_register("JsonGenerate", JsonGenerate_create);
-  Benchmark_register("JsonParseDom", JsonParseDom_create);
-  Benchmark_register("JsonParseMapping", JsonParseMapping_create);
-  Benchmark_register("Primes", Primes_create);
-  Benchmark_register("Noise", Noise_create);
-  Benchmark_register("TextRaytracer", TextRaytracer_create);
-  Benchmark_register("NeuralNet", NeuralNet_create);
-  Benchmark_register("SortQuick", SortQuick_create);
-  Benchmark_register("SortMerge", SortMerge_create);
-  Benchmark_register("SortSelf", SortSelf_create);
-  Benchmark_register("GraphPathBFS", GraphPathBFS_create);
-  Benchmark_register("GraphPathDFS", GraphPathDFS_create);
-  Benchmark_register("GraphPathAStar", GraphPathAStar_create);
-  Benchmark_register("BufferHashSHA256", BufferHashSHA256_create);
-  Benchmark_register("BufferHashCRC32", BufferHashCRC32_create);
-  Benchmark_register("CacheSimulation", CacheSimulation_create);
-  Benchmark_register("CalculatorAst", CalculatorAst_create);
-  Benchmark_register("CalculatorInterpreter", CalculatorInterpreter_create);
-  Benchmark_register("GameOfLife", GameOfLife_create);
+  Benchmark_register("CLBG::Pidigits", Pidigits_create);
+  Benchmark_register("Binarytrees::Obj", BinarytreesObj_create);
+  Benchmark_register("Binarytrees::Arena", BinarytreesArena_create);
+  Benchmark_register("Brainfuck::Array", BrainfuckArray_create);
+  Benchmark_register("Brainfuck::Recursion", BrainfuckRecursion_create);
+  Benchmark_register("CLBG::Fannkuchredux", Fannkuchredux_create);
+  Benchmark_register("CLBG::Fasta", Fasta_create);
+  Benchmark_register("CLBG::Knuckeotide", Knuckeotide_create);
+  Benchmark_register("CLBG::Mandelbrot", Mandelbrot_create);
+  Benchmark_register("Matmul::T1", Matmul_create);
+  Benchmark_register("Matmul::T4", Matmul4T_create);
+  Benchmark_register("Matmul::T8", Matmul8T_create);
+  Benchmark_register("Matmul::T16", Matmul16T_create);
+  Benchmark_register("CLBG::Nbody", Nbody_create);
+  Benchmark_register("CLBG::RegexDna", RegexDna_create);
+  Benchmark_register("CLBG::Revcomp", Revcomp_create);
+  Benchmark_register("CLBG::Spectralnorm", Spectralnorm_create);
+  Benchmark_register("Base64::Encode", Base64Encode_create);
+  Benchmark_register("Base64::Decode", Base64Decode_create);
+  Benchmark_register("Json::Generate", JsonGenerate_create);
+  Benchmark_register("Json::ParseDom", JsonParseDom_create);
+  Benchmark_register("Json::ParseMapping", JsonParseMapping_create);
+  Benchmark_register("Etc::Primes", Primes_create);
+  Benchmark_register("Etc::Noise", Noise_create);
+  Benchmark_register("Etc::TextRaytracer", TextRaytracer_create);
+  Benchmark_register("Etc::NeuralNet", NeuralNet_create);
+  Benchmark_register("Sort::Quick", SortQuick_create);
+  Benchmark_register("Sort::Merge", SortMerge_create);
+  Benchmark_register("Sort::Self", SortSelf_create);
+  Benchmark_register("Graph::BFS", GraphPathBFS_create);
+  Benchmark_register("Graph::DFS", GraphPathDFS_create);
+  Benchmark_register("Graph::AStar", GraphPathAStar_create);
+  Benchmark_register("Hash::SHA256", BufferHashSHA256_create);
+  Benchmark_register("Hash::CRC32", BufferHashCRC32_create);
+  Benchmark_register("Etc::CacheSimulation", CacheSimulation_create);
+  Benchmark_register("Calculator::Ast", CalculatorAst_create);
+  Benchmark_register("Calculator::Interpreter", CalculatorInterpreter_create);
+  Benchmark_register("Etc::GameOfLife", GameOfLife_create);
   Benchmark_register("MazeGenerator", MazeGenerator_create);
   Benchmark_register("AStarPathfinder", AStarPathfinder_create);
   Benchmark_register("Compress::BWTEncode", BWTEncode_create);

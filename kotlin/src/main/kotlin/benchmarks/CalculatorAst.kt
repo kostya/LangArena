@@ -200,5 +200,5 @@ class CalculatorAst : Benchmark() {
 
     override fun checksum(): UInt = resultVal
 
-    override fun name(): String = "CalculatorAst"
+    override fun name(): String = "Calculator::Ast"
 }

@@ -6,7 +6,7 @@ class BinarytreesObj extends Benchmark:
   private val n: Int = configVal("depth").toInt
   private var resultVal: Long = 0L
 
-  override def name(): String = "BinarytreesObj"
+  override def name(): String = "Binarytrees::Obj"
 
   class TreeNode(val item: Int, depth: Int):
     val left: TreeNode =
@@ -37,7 +37,7 @@ class BinarytreesArena extends Benchmark:
   private val n: Int = configVal("depth").toInt
   private var resultVal: Long = 0L
 
-  override def name(): String = "BinarytreesArena"
+  override def name(): String = "Binarytrees::Arena"
 
   class TreeNodeArena(val item: Int):
     var left: Int = -1

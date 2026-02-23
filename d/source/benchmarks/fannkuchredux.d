@@ -19,7 +19,7 @@ protected:
 
     override string className() const
     {
-        return "Fannkuchredux";
+        return "CLBG::Fannkuchredux";
     }
 
     auto fannkuchreduxImpl(int n)

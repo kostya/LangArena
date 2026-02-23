@@ -84,10 +84,11 @@ type GameOfLife() =
         match grid with
         | Some g -> g.ComputeHash() + uint32 (g.CountAlive())
         | None -> 0u
+    override this.Name = "Etc::GameOfLife"
 
     override this.Prepare() =
-        let width = Helper.Config_i64("GameOfLife", "w") |> int
-        let height = Helper.Config_i64("GameOfLife", "h") |> int
+        let width = Helper.Config_i64("Etc::GameOfLife", "w") |> int
+        let height = Helper.Config_i64("Etc::GameOfLife", "h") |> int
 
         let g = Grid(width, height)
 

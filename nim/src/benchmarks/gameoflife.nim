@@ -93,7 +93,7 @@ proc computeHash(grid: Grid): uint32 =
 proc newGameOfLife(): Benchmark =
   GameOfLife()
 
-method name(self: GameOfLife): string = "GameOfLife"
+method name(self: GameOfLife): string = "Etc::GameOfLife"
 
 method prepare(self: GameOfLife) =
   self.width = int32(self.config_val("w"))
@@ -113,4 +113,4 @@ method checksum(self: GameOfLife): uint32 =
   let alive = self.grid.countAlive()
   result = self.grid.computeHash() + alive
 
-registerBenchmark("GameOfLife", newGameOfLife)
+registerBenchmark("Etc::GameOfLife", newGameOfLife)

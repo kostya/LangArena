@@ -15,7 +15,7 @@ mut:
 
 pub fn new_revcomp() &benchmark.IBenchmark {
 	mut bench := &Revcomp{
-		BaseBenchmark: benchmark.new_base_benchmark('Revcomp')
+		BaseBenchmark: benchmark.new_base_benchmark('CLBG::Revcomp')
 		input:         ''
 		checksum_val:  0
 		result_buf:    strings.new_builder(0)
@@ -24,7 +24,7 @@ pub fn new_revcomp() &benchmark.IBenchmark {
 }
 
 pub fn (b Revcomp) name() string {
-	return 'Revcomp'
+	return 'CLBG::Revcomp'
 }
 
 fn init_lookup() []u8 {
@@ -68,7 +68,7 @@ fn (mut r Revcomp) revcomp_impl(seq string) {
 
 pub fn (mut r Revcomp) prepare() {
 	mut fasta_bench := fasta.new_fasta()
-	fasta_bench.n = helper.config_i64('Revcomp', 'n')
+	fasta_bench.n = helper.config_i64('CLBG::Revcomp', 'n')
 	fasta_bench.prepare()
 	fasta_bench.run(0)
 

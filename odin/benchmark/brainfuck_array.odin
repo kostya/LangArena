@@ -173,7 +173,7 @@ brainfuckarray_cleanup :: proc(bench: ^Benchmark) {
 
 create_brainfuckarray :: proc() -> ^Benchmark {
     bf := new(BrainfuckArray)
-    bf.name = "BrainfuckArray"
+    bf.name = "Brainfuck::Array"
     bf.vtable = default_vtable()
     bf.vtable.run = brainfuckarray_run    
     bf.vtable.checksum = brainfuckarray_checksum

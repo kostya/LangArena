@@ -14,7 +14,7 @@ private:
 protected:
     override string className() const
     {
-        return "Pidigits";
+        return "CLBG::Pidigits";
     }
 
 public:

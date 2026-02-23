@@ -65,7 +65,7 @@ method checksum(self: GraphPathBenchmark): uint32 =
 proc newGraphPathBFS(): Benchmark =
   GraphPathBFS()
 
-method name(self: GraphPathBFS): string = "GraphPathBFS"
+method name(self: GraphPathBFS): string = "Graph::BFS"
 
 proc bfsShortestPath(g: Graph, start, target: int): int =
   if start == target:
@@ -93,12 +93,12 @@ proc bfsShortestPath(g: Graph, start, target: int): int =
 method test(self: GraphPathBFS): int64 =
   int64(bfsShortestPath(self.graph, 0, self.graph.vertices - 1))
 
-registerBenchmark("GraphPathBFS", newGraphPathBFS)
+registerBenchmark("Graph::BFS", newGraphPathBFS)
 
 proc newGraphPathDFS(): Benchmark =
   GraphPathDFS()
 
-method name(self: GraphPathDFS): string = "GraphPathDFS"
+method name(self: GraphPathDFS): string = "Graph::DFS"
 
 proc dfsFindPath(g: Graph, start, target: int): int =
   if start == target:
@@ -128,7 +128,7 @@ proc dfsFindPath(g: Graph, start, target: int): int =
 method test(self: GraphPathDFS): int64 =
   int64(dfsFindPath(self.graph, 0, self.graph.vertices - 1))
 
-registerBenchmark("GraphPathDFS", newGraphPathDFS)
+registerBenchmark("Graph::DFS", newGraphPathDFS)
 
 type
   PriorityQueueItem = object
@@ -194,7 +194,7 @@ proc isEmpty(pq: PriorityQueue): bool = pq.size == 0
 proc newGraphPathAStar(): Benchmark =
   GraphPathAStar()
 
-method name(self: GraphPathAStar): string = "GraphPathAStar"
+method name(self: GraphPathAStar): string = "Graph::AStar"
 
 proc heuristic(v, target: int): int = target - v
 
@@ -248,4 +248,4 @@ proc aStarShortestPath(g: Graph, start, target: int): int =
 method test(self: GraphPathAStar): int64 =
   int64(aStarShortestPath(self.graph, 0, self.graph.vertices - 1))
 
-registerBenchmark("GraphPathAStar", newGraphPathAStar)
+registerBenchmark("Graph::AStar", newGraphPathAStar)

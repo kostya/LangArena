@@ -44,5 +44,5 @@ class JsonGenerate : Benchmark() {
 
     override fun checksum(): UInt = resultVal.toUInt()
 
-    override fun name(): String = "JsonGenerate"
+    override fun name(): String = "Json::Generate"
 }

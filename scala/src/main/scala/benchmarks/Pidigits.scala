@@ -7,7 +7,7 @@ class Pidigits extends Benchmark:
   private val nn: Int = configVal("amount").toInt
   private val result = new StringBuilder()
 
-  override def name(): String = "Pidigits"
+  override def name(): String = "CLBG::Pidigits"
 
   override def run(iterationId: Int): Unit =
     var i = 0

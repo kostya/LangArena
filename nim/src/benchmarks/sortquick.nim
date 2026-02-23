@@ -8,7 +8,7 @@ type
 proc newSortQuick(): Benchmark =
   SortQuick()
 
-method name(self: SortQuick): string = "SortQuick"
+method name(self: SortQuick): string = "Sort::Quick"
 
 proc quickSort(arr: var seq[int32], low, high: int) =
   if low >= high:
@@ -39,4 +39,4 @@ method test(self: SortQuick): seq[int32] =
     quickSort(arr, 0, arr.len - 1)
   arr
 
-registerBenchmark("SortQuick", newSortQuick)
+registerBenchmark("Sort::Quick", newSortQuick)

@@ -20,7 +20,7 @@ public class Primes extends Benchmark {
 
     @Override
     public String name() {
-        return "Primes";
+        return "Etc::Primes";
     }
 
     private static List<Integer> generatePrimes(int limit) {

@@ -20,7 +20,7 @@ class Revcomp : Benchmark() {
             }
     }
 
-    override fun name(): String = "Revcomp"
+    override fun name(): String = "CLBG::Revcomp"
 
     override fun prepare() {
         val fasta = Fasta()

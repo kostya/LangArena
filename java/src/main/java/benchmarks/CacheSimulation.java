@@ -135,7 +135,7 @@ public class CacheSimulation extends Benchmark {
 
     @Override
     public String name() {
-        return "CacheSimulation";
+        return "Etc::CacheSimulation";
     }
 
     @Override

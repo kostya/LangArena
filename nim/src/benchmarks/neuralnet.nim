@@ -29,7 +29,7 @@ type
 proc newNeuralNet(): Benchmark =
   NeuralNet()
 
-method name(self: NeuralNet): string = "NeuralNet"
+method name(self: NeuralNet): string = "Etc::NeuralNet"
 
 const
   LEARNING_RATE = 1.0
@@ -182,4 +182,4 @@ method checksum(self: NeuralNet): uint32 =
 
   checksumF64(sum)
 
-registerBenchmark("NeuralNet", newNeuralNet)
+registerBenchmark("Etc::NeuralNet", newNeuralNet)

@@ -94,7 +94,7 @@ pub const GraphPathBFS = struct {
     }
 
     pub fn asBenchmark(self: *GraphPathBFS) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "GraphPathBFS");
+        return Benchmark.init(self, &vtable, self.helper, "Graph::BFS");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
@@ -102,9 +102,9 @@ pub const GraphPathBFS = struct {
         const allocator = self.allocator;
 
         if (!self.prepared) {
-            const vertices_val = self.helper.config_i64("GraphPathBFS", "vertices");
-            const jumps_val = self.helper.config_i64("GraphPathBFS", "jumps");
-            const jump_len_val = self.helper.config_i64("GraphPathBFS", "jump_len");
+            const vertices_val = self.helper.config_i64("Graph::BFS", "vertices");
+            const jumps_val = self.helper.config_i64("Graph::BFS", "jumps");
+            const jump_len_val = self.helper.config_i64("Graph::BFS", "jump_len");
 
             self.graph = Graph.init(allocator, @as(usize, @intCast(vertices_val)), @as(usize, @intCast(jumps_val)), @as(usize, @intCast(jump_len_val))) catch return;
             self.graph.generateRandom(self.helper) catch return;
@@ -208,7 +208,7 @@ pub const GraphPathDFS = struct {
     }
 
     pub fn asBenchmark(self: *GraphPathDFS) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "GraphPathDFS");
+        return Benchmark.init(self, &vtable, self.helper, "Graph::DFS");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
@@ -216,9 +216,9 @@ pub const GraphPathDFS = struct {
         const allocator = self.allocator;
 
         if (!self.prepared) {
-            const vertices_val = self.helper.config_i64("GraphPathDFS", "vertices");
-            const jumps_val = self.helper.config_i64("GraphPathDFS", "jumps");
-            const jump_len_val = self.helper.config_i64("GraphPathDFS", "jump_len");
+            const vertices_val = self.helper.config_i64("Graph::DFS", "vertices");
+            const jumps_val = self.helper.config_i64("Graph::DFS", "jumps");
+            const jump_len_val = self.helper.config_i64("Graph::DFS", "jump_len");
 
             self.graph = Graph.init(allocator, @as(usize, @intCast(vertices_val)), @as(usize, @intCast(jumps_val)), @as(usize, @intCast(jump_len_val))) catch return;
             self.graph.generateRandom(self.helper) catch return;
@@ -334,7 +334,7 @@ pub const GraphPathAStar = struct {
     }
 
     pub fn asBenchmark(self: *GraphPathAStar) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "GraphPathAStar");
+        return Benchmark.init(self, &vtable, self.helper, "Graph::AStar");
     }
 
     fn heuristic(v: usize, target: usize) i32 {
@@ -346,9 +346,9 @@ pub const GraphPathAStar = struct {
         const allocator = self.allocator;
 
         if (!self.prepared) {
-            const vertices_val = self.helper.config_i64("GraphPathAStar", "vertices");
-            const jumps_val = self.helper.config_i64("GraphPathAStar", "jumps");
-            const jump_len_val = self.helper.config_i64("GraphPathAStar", "jump_len");
+            const vertices_val = self.helper.config_i64("Graph::AStar", "vertices");
+            const jumps_val = self.helper.config_i64("Graph::AStar", "jumps");
+            const jump_len_val = self.helper.config_i64("Graph::AStar", "jump_len");
 
             self.graph = Graph.init(allocator, @as(usize, @intCast(vertices_val)), @as(usize, @intCast(jumps_val)), @as(usize, @intCast(jump_len_val))) catch return;
             self.graph.generateRandom(self.helper) catch return;

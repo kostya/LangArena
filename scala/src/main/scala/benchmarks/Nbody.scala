@@ -171,5 +171,5 @@ class Nbody extends Benchmark {
     (Helper.checksumF64(v1) << 5) & Helper.checksumF64(v2)
   }
 
-  override def name(): String = "Nbody"
+  override def name(): String = "CLBG::Nbody"
 }

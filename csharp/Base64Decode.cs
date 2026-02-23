@@ -36,4 +36,5 @@ public class Base64Decode : Benchmark
             return Helper.Checksum(resultStr);
         }
     }
+    public override string TypeName => "Base64::Decode";
 }

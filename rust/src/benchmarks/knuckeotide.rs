@@ -11,7 +11,7 @@ pub struct Knuckeotide {
 
 impl Knuckeotide {
     pub fn new() -> Self {
-        let n = config_i64("Knuckeotide", "n");
+        let n = config_i64("CLBG::Knuckeotide", "n");
 
         Self {
             n,
@@ -57,7 +57,7 @@ impl Knuckeotide {
 
 impl Benchmark for Knuckeotide {
     fn name(&self) -> String {
-        "Knuckeotide".to_string()
+        "CLBG::Knuckeotide".to_string()
     }
 
     fn prepare(&mut self) {

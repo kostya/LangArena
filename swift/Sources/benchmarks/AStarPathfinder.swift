@@ -216,4 +216,8 @@ final class AStarPathfinder: BenchmarkProtocol {
   var checksum: UInt32 {
     return resultVal
   }
+
+  func name() -> String {
+    return "AStarPathfinder"
+  }
 }

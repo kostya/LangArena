@@ -13,6 +13,6 @@ public class Matmul16T extends Matmul4T {
 
     @Override
     public String name() {
-        return "Matmul16T";
+        return "Matmul::T16";
     }
 }

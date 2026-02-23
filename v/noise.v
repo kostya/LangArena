@@ -13,9 +13,9 @@ mut:
 }
 
 pub fn new_noise() &benchmark.IBenchmark {
-	size_val := helper.config_i64('Noise', 'size')
+	size_val := helper.config_i64('Etc::Noise', 'size')
 	mut bench := &Noise{
-		BaseBenchmark: benchmark.new_base_benchmark('Noise')
+		BaseBenchmark: benchmark.new_base_benchmark('Etc::Noise')
 		size_val:      size_val
 		ctx:           unsafe { nil }
 		result_val:    0
@@ -25,7 +25,7 @@ pub fn new_noise() &benchmark.IBenchmark {
 }
 
 pub fn (b Noise) name() string {
-	return 'Noise'
+	return 'Etc::Noise'
 }
 
 struct Vec2 {

@@ -42,12 +42,12 @@ mutable struct SortQuick <: AbstractSortBenchmark
     result::UInt32
 
     function SortQuick()
-        size_val = Helper.config_i64("SortQuick", "size")
+        size_val = Helper.config_i64("Sort::Quick", "size")
         new(size_val, Int32[], UInt32(0))
     end
 end
 
-name(b::SortQuick)::String = "SortQuick"
+name(b::SortQuick)::String = "Sort::Quick"
 
 function prepare(b::SortQuick)
     empty!(b.data)
@@ -111,12 +111,12 @@ mutable struct SortMerge <: AbstractSortBenchmark
     result::UInt32
 
     function SortMerge()
-        size_val = Helper.config_i64("SortMerge", "size")
+        size_val = Helper.config_i64("Sort::Merge", "size")
         new(size_val, Int32[], UInt32(0))
     end
 end
 
-name(b::SortMerge)::String = "SortMerge"
+name(b::SortMerge)::String = "Sort::Merge"
 
 function prepare(b::SortMerge)
     empty!(b.data)
@@ -201,12 +201,12 @@ mutable struct SortSelf <: AbstractSortBenchmark
     result::UInt32
 
     function SortSelf()
-        size_val = Helper.config_i64("SortSelf", "size")
+        size_val = Helper.config_i64("Sort::Self", "size")
         new(size_val, Int32[], UInt32(0))
     end
 end
 
-name(b::SortSelf)::String = "SortSelf"
+name(b::SortSelf)::String = "Sort::Self"
 
 function prepare(b::SortSelf)
     empty!(b.data)

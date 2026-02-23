@@ -112,6 +112,7 @@ type TextRaytracer() =
                 else Some t0
 
     override this.Checksum = result
+    override this.Name = "Etc::TextRaytracer"
 
     override this.Prepare() =
         w <- int (this.ConfigVal("w"))

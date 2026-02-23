@@ -49,7 +49,7 @@ pub const Fasta = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Fasta {
-        const n = helper.config_i64("Fasta", "n");
+        const n = helper.config_i64("CLBG::Fasta", "n");
 
         const self = try allocator.create(Fasta);
         errdefer allocator.destroy(self);
@@ -71,7 +71,7 @@ pub const Fasta = struct {
     }
 
     pub fn asBenchmark(self: *Fasta) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "Fasta");
+        return Benchmark.init(self, &vtable, self.helper, "CLBG::Fasta");
     }
 
     pub fn getResult(self: *const Fasta) []const u8 {

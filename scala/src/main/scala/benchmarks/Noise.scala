@@ -5,7 +5,7 @@ class Noise extends Benchmark:
   private var resultVal: Long = 0L
   private var n2d: Noise2DContext = _
 
-  override def name(): String = "Noise"
+  override def name(): String = "Etc::Noise"
 
   override def prepare(): Unit =
     sizeVal = configVal("size")

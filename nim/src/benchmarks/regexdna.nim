@@ -14,7 +14,7 @@ type
 proc newRegexDna(): Benchmark =
   RegexDna()
 
-method name(self: RegexDna): string = "RegexDna"
+method name(self: RegexDna): string = "CLBG::RegexDna"
 
 const patternStrings = [
   "agggtaaa|tttaccct",
@@ -106,4 +106,4 @@ method run(self: RegexDna, iteration_id: int) =
 method checksum(self: RegexDna): uint32 =
   checksum(self.resultStr)
 
-registerBenchmark("RegexDna", newRegexDna)
+registerBenchmark("CLBG::RegexDna", newRegexDna)

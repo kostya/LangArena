@@ -78,4 +78,7 @@ final class CalculatorInterpreter: BenchmarkProtocol {
   var checksum: UInt32 {
     return resultVal
   }
+  func name() -> String {
+    return "Calculator::Interpreter"
+  }
 }

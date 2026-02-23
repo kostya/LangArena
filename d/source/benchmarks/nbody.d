@@ -107,7 +107,7 @@ private:
 protected:
     override string className() const
     {
-        return "Nbody";
+        return "CLBG::Nbody";
     }
 
 public:

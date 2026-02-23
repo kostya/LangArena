@@ -52,7 +52,7 @@ public class CalculatorAst extends Benchmark {
 
     @Override
     public String name() {
-        return "CalculatorAst";
+        return "Calculator::Ast";
     }
 
     private String generateRandomProgram(long lines) {

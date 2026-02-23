@@ -17,7 +17,7 @@ mut:
 
 pub fn new_regexdna() &benchmark.IBenchmark {
 	mut bench := &RegexDna{
-		BaseBenchmark: benchmark.new_base_benchmark('RegexDna')
+		BaseBenchmark: benchmark.new_base_benchmark('CLBG::RegexDna')
 		seq:           ''
 		result_buf:    strings.new_builder(0)
 		ilen:          0
@@ -27,7 +27,7 @@ pub fn new_regexdna() &benchmark.IBenchmark {
 }
 
 pub fn (b RegexDna) name() string {
-	return 'RegexDna'
+	return 'CLBG::RegexDna'
 }
 
 const patterns = [
@@ -71,7 +71,7 @@ fn count_pattern_fast(seq string, pattern string) int {
 pub fn (mut r RegexDna) prepare() {
 	mut fasta_bench := fasta.new_fasta()
 	mut f := fasta_bench as &fasta.Fasta
-	f.n = helper.config_i64('RegexDna', 'n')
+	f.n = helper.config_i64('CLBG::RegexDna', 'n')
 
 	f.prepare()
 	f.run(0)

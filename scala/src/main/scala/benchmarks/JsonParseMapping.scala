@@ -7,7 +7,7 @@ class JsonParseMapping extends Benchmark:
   private var text: String = _
   private var resultVal: Long = 0L
 
-  override def name(): String = "JsonParseMapping"
+  override def name(): String = "Json::ParseMapping"
 
   override def prepare(): Unit =
     val generator = new JsonGenerate()

@@ -185,7 +185,7 @@ gameoflife_warmup :: proc(bench: ^Benchmark) {
 
 create_gameoflife :: proc() -> ^Benchmark {
     bench := new(GameOfLife)
-    bench.name = "GameOfLife"
+    bench.name = "Etc::GameOfLife"
     bench.vtable = default_vtable()
 
     bench.vtable.run = gameoflife_run

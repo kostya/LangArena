@@ -5,12 +5,12 @@ mutable struct Revcomp <: AbstractBenchmark
     fasta_n::Int64
 
     function Revcomp()
-        fasta_n = Helper.config_i64("Revcomp", "n")
+        fasta_n = Helper.config_i64("CLBG::Revcomp", "n")
         new("", IOBuffer(), UInt32(0), fasta_n)
     end
 end
 
-name(b::Revcomp)::String = "Revcomp"
+name(b::Revcomp)::String = "CLBG::Revcomp"
 
 const COMPLEMENT_LOOKUP = let
     table = Vector{UInt8}(undef, 256)

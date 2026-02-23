@@ -61,4 +61,7 @@ final class Matmul1T: BenchmarkProtocol {
   }
 
   func prepare() {}
+  func name() -> String {
+    return "Matmul::T1"
+  }
 }

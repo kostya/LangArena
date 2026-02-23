@@ -32,11 +32,11 @@ impl BufferHashCRC32 {
 
 impl Benchmark for BufferHashCRC32 {
     fn name(&self) -> String {
-        "BufferHashCRC32".to_string()
+        "Hash::CRC32".to_string()
     }
 
     fn prepare(&mut self) {
-        self.base.prepare("BufferHashCRC32");
+        self.base.prepare("Hash::CRC32");
     }
 
     fn run(&mut self, _iteration_id: i64) {

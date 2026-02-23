@@ -22,7 +22,7 @@ private:
 protected:
     override string className() const
     {
-        return "Base64Decode";
+        return "Base64::Decode";
     }
 
 public:

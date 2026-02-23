@@ -104,16 +104,16 @@ method checksum(self: MatmulBase): uint32 =
 
 proc newMatmul4T(): Benchmark = Matmul4T()
 method numThreads(self: Matmul4T): int = 4
-method name(self: Matmul4T): string = "Matmul4T"
+method name(self: Matmul4T): string = "Matmul::T4"
 
 proc newMatmul8T(): Benchmark = Matmul8T()
 method numThreads(self: Matmul8T): int = 8
-method name(self: Matmul8T): string = "Matmul8T"
+method name(self: Matmul8T): string = "Matmul::T8"
 
 proc newMatmul16T(): Benchmark = Matmul16T()
 method numThreads(self: Matmul16T): int = 16
-method name(self: Matmul16T): string = "Matmul16T"
+method name(self: Matmul16T): string = "Matmul::T16"
 
-registerBenchmark("Matmul4T", newMatmul4T)
-registerBenchmark("Matmul8T", newMatmul8T)
-registerBenchmark("Matmul16T", newMatmul16T)
+registerBenchmark("Matmul::T4", newMatmul4T)
+registerBenchmark("Matmul::T8", newMatmul8T)
+registerBenchmark("Matmul::T16", newMatmul16T)

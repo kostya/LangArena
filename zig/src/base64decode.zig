@@ -18,7 +18,7 @@ pub const Base64Decode = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Base64Decode {
-        const size = helper.config_i64("Base64Decode", "size");
+        const size = helper.config_i64("Base64::Decode", "size");
         const self = try allocator.create(Base64Decode);
         errdefer allocator.destroy(self);
 
@@ -70,7 +70,7 @@ pub const Base64Decode = struct {
     }
 
     pub fn asBenchmark(self: *Base64Decode) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "Base64Decode");
+        return Benchmark.init(self, &vtable, self.helper, "Base64::Decode");
     }
 
     fn prepareImpl(_: *anyopaque) void {}

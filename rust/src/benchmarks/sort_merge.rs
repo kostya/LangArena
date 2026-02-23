@@ -56,11 +56,11 @@ impl SortMerge {
 
 impl Benchmark for SortMerge {
     fn name(&self) -> String {
-        "SortMerge".to_string()
+        "Sort::Merge".to_string()
     }
 
     fn prepare(&mut self) {
-        self.base.prepare("SortMerge");
+        self.base.prepare("Sort::Merge");
     }
 
     fn run(&mut self, _iteration_id: i64) {

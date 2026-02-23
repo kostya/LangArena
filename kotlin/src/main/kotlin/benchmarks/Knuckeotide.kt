@@ -85,5 +85,5 @@ class Knuckeotide : Benchmark() {
 
     override fun checksum(): UInt = Helper.checksum(output.toString())
 
-    override fun name(): String = "Knuckeotide"
+    override fun name(): String = "CLBG::Knuckeotide"
 }

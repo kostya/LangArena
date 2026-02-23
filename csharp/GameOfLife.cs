@@ -139,4 +139,5 @@ public class GameOfLife : Benchmark
             return _grid.ComputeHash() + (uint)alive;
         }
     }
+    public override string TypeName => "Etc::GameOfLife";
 }

@@ -47,10 +47,11 @@ type Mandelbrot() =
         Seq.fold folder (byteAcc, bitNum) [0..w-1]
 
     override _.Checksum = Helper.Checksum(resultStream.ToArray())
+    override this.Name = "CLBG::Mandelbrot"
 
     override _.Prepare() =
-        width <- Helper.Config_i64("Mandelbrot", "w")
-        height <- Helper.Config_i64("Mandelbrot", "h")
+        width <- Helper.Config_i64("CLBG::Mandelbrot", "w")
+        height <- Helper.Config_i64("CLBG::Mandelbrot", "h")
         resultStream.SetLength(0L)
 
     override _.Run(IterationId: int64) =

@@ -38,7 +38,7 @@ pub const JsonParseDom = struct {
     }
 
     pub fn asBenchmark(self: *JsonParseDom) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "JsonParseDom");
+        return Benchmark.init(self, &vtable, self.helper, "Json::ParseDom");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
@@ -47,7 +47,7 @@ pub const JsonParseDom = struct {
         var jg = JsonGenerate.init(self.allocator, self.helper) catch return;
         defer jg.deinit();
 
-        jg.n = self.helper.config_i64("JsonParseDom", "coords");
+        jg.n = self.helper.config_i64("Json::ParseDom", "coords");
 
         var benchmark = jg.asBenchmark();
         benchmark.prepare();

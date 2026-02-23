@@ -11,7 +11,7 @@ public class Matmul1T extends Benchmark {
 
     @Override
     public String name() {
-        return "Matmul1T";
+        return "Matmul::T1";
     }
 
     private double[][] matmul(double[][] a, double[][] b) {

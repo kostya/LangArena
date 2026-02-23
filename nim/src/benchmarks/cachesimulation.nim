@@ -59,7 +59,7 @@ proc size(cache: FastLRUCache): int =
 proc newCacheSimulation(): Benchmark =
   CacheSimulation()
 
-method name(self: CacheSimulation): string = "CacheSimulation"
+method name(self: CacheSimulation): string = "Etc::CacheSimulation"
 
 method prepare(self: CacheSimulation) =
   self.valuesSize = int(self.config_val("values"))
@@ -88,4 +88,4 @@ method checksum(self: CacheSimulation): uint32 =
   finalResult = (finalResult shl 5) + uint32(self.cache.size())
   finalResult
 
-registerBenchmark("CacheSimulation", newCacheSimulation)
+registerBenchmark("Etc::CacheSimulation", newCacheSimulation)

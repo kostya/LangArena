@@ -21,7 +21,7 @@ class Revcomp extends Benchmark:
 
   initLookup()
 
-  override def name(): String = "Revcomp"
+  override def name(): String = "CLBG::Revcomp"
 
   override def prepare(): Unit =
     val fasta = new Fasta()

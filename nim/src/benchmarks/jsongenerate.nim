@@ -14,7 +14,7 @@ type
 proc newJsonGenerate(): Benchmark =
   JsonGenerate()
 
-method name(self: JsonGenerate): string = "JsonGenerate"
+method name(self: JsonGenerate): string = "Json::Generate"
 
 method prepare(self: JsonGenerate) =
   self.n = self.config_val("coords")
@@ -32,4 +32,4 @@ method checksum(self: JsonGenerate): uint32 =
 proc getGeneratedJson*(self: JsonGenerate): string =
   self.resultJson
 
-registerBenchmark("JsonGenerate", newJsonGenerate)
+registerBenchmark("Json::Generate", newJsonGenerate)

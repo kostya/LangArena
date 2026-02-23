@@ -264,7 +264,7 @@ neuralnet_cleanup :: proc(bench: ^Benchmark) {
 
 create_neuralnet :: proc() -> ^Benchmark {
     nn := new(NeuralNet)
-    nn.name = "NeuralNet"
+    nn.name = "Etc::NeuralNet"
     nn.vtable = default_vtable()
 
     nn.vtable.run = neuralnet_run

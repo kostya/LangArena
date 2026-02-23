@@ -175,8 +175,8 @@ Primes :: struct {
 
 primes_prepare :: proc(bench: ^Benchmark) {
     p := cast(^Primes)bench
-    p.n = int(config_i64("Primes", "limit"))
-    p.prefix = int(config_i64("Primes", "prefix"))
+    p.n = int(config_i64("Etc::Primes", "limit"))
+    p.prefix = int(config_i64("Etc::Primes", "prefix"))
     p.result_val = 5432
 }
 
@@ -205,7 +205,7 @@ primes_checksum :: proc(bench: ^Benchmark) -> u32 {
 
 create_primes :: proc() -> ^Benchmark {
     p := new(Primes)
-    p.name = "Primes"
+    p.name = "Etc::Primes"
     p.vtable = default_vtable()
 
     p.vtable.run = primes_run

@@ -11,7 +11,7 @@ pub struct CalculatorInterpreter {
 
 impl CalculatorInterpreter {
     pub fn new() -> Self {
-        let n = config_i64("CalculatorInterpreter", "operations");
+        let n = config_i64("Calculator::Interpreter", "operations");
 
         Self {
             n,
@@ -42,7 +42,7 @@ impl CalculatorInterpreter {
 
 impl Benchmark for CalculatorInterpreter {
     fn name(&self) -> String {
-        "CalculatorInterpreter".to_string()
+        "Calculator::Interpreter".to_string()
     }
 
     fn prepare(&mut self) {

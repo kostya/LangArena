@@ -138,7 +138,7 @@ pub const Noise = struct {
     }
 
     pub fn asBenchmark(self: *Noise) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "Noise");
+        return Benchmark.init(self, &vtable, self.helper, "Etc::Noise");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
@@ -151,7 +151,7 @@ pub const Noise = struct {
             self.n2d = null;
         }
 
-        self.size_val = self.helper.config_i64("Noise", "size");
+        self.size_val = self.helper.config_i64("Etc::Noise", "size");
 
         const n2d = Noise2DContext.init(allocator, self.helper, self.size_val) catch return;
         self.n2d = n2d;

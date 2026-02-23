@@ -12,15 +12,15 @@ mut:
 
 pub fn new_matmul1t() &benchmark.IBenchmark {
 	mut bench := &Matmul1T{
-		BaseBenchmark: benchmark.new_base_benchmark('Matmul1T')
-		n:             helper.config_i64('Matmul1T', 'n')
+		BaseBenchmark: benchmark.new_base_benchmark('Matmul::T1')
+		n:             helper.config_i64('Matmul::T1', 'n')
 		result_val:    0
 	}
 	return bench
 }
 
 pub fn (b Matmul1T) name() string {
-	return 'Matmul1T'
+	return 'Matmul::T1'
 }
 
 fn matgen(n int) [][]f64 {

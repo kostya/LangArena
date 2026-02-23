@@ -130,5 +130,5 @@ class Noise : Benchmark() {
 
     override fun checksum(): UInt = resultVal
 
-    override fun name(): String = "Noise"
+    override fun name(): String = "Etc::Noise"
 }

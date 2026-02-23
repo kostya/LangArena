@@ -10,7 +10,7 @@ class Mandelbrot extends Benchmark:
   private var h: Int = 0
   private val result = new ByteArrayOutputStream()
 
-  override def name(): String = "Mandelbrot"
+  override def name(): String = "CLBG::Mandelbrot"
 
   override def prepare(): Unit =
     w = configVal("w").toInt

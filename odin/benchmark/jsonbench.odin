@@ -113,7 +113,7 @@ jsongenerate_get_json :: proc(bench: ^JsonGenerate) -> string {
 
 create_jsongenerate :: proc() -> ^Benchmark {
     bench := new(JsonGenerate)
-    bench.name = "JsonGenerate"
+    bench.name = "Json::Generate"
     bench.vtable = default_vtable()
 
     bench.vtable.run = jsongenerate_run
@@ -219,7 +219,7 @@ jsonparsedom_cleanup :: proc(bench: ^Benchmark) {
 
 create_jsonparsedom :: proc() -> ^Benchmark {
     bench := new(JsonParseDom)
-    bench.name = "JsonParseDom"
+    bench.name = "Json::ParseDom"
     bench.vtable = default_vtable()
 
     bench.vtable.run = jsonparsedom_run
@@ -303,7 +303,7 @@ jsonparsemapping_cleanup :: proc(bench: ^Benchmark) {
 
 create_jsonparsemapping :: proc() -> ^Benchmark {
     bench := new(JsonParseMapping)
-    bench.name = "JsonParseMapping"
+    bench.name = "Json::ParseMapping"
     bench.vtable = default_vtable()
 
     bench.vtable.run = jsonparsemapping_run

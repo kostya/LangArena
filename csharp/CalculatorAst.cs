@@ -243,4 +243,5 @@ public class CalculatorAst : Benchmark
     }
 
     public override uint Checksum => _result;
+    public override string TypeName => "Calculator::Ast";
 }

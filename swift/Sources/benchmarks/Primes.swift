@@ -117,4 +117,8 @@ final class Primes: BenchmarkProtocol {
   }
 
   func prepare() {}
+
+  func name() -> String {
+    return "Etc::Primes"
+  }
 }

@@ -146,4 +146,7 @@ final class BrainfuckRecursion: BenchmarkProtocol {
     text = configValue("program") ?? ""
     warmupProgram = configValue("warmup_program") ?? text
   }
+  func name() -> String {
+    return "Brainfuck::Recursion"
+  }
 }

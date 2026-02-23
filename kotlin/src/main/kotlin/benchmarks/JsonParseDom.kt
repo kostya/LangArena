@@ -47,5 +47,5 @@ class JsonParseDom : Benchmark() {
 
     override fun checksum(): UInt = resultVal
 
-    override fun name(): String = "JsonParseDom"
+    override fun name(): String = "Json::ParseDom"
 }

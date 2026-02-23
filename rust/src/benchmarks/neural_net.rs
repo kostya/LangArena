@@ -227,7 +227,7 @@ impl NeuralNet {
 
 impl Benchmark for NeuralNet {
     fn name(&self) -> String {
-        "NeuralNet".to_string()
+        "Etc::NeuralNet".to_string()
     }
 
     fn prepare(&mut self) {

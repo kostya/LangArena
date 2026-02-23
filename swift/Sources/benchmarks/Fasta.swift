@@ -98,4 +98,7 @@ final class Fasta: BenchmarkProtocol {
   func getOutput() -> String {
     return output
   }
+  func name() -> String {
+    return "CLBG::Fasta"
+  }
 }

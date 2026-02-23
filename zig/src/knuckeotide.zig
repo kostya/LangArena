@@ -20,7 +20,7 @@ pub const Knuckeotide = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Knuckeotide {
-        const n = helper.config_i64("Knuckeotide", "n");
+        const n = helper.config_i64("CLBG::Knuckeotide", "n");
 
         const self = try allocator.create(Knuckeotide);
         errdefer allocator.destroy(self);
@@ -43,7 +43,7 @@ pub const Knuckeotide = struct {
     }
 
     pub fn asBenchmark(self: *Knuckeotide) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "Knuckeotide");
+        return Benchmark.init(self, &vtable, self.helper, "CLBG::Knuckeotide");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {

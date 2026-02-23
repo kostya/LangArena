@@ -17,7 +17,7 @@ public class Mandelbrot extends Benchmark {
 
     @Override
     public String name() {
-        return "Mandelbrot";
+        return "CLBG::Mandelbrot";
     }
 
     @Override

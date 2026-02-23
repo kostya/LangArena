@@ -248,6 +248,7 @@ type CalculatorAst() =
     member this.Expressions = expressions
 
     override this.Checksum = result
+    override this.Name = "Calculator::Ast"
 
     override this.Prepare() =
         n <- this.ConfigVal("operations")
@@ -265,6 +266,7 @@ type CalculatorInterpreter() =
     let mutable ast: Node list = []
 
     override this.Checksum = result
+    override this.Name = "Calculator::Interpreter"
 
     override this.Prepare() =
         n <- this.ConfigVal("operations")

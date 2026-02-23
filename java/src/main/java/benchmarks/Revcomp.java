@@ -25,7 +25,7 @@ public class Revcomp extends Benchmark {
 
     @Override
     public String name() {
-        return "Revcomp";
+        return "CLBG::Revcomp";
     }
 
     @Override

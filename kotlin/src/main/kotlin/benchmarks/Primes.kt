@@ -124,5 +124,5 @@ class Primes : Benchmark() {
 
     override fun checksum(): UInt = resultVal
 
-    override fun name(): String = "Primes"
+    override fun name(): String = "Etc::Primes"
 }

@@ -15,8 +15,8 @@ pub struct CacheSimulation {
 
 impl CacheSimulation {
     pub fn new() -> Self {
-        let values_size = config_i64("CacheSimulation", "values") as i32;
-        let cache_size = config_i64("CacheSimulation", "size") as i32;
+        let values_size = config_i64("Etc::CacheSimulation", "values") as i32;
+        let cache_size = config_i64("Etc::CacheSimulation", "size") as i32;
 
         Self {
             operations: 0,
@@ -32,7 +32,7 @@ impl CacheSimulation {
 
 impl Benchmark for CacheSimulation {
     fn name(&self) -> String {
-        "CacheSimulation".to_string()
+        "Etc::CacheSimulation".to_string()
     }
 
     fn prepare(&mut self) {

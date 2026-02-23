@@ -3,12 +3,12 @@ mutable struct Pidigits <: AbstractBenchmark
     io::IOBuffer
 
     function Pidigits()
-        nn = Int32(Helper.config_i64("Pidigits", "amount"))
+        nn = Int32(Helper.config_i64("CLBG::Pidigits", "amount"))
         new(nn, IOBuffer())
     end
 end
 
-name(b::Pidigits)::String = "Pidigits"
+name(b::Pidigits)::String = "CLBG::Pidigits"
 
 function run(b::Pidigits, iteration_id::Int64)
     i = Int32(0)

@@ -35,7 +35,7 @@ pub const SortSelf = struct {
     }
 
     pub fn asBenchmark(self: *SortSelf) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "SortSelf");
+        return Benchmark.init(self, &vtable, self.helper, "Sort::Self");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
@@ -45,7 +45,7 @@ pub const SortSelf = struct {
         self.data.clearAndFree(allocator);
         self.result_val = 0;
 
-        const size_val = self.helper.config_i64("SortSelf", "size");
+        const size_val = self.helper.config_i64("Sort::Self", "size");
         const size = @as(usize, @intCast(size_val));
 
         self.data.ensureTotalCapacity(allocator, size) catch return;

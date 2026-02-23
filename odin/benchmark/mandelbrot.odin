@@ -68,8 +68,8 @@ mandelbrot_checksum :: proc(bench: ^Benchmark) -> u32 {
 
 mandelbrot_prepare :: proc(bench: ^Benchmark) {
     mb := cast(^Mandelbrot)bench
-    mb.w = int(config_i64("Mandelbrot", "w"))
-    mb.h = int(config_i64("Mandelbrot", "h"))
+    mb.w = int(config_i64("CLBG::Mandelbrot", "w"))
+    mb.h = int(config_i64("CLBG::Mandelbrot", "h"))
     mb.result_bytes = make([dynamic]u8)
 }
 
@@ -80,7 +80,7 @@ mandelbrot_cleanup :: proc(bench: ^Benchmark) {
 
 create_mandelbrot :: proc() -> ^Benchmark {
     mb := new(Mandelbrot)
-    mb.name = "Mandelbrot"
+    mb.name = "CLBG::Mandelbrot"
     mb.vtable = default_vtable()
 
     mb.vtable.run = mandelbrot_run

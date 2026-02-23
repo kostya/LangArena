@@ -54,7 +54,7 @@ sortmerge_test :: proc(bench: ^SortBenchmark) -> []i32 {
 
 create_sortmerge :: proc() -> ^Benchmark {
     sm := new(SortMerge)
-    sm.base.name = "SortMerge"
+    sm.base.name = "Sort::Merge"
 
     vtable := new(SortBenchmark_VTable)
     base_vtable := default_vtable()

@@ -122,7 +122,7 @@ class Fasta : Benchmark() {
 
     override fun checksum(): UInt = Helper.checksum(output.toString())
 
-    override fun name(): String = "Fasta"
+    override fun name(): String = "CLBG::Fasta"
 
     fun getOutput(): String = output.toString()
 }

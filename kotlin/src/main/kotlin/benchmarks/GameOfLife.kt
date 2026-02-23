@@ -133,5 +133,5 @@ class GameOfLife : Benchmark() {
         return grid.computeHash() + alive.toUInt()
     }
 
-    override fun name(): String = "GameOfLife"
+    override fun name(): String = "Etc::GameOfLife"
 }

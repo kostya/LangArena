@@ -22,6 +22,7 @@ public class Matmul4T : Benchmark
     }
 
     public override uint Checksum => _result;
+    public override string TypeName => "Matmul::T4";
 
     private double[][] MatMulParallel(double[][] a, double[][] b)
     {

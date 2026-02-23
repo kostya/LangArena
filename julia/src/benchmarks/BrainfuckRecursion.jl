@@ -4,13 +4,13 @@ mutable struct BrainfuckRecursion <: AbstractBenchmark
     result::UInt32
 
     function BrainfuckRecursion()
-        text = Helper.config_s("BrainfuckRecursion", "program")
-        warmup_text = Helper.config_s("BrainfuckRecursion", "warmup_program")
+        text = Helper.config_s("Brainfuck::Recursion", "program")
+        warmup_text = Helper.config_s("Brainfuck::Recursion", "warmup_program")
         new(text, warmup_text, UInt32(0))
     end
 end
 
-name(b::BrainfuckRecursion)::String = "BrainfuckRecursion"
+name(b::BrainfuckRecursion)::String = "Brainfuck::Recursion"
 
 abstract type AbstractOp end
 

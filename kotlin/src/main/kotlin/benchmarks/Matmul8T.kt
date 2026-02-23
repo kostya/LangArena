@@ -88,5 +88,5 @@ class Matmul8T : Benchmark() {
 
     override fun checksum(): UInt = resultVal
 
-    override fun name(): String = "Matmul8T"
+    override fun name(): String = "Matmul::T8"
 }

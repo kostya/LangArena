@@ -167,5 +167,5 @@ class NeuralNet : Benchmark() {
         return Helper.checksumF64(sum)
     }
 
-    override fun name(): String = "NeuralNet"
+    override fun name(): String = "Etc::NeuralNet"
 }

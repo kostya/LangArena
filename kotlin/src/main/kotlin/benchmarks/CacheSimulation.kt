@@ -131,5 +131,5 @@ class CacheSimulation : Benchmark() {
         return finalResult
     }
 
-    override fun name(): String = "CacheSimulation"
+    override fun name(): String = "Etc::CacheSimulation"
 }

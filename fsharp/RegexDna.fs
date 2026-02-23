@@ -42,9 +42,10 @@ type RegexDna() =
     ]
 
     override _.Checksum = checksum
+    override this.Name = "CLBG::RegexDna"
 
     override _.Prepare() =
-        n <- Helper.Config_i64("RegexDna", "n")
+        n <- Helper.Config_i64("CLBG::RegexDna", "n")
         resultBuilder.Clear() |> ignore
         checksum <- 0u
 

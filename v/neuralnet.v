@@ -12,14 +12,14 @@ mut:
 
 pub fn new_neuralnet() &benchmark.IBenchmark {
 	mut bench := &NeuralNet{
-		BaseBenchmark: benchmark.new_base_benchmark('NeuralNet')
+		BaseBenchmark: benchmark.new_base_benchmark('Etc::NeuralNet')
 		xor_net:       unsafe { nil }
 	}
 	return bench
 }
 
 pub fn (b NeuralNet) name() string {
-	return 'NeuralNet'
+	return 'Etc::NeuralNet'
 }
 
 struct Synapse {

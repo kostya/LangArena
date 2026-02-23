@@ -35,7 +35,7 @@ pub const SortMerge = struct {
     }
 
     pub fn asBenchmark(self: *SortMerge) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "SortMerge");
+        return Benchmark.init(self, &vtable, self.helper, "Sort::Merge");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
@@ -45,7 +45,7 @@ pub const SortMerge = struct {
         self.data.clearAndFree(allocator);
         self.result_val = 0;
 
-        const size_val = self.helper.config_i64("SortMerge", "size");
+        const size_val = self.helper.config_i64("Sort::Merge", "size");
         const size = @as(usize, @intCast(size_val));
 
         self.data.ensureTotalCapacity(allocator, size) catch return;

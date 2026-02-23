@@ -172,4 +172,8 @@ final class NeuralNet: BenchmarkProtocol {
     let sum = allOutputs.reduce(0.0, +)
     return Helper.checksumF64(sum)
   }
+
+  func name() -> String {
+    return "Etc::NeuralNet"
+  }
 }

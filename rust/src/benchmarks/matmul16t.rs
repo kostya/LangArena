@@ -10,7 +10,7 @@ pub struct Matmul16T {
 
 impl Matmul16T {
     pub fn new() -> Self {
-        let n = config_i64("Matmul16T", "n");
+        let n = config_i64("Matmul::T16", "n");
 
         Self { n, result_val: 0 }
     }
@@ -67,7 +67,7 @@ impl Matmul16T {
 
 impl Benchmark for Matmul16T {
     fn name(&self) -> String {
-        "Matmul16T".to_string()
+        "Matmul::T16".to_string()
     }
 
     fn run(&mut self, _iteration_id: i64) {

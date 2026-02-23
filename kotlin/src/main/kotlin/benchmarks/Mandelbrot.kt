@@ -73,5 +73,5 @@ class Mandelbrot : Benchmark() {
         return checksum
     }
 
-    override fun name(): String = "Mandelbrot"
+    override fun name(): String = "CLBG::Mandelbrot"
 }

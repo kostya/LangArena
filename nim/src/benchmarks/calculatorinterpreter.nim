@@ -16,7 +16,7 @@ type
 proc newCalculatorInterpreter(): Benchmark =
   CalculatorInterpreter()
 
-method name(self: CalculatorInterpreter): string = "CalculatorInterpreter"
+method name(self: CalculatorInterpreter): string = "Calculator::Interpreter"
 
 proc simpleDiv(a, b: int64): int64 =
   if b == 0:
@@ -62,7 +62,7 @@ proc run(interpreter: var Interpreter, expressions: seq[Node]): int64 =
   resultVal
 
 method prepare(self: CalculatorInterpreter) =
-  self.n = config_i64("CalculatorInterpreter", "operations")
+  self.n = config_i64("Calculator::Interpreter", "operations")
 
   let text = generateRandomProgram(self.n)
 
@@ -80,4 +80,4 @@ method run(self: CalculatorInterpreter, iteration_id: int) =
 method checksum(self: CalculatorInterpreter): uint32 =
   self.resultVal
 
-registerBenchmark("CalculatorInterpreter", newCalculatorInterpreter)
+registerBenchmark("Calculator::Interpreter", newCalculatorInterpreter)

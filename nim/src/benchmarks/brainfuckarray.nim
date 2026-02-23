@@ -82,7 +82,7 @@ type
 proc newBrainfuckArray(): Benchmark =
   BrainfuckArray()
 
-method name(self: BrainfuckArray): string = "BrainfuckArray"
+method name(self: BrainfuckArray): string = "Brainfuck::Array"
 
 method prepare(self: BrainfuckArray) =
   self.programText = config_s(self.name, "program")
@@ -105,4 +105,4 @@ method run(self: BrainfuckArray, iteration_id: int) =
 method checksum(self: BrainfuckArray): uint32 =
   self.resultVal
 
-registerBenchmark("BrainfuckArray", newBrainfuckArray)
+registerBenchmark("Brainfuck::Array", newBrainfuckArray)

@@ -11,7 +11,7 @@ type
 proc newRevcomp(): Benchmark =
   Revcomp()
 
-method name(self: Revcomp): string = "Revcomp"
+method name(self: Revcomp): string = "CLBG::Revcomp"
 
 method prepare(self: Revcomp) =
   var fasta = Fasta()
@@ -65,4 +65,4 @@ method run(self: Revcomp, iteration_id: int) =
 method checksum(self: Revcomp): uint32 =
   self.checksumVal
 
-registerBenchmark("Revcomp", newRevcomp)
+registerBenchmark("CLBG::Revcomp", newRevcomp)

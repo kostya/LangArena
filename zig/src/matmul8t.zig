@@ -15,7 +15,7 @@ pub const Matmul8T = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Matmul8T {
-        const n = helper.config_i64("Matmul8T", "n");
+        const n = helper.config_i64("Matmul::T8", "n");
         const self = try allocator.create(Matmul8T);
         errdefer allocator.destroy(self);
         self.* = Matmul8T{
@@ -32,7 +32,7 @@ pub const Matmul8T = struct {
     }
 
     pub fn asBenchmark(self: *Matmul8T) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "Matmul8T");
+        return Benchmark.init(self, &vtable, self.helper, "Matmul::T8");
     }
 
     fn matGen(n: i32, allocator: std.mem.Allocator) ![][]f64 {

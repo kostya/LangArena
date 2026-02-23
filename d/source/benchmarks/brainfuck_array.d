@@ -158,7 +158,7 @@ private:
 protected:
     override string className() const
     {
-        return "BrainfuckArray";
+        return "Brainfuck::Array";
     }
 
 public:

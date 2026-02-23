@@ -272,7 +272,7 @@ pub const NeuralNet = struct {
     }
 
     pub fn asBenchmark(self: *NeuralNet) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "NeuralNet");
+        return Benchmark.init(self, &vtable, self.helper, "Etc::NeuralNet");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {

@@ -92,4 +92,5 @@ public class CalculatorInterpreter : Benchmark
     }
 
     public override uint Checksum => _result;
+    public override string TypeName => "Calculator::Interpreter";
 }

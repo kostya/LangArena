@@ -165,7 +165,7 @@ pidigits_checksum :: proc(bench: ^Benchmark) -> u32 {
 
 pidigits_prepare :: proc(bench: ^Benchmark) {
     pd := cast(^Pidigits)bench
-    pd.nn = int(config_i64("Pidigits", "amount"))
+    pd.nn = int(config_i64("CLBG::Pidigits", "amount"))
 
     strings.builder_reset(&pd.result)
 }
@@ -178,7 +178,7 @@ pidigits_cleanup :: proc(bench: ^Benchmark) {
 
 create_pidigits :: proc() -> ^Benchmark {
     bench := new(Pidigits)
-    bench.name = "Pidigits"
+    bench.name = "CLBG::Pidigits"
     bench.vtable = default_vtable()
 
     strings.builder_init(&bench.result)

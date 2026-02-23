@@ -8,7 +8,7 @@ class Base64Decode extends Benchmark:
   private var str3: Array[Byte] = _
   private var resultVal: Long = 0L
 
-  override def name(): String = "Base64Decode"
+  override def name(): String = "Base64::Decode"
 
   override def prepare(): Unit =
     n = configVal("size")

@@ -56,7 +56,7 @@ private:
 protected:
     override string className() const
     {
-        return "Revcomp";
+        return "CLBG::Revcomp";
     }
 
 public:

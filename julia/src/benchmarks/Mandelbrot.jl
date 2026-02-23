@@ -4,13 +4,13 @@ mutable struct Mandelbrot <: AbstractBenchmark
     io::IOBuffer
 
     function Mandelbrot()
-        w = Helper.config_i64("Mandelbrot", "w")
-        h = Helper.config_i64("Mandelbrot", "h")
+        w = Helper.config_i64("CLBG::Mandelbrot", "w")
+        h = Helper.config_i64("CLBG::Mandelbrot", "h")
         new(w, h, IOBuffer())
     end
 end
 
-name(b::Mandelbrot)::String = "Mandelbrot"
+name(b::Mandelbrot)::String = "CLBG::Mandelbrot"
 
 function run(b::Mandelbrot, iteration_id::Int64)
     ITER = 50

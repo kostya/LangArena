@@ -26,13 +26,13 @@ pub struct BufferHashSHA256 {
 
 pub fn new_bufferhashsha256() &benchmark.IBenchmark {
 	mut bench := &BufferHashSHA256{
-		BufferHashBenchmark: new_buffer_hash_benchmark('BufferHashSHA256')
+		BufferHashBenchmark: new_buffer_hash_benchmark('Hash::SHA256')
 	}
 	return bench
 }
 
 pub fn (b BufferHashSHA256) name() string {
-	return 'BufferHashSHA256'
+	return 'Hash::SHA256'
 }
 
 fn simple_sha256_digest(data []u8) []u8 {
@@ -67,7 +67,7 @@ fn simple_sha256_digest(data []u8) []u8 {
 }
 
 pub fn (mut b BufferHashSHA256) prepare() {
-	b.size_val = int(helper.config_i64('BufferHashSHA256', 'size'))
+	b.size_val = int(helper.config_i64('Hash::SHA256', 'size'))
 	b.data = []u8{len: int(b.size_val)}
 	for i in 0 .. b.size_val {
 		b.data[i] = u8(helper.next_int(256))
@@ -96,13 +96,13 @@ pub struct BufferHashCRC32 {
 
 pub fn new_bufferhashcrc32() &benchmark.IBenchmark {
 	mut bench := &BufferHashCRC32{
-		BufferHashBenchmark: new_buffer_hash_benchmark('BufferHashCRC32')
+		BufferHashBenchmark: new_buffer_hash_benchmark('Hash::CRC32')
 	}
 	return bench
 }
 
 pub fn (b BufferHashCRC32) name() string {
-	return 'BufferHashCRC32'
+	return 'Hash::CRC32'
 }
 
 fn crc32(data []u8) u32 {
@@ -122,7 +122,7 @@ fn crc32(data []u8) u32 {
 }
 
 pub fn (mut b BufferHashCRC32) prepare() {
-	b.size_val = int(helper.config_i64('BufferHashCRC32', 'size'))
+	b.size_val = int(helper.config_i64('Hash::CRC32', 'size'))
 	b.data = []u8{len: int(b.size_val)}
 	for i in 0 .. b.size_val {
 		b.data[i] = u8(helper.next_int(256))

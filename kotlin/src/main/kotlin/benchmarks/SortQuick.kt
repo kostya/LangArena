@@ -34,5 +34,5 @@ class SortQuick : SortBenchmark() {
         return arr
     }
 
-    override fun name(): String = "SortQuick"
+    override fun name(): String = "Sort::Quick"
 }

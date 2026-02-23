@@ -28,4 +28,5 @@ public abstract class BufferHashBenchmark : Benchmark
     }
 
     public override uint Checksum => _result;
+    public override string TypeName => "Hash";
 }

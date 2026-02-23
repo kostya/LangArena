@@ -33,5 +33,7 @@ class SortBenchmark: BenchmarkProtocol {
     return resultVal
   }
 
-  var name: String { return "SortBenchmark" }
+  func name() -> String {
+    return ""
+  }
 }

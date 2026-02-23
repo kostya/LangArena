@@ -123,7 +123,7 @@ type
 proc newBrainfuckRecursion(): Benchmark =
   BrainfuckRecursion()
 
-method name(self: BrainfuckRecursion): string = "BrainfuckRecursion"
+method name(self: BrainfuckRecursion): string = "Brainfuck::Recursion"
 
 method prepare(self: BrainfuckRecursion) =
   self.text = config_s(self.name, "program")
@@ -146,4 +146,4 @@ method run(self: BrainfuckRecursion, iteration_id: int) =
 method checksum(self: BrainfuckRecursion): uint32 =
   self.resultVal
 
-registerBenchmark("BrainfuckRecursion", newBrainfuckRecursion)
+registerBenchmark("Brainfuck::Recursion", newBrainfuckRecursion)

@@ -36,7 +36,7 @@ pub const Revcomp = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Revcomp {
-        const n = @as(i32, @intCast(helper.config_i64("Revcomp", "n")));
+        const n = @as(i32, @intCast(helper.config_i64("CLBG::Revcomp", "n")));
 
         const self = try allocator.create(Revcomp);
         errdefer allocator.destroy(self);
@@ -59,7 +59,7 @@ pub const Revcomp = struct {
     }
 
     pub fn asBenchmark(self: *Revcomp) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "Revcomp");
+        return Benchmark.init(self, &vtable, self.helper, "CLBG::Revcomp");
     }
 
     fn revcompFast(seq: []const u8, allocator: std.mem.Allocator) ![]u8 {

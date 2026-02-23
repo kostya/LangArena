@@ -43,6 +43,7 @@ public class BinarytreesObj : Benchmark
     }
 
     public override uint Checksum => _result;
+    public override string TypeName => "Binarytrees::Obj";
 }
 
 public class BinarytreesArena : Benchmark
@@ -114,4 +115,5 @@ public class BinarytreesArena : Benchmark
     }
 
     public override uint Checksum => _result;
+    public override string TypeName => "Binarytrees::Arena";
 }

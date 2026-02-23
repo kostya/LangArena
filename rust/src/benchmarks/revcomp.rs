@@ -20,7 +20,7 @@ const TO_BYTES: &[u8] = b"WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
 
 impl Revcomp {
     pub fn new() -> Self {
-        let n = config_i64("Revcomp", "n");
+        let n = config_i64("CLBG::Revcomp", "n");
 
         Self {
             n,
@@ -82,7 +82,7 @@ impl Revcomp {
 
 impl Benchmark for Revcomp {
     fn name(&self) -> String {
-        "Revcomp".to_string()
+        "CLBG::Revcomp".to_string()
     }
 
     fn prepare(&mut self) {

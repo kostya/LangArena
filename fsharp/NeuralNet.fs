@@ -173,6 +173,7 @@ type NeuralNet() =
 
             Helper.Checksum(sum)
         | None -> 0u
+    override this.Name = "Etc::NeuralNet"
 
     override this.Prepare() =
         xorNet <- Some (NeuralNetwork(2, 10, 1))

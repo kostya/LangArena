@@ -5,7 +5,7 @@ class BrainfuckRecursion extends Benchmark:
   private val warmupProgram: String = Helper.configS(name(), "warmup_program")
   private var resultVal: Long = 0L
 
-  override def name(): String = "BrainfuckRecursion"
+  override def name(): String = "Brainfuck::Recursion"
 
   sealed trait Op
   case object Inc extends Op

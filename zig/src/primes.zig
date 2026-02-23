@@ -31,8 +31,8 @@ pub const Primes = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Primes {
-        const n = helper.config_i64("Primes", "limit");
-        const prefix = helper.config_i64("Primes", "prefix");
+        const n = helper.config_i64("Etc::Primes", "limit");
+        const prefix = helper.config_i64("Etc::Primes", "prefix");
 
         const self = try allocator.create(Primes);
         errdefer allocator.destroy(self);
@@ -52,7 +52,7 @@ pub const Primes = struct {
     }
 
     pub fn asBenchmark(self: *Primes) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "Primes");
+        return Benchmark.init(self, &vtable, self.helper, "Etc::Primes");
     }
 
     fn generatePrimes(self: *Primes) !std.ArrayListUnmanaged(i32) {

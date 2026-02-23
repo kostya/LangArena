@@ -38,7 +38,7 @@ pub const JsonParseMapping = struct {
     }
 
     pub fn asBenchmark(self: *JsonParseMapping) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "JsonParseMapping");
+        return Benchmark.init(self, &vtable, self.helper, "Json::ParseMapping");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
@@ -47,7 +47,7 @@ pub const JsonParseMapping = struct {
         var jg = JsonGenerate.init(self.allocator, self.helper) catch return;
         defer jg.deinit();
 
-        jg.n = self.helper.config_i64("JsonParseMapping", "coords");
+        jg.n = self.helper.config_i64("Json::ParseMapping", "coords");
 
         var benchmark = jg.asBenchmark();
         benchmark.prepare();

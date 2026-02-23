@@ -71,4 +71,8 @@ final class Mandelbrot: BenchmarkProtocol {
   var checksum: UInt32 {
     return Helper.checksum(output)
   }
+
+  func name() -> String {
+    return "CLBG::Mandelbrot"
+  }
 }

@@ -77,6 +77,7 @@ type BufferHashBenchmark() =
         result <- 0u
 
     override this.Checksum = result
+    override this.Name = "Hash"
 
     abstract member ComputeHash: byte[] -> uint32
 
@@ -88,8 +89,10 @@ type BufferHashSHA256() =
     inherit BufferHashBenchmark()
 
     override _.ComputeHash(data: byte[]) = HashAlgorithms.SHA256Like.compute data
+    override this.Name = "Hash::SHA256"
 
 type BufferHashCRC32() =
     inherit BufferHashBenchmark()
+    override this.Name = "Hash::CRC32"
 
     override _.ComputeHash(data: byte[]) = HashAlgorithms.CRC32.compute data

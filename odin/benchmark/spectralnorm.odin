@@ -48,7 +48,7 @@ eval_AtA_times_u :: proc(u: []f64) -> []f64 {
 
 spectralnorm_prepare :: proc(bench: ^Benchmark) {
     sn := cast(^Spectralnorm)bench
-    sn.size_val = int(config_i64("Spectralnorm", "size"))
+    sn.size_val = int(config_i64("CLBG::Spectralnorm", "size"))
 
     sn.u = make([]f64, sn.size_val)
     sn.v = make([]f64, sn.size_val)
@@ -94,7 +94,7 @@ spectralnorm_cleanup :: proc(bench: ^Benchmark) {
 
 create_spectralnorm :: proc() -> ^Benchmark {
     sn := new(Spectralnorm)
-    sn.name = "Spectralnorm"
+    sn.name = "CLBG::Spectralnorm"
     sn.vtable = default_vtable()
 
     sn.vtable.run = spectralnorm_run

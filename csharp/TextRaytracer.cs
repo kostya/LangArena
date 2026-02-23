@@ -149,4 +149,5 @@ public class TextRaytracer : Benchmark
     }
 
     public override uint Checksum => _result;
+    public override string TypeName => "Etc::TextRaytracer";
 }

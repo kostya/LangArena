@@ -79,5 +79,7 @@ class Matmul4T: BenchmarkProtocol {
 
   func prepare() {}
 
-  var name: String { return "Matmul4T" }
+  func name() -> String {
+    return "Matmul::T4"
+  }
 }

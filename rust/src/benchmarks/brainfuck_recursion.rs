@@ -112,8 +112,8 @@ pub struct BrainfuckRecursion {
 
 impl BrainfuckRecursion {
     pub fn new() -> Self {
-        let text = config_s("BrainfuckRecursion", "program");
-        let warmup_text = config_s("BrainfuckRecursion", "warmup_program");
+        let text = config_s("Brainfuck::Recursion", "program");
+        let warmup_text = config_s("Brainfuck::Recursion", "warmup_program");
         Self {
             text,
             warmup_text,
@@ -128,7 +128,7 @@ impl BrainfuckRecursion {
 
 impl Benchmark for BrainfuckRecursion {
     fn name(&self) -> String {
-        "BrainfuckRecursion".to_string()
+        "Brainfuck::Recursion".to_string()
     }
 
     fn warmup(&mut self) {

@@ -18,7 +18,7 @@ pub struct CalculatorAst {
 
 impl CalculatorAst {
     pub fn new() -> Self {
-        let n = config_i64("CalculatorAst", "operations");
+        let n = config_i64("Calculator::Ast", "operations");
 
         Self {
             n,
@@ -104,7 +104,7 @@ impl CalculatorAst {
 
 impl Benchmark for CalculatorAst {
     fn name(&self) -> String {
-        "CalculatorAst".to_string()
+        "Calculator::Ast".to_string()
     }
 
     fn prepare(&mut self) {

@@ -11,7 +11,7 @@ type
 proc newKnuckeotide(): Benchmark =
   Knuckeotide()
 
-method name(self: Knuckeotide): string = "Knuckeotide"
+method name(self: Knuckeotide): string = "CLBG::Knuckeotide"
 
 method prepare(self: Knuckeotide) =
   var fastaInst = cast[Fasta](newFasta())
@@ -82,4 +82,4 @@ method run(self: Knuckeotide, iteration_id: int) =
 method checksum(self: Knuckeotide): uint32 =
   checksum(self.resultStr)
 
-registerBenchmark("Knuckeotide", newKnuckeotide)
+registerBenchmark("CLBG::Knuckeotide", newKnuckeotide)

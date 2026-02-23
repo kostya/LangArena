@@ -73,7 +73,7 @@ public:
 
     override string className() const
     {
-        return "JsonGenerate";
+        return "Json::Generate";
     }
 
     override void prepare()
@@ -137,7 +137,7 @@ public:
 
     override string className() const
     {
-        return "JsonParseDom";
+        return "Json::ParseDom";
     }
 
     override void prepare()
@@ -199,7 +199,7 @@ public:
 
     override string className() const
     {
-        return "JsonParseMapping";
+        return "Json::ParseMapping";
     }
 
     override void prepare()

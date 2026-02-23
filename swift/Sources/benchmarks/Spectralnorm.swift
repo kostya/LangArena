@@ -55,4 +55,8 @@ final class Spectralnorm: BenchmarkProtocol {
   }
 
   func prepare() {}
+
+  func name() -> String {
+    return "CLBG::Spectralnorm"
+  }
 }

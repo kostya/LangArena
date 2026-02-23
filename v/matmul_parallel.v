@@ -14,8 +14,8 @@ mut:
 
 pub fn new_matmul4t() &benchmark.IBenchmark {
 	mut bench := &MatmulParallel{
-		BaseBenchmark: benchmark.new_base_benchmark('Matmul4T')
-		n:             helper.config_i64('Matmul4T', 'n')
+		BaseBenchmark: benchmark.new_base_benchmark('Matmul::T4')
+		n:             helper.config_i64('Matmul::T4', 'n')
 		num_threads:   4
 		result_val:    0
 	}
@@ -24,8 +24,8 @@ pub fn new_matmul4t() &benchmark.IBenchmark {
 
 pub fn new_matmul8t() &benchmark.IBenchmark {
 	mut bench := &MatmulParallel{
-		BaseBenchmark: benchmark.new_base_benchmark('Matmul8T')
-		n:             helper.config_i64('Matmul8T', 'n')
+		BaseBenchmark: benchmark.new_base_benchmark('Matmul::T8')
+		n:             helper.config_i64('Matmul::T8', 'n')
 		num_threads:   8
 		result_val:    0
 	}
@@ -34,8 +34,8 @@ pub fn new_matmul8t() &benchmark.IBenchmark {
 
 pub fn new_matmul16t() &benchmark.IBenchmark {
 	mut bench := &MatmulParallel{
-		BaseBenchmark: benchmark.new_base_benchmark('Matmul16T')
-		n:             helper.config_i64('Matmul16T', 'n')
+		BaseBenchmark: benchmark.new_base_benchmark('Matmul::T16')
+		n:             helper.config_i64('Matmul::T16', 'n')
 		num_threads:   16
 		result_val:    0
 	}
@@ -44,9 +44,9 @@ pub fn new_matmul16t() &benchmark.IBenchmark {
 
 pub fn (b MatmulParallel) name() string {
 	match b.num_threads {
-		4 { return 'Matmul4T' }
-		8 { return 'Matmul8T' }
-		16 { return 'Matmul16T' }
+		4 { return 'Matmul::T4' }
+		8 { return 'Matmul::T8' }
+		16 { return 'Matmul::T16' }
 		else { return 'MatmulParallel' }
 	}
 }

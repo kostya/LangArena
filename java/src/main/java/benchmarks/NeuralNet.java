@@ -156,7 +156,7 @@ public class NeuralNet extends Benchmark {
 
     @Override
     public String name() {
-        return "NeuralNet";
+        return "Etc::NeuralNet";
     }
 
     @Override

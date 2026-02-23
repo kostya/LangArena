@@ -238,44 +238,44 @@ func RunBenchmarks(singleBench string) {
 	singleBench = strings.ToLower(singleBench)
 
 	allBenches := []Benchmark{
-		&Pidigits{BaseBenchmark: BaseBenchmark{className: "Pidigits"}},
-		&BinarytreesObj{BaseBenchmark: BaseBenchmark{className: "BinarytreesObj"}},
-		&BinarytreesArena{BaseBenchmark: BaseBenchmark{className: "BinarytreesArena"}},
-		&BrainfuckArray{BaseBenchmark: BaseBenchmark{className: "BrainfuckArray"}},
-		&BrainfuckRecursion{BaseBenchmark: BaseBenchmark{className: "BrainfuckRecursion"}},
-		&Fannkuchredux{BaseBenchmark: BaseBenchmark{className: "Fannkuchredux"}},
-		&Fasta{BaseBenchmark: BaseBenchmark{className: "Fasta"}},
-		&Knuckeotide{BaseBenchmark: BaseBenchmark{className: "Knuckeotide"}},
-		&Mandelbrot{BaseBenchmark: BaseBenchmark{className: "Mandelbrot"}},
-		&Matmul1T{BaseBenchmark: BaseBenchmark{className: "Matmul1T"}},
-		&Matmul4T{BaseBenchmark: BaseBenchmark{className: "Matmul4T"}},
-		&Matmul8T{BaseBenchmark: BaseBenchmark{className: "Matmul8T"}},
-		&Matmul16T{BaseBenchmark: BaseBenchmark{className: "Matmul16T"}},
-		&Nbody{BaseBenchmark: BaseBenchmark{className: "Nbody"}},
-		&RegexDna{BaseBenchmark: BaseBenchmark{className: "RegexDna"}},
-		&Revcomp{BaseBenchmark: BaseBenchmark{className: "Revcomp"}},
-		&Spectralnorm{BaseBenchmark: BaseBenchmark{className: "Spectralnorm"}},
-		&Base64Encode{BaseBenchmark: BaseBenchmark{className: "Base64Encode"}},
-		&Base64Decode{BaseBenchmark: BaseBenchmark{className: "Base64Decode"}},
-		&JsonGenerate{BaseBenchmark: BaseBenchmark{className: "JsonGenerate"}},
-		&JsonParseDom{BaseBenchmark: BaseBenchmark{className: "JsonParseDom"}},
-		&JsonParseMapping{BaseBenchmark: BaseBenchmark{className: "JsonParseMapping"}},
-		&Primes{BaseBenchmark: BaseBenchmark{className: "Primes"}},
-		&Noise{BaseBenchmark: BaseBenchmark{className: "Noise"}},
-		&TextRaytracer{BaseBenchmark: BaseBenchmark{className: "TextRaytracer"}},
-		&NeuralNet{BaseBenchmark: BaseBenchmark{className: "NeuralNet"}},
-		&SortQuick{BaseBenchmark: BaseBenchmark{className: "SortQuick"}},
-		&SortMerge{BaseBenchmark: BaseBenchmark{className: "SortMerge"}},
-		&SortSelf{BaseBenchmark: BaseBenchmark{className: "SortSelf"}},
-		&GraphPathBFS{BaseBenchmark: BaseBenchmark{className: "GraphPathBFS"}},
-		&GraphPathDFS{BaseBenchmark: BaseBenchmark{className: "GraphPathDFS"}},
-		&GraphPathAStar{BaseBenchmark: BaseBenchmark{className: "GraphPathAStar"}},
-		&BufferHashSHA256{BaseBenchmark: BaseBenchmark{className: "BufferHashSHA256"}},
-		&BufferHashCRC32{BaseBenchmark: BaseBenchmark{className: "BufferHashCRC32"}},
-		&CacheSimulation{BaseBenchmark: BaseBenchmark{className: "CacheSimulation"}},
-		&CalculatorAst{BaseBenchmark: BaseBenchmark{className: "CalculatorAst"}},
-		&CalculatorInterpreter{BaseBenchmark: BaseBenchmark{className: "CalculatorInterpreter"}},
-		&GameOfLife{BaseBenchmark: BaseBenchmark{className: "GameOfLife"}},
+		&Pidigits{BaseBenchmark: BaseBenchmark{className: "CLBG::Pidigits"}},
+		&BinarytreesObj{BaseBenchmark: BaseBenchmark{className: "Binarytrees::Obj"}},
+		&BinarytreesArena{BaseBenchmark: BaseBenchmark{className: "Binarytrees::Arena"}},
+		&BrainfuckArray{BaseBenchmark: BaseBenchmark{className: "Brainfuck::Array"}},
+		&BrainfuckRecursion{BaseBenchmark: BaseBenchmark{className: "Brainfuck::Recursion"}},
+		&Fannkuchredux{BaseBenchmark: BaseBenchmark{className: "CLBG::Fannkuchredux"}},
+		&Fasta{BaseBenchmark: BaseBenchmark{className: "CLBG::Fasta"}},
+		&Knuckeotide{BaseBenchmark: BaseBenchmark{className: "CLBG::Knuckeotide"}},
+		&Mandelbrot{BaseBenchmark: BaseBenchmark{className: "CLBG::Mandelbrot"}},
+		&Matmul1T{BaseBenchmark: BaseBenchmark{className: "Matmul::T1"}},
+		&Matmul4T{BaseBenchmark: BaseBenchmark{className: "Matmul::T4"}},
+		&Matmul8T{BaseBenchmark: BaseBenchmark{className: "Matmul::T8"}},
+		&Matmul16T{BaseBenchmark: BaseBenchmark{className: "Matmul::T16"}},
+		&Nbody{BaseBenchmark: BaseBenchmark{className: "CLBG::Nbody"}},
+		&RegexDna{BaseBenchmark: BaseBenchmark{className: "CLBG::RegexDna"}},
+		&Revcomp{BaseBenchmark: BaseBenchmark{className: "CLBG::Revcomp"}},
+		&Spectralnorm{BaseBenchmark: BaseBenchmark{className: "CLBG::Spectralnorm"}},
+		&Base64Encode{BaseBenchmark: BaseBenchmark{className: "Base64::Encode"}},
+		&Base64Decode{BaseBenchmark: BaseBenchmark{className: "Base64::Decode"}},
+		&JsonGenerate{BaseBenchmark: BaseBenchmark{className: "Json::Generate"}},
+		&JsonParseDom{BaseBenchmark: BaseBenchmark{className: "Json::ParseDom"}},
+		&JsonParseMapping{BaseBenchmark: BaseBenchmark{className: "Json::ParseMapping"}},
+		&Primes{BaseBenchmark: BaseBenchmark{className: "Etc::Primes"}},
+		&Noise{BaseBenchmark: BaseBenchmark{className: "Etc::Noise"}},
+		&TextRaytracer{BaseBenchmark: BaseBenchmark{className: "Etc::TextRaytracer"}},
+		&NeuralNet{BaseBenchmark: BaseBenchmark{className: "Etc::NeuralNet"}},
+		&SortQuick{BaseBenchmark: BaseBenchmark{className: "Sort::Quick"}},
+		&SortMerge{BaseBenchmark: BaseBenchmark{className: "Sort::Merge"}},
+		&SortSelf{BaseBenchmark: BaseBenchmark{className: "Sort::Self"}},
+		&GraphPathBFS{BaseBenchmark: BaseBenchmark{className: "Graph::BFS"}},
+		&GraphPathDFS{BaseBenchmark: BaseBenchmark{className: "Graph::DFS"}},
+		&GraphPathAStar{BaseBenchmark: BaseBenchmark{className: "Graph::AStar"}},
+		&BufferHashSHA256{BaseBenchmark: BaseBenchmark{className: "Hash::SHA256"}},
+		&BufferHashCRC32{BaseBenchmark: BaseBenchmark{className: "Hash::CRC32"}},
+		&CacheSimulation{BaseBenchmark: BaseBenchmark{className: "Etc::CacheSimulation"}},
+		&CalculatorAst{BaseBenchmark: BaseBenchmark{className: "Calculator::Ast"}},
+		&CalculatorInterpreter{BaseBenchmark: BaseBenchmark{className: "Calculator::Interpreter"}},
+		&GameOfLife{BaseBenchmark: BaseBenchmark{className: "Etc::GameOfLife"}},
 		&MazeGenerator{BaseBenchmark: BaseBenchmark{className: "MazeGenerator"}},
 		&AStarPathfinder{BaseBenchmark: BaseBenchmark{className: "AStarPathfinder"}},
 		&BWTEncode{BaseBenchmark: BaseBenchmark{className: "Compress::BWTEncode"}},
@@ -631,7 +631,7 @@ type BrainfuckArray struct {
 }
 
 func (b *BrainfuckArray) Name() string {
-	return "BrainfuckArray"
+	return "Brainfuck::Array"
 }
 
 func (b *BrainfuckArray) Prepare() {
@@ -779,7 +779,7 @@ type BrainfuckRecursion struct {
 }
 
 func (b *BrainfuckRecursion) Name() string {
-	return "BrainfuckRecursion"
+	return "Brainfuck::Recursion"
 }
 
 func (b *BrainfuckRecursion) Prepare() {
@@ -1007,7 +1007,7 @@ type Knuckeotide struct {
 }
 
 func (k *Knuckeotide) Prepare() {
-	f := &Fasta{BaseBenchmark: BaseBenchmark{className: "Knuckeotide"}}
+	f := &Fasta{BaseBenchmark: BaseBenchmark{className: "CLBG::Knuckeotide"}}
 	f.n = k.ConfigVal("n")
 	f.Prepare()
 	f.Run(0)
@@ -1620,7 +1620,7 @@ type RegexDna struct {
 }
 
 func (r *RegexDna) Prepare() {
-	f := &Fasta{BaseBenchmark: BaseBenchmark{className: "RegexDna"}}
+	f := &Fasta{BaseBenchmark: BaseBenchmark{className: "CLBG::RegexDna"}}
 	f.n = r.ConfigVal("n")
 	f.Prepare()
 	f.Run(0)
@@ -1693,7 +1693,7 @@ type Revcomp struct {
 }
 
 func (r *Revcomp) Prepare() {
-	f := &Fasta{BaseBenchmark: BaseBenchmark{className: "Revcomp"}}
+	f := &Fasta{BaseBenchmark: BaseBenchmark{className: "CLBG::Revcomp"}}
 	f.n = r.ConfigVal("n")
 	f.Prepare()
 	f.Run(0)
@@ -2110,7 +2110,7 @@ type JsonParseDom struct {
 }
 
 func (j *JsonParseDom) Prepare() {
-	gen := &JsonGenerate{BaseBenchmark: BaseBenchmark{className: "JsonParseDom"}}
+	gen := &JsonGenerate{BaseBenchmark: BaseBenchmark{className: "Json::ParseDom"}}
 	gen.n = j.ConfigVal("coords")
 	gen.Prepare()
 	gen.Run(0)
@@ -2151,7 +2151,7 @@ type JsonParseMapping struct {
 }
 
 func (j *JsonParseMapping) Prepare() {
-	gen := &JsonGenerate{BaseBenchmark: BaseBenchmark{className: "JsonParseMapping"}}
+	gen := &JsonGenerate{BaseBenchmark: BaseBenchmark{className: "Json::ParseMapping"}}
 	gen.n = j.ConfigVal("coords")
 	gen.Prepare()
 	gen.Run(0)
@@ -3744,7 +3744,7 @@ type CalculatorInterpreter struct {
 }
 
 func (c *CalculatorInterpreter) Prepare() {
-	astBench := &CalculatorAst{BaseBenchmark: BaseBenchmark{className: "CalculatorInterpreter"}}
+	astBench := &CalculatorAst{BaseBenchmark: BaseBenchmark{className: "Calculator::Interpreter"}}
 	astBench.n = c.ConfigVal("operations")
 	astBench.Prepare()
 	astBench.Run(0)

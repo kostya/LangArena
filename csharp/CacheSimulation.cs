@@ -150,4 +150,5 @@ public class CacheSimulation : Benchmark
             return finalResult;
         }
     }
+    public override string TypeName => "Etc::CacheSimulation";
 }

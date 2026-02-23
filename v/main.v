@@ -37,112 +37,112 @@ import json_benchmarks
 
 fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 	return [
-		benchmark.BenchmarkInfo{'Pidigits', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'CLBG::Pidigits', fn () &benchmark.IBenchmark {
 			return pidigits.new_pidigits()
 		}},
-		benchmark.BenchmarkInfo{'BinarytreesObj', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Binarytrees::Obj', fn () &benchmark.IBenchmark {
 			return binarytrees.new_binarytrees_obj()
 		}},
-		benchmark.BenchmarkInfo{'BinarytreesArena', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Binarytrees::Arena', fn () &benchmark.IBenchmark {
 			return binarytrees.new_binarytrees_arena()
 		}},
-		benchmark.BenchmarkInfo{'Fannkuchredux', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'CLBG::Fannkuchredux', fn () &benchmark.IBenchmark {
 			return fannkuchredux.new_fannkuchredux()
 		}},
-		benchmark.BenchmarkInfo{'Nbody', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'CLBG::Nbody', fn () &benchmark.IBenchmark {
 			return nbody.new_nbody()
 		}},
-		benchmark.BenchmarkInfo{'Spectralnorm', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'CLBG::Spectralnorm', fn () &benchmark.IBenchmark {
 			return spectralnorm.new_spectralnorm()
 		}},
-		benchmark.BenchmarkInfo{'Primes', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Etc::Primes', fn () &benchmark.IBenchmark {
 			return primes.new_primes()
 		}},
-		benchmark.BenchmarkInfo{'Noise', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Etc::Noise', fn () &benchmark.IBenchmark {
 			return noise.new_noise()
 		}},
-		benchmark.BenchmarkInfo{'Mandelbrot', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'CLBG::Mandelbrot', fn () &benchmark.IBenchmark {
 			return mandelbrot.new_mandelbrot()
 		}},
-		benchmark.BenchmarkInfo{'Matmul1T', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Matmul::T1', fn () &benchmark.IBenchmark {
 			return matmul1t.new_matmul1t()
 		}},
-		benchmark.BenchmarkInfo{'Matmul4T', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Matmul::T4', fn () &benchmark.IBenchmark {
 			return matmul_parallel.new_matmul4t()
 		}},
-		benchmark.BenchmarkInfo{'Matmul8T', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Matmul::T8', fn () &benchmark.IBenchmark {
 			return matmul_parallel.new_matmul8t()
 		}},
-		benchmark.BenchmarkInfo{'Matmul16T', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Matmul::T16', fn () &benchmark.IBenchmark {
 			return matmul_parallel.new_matmul16t()
 		}},
-		benchmark.BenchmarkInfo{'BrainfuckArray', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Brainfuck::Array', fn () &benchmark.IBenchmark {
 			return brainfuck_array.new_brainfuck_array()
 		}},
-		benchmark.BenchmarkInfo{'BrainfuckRecursion', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Brainfuck::Recursion', fn () &benchmark.IBenchmark {
 			return brainfuck_recursion.new_brainfuck_recursion()
 		}},
-		benchmark.BenchmarkInfo{'Fasta', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'CLBG::Fasta', fn () &benchmark.IBenchmark {
 			return fasta.new_fasta()
 		}},
-		benchmark.BenchmarkInfo{'Knuckeotide', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'CLBG::Knuckeotide', fn () &benchmark.IBenchmark {
 			return knuckeotide.new_knuckeotide()
 		}},
-		benchmark.BenchmarkInfo{'RegexDna', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'CLBG::RegexDna', fn () &benchmark.IBenchmark {
 			return regexdna.new_regexdna()
 		}},
-		benchmark.BenchmarkInfo{'Revcomp', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'CLBG::Revcomp', fn () &benchmark.IBenchmark {
 			return revcomp.new_revcomp()
 		}},
-		benchmark.BenchmarkInfo{'Base64Encode', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Base64::Encode', fn () &benchmark.IBenchmark {
 			return base64encode.new_base64encode()
 		}},
-		benchmark.BenchmarkInfo{'Base64Decode', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Base64::Decode', fn () &benchmark.IBenchmark {
 			return base64decode.new_base64decode()
 		}},
-		benchmark.BenchmarkInfo{'TextRaytracer', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Etc::TextRaytracer', fn () &benchmark.IBenchmark {
 			return textraytracer.new_textraytracer()
 		}},
-		benchmark.BenchmarkInfo{'JsonGenerate', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Json::Generate', fn () &benchmark.IBenchmark {
 			return json_benchmarks.new_jsongenerate()
 		}},
-		benchmark.BenchmarkInfo{'JsonParseDom', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Json::ParseDom', fn () &benchmark.IBenchmark {
 			return json_benchmarks.new_jsonparsedom()
 		}},
-		benchmark.BenchmarkInfo{'JsonParseMapping', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Json::ParseMapping', fn () &benchmark.IBenchmark {
 			return json_benchmarks.new_jsonparsemapping()
 		}},
-		benchmark.BenchmarkInfo{'NeuralNet', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Etc::NeuralNet', fn () &benchmark.IBenchmark {
 			return neuralnet.new_neuralnet()
 		}},
-		benchmark.BenchmarkInfo{'SortQuick', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Sort::Quick', fn () &benchmark.IBenchmark {
 			return sorts.new_sortquick()
 		}},
-		benchmark.BenchmarkInfo{'SortMerge', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Sort::Merge', fn () &benchmark.IBenchmark {
 			return sorts.new_sortmerge()
 		}},
-		benchmark.BenchmarkInfo{'SortSelf', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Sort::Self', fn () &benchmark.IBenchmark {
 			return sorts.new_sortself()
 		}},
-		benchmark.BenchmarkInfo{'GraphPathBFS', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Graph::BFS', fn () &benchmark.IBenchmark {
 			return graph_paths.new_graphpathbfs()
 		}},
-		benchmark.BenchmarkInfo{'GraphPathDFS', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Graph::DFS', fn () &benchmark.IBenchmark {
 			return graph_paths.new_graphpathdfs()
 		}},
-		benchmark.BenchmarkInfo{'GraphPathAStar', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Graph::AStar', fn () &benchmark.IBenchmark {
 			return graph_paths.new_graphpathastar()
 		}},
-		benchmark.BenchmarkInfo{'BufferHashSHA256', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Hash::SHA256', fn () &benchmark.IBenchmark {
 			return buffer_hash.new_bufferhashsha256()
 		}},
-		benchmark.BenchmarkInfo{'BufferHashCRC32', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Hash::CRC32', fn () &benchmark.IBenchmark {
 			return buffer_hash.new_bufferhashcrc32()
 		}},
-		benchmark.BenchmarkInfo{'CacheSimulation', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Etc::CacheSimulation', fn () &benchmark.IBenchmark {
 			return cache_simulation.new_cachesimulation()
 		}},
-		benchmark.BenchmarkInfo{'GameOfLife', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Etc::GameOfLife', fn () &benchmark.IBenchmark {
 			return game_of_life.new_gameoflife()
 		}},
 		benchmark.BenchmarkInfo{'MazeGenerator', fn () &benchmark.IBenchmark {
@@ -151,10 +151,10 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		benchmark.BenchmarkInfo{'AStarPathfinder', fn () &benchmark.IBenchmark {
 			return astar_pathfinder.new_astarpathfinder()
 		}},
-		benchmark.BenchmarkInfo{'CalculatorAst', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Calculator::Ast', fn () &benchmark.IBenchmark {
 			return calculator.new_calculatorast()
 		}},
-		benchmark.BenchmarkInfo{'CalculatorInterpreter', fn () &benchmark.IBenchmark {
+		benchmark.BenchmarkInfo{'Calculator::Interpreter', fn () &benchmark.IBenchmark {
 			return calculator.new_calculatorinterpreter()
 		}},
 		benchmark.BenchmarkInfo{'Compress::BWTEncode', fn () &benchmark.IBenchmark {

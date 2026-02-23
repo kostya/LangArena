@@ -144,7 +144,7 @@ final class GameOfLife: BenchmarkProtocol {
     return grid.computeHash() + UInt32(alive)
   }
 
-  var name: String {
-    return "GameOfLife"
+  func name() -> String {
+    return "Etc::GameOfLife"
   }
 }

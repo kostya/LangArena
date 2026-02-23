@@ -29,4 +29,5 @@ public abstract class SortBenchmark : Benchmark
     }
 
     public override uint Checksum => _result;
+    public override string TypeName => "Sort";
 }

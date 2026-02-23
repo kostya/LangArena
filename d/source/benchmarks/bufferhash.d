@@ -91,7 +91,7 @@ private:
 protected:
     override string className() const
     {
-        return "BufferHashSHA256";
+        return "Hash::SHA256";
     }
 
 public:
@@ -131,7 +131,7 @@ private:
 protected:
     override string className() const
     {
-        return "BufferHashCRC32";
+        return "Hash::CRC32";
     }
 
 public:

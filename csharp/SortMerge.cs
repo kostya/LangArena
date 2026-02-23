@@ -41,4 +41,5 @@ public class SortMerge : SortBenchmark
 
         while (iIdx <= mid) arr[k++] = temp[iIdx++];
     }
+    public override string TypeName => "Sort::Merge";
 }

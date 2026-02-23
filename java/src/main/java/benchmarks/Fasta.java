@@ -44,7 +44,7 @@ public class Fasta extends Benchmark {
 
     @Override
     public String name() {
-        return "Fasta";
+        return "CLBG::Fasta";
     }
 
     private char selectRandom(Gene[] genelist) {

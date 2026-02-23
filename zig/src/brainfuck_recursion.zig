@@ -169,7 +169,7 @@ pub const BrainfuckRecursion = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*BrainfuckRecursion {
-        const text = helper.config_s("BrainfuckRecursion", "program");
+        const text = helper.config_s("Brainfuck::Recursion", "program");
 
         const self = try allocator.create(BrainfuckRecursion);
         errdefer allocator.destroy(self);
@@ -189,7 +189,7 @@ pub const BrainfuckRecursion = struct {
     }
 
     pub fn asBenchmark(self: *BrainfuckRecursion) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "BrainfuckRecursion");
+        return Benchmark.init(self, &vtable, self.helper, "Brainfuck::Recursion");
     }
 
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
@@ -215,7 +215,7 @@ pub const BrainfuckRecursion = struct {
 
     fn warmupImpl(ptr: *anyopaque) void {
         const self: *BrainfuckRecursion = @ptrCast(@alignCast(ptr));
-        const warmup_program = self.helper.config_s("BrainfuckRecursion", "warmup_program");
+        const warmup_program = self.helper.config_s("Brainfuck::Recursion", "warmup_program");
         if (warmup_program.len == 0) return;
 
         var program = Program.init(self.allocator, warmup_program) catch return;

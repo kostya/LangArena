@@ -28,7 +28,7 @@ const days_per_year = 365.24
 
 pub fn new_nbody() &benchmark.IBenchmark {
 	mut bench := &Nbody{
-		BaseBenchmark: benchmark.new_base_benchmark('Nbody')
+		BaseBenchmark: benchmark.new_base_benchmark('CLBG::Nbody')
 		result_val:    0
 		v1:            0.0
 	}
@@ -37,7 +37,7 @@ pub fn new_nbody() &benchmark.IBenchmark {
 }
 
 pub fn (b Nbody) name() string {
-	return 'Nbody'
+	return 'CLBG::Nbody'
 }
 
 fn new_planet(x f64, y f64, z f64, vx f64, vy f64, vz f64, mass f64) &Planet {

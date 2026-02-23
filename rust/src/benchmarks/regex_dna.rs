@@ -13,7 +13,7 @@ pub struct RegexDna {
 
 impl RegexDna {
     pub fn new() -> Self {
-        let n = config_i64("RegexDna", "n");
+        let n = config_i64("CLBG::RegexDna", "n");
 
         Self {
             n,
@@ -27,7 +27,7 @@ impl RegexDna {
 
 impl Benchmark for RegexDna {
     fn name(&self) -> String {
-        "RegexDna".to_string()
+        "CLBG::RegexDna".to_string()
     }
 
     fn prepare(&mut self) {

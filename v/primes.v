@@ -14,16 +14,16 @@ mut:
 
 pub fn new_primes() &benchmark.IBenchmark {
 	mut bench := &Primes{
-		BaseBenchmark: benchmark.new_base_benchmark('Primes')
-		n:             helper.config_i64('Primes', 'limit')
-		prefix:        helper.config_i64('Primes', 'prefix')
+		BaseBenchmark: benchmark.new_base_benchmark('Etc::Primes')
+		n:             helper.config_i64('Etc::Primes', 'limit')
+		prefix:        helper.config_i64('Etc::Primes', 'prefix')
 		result_val:    5432
 	}
 	return bench
 }
 
 pub fn (b Primes) name() string {
-	return 'Primes'
+	return 'Etc::Primes'
 }
 
 @[heap]

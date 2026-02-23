@@ -185,7 +185,7 @@ pub const CacheSimulation = struct {
     }
 
     pub fn asBenchmark(self: *CacheSimulation) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "CacheSimulation");
+        return Benchmark.init(self, &vtable, self.helper, "Etc::CacheSimulation");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
@@ -197,8 +197,8 @@ pub const CacheSimulation = struct {
             self.cache = null;
         }
 
-        self.values_size = self.helper.config_i64("CacheSimulation", "values");
-        self.cache_size = self.helper.config_i64("CacheSimulation", "size");
+        self.values_size = self.helper.config_i64("Etc::CacheSimulation", "values");
+        self.cache_size = self.helper.config_i64("Etc::CacheSimulation", "size");
 
         self.hits = 0;
         self.misses = 0;

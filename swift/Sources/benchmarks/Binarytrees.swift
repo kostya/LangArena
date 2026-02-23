@@ -47,6 +47,9 @@ final class BinarytreesObj: BenchmarkProtocol {
   }
 
   func prepare() {}
+  func name() -> String {
+    return "Binarytrees::Obj"
+  }
 }
 
 final class BinarytreesArena: BenchmarkProtocol {
@@ -107,4 +110,7 @@ final class BinarytreesArena: BenchmarkProtocol {
   }
 
   func prepare() {}
+  func name() -> String {
+    return "Binarytrees::Arena"
+  }
 }

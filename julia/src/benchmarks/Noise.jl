@@ -7,7 +7,7 @@ mutable struct Noise <: AbstractBenchmark
     permutations::Vector{Int32}
 
     function Noise()
-        size_val = Helper.config_i64("Noise", "size")
+        size_val = Helper.config_i64("Etc::Noise", "size")
 
         rgradients = Vector{SVector{2,Float64}}(undef, size_val)
         for i = 1:size_val
@@ -26,7 +26,7 @@ mutable struct Noise <: AbstractBenchmark
     end
 end
 
-name(b::Noise)::String = "Noise"
+name(b::Noise)::String = "Etc::Noise"
 
 @inline @fastmath function lerp(a::Float64, b::Float64, v::Float64)::Float64
     return a + v * (b - a)

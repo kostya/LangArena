@@ -140,8 +140,8 @@ TextRaytracer :: struct {
 
 textraytracer_prepare :: proc(bench: ^Benchmark) {
     tr := cast(^TextRaytracer)bench
-    tr.w = int(config_i64("TextRaytracer", "w"))
-    tr.h = int(config_i64("TextRaytracer", "h"))
+    tr.w = int(config_i64("Etc::TextRaytracer", "w"))
+    tr.h = int(config_i64("Etc::TextRaytracer", "h"))
 
     tr.scene = [3]Sphere{
         {Vector{-1.0, 0.0, 3.0}, 0.3, RED},
@@ -201,7 +201,7 @@ textraytracer_checksum :: proc(bench: ^Benchmark) -> u32 {
 
 create_textraytracer :: proc() -> ^Benchmark {
     tr := new(TextRaytracer)
-    tr.name = "TextRaytracer"
+    tr.name = "Etc::TextRaytracer"
     tr.vtable = default_vtable()
 
     tr.vtable.run = textraytracer_run

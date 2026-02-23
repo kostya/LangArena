@@ -116,5 +116,5 @@ class BrainfuckArray : Benchmark() {
 
     override fun checksum(): UInt = resultVal
 
-    override fun name(): String = "BrainfuckArray"
+    override fun name(): String = "Brainfuck::Array"
 }

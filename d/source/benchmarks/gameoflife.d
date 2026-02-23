@@ -186,7 +186,7 @@ private:
 protected:
     override string className() const
     {
-        return "GameOfLife";
+        return "Etc::GameOfLife";
     }
 
 public:

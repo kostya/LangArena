@@ -35,4 +35,5 @@ public class Base64Encode : Benchmark
             return Helper.Checksum(resultStr);
         }
     }
+    public override string TypeName => "Base64::Encode";
 }

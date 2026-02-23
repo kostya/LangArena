@@ -135,8 +135,8 @@ pub const TextRaytracer = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*TextRaytracer {
-        const w = helper.config_i64("TextRaytracer", "w");
-        const h = helper.config_i64("TextRaytracer", "h");
+        const w = helper.config_i64("Etc::TextRaytracer", "w");
+        const h = helper.config_i64("Etc::TextRaytracer", "h");
 
         const self = try allocator.create(TextRaytracer);
         errdefer allocator.destroy(self);
@@ -157,7 +157,7 @@ pub const TextRaytracer = struct {
     }
 
     pub fn asBenchmark(self: *TextRaytracer) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "TextRaytracer");
+        return Benchmark.init(self, &vtable, self.helper, "Etc::TextRaytracer");
     }
 
     fn shadePixel(ray: Ray, obj: Sphere, tval: f64) usize {

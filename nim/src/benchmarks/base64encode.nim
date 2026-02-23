@@ -11,7 +11,7 @@ type
 proc newBase64Encode(): Benchmark =
   Base64Encode()
 
-method name(self: Base64Encode): string = "Base64Encode"
+method name(self: Base64Encode): string = "Base64::Encode"
 
 method prepare(self: Base64Encode) =
   let n = self.config_val("size")
@@ -41,4 +41,4 @@ method checksum(self: Base64Encode): uint32 =
   ss.add(": " & $self.resultVal)
   checksum(ss)
 
-registerBenchmark("Base64Encode", newBase64Encode)
+registerBenchmark("Base64::Encode", newBase64Encode)

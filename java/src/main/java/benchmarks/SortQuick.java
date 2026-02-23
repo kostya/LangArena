@@ -4,7 +4,7 @@ public class SortQuick extends SortBenchmark {
 
     @Override
     public String name() {
-        return "SortQuick";
+        return "Sort::Quick";
     }
 
     @Override

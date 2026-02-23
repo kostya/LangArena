@@ -266,4 +266,8 @@ final class MazeGenerator: BenchmarkProtocol {
   func prepare() {
 
   }
+
+  func name() -> String {
+    return "MazeGenerator"
+  }
 }

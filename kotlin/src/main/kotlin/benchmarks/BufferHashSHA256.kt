@@ -47,5 +47,5 @@ class BufferHashSHA256 : BufferHashBenchmark() {
             (bytes[0].toUInt() and 0xFFu)
     }
 
-    override fun name(): String = "BufferHashSHA256"
+    override fun name(): String = "Hash::SHA256"
 }

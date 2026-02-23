@@ -141,7 +141,7 @@ protected:
 
     override string className() const
     {
-        return "TextRaytracer";
+        return "Etc::TextRaytracer";
     }
 
 private:

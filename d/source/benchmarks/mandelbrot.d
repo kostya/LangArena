@@ -21,7 +21,7 @@ private:
 protected:
     override string className() const
     {
-        return "Mandelbrot";
+        return "CLBG::Mandelbrot";
     }
 
 public:

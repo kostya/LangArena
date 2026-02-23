@@ -129,11 +129,11 @@ impl GraphPathBFS {
 
 impl super::super::Benchmark for GraphPathBFS {
     fn name(&self) -> String {
-        "GraphPathBFS".to_string()
+        "Graph::BFS".to_string()
     }
 
     fn prepare(&mut self) {
-        self.base.prepare("GraphPathBFS");
+        self.base.prepare("Graph::BFS");
     }
 
     fn run(&mut self, _iteration_id: i64) {
@@ -194,11 +194,11 @@ impl GraphPathDFS {
 
 impl super::super::Benchmark for GraphPathDFS {
     fn name(&self) -> String {
-        "GraphPathDFS".to_string()
+        "Graph::DFS".to_string()
     }
 
     fn prepare(&mut self) {
-        self.base.prepare("GraphPathDFS");
+        self.base.prepare("Graph::DFS");
     }
 
     fn run(&mut self, _iteration_id: i64) {
@@ -304,11 +304,11 @@ impl GraphPathAStar {
 
 impl super::super::Benchmark for GraphPathAStar {
     fn name(&self) -> String {
-        "GraphPathAStar".to_string()
+        "Graph::AStar".to_string()
     }
 
     fn prepare(&mut self) {
-        self.base.prepare("GraphPathAStar");
+        self.base.prepare("Graph::AStar");
     }
 
     fn run(&mut self, _iteration_id: i64) {

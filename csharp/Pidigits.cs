@@ -7,6 +7,7 @@ public class Pidigits : Benchmark
     private StringBuilder _resultBuilder;
 
     public override uint Checksum => Helper.Checksum(_resultBuilder.ToString());
+    public override string TypeName => "CLBG::Pidigits";
 
     public Pidigits()
     {

@@ -15,11 +15,11 @@ impl SortSelf {
 
 impl Benchmark for SortSelf {
     fn name(&self) -> String {
-        "SortSelf".to_string()
+        "Sort::Self".to_string()
     }
 
     fn prepare(&mut self) {
-        self.base.prepare("SortSelf");
+        self.base.prepare("Sort::Self");
     }
 
     fn run(&mut self, _iteration_id: i64) {

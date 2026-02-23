@@ -1,8 +1,6 @@
 import Foundation
 
 final class BufferHashCRC32: BufferHashBenchmark {
-  override var name: String { return "BufferHashCRC32" }
-
   override func test() -> UInt32 {
     var crc: UInt32 = 0xFFFF_FFFF
 
@@ -19,5 +17,8 @@ final class BufferHashCRC32: BufferHashBenchmark {
     }
 
     return crc ^ 0xFFFF_FFFF
+  }
+  override func name() -> String {
+    return "Hash::CRC32"
   }
 }

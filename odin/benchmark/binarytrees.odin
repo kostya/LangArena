@@ -76,7 +76,7 @@ binarytrees_obj_prepare :: proc(bench: ^Benchmark) {
 
 create_binarytrees_obj :: proc() -> ^Benchmark {
     bt := new(BinarytreesObj)
-    bt.name = "BinarytreesObj"
+    bt.name = "Binarytrees::Obj"
     bt.vtable = default_vtable()
     bt.vtable.run = binarytrees_obj_run
     bt.vtable.checksum = binarytrees_obj_checksum
@@ -159,7 +159,7 @@ binarytrees_arena_cleanup :: proc(bench: ^Benchmark) {
 
 create_binarytrees_arena :: proc() -> ^Benchmark {
     bt := new(BinarytreesArena)
-    bt.name = "BinarytreesArena"
+    bt.name = "Binarytrees::Arena"
     bt.vtable = default_vtable()
     bt.vtable.run = binarytrees_arena_run
     bt.vtable.checksum = binarytrees_arena_checksum

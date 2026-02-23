@@ -34,4 +34,5 @@ public class BufferHashSHA256 : BufferHashBenchmark
                ((uint)result[2] << 16) |
                ((uint)result[3] << 24);
     }
+    public override string TypeName => "Hash::SHA256";
 }

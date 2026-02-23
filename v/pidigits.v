@@ -14,15 +14,15 @@ mut:
 
 pub fn new_pidigits() &benchmark.IBenchmark {
 	mut bench := &PidigitsBenchmark{
-		BaseBenchmark: benchmark.new_base_benchmark('Pidigits')
-		nn:            helper.config_i64('Pidigits', 'amount')
+		BaseBenchmark: benchmark.new_base_benchmark('CLBG::Pidigits')
+		nn:            helper.config_i64('CLBG::Pidigits', 'amount')
 		result:        strings.new_builder(1024)
 	}
 	return bench
 }
 
 pub fn (b PidigitsBenchmark) name() string {
-	return 'Pidigits'
+	return 'CLBG::Pidigits'
 }
 
 pub fn (mut b PidigitsBenchmark) run(iteration_id int) {

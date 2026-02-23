@@ -78,10 +78,10 @@ class GraphPathBFS extends GraphPathBenchmark:
   override def test(): Long =
     bfsShortestPath(0, graph.vertices - 1).toLong
 
-  override def name(): String = "GraphPathBFS"
+  override def name(): String = "Graph::BFS"
 
 class GraphPathDFS extends GraphPathBenchmark:
-  override def name(): String = "GraphPathDFS"
+  override def name(): String = "Graph::DFS"
 
   override def test(): Long =
     dfsFindPath(0, graph.vertices - 1).toLong
@@ -164,4 +164,4 @@ class GraphPathAStar extends GraphPathBenchmark:
   override def test(): Long =
     aStarShortestPath(0, graph.vertices - 1).toLong
 
-  override def name(): String = "GraphPathAStar"
+  override def name(): String = "Graph::AStar"

@@ -17,7 +17,7 @@ public class Spectralnorm extends Benchmark {
 
     @Override
     public String name() {
-        return "Spectralnorm";
+        return "CLBG::Spectralnorm";
     }
 
     private double evalA(int i, int j) {

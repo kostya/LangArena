@@ -174,6 +174,7 @@ type GraphPathBFS() =
     override this.Test() =
         let graph = this.Graph
         GraphAlgorithms.BFS.shortestPath graph 0 (graph.Vertices - 1) |> int64
+    override this.Name = "Graph::BFS"
 
 type GraphPathDFS() =
     inherit GraphPathBenchmark()
@@ -181,6 +182,7 @@ type GraphPathDFS() =
     override this.Test() =
         let graph = this.Graph
         GraphAlgorithms.DFS.findPath graph 0 (graph.Vertices - 1) |> int64
+    override this.Name = "Graph::DFS"
 
 type GraphPathAStar() =
     inherit GraphPathBenchmark()
@@ -188,3 +190,4 @@ type GraphPathAStar() =
     override this.Test() =
         let graph = this.Graph
         GraphAlgorithms.AStar.shortestPath graph 0 (graph.Vertices - 1) |> int64
+    override this.Name = "Graph::AStar"

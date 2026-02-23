@@ -71,13 +71,13 @@ pub struct GraphPathBFS {
 
 pub fn new_graphpathbfs() &benchmark.IBenchmark {
 	mut bench := &GraphPathBFS{
-		GraphPathBenchmark: new_graph_path_benchmark('GraphPathBFS')
+		GraphPathBenchmark: new_graph_path_benchmark('Graph::BFS')
 	}
 	return bench
 }
 
 pub fn (b GraphPathBFS) name() string {
-	return 'GraphPathBFS'
+	return 'Graph::BFS'
 }
 
 fn bfs_shortest_path(graph &Graph, start int, target int) int {
@@ -114,9 +114,9 @@ fn bfs_shortest_path(graph &Graph, start int, target int) int {
 }
 
 pub fn (mut b GraphPathBFS) prepare() {
-	vertices := int(helper.config_i64('GraphPathBFS', 'vertices'))
-	jumps := int(helper.config_i64('GraphPathBFS', 'jumps'))
-	jump_len := int(helper.config_i64('GraphPathBFS', 'jump_len'))
+	vertices := int(helper.config_i64('Graph::BFS', 'vertices'))
+	jumps := int(helper.config_i64('Graph::BFS', 'jumps'))
+	jump_len := int(helper.config_i64('Graph::BFS', 'jump_len'))
 
 	b.graph = graph_new(vertices, jumps, jump_len)
 	b.graph.generate_random()
@@ -137,13 +137,13 @@ pub struct GraphPathDFS {
 
 pub fn new_graphpathdfs() &benchmark.IBenchmark {
 	mut bench := &GraphPathDFS{
-		GraphPathBenchmark: new_graph_path_benchmark('GraphPathDFS')
+		GraphPathBenchmark: new_graph_path_benchmark('Graph::DFS')
 	}
 	return bench
 }
 
 pub fn (b GraphPathDFS) name() string {
-	return 'GraphPathDFS'
+	return 'Graph::DFS'
 }
 
 fn dfs_find_path(graph &Graph, start int, target int) int {
@@ -183,9 +183,9 @@ fn dfs_find_path(graph &Graph, start int, target int) int {
 }
 
 pub fn (mut b GraphPathDFS) prepare() {
-	vertices := int(helper.config_i64('GraphPathDFS', 'vertices'))
-	jumps := int(helper.config_i64('GraphPathDFS', 'jumps'))
-	jump_len := int(helper.config_i64('GraphPathDFS', 'jump_len'))
+	vertices := int(helper.config_i64('Graph::DFS', 'vertices'))
+	jumps := int(helper.config_i64('Graph::DFS', 'jumps'))
+	jump_len := int(helper.config_i64('Graph::DFS', 'jump_len'))
 
 	b.graph = graph_new(vertices, jumps, jump_len)
 	b.graph.generate_random()
@@ -279,13 +279,13 @@ pub struct GraphPathAStar {
 
 pub fn new_graphpathastar() &benchmark.IBenchmark {
 	mut bench := &GraphPathAStar{
-		GraphPathBenchmark: new_graph_path_benchmark('GraphPathAStar')
+		GraphPathBenchmark: new_graph_path_benchmark('Graph::AStar')
 	}
 	return bench
 }
 
 pub fn (b GraphPathAStar) name() string {
-	return 'GraphPathAStar'
+	return 'Graph::AStar'
 }
 
 fn heuristic(v int, target int) int {
@@ -341,9 +341,9 @@ fn a_star_shortest_path(graph &Graph, start int, target int) int {
 }
 
 pub fn (mut b GraphPathAStar) prepare() {
-	vertices := int(helper.config_i64('GraphPathAStar', 'vertices'))
-	jumps := int(helper.config_i64('GraphPathAStar', 'jumps'))
-	jump_len := int(helper.config_i64('GraphPathAStar', 'jump_len'))
+	vertices := int(helper.config_i64('Graph::AStar', 'vertices'))
+	jumps := int(helper.config_i64('Graph::AStar', 'jumps'))
+	jump_len := int(helper.config_i64('Graph::AStar', 'jump_len'))
 
 	b.graph = graph_new(vertices, jumps, jump_len)
 	b.graph.generate_random()

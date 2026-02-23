@@ -71,6 +71,7 @@ type SortMerge() =
         let arr = Array.copy this.Data
         mergeSortInplace arr
         arr
+    override this.Name = "Sort::Merge"
 
 type SortQuick() =
     inherit SortBenchmark()
@@ -106,6 +107,7 @@ type SortQuick() =
         let arr = Array.copy this.Data
         quickSort arr
         arr
+    override this.Name = "Sort::Quick"
 
 type SortSelf() =
     inherit SortBenchmark()
@@ -114,3 +116,4 @@ type SortSelf() =
         let arr = Array.copy this.Data
         Array.Sort(arr)
         arr
+    override this.Name = "Sort::Self"

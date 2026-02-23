@@ -37,14 +37,14 @@ pub const BufferHashSHA256 = struct {
     }
 
     pub fn asBenchmark(self: *BufferHashSHA256) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "BufferHashSHA256");
+        return Benchmark.init(self, &vtable, self.helper, "Hash::SHA256");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *BufferHashSHA256 = @ptrCast(@alignCast(ptr));
 
         if (self.size_val == 0) {
-            self.size_val = self.helper.config_i64("BufferHashSHA256", "size");
+            self.size_val = self.helper.config_i64("Hash::SHA256", "size");
             const size = @as(usize, @intCast(self.size_val));
 
             self.data.clearAndFree(self.allocator);

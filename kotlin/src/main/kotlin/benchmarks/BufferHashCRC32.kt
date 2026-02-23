@@ -19,5 +19,5 @@ class BufferHashCRC32 : BufferHashBenchmark() {
         return crc xor 0xFFFFFFFFu
     }
 
-    override fun name(): String = "BufferHashCRC32"
+    override fun name(): String = "Hash::CRC32"
 }

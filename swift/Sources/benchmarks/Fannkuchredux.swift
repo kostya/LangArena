@@ -77,4 +77,7 @@ final class Fannkuchredux: BenchmarkProtocol {
   }
 
   func prepare() {}
+  func name() -> String {
+    return "CLBG::Fannkuchredux"
+  }
 }

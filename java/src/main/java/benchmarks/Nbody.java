@@ -112,7 +112,7 @@ public class Nbody extends Benchmark {
 
     @Override
     public String name() {
-        return "Nbody";
+        return "CLBG::Nbody";
     }
 
     private double energy(Planet[] bodies) {

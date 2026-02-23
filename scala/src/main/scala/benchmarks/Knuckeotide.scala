@@ -10,7 +10,7 @@ class Knuckeotide extends Benchmark {
   private val result = new ByteArrayOutputStream()
   private val NL = "\n"
 
-  override def name(): String = "Knuckeotide"
+  override def name(): String = "CLBG::Knuckeotide"
 
   override def prepare(): Unit = {
     val fasta = new Fasta()

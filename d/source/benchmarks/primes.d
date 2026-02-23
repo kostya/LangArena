@@ -141,7 +141,7 @@ protected:
 
     override string className() const
     {
-        return "Primes";
+        return "Etc::Primes";
     }
 
 public:

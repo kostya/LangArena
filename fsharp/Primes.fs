@@ -136,6 +136,7 @@ type Primes() =
         |> List.fold (fun sum prime -> sum + uint32 prime) checksum
 
     override this.Checksum = checksum
+    override this.Name = "Etc::Primes"
 
     override this.Prepare() =
         limit <- this.ConfigVal("limit")

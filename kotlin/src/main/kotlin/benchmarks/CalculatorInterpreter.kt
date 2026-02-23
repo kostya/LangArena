@@ -93,5 +93,5 @@ class CalculatorInterpreter : Benchmark() {
 
     override fun checksum(): UInt = resultVal
 
-    override fun name(): String = "CalculatorInterpreter"
+    override fun name(): String = "Calculator::Interpreter"
 }

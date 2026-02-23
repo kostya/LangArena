@@ -100,7 +100,7 @@ private:
 protected:
     override string className() const
     {
-        return "CalculatorInterpreter";
+        return "Calculator::Interpreter";
     }
 
 public:

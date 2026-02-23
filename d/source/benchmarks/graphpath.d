@@ -138,7 +138,7 @@ private:
 protected:
     override string className() const
     {
-        return "GraphPathBFS";
+        return "Graph::BFS";
     }
 
 public:
@@ -193,7 +193,7 @@ private:
 protected:
     override string className() const
     {
-        return "GraphPathDFS";
+        return "Graph::DFS";
     }
 
 public:
@@ -352,7 +352,7 @@ private:
 protected:
     override string className() const
     {
-        return "GraphPathAStar";
+        return "Graph::AStar";
     }
 
 public:

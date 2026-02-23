@@ -135,8 +135,8 @@ pub struct GameOfLife {
 
 impl GameOfLife {
     pub fn new() -> Self {
-        let width = config_i64("GameOfLife", "w") as i32;
-        let height = config_i64("GameOfLife", "h") as i32;
+        let width = config_i64("Etc::GameOfLife", "w") as i32;
+        let height = config_i64("Etc::GameOfLife", "h") as i32;
         let grid = Grid::new(width as usize, height as usize);
 
         Self {
@@ -149,7 +149,7 @@ impl GameOfLife {
 
 impl Benchmark for GameOfLife {
     fn name(&self) -> String {
-        "GameOfLife".to_string()
+        "Etc::GameOfLife".to_string()
     }
 
     fn prepare(&mut self) {

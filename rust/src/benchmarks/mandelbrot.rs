@@ -12,8 +12,8 @@ pub struct Mandelbrot {
 
 impl Mandelbrot {
     pub fn new() -> Self {
-        let w = config_i64("Mandelbrot", "w");
-        let h = config_i64("Mandelbrot", "h");
+        let w = config_i64("CLBG::Mandelbrot", "w");
+        let h = config_i64("CLBG::Mandelbrot", "h");
 
         Self {
             w,
@@ -25,7 +25,7 @@ impl Mandelbrot {
 
 impl Benchmark for Mandelbrot {
     fn name(&self) -> String {
-        "Mandelbrot".to_string()
+        "CLBG::Mandelbrot".to_string()
     }
 
     fn run(&mut self, _iteration_id: i64) {

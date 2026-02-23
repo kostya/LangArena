@@ -28,12 +28,12 @@ mutable struct CalculatorAst <: AbstractBenchmark
     expressions::Vector{CalcNode}
 
     function CalculatorAst()
-        n_val = Helper.config_i64("CalculatorAst", "operations")
+        n_val = Helper.config_i64("Calculator::Ast", "operations")
         new(n_val, UInt32(0), "", CalcNode[])
     end
 end
 
-name(b::CalculatorAst)::String = "CalculatorAst"
+name(b::CalculatorAst)::String = "Calculator::Ast"
 
 function generate_random_program(n::Int64 = 1000)::String
     io = IOBuffer()
@@ -297,12 +297,12 @@ mutable struct CalculatorInterpreter <: AbstractBenchmark
     result::UInt32
 
     function CalculatorInterpreter()
-        n_val = Helper.config_i64("CalculatorInterpreter", "operations")
+        n_val = Helper.config_i64("Calculator::Interpreter", "operations")
         new(n_val, CalcNode[], UInt32(0))
     end
 end
 
-name(b::CalculatorInterpreter)::String = "CalculatorInterpreter"
+name(b::CalculatorInterpreter)::String = "Calculator::Interpreter"
 
 function prepare(b::CalculatorInterpreter)
     calc = CalculatorAst()

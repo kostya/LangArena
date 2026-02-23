@@ -70,4 +70,5 @@ public class JsonParseDom : Benchmark
     }
 
     public override uint Checksum => _result;
+    public override string TypeName => "Json::ParseDom";
 }

@@ -8,6 +8,7 @@ public abstract class Benchmark
 
     public abstract void Run(long IterationId);
     public abstract uint Checksum { get; }
+    public abstract string TypeName { get; }
 
     public virtual void Prepare() { }
 
@@ -15,7 +16,7 @@ public abstract class Benchmark
     {
         get
         {
-            if (Helper.Config.RootElement.TryGetProperty(TypeName(), out var benchObj))
+            if (Helper.Config.RootElement.TryGetProperty(TypeName, out var benchObj))
             {
                 if (benchObj.TryGetProperty("warmup_iterations", out var warmupProp))
                 {
@@ -47,14 +48,14 @@ public abstract class Benchmark
 
     public long ConfigVal(string fieldName)
     {
-        return Helper.Config_i64(TypeName(), fieldName);
+        return Helper.Config_i64(TypeName, fieldName);
     }
 
     public long Iterations
     {
         get
         {
-            return Helper.Config_i64(TypeName(), "iterations");
+            return Helper.Config_i64(TypeName, "iterations");
         }
     }
 
@@ -62,13 +63,8 @@ public abstract class Benchmark
     {
         get
         {
-            return Helper.Config_i64(TypeName(), "checksum");
+            return Helper.Config_i64(TypeName, "checksum");
         }
-    }
-
-    public string TypeName()
-    {
-        return GetType().FullName?.Replace(".", "::") ?? GetType().Name;
     }
 
     public double TimeDelta
@@ -83,58 +79,80 @@ public abstract class Benchmark
         public Func<Benchmark> Creator { get; set; }
     }
 
+    private static BenchmarkInfo CreateBenchmarkInfo<T>(string name) where T : Benchmark, new()
+    {
+        return new BenchmarkInfo
+        {
+            Name = name,
+            Creator = () => new T()
+        };
+    }
+
     private static List<BenchmarkInfo> GetBenchmarkFactories()
     {
         return new List<BenchmarkInfo>
         {
-            CreateBenchmarkInfo<Pidigits>(),
-            CreateBenchmarkInfo<BinarytreesObj>(),
-            CreateBenchmarkInfo<BinarytreesArena>(),
-            CreateBenchmarkInfo<BrainfuckArray>(),
-            CreateBenchmarkInfo<BrainfuckRecursion>(),
-            CreateBenchmarkInfo<Fannkuchredux>(),
-            CreateBenchmarkInfo<Fasta>(),
-            CreateBenchmarkInfo<Knuckeotide>(),
-            CreateBenchmarkInfo<Mandelbrot>(),
-            CreateBenchmarkInfo<Matmul1T>(),
-            CreateBenchmarkInfo<Matmul4T>(),
-            CreateBenchmarkInfo<Matmul8T>(),
-            CreateBenchmarkInfo<Matmul16T>(),
-            CreateBenchmarkInfo<Nbody>(),
-            CreateBenchmarkInfo<RegexDna>(),
-            CreateBenchmarkInfo<Revcomp>(),
-            CreateBenchmarkInfo<Spectralnorm>(),
-            CreateBenchmarkInfo<Base64Encode>(),
-            CreateBenchmarkInfo<Base64Decode>(),
-            CreateBenchmarkInfo<JsonGenerate>(),
-            CreateBenchmarkInfo<JsonParseDom>(),
-            CreateBenchmarkInfo<JsonParseMapping>(),
-            CreateBenchmarkInfo<Primes>(),
-            CreateBenchmarkInfo<Noise>(),
-            CreateBenchmarkInfo<TextRaytracer>(),
-            CreateBenchmarkInfo<NeuralNet>(),
-            CreateBenchmarkInfo<SortQuick>(),
-            CreateBenchmarkInfo<SortMerge>(),
-            CreateBenchmarkInfo<SortSelf>(),
-            CreateBenchmarkInfo<GraphPathBFS>(),
-            CreateBenchmarkInfo<GraphPathDFS>(),
-            CreateBenchmarkInfo<GraphPathAStar>(),
-            CreateBenchmarkInfo<BufferHashSHA256>(),
-            CreateBenchmarkInfo<BufferHashCRC32>(),
-            CreateBenchmarkInfo<CacheSimulation>(),
-            CreateBenchmarkInfo<CalculatorAst>(),
-            CreateBenchmarkInfo<CalculatorInterpreter>(),
-            CreateBenchmarkInfo<GameOfLife>(),
-            CreateBenchmarkInfo<MazeGenerator>(),
-            CreateBenchmarkInfo<AStarPathfinder>(),
-            CreateBenchmarkInfo<Compress.BWTEncode>(),
-            CreateBenchmarkInfo<Compress.BWTDecode>(),
-            CreateBenchmarkInfo<Compress.HuffEncode>(),
-            CreateBenchmarkInfo<Compress.HuffDecode>(),
-            CreateBenchmarkInfo<Compress.ArithEncode>(),
-            CreateBenchmarkInfo<Compress.ArithDecode>(),
-            CreateBenchmarkInfo<Compress.LZWEncode>(),
-            CreateBenchmarkInfo<Compress.LZWDecode>(),
+
+            CreateBenchmarkInfo<Pidigits>("CLBG::Pidigits"),
+            CreateBenchmarkInfo<Fannkuchredux>("CLBG::Fannkuchredux"),
+            CreateBenchmarkInfo<Fasta>("CLBG::Fasta"),
+            CreateBenchmarkInfo<Knuckeotide>("CLBG::Knuckeotide"),
+            CreateBenchmarkInfo<Mandelbrot>("CLBG::Mandelbrot"),
+            CreateBenchmarkInfo<Nbody>("CLBG::Nbody"),
+            CreateBenchmarkInfo<RegexDna>("CLBG::RegexDna"),
+            CreateBenchmarkInfo<Revcomp>("CLBG::Revcomp"),
+            CreateBenchmarkInfo<Spectralnorm>("CLBG::Spectralnorm"),
+
+            CreateBenchmarkInfo<BinarytreesObj>("Binarytrees::Obj"),
+            CreateBenchmarkInfo<BinarytreesArena>("Binarytrees::Arena"),
+
+            CreateBenchmarkInfo<BrainfuckArray>("Brainfuck::Array"),
+            CreateBenchmarkInfo<BrainfuckRecursion>("Brainfuck::Recursion"),
+
+            CreateBenchmarkInfo<Matmul1T>("Matmul::T1"),
+            CreateBenchmarkInfo<Matmul4T>("Matmul::T4"),
+            CreateBenchmarkInfo<Matmul8T>("Matmul::T8"),
+            CreateBenchmarkInfo<Matmul16T>("Matmul::T16"),
+
+            CreateBenchmarkInfo<Base64Encode>("Base64::Encode"),
+            CreateBenchmarkInfo<Base64Decode>("Base64::Decode"),
+
+            CreateBenchmarkInfo<JsonGenerate>("Json::Generate"),
+            CreateBenchmarkInfo<JsonParseDom>("Json::ParseDom"),
+            CreateBenchmarkInfo<JsonParseMapping>("Json::ParseMapping"),
+
+            CreateBenchmarkInfo<Primes>("Etc::Primes"),
+            CreateBenchmarkInfo<Noise>("Etc::Noise"),
+            CreateBenchmarkInfo<TextRaytracer>("Etc::TextRaytracer"),
+            CreateBenchmarkInfo<NeuralNet>("Etc::NeuralNet"),
+            CreateBenchmarkInfo<CacheSimulation>("Etc::CacheSimulation"),
+            CreateBenchmarkInfo<GameOfLife>("Etc::GameOfLife"),
+
+            CreateBenchmarkInfo<SortQuick>("Sort::Quick"),
+            CreateBenchmarkInfo<SortMerge>("Sort::Merge"),
+            CreateBenchmarkInfo<SortSelf>("Sort::Self"),
+
+            CreateBenchmarkInfo<GraphPathBFS>("Graph::BFS"),
+            CreateBenchmarkInfo<GraphPathDFS>("Graph::DFS"),
+            CreateBenchmarkInfo<GraphPathAStar>("Graph::AStar"),
+
+            CreateBenchmarkInfo<BufferHashSHA256>("Hash::SHA256"),
+            CreateBenchmarkInfo<BufferHashCRC32>("Hash::CRC32"),
+
+            CreateBenchmarkInfo<CalculatorAst>("Calculator::Ast"),
+            CreateBenchmarkInfo<CalculatorInterpreter>("Calculator::Interpreter"),
+
+            CreateBenchmarkInfo<MazeGenerator>("MazeGenerator"),
+            CreateBenchmarkInfo<AStarPathfinder>("AStarPathfinder"),
+
+            CreateBenchmarkInfo<BWTEncode>("Compress::BWTEncode"),
+            CreateBenchmarkInfo<BWTDecode>("Compress::BWTDecode"),
+            CreateBenchmarkInfo<HuffEncode>("Compress::HuffEncode"),
+            CreateBenchmarkInfo<HuffDecode>("Compress::HuffDecode"),
+            CreateBenchmarkInfo<ArithEncode>("Compress::ArithEncode"),
+            CreateBenchmarkInfo<ArithDecode>("Compress::ArithDecode"),
+            CreateBenchmarkInfo<LZWEncode>("Compress::LZWEncode"),
+            CreateBenchmarkInfo<LZWDecode>("Compress::LZWDecode"),
         };
     }
 

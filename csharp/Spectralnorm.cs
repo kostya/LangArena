@@ -72,4 +72,5 @@ public class Spectralnorm : Benchmark
             return Helper.Checksum(Math.Sqrt(vBv / vv));
         }
     }
+    public override string TypeName => "CLBG::Spectralnorm";
 }

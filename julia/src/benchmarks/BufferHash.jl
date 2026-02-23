@@ -41,12 +41,12 @@ mutable struct BufferHashSHA256 <: AbstractBufferHashBenchmark
     result::UInt32
 
     function BufferHashSHA256()
-        size_val = Helper.config_i64("BufferHashSHA256", "size")
+        size_val = Helper.config_i64("Hash::SHA256", "size")
         new(size_val, Vector{UInt8}(undef, size_val), UInt32(0))
     end
 end
 
-name(b::BufferHashSHA256)::String = "BufferHashSHA256"
+name(b::BufferHashSHA256)::String = "Hash::SHA256"
 
 function prepare(b::BufferHashSHA256)
     for i = 1:length(b.data)
@@ -123,12 +123,12 @@ mutable struct BufferHashCRC32 <: AbstractBufferHashBenchmark
     result::UInt32
 
     function BufferHashCRC32()
-        size_val = Helper.config_i64("BufferHashCRC32", "size")
+        size_val = Helper.config_i64("Hash::CRC32", "size")
         new(size_val, Vector{UInt8}(undef, size_val), UInt32(0))
     end
 end
 
-name(b::BufferHashCRC32)::String = "BufferHashCRC32"
+name(b::BufferHashCRC32)::String = "Hash::CRC32"
 
 function prepare(b::BufferHashCRC32)
     for i = 1:length(b.data)

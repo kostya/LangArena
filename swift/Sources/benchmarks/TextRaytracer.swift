@@ -172,4 +172,8 @@ final class TextRaytracer: BenchmarkProtocol {
   }
 
   func prepare() {}
+
+  func name() -> String {
+    return "Etc::TextRaytracer"
+  }
 }

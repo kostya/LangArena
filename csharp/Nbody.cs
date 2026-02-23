@@ -152,4 +152,5 @@ public class Nbody : Benchmark
             return (Helper.Checksum(_v1) << 5) & Helper.Checksum(v2);
         }
     }
+    public override string TypeName => "CLBG::Nbody";
 }

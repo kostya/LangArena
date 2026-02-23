@@ -12,7 +12,7 @@ pub struct Pidigits {
 impl Pidigits {
     pub fn new() -> Self {
         Self {
-            nn: config_i64("Pidigits", "amount") as i32,
+            nn: config_i64("CLBG::Pidigits", "amount") as i32,
             result: String::new(),
         }
     }
@@ -20,7 +20,7 @@ impl Pidigits {
 
 impl Benchmark for Pidigits {
     fn name(&self) -> String {
-        "Pidigits".to_string()
+        "CLBG::Pidigits".to_string()
     }
 
     fn run(&mut self, _iteration_id: i64) {

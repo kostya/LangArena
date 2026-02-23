@@ -94,7 +94,7 @@ pub const Nbody = struct {
     }
 
     pub fn asBenchmark(self: *Nbody) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "Nbody");
+        return Benchmark.init(self, &vtable, self.helper, "CLBG::Nbody");
     }
 
     fn energy(bodies: []const Planet) f64 {

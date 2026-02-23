@@ -5,7 +5,7 @@ class TextRaytracer extends Benchmark:
   private var h: Int = 0
   private var resultVal: Long = 0L
 
-  override def name(): String = "TextRaytracer"
+  override def name(): String = "Etc::TextRaytracer"
 
   override def prepare(): Unit =
     w = configVal("w").toInt

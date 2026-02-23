@@ -228,4 +228,5 @@ public class MazeGenerator : Benchmark
     }
 
     public override uint Checksum => GridChecksum(_boolGrid);
+    public override string TypeName => "MazeGenerator";
 }

@@ -11,6 +11,7 @@ public class RegexDna : Benchmark
     private uint _result;
 
     public override uint Checksum => _result;
+    public override string TypeName => "CLBG::RegexDna";
 
     public RegexDna()
     {

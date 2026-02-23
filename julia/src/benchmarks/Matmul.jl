@@ -20,12 +20,12 @@ mutable struct Matmul1T <: AbstractBenchmark
     result::UInt32
 
     function Matmul1T()
-        n = Helper.config_i64("Matmul1T", "n")
+        n = Helper.config_i64("Matmul::T1", "n")
         new(n, UInt32(0))
     end
 end
 
-name(b::Matmul1T)::String = "Matmul1T"
+name(b::Matmul1T)::String = "Matmul::T1"
 
 function matmul_single_thread(a::Matrix{Float64}, b::Matrix{Float64})
     n = size(a, 1)
@@ -74,12 +74,12 @@ mutable struct Matmul4T <: AbstractBenchmark
     result::UInt32
 
     function Matmul4T()
-        n = Helper.config_i64("Matmul4T", "n")
+        n = Helper.config_i64("Matmul::T4", "n")
         new(n, UInt32(0))
     end
 end
 
-name(b::Matmul4T)::String = "Matmul4T"
+name(b::Matmul4T)::String = "Matmul::T4"
 
 function matmul_n_threads(a::Matrix{Float64}, b::Matrix{Float64}, nthreads::Int)
     n = size(a, 1)
@@ -145,12 +145,12 @@ mutable struct Matmul8T <: AbstractBenchmark
     result::UInt32
 
     function Matmul8T()
-        n = Helper.config_i64("Matmul8T", "n")
+        n = Helper.config_i64("Matmul::T8", "n")
         new(n, UInt32(0))
     end
 end
 
-name(b::Matmul8T)::String = "Matmul8T"
+name(b::Matmul8T)::String = "Matmul::T8"
 
 function run(b::Matmul8T, iteration_id::Int64)
     a = matgen(b.n)
@@ -168,12 +168,12 @@ mutable struct Matmul16T <: AbstractBenchmark
     result::UInt32
 
     function Matmul16T()
-        n = Helper.config_i64("Matmul16T", "n")
+        n = Helper.config_i64("Matmul::T16", "n")
         new(n, UInt32(0))
     end
 end
 
-name(b::Matmul16T)::String = "Matmul16T"
+name(b::Matmul16T)::String = "Matmul::T16"
 
 function run(b::Matmul16T, iteration_id::Int64)
     a = matgen(b.n)

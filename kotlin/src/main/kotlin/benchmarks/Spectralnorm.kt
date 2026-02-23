@@ -54,5 +54,5 @@ class Spectralnorm : Benchmark() {
         return Helper.checksumF64(sqrt(vBv / vv))
     }
 
-    override fun name(): String = "Spectralnorm"
+    override fun name(): String = "CLBG::Spectralnorm"
 }

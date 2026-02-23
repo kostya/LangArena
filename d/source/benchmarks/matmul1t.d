@@ -80,7 +80,7 @@ private:
 protected:
     override string className() const
     {
-        return "Matmul1T";
+        return "Matmul::T1";
     }
 
 public:

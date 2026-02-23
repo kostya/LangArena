@@ -10,7 +10,7 @@ pub struct Fasta {
 
 impl Fasta {
     pub fn new() -> Self {
-        let n = config_i64("Fasta", "n");
+        let n = config_i64("CLBG::Fasta", "n");
 
         Self {
             n,
@@ -98,7 +98,7 @@ impl Fasta {
 
 impl Benchmark for Fasta {
     fn name(&self) -> String {
-        "Fasta".to_string()
+        "CLBG::Fasta".to_string()
     }
 
     fn run(&mut self, _iteration_id: i64) {

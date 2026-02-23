@@ -10,7 +10,7 @@ type
 proc newMandelbrot(): Benchmark =
   Mandelbrot()
 
-method name(self: Mandelbrot): string = "Mandelbrot"
+method name(self: Mandelbrot): string = "CLBG::Mandelbrot"
 
 method prepare(self: Mandelbrot) =
   self.w = self.config_val("w")
@@ -70,4 +70,4 @@ method run(self: Mandelbrot, iteration_id: int) =
 method checksum(self: Mandelbrot): uint32 =
   checksum(self.resultBin)
 
-registerBenchmark("Mandelbrot", newMandelbrot)
+registerBenchmark("CLBG::Mandelbrot", newMandelbrot)

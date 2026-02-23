@@ -8,7 +8,7 @@ class Primes extends Benchmark:
   private var n: Long = 0L
   private var prefix: Long = 0L
 
-  override def name(): String = "Primes"
+  override def name(): String = "Etc::Primes"
 
   override def prepare(): Unit =
     n = configVal("limit")

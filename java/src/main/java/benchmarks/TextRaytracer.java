@@ -125,7 +125,7 @@ public class TextRaytracer extends Benchmark {
 
     @Override
     public String name() {
-        return "TextRaytracer";
+        return "Etc::TextRaytracer";
     }
 
     private int shadePixel(Ray ray, Sphere obj, double tval) {

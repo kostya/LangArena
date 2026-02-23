@@ -108,4 +108,5 @@ public class Fasta : Benchmark
 
     public string GetResult() => _resultBuilder.ToString();
     public override uint Checksum => Helper.Checksum(_resultBuilder.ToString());
+    public override string TypeName => "CLBG::Fasta";
 }

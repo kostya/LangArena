@@ -12,9 +12,9 @@ type
     stream: StringStream
 
 proc newFasta*(): Benchmark =
-  Fasta(n: config_i64("Fasta", "n"))
+  Fasta(n: config_i64("CLBG::Fasta", "n"))
 
-method name(self: Fasta): string = "Fasta"
+method name(self: Fasta): string = "CLBG::Fasta"
 
 method prepare(self: Fasta) =
   self.stream = newStringStream()
@@ -108,4 +108,4 @@ method checksum(self: Fasta): uint32 =
 proc get_result*(self: Fasta): string =
   self.stream.data
 
-registerBenchmark("Fasta", newFasta)
+registerBenchmark("CLBG::Fasta", newFasta)

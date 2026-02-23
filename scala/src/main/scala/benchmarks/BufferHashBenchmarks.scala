@@ -55,7 +55,7 @@ class BufferHashSHA256 extends BufferHashBenchmark:
       ((bytes(1).toLong & 0xffL) << 8) |
       (bytes(0).toLong & 0xffL)
 
-  override def name(): String = "BufferHashSHA256"
+  override def name(): String = "Hash::SHA256"
 
 class BufferHashCRC32 extends BufferHashBenchmark:
   override def test(): Long =
@@ -73,4 +73,4 @@ class BufferHashCRC32 extends BufferHashBenchmark:
 
     crc ^ 0xffffffffL
 
-  override def name(): String = "BufferHashCRC32"
+  override def name(): String = "Hash::CRC32"

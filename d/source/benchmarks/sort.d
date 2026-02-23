@@ -91,7 +91,7 @@ private:
 protected:
     override string className() const
     {
-        return "SortQuick";
+        return "Sort::Quick";
     }
 
 public:
@@ -157,7 +157,7 @@ private:
 protected:
     override string className() const
     {
-        return "SortMerge";
+        return "Sort::Merge";
     }
 
 public:
@@ -174,7 +174,7 @@ class SortSelf : SortBenchmark
 protected:
     override string className() const
     {
-        return "SortSelf";
+        return "Sort::Self";
     }
 
 public:

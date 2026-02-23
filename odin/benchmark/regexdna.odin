@@ -236,7 +236,7 @@ regexdna_cleanup :: proc(bench: ^Benchmark) {
 
 create_regexdna :: proc() -> ^Benchmark {
     bench := new(RegexDna)
-    bench.name = "RegexDna"
+    bench.name = "CLBG::RegexDna"
     bench.vtable = default_vtable()
 
     bench.vtable.run = regexdna_run

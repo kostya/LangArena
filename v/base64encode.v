@@ -15,10 +15,10 @@ mut:
 }
 
 pub fn new_base64encode() &benchmark.IBenchmark {
-	size_val := helper.config_i64('Base64Encode', 'size')
+	size_val := helper.config_i64('Base64::Encode', 'size')
 
 	mut bench := &Base64Encode{
-		BaseBenchmark: benchmark.new_base_benchmark('Base64Encode')
+		BaseBenchmark: benchmark.new_base_benchmark('Base64::Encode')
 		size_val:      size_val
 		str:           []
 		encoded:       ''
@@ -29,7 +29,7 @@ pub fn new_base64encode() &benchmark.IBenchmark {
 }
 
 pub fn (b Base64Encode) name() string {
-	return 'Base64Encode'
+	return 'Base64::Encode'
 }
 
 pub fn (mut b Base64Encode) run(iteration_id int) {

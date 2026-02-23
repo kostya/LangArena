@@ -13,16 +13,16 @@ mut:
 
 pub fn new_mandelbrot() &benchmark.IBenchmark {
 	mut bench := &Mandelbrot{
-		BaseBenchmark: benchmark.new_base_benchmark('Mandelbrot')
-		w:             helper.config_i64('Mandelbrot', 'w')
-		h:             helper.config_i64('Mandelbrot', 'h')
+		BaseBenchmark: benchmark.new_base_benchmark('CLBG::Mandelbrot')
+		w:             helper.config_i64('CLBG::Mandelbrot', 'w')
+		h:             helper.config_i64('CLBG::Mandelbrot', 'h')
 		result_bin:    []u8{}
 	}
 	return bench
 }
 
 pub fn (b Mandelbrot) name() string {
-	return 'Mandelbrot'
+	return 'CLBG::Mandelbrot'
 }
 
 const iter = 50

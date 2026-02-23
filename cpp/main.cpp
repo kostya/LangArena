@@ -217,7 +217,7 @@ public:
     result_stream.clear();
   }
 
-  std::string name() const override { return "Pidigits"; }
+  std::string name() const override { return "CLBG::Pidigits"; }
 
   void run(int iteration_id) override {
     int i = 0;
@@ -302,7 +302,7 @@ private:
 public:
   BinarytreesObj() : n(config_val("depth")), result_val(0) {}
 
-  std::string name() const override { return "BinarytreesObj"; }
+  std::string name() const override { return "Binarytrees::Obj"; }
 
   void run(int iteration_id) override {
     TreeNode root(0, n);
@@ -358,7 +358,7 @@ private:
 public:
   BinarytreesArena() : n(config_val("depth")), result_val(0) {}
 
-  std::string name() const override { return "BinarytreesArena"; }
+  std::string name() const override { return "Binarytrees::Arena"; }
 
   void run(int iteration_id) override {
     arena = std::vector<TreeNode>();
@@ -481,7 +481,7 @@ public:
     warmup_text = Helper::config_s(name(), "warmup_program");
   }
 
-  std::string name() const override { return "BrainfuckArray"; }
+  std::string name() const override { return "Brainfuck::Array"; }
 
   void warmup() override {
     int64_t prepare_iters = warmup_iterations();
@@ -628,7 +628,7 @@ public:
     text = Helper::config_s(name(), "program");
   }
 
-  std::string name() const override { return "BrainfuckRecursion"; }
+  std::string name() const override { return "Brainfuck::Recursion"; }
 
   void warmup() override {
     int64_t prepare_iters = warmup_iterations();
@@ -699,7 +699,7 @@ private:
 public:
   Fannkuchredux() : n(config_val("n")), result_val(0) {}
 
-  std::string name() const override { return "Fannkuchredux"; }
+  std::string name() const override { return "CLBG::Fannkuchredux"; }
 
   void run(int iteration_id) override {
     auto [a, b] = fannkuchredux(static_cast<int>(n));
@@ -778,7 +778,7 @@ public:
 
   Fasta() : n(config_val("n")) {}
 
-  std::string name() const override { return "Fasta"; }
+  std::string name() const override { return "CLBG::Fasta"; }
 
   void run(int iteration_id) override {
     std::vector<Gene> IUB = {{'a', 0.27},
@@ -875,7 +875,7 @@ private:
 public:
   Knuckeotide() {}
 
-  std::string name() const override { return "Knuckeotide"; }
+  std::string name() const override { return "CLBG::Knuckeotide"; }
 
   void prepare() override {
     Fasta fasta;
@@ -928,7 +928,7 @@ public:
     h = config_val("h");
   }
 
-  std::string name() const override { return "Mandelbrot"; }
+  std::string name() const override { return "CLBG::Mandelbrot"; }
 
   void run(int iteration_id) override {
     std::ostringstream header;
@@ -1033,7 +1033,7 @@ private:
 public:
   Matmul1T() : n(config_val("n")), result_val(0) {}
 
-  std::string name() const override { return "Matmul1T"; }
+  std::string name() const override { return "Matmul::T1"; }
 
   void run(int iteration_id) override {
     auto a = matgen(static_cast<int>(n));
@@ -1111,7 +1111,7 @@ protected:
 public:
   Matmul4T() : n(config_val("n")), result_val(0) {}
 
-  std::string name() const override { return "Matmul4T"; }
+  std::string name() const override { return "Matmul::T4"; }
 
   void run(int iteration_id) override {
     auto a = matgen(static_cast<int>(n));
@@ -1130,7 +1130,7 @@ protected:
 public:
   Matmul8T() { n = config_val("n"); }
 
-  std::string name() const override { return "Matmul8T"; }
+  std::string name() const override { return "Matmul::T8"; }
 };
 
 class Matmul16T : public Matmul4T {
@@ -1140,7 +1140,7 @@ protected:
 public:
   Matmul16T() { n = config_val("n"); }
 
-  std::string name() const override { return "Matmul16T"; }
+  std::string name() const override { return "Matmul::T16"; }
 };
 
 class Nbody : public Benchmark {
@@ -1244,7 +1244,7 @@ public:
                      5.15138902046611451e-05)};
   }
 
-  std::string name() const override { return "Nbody"; }
+  std::string name() const override { return "CLBG::Nbody"; }
 
   void prepare() override {
     offset_momentum();
@@ -1327,7 +1327,7 @@ private:
 public:
   RegexDna() : ilen(0), clen(0) { result_str.reserve(4096); }
 
-  std::string name() const override { return "RegexDna"; }
+  std::string name() const override { return "CLBG::RegexDna"; }
 
   void prepare() override {
     Fasta fasta;
@@ -1447,7 +1447,7 @@ private:
 public:
   Revcomp() : _checksum(0) {}
 
-  std::string name() const override { return "Revcomp"; }
+  std::string name() const override { return "CLBG::Revcomp"; }
 
   void prepare() override {
     Fasta fasta;
@@ -1522,7 +1522,7 @@ public:
     v = std::vector<double>(size_val, 1.0);
   }
 
-  std::string name() const override { return "Spectralnorm"; }
+  std::string name() const override { return "CLBG::Spectralnorm"; }
 
   void run(int iteration_id) override {
     v = eval_AtA_times_u(u);
@@ -1566,7 +1566,7 @@ public:
     str2 = base64_encode_simple(str);
   }
 
-  std::string name() const override { return "Base64Encode"; }
+  std::string name() const override { return "Base64::Encode"; }
 
   void run(int iteration_id) override {
     str2 = base64_encode_simple(str);
@@ -1625,7 +1625,7 @@ public:
     str3 = base64_decode_simple(str2);
   }
 
-  std::string name() const override { return "Base64Decode"; }
+  std::string name() const override { return "Base64::Decode"; }
 
   void run(int iteration_id) override {
     str3 = base64_decode_simple(str2);
@@ -1679,7 +1679,7 @@ public:
     data.reserve(static_cast<size_t>(n));
   }
 
-  std::string name() const override { return "JsonGenerate"; }
+  std::string name() const override { return "Json::Generate"; }
 
   void prepare() override {
     for (int64_t i = 0; i < n; i++) {
@@ -1777,7 +1777,7 @@ private:
 public:
   JsonParseDom() : result_val(0) {}
 
-  std::string name() const override { return "JsonParseDom"; }
+  std::string name() const override { return "Json::ParseDom"; }
 
   void prepare() override {
     JsonGenerate jg;
@@ -1826,7 +1826,7 @@ private:
 public:
   JsonParseMapping() : result_val(0) {}
 
-  std::string name() const override { return "JsonParseMapping"; }
+  std::string name() const override { return "Json::ParseMapping"; }
 
   void prepare() override {
     JsonGenerate jg;
@@ -1980,7 +1980,7 @@ public:
     prefix = config_val("prefix");
   }
 
-  std::string name() const override { return "Primes"; }
+  std::string name() const override { return "Etc::Primes"; }
 
   void run(int iteration_id) override {
     auto primes = generate_primes(static_cast<int>(n));
@@ -2099,7 +2099,7 @@ public:
     n2d = std::make_unique<Noise2DContext>(static_cast<int>(size_val));
   }
 
-  std::string name() const override { return "Noise"; }
+  std::string name() const override { return "Etc::Noise"; }
 
   void run(int iteration_id) override {
     for (int64_t y = 0; y < size_val; y++) {
@@ -2239,7 +2239,7 @@ public:
     h = static_cast<int32_t>(config_val("h"));
   }
 
-  std::string name() const override { return "TextRaytracer"; }
+  std::string name() const override { return "Etc::TextRaytracer"; }
 
   void run(int iteration_id) override {
     for (int j = 0; j < h; j++) {
@@ -2429,7 +2429,7 @@ private:
 public:
   NeuralNet() { xor_net = std::make_unique<NeuralNetwork>(0, 0, 0); }
 
-  std::string name() const override { return "NeuralNet"; }
+  std::string name() const override { return "Etc::NeuralNet"; }
 
   void prepare() override {
     xor_net = std::make_unique<NeuralNetwork>(2, 10, 1);
@@ -2529,7 +2529,7 @@ private:
 public:
   SortQuick() = default;
 
-  std::string name() const override { return "SortQuick"; }
+  std::string name() const override { return "Sort::Quick"; }
 
   std::vector<int32_t> test() override {
     std::vector<int32_t> arr = data;
@@ -2587,7 +2587,7 @@ private:
 public:
   SortMerge() = default;
 
-  std::string name() const override { return "SortMerge"; }
+  std::string name() const override { return "Sort::Merge"; }
 
   std::vector<int32_t> test() override {
     std::vector<int32_t> arr = data;
@@ -2600,7 +2600,7 @@ class SortSelf : public SortBenchmark {
 public:
   SortSelf() = default;
 
-  std::string name() const override { return "SortSelf"; }
+  std::string name() const override { return "Sort::Self"; }
 
   std::vector<int32_t> test() override {
     std::vector<int32_t> arr = data;
@@ -2700,7 +2700,7 @@ private:
 public:
   GraphPathBFS() = default;
 
-  std::string name() const override { return "GraphPathBFS"; }
+  std::string name() const override { return "Graph::BFS"; }
 
   int64_t test() override { return bfs_shortest_path(0, graph->vertices - 1); }
 };
@@ -2742,7 +2742,7 @@ private:
 public:
   GraphPathDFS() = default;
 
-  std::string name() const override { return "GraphPathDFS"; }
+  std::string name() const override { return "Graph::DFS"; }
 
   int64_t test() override { return dfs_shortest_path(0, graph->vertices - 1); }
 };
@@ -2812,7 +2812,7 @@ private:
 public:
   GraphPathAStar() = default;
 
-  std::string name() const override { return "GraphPathAStar"; }
+  std::string name() const override { return "Graph::AStar"; }
 
   int64_t test() override {
     return astar_shortest_path(0, graph->vertices - 1);
@@ -2875,7 +2875,7 @@ private:
 public:
   BufferHashSHA256() = default;
 
-  std::string name() const override { return "BufferHashSHA256"; }
+  std::string name() const override { return "Hash::SHA256"; }
 
   uint32_t test() override {
     auto bytes = SimpleSHA256::digest(data);
@@ -2904,7 +2904,7 @@ private:
 public:
   BufferHashCRC32() = default;
 
-  std::string name() const override { return "BufferHashCRC32"; }
+  std::string name() const override { return "Hash::CRC32"; }
 
   uint32_t test() override { return crc32(data); }
 };
@@ -2969,7 +2969,7 @@ public:
     cache_size = static_cast<int>(config_val("size"));
   }
 
-  std::string name() const override { return "CacheSimulation"; }
+  std::string name() const override { return "Etc::CacheSimulation"; }
 
   void prepare() override { cache = FastLRUCache(cache_size); }
 
@@ -3256,7 +3256,7 @@ public:
   int64_t n;
   CalculatorAst() : result_val(0), n(config_val("operations")) {}
 
-  std::string name() const override { return "CalculatorAst"; }
+  std::string name() const override { return "Calculator::Ast"; }
   std::vector<Node> expressions;
 
   void prepare() override { text = generate_random_program(n); }
@@ -3366,7 +3366,7 @@ private:
 public:
   CalculatorInterpreter() : result_val(0) { n = config_val("operations"); }
 
-  std::string name() const override { return "CalculatorInterpreter"; }
+  std::string name() const override { return "Calculator::Interpreter"; }
 
   void prepare() override {
     CalculatorAst ca;
@@ -3507,7 +3507,7 @@ public:
       : width(static_cast<int32_t>(config_val("w"))),
         height(static_cast<int32_t>(config_val("h"))), grid(width, height) {}
 
-  std::string name() const override { return "GameOfLife"; }
+  std::string name() const override { return "Etc::GameOfLife"; }
 
   void prepare() override {
     for (auto &row : grid.get_cells()) {
@@ -4808,54 +4808,57 @@ void Benchmark::all(const std::string &single_bench) {
   std::vector<
       std::pair<std::string, std::function<std::unique_ptr<Benchmark>()>>>
       benchmarks = {
-          {"Pidigits", []() { return std::make_unique<Pidigits>(); }},
-          {"BinarytreesObj",
+          {"CLBG::Pidigits", []() { return std::make_unique<Pidigits>(); }},
+          {"Binarytrees::Obj",
            []() { return std::make_unique<BinarytreesObj>(); }},
-          {"BinarytreesArena",
+          {"Binarytrees::Arena",
            []() { return std::make_unique<BinarytreesArena>(); }},
-          {"BrainfuckArray",
+          {"Brainfuck::Array",
            []() { return std::make_unique<BrainfuckArray>(); }},
-          {"BrainfuckRecursion",
+          {"Brainfuck::Recursion",
            []() { return std::make_unique<BrainfuckRecursion>(); }},
-          {"Fannkuchredux", []() { return std::make_unique<Fannkuchredux>(); }},
-          {"Fasta", []() { return std::make_unique<Fasta>(); }},
-          {"Knuckeotide", []() { return std::make_unique<Knuckeotide>(); }},
-          {"Mandelbrot", []() { return std::make_unique<Mandelbrot>(); }},
-          {"Matmul1T", []() { return std::make_unique<Matmul1T>(); }},
-          {"Matmul4T", []() { return std::make_unique<Matmul4T>(); }},
-          {"Matmul8T", []() { return std::make_unique<Matmul8T>(); }},
-          {"Matmul16T", []() { return std::make_unique<Matmul16T>(); }},
-          {"Nbody", []() { return std::make_unique<Nbody>(); }},
-          {"RegexDna", []() { return std::make_unique<RegexDna>(); }},
-          {"Revcomp", []() { return std::make_unique<Revcomp>(); }},
-          {"Spectralnorm", []() { return std::make_unique<Spectralnorm>(); }},
-          {"Base64Encode", []() { return std::make_unique<Base64Encode>(); }},
-          {"Base64Decode", []() { return std::make_unique<Base64Decode>(); }},
-          {"JsonGenerate", []() { return std::make_unique<JsonGenerate>(); }},
-          {"JsonParseDom", []() { return std::make_unique<JsonParseDom>(); }},
-          {"JsonParseMapping",
+          {"CLBG::Fannkuchredux",
+           []() { return std::make_unique<Fannkuchredux>(); }},
+          {"CLBG::Fasta", []() { return std::make_unique<Fasta>(); }},
+          {"CLBG::Knuckeotide",
+           []() { return std::make_unique<Knuckeotide>(); }},
+          {"CLBG::Mandelbrot", []() { return std::make_unique<Mandelbrot>(); }},
+          {"Matmul::T1", []() { return std::make_unique<Matmul1T>(); }},
+          {"Matmul::T4", []() { return std::make_unique<Matmul4T>(); }},
+          {"Matmul::T8", []() { return std::make_unique<Matmul8T>(); }},
+          {"Matmul::T16", []() { return std::make_unique<Matmul16T>(); }},
+          {"CLBG::Nbody", []() { return std::make_unique<Nbody>(); }},
+          {"CLBG::RegexDna", []() { return std::make_unique<RegexDna>(); }},
+          {"CLBG::Revcomp", []() { return std::make_unique<Revcomp>(); }},
+          {"CLBG::Spectralnorm",
+           []() { return std::make_unique<Spectralnorm>(); }},
+          {"Base64::Encode", []() { return std::make_unique<Base64Encode>(); }},
+          {"Base64::Decode", []() { return std::make_unique<Base64Decode>(); }},
+          {"Json::Generate", []() { return std::make_unique<JsonGenerate>(); }},
+          {"Json::ParseDom", []() { return std::make_unique<JsonParseDom>(); }},
+          {"Json::ParseMapping",
            []() { return std::make_unique<JsonParseMapping>(); }},
-          {"Primes", []() { return std::make_unique<Primes>(); }},
-          {"Noise", []() { return std::make_unique<Noise>(); }},
-          {"TextRaytracer", []() { return std::make_unique<TextRaytracer>(); }},
-          {"NeuralNet", []() { return std::make_unique<NeuralNet>(); }},
-          {"SortQuick", []() { return std::make_unique<SortQuick>(); }},
-          {"SortMerge", []() { return std::make_unique<SortMerge>(); }},
-          {"SortSelf", []() { return std::make_unique<SortSelf>(); }},
-          {"GraphPathBFS", []() { return std::make_unique<GraphPathBFS>(); }},
-          {"GraphPathDFS", []() { return std::make_unique<GraphPathDFS>(); }},
-          {"GraphPathAStar",
-           []() { return std::make_unique<GraphPathAStar>(); }},
-          {"BufferHashSHA256",
+          {"Etc::Primes", []() { return std::make_unique<Primes>(); }},
+          {"Etc::Noise", []() { return std::make_unique<Noise>(); }},
+          {"Etc::TextRaytracer",
+           []() { return std::make_unique<TextRaytracer>(); }},
+          {"Etc::NeuralNet", []() { return std::make_unique<NeuralNet>(); }},
+          {"Sort::Quick", []() { return std::make_unique<SortQuick>(); }},
+          {"Sort::Merge", []() { return std::make_unique<SortMerge>(); }},
+          {"Sort::Self", []() { return std::make_unique<SortSelf>(); }},
+          {"Graph::BFS", []() { return std::make_unique<GraphPathBFS>(); }},
+          {"Graph::DFS", []() { return std::make_unique<GraphPathDFS>(); }},
+          {"Graph::AStar", []() { return std::make_unique<GraphPathAStar>(); }},
+          {"Hash::SHA256",
            []() { return std::make_unique<BufferHashSHA256>(); }},
-          {"BufferHashCRC32",
-           []() { return std::make_unique<BufferHashCRC32>(); }},
-          {"CacheSimulation",
+          {"Hash::CRC32", []() { return std::make_unique<BufferHashCRC32>(); }},
+          {"Etc::CacheSimulation",
            []() { return std::make_unique<CacheSimulation>(); }},
-          {"CalculatorAst", []() { return std::make_unique<CalculatorAst>(); }},
-          {"CalculatorInterpreter",
+          {"Calculator::Ast",
+           []() { return std::make_unique<CalculatorAst>(); }},
+          {"Calculator::Interpreter",
            []() { return std::make_unique<CalculatorInterpreter>(); }},
-          {"GameOfLife", []() { return std::make_unique<GameOfLife>(); }},
+          {"Etc::GameOfLife", []() { return std::make_unique<GameOfLife>(); }},
           {"MazeGenerator", []() { return std::make_unique<MazeGenerator>(); }},
           {"AStarPathfinder",
            []() { return std::make_unique<AStarPathfinder>(); }},

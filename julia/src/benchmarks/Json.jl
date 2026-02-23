@@ -30,12 +30,12 @@ mutable struct JsonGenerate <: AbstractBenchmark
     result::UInt32
 
     function JsonGenerate()
-        n = Helper.config_i64("JsonGenerate", "coords")
+        n = Helper.config_i64("Json::Generate", "coords")
         new(n, Coordinate[], "", UInt32(0))
     end
 end
 
-name(b::JsonGenerate)::String = "JsonGenerate"
+name(b::JsonGenerate)::String = "Json::Generate"
 
 function prepare(b::JsonGenerate)
     if isempty(b.data)
@@ -78,12 +78,12 @@ mutable struct JsonParseDom <: AbstractBenchmark
     n::Int64
 
     function JsonParseDom()
-        n = Helper.config_i64("JsonParseDom", "coords")
+        n = Helper.config_i64("Json::ParseDom", "coords")
         new("", UInt32(0), n)
     end
 end
 
-name(b::JsonParseDom)::String = "JsonParseDom"
+name(b::JsonParseDom)::String = "Json::ParseDom"
 
 function prepare(b::JsonParseDom)
     gen = JsonGenerate()
@@ -132,7 +132,7 @@ mutable struct JsonParseMapping <: AbstractBenchmark
     n::Int64
 
     function JsonParseMapping()
-        n = Helper.config_i64("JsonParseMapping", "coords")
+        n = Helper.config_i64("Json::ParseMapping", "coords")
         new("", UInt32(0), n)
     end
 end
@@ -150,7 +150,7 @@ end
 StructTypes.StructType(::Type{CoordinateMapping}) = StructTypes.Struct()
 StructTypes.StructType(::Type{CoordinatesContainerMapping}) = StructTypes.Struct()
 
-name(b::JsonParseMapping)::String = "JsonParseMapping"
+name(b::JsonParseMapping)::String = "Json::ParseMapping"
 
 function prepare(b::JsonParseMapping)
     gen = JsonGenerate()

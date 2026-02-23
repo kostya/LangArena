@@ -364,7 +364,7 @@ CalculatorAst :: struct {
 
 calculatorast_prepare :: proc(bench: ^Benchmark) {
     ca := cast(^CalculatorAst)bench
-    ca.n = config_i64("CalculatorAst", "operations")
+    ca.n = config_i64("Calculator::Ast", "operations")
     ca.text = generate_random_program(ca.n, context.allocator)
     ca.result_val = 0
 
@@ -412,7 +412,7 @@ calculatorast_cleanup :: proc(bench: ^Benchmark) {
 
 create_calculatorast :: proc() -> ^Benchmark {
     bench := new(CalculatorAst)
-    bench.name = "CalculatorAst"
+    bench.name = "Calculator::Ast"
     bench.vtable = default_vtable()
 
     bench.vtable.prepare = calculatorast_prepare
@@ -433,7 +433,7 @@ CalculatorInterpreter :: struct {
 
 calculatorinterpreter_prepare :: proc(bench: ^Benchmark) {
     ci := cast(^CalculatorInterpreter)bench
-    ci.n = config_i64("CalculatorInterpreter", "operations")
+    ci.n = config_i64("Calculator::Interpreter", "operations")
     ci.program = generate_random_program(ci.n, context.allocator)
     ci.result_val = 0
 
@@ -481,7 +481,7 @@ calculatorinterpreter_cleanup :: proc(bench: ^Benchmark) {
 
 create_calculatorinterpreter :: proc() -> ^Benchmark {
     bench := new(CalculatorInterpreter)
-    bench.name = "CalculatorInterpreter"
+    bench.name = "Calculator::Interpreter"
     bench.vtable = default_vtable()
 
     bench.vtable.prepare = calculatorinterpreter_prepare

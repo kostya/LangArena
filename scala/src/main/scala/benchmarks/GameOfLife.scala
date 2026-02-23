@@ -87,7 +87,7 @@ class GameOfLife extends Benchmark:
   private val height: Int = configVal("h").toInt
   private var grid: Grid = _
 
-  override def name(): String = "GameOfLife"
+  override def name(): String = "Etc::GameOfLife"
 
   override def prepare(): Unit =
     grid = Grid(width, height)

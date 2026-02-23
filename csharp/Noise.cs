@@ -114,4 +114,5 @@ public class Noise : Benchmark
     }
 
     public override uint Checksum => _result;
+    public override string TypeName => "Etc::Noise";
 }

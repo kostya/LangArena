@@ -9,11 +9,11 @@ type
 proc newSortSelf(): Benchmark =
   SortSelf()
 
-method name(self: SortSelf): string = "SortSelf"
+method name(self: SortSelf): string = "Sort::Self"
 
 method test(self: SortSelf): seq[int32] =
   var arr = self.data
   arr.sort(system.cmp[int32])
   arr
 
-registerBenchmark("SortSelf", newSortSelf)
+registerBenchmark("Sort::Self", newSortSelf)

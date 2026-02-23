@@ -19,15 +19,15 @@ mut:
 
 pub fn new_jsongenerate() &benchmark.IBenchmark {
 	mut bench := &JsonGenerate{
-		BaseBenchmark: benchmark.new_base_benchmark('JsonGenerate')
+		BaseBenchmark: benchmark.new_base_benchmark('Json::Generate')
 		result_val:    0
-		n:             helper.config_i64('JsonGenerate', 'coords')
+		n:             helper.config_i64('Json::Generate', 'coords')
 	}
 	return bench
 }
 
 pub fn (b JsonGenerate) name() string {
-	return 'JsonGenerate'
+	return 'Json::Generate'
 }
 
 struct CoordinateData {
@@ -102,22 +102,22 @@ mut:
 
 pub fn new_jsonparsedom() &benchmark.IBenchmark {
 	mut bench := &JsonParseDom{
-		BaseBenchmark: benchmark.new_base_benchmark('JsonParseDom')
+		BaseBenchmark: benchmark.new_base_benchmark('Json::ParseDom')
 		result_val:    0
 	}
 	return bench
 }
 
 pub fn (b JsonParseDom) name() string {
-	return 'JsonParseDom'
+	return 'Json::ParseDom'
 }
 
 pub fn (mut b JsonParseDom) prepare() {
 	mut jg := JsonGenerate{
-		BaseBenchmark: benchmark.new_base_benchmark('JsonGenerate')
+		BaseBenchmark: benchmark.new_base_benchmark('Json::Generate')
 		n:             b.BaseBenchmark.config_i64('coords')
 	}
-	jg.n = int(helper.config_i64('JsonParseDom', 'coords'))
+	jg.n = int(helper.config_i64('Json::ParseDom', 'coords'))
 	jg.prepare()
 	jg.run(0)
 	b.text = jg.get_result()
@@ -178,14 +178,14 @@ mut:
 
 pub fn new_jsonparsemapping() &benchmark.IBenchmark {
 	mut bench := &JsonParseMapping{
-		BaseBenchmark: benchmark.new_base_benchmark('JsonParseMapping')
+		BaseBenchmark: benchmark.new_base_benchmark('Json::ParseMapping')
 		result_val:    0
 	}
 	return bench
 }
 
 pub fn (b JsonParseMapping) name() string {
-	return 'JsonParseMapping'
+	return 'Json::ParseMapping'
 }
 
 struct Coordinate {
@@ -200,10 +200,10 @@ struct Coordinates {
 
 pub fn (mut b JsonParseMapping) prepare() {
 	mut jg := JsonGenerate{
-		BaseBenchmark: benchmark.new_base_benchmark('JsonGenerate')
+		BaseBenchmark: benchmark.new_base_benchmark('Json::Generate')
 		n:             b.BaseBenchmark.config_i64('coords')
 	}
-	jg.n = int(helper.config_i64('JsonParseMapping', 'coords'))
+	jg.n = int(helper.config_i64('Json::ParseMapping', 'coords'))
 	jg.prepare()
 	jg.run(0)
 	b.text = jg.get_result()

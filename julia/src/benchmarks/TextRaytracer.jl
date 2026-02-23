@@ -4,13 +4,13 @@ mutable struct TextRaytracer <: AbstractBenchmark
     result::UInt64
 
     function TextRaytracer()
-        w = Helper.config_i64("TextRaytracer", "w")
-        h = Helper.config_i64("TextRaytracer", "h")
+        w = Helper.config_i64("Etc::TextRaytracer", "w")
+        h = Helper.config_i64("Etc::TextRaytracer", "h")
         new(w, h, UInt64(0))
     end
 end
 
-name(b::TextRaytracer)::String = "TextRaytracer"
+name(b::TextRaytracer)::String = "Etc::TextRaytracer"
 
 struct Vector3D
     x::Float64

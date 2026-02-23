@@ -362,11 +362,6 @@ export abstract class Benchmark {
     this.benchmarkFactories.push(new this.NamedFactory(name, cls));
   }
 
-  static registerBenchmarkOld(cls: new () => Benchmark): void {
-    const temp = new cls();
-    this.benchmarkFactories.push(new this.NamedFactory(temp.name, cls));
-  }
-
   static run(singleBench?: string): void {
     const results: Record<string, number> = {};
     let summaryTime = 0;
@@ -512,7 +507,7 @@ export class Pidigits extends Benchmark {
 
   constructor() {
     super();
-    this.nn = Number(Helper.configI64(this.constructor.name, "amount"));
+    this.nn = Number(Helper.configI64(this.name, "amount"));
   }
 
   run(_iteration_id: number): void {
@@ -571,6 +566,9 @@ export class Pidigits extends Benchmark {
   checksum(): number {
     return Helper.checksumString(this.resultBuffer.join(""));
   }
+  override get name(): string {
+    return "CLBG::Pidigits";
+  }
 }
 
 class TreeNode {
@@ -605,7 +603,7 @@ export class BinarytreesObj extends Benchmark {
 
   constructor() {
     super();
-    this.n = Number(Helper.configI64(this.constructor.name, "depth"));
+    this.n = Number(Helper.configI64(this.name, "depth"));
   }
 
   run(_iteration_id: number): void {
@@ -615,6 +613,10 @@ export class BinarytreesObj extends Benchmark {
 
   checksum(): number {
     return this.result >>> 0;
+  }
+
+  override get name(): string {
+    return "Binarytrees::Obj";
   }
 }
 
@@ -647,7 +649,7 @@ export class BinarytreesArena extends Benchmark {
 
   constructor() {
     super();
-    this.n = Number(Helper.configI64(this.constructor.name, "depth"));
+    this.n = Number(Helper.configI64(this.name, "depth"));
   }
 
   run(_iteration_id: number): void {
@@ -658,6 +660,9 @@ export class BinarytreesArena extends Benchmark {
 
   checksum(): number {
     return this.result >>> 0;
+  }
+  override get name(): string {
+    return "Binarytrees::Arena";
   }
 }
 
@@ -819,8 +824,8 @@ export class BrainfuckArray extends Benchmark {
 
   constructor() {
     super();
-    this.programText = Helper.configS(this.constructor.name, "program");
-    this.warmupText = Helper.configS(this.constructor.name, "warmup_program");
+    this.programText = Helper.configS(this.name, "program");
+    this.warmupText = Helper.configS(this.name, "warmup_program");
   }
 
   warmup(): void {
@@ -837,6 +842,10 @@ export class BrainfuckArray extends Benchmark {
 
   checksum(): number {
     return this.resultValue >>> 0;
+  }
+
+  override get name(): string {
+    return "Brainfuck::Array";
   }
 }
 
@@ -989,15 +998,12 @@ export class BrainfuckRecursion extends Benchmark {
 
   constructor() {
     super();
-    this.text = Helper.configS(this.constructor.name, "program");
+    this.text = Helper.configS(this.name, "program");
     this.resultValue = 0;
   }
 
   warmup(): void {
-    const warmupProgram = Helper.configS(
-      this.constructor.name,
-      "warmup_program",
-    );
+    const warmupProgram = Helper.configS(this.name, "warmup_program");
     for (let i = 0; i < this.warmupIterations; i++) {
       const program = new Program2(warmupProgram);
       program.run();
@@ -1012,6 +1018,9 @@ export class BrainfuckRecursion extends Benchmark {
   checksum(): number {
     return this.resultValue >>> 0;
   }
+  override get name(): string {
+    return "Brainfuck::Recursion";
+  }
 }
 
 export class Fannkuchredux extends Benchmark {
@@ -1020,7 +1029,7 @@ export class Fannkuchredux extends Benchmark {
 
   constructor() {
     super();
-    this.n = Number(Helper.configI64(this.constructor.name, "n"));
+    this.n = Number(Helper.configI64(this.name, "n"));
   }
 
   private fannkuchredux(n: number): [number, number] {
@@ -1092,6 +1101,9 @@ export class Fannkuchredux extends Benchmark {
   checksum(): number {
     return this.resultValue;
   }
+  override get name(): string {
+    return "CLBG::Fannkuchredux";
+  }
 }
 
 interface Gene {
@@ -1135,7 +1147,7 @@ export class Fasta extends Benchmark {
 
   constructor() {
     super();
-    this.n = Number(Helper.configI64(this.constructor.name, "n"));
+    this.n = Number(Helper.configI64(this.name, "n"));
   }
 
   setIterations(count: number): void {
@@ -1234,6 +1246,9 @@ export class Fasta extends Benchmark {
   checksum(): number {
     return Helper.checksumString(this.resultStr);
   }
+  override get name(): string {
+    return "CLBG::Fasta";
+  }
 }
 
 export class Knuckeotide extends Benchmark {
@@ -1275,7 +1290,7 @@ export class Knuckeotide extends Benchmark {
   }
 
   prepare(): void {
-    const n = Number(Helper.configI64(this.constructor.name, "n"));
+    const n = Number(Helper.configI64(this.name, "n"));
 
     const fasta = new Fasta();
     fasta.n = n;
@@ -1325,6 +1340,9 @@ export class Knuckeotide extends Benchmark {
   checksum(): number {
     return Helper.checksumString(this.resultStr);
   }
+  override get name(): string {
+    return "CLBG::Knuckeotide";
+  }
 }
 
 export class Mandelbrot extends Benchmark {
@@ -1337,8 +1355,8 @@ export class Mandelbrot extends Benchmark {
 
   constructor() {
     super();
-    this.w = Number(Helper.configI64(this.constructor.name, "w"));
-    this.h = Number(Helper.configI64(this.constructor.name, "h"));
+    this.w = Number(Helper.configI64(this.name, "w"));
+    this.h = Number(Helper.configI64(this.name, "h"));
   }
 
   run(_iteration_id: number): void {
@@ -1395,6 +1413,9 @@ export class Mandelbrot extends Benchmark {
     const bytes = new Uint8Array(this.resultBytes);
     return Helper.checksumBytes(bytes);
   }
+  override get name(): string {
+    return "CLBG::Mandelbrot";
+  }
 }
 
 export class Matmul1T extends Benchmark {
@@ -1403,7 +1424,7 @@ export class Matmul1T extends Benchmark {
 
   constructor() {
     super();
-    this.n = Number(Helper.configI64(this.constructor.name, "n"));
+    this.n = Number(Helper.configI64(this.name, "n"));
   }
 
   private matmul(a: number[][], b: number[][]): number[][] {
@@ -1471,6 +1492,9 @@ export class Matmul1T extends Benchmark {
   checksum(): number {
     return this.resultValue >>> 0;
   }
+  override get name(): string {
+    return "Matmul::T1";
+  }
 }
 
 export class Matmul4T extends Benchmark {
@@ -1479,7 +1503,7 @@ export class Matmul4T extends Benchmark {
 
   constructor() {
     super();
-    this.n = Number(Helper.configI64(this.constructor.name, "n"));
+    this.n = Number(Helper.configI64(this.name, "n"));
   }
 
   private matgen(n: number): number[][] {
@@ -1553,6 +1577,9 @@ export class Matmul4T extends Benchmark {
   checksum(): number {
     return this.resultValue >>> 0;
   }
+  override get name(): string {
+    return "Matmul::T4";
+  }
 }
 
 export class Matmul8T extends Benchmark {
@@ -1561,7 +1588,7 @@ export class Matmul8T extends Benchmark {
 
   constructor() {
     super();
-    this.n = Number(Helper.configI64(this.constructor.name, "n"));
+    this.n = Number(Helper.configI64(this.name, "n"));
   }
 
   private matgen(n: number): number[][] {
@@ -1635,6 +1662,9 @@ export class Matmul8T extends Benchmark {
   checksum(): number {
     return this.resultValue >>> 0;
   }
+  override get name(): string {
+    return "Matmul::T8";
+  }
 }
 
 export class Matmul16T extends Benchmark {
@@ -1643,7 +1673,7 @@ export class Matmul16T extends Benchmark {
 
   constructor() {
     super();
-    this.n = Number(Helper.configI64(this.constructor.name, "n"));
+    this.n = Number(Helper.configI64(this.name, "n"));
   }
 
   private matgen(n: number): number[][] {
@@ -1716,6 +1746,9 @@ export class Matmul16T extends Benchmark {
 
   checksum(): number {
     return this.resultValue >>> 0;
+  }
+  override get name(): string {
+    return "Matmul::T16";
   }
 }
 
@@ -1909,6 +1942,9 @@ export class Nbody extends Benchmark {
 
     return (checksum1 << 5) & checksum2 & 0xffffffff;
   }
+  override get name(): string {
+    return "CLBG::Nbody";
+  }
 }
 
 export class RegexDna extends Benchmark {
@@ -1918,7 +1954,7 @@ export class RegexDna extends Benchmark {
   private resultStr: string = "";
 
   prepare(): void {
-    const n = Number(Helper.configI64(this.constructor.name, "n"));
+    const n = Number(Helper.configI64(this.name, "n"));
 
     const fasta = new Fasta();
     fasta.n = n;
@@ -2000,6 +2036,9 @@ export class RegexDna extends Benchmark {
   checksum(): number {
     return Helper.checksumString(this.resultStr);
   }
+  override get name(): string {
+    return "CLBG::RegexDna";
+  }
 }
 
 export class Revcomp extends Benchmark {
@@ -2012,7 +2051,7 @@ export class Revcomp extends Benchmark {
   private static readonly TO = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
 
   prepare(): void {
-    const n = Number(Helper.configI64(this.constructor.name, "n"));
+    const n = Number(Helper.configI64(this.name, "n"));
 
     const fasta = new Fasta();
     fasta.n = n;
@@ -2088,6 +2127,9 @@ export class Revcomp extends Benchmark {
   checksum(): number {
     return this.resultValue;
   }
+  override get name(): string {
+    return "CLBG::Revcomp";
+  }
 }
 
 export class Spectralnorm extends Benchmark {
@@ -2097,7 +2139,7 @@ export class Spectralnorm extends Benchmark {
 
   constructor() {
     super();
-    this.size = Number(Helper.configI64(this.constructor.name, "size"));
+    this.size = Number(Helper.configI64(this.name, "size"));
     this.u = new Array(this.size).fill(1.0);
     this.v = new Array(this.size).fill(1.0);
   }
@@ -2157,6 +2199,9 @@ export class Spectralnorm extends Benchmark {
     const result = Math.sqrt(vBv / vv);
     return Helper.checksumFloat(result);
   }
+  override get name(): string {
+    return "CLBG::Spectralnorm";
+  }
 }
 
 export class Base64Encode extends Benchmark {
@@ -2167,7 +2212,7 @@ export class Base64Encode extends Benchmark {
 
   constructor() {
     super();
-    this.n = Number(Helper.configI64(this.constructor.name, "size"));
+    this.n = Number(Helper.configI64(this.name, "size"));
   }
 
   prepare(): void {
@@ -2184,6 +2229,9 @@ export class Base64Encode extends Benchmark {
     const output = `encode ${this.str.slice(0, 4)}... to ${this.str2.slice(0, 4)}...: ${this.resultValue}`;
     return Helper.checksumString(output);
   }
+  override get name(): string {
+    return "Base64::Encode";
+  }
 }
 
 export class Base64Decode extends Benchmark {
@@ -2194,7 +2242,7 @@ export class Base64Decode extends Benchmark {
 
   constructor() {
     super();
-    this.n = Number(Helper.configI64(this.constructor.name, "size"));
+    this.n = Number(Helper.configI64(this.name, "size"));
   }
 
   prepare(): void {
@@ -2212,6 +2260,9 @@ export class Base64Decode extends Benchmark {
     const output = `decode ${this.str2.slice(0, 4)}... to ${this.str3.slice(0, 4)}...: ${this.resultValue}`;
     return Helper.checksumString(output);
   }
+  override get name(): string {
+    return "Base64::Decode";
+  }
 }
 
 export class JsonGenerate extends Benchmark {
@@ -2222,7 +2273,7 @@ export class JsonGenerate extends Benchmark {
 
   constructor() {
     super();
-    this.n = Number(Helper.configI64(this.constructor.name, "coords"));
+    this.n = Number(Helper.configI64(this.name, "coords"));
   }
 
   prepare(): void {
@@ -2261,6 +2312,9 @@ export class JsonGenerate extends Benchmark {
   checksum(): number {
     return this.result >>> 0;
   }
+  override get name(): string {
+    return "Json::Generate";
+  }
 }
 
 export class JsonParseDom extends Benchmark {
@@ -2269,7 +2323,7 @@ export class JsonParseDom extends Benchmark {
 
   prepare(): void {
     const jsonGen = new JsonGenerate();
-    jsonGen.n = Number(Helper.configI64(this.constructor.name, "coords"));
+    jsonGen.n = Number(Helper.configI64(this.name, "coords"));
     jsonGen.prepare();
     jsonGen.run(0);
     this.text = jsonGen.getText();
@@ -2307,6 +2361,9 @@ export class JsonParseDom extends Benchmark {
   checksum(): number {
     return this.resultValue >>> 0;
   }
+  override get name(): string {
+    return "Json::ParseDom";
+  }
 }
 
 interface Coordinate {
@@ -2325,7 +2382,7 @@ export class JsonParseMapping extends Benchmark {
 
   prepare(): void {
     const jsonGen = new JsonGenerate();
-    jsonGen.n = Number(Helper.configI64(this.constructor.name, "coords"));
+    jsonGen.n = Number(Helper.configI64(this.name, "coords"));
     jsonGen.prepare();
     jsonGen.run(0);
     this.text = jsonGen.getText();
@@ -2367,6 +2424,9 @@ export class JsonParseMapping extends Benchmark {
   checksum(): number {
     return this.resultValue >>> 0;
   }
+  override get name(): string {
+    return "Json::ParseMapping";
+  }
 }
 
 class PrimesNode {
@@ -2381,8 +2441,8 @@ export class Primes extends Benchmark {
 
   constructor() {
     super();
-    this.n = Helper.configI64(this.constructor.name, "limit");
-    this.prefix = Helper.configI64(this.constructor.name, "prefix");
+    this.n = Helper.configI64(this.name, "limit");
+    this.prefix = Helper.configI64(this.name, "prefix");
   }
 
   private generatePrimes(limit: number): number[] {
@@ -2486,6 +2546,9 @@ export class Primes extends Benchmark {
 
   checksum(): number {
     return this.resultValue;
+  }
+  override get name(): string {
+    return "Etc::Primes";
   }
 }
 
@@ -2594,7 +2657,7 @@ export class Noise extends Benchmark {
 
   constructor() {
     super();
-    this.size = Helper.configI64(this.constructor.name, "size");
+    this.size = Helper.configI64(this.name, "size");
     this.n2d = new Noise2DContext(Number(this.size));
   }
 
@@ -2614,6 +2677,9 @@ export class Noise extends Benchmark {
 
   checksum(): number {
     return this.resultValue;
+  }
+  override get name(): string {
+    return "Etc::Noise";
   }
 }
 
@@ -2748,8 +2814,8 @@ export class TextRaytracer extends Benchmark {
 
   constructor() {
     super();
-    this.w = Number(Helper.configI64(this.constructor.name, "w"));
-    this.h = Number(Helper.configI64(this.constructor.name, "h"));
+    this.w = Number(Helper.configI64(this.name, "w"));
+    this.h = Number(Helper.configI64(this.name, "h"));
   }
 
   private shadePixel(
@@ -2853,6 +2919,9 @@ export class TextRaytracer extends Benchmark {
 
   checksum(): number {
     return this.resultValue >>> 0;
+  }
+  override get name(): string {
+    return "Etc::TextRaytracer";
   }
 }
 
@@ -3035,6 +3104,9 @@ export class NeuralNet extends Benchmark {
     const sum = this.results.reduce((a, b) => a + b, 0);
     return Helper.checksumFloat(sum);
   }
+  override get name(): string {
+    return "Etc::NeuralNet";
+  }
 }
 
 export abstract class SortBenchmark extends Benchmark {
@@ -3044,7 +3116,7 @@ export abstract class SortBenchmark extends Benchmark {
 
   constructor() {
     super();
-    this.size = Number(Helper.configI64(this.constructor.name, "size"));
+    this.size = Number(Helper.configI64(this.name, "size"));
   }
 
   prepare(): void {
@@ -3066,6 +3138,9 @@ export abstract class SortBenchmark extends Benchmark {
 
   checksum(): number {
     return this.resultValue;
+  }
+  override get name(): string {
+    return "Sort";
   }
 }
 
@@ -3096,6 +3171,9 @@ export class SortQuick extends SortBenchmark {
 
     this.quickSort(arr, low, j);
     this.quickSort(arr, i, high);
+  }
+  override get name(): string {
+    return "Sort::Quick";
   }
 }
 
@@ -3157,6 +3235,9 @@ export class SortMerge extends SortBenchmark {
       k++;
     }
   }
+  override get name(): string {
+    return "Sort::Merge";
+  }
 }
 
 export class SortSelf extends SortBenchmark {
@@ -3164,6 +3245,9 @@ export class SortSelf extends SortBenchmark {
     const arr = [...this.data];
     arr.sort((a, b) => a - b);
     return arr;
+  }
+  override get name(): string {
+    return "Sort::Self";
   }
 }
 
@@ -3220,11 +3304,9 @@ export abstract class GraphPathBenchmark extends Benchmark {
   protected resultValue: number = 0;
 
   prepare(): void {
-    const vertices = Number(
-      Helper.configI64(this.constructor.name, "vertices"),
-    );
-    const jumps = Number(Helper.configI64(this.constructor.name, "jumps"));
-    const jumpLen = Number(Helper.configI64(this.constructor.name, "jump_len"));
+    const vertices = Number(Helper.configI64(this.name, "vertices"));
+    const jumps = Number(Helper.configI64(this.name, "jumps"));
+    const jumpLen = Number(Helper.configI64(this.name, "jump_len"));
 
     this.graph = new GraphPathGraph(vertices, jumps, jumpLen);
     this.graph.generateRandom();
@@ -3234,6 +3316,9 @@ export abstract class GraphPathBenchmark extends Benchmark {
 
   checksum(): number {
     return this.resultValue >>> 0;
+  }
+  override get name(): string {
+    return "Graph";
   }
 }
 
@@ -3269,6 +3354,9 @@ export class GraphPathBFS extends GraphPathBenchmark {
 
     return -1;
   }
+  override get name(): string {
+    return "Graph::BFS";
+  }
 }
 
 export class GraphPathDFS extends GraphPathBenchmark {
@@ -3302,6 +3390,9 @@ export class GraphPathDFS extends GraphPathBenchmark {
     }
 
     return bestPath === Number.MAX_SAFE_INTEGER ? -1 : bestPath;
+  }
+  override get name(): string {
+    return "Graph::DFS";
   }
 }
 
@@ -3418,6 +3509,9 @@ export class GraphPathAStar extends GraphPathBenchmark {
 
     return -1;
   }
+  override get name(): string {
+    return "Graph::AStar";
+  }
 }
 
 export abstract class BufferHashBenchmark extends Benchmark {
@@ -3427,7 +3521,7 @@ export abstract class BufferHashBenchmark extends Benchmark {
 
   constructor() {
     super();
-    this.size = Number(Helper.configI64(this.constructor.name, "size"));
+    this.size = Number(Helper.configI64(this.name, "size"));
     this.data = new Uint8Array(this.size);
   }
 
@@ -3446,6 +3540,9 @@ export abstract class BufferHashBenchmark extends Benchmark {
 
   checksum(): number {
     return this.resultValue >>> 0;
+  }
+  override get name(): string {
+    return "Hash";
   }
 }
 
@@ -3467,6 +3564,9 @@ export class BufferHashCRC32 extends BufferHashBenchmark {
     }
 
     return (crc ^ 0xffffffff) >>> 0;
+  }
+  override get name(): string {
+    return "Hash::CRC32";
   }
 }
 
@@ -3507,6 +3607,9 @@ export class BufferHashSHA256 extends BufferHashBenchmark {
     const view = new DataView(bytes.buffer);
 
     return view.getUint32(0, true);
+  }
+  override get name(): string {
+    return "Hash::SHA256";
   }
 }
 
@@ -3618,10 +3721,8 @@ export class CacheSimulation extends Benchmark {
 
   constructor() {
     super();
-    this.valuesSize = Number(Helper.configI64(this.constructor.name, "values"));
-    this.cache = new FastLRUCache(
-      Number(Helper.configI64(this.constructor.name, "size")),
-    );
+    this.valuesSize = Number(Helper.configI64(this.name, "values"));
+    this.cache = new FastLRUCache(Number(Helper.configI64(this.name, "size")));
   }
 
   run(_iteration_id: number): void {
@@ -3642,6 +3743,9 @@ export class CacheSimulation extends Benchmark {
     result = ((result << 5) + this.misses) & 0xffffffff;
     result = ((result << 5) + this.cache.size()) & 0xffffffff;
     return result >>> 0;
+  }
+  override get name(): string {
+    return "Etc::CacheSimulation";
   }
 }
 
@@ -3838,7 +3942,7 @@ export class CalculatorAst extends Benchmark {
 
   constructor() {
     super();
-    this.n = Number(Helper.configI64(this.constructor.name, "operations"));
+    this.n = Number(Helper.configI64(this.name, "operations"));
   }
 
   private generateRandomProgram(n: number = 1000): string {
@@ -3915,6 +4019,9 @@ export class CalculatorAst extends Benchmark {
 
   checksum(): number {
     return this.resultValue;
+  }
+  override get name(): string {
+    return "Calculator::Ast";
   }
 }
 
@@ -4079,9 +4186,7 @@ export class CalculatorInterpreter extends Benchmark {
 
   prepare(): void {
     const calculator = new CalculatorAst();
-    calculator.n = Number(
-      Helper.configI64(this.constructor.name, "operations"),
-    );
+    calculator.n = Number(Helper.configI64(this.name, "operations"));
     calculator.prepare();
     calculator.run(0);
     this.ast = calculator.getExpressions();
@@ -4095,6 +4200,9 @@ export class CalculatorInterpreter extends Benchmark {
 
   checksum(): number {
     return this.resultValue;
+  }
+  override get name(): string {
+    return "Calculator::Interpreter";
   }
 }
 
@@ -4218,8 +4326,8 @@ export class GameOfLife extends Benchmark {
 
   constructor() {
     super();
-    this.width = Number(Helper.configI64(this.constructor.name, "w"));
-    this.height = Number(Helper.configI64(this.constructor.name, "h"));
+    this.width = Number(Helper.configI64(this.name, "w"));
+    this.height = Number(Helper.configI64(this.name, "h"));
     this.grid = new GameOfLifeGrid(this.width, this.height);
   }
 
@@ -4240,6 +4348,9 @@ export class GameOfLife extends Benchmark {
   checksum(): number {
     const alive = this.grid.countAlive();
     return (this.grid.computeHash() + alive) >>> 0;
+  }
+  override get name(): string {
+    return "Etc::GameOfLife";
   }
 }
 
@@ -4479,8 +4590,8 @@ export class MazeGenerator extends Benchmark {
 
   constructor() {
     super();
-    this.width = Number(Helper.configI64(this.constructor.name, "w"));
-    this.height = Number(Helper.configI64(this.constructor.name, "h"));
+    this.width = Number(Helper.configI64(this.name, "w"));
+    this.height = Number(Helper.configI64(this.name, "h"));
   }
 
   run(_iteration_id: number): void {
@@ -4509,6 +4620,9 @@ export class MazeGenerator extends Benchmark {
 
   checksum(): number {
     return this.gridChecksum(this.boolGrid) >>> 0;
+  }
+  override get name(): string {
+    return "MazeGenerator";
   }
 }
 
@@ -4625,8 +4739,8 @@ export class AStarPathfinder extends Benchmark {
 
   constructor() {
     super();
-    this.width = Number(Helper.configI64(this.constructor.name, "w"));
-    this.height = Number(Helper.configI64(this.constructor.name, "h"));
+    this.width = Number(Helper.configI64(this.name, "w"));
+    this.height = Number(Helper.configI64(this.name, "h"));
     this.startX = 1;
     this.startY = 1;
     this.goalX = this.width - 2;
@@ -4745,6 +4859,9 @@ export class AStarPathfinder extends Benchmark {
 
   checksum(): number {
     return this.resultVal;
+  }
+  override get name(): string {
+    return "AStarPathfinder";
   }
 }
 
@@ -5681,44 +5798,44 @@ export class LZWDecode extends Benchmark {
   }
 }
 
-Benchmark.registerBenchmark("Pidigits", Pidigits);
-Benchmark.registerBenchmark("BinarytreesObj", BinarytreesObj);
-Benchmark.registerBenchmark("BinarytreesArena", BinarytreesArena);
-Benchmark.registerBenchmark("BrainfuckArray", BrainfuckArray);
-Benchmark.registerBenchmark("BrainfuckRecursion", BrainfuckRecursion);
-Benchmark.registerBenchmark("Fannkuchredux", Fannkuchredux);
-Benchmark.registerBenchmark("Fasta", Fasta);
-Benchmark.registerBenchmark("Knuckeotide", Knuckeotide);
-Benchmark.registerBenchmark("Mandelbrot", Mandelbrot);
-Benchmark.registerBenchmark("Matmul1T", Matmul1T);
-Benchmark.registerBenchmark("Matmul4T", Matmul4T);
-Benchmark.registerBenchmark("Matmul8T", Matmul8T);
-Benchmark.registerBenchmark("Matmul16T", Matmul16T);
-Benchmark.registerBenchmark("Nbody", Nbody);
-Benchmark.registerBenchmark("RegexDna", RegexDna);
-Benchmark.registerBenchmark("Revcomp", Revcomp);
-Benchmark.registerBenchmark("Spectralnorm", Spectralnorm);
-Benchmark.registerBenchmark("Base64Encode", Base64Encode);
-Benchmark.registerBenchmark("Base64Decode", Base64Decode);
-Benchmark.registerBenchmark("JsonGenerate", JsonGenerate);
-Benchmark.registerBenchmark("JsonParseDom", JsonParseDom);
-Benchmark.registerBenchmark("JsonParseMapping", JsonParseMapping);
-Benchmark.registerBenchmark("Primes", Primes);
-Benchmark.registerBenchmark("Noise", Noise);
-Benchmark.registerBenchmark("TextRaytracer", TextRaytracer);
-Benchmark.registerBenchmark("NeuralNet", NeuralNet);
-Benchmark.registerBenchmark("SortQuick", SortQuick);
-Benchmark.registerBenchmark("SortMerge", SortMerge);
-Benchmark.registerBenchmark("SortSelf", SortSelf);
-Benchmark.registerBenchmark("GraphPathBFS", GraphPathBFS);
-Benchmark.registerBenchmark("GraphPathDFS", GraphPathDFS);
-Benchmark.registerBenchmark("GraphPathAStar", GraphPathAStar);
-Benchmark.registerBenchmark("BufferHashSHA256", BufferHashSHA256);
-Benchmark.registerBenchmark("BufferHashCRC32", BufferHashCRC32);
-Benchmark.registerBenchmark("CacheSimulation", CacheSimulation);
-Benchmark.registerBenchmark("CalculatorAst", CalculatorAst);
-Benchmark.registerBenchmark("CalculatorInterpreter", CalculatorInterpreter);
-Benchmark.registerBenchmark("GameOfLife", GameOfLife);
+Benchmark.registerBenchmark("CLBG::Pidigits", Pidigits);
+Benchmark.registerBenchmark("Binarytrees::Obj", BinarytreesObj);
+Benchmark.registerBenchmark("Binarytrees::Arena", BinarytreesArena);
+Benchmark.registerBenchmark("Brainfuck::Array", BrainfuckArray);
+Benchmark.registerBenchmark("Brainfuck::Recursion", BrainfuckRecursion);
+Benchmark.registerBenchmark("CLBG::Fannkuchredux", Fannkuchredux);
+Benchmark.registerBenchmark("CLBG::Fasta", Fasta);
+Benchmark.registerBenchmark("CLBG::Knuckeotide", Knuckeotide);
+Benchmark.registerBenchmark("CLBG::Mandelbrot", Mandelbrot);
+Benchmark.registerBenchmark("Matmul::T1", Matmul1T);
+Benchmark.registerBenchmark("Matmul::T4", Matmul4T);
+Benchmark.registerBenchmark("Matmul::T8", Matmul8T);
+Benchmark.registerBenchmark("Matmul::T16", Matmul16T);
+Benchmark.registerBenchmark("CLBG::Nbody", Nbody);
+Benchmark.registerBenchmark("CLBG::RegexDna", RegexDna);
+Benchmark.registerBenchmark("CLBG::Revcomp", Revcomp);
+Benchmark.registerBenchmark("CLBG::Spectralnorm", Spectralnorm);
+Benchmark.registerBenchmark("Base64::Encode", Base64Encode);
+Benchmark.registerBenchmark("Base64::Decode", Base64Decode);
+Benchmark.registerBenchmark("Json::Generate", JsonGenerate);
+Benchmark.registerBenchmark("Json::ParseDom", JsonParseDom);
+Benchmark.registerBenchmark("Json::ParseMapping", JsonParseMapping);
+Benchmark.registerBenchmark("Etc::Primes", Primes);
+Benchmark.registerBenchmark("Etc::Noise", Noise);
+Benchmark.registerBenchmark("Etc::TextRaytracer", TextRaytracer);
+Benchmark.registerBenchmark("Etc::NeuralNet", NeuralNet);
+Benchmark.registerBenchmark("Sort::Quick", SortQuick);
+Benchmark.registerBenchmark("Sort::Merge", SortMerge);
+Benchmark.registerBenchmark("Sort::Self", SortSelf);
+Benchmark.registerBenchmark("Graph::BFS", GraphPathBFS);
+Benchmark.registerBenchmark("Graph::DFS", GraphPathDFS);
+Benchmark.registerBenchmark("Graph::AStar", GraphPathAStar);
+Benchmark.registerBenchmark("Hash::SHA256", BufferHashSHA256);
+Benchmark.registerBenchmark("Hash::CRC32", BufferHashCRC32);
+Benchmark.registerBenchmark("Etc::CacheSimulation", CacheSimulation);
+Benchmark.registerBenchmark("Calculator::Ast", CalculatorAst);
+Benchmark.registerBenchmark("Calculator::Interpreter", CalculatorInterpreter);
+Benchmark.registerBenchmark("Etc::GameOfLife", GameOfLife);
 Benchmark.registerBenchmark("MazeGenerator", MazeGenerator);
 Benchmark.registerBenchmark("AStarPathfinder", AStarPathfinder);
 Benchmark.registerBenchmark("Compress::BWTEncode", BWTEncode);

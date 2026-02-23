@@ -55,8 +55,8 @@ pub const GameOfLife = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*GameOfLife {
-        const w = helper.config_i64("GameOfLife", "w");
-        const h = helper.config_i64("GameOfLife", "h");
+        const w = helper.config_i64("Etc::GameOfLife", "w");
+        const h = helper.config_i64("Etc::GameOfLife", "h");
         const width = @as(usize, @intCast(w));
         const height = @as(usize, @intCast(h));
 
@@ -151,7 +151,7 @@ pub const GameOfLife = struct {
     }
 
     pub fn asBenchmark(self: *GameOfLife) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "GameOfLife");
+        return Benchmark.init(self, &vtable, self.helper, "Etc::GameOfLife");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {

@@ -7,7 +7,7 @@ mutable struct Knuckeotide <: AbstractBenchmark
     end
 end
 
-name(b::Knuckeotide)::String = "Knuckeotide"
+name(b::Knuckeotide)::String = "CLBG::Knuckeotide"
 
 function frequency(seq::String, len::Int)::Tuple{Int,Dict{String,Int}}
     n = length(seq) - len + 1
@@ -48,7 +48,7 @@ end
 function prepare(b::Knuckeotide)
 
     fasta = Fasta()
-    fasta.n = Helper.config_i64("Knuckeotide", "n")
+    fasta.n = Helper.config_i64("CLBG::Knuckeotide", "n")
 
     run(fasta, Int64(0))
 

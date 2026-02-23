@@ -1,206 +1,161 @@
 {
-  "Pidigits": {
-    "checksum": 3205646197,
-    "amount": 1000,
-    "iterations": 120
-  },
-  "BinarytreesObj": {
+  "Binarytrees::Obj": {
     "checksum": 100663248,
     "depth": 20,
     "iterations": 40
   },
-  "BinarytreesArena": {
+  "Binarytrees::Arena": {
     "checksum": 100663248,
     "depth": 20,
     "iterations": 40
   },
-  "BrainfuckArray": {
+  "Brainfuck::Array": {
     "checksum": 954437102,
     "program": ">++[<+++++++++++++>-]<[[>+>+<<-]>[<+>-]++++++++[>++++++++<-]>.[-]<<>++++++++++[>++++++++++[>++++++++++[>++++++++++[>++++++++++[>++++++++++[>++++++++++[-]<-]<-]<-]<-]<-]<-]<-]++++++++++.",
     "warmup_program": "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>.",
     "warmup_iterations": 1000,
     "iterations": 1
   },
-  "BrainfuckRecursion": {
+  "Brainfuck::Recursion": {
     "checksum": 954437102,
     "program": ">++[<+++++++++++++>-]<[[>+>+<<-]>[<+>-]++++++++[>++++++++<-]>.[-]<<>++++++++++[>++++++++++[>++++++++++[>++++++++++[>++++++++++[>++++++++++[>++++++++++[-]<-]<-]<-]<-]<-]<-]<-]++++++++++.",
     "warmup_program": "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>.",
     "warmup_iterations": 1000,
     "iterations": 1
   },
-  "Fannkuchredux": {
-    "checksum": 135762480,
-    "n": 8,
-    "iterations": 700
-  },
-  "Fasta": {
-    "checksum": 2553600673,
-    "n": 85000,
-    "iterations": 100
-  },
-  "Knuckeotide": {
-    "checksum": 3141068829,
-    "n": 6000,
-    "iterations": 100
-  },
-  "Mandelbrot": {
-    "checksum": 3455988829,
-    "w": 400,
-    "h": 400,
-    "iterations": 100
-  },
-  "Matmul1T": {
+  "Matmul::T1": {
     "checksum": 3655420808,
     "n": 900,
     "iterations": 10
   },
-  "Matmul4T": {
+  "Matmul::T4": {
     "checksum": 3655420808,
     "n": 900,
     "iterations": 10
   },
-  "Matmul8T": {
+  "Matmul::T8": {
     "checksum": 3655420808,
     "n": 900,
     "iterations": 10
   },
-  "Matmul16T": {
+  "Matmul::T16": {
     "checksum": 3655420808,
     "n": 900,
     "iterations": 10
   },
-  "Nbody": {
-    "checksum": 338799744,
-    "iterations": 20000
-  },
-  "RegexDna": {
-    "checksum": 1111191109,
-    "n": 20000,
-    "iterations": 200
-  },
-  "Revcomp": {
-    "checksum": 1125863152,
-    "n": 100000,
-    "iterations": 500
-  },
-  "Spectralnorm": {
-    "checksum": 1052198219,
-    "size": 1200,
-    "iterations": 132
-  },
-  "Base64Encode": {
+  "Base64::Encode": {
     "checksum": 3516658482,
     "size": 500000,
     "iterations": 5000
   },
-  "Base64Decode": {
+  "Base64::Decode": {
     "checksum": 1329134018,
     "size": 500000,
     "iterations": 4000
   },
-  "Primes": {
+  "Json::Generate": {
+    "checksum": 120,
+    "coords": 20000,
+    "iterations": 100
+  },
+  "Json::ParseDom": {
+    "checksum": 3989922952,
+    "coords": 10000,
+    "iterations": 100
+  },
+  "Json::ParseMapping": {
+    "checksum": 3826684672,
+    "coords": 25000,
+    "iterations": 100
+  },
+  "Etc::Primes": {
     "checksum": 139698008,
     "limit": 3000000,
     "prefix": 3233,
     "iterations": 40
   },
-  "JsonGenerate": {
-    "checksum": 120,
-    "coords": 20000,
-    "iterations": 100
-  },
-  "JsonParseDom": {
-    "checksum": 3989922952,
-    "coords": 10000,
-    "iterations": 100
-  },
-  "JsonParseMapping": {
-    "checksum": 3826684672,
-    "coords": 25000,
-    "iterations": 100
-  },
-  "Noise": {
+  "Etc::Noise": {
     "checksum": 1166030192,
     "size": 256,
     "iterations": 1200
   },
-  "TextRaytracer": {
+  "Etc::TextRaytracer": {
     "checksum": 2761140480,
     "w": 800,
     "h": 800,
     "iterations": 100
   },
-  "NeuralNet": {
+  "Etc::NeuralNet": {
     "checksum": 1586999118,
     "iterations": 1100000
   },
-  "SortQuick": {
+  "Etc::CacheSimulation": {
+    "checksum": 3263751556,
+    "values": 5000,
+    "size": 2500,
+    "iterations": 5000000
+  },
+  "Etc::GameOfLife": {
+    "checksum": 3805797673,
+    "w": 500,
+    "h": 500,
+    "iterations": 500
+  },
+  "Sort::Quick": {
     "checksum": 118065786,
     "size": 150000,
     "iterations": 100
   },
-  "SortMerge": {
+  "Sort::Merge": {
     "checksum": 118065786,
     "size": 150000,
     "iterations": 100
   },
-  "SortSelf": {
+  "Sort::Self": {
     "checksum": 118065786,
     "size": 150000,
     "iterations": 100
   },
-  "GraphPathBFS": {
+  "Graph::BFS": {
     "checksum": 50400,
     "vertices": 500000,
     "jumps": 20,
     "jump_len": 1000,
     "iterations": 40
   },
-  "GraphPathDFS": {
+  "Graph::DFS": {
     "checksum": 22194,
     "vertices": 500000,
     "jumps": 20,
     "jump_len": 1000,
     "iterations": 15
   },
-  "GraphPathAStar": {
+  "Graph::AStar": {
     "checksum": 1406400,
     "vertices": 500000,
     "jumps": 20,
     "jump_len": 1000,
     "iterations": 1000
   },
-  "BufferHashSHA256": {
+  "Hash::SHA256": {
     "checksum": 2844672256,
     "size": 1000000,
     "iterations": 1200
   },
-  "BufferHashCRC32": {
+  "Hash::CRC32": {
     "checksum": 2318723244,
     "size": 1000000,
     "iterations": 150
   },
-  "CacheSimulation": {
-    "checksum": 3263751556,
-    "values": 5000,
-    "size": 2500,
-    "iterations": 5000000
-  },
-  "CalculatorAst": {
+  "Calculator::Ast": {
     "checksum": 1670614456,
     "operations": 11000,
     "iterations": 100
   },
-  "CalculatorInterpreter": {
+  "Calculator::Interpreter": {
     "checksum": 38749936,
     "operations": 35000,
     "iterations": 100
-  },
-  "GameOfLife": {
-    "checksum": 3805797673,
-    "w": 500,
-    "h": 500,
-    "iterations": 500
   },
   "MazeGenerator": {
     "checksum": 3685250329,
@@ -213,6 +168,51 @@
     "w": 4001,
     "h": 4001,
     "iterations": 100
+  },
+  "CLBG::Pidigits": {
+    "checksum": 3205646197,
+    "amount": 1000,
+    "iterations": 120
+  },
+  "CLBG::Fannkuchredux": {
+    "checksum": 135762480,
+    "n": 8,
+    "iterations": 700
+  },
+  "CLBG::Fasta": {
+    "checksum": 2553600673,
+    "n": 85000,
+    "iterations": 100
+  },
+  "CLBG::Knuckeotide": {
+    "checksum": 3141068829,
+    "n": 6000,
+    "iterations": 100
+  },
+  "CLBG::RegexDna": {
+    "checksum": 1111191109,
+    "n": 20000,
+    "iterations": 200
+  },
+  "CLBG::Revcomp": {
+    "checksum": 1125863152,
+    "n": 100000,
+    "iterations": 500
+  },
+  "CLBG::Mandelbrot": {
+    "checksum": 3455988829,
+    "w": 400,
+    "h": 400,
+    "iterations": 100
+  },
+  "CLBG::Nbody": {
+    "checksum": 338799744,
+    "iterations": 20000
+  },
+  "CLBG::Spectralnorm": {
+    "checksum": 1052198219,
+    "size": 1200,
+    "iterations": 132
   },
   "Compress::BWTEncode": {
     "checksum": 3600000,

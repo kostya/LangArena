@@ -154,4 +154,8 @@ final class Nbody: BenchmarkProtocol {
     let v2 = energy()
     return (Helper.checksumF64(v1) << 5) & Helper.checksumF64(v2)
   }
+
+  func name() -> String {
+    return "CLBG::Nbody"
+  }
 }

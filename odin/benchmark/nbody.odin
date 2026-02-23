@@ -138,7 +138,7 @@ nbody_checksum :: proc(bench: ^Benchmark) -> u32 {
 
 create_nbody :: proc() -> ^Benchmark {
     nb := new(Nbody)
-    nb.name = "Nbody"
+    nb.name = "CLBG::Nbody"
     nb.vtable = default_vtable()
 
     nb.vtable.run = nbody_run

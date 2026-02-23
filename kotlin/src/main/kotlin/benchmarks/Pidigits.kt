@@ -60,5 +60,5 @@ class Pidigits : Benchmark() {
 
     override fun checksum(): UInt = Helper.checksum(output.toString())
 
-    override fun name(): String = "Pidigits"
+    override fun name(): String = "CLBG::Pidigits"
 }

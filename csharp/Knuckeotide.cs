@@ -6,6 +6,7 @@ public class Knuckeotide : Benchmark
     private StringBuilder _resultBuilder;
 
     public override uint Checksum => Helper.Checksum(_resultBuilder.ToString());
+    public override string TypeName => "CLBG::Knuckeotide";
 
     public Knuckeotide()
     {

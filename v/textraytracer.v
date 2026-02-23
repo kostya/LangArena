@@ -14,16 +14,16 @@ mut:
 
 pub fn new_textraytracer() &benchmark.IBenchmark {
 	mut bench := &TextRaytracer{
-		BaseBenchmark: benchmark.new_base_benchmark('TextRaytracer')
-		w:             helper.config_i64('TextRaytracer', 'w')
-		h:             helper.config_i64('TextRaytracer', 'h')
+		BaseBenchmark: benchmark.new_base_benchmark('Etc::TextRaytracer')
+		w:             helper.config_i64('Etc::TextRaytracer', 'w')
+		h:             helper.config_i64('Etc::TextRaytracer', 'h')
 		result_val:    0
 	}
 	return bench
 }
 
 pub fn (b TextRaytracer) name() string {
-	return 'TextRaytracer'
+	return 'Etc::TextRaytracer'
 }
 
 struct Vector {

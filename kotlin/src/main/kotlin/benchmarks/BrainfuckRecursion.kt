@@ -146,5 +146,5 @@ class BrainfuckRecursion : Benchmark() {
 
     override fun checksum(): UInt = resultVal
 
-    override fun name(): String = "BrainfuckRecursion"
+    override fun name(): String = "Brainfuck::Recursion"
 }

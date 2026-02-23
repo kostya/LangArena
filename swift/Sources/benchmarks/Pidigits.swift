@@ -62,6 +62,10 @@ final class Pidigits: BenchmarkProtocol {
   var checksum: UInt32 {
     return Helper.checksum(output)
   }
+
+  func name() -> String {
+    return "CLBG::Pidigits"
+  }
 }
 
 extension BigInt {

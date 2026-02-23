@@ -164,6 +164,7 @@ type MazeGenerator() =
         hasher
 
     override this.Checksum = result
+    override this.Name = "MazeGenerator"
 
     override this.Prepare() =
         width <- int (this.ConfigVal("w"))

@@ -5,7 +5,7 @@ import scala.collection.mutable
 import java.util.Locale
 
 class JsonGenerate extends Benchmark:
-  private var _n: Int = Helper.configI64("JsonGenerate", "coords").toInt
+  private var _n: Int = Helper.configI64("Json::Generate", "coords").toInt
 
   def n: Int = _n
   def n_=(value: Int): Unit = _n = value
@@ -14,7 +14,7 @@ class JsonGenerate extends Benchmark:
   private var text: String = ""
   private var resultVal: Long = 0L
 
-  override def name(): String = "JsonGenerate"
+  override def name(): String = "Json::Generate"
 
   override def prepare(): Unit =
     data.clear()

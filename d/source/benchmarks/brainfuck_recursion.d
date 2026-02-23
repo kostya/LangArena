@@ -173,7 +173,7 @@ private:
 protected:
     override string className() const
     {
-        return "BrainfuckRecursion";
+        return "Brainfuck::Recursion";
     }
 
 public:

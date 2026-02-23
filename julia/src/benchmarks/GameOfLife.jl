@@ -121,13 +121,13 @@ mutable struct GameOfLife <: AbstractBenchmark
 end
 
 function GameOfLife()
-    width = Int32(Helper.config_i64("GameOfLife", "w"))
-    height = Int32(Helper.config_i64("GameOfLife", "h"))
+    width = Int32(Helper.config_i64("Etc::GameOfLife", "w"))
+    height = Int32(Helper.config_i64("Etc::GameOfLife", "h"))
     grid = Grid(width, height)
     return GameOfLife(width, height, grid, UInt32(0))
 end
 
-name(b::GameOfLife)::String = "GameOfLife"
+name(b::GameOfLife)::String = "Etc::GameOfLife"
 
 function prepare(b::GameOfLife)
     for y = 1:b.height

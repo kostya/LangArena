@@ -12,15 +12,15 @@ mut:
 
 pub fn new_fannkuchredux() &benchmark.IBenchmark {
 	mut bench := &Fannkuchredux{
-		BaseBenchmark: benchmark.new_base_benchmark('Fannkuchredux')
-		n:             helper.config_i64('Fannkuchredux', 'n')
+		BaseBenchmark: benchmark.new_base_benchmark('CLBG::Fannkuchredux')
+		n:             helper.config_i64('CLBG::Fannkuchredux', 'n')
 		result_val:    0
 	}
 	return bench
 }
 
 pub fn (b Fannkuchredux) name() string {
-	return 'Fannkuchredux'
+	return 'CLBG::Fannkuchredux'
 }
 
 fn fannkuchredux_impl(n int) (int, int) {

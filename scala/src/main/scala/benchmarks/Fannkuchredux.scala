@@ -4,7 +4,7 @@ class Fannkuchredux extends Benchmark:
   private val n: Int = configVal("n").toInt
   private var resultVal: Long = 0L
 
-  override def name(): String = "Fannkuchredux"
+  override def name(): String = "CLBG::Fannkuchredux"
 
   private case class Result(checksum: Int, maxFlips: Int)
 

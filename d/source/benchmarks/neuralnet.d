@@ -215,7 +215,7 @@ protected:
     NeuralNetwork xorNet;
     override string className() const
     {
-        return "NeuralNet";
+        return "Etc::NeuralNet";
     }
 
 public:

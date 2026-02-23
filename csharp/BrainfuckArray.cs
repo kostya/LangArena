@@ -5,11 +5,12 @@ public class BrainfuckArray : Benchmark
     private uint _result;
 
     public override uint Checksum => _result;
+    public override string TypeName => "Brainfuck::Array";
 
     public BrainfuckArray()
     {
-        _programText = Helper.Config_s(nameof(BrainfuckArray), "program");
-        _warmupText = Helper.Config_s(nameof(BrainfuckArray), "warmup_program");
+        _programText = Helper.Config_s(TypeName, "program");
+        _warmupText = Helper.Config_s(TypeName, "warmup_program");
     }
 
     private struct Tape

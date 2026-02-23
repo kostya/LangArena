@@ -190,4 +190,5 @@ public class NeuralNet : Benchmark
             return Helper.Checksum(sum);
         }
     }
+    public override string TypeName => "Etc::NeuralNet";
 }

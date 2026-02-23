@@ -10,7 +10,7 @@ class RegexDna extends Benchmark:
   private val result = new StringBuilder()
   private val compiledPatterns = ArrayBuffer.empty[Pattern]
 
-  override def name(): String = "RegexDna"
+  override def name(): String = "CLBG::RegexDna"
 
   override def prepare(): Unit =
     val fasta = new Fasta()

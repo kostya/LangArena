@@ -86,7 +86,7 @@ protected:
 protected:
     override string className() const
     {
-        return "Matmul4T";
+        return "Matmul::T4";
     }
 
 public:
@@ -115,7 +115,7 @@ class Matmul8T : Matmul4T
 protected:
     override string className() const
     {
-        return "Matmul8T";
+        return "Matmul::T8";
     }
 
     override int getNumThreads() const
@@ -129,7 +129,7 @@ class Matmul16T : Matmul4T
 protected:
     override string className() const
     {
-        return "Matmul16T";
+        return "Matmul::T16";
     }
 
     override int getNumThreads() const

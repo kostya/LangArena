@@ -178,8 +178,8 @@ brainfuckrecursion_checksum :: proc(bench: ^Benchmark) -> u32 {
 
 brainfuckrecursion_prepare :: proc(bench: ^Benchmark) {
     bf := cast(^BrainfuckRecursion)bench
-    bf.program_text = config_string("BrainfuckRecursion", "program")
-    bf.warmup_text = config_string("BrainfuckRecursion", "warmup_program")
+    bf.program_text = config_string("Brainfuck::Recursion", "program")
+    bf.warmup_text = config_string("Brainfuck::Recursion", "warmup_program")
     bf.result_val = 0
 }
 
@@ -203,7 +203,7 @@ brainfuckrecursion_cleanup :: proc(bench: ^Benchmark) {
 
 create_brainfuckrecursion :: proc() -> ^Benchmark {
     bf := new(BrainfuckRecursion)
-    bf.name = "BrainfuckRecursion"
+    bf.name = "Brainfuck::Recursion"
 
     vtable := default_vtable()
     vtable.run = brainfuckrecursion_run
@@ -213,8 +213,8 @@ create_brainfuckrecursion :: proc() -> ^Benchmark {
     vtable.cleanup = brainfuckrecursion_cleanup
 
     bf.vtable = vtable
-    bf.program_text = config_string("BrainfuckRecursion", "program")
-    bf.warmup_text = config_string("BrainfuckRecursion", "warmup_program")
+    bf.program_text = config_string("Brainfuck::Recursion", "program")
+    bf.warmup_text = config_string("Brainfuck::Recursion", "warmup_program")
     bf.result_val = 0
 
     return cast(^Benchmark)bf

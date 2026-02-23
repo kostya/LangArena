@@ -56,8 +56,8 @@ cachesimulation_prepare :: proc(bench: ^Benchmark) {
     cs := cast(^CacheSimulation)bench
 
     cs.result_val = 5432
-    cs.values_size = int(config_i64("CacheSimulation", "values"))
-    cs.cache_size = int(config_i64("CacheSimulation", "size"))
+    cs.values_size = int(config_i64("Etc::CacheSimulation", "values"))
+    cs.cache_size = int(config_i64("Etc::CacheSimulation", "size"))
 
     lru.init(&cs.cache, cs.cache_size)
 
@@ -74,7 +74,7 @@ cachesimulation_cleanup :: proc(bench: ^Benchmark) {
 
 create_cachesimulation :: proc() -> ^Benchmark {
     bench := new(CacheSimulation)
-    bench.name = "CacheSimulation"
+    bench.name = "Etc::CacheSimulation"
     bench.vtable = default_vtable()
 
     bench.vtable.run = cachesimulation_run

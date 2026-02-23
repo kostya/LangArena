@@ -16,7 +16,7 @@ public class Base64Encode extends Benchmark {
 
     @Override
     public String name() {
-        return "Base64Encode";
+        return "Base64::Encode";
     }
 
     @Override

@@ -53,7 +53,8 @@ type Pidigits() =
 
     override this.Checksum = 
         Helper.Checksum(resultBuilder.ToString())
+    override this.Name = "CLBG::Pidigits"
 
     override this.Prepare() =
-        nn <- Helper.Config_i64("Pidigits", "amount") |> int
+        nn <- Helper.Config_i64("CLBG::Pidigits", "amount") |> int
         resultBuilder <- StringBuilder()

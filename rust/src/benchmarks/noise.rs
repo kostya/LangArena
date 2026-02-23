@@ -106,7 +106,7 @@ pub struct Noise {
 
 impl Noise {
     pub fn new() -> Self {
-        let size_val = config_i64("Noise", "size");
+        let size_val = config_i64("Etc::Noise", "size");
         let n2d = Noise2DContext::new(size_val);
 
         Self {
@@ -119,7 +119,7 @@ impl Noise {
 
 impl Benchmark for Noise {
     fn name(&self) -> String {
-        "Noise".to_string()
+        "Etc::Noise".to_string()
     }
 
     fn run(&mut self, iteration_id: i64) {

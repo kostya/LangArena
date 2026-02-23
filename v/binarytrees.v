@@ -46,14 +46,14 @@ mut:
 
 pub fn new_binarytrees_obj() &benchmark.IBenchmark {
 	mut bench := &BinarytreesObjBenchmark{
-		BaseBenchmark: benchmark.new_base_benchmark('BinarytreesObj')
-		n:             helper.config_i64('BinarytreesObj', 'depth')
+		BaseBenchmark: benchmark.new_base_benchmark('Binarytrees::Obj')
+		n:             helper.config_i64('Binarytrees::Obj', 'depth')
 	}
 	return bench
 }
 
 pub fn (b BinarytreesObjBenchmark) name() string {
-	return 'BinarytreesObj'
+	return 'Binarytrees::Obj'
 }
 
 pub fn (mut b BinarytreesObjBenchmark) run(iteration_id int) {
@@ -128,14 +128,14 @@ mut:
 
 pub fn new_binarytrees_arena() &benchmark.IBenchmark {
 	mut bench := &BinarytreesArenaBenchmark{
-		BaseBenchmark: benchmark.new_base_benchmark('BinarytreesArena')
-		n:             helper.config_i64('BinarytreesArena', 'depth')
+		BaseBenchmark: benchmark.new_base_benchmark('Binarytrees::Arena')
+		n:             helper.config_i64('Binarytrees::Arena', 'depth')
 	}
 	return bench
 }
 
 pub fn (b BinarytreesArenaBenchmark) name() string {
-	return 'BinarytreesArena'
+	return 'Binarytrees::Arena'
 }
 
 pub fn (mut b BinarytreesArenaBenchmark) run(iteration_id int) {

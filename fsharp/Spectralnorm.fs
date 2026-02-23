@@ -61,3 +61,4 @@ type Spectralnorm() =
             vv <- vv + v.[i] * v.[i]
 
         Helper.Checksum (Math.Sqrt(vBv / vv))
+    override this.Name = "CLBG::Spectralnorm"

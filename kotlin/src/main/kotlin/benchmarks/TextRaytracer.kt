@@ -184,5 +184,5 @@ class TextRaytracer : Benchmark() {
 
     override fun checksum(): UInt = resultVal
 
-    override fun name(): String = "TextRaytracer"
+    override fun name(): String = "Etc::TextRaytracer"
 }

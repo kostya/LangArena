@@ -110,4 +110,8 @@ final class Noise: BenchmarkProtocol {
   }
 
   func prepare() {}
+
+  func name() -> String {
+    return "Etc::Noise"
+  }
 }

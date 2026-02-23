@@ -19,7 +19,7 @@ private:
 protected:
     override string className() const
     {
-        return "Base64Encode";
+        return "Base64::Encode";
     }
 
 public:

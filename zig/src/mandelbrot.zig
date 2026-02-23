@@ -20,8 +20,8 @@ pub const Mandelbrot = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Mandelbrot {
-        const w = helper.config_i64("Mandelbrot", "w");
-        const h = helper.config_i64("Mandelbrot", "h");
+        const w = helper.config_i64("CLBG::Mandelbrot", "w");
+        const h = helper.config_i64("CLBG::Mandelbrot", "h");
 
         const self = try allocator.create(Mandelbrot);
         errdefer allocator.destroy(self);
@@ -43,7 +43,7 @@ pub const Mandelbrot = struct {
     }
 
     pub fn asBenchmark(self: *Mandelbrot) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "Mandelbrot");
+        return Benchmark.init(self, &vtable, self.helper, "CLBG::Mandelbrot");
     }
 
     fn prepareImpl(ptr: *anyopaque) void {

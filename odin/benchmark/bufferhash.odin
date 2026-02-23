@@ -93,7 +93,7 @@ sha256_test :: proc(bh: ^BufferHash) -> u32 {
 create_buffhashsha256 :: proc() -> ^Benchmark {
     bench := new(BufferHashSHA256)
 
-    bench.base.name = "BufferHashSHA256"
+    bench.base.name = "Hash::SHA256"
     bench.base.vtable = default_vtable()
 
     bench.base.vtable.run = bufferhash_run
@@ -135,7 +135,7 @@ crc32_test :: proc(bh: ^BufferHash) -> u32 {
 create_buffhashcrc32 :: proc() -> ^Benchmark {
     bench := new(BufferHashCRC32)
 
-    bench.base.name = "BufferHashCRC32"
+    bench.base.name = "Hash::CRC32"
     bench.base.vtable = default_vtable()
 
     bench.base.vtable.run = bufferhash_run

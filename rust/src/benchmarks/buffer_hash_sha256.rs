@@ -55,11 +55,11 @@ impl BufferHashSHA256 {
 
 impl Benchmark for BufferHashSHA256 {
     fn name(&self) -> String {
-        "BufferHashSHA256".to_string()
+        "Hash::SHA256".to_string()
     }
 
     fn prepare(&mut self) {
-        self.base.prepare("BufferHashSHA256");
+        self.base.prepare("Hash::SHA256");
     }
 
     fn run(&mut self, _iteration_id: i64) {

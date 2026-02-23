@@ -301,7 +301,7 @@ private:
 protected:
     override string className() const
     {
-        return "CalculatorAst";
+        return "Calculator::Ast";
     }
 
 public:

@@ -94,10 +94,11 @@ type BrainfuckArray() =
     let mutable result = 0u
 
     override this.Checksum = result
+    override this.Name = "Brainfuck::Array"
 
     override this.Prepare() =
-        programText <- Helper.Config_s("BrainfuckArray", "program")
-        warmupText <- Helper.Config_s("BrainfuckArray", "warmup_program")
+        programText <- Helper.Config_s("Brainfuck::Array", "program")
+        warmupText <- Helper.Config_s("Brainfuck::Array", "warmup_program")
         result <- 0u
 
     override this.Warmup() =
@@ -197,10 +198,11 @@ type BrainfuckRecursion() =
     let mutable result = 0u
 
     override this.Checksum = result
+    override this.Name = "Brainfuck::Recursion"
 
     override this.Prepare() =
-        text <- Helper.Config_s("BrainfuckRecursion", "program")
-        warmupText <- Helper.Config_s("BrainfuckRecursion", "warmup_program")
+        text <- Helper.Config_s("Brainfuck::Recursion", "program")
+        warmupText <- Helper.Config_s("Brainfuck::Recursion", "warmup_program")
         result <- 0u
 
     override this.Warmup() =

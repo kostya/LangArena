@@ -36,7 +36,7 @@ Knuckeotide :: struct {
 
 knuckeotide_prepare :: proc(bench: ^Benchmark) {
     kn := cast(^Knuckeotide)bench
-    kn.n = int(config_i64("Knuckeotide", "n"))
+    kn.n = int(config_i64("CLBG::Knuckeotide", "n"))
 
     fasta_bench := create_fasta()
     defer destroy_bench(fasta_bench)
@@ -184,7 +184,7 @@ knuckeotide_cleanup :: proc(bench: ^Benchmark) {
 
 create_knuckeotide :: proc() -> ^Benchmark {
     kn := new(Knuckeotide)
-    kn.name = "Knuckeotide"
+    kn.name = "CLBG::Knuckeotide"
     kn.vtable = default_vtable()
 
     kn.vtable.run = knuckeotide_run

@@ -143,7 +143,7 @@ mut:
 
 pub fn new_gameoflife() &benchmark.IBenchmark {
 	mut bench := &GameOfLife{
-		BaseBenchmark: benchmark.new_base_benchmark('GameOfLife')
+		BaseBenchmark: benchmark.new_base_benchmark('Etc::GameOfLife')
 		width:         0
 		height:        0
 		grid:          unsafe { nil }
@@ -152,12 +152,12 @@ pub fn new_gameoflife() &benchmark.IBenchmark {
 }
 
 pub fn (b GameOfLife) name() string {
-	return 'GameOfLife'
+	return 'Etc::GameOfLife'
 }
 
 pub fn (mut b GameOfLife) prepare() {
-	b.width = int(helper.config_i64('GameOfLife', 'w'))
-	b.height = int(helper.config_i64('GameOfLife', 'h'))
+	b.width = int(helper.config_i64('Etc::GameOfLife', 'w'))
+	b.height = int(helper.config_i64('Etc::GameOfLife', 'h'))
 	b.grid = new_grid(b.width, b.height)
 
 	for row in b.grid.cells {

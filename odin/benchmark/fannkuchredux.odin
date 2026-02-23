@@ -78,12 +78,12 @@ fannkuchredux_checksum :: proc(bench: ^Benchmark) -> u32 {
 
 fannkuchredux_prepare :: proc(bench: ^Benchmark) {
     fr := cast(^Fannkuchredux)bench
-    fr.n = int(config_i64("Fannkuchredux", "n"))
+    fr.n = int(config_i64("CLBG::Fannkuchredux", "n"))
 }
 
 create_fannkuchredux :: proc() -> ^Benchmark {
     fr := new(Fannkuchredux)
-    fr.name = "Fannkuchredux"
+    fr.name = "CLBG::Fannkuchredux"
     fr.vtable = default_vtable()
 
     fr.vtable.run = fannkuchredux_bench_run

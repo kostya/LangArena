@@ -29,7 +29,7 @@ type
 proc newBinarytreesObj(): Benchmark =
   BinarytreesObj()
 
-method name(self: BinarytreesObj): string = "BinarytreesObj"
+method name(self: BinarytreesObj): string = "Binarytrees::Obj"
 
 method prepare(self: BinarytreesObj) =
   self.n = self.config_val("depth")
@@ -42,7 +42,7 @@ method run(self: BinarytreesObj, iteration_id: int) =
 method checksum(self: BinarytreesObj): uint32 =
   self.resultVal
 
-registerBenchmark("BinarytreesObj", newBinarytreesObj)
+registerBenchmark("Binarytrees::Obj", newBinarytreesObj)
 
 type
   TreeNodeArena = object
@@ -88,7 +88,7 @@ type
 proc newBinarytreesArena(): Benchmark =
   result = BinarytreesArena()
 
-method name(self: BinarytreesArena): string = "BinarytreesArena"
+method name(self: BinarytreesArena): string = "Binarytrees::Arena"
 
 method prepare(self: BinarytreesArena) =
   self.n = self.config_val("depth")
@@ -102,4 +102,4 @@ method run(self: BinarytreesArena, iteration_id: int) =
 method checksum(self: BinarytreesArena): uint32 =
   self.resultVal
 
-registerBenchmark("BinarytreesArena", newBinarytreesArena)
+registerBenchmark("Binarytrees::Arena", newBinarytreesArena)

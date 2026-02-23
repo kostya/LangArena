@@ -105,4 +105,8 @@ final class JsonGenerate: BenchmarkProtocol {
   var checksum: UInt32 {
     return resultVal
   }
+
+  func name() -> String {
+    return "Json::Generate"
+  }
 }

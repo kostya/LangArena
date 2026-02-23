@@ -7,5 +7,5 @@ class SortSelf : SortBenchmark() {
         return arr
     }
 
-    override fun name(): String = "SortSelf"
+    override fun name(): String = "Sort::Self"
 }

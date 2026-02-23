@@ -68,6 +68,7 @@ public abstract class GraphPathBenchmark : Benchmark
     public override void Run(long iterationId) => _result += (uint)Test();
 
     public override uint Checksum => _result;
+    public override string TypeName => "Graph";
 }
 
 public class GraphPathBFS : GraphPathBenchmark
@@ -105,6 +106,7 @@ public class GraphPathBFS : GraphPathBenchmark
 
         return -1;
     }
+    public override string TypeName => "Graph::BFS";
 }
 
 public class GraphPathDFS : GraphPathBenchmark
@@ -146,6 +148,7 @@ public class GraphPathDFS : GraphPathBenchmark
 
         return bestPath == int.MaxValue ? -1 : bestPath;
     }
+    public override string TypeName => "Graph::DFS";
 }
 
 public class GraphPathAStar : GraphPathBenchmark
@@ -214,4 +217,5 @@ public class GraphPathAStar : GraphPathBenchmark
 
         return -1;
     }
+    public override string TypeName => "Graph::AStar";
 }

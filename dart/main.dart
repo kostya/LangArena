@@ -336,7 +336,7 @@ class BinarytreesObj extends Benchmark {
   }
 
   @override
-  String get name => 'BinarytreesObj';
+  String get benchmarkName => 'Binarytrees::Obj';
 
   @override
   void runBenchmark(int iterationId) {
@@ -386,7 +386,7 @@ class BinarytreesArena extends Benchmark {
   }
 
   @override
-  String get name => 'BinarytreesArena';
+  String get benchmarkName => 'Binarytrees::Arena';
 
   @override
   void runBenchmark(int iterationId) {
@@ -582,6 +582,9 @@ class BrainfuckArray extends Benchmark {
   int checksum() {
     return _resultValue & 0xFFFFFFFF;
   }
+
+  @override
+  String get benchmarkName => 'Brainfuck::Array';
 }
 
 abstract class Op {}
@@ -753,6 +756,9 @@ class BrainfuckRecursion extends Benchmark {
   int checksum() {
     return _resultValue & 0xFFFFFFFF;
   }
+
+  @override
+  String get benchmarkName => 'Brainfuck::Recursion';
 }
 
 class Pidigits extends Benchmark {
@@ -821,6 +827,9 @@ class Pidigits extends Benchmark {
   int checksum() {
     return Helper.checksumString(_resultBuffer.toString());
   }
+
+  @override
+  String get benchmarkName => 'CLBG::Pidigits';
 }
 
 class Fannkuchredux extends Benchmark {
@@ -899,6 +908,9 @@ class Fannkuchredux extends Benchmark {
 
   @override
   int checksum() => _resultValue;
+
+  @override
+  String get benchmarkName => 'CLBG::Fannkuchredux';
 }
 
 class Gene {
@@ -1038,6 +1050,9 @@ class Fasta extends Benchmark {
   int checksum() {
     return Helper.checksumString(resultBuffer.toString());
   }
+
+  @override
+  String get benchmarkName => 'CLBG::Fasta';
 }
 
 class Knuckeotide extends Benchmark {
@@ -1131,6 +1146,9 @@ class Knuckeotide extends Benchmark {
   int checksum() {
     return Helper.checksumString(_resultStr);
   }
+
+  @override
+  String get benchmarkName => 'CLBG::Knuckeotide';
 }
 
 class Mandelbrot extends Benchmark {
@@ -1198,6 +1216,9 @@ class Mandelbrot extends Benchmark {
   int checksum() {
     return Helper.checksumBytes(_builder.toBytes());
   }
+
+  @override
+  String get benchmarkName => 'CLBG::Mandelbrot';
 }
 
 abstract class MatmulBase extends Benchmark {
@@ -1345,6 +1366,9 @@ class Matmul1T extends MatmulBase {
 
     _resultValue = (_resultValue + Helper.checksumFloat(value)) & 0xFFFFFFFF;
   }
+
+  @override
+  String get benchmarkName => 'Matmul::T1';
 }
 
 class Matmul4T extends MatmulBase {
@@ -1357,6 +1381,9 @@ class Matmul4T extends MatmulBase {
 
     _resultValue = (_resultValue + Helper.checksumFloat(value)) & 0xFFFFFFFF;
   }
+
+  @override
+  String get benchmarkName => 'Matmul::T4';
 }
 
 class Matmul8T extends MatmulBase {
@@ -1369,6 +1396,9 @@ class Matmul8T extends MatmulBase {
 
     _resultValue = (_resultValue + Helper.checksumFloat(value)) & 0xFFFFFFFF;
   }
+
+  @override
+  String get benchmarkName => 'Matmul::T8';
 }
 
 class Matmul16T extends MatmulBase {
@@ -1381,6 +1411,9 @@ class Matmul16T extends MatmulBase {
 
     _resultValue = (_resultValue + Helper.checksumFloat(value)) & 0xFFFFFFFF;
   }
+
+  @override
+  String get benchmarkName => 'Matmul::T16';
 }
 
 const SOLAR_MASS = 4 * pi * pi;
@@ -1564,6 +1597,9 @@ class Nbody extends Benchmark {
 
     return ((checksum1 << 5) & checksum2) & 0xFFFFFFFF;
   }
+
+  @override
+  String get benchmarkName => 'CLBG::Nbody';
 }
 
 class RegexDna extends Benchmark {
@@ -1652,6 +1688,9 @@ class RegexDna extends Benchmark {
   int checksum() {
     return Helper.checksumString(resultStr);
   }
+
+  @override
+  String get benchmarkName => 'CLBG::RegexDna';
 }
 
 class Revcomp extends Benchmark {
@@ -1741,6 +1780,9 @@ class Revcomp extends Benchmark {
   int checksum() {
     return resultValue & 0xFFFFFFFF;
   }
+
+  @override
+  String get benchmarkName => 'CLBG::Revcomp';
 }
 
 class Spectralnorm extends Benchmark {
@@ -1816,6 +1858,9 @@ class Spectralnorm extends Benchmark {
     final result = sqrt(vBv / vv);
     return Helper.checksumFloat(result);
   }
+
+  @override
+  String get benchmarkName => 'CLBG::Spectralnorm';
 }
 
 class Base64Encode extends Benchmark {
@@ -1849,6 +1894,9 @@ class Base64Encode extends Benchmark {
         'to ${_str2.substring(0, min(4, _str2.length))}...: $_resultValue';
     return Helper.checksumString(output);
   }
+
+  @override
+  String get benchmarkName => 'Base64::Encode';
 }
 
 class Base64Decode extends Benchmark {
@@ -1882,6 +1930,9 @@ class Base64Decode extends Benchmark {
         'to ${str3.substring(0, min(4, str3.length))}...: $_resultValue';
     return Helper.checksumString(output);
   }
+
+  @override
+  String get benchmarkName => 'Base64::Decode';
 }
 
 class JsonGenerate extends Benchmark {
@@ -1930,6 +1981,9 @@ class JsonGenerate extends Benchmark {
   int checksum() {
     return result & 0xFFFFFFFF;
   }
+
+  @override
+  String get benchmarkName => 'Json::Generate';
 }
 
 class JsonParseDom extends Benchmark {
@@ -1975,6 +2029,9 @@ class JsonParseDom extends Benchmark {
   int checksum() {
     return resultValue & 0xFFFFFFFF;
   }
+
+  @override
+  String get benchmarkName => 'Json::ParseDom';
 }
 
 class JsonParseMapping extends Benchmark {
@@ -2020,6 +2077,9 @@ class JsonParseMapping extends Benchmark {
   int checksum() {
     return resultValue & 0xFFFFFFFF;
   }
+
+  @override
+  String get benchmarkName => 'Json::ParseMapping';
 }
 
 class PrimesNode {
@@ -2140,6 +2200,9 @@ class Primes extends Benchmark {
   int checksum() {
     return _resultValue;
   }
+
+  @override
+  String get benchmarkName => 'Etc::Primes';
 }
 
 class NoiseVec2 {
@@ -2239,6 +2302,9 @@ class Noise extends Benchmark {
   int checksum() {
     return _resultValue;
   }
+
+  @override
+  String get benchmarkName => 'Etc::Noise';
 }
 
 class TextRaytracer extends Benchmark {
@@ -2365,6 +2431,9 @@ class TextRaytracer extends Benchmark {
   int checksum() {
     return _resultValue;
   }
+
+  @override
+  String get benchmarkName => 'Etc::TextRaytracer';
 }
 
 class TextRaytracerVector {
@@ -2609,6 +2678,9 @@ class NeuralNet extends Benchmark {
 
     return checksumValue;
   }
+
+  @override
+  String get benchmarkName => 'Etc::NeuralNet';
 }
 
 abstract class SortBenchmark extends Benchmark {
@@ -2673,6 +2745,9 @@ class SortQuick extends SortBenchmark {
     _quickSort(arr, low, j);
     _quickSort(arr, i, high);
   }
+
+  @override
+  String get benchmarkName => 'Sort::Quick';
 }
 
 class SortMerge extends SortBenchmark {
@@ -2723,6 +2798,9 @@ class SortMerge extends SortBenchmark {
       k++;
     }
   }
+
+  @override
+  String get benchmarkName => 'Sort::Merge';
 }
 
 class SortSelf extends SortBenchmark {
@@ -2732,6 +2810,9 @@ class SortSelf extends SortBenchmark {
     arr.sort();
     return arr;
   }
+
+  @override
+  String get benchmarkName => 'Sort::Self';
 }
 
 class GraphPathGraph {
@@ -2825,6 +2906,9 @@ class GraphPathBFS extends GraphPathBenchmark {
 
     return -1;
   }
+
+  @override
+  String get benchmarkName => 'Graph::BFS';
 }
 
 class GraphPathDFS extends GraphPathBenchmark {
@@ -2859,6 +2943,9 @@ class GraphPathDFS extends GraphPathBenchmark {
 
     return bestPath == 0x7FFFFFFFFFFFFFFF ? -1 : bestPath.toInt();
   }
+
+  @override
+  String get benchmarkName => 'Graph::DFS';
 }
 
 class PriorityQueueItem implements Comparable<PriorityQueueItem> {
@@ -2925,6 +3012,9 @@ class GraphPathAStar extends GraphPathBenchmark {
 
     return -1;
   }
+
+  @override
+  String get benchmarkName => 'Graph::AStar';
 }
 
 abstract class BufferHashBenchmark extends Benchmark {
@@ -2975,6 +3065,9 @@ class BufferHashCRC32 extends BufferHashBenchmark {
 
     return (crc ^ 0xFFFFFFFF) & 0xFFFFFFFF;
   }
+
+  @override
+  String get benchmarkName => 'Hash::CRC32';
 }
 
 class BufferHashSHA256 extends BufferHashBenchmark {
@@ -3021,6 +3114,9 @@ class BufferHashSHA256 extends BufferHashBenchmark {
         ((result[2] & 0xFF) << 16) |
         ((result[3] & 0xFF) << 24);
   }
+
+  @override
+  String get benchmarkName => 'Hash::SHA256';
 }
 
 class FastLRUCache<K, V> {
@@ -3157,6 +3253,9 @@ class CacheSimulation extends Benchmark {
     result = ((result << 5) + _cache.size()) & 0xFFFFFFFF;
     return result;
   }
+
+  @override
+  String get benchmarkName => 'Etc::CacheSimulation';
 }
 
 abstract class Node2 {}
@@ -3417,6 +3516,9 @@ class CalculatorAst extends Benchmark {
   int checksum() {
     return _resultValue;
   }
+
+  @override
+  String get benchmarkName => 'Calculator::Ast';
 }
 
 class Interpreter2 {
@@ -3507,6 +3609,9 @@ class CalculatorInterpreter extends Benchmark {
   int checksum() {
     return _resultValue;
   }
+
+  @override
+  String get benchmarkName => 'Calculator::Interpreter';
 }
 
 class CellObj {
@@ -3649,6 +3754,9 @@ class GameOfLife extends Benchmark {
     final alive = grid.countAlive();
     return (grid.computeHash() + alive) & 0xFFFFFFFF;
   }
+
+  @override
+  String get benchmarkName => 'Etc::GameOfLife';
 }
 
 enum MazeCell { Wall, Path }
@@ -3887,6 +3995,9 @@ class MazeGenerator extends Benchmark {
   int checksum() {
     return _gridChecksum(boolGrid);
   }
+
+  @override
+  String get benchmarkName => 'MazeGenerator';
 }
 
 class AStarNode implements Comparable<AStarNode> {
@@ -4171,6 +4282,9 @@ class AStarPathfinder extends Benchmark {
   int checksum() {
     return resultVal & 0xFFFFFFFF;
   }
+
+  @override
+  String get benchmarkName => 'AStarPathfinder';
 }
 
 Uint8List generateTestData(int size) {
@@ -5048,47 +5162,50 @@ bool listEquals(List? a, List? b) {
 }
 
 void registerBenchmarks() {
-  Benchmark.registerBenchmark('Pidigits', () => Pidigits());
-  Benchmark.registerBenchmark('BinarytreesObj', () => BinarytreesObj());
-  Benchmark.registerBenchmark('BinarytreesArena', () => BinarytreesArena());
-  Benchmark.registerBenchmark('BrainfuckArray', () => BrainfuckArray());
-  Benchmark.registerBenchmark('BrainfuckRecursion', () => BrainfuckRecursion());
-  Benchmark.registerBenchmark('Fannkuchredux', () => Fannkuchredux());
-  Benchmark.registerBenchmark('Fasta', () => Fasta());
-  Benchmark.registerBenchmark('Knuckeotide', () => Knuckeotide());
-  Benchmark.registerBenchmark('Mandelbrot', () => Mandelbrot());
-  Benchmark.registerBenchmark('Matmul1T', () => Matmul1T());
-  Benchmark.registerBenchmark('Matmul4T', () => Matmul4T());
-  Benchmark.registerBenchmark('Matmul8T', () => Matmul8T());
-  Benchmark.registerBenchmark('Matmul16T', () => Matmul16T());
-  Benchmark.registerBenchmark('Nbody', () => Nbody());
-  Benchmark.registerBenchmark('RegexDna', () => RegexDna());
-  Benchmark.registerBenchmark('Revcomp', () => Revcomp());
-  Benchmark.registerBenchmark('Spectralnorm', () => Spectralnorm());
-  Benchmark.registerBenchmark('Base64Encode', () => Base64Encode());
-  Benchmark.registerBenchmark('Base64Decode', () => Base64Decode());
-  Benchmark.registerBenchmark('JsonGenerate', () => JsonGenerate());
-  Benchmark.registerBenchmark('JsonParseDom', () => JsonParseDom());
-  Benchmark.registerBenchmark('JsonParseMapping', () => JsonParseMapping());
-  Benchmark.registerBenchmark('Primes', () => Primes());
-  Benchmark.registerBenchmark('Noise', () => Noise());
-  Benchmark.registerBenchmark('TextRaytracer', () => TextRaytracer());
-  Benchmark.registerBenchmark('NeuralNet', () => NeuralNet());
-  Benchmark.registerBenchmark('SortQuick', () => SortQuick());
-  Benchmark.registerBenchmark('SortMerge', () => SortMerge());
-  Benchmark.registerBenchmark('SortSelf', () => SortSelf());
-  Benchmark.registerBenchmark('GraphPathBFS', () => GraphPathBFS());
-  Benchmark.registerBenchmark('GraphPathDFS', () => GraphPathDFS());
-  Benchmark.registerBenchmark('GraphPathAStar', () => GraphPathAStar());
-  Benchmark.registerBenchmark('BufferHashSHA256', () => BufferHashSHA256());
-  Benchmark.registerBenchmark('BufferHashCRC32', () => BufferHashCRC32());
-  Benchmark.registerBenchmark('CacheSimulation', () => CacheSimulation());
-  Benchmark.registerBenchmark('CalculatorAst', () => CalculatorAst());
+  Benchmark.registerBenchmark('CLBG::Pidigits', () => Pidigits());
+  Benchmark.registerBenchmark('Binarytrees::Obj', () => BinarytreesObj());
+  Benchmark.registerBenchmark('Binarytrees::Arena', () => BinarytreesArena());
+  Benchmark.registerBenchmark('Brainfuck::Array', () => BrainfuckArray());
   Benchmark.registerBenchmark(
-    'CalculatorInterpreter',
+    'Brainfuck::Recursion',
+    () => BrainfuckRecursion(),
+  );
+  Benchmark.registerBenchmark('CLBG::Fannkuchredux', () => Fannkuchredux());
+  Benchmark.registerBenchmark('CLBG::Fasta', () => Fasta());
+  Benchmark.registerBenchmark('CLBG::Knuckeotide', () => Knuckeotide());
+  Benchmark.registerBenchmark('CLBG::Mandelbrot', () => Mandelbrot());
+  Benchmark.registerBenchmark('Matmul::T1', () => Matmul1T());
+  Benchmark.registerBenchmark('Matmul::T4', () => Matmul4T());
+  Benchmark.registerBenchmark('Matmul::T8', () => Matmul8T());
+  Benchmark.registerBenchmark('Matmul::T16', () => Matmul16T());
+  Benchmark.registerBenchmark('CLBG::Nbody', () => Nbody());
+  Benchmark.registerBenchmark('CLBG::RegexDna', () => RegexDna());
+  Benchmark.registerBenchmark('CLBG::Revcomp', () => Revcomp());
+  Benchmark.registerBenchmark('CLBG::Spectralnorm', () => Spectralnorm());
+  Benchmark.registerBenchmark('Base64::Encode', () => Base64Encode());
+  Benchmark.registerBenchmark('Base64::Decode', () => Base64Decode());
+  Benchmark.registerBenchmark('Json::Generate', () => JsonGenerate());
+  Benchmark.registerBenchmark('Json::ParseDom', () => JsonParseDom());
+  Benchmark.registerBenchmark('Json::ParseMapping', () => JsonParseMapping());
+  Benchmark.registerBenchmark('Etc::Primes', () => Primes());
+  Benchmark.registerBenchmark('Etc::Noise', () => Noise());
+  Benchmark.registerBenchmark('Etc::TextRaytracer', () => TextRaytracer());
+  Benchmark.registerBenchmark('Etc::NeuralNet', () => NeuralNet());
+  Benchmark.registerBenchmark('Sort::Quick', () => SortQuick());
+  Benchmark.registerBenchmark('Sort::Merge', () => SortMerge());
+  Benchmark.registerBenchmark('Sort::Self', () => SortSelf());
+  Benchmark.registerBenchmark('Graph::BFS', () => GraphPathBFS());
+  Benchmark.registerBenchmark('Graph::DFS', () => GraphPathDFS());
+  Benchmark.registerBenchmark('Graph::AStar', () => GraphPathAStar());
+  Benchmark.registerBenchmark('Hash::SHA256', () => BufferHashSHA256());
+  Benchmark.registerBenchmark('Hash::CRC32', () => BufferHashCRC32());
+  Benchmark.registerBenchmark('Etc::CacheSimulation', () => CacheSimulation());
+  Benchmark.registerBenchmark('Calculator::Ast', () => CalculatorAst());
+  Benchmark.registerBenchmark(
+    'Calculator::Interpreter',
     () => CalculatorInterpreter(),
   );
-  Benchmark.registerBenchmark('GameOfLife', () => GameOfLife());
+  Benchmark.registerBenchmark('Etc::GameOfLife', () => GameOfLife());
   Benchmark.registerBenchmark('MazeGenerator', () => MazeGenerator());
   Benchmark.registerBenchmark('AStarPathfinder', () => AStarPathfinder());
   Benchmark.registerBenchmark('Compress::BWTEncode', () => BWTEncode());

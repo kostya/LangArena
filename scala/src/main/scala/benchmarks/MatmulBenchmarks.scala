@@ -95,7 +95,7 @@ class Matmul1T extends Benchmark:
   private var n: Int = 0
   private var resultVal: Long = 0L
 
-  override def name(): String = "Matmul1T"
+  override def name(): String = "Matmul::T1"
 
   override def prepare(): Unit =
     n = configVal("n").toInt
@@ -153,10 +153,10 @@ class Matmul1T extends Benchmark:
   override def checksum(): Long = resultVal
 
 class Matmul4T extends MatmulParallel(4):
-  override def name(): String = "Matmul4T"
+  override def name(): String = "Matmul::T4"
 
 class Matmul8T extends MatmulParallel(8):
-  override def name(): String = "Matmul8T"
+  override def name(): String = "Matmul::T8"
 
 class Matmul16T extends MatmulParallel(16):
-  override def name(): String = "Matmul16T"
+  override def name(): String = "Matmul::T16"

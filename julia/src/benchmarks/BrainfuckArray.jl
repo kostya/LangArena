@@ -4,13 +4,13 @@ mutable struct BrainfuckArray <: AbstractBenchmark
     result::UInt32
 
     function BrainfuckArray()
-        program_text = Helper.config_s("BrainfuckArray", "program")
-        warmup_text = Helper.config_s("BrainfuckArray", "warmup_program")
+        program_text = Helper.config_s("Brainfuck::Array", "program")
+        warmup_text = Helper.config_s("Brainfuck::Array", "warmup_program")
         new(program_text, warmup_text, UInt32(0))
     end
 end
 
-name(b::BrainfuckArray)::String = "BrainfuckArray"
+name(b::BrainfuckArray)::String = "Brainfuck::Array"
 
 mutable struct Tape
     data::Vector{UInt8}

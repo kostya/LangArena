@@ -151,8 +151,8 @@ pub const BrainfuckArray = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*BrainfuckArray {
-        const program_text = helper.config_s("BrainfuckArray", "program");
-        const warmup_text = helper.config_s("BrainfuckArray", "warmup_program");
+        const program_text = helper.config_s("Brainfuck::Array", "program");
+        const warmup_text = helper.config_s("Brainfuck::Array", "warmup_program");
 
         const self = try allocator.create(BrainfuckArray);
         errdefer allocator.destroy(self);
@@ -174,7 +174,7 @@ pub const BrainfuckArray = struct {
     }
 
     pub fn asBenchmark(self: *BrainfuckArray) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "BrainfuckArray");
+        return Benchmark.init(self, &vtable, self.helper, "Brainfuck::Array");
     }
 
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {

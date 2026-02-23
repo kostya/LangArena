@@ -57,5 +57,5 @@ class SortMerge : SortBenchmark() {
         return arr
     }
 
-    override fun name(): String = "SortMerge"
+    override fun name(): String = "Sort::Merge"
 }

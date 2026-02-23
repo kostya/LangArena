@@ -80,7 +80,7 @@ class GraphPathBFS extends GraphPathBenchmark {
 
     @Override
     public String name() {
-        return "GraphPathBFS";
+        return "Graph::BFS";
     }
 
     @Override
@@ -120,7 +120,7 @@ class GraphPathDFS extends GraphPathBenchmark {
 
     @Override
     public String name() {
-        return "GraphPathDFS";
+        return "Graph::DFS";
     }
 
     @Override
@@ -179,7 +179,7 @@ class GraphPathAStar extends GraphPathBenchmark {
 
     @Override
     public String name() {
-        return "GraphPathAStar";
+        return "Graph::AStar";
     }
 
     @Override

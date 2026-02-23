@@ -129,7 +129,7 @@ public class BrainfuckRecursion extends Benchmark {
 
     @Override
     public String name() {
-        return "BrainfuckRecursion";
+        return "Brainfuck::Recursion";
     }
 
     private long runProgram(String programText) {

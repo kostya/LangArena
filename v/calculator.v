@@ -56,15 +56,15 @@ mut:
 
 pub fn new_calculatorast() &benchmark.IBenchmark {
 	mut bench := &CalculatorAst{
-		BaseBenchmark: benchmark.new_base_benchmark('CalculatorAst')
+		BaseBenchmark: benchmark.new_base_benchmark('Calculator::Ast')
 		result_val:    0
-		n:             int(helper.config_i64('CalculatorAst', 'operations'))
+		n:             int(helper.config_i64('Calculator::Ast', 'operations'))
 	}
 	return bench
 }
 
 pub fn (b CalculatorAst) name() string {
-	return 'CalculatorAst'
+	return 'Calculator::Ast'
 }
 
 struct Parser {
@@ -341,7 +341,7 @@ mut:
 
 pub fn new_calculatorinterpreter() &benchmark.IBenchmark {
 	mut bench := &CalculatorInterpreter{
-		BaseBenchmark: benchmark.new_base_benchmark('CalculatorInterpreter')
+		BaseBenchmark: benchmark.new_base_benchmark('Calculator::Interpreter')
 		result_val:    0
 		n:             0
 	}
@@ -349,7 +349,7 @@ pub fn new_calculatorinterpreter() &benchmark.IBenchmark {
 }
 
 pub fn (b CalculatorInterpreter) name() string {
-	return 'CalculatorInterpreter'
+	return 'Calculator::Interpreter'
 }
 
 struct Interpreter {
@@ -431,10 +431,10 @@ fn (mut interpreter Interpreter) clear() {
 }
 
 pub fn (mut b CalculatorInterpreter) prepare() {
-	b.n = int(helper.config_i64('CalculatorInterpreter', 'operations'))
+	b.n = int(helper.config_i64('Calculator::Interpreter', 'operations'))
 
 	mut ca := CalculatorAst{
-		BaseBenchmark: benchmark.new_base_benchmark('CalculatorAst')
+		BaseBenchmark: benchmark.new_base_benchmark('Calculator::Ast')
 		n:             b.n
 	}
 	ca.prepare()

@@ -33,7 +33,7 @@ public class BufferHashSHA256 extends BufferHashBenchmark {
 
     @Override
     public String name() {
-        return "BufferHashSHA256";
+        return "Hash::SHA256";
     }
 
     @Override

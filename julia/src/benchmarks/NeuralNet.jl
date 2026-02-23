@@ -240,7 +240,7 @@ mutable struct NeuralNet <: AbstractBenchmark
     end
 end
 
-name(b::NeuralNet)::String = "NeuralNet"
+name(b::NeuralNet)::String = "Etc::NeuralNet"
 
 function prepare(b::NeuralNet)
 

@@ -43,7 +43,7 @@ private:
 protected:
     override string className() const
     {
-        return "RegexDna";
+        return "CLBG::RegexDna";
     }
 
 public:

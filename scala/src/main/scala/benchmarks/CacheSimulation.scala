@@ -88,7 +88,7 @@ class CacheSimulation extends Benchmark:
   private var hits: Long = 0L
   private var misses: Long = 0L
 
-  override def name(): String = "CacheSimulation"
+  override def name(): String = "Etc::CacheSimulation"
 
   override def prepare(): Unit =
     cache = LRUCache[String, String](cacheSize)

@@ -16,4 +16,5 @@ public class BufferHashCRC32 : BufferHashBenchmark
 
         return crc ^ 0xFFFFFFFF;
     }
+    public override string TypeName => "Hash::CRC32";
 }

@@ -18,7 +18,7 @@ pub const Pidigits = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*Pidigits {
-        const nn = helper.config_i64("Pidigits", "amount");
+        const nn = helper.config_i64("CLBG::Pidigits", "amount");
 
         const self = try allocator.create(Pidigits);
         errdefer allocator.destroy(self);
@@ -38,7 +38,7 @@ pub const Pidigits = struct {
     }
 
     pub fn asBenchmark(self: *Pidigits) Benchmark {
-        return Benchmark.init(self, &vtable, self.helper, "Pidigits");
+        return Benchmark.init(self, &vtable, self.helper, "CLBG::Pidigits");
     }
 
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {

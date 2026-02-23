@@ -9,7 +9,7 @@ type
 proc newFannkuchredux(): Benchmark =
   Fannkuchredux()
 
-method name(self: Fannkuchredux): string = "Fannkuchredux"
+method name(self: Fannkuchredux): string = "CLBG::Fannkuchredux"
 
 method prepare(self: Fannkuchredux) =
   self.n = self.config_val("n")
@@ -78,4 +78,4 @@ method run(self: Fannkuchredux, iteration_id: int) =
 method checksum(self: Fannkuchredux): uint32 =
   self.resultVal
 
-registerBenchmark("Fannkuchredux", newFannkuchredux)
+registerBenchmark("CLBG::Fannkuchredux", newFannkuchredux)

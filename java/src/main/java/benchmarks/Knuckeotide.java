@@ -15,7 +15,7 @@ public class Knuckeotide extends Benchmark {
 
     @Override
     public String name() {
-        return "Knuckeotide";
+        return "CLBG::Knuckeotide";
     }
 
     @Override

@@ -7,7 +7,7 @@ class BrainfuckArray extends Benchmark:
   private val warmupText: String = Helper.configS(name(), "warmup_program")
   private var resultVal: Long = 0L
 
-  override def name(): String = "BrainfuckArray"
+  override def name(): String = "Brainfuck::Array"
 
   private def runProgram(programText: String): Long =
     BrainfuckArray.Program(programText).run()

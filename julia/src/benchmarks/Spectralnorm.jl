@@ -5,14 +5,14 @@ mutable struct Spectralnorm <: AbstractBenchmark
     result::UInt32
 
     function Spectralnorm()
-        size_val = Helper.config_i64("Spectralnorm", "size")
+        size_val = Helper.config_i64("CLBG::Spectralnorm", "size")
         u = fill(1.0, size_val)
         v = fill(1.0, size_val)
         new(size_val, u, v, UInt32(0))
     end
 end
 
-name(b::Spectralnorm)::String = "Spectralnorm"
+name(b::Spectralnorm)::String = "CLBG::Spectralnorm"
 
 function eval_A(i::Int64, j::Int64)::Float64
     ij = Float64(i + j)

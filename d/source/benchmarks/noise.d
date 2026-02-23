@@ -132,7 +132,7 @@ protected:
 
     override string className() const
     {
-        return "Noise";
+        return "Etc::Noise";
     }
 
 public:

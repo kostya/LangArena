@@ -94,4 +94,5 @@ public class Revcomp : Benchmark
     }
 
     public override uint Checksum => _result;
+    public override string TypeName => "CLBG::Revcomp";
 }

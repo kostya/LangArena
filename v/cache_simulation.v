@@ -125,7 +125,7 @@ mut:
 
 pub fn new_cachesimulation() &benchmark.IBenchmark {
 	mut bench := &CacheSimulation{
-		BaseBenchmark: benchmark.new_base_benchmark('CacheSimulation')
+		BaseBenchmark: benchmark.new_base_benchmark('Etc::CacheSimulation')
 		result_val:    5432
 		values_size:   0
 		cache_size:    0
@@ -136,12 +136,12 @@ pub fn new_cachesimulation() &benchmark.IBenchmark {
 }
 
 pub fn (b CacheSimulation) name() string {
-	return 'CacheSimulation'
+	return 'Etc::CacheSimulation'
 }
 
 pub fn (mut b CacheSimulation) prepare() {
-	b.values_size = int(helper.config_i64('CacheSimulation', 'values'))
-	b.cache_size = int(helper.config_i64('CacheSimulation', 'size'))
+	b.values_size = int(helper.config_i64('Etc::CacheSimulation', 'values'))
+	b.cache_size = int(helper.config_i64('Etc::CacheSimulation', 'size'))
 
 	b.cache = new_fast_lru_cache(b.cache_size)
 	b.hits = 0

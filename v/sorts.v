@@ -26,13 +26,13 @@ pub struct SortQuick {
 
 pub fn new_sortquick() &benchmark.IBenchmark {
 	mut bench := &SortQuick{
-		SortBenchmark: new_sort_benchmark('SortQuick')
+		SortBenchmark: new_sort_benchmark('Sort::Quick')
 	}
 	return bench
 }
 
 pub fn (b SortQuick) name() string {
-	return 'SortQuick'
+	return 'Sort::Quick'
 }
 
 fn quick_sort(mut arr []int, low int, high int) {
@@ -65,7 +65,7 @@ fn quick_sort(mut arr []int, low int, high int) {
 }
 
 pub fn (mut b SortQuick) prepare() {
-	b.size_val = int(helper.config_i64('SortQuick', 'size'))
+	b.size_val = int(helper.config_i64('Sort::Quick', 'size'))
 	b.data = []int{len: int(b.size_val)}
 	for i in 0 .. b.size_val {
 		b.data[i] = int(helper.next_int(1_000_000))
@@ -93,13 +93,13 @@ pub struct SortMerge {
 
 pub fn new_sortmerge() &benchmark.IBenchmark {
 	mut bench := &SortMerge{
-		SortBenchmark: new_sort_benchmark('SortMerge')
+		SortBenchmark: new_sort_benchmark('Sort::Merge')
 	}
 	return bench
 }
 
 pub fn (b SortMerge) name() string {
-	return 'SortMerge'
+	return 'Sort::Merge'
 }
 
 fn merge_sort_inplace(mut arr []int) {
@@ -146,7 +146,7 @@ fn merge(mut arr []int, mut temp []int, left int, mid int, right int) {
 }
 
 pub fn (mut b SortMerge) prepare() {
-	b.size_val = int(helper.config_i64('SortMerge', 'size'))
+	b.size_val = int(helper.config_i64('Sort::Merge', 'size'))
 	b.data = []int{len: int(b.size_val)}
 	for i in 0 .. b.size_val {
 		b.data[i] = int(helper.next_int(1_000_000))
@@ -174,17 +174,17 @@ pub struct SortSelf {
 
 pub fn new_sortself() &benchmark.IBenchmark {
 	mut bench := &SortSelf{
-		SortBenchmark: new_sort_benchmark('SortSelf')
+		SortBenchmark: new_sort_benchmark('Sort::Self')
 	}
 	return bench
 }
 
 pub fn (b SortSelf) name() string {
-	return 'SortSelf'
+	return 'Sort::Self'
 }
 
 pub fn (mut b SortSelf) prepare() {
-	b.size_val = int(helper.config_i64('SortSelf', 'size'))
+	b.size_val = int(helper.config_i64('Sort::Self', 'size'))
 	b.data = []int{len: int(b.size_val)}
 	for i in 0 .. b.size_val {
 		b.data[i] = int(helper.next_int(1_000_000))
