@@ -19,7 +19,7 @@ main :: proc() {
     benchmark.register_benchmark_factory("CLBG::Fasta", benchmark.create_fasta)
     benchmark.register_benchmark_factory("CLBG::Knuckeotide", benchmark.create_knuckeotide)
     benchmark.register_benchmark_factory("CLBG::Mandelbrot", benchmark.create_mandelbrot)
-    benchmark.register_benchmark_factory("Matmul::T1", benchmark.create_matmul1t)
+    benchmark.register_benchmark_factory("Matmul::Single", benchmark.create_matmul1t)
     benchmark.register_benchmark_factory("Matmul::T4", benchmark.create_matmul4t)
     benchmark.register_benchmark_factory("Matmul::T8", benchmark.create_matmul8t)
     benchmark.register_benchmark_factory("Matmul::T16", benchmark.create_matmul16t)

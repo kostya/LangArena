@@ -16,7 +16,7 @@ object Main:
     Benchmark.registerBenchmark("CLBG::Fasta", () => new Fasta())
     Benchmark.registerBenchmark("CLBG::Knuckeotide", () => new Knuckeotide())
     Benchmark.registerBenchmark("CLBG::Mandelbrot", () => new Mandelbrot())
-    Benchmark.registerBenchmark("Matmul::T1", () => new Matmul1T())
+    Benchmark.registerBenchmark("Matmul::Single", () => new Matmul1T())
     Benchmark.registerBenchmark("Matmul::T4", () => new Matmul4T())
     Benchmark.registerBenchmark("Matmul::T8", () => new Matmul8T())
     Benchmark.registerBenchmark("Matmul::T16", () => new Matmul16T())

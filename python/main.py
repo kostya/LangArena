@@ -1082,15 +1082,23 @@ class Mandelbrot(Benchmark):
         return "CLBG::Mandelbrot"
 
 
+import concurrent.futures
+from typing import List, Tuple
+
+
 class MatmulBase(Benchmark):
 
     def __init__(self):
         super().__init__()
         self.n = 0
         self._result_value = 0
+        self.a = None
+        self.b = None
 
     def prepare(self):
         self.n = Helper.config_i64(self.name(), "n")
+        self.a = self._matgen(self.n)
+        self.b = self._matgen(self.n)
 
     def _matgen(self, n: int) -> List[List[float]]:
         tmp = 1.0 / n / n
@@ -1100,55 +1108,33 @@ class MatmulBase(Benchmark):
                 a[i][j] = tmp * (i - j) * (i + j)
         return a
 
+    def _transpose(self, b: List[List[float]]) -> List[List[float]]:
+        n = len(b)
+        bT = [[0.0] * n for _ in range(n)]
+        for i in range(n):
+            for j in range(n):
+                bT[j][i] = b[i][j]
+        return bT
+
     def _matmul_sync(self, a: List[List[float]],
                      b: List[List[float]]) -> List[List[float]]:
-        size = len(a)
-        bT = [[0.0] * size for _ in range(size)]
-        for i in range(size):
-            for j in range(size):
-                bT[j][i] = b[i][j]
+        n = len(a)
+        bT = self._transpose(b)
+        c = [[0.0] * n for _ in range(n)]
 
-        c = [[0.0] * size for _ in range(size)]
-        for i in range(size):
+        for i in range(n):
             ai = a[i]
             ci = c[i]
-            for j in range(size):
+            for j in range(n):
                 bTj = bT[j]
                 sum_val = 0.0
-                for k in range(size):
+
+                for k in range(n):
                     sum_val += ai[k] * bTj[k]
                 ci[j] = sum_val
         return c
 
-    def checksum(self) -> int:
-        return self._result_value & 0xFFFFFFFF
-
-    def name(self) -> str:
-        return "Matmul"
-
-
-class Matmul1T(MatmulBase):
-
-    def run_benchmark(self, iteration_id: int) -> None:
-        a = self._matgen(self.n)
-        b = self._matgen(self.n)
-        c = self._matmul_sync(a, b)
-        value = c[self.n >> 1][self.n >> 1]
-
-        self._result_value = (self._result_value +
-                              Helper.checksum_float(value)) & 0xFFFFFFFF
-
-    def name(self) -> str:
-        return "Matmul::T1"
-
-
-class MatmulParallelBase(MatmulBase):
-
-    def __init__(self, num_threads: int = 4):
-        super().__init__()
-        self.num_threads = num_threads
-
-    def _matmul_worker(self, args) -> tuple:
+    def _matmul_worker(self, args: Tuple) -> Tuple[int, List[List[float]]]:
         start_i, end_i, a, bT, size = args
         local_c = [[0.0] * size for _ in range(end_i - start_i)]
 
@@ -1158,42 +1144,66 @@ class MatmulParallelBase(MatmulBase):
             for j in range(size):
                 bTj = bT[j]
                 sum_val = 0.0
+
                 for k in range(size):
                     sum_val += ai[k] * bTj[k]
                 ci[j] = sum_val
         return start_i, local_c
 
-    def run_benchmark(self, iteration_id: int) -> None:
-        a = self._matgen(self.n)
-        b = self._matgen(self.n)
-        size = self.n
+    def _matmul_parallel(self, a: List[List[float]], b: List[List[float]],
+                         num_threads: int) -> List[List[float]]:
+        n = len(a)
+        bT = self._transpose(b)
 
-        bT = [[0.0] * size for _ in range(size)]
-        for i in range(size):
-            for j in range(size):
-                bT[j][i] = b[i][j]
-
-        rows_per_thread = (size + self.num_threads - 1) // self.num_threads
+        rows_per_thread = (n + num_threads - 1) // num_threads
         futures = []
 
         with concurrent.futures.ThreadPoolExecutor(
-                max_workers=self.num_threads) as executor:
-            for t in range(self.num_threads):
+                max_workers=num_threads) as executor:
+            for t in range(num_threads):
                 start_i = t * rows_per_thread
-                end_i = min(start_i + rows_per_thread, size)
-                if start_i >= size:
+                end_i = min(start_i + rows_per_thread, n)
+                if start_i >= n:
                     break
-                args = (start_i, end_i, a, bT, size)
+                args = (start_i, end_i, a, bT, n)
                 futures.append(executor.submit(self._matmul_worker, args))
 
-            c = [[0.0] * size for _ in range(size)]
+            c = [[0.0] * n for _ in range(n)]
             for future in concurrent.futures.as_completed(futures):
                 start_i, local_c = future.result()
                 for local_i, row in enumerate(local_c):
                     c[start_i + local_i] = row
 
-        value = c[self.n >> 1][self.n >> 1]
+        return c
 
+    def checksum(self) -> int:
+        return self._result_value & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "MatmulBase"
+
+
+class Matmul1T(MatmulBase):
+
+    def run_benchmark(self, iteration_id: int) -> None:
+        c = self._matmul_sync(self.a, self.b)
+        value = c[self.n >> 1][self.n >> 1]
+        self._result_value = (self._result_value +
+                              Helper.checksum_float(value)) & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Matmul::Single"
+
+
+class MatmulParallelBase(MatmulBase):
+
+    def __init__(self, num_threads: int):
+        super().__init__()
+        self.num_threads = num_threads
+
+    def run_benchmark(self, iteration_id: int) -> None:
+        c = self._matmul_parallel(self.a, self.b, self.num_threads)
+        value = c[self.n >> 1][self.n >> 1]
         self._result_value = (self._result_value +
                               Helper.checksum_float(value)) & 0xFFFFFFFF
 
@@ -4461,7 +4471,7 @@ def register_benchmarks():
     Benchmark.register_benchmark('CLBG::Fasta', Fasta)
     Benchmark.register_benchmark('CLBG::Knuckeotide', Knuckeotide)
     Benchmark.register_benchmark('CLBG::Mandelbrot', Mandelbrot)
-    Benchmark.register_benchmark('Matmul::T1', Matmul1T)
+    Benchmark.register_benchmark('Matmul::Single', Matmul1T)
     Benchmark.register_benchmark('Matmul::T4', Matmul4T)
     Benchmark.register_benchmark('Matmul::T8', Matmul8T)
     Benchmark.register_benchmark('Matmul::T16', Matmul16T)

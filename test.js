@@ -23,7 +23,7 @@
     "warmup_iterations": 1,
     "iterations": 2
   },
-  "Matmul::T1": {
+  "Matmul::Single": {
     "checksum": 720656960,
     "n": 40,
     "iterations": 3

@@ -138,10 +138,10 @@ fn run_benchmarks(single_bench: Option<&str>) {
         Brainfuck_Array: benchmarks::brainfuck_array::BrainfuckArray,
         Brainfuck_Recursion: benchmarks::brainfuck_recursion::BrainfuckRecursion,
 
-        Matmul_T1: benchmarks::matmul1t::Matmul1T,
-        Matmul_T4: benchmarks::matmul4t::Matmul4T,
-        Matmul_T8: benchmarks::matmul8t::Matmul8T,
-        Matmul_T16: benchmarks::matmul16t::Matmul16T,
+        Matmul_Single: benchmarks::matmul::Matmul1T,
+        Matmul_T4: benchmarks::matmul::Matmul4T,
+        Matmul_T8: benchmarks::matmul::Matmul8T,
+        Matmul_T16: benchmarks::matmul::Matmul16T,
 
         Base64_Encode: benchmarks::base64_encode::Base64Encode,
         Base64_Decode: benchmarks::base64_decode::Base64Decode,

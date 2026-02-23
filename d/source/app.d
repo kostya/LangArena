@@ -25,8 +25,7 @@ import benchmarks.knuckeotide;
 import benchmarks.regexdna;
 import benchmarks.revcomp;
 import benchmarks.mandelbrot;
-import benchmarks.matmul1t;
-import benchmarks.matmul4t;
+import benchmarks.matmul;
 import benchmarks.nbody;
 import benchmarks.spectralnorm;
 import benchmarks.base64encode;
@@ -51,7 +50,7 @@ mixin(registerAllBenchmarks!("CLBG::Pidigits", Pidigits, "Binarytrees::Obj",
         BrainfuckArray, "Brainfuck::Recursion", BrainfuckRecursion,
         "CLBG::Fannkuchredux", Fannkuchredux, "CLBG::Fasta", Fasta,
         "CLBG::Knuckeotide", Knuckeotide, "CLBG::Mandelbrot", Mandelbrot,
-        "Matmul::T1", Matmul1T, "Matmul::T4", Matmul4T,
+        "Matmul::Single", Matmul1T, "Matmul::T4", Matmul4T,
         "Matmul::T8", Matmul8T, "Matmul::T16", Matmul16T, "CLBG::Nbody", Nbody,
         "CLBG::RegexDna", RegexDna, "CLBG::Revcomp", Revcomp,
         "CLBG::Spectralnorm", Spectralnorm, "Base64::Encode",

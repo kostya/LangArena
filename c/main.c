@@ -2705,12 +2705,7 @@ Benchmark *Mandelbrot_create(void) {
   return bench;
 }
 
-typedef struct {
-  int64_t n;
-  uint32_t result_val;
-} MatmulData;
-
-static double **Matmul_matgen(int n) {
+static double **matgen(int n) {
   double tmp = 1.0 / n / n;
   double **a = malloc(n * sizeof(double *));
 
@@ -2723,100 +2718,119 @@ static double **Matmul_matgen(int n) {
   return a;
 }
 
-static void Matmul_free_matrix(double **a, int n) {
+static void free_matrix(double **a, int n) {
+  if (!a)
+    return;
   for (int i = 0; i < n; i++) {
     free(a[i]);
   }
   free(a);
 }
 
-static double **Matmul_matmul(double **a, double **b, int n) {
-
-  double **b2 = malloc(n * sizeof(double *));
+static double **transpose(double **b, int n) {
+  double **b_t = malloc(n * sizeof(double *));
   for (int j = 0; j < n; j++) {
-    b2[j] = malloc(n * sizeof(double));
+    b_t[j] = malloc(n * sizeof(double));
     for (int i = 0; i < n; i++) {
-      b2[j][i] = b[i][j];
+      b_t[j][i] = b[i][j];
     }
   }
-
-  double **c = malloc(n * sizeof(double *));
-  for (int i = 0; i < n; i++) {
-    c[i] = malloc(n * sizeof(double));
-    double *ai = a[i];
-    for (int j = 0; j < n; j++) {
-      double s = 0.0;
-      double *b2j = b2[j];
-      for (int k = 0; k < n; k++) {
-        s += ai[k] * b2j[k];
-      }
-      c[i][j] = s;
-    }
-  }
-
-  Matmul_free_matrix(b2, n);
-  return c;
-}
-
-void Matmul_prepare(Benchmark *self) {
-  MatmulData *data = (MatmulData *)self->data;
-
-  data->result_val = 0;
-}
-
-void Matmul_run(Benchmark *self, int iteration_id) {
-  MatmulData *data = (MatmulData *)self->data;
-
-  int n = (int)data->n;
-
-  double **a = Matmul_matgen(n);
-  double **b = Matmul_matgen(n);
-  double **c = Matmul_matmul(a, b, n);
-
-  double center_value = c[n >> 1][n >> 1];
-
-  Matmul_free_matrix(a, n);
-  Matmul_free_matrix(b, n);
-  Matmul_free_matrix(c, n);
-
-  uint32_t iter_checksum = Helper_checksum_f64(center_value);
-  data->result_val += iter_checksum;
-}
-
-uint32_t Matmul_checksum(Benchmark *self) {
-  MatmulData *data = (MatmulData *)self->data;
-  return data->result_val;
-}
-
-void Matmul_cleanup(Benchmark *self) {
-  MatmulData *data = (MatmulData *)self->data;
-}
-
-Benchmark *Matmul_create(void) {
-  Benchmark *bench = Benchmark_create("Matmul::T1");
-
-  MatmulData *data = malloc(sizeof(MatmulData));
-
-  data->n = Helper_config_i64("Matmul::T1", "n");
-  if (data->n == 0) {
-    data->n = 100;
-  }
-
-  data->result_val = 0;
-
-  bench->data = data;
-  bench->prepare = Matmul_prepare;
-  bench->run = Matmul_run;
-  bench->checksum = Matmul_checksum;
-  bench->cleanup = Matmul_cleanup;
-
-  return bench;
+  return b_t;
 }
 
 typedef struct {
   int64_t n;
   uint32_t result_val;
-} Matmul4TData;
+  double **a;
+  double **b;
+} MatmulBaseData;
+
+static uint32_t Matmul_checksum(Benchmark *self) {
+  MatmulBaseData *data = (MatmulBaseData *)self->data;
+  return data->result_val;
+}
+
+static void MatmulBase_prepare(Benchmark *self) {
+  MatmulBaseData *data = (MatmulBaseData *)self->data;
+  int n = (int)data->n;
+
+  data->a = matgen(n);
+  data->b = matgen(n);
+  data->result_val = 0;
+}
+
+static void MatmulBase_cleanup(Benchmark *self) {
+  MatmulBaseData *data = (MatmulBaseData *)self->data;
+  int n = (int)data->n;
+
+  if (data->a) {
+    free_matrix(data->a, n);
+    data->a = NULL;
+  }
+  if (data->b) {
+    free_matrix(data->b, n);
+    data->b = NULL;
+  }
+}
+
+static double **matmul_sequential(double **a, double **b, int n) {
+  double **b_t = transpose(b, n);
+  double **c = malloc(n * sizeof(double *));
+
+  for (int i = 0; i < n; i++) {
+    c[i] = malloc(n * sizeof(double));
+    double *ai = a[i];
+    for (int j = 0; j < n; j++) {
+      double s = 0.0;
+      double *b_tj = b_t[j];
+
+      for (int k = 0; k < n; k++) {
+        s += ai[k] * b_tj[k];
+      }
+      c[i][j] = s;
+    }
+  }
+
+  free_matrix(b_t, n);
+  return c;
+}
+
+static void Matmul_run(Benchmark *self, int iteration_id) {
+  MatmulBaseData *data = (MatmulBaseData *)self->data;
+  int n = (int)data->n;
+
+  double **c = matmul_sequential(data->a, data->b, n);
+  double center_value = c[n >> 1][n >> 1];
+  free_matrix(c, n);
+
+  uint32_t iter_checksum = Helper_checksum_f64(center_value);
+  data->result_val += iter_checksum;
+}
+
+Benchmark *Matmul_create(void) {
+  Benchmark *bench = Benchmark_create("Matmul::Single");
+  MatmulBaseData *data = malloc(sizeof(MatmulBaseData));
+
+  data->n = Helper_config_i64("Matmul::Single", "n");
+  if (data->n == 0)
+    data->n = 100;
+  data->result_val = 0;
+  data->a = NULL;
+  data->b = NULL;
+
+  bench->data = data;
+  bench->prepare = MatmulBase_prepare;
+  bench->run = Matmul_run;
+  bench->checksum = Matmul_checksum;
+  bench->cleanup = MatmulBase_cleanup;
+
+  return bench;
+}
+
+typedef struct {
+  MatmulBaseData base;
+  int num_threads;
+} MatmulParallelData;
 
 typedef struct {
   double **a;
@@ -2827,7 +2841,7 @@ typedef struct {
   int end_row;
 } MatmulThreadData;
 
-static void *Matmul4T_thread_func(void *arg) {
+static void *thread_func(void *arg) {
   MatmulThreadData *data = (MatmulThreadData *)arg;
 
   for (int i = data->start_row; i < data->end_row; i++) {
@@ -2844,43 +2858,15 @@ static void *Matmul4T_thread_func(void *arg) {
       ci[j] = sum;
     }
   }
-
   return NULL;
 }
 
-static double **Matmul4T_matgen(int n) {
-  double tmp = 1.0 / n / n;
-  double **a = malloc(n * sizeof(double *));
-
-  for (int i = 0; i < n; i++) {
-    a[i] = malloc(n * sizeof(double));
-    for (int j = 0; j < n; j++) {
-      a[i][j] = tmp * (i - j) * (i + j);
-    }
-  }
-  return a;
-}
-
-static void Matmul4T_free_matrix(double **a, int n) {
-  for (int i = 0; i < n; i++) {
-    free(a[i]);
-  }
-  free(a);
-}
-
-static double **Matmul4T_matmul_parallel(double **a, double **b, int n) {
-  const int num_threads = 4;
+static double **matmul_parallel(double **a, double **b, int n,
+                                int num_threads) {
   pthread_t threads[num_threads];
   MatmulThreadData thread_data[num_threads];
 
-  double **b_t = malloc(n * sizeof(double *));
-  for (int j = 0; j < n; j++) {
-    b_t[j] = malloc(n * sizeof(double));
-    for (int i = 0; i < n; i++) {
-      b_t[j][i] = b[i][j];
-    }
-  }
-
+  double **b_t = transpose(b, n);
   double **c = malloc(n * sizeof(double *));
   for (int i = 0; i < n; i++) {
     c[i] = calloc(n, sizeof(double));
@@ -2899,12 +2885,10 @@ static double **Matmul4T_matmul_parallel(double **a, double **b, int n) {
       thread_data[t].end_row = n;
     }
 
-    int rc = pthread_create(&threads[t], NULL, Matmul4T_thread_func,
-                            &thread_data[t]);
+    int rc = pthread_create(&threads[t], NULL, thread_func, &thread_data[t]);
     if (rc != 0) {
       fprintf(stderr, "Failed to create thread %d\n", t);
-
-      Matmul4T_thread_func(&thread_data[t]);
+      thread_func(&thread_data[t]);
       threads[t] = 0;
     }
   }
@@ -2915,281 +2899,82 @@ static double **Matmul4T_matmul_parallel(double **a, double **b, int n) {
     }
   }
 
-  Matmul4T_free_matrix(b_t, n);
-
+  free_matrix(b_t, n);
   return c;
 }
 
-void Matmul4T_prepare(Benchmark *self) {
-  Matmul4TData *data = (Matmul4TData *)self->data;
-  data->result_val = 0;
-}
+static void MatmulParallel_run(Benchmark *self, int iteration_id) {
+  MatmulParallelData *data = (MatmulParallelData *)self->data;
+  int n = (int)data->base.n;
 
-void Matmul4T_run(Benchmark *self, int iteration_id) {
-  Matmul4TData *data = (Matmul4TData *)self->data;
-
-  int n = (int)data->n;
-
-  double **a = Matmul4T_matgen(n);
-  double **b = Matmul4T_matgen(n);
-  double **c = Matmul4T_matmul_parallel(a, b, n);
-
+  double **c =
+      matmul_parallel(data->base.a, data->base.b, n, data->num_threads);
   double center_value = c[n >> 1][n >> 1];
-
-  Matmul4T_free_matrix(a, n);
-  Matmul4T_free_matrix(b, n);
-  Matmul4T_free_matrix(c, n);
+  free_matrix(c, n);
 
   uint32_t iter_checksum = Helper_checksum_f64(center_value);
-  data->result_val += iter_checksum;
-}
-
-uint32_t Matmul4T_checksum(Benchmark *self) {
-  Matmul4TData *data = (Matmul4TData *)self->data;
-  return data->result_val;
-}
-
-void Matmul4T_cleanup(Benchmark *self) {
-  Matmul4TData *data = (Matmul4TData *)self->data;
+  data->base.result_val += iter_checksum;
 }
 
 Benchmark *Matmul4T_create(void) {
   Benchmark *bench = Benchmark_create("Matmul::T4");
+  MatmulParallelData *data = malloc(sizeof(MatmulParallelData));
 
-  Matmul4TData *data = malloc(sizeof(Matmul4TData));
-
-  data->n = Helper_config_i64("Matmul::T4", "n");
-  if (data->n == 0) {
-    data->n = 100;
-  }
-
-  data->result_val = 0;
+  data->base.n = Helper_config_i64("Matmul::T4", "n");
+  if (data->base.n == 0)
+    data->base.n = 100;
+  data->base.result_val = 0;
+  data->base.a = NULL;
+  data->base.b = NULL;
+  data->num_threads = 4;
 
   bench->data = data;
-  bench->prepare = Matmul4T_prepare;
-  bench->run = Matmul4T_run;
-  bench->checksum = Matmul4T_checksum;
-  bench->cleanup = Matmul4T_cleanup;
+  bench->prepare = MatmulBase_prepare;
+  bench->run = MatmulParallel_run;
+  bench->checksum = Matmul_checksum;
+  bench->cleanup = MatmulBase_cleanup;
 
   return bench;
-}
-
-typedef struct {
-  int64_t n;
-  uint32_t result_val;
-} Matmul8TData;
-
-static double **Matmul8T_matmul_parallel(double **a, double **b, int n) {
-  const int num_threads = 8;
-  pthread_t threads[num_threads];
-  MatmulThreadData thread_data[num_threads];
-
-  double **b_t = malloc(n * sizeof(double *));
-  for (int j = 0; j < n; j++) {
-    b_t[j] = malloc(n * sizeof(double));
-    for (int i = 0; i < n; i++) {
-      b_t[j][i] = b[i][j];
-    }
-  }
-
-  double **c = malloc(n * sizeof(double *));
-  for (int i = 0; i < n; i++) {
-    c[i] = calloc(n, sizeof(double));
-  }
-
-  int rows_per_thread = (n + num_threads - 1) / num_threads;
-
-  for (int t = 0; t < num_threads; t++) {
-    thread_data[t].a = a;
-    thread_data[t].b_t = b_t;
-    thread_data[t].c = c;
-    thread_data[t].n = n;
-    thread_data[t].start_row = t * rows_per_thread;
-    thread_data[t].end_row = thread_data[t].start_row + rows_per_thread;
-    if (thread_data[t].end_row > n || t == num_threads - 1) {
-      thread_data[t].end_row = n;
-    }
-
-    int rc = pthread_create(&threads[t], NULL, Matmul4T_thread_func,
-                            &thread_data[t]);
-    if (rc != 0) {
-      fprintf(stderr, "Failed to create thread %d\n", t);
-      Matmul4T_thread_func(&thread_data[t]);
-      threads[t] = 0;
-    }
-  }
-
-  for (int t = 0; t < num_threads; t++) {
-    if (threads[t] != 0) {
-      pthread_join(threads[t], NULL);
-    }
-  }
-
-  Matmul4T_free_matrix(b_t, n);
-
-  return c;
-}
-
-void Matmul8T_prepare(Benchmark *self) {
-  Matmul8TData *data = (Matmul8TData *)self->data;
-  data->result_val = 0;
-}
-
-void Matmul8T_run(Benchmark *self, int iteration_id) {
-  Matmul8TData *data = (Matmul8TData *)self->data;
-
-  int n = (int)data->n;
-
-  double **a = Matmul4T_matgen(n);
-  double **b = Matmul4T_matgen(n);
-  double **c = Matmul8T_matmul_parallel(a, b, n);
-
-  double center_value = c[n >> 1][n >> 1];
-
-  Matmul4T_free_matrix(a, n);
-  Matmul4T_free_matrix(b, n);
-  Matmul4T_free_matrix(c, n);
-
-  uint32_t iter_checksum = Helper_checksum_f64(center_value);
-  data->result_val += iter_checksum;
-}
-
-uint32_t Matmul8T_checksum(Benchmark *self) {
-  Matmul8TData *data = (Matmul8TData *)self->data;
-  return data->result_val;
-}
-
-void Matmul8T_cleanup(Benchmark *self) {
-  Matmul8TData *data = (Matmul8TData *)self->data;
 }
 
 Benchmark *Matmul8T_create(void) {
   Benchmark *bench = Benchmark_create("Matmul::T8");
+  MatmulParallelData *data = malloc(sizeof(MatmulParallelData));
 
-  Matmul8TData *data = malloc(sizeof(Matmul8TData));
-
-  data->n = Helper_config_i64("Matmul::T8", "n");
-  if (data->n == 0) {
-    data->n = 100;
-  }
-
-  data->result_val = 0;
+  data->base.n = Helper_config_i64("Matmul::T8", "n");
+  if (data->base.n == 0)
+    data->base.n = 100;
+  data->base.result_val = 0;
+  data->base.a = NULL;
+  data->base.b = NULL;
+  data->num_threads = 8;
 
   bench->data = data;
-  bench->prepare = Matmul8T_prepare;
-  bench->run = Matmul8T_run;
-  bench->checksum = Matmul8T_checksum;
-  bench->cleanup = Matmul8T_cleanup;
+  bench->prepare = MatmulBase_prepare;
+  bench->run = MatmulParallel_run;
+  bench->checksum = Matmul_checksum;
+  bench->cleanup = MatmulBase_cleanup;
 
   return bench;
 }
 
-typedef struct {
-  int64_t n;
-  uint32_t result_val;
-} Matmul16TData;
-
-static double **Matmul16T_matmul_parallel(double **a, double **b, int n) {
-  const int num_threads = 16;
-  pthread_t threads[num_threads];
-  MatmulThreadData thread_data[num_threads];
-
-  double **b_t = malloc(n * sizeof(double *));
-  for (int j = 0; j < n; j++) {
-    b_t[j] = malloc(n * sizeof(double));
-    for (int i = 0; i < n; i++) {
-      b_t[j][i] = b[i][j];
-    }
-  }
-
-  double **c = malloc(n * sizeof(double *));
-  for (int i = 0; i < n; i++) {
-    c[i] = calloc(n, sizeof(double));
-  }
-
-  int rows_per_thread = (n + num_threads - 1) / num_threads;
-
-  for (int t = 0; t < num_threads; t++) {
-    thread_data[t].a = a;
-    thread_data[t].b_t = b_t;
-    thread_data[t].c = c;
-    thread_data[t].n = n;
-    thread_data[t].start_row = t * rows_per_thread;
-    thread_data[t].end_row = thread_data[t].start_row + rows_per_thread;
-    if (thread_data[t].end_row > n || t == num_threads - 1) {
-      thread_data[t].end_row = n;
-    }
-
-    int rc = pthread_create(&threads[t], NULL, Matmul4T_thread_func,
-                            &thread_data[t]);
-    if (rc != 0) {
-      fprintf(stderr, "Failed to create thread %d\n", t);
-      Matmul4T_thread_func(&thread_data[t]);
-      threads[t] = 0;
-    }
-  }
-
-  for (int t = 0; t < num_threads; t++) {
-    if (threads[t] != 0) {
-      pthread_join(threads[t], NULL);
-    }
-  }
-
-  Matmul4T_free_matrix(b_t, n);
-
-  return c;
-}
-
-void Matmul16T_prepare(Benchmark *self) {
-  Matmul16TData *data = (Matmul16TData *)self->data;
-  data->result_val = 0;
-}
-
-void Matmul16T_run(Benchmark *self, int iteration_id) {
-  Matmul16TData *data = (Matmul16TData *)self->data;
-
-  int n = (int)data->n;
-
-  double **a = Matmul4T_matgen(n);
-  double **b = Matmul4T_matgen(n);
-  double **c = Matmul16T_matmul_parallel(a, b, n);
-
-  double center_value = c[n >> 1][n >> 1];
-
-  Matmul4T_free_matrix(a, n);
-  Matmul4T_free_matrix(b, n);
-  Matmul4T_free_matrix(c, n);
-
-  uint32_t iter_checksum = Helper_checksum_f64(center_value);
-  data->result_val += iter_checksum;
-}
-
-uint32_t Matmul16T_checksum(Benchmark *self) {
-  Matmul16TData *data = (Matmul16TData *)self->data;
-  return data->result_val;
-}
-
-void Matmul16T_cleanup(Benchmark *self) {
-  Matmul16TData *data = (Matmul16TData *)self->data;
-}
-
 Benchmark *Matmul16T_create(void) {
   Benchmark *bench = Benchmark_create("Matmul::T16");
+  MatmulParallelData *data = malloc(sizeof(MatmulParallelData));
 
-  Matmul16TData *data = malloc(sizeof(Matmul16TData));
-
-  data->n = Helper_config_i64("Matmul::T16", "n");
-  if (data->n == 0) {
-    data->n = 100;
-  }
-
-  data->result_val = 0;
+  data->base.n = Helper_config_i64("Matmul::T16", "n");
+  if (data->base.n == 0)
+    data->base.n = 100;
+  data->base.result_val = 0;
+  data->base.a = NULL;
+  data->base.b = NULL;
+  data->num_threads = 16;
 
   bench->data = data;
-  bench->prepare = Matmul16T_prepare;
-  bench->run = Matmul16T_run;
-  bench->checksum = Matmul16T_checksum;
-  bench->cleanup = Matmul16T_cleanup;
+  bench->prepare = MatmulBase_prepare;
+  bench->run = MatmulParallel_run;
+  bench->checksum = Matmul_checksum;
+  bench->cleanup = MatmulBase_cleanup;
 
   return bench;
 }
@@ -9540,7 +9325,7 @@ void register_all_benchmarks(void) {
   Benchmark_register("CLBG::Fasta", Fasta_create);
   Benchmark_register("CLBG::Knuckeotide", Knuckeotide_create);
   Benchmark_register("CLBG::Mandelbrot", Mandelbrot_create);
-  Benchmark_register("Matmul::T1", Matmul_create);
+  Benchmark_register("Matmul::Single", Matmul_create);
   Benchmark_register("Matmul::T4", Matmul4T_create);
   Benchmark_register("Matmul::T8", Matmul8T_create);
   Benchmark_register("Matmul::T16", Matmul16T_create);

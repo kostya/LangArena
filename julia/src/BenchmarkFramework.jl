@@ -50,7 +50,7 @@ const ALL_BENCHMARKS = [
     ("CLBG::Fasta", Fasta),
     ("CLBG::Knuckeotide", Knuckeotide),
     ("CLBG::Mandelbrot", Mandelbrot),
-    ("Matmul::T1", Matmul1T),
+    ("Matmul::Single", Matmul1T),
     ("Matmul::T4", Matmul4T),
     ("Matmul::T8", Matmul8T),
     ("Matmul::T16", Matmul16T),

@@ -17,7 +17,7 @@
     <Compile Include="Fasta.fs" />
     <Compile Include="Knuckeotide.fs" />
     <Compile Include="Mandelbrot.fs" />
-    <Compile Include="MatmulParallel.fs" />
+    <Compile Include="Matmul.fs" />
     <Compile Include="Nbody.fs" />
     <Compile Include="RegexDna.fs" />
     <Compile Include="Revcomp.fs" />

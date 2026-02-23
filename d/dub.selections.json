@@ -2,9 +2,16 @@
 	"fileVersion": 1,
 	"versions": {
 		"asdf": "0.8.0",
+		"cblas": "2.3.4",
 		"gmp-d": {"version":"~main","repository":"git+https://github.com/kostya/gmp-d.git"},
+		"lapack": "0.6.5",
+		"lubeck": "1.5.4",
 		"mir-algorithm": "3.22.4",
+		"mir-blas": "1.1.17",
 		"mir-core": "1.7.3",
+		"mir-lapack": "1.2.12",
+		"mir-linux-kernel": "1.2.1",
+		"mir-random": "2.2.20",
 		"silly": "1.1.1"
 	}
 }

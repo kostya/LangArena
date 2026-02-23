@@ -37,7 +37,7 @@ module BenchmarkRunner =
         createBenchmarkInfo<BrainfuckArray> "Brainfuck::Array"
         createBenchmarkInfo<BrainfuckRecursion> "Brainfuck::Recursion"
 
-        createBenchmarkInfo<Matmul1T> "Matmul::T1"
+        createBenchmarkInfo<Matmul1T> "Matmul::Single"
         createBenchmarkInfo<Matmul4T> "Matmul::T4"
         createBenchmarkInfo<Matmul8T> "Matmul::T8"
         createBenchmarkInfo<Matmul16T> "Matmul::T16"

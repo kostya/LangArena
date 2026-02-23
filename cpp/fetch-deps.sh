@@ -17,3 +17,4 @@ fi
 if [ ! -f "deps/json.hpp" ]; then
   wget https://github.com/nlohmann/json/releases/download/v3.12.0/json.hpp -O deps/json.hpp
 fi
+

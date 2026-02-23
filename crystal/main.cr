@@ -518,26 +518,28 @@ module Brainfuck
 end
 
 module Matmul
-  class T1 < Benchmark
-    def matmul(a, b)
-      m = a.size
-      n = a[0].size
-      p = b[0].size
+  def self.matgen(n, seed = 1.0)
+    tmp = seed / n / n
+    Array.new(n) { |i| Array.new(n) { |j| tmp * (i - j) * (i + j) } }
+  end
 
-      b2 = Array.new(n) { Array.new(p, 0.0) }
+  class Single < Benchmark
+    def matmul(n, a, b)
+      t = Array.new(n) { Array.new(n, 0.0) }
       (0...n).each do |i|
-        (0...p).each do |j|
-          b2[j][i] = b[i][j]
+        (0...n).each do |j|
+          t[j][i] = b[i][j]
         end
       end
 
-      c = Array.new(m) { Array.new(p, 0.0) }
+      c = Array.new(n) { Array.new(n, 0.0) }
+
       c.each_with_index do |ci, i|
         ai = a[i]
-        b2.each_with_index do |b2j, j|
+        t.each_with_index do |tj, j|
           s = 0.0
-          b2j.each_with_index do |b2jv, k|
-            s += ai[k] * b2jv
+          ai.zip(tj) do |av, tv|
+            s += av * tv
           end
           ci[j] = s
         end
@@ -545,26 +547,19 @@ module Matmul
       c
     end
 
-    def matgen(n)
-      tmp = 1.0 / n / n
-      a = Array.new(n) { Array.new(n, 0.0) }
-      (0...n).each do |i|
-        (0...n).each do |j|
-          a[i][j] = tmp * (i - j) * (i + j)
-        end
-      end
-      a
-    end
+    @a : Array(Array(Float64))
+    @b : Array(Array(Float64))
 
     def initialize(@n : Int64 = config_val("n"))
       @result = 0_u32
+      @a = Matmul.matgen(@n, 1.0)
+      @b = Matmul.matgen(@n, 1.0)
     end
 
     def run(iteration_id)
-      a = matgen(@n)
-      b = matgen(@n)
-      c = matmul(a, b)
-      @result &+= Helper.checksum_f64(c[@n >> 1][@n >> 1])
+      c = matmul(@n, @a, @b)
+      v = c[@n >> 1][@n >> 1]
+      @result &+= Helper.checksum_f64(v)
     end
 
     def checksum : UInt32
@@ -572,60 +567,32 @@ module Matmul
     end
   end
 
-  class T4 < Benchmark
-    @n : Int64
-    @result : UInt32
-
-    def initialize(@n = config_val("n"))
-      @result = 0_u32
-    end
-
-    def num_workers
-      4
-    end
-
-    def matgen(n : Int64) : Array(Array(Float64))
-      tmp = 1.0 / n / n
-      Array.new(n) do |i|
-        Array.new(n) do |j|
-          tmp * (i - j) * (i + j)
-        end
-      end
-    end
-
-    def matmul_parallel(a : Array(Array(Float64)), b : Array(Array(Float64))) : Array(Array(Float64))
-      size = a.size
-
-      b_t = Array.new(size) { Array.new(size, 0.0) }
-      size.times do |i|
-        size.times do |j|
-          b_t[j][i] = b[i][j]
+  class T4 < Single
+    def matmul_parallel(n, threads, a, b)
+      t = Array.new(n) { Array.new(n, 0.0) }
+      n.times do |i|
+        n.times do |j|
+          t[j][i] = b[i][j]
         end
       end
 
-      c = Array.new(size) { Array.new(size, 0.0) }
-
+      c = Array.new(n) { Array.new(n, 0.0) }
       channel = Channel(Nil).new
-      rows_per_worker = (size + num_workers - 1) // num_workers
+      rows_per_worker = (n + threads - 1) // threads
 
-      num_workers.times do |worker_id|
+      threads.times do |worker_id|
         spawn do
           start_row = worker_id * rows_per_worker
-          end_row = Math.min(start_row + rows_per_worker, size)
+          end_row = Math.min(start_row + rows_per_worker, n)
 
           (start_row...end_row).each do |i|
             ai = a[i]
             ci = c[i]
 
-            size.times do |j|
-              sum = 0.0
-              b_tj = b_t[j]
-
-              size.times do |k|
-                sum += ai[k] * b_tj[k]
-              end
-
-              ci[j] = sum
+            t.each_with_index do |tj, j|
+              s = 0.0
+              ai.zip(tj) { |av, tv| s += av * tv }
+              ci[j] = s
             end
           end
 
@@ -633,32 +600,29 @@ module Matmul
         end
       end
 
-      num_workers.times { channel.receive }
-
+      threads.times { channel.receive }
       c
     end
 
-    def run(iteration_id)
-      a = matgen(@n)
-      b = matgen(@n)
-      c = matmul_parallel(a, b)
-
-      @result &+= Helper.checksum_f64(c[@n >> 1][@n >> 1])
+    def num_threads
+      4
     end
 
-    def checksum : UInt32
-      @result
+    def run(iteration_id)
+      c = matmul_parallel(@n, num_threads, @a, @b)
+      v = c[@n >> 1][@n >> 1]
+      @result &+= Helper.checksum_f64(v)
     end
   end
 
   class T8 < T4
-    def num_workers
+    def num_threads
       8
     end
   end
 
   class T16 < T4
-    def num_workers
+    def num_threads
       16
     end
   end

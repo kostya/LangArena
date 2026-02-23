@@ -17,41 +17,36 @@ end
 
 mutable struct Matmul1T <: AbstractBenchmark
     n::Int64
+    a::Matrix{Float64}
+    b::Matrix{Float64}
     result::UInt32
 
     function Matmul1T()
-        n = Helper.config_i64("Matmul::T1", "n")
-        new(n, UInt32(0))
+        n = Helper.config_i64("Matmul::Single", "n")
+        a = matgen(n)
+        b = matgen(n)
+        new(n, a, b, UInt32(0))
     end
 end
 
-name(b::Matmul1T)::String = "Matmul::T1"
+name(::Matmul1T)::String = "Matmul::Single"
 
-function matmul_single_thread(a::Matrix{Float64}, b::Matrix{Float64})
+function matmul_single(a::Matrix{Float64}, b::Matrix{Float64})::Matrix{Float64}
     n = size(a, 1)
-    b_t = Matrix{Float64}(undef, n, n)
 
-    for j = 1:n
-        for i = 1:n
-            b_t[j, i] = b[i, j]
-        end
+    b_t = Matrix{Float64}(undef, n, n)
+    for j = 1:n, i = 1:n
+        b_t[j, i] = b[i, j]
     end
 
     c = Matrix{Float64}(undef, n, n)
-
     for i = 1:n
-        ai = @view a[i, :]
-        ci = @view c[i, :]
-
         for j = 1:n
-            bj = @view b_t[j, :]
             s = 0.0
-
             for k = 1:n
-                s += ai[k] * bj[k]
+                s += a[i, k] * b_t[j, k]
             end
-
-            ci[j] = s
+            c[i, j] = s
         end
     end
 
@@ -59,10 +54,7 @@ function matmul_single_thread(a::Matrix{Float64}, b::Matrix{Float64})
 end
 
 function run(b::Matmul1T, iteration_id::Int64)
-    a = matgen(b.n)
-    b_mat = matgen(b.n)
-    c = matmul_single_thread(a, b_mat)
-
+    c = matmul_single(b.a, b.b)
     idx = (b.n >> 1) + 1
     b.result += Helper.checksum_f64(c[idx, idx])
 end
@@ -71,29 +63,34 @@ checksum(b::Matmul1T)::UInt32 = b.result
 
 mutable struct Matmul4T <: AbstractBenchmark
     n::Int64
+    a::Matrix{Float64}
+    b::Matrix{Float64}
     result::UInt32
 
     function Matmul4T()
         n = Helper.config_i64("Matmul::T4", "n")
-        new(n, UInt32(0))
+        a = matgen(n)
+        b = matgen(n)
+        new(n, a, b, UInt32(0))
     end
 end
 
-name(b::Matmul4T)::String = "Matmul::T4"
+name(::Matmul4T)::String = "Matmul::T4"
 
-function matmul_n_threads(a::Matrix{Float64}, b::Matrix{Float64}, nthreads::Int)
+function matmul_parallel(
+    a::Matrix{Float64},
+    b::Matrix{Float64},
+    nthreads::Int,
+)::Matrix{Float64}
     n = size(a, 1)
-    b_t = Matrix{Float64}(undef, n, n)
 
-    for j = 1:n
-        for i = 1:n
-            b_t[j, i] = b[i, j]
-        end
+    b_t = Matrix{Float64}(undef, n, n)
+    for j = 1:n, i = 1:n
+        b_t[j, i] = b[i, j]
     end
 
     c = Matrix{Float64}(undef, n, n)
-
-    rows_per_chunk = div(n + nthreads - 1, nthreads)
+    rows_per_chunk = cld(n, nthreads)
 
     tasks = Task[]
     for chunk = 0:(nthreads-1)
@@ -103,18 +100,12 @@ function matmul_n_threads(a::Matrix{Float64}, b::Matrix{Float64}, nthreads::Int)
         if start_row <= n
             task = Threads.@spawn begin
                 for i = start_row:end_row
-                    ai = @view a[i, :]
-                    ci = @view c[i, :]
-
                     for j = 1:n
-                        bj = @view b_t[j, :]
                         s = 0.0
-
                         for k = 1:n
-                            s += ai[k] * bj[k]
+                            s += a[i, k] * b_t[j, k]
                         end
-
-                        ci[j] = s
+                        c[i, j] = s
                     end
                 end
             end
@@ -130,10 +121,7 @@ function matmul_n_threads(a::Matrix{Float64}, b::Matrix{Float64}, nthreads::Int)
 end
 
 function run(b::Matmul4T, iteration_id::Int64)
-    a = matgen(b.n)
-    b_mat = matgen(b.n)
-    c = matmul_n_threads(a, b_mat, 4)
-
+    c = matmul_parallel(b.a, b.b, 4)
     idx = (b.n >> 1) + 1
     b.result += Helper.checksum_f64(c[idx, idx])
 end
@@ -142,21 +130,22 @@ checksum(b::Matmul4T)::UInt32 = b.result
 
 mutable struct Matmul8T <: AbstractBenchmark
     n::Int64
+    a::Matrix{Float64}
+    b::Matrix{Float64}
     result::UInt32
 
     function Matmul8T()
         n = Helper.config_i64("Matmul::T8", "n")
-        new(n, UInt32(0))
+        a = matgen(n)
+        b = matgen(n)
+        new(n, a, b, UInt32(0))
     end
 end
 
-name(b::Matmul8T)::String = "Matmul::T8"
+name(::Matmul8T)::String = "Matmul::T8"
 
 function run(b::Matmul8T, iteration_id::Int64)
-    a = matgen(b.n)
-    b_mat = matgen(b.n)
-    c = matmul_n_threads(a, b_mat, 8)
-
+    c = matmul_parallel(b.a, b.b, 8)
     idx = (b.n >> 1) + 1
     b.result += Helper.checksum_f64(c[idx, idx])
 end
@@ -165,21 +154,22 @@ checksum(b::Matmul8T)::UInt32 = b.result
 
 mutable struct Matmul16T <: AbstractBenchmark
     n::Int64
+    a::Matrix{Float64}
+    b::Matrix{Float64}
     result::UInt32
 
     function Matmul16T()
         n = Helper.config_i64("Matmul::T16", "n")
-        new(n, UInt32(0))
+        a = matgen(n)
+        b = matgen(n)
+        new(n, a, b, UInt32(0))
     end
 end
 
-name(b::Matmul16T)::String = "Matmul::T16"
+name(::Matmul16T)::String = "Matmul::T16"
 
 function run(b::Matmul16T, iteration_id::Int64)
-    a = matgen(b.n)
-    b_mat = matgen(b.n)
-    c = matmul_n_threads(a, b_mat, 16)
-
+    c = matmul_parallel(b.a, b.b, 16)
     idx = (b.n >> 1) + 1
     b.result += Helper.checksum_f64(c[idx, idx])
 end

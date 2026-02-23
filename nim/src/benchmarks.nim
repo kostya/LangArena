@@ -9,8 +9,7 @@ import benchmarks/fannkuchredux
 import benchmarks/fasta
 import benchmarks/knuckeotide
 import benchmarks/mandelbrot
-import benchmarks/matmul1t
-import benchmarks/matmul_threads
+import benchmarks/matmul
 import benchmarks/nbody
 import benchmarks/regexdna
 import benchmarks/revcomp

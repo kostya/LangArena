@@ -1418,43 +1418,70 @@ export class Mandelbrot extends Benchmark {
   }
 }
 
-export class Matmul1T extends Benchmark {
-  private n: number;
-  private resultValue: number = 0;
+abstract class MatmulBase extends Benchmark {
+  protected n: number = 0;
+  protected resultValue: number = 0;
+  protected a: number[][] = [];
+  protected b: number[][] = [];
 
-  constructor() {
+  constructor(name: string) {
     super();
-    this.n = Number(Helper.configI64(this.name, "n"));
   }
 
-  private matmul(a: number[][], b: number[][]): number[][] {
-    const m = a.length;
-    const n = a[0].length;
-    const p = b[0].length;
+  override prepare(): void {
+    this.n = Number(Helper.configI64(this.name, "n"));
+    this.a = this.matgen(this.n);
+    this.b = this.matgen(this.n);
+    this.resultValue = 0;
+  }
 
-    const b2: number[][] = Array(p)
+  protected matgen(n: number): number[][] {
+    const tmp = 1.0 / n / n;
+    const a: number[][] = Array(n)
       .fill(0)
       .map(() => Array(n).fill(0));
+
     for (let i = 0; i < n; i++) {
-      for (let j = 0; j < p; j++) {
-        b2[j][i] = b[i][j];
+      for (let j = 0; j < n; j++) {
+        a[i][j] = tmp * (i - j) * (i + j);
       }
     }
 
-    const c: number[][] = Array(m)
-      .fill(0)
-      .map(() => Array(p).fill(0));
+    return a;
+  }
 
-    for (let i = 0; i < m; i++) {
+  protected transpose(b: number[][]): number[][] {
+    const n = b.length;
+    const bT: number[][] = Array(n)
+      .fill(0)
+      .map(() => Array(n).fill(0));
+
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        bT[j][i] = b[i][j];
+      }
+    }
+
+    return bT;
+  }
+
+  protected matmulSequential(a: number[][], b: number[][]): number[][] {
+    const n = a.length;
+    const bT = this.transpose(b);
+    const c: number[][] = Array(n)
+      .fill(0)
+      .map(() => Array(n).fill(0));
+
+    for (let i = 0; i < n; i++) {
       const ai = a[i];
       const ci = c[i];
 
-      for (let j = 0; j < p; j++) {
-        const b2j = b2[j];
+      for (let j = 0; j < n; j++) {
+        const bTj = bT[j];
         let s = 0.0;
 
         for (let k = 0; k < n; k++) {
-          s += ai[k] * b2j[k];
+          s += ai[k] * bTj[k];
         }
 
         ci[j] = s;
@@ -1464,95 +1491,32 @@ export class Matmul1T extends Benchmark {
     return c;
   }
 
-  private matgen(n: number): number[][] {
-    const tmp = 1.0 / n / n;
-    const a: number[][] = Array(n)
+  protected matmulParallel(
+    a: number[][],
+    b: number[][],
+    numThreads: number,
+  ): number[][] {
+    const n = a.length;
+    const bT = this.transpose(b);
+    const c: number[][] = Array(n)
       .fill(0)
       .map(() => Array(n).fill(0));
 
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        a[i][j] = tmp * (i - j) * (i + j);
-      }
-    }
+    const rowsPerPart = Math.ceil(n / numThreads);
 
-    return a;
-  }
-
-  run(_iteration_id: number): void {
-    const a = this.matgen(this.n);
-    const b = this.matgen(this.n);
-    const c = this.matmul(a, b);
-    const value = c[this.n >> 1][this.n >> 1];
-
-    this.resultValue =
-      (this.resultValue + Helper.checksumFloat(value)) & 0xffffffff;
-  }
-
-  checksum(): number {
-    return this.resultValue >>> 0;
-  }
-  override get name(): string {
-    return "Matmul::T1";
-  }
-}
-
-export class Matmul4T extends Benchmark {
-  private n: number;
-  private resultValue: number = 0;
-
-  constructor() {
-    super();
-    this.n = Number(Helper.configI64(this.name, "n"));
-  }
-
-  private matgen(n: number): number[][] {
-    const tmp = 1.0 / n / n;
-    const a: number[][] = Array(n)
-      .fill(0)
-      .map(() => Array(n).fill(0));
-
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        a[i][j] = tmp * (i - j) * (i + j);
-      }
-    }
-
-    return a;
-  }
-
-  private matmulParallel(a: number[][], b: number[][]): number[][] {
-    const size = a.length;
-
-    const bT: number[][] = Array(size)
-      .fill(0)
-      .map(() => Array(size).fill(0));
-    for (let i = 0; i < size; i++) {
-      for (let j = 0; j < size; j++) {
-        bT[j][i] = b[i][j];
-      }
-    }
-
-    const c: number[][] = Array(size)
-      .fill(0)
-      .map(() => Array(size).fill(0));
-
-    const numParts = 4;
-    const rowsPerPart = Math.ceil(size / numParts);
-
-    for (let part = 0; part < numParts; part++) {
+    for (let part = 0; part < numThreads; part++) {
       const startRow = part * rowsPerPart;
-      const endRow = Math.min(startRow + rowsPerPart, size);
+      const endRow = Math.min(startRow + rowsPerPart, n);
 
       for (let i = startRow; i < endRow; i++) {
         const ai = a[i];
         const ci = c[i];
 
-        for (let j = 0; j < size; j++) {
+        for (let j = 0; j < n; j++) {
           let sum = 0.0;
           const bTj = bT[j];
 
-          for (let k = 0; k < size; k++) {
+          for (let k = 0; k < n; k++) {
             sum += ai[k] * bTj[k];
           }
 
@@ -1564,189 +1528,74 @@ export class Matmul4T extends Benchmark {
     return c;
   }
 
-  run(_iteration_id: number): void {
-    const a = this.matgen(this.n);
-    const b = this.matgen(this.n);
-    const c = this.matmulParallel(a, b);
-    const value = c[this.n >> 1][this.n >> 1];
+  checksum(): number {
+    return this.resultValue >>> 0;
+  }
+}
 
+export class Matmul1T extends MatmulBase {
+  constructor() {
+    super("Matmul::Single");
+  }
+
+  override run(_iteration_id: number): void {
+    const c = this.matmulSequential(this.a, this.b);
+    const value = c[this.n >> 1][this.n >> 1];
     this.resultValue =
       (this.resultValue + Helper.checksumFloat(value)) & 0xffffffff;
   }
 
-  checksum(): number {
-    return this.resultValue >>> 0;
+  override get name(): string {
+    return "Matmul::Single";
   }
+}
+
+export class Matmul4T extends MatmulBase {
+  constructor() {
+    super("Matmul::T4");
+  }
+
+  override run(_iteration_id: number): void {
+    const c = this.matmulParallel(this.a, this.b, 4);
+    const value = c[this.n >> 1][this.n >> 1];
+    this.resultValue =
+      (this.resultValue + Helper.checksumFloat(value)) & 0xffffffff;
+  }
+
   override get name(): string {
     return "Matmul::T4";
   }
 }
 
-export class Matmul8T extends Benchmark {
-  private n: number;
-  private resultValue: number = 0;
-
+export class Matmul8T extends MatmulBase {
   constructor() {
-    super();
-    this.n = Number(Helper.configI64(this.name, "n"));
+    super("Matmul::T8");
   }
 
-  private matgen(n: number): number[][] {
-    const tmp = 1.0 / n / n;
-    const a: number[][] = Array(n)
-      .fill(0)
-      .map(() => Array(n).fill(0));
-
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        a[i][j] = tmp * (i - j) * (i + j);
-      }
-    }
-
-    return a;
-  }
-
-  private matmulParallel(a: number[][], b: number[][]): number[][] {
-    const size = a.length;
-
-    const bT: number[][] = Array(size)
-      .fill(0)
-      .map(() => Array(size).fill(0));
-    for (let i = 0; i < size; i++) {
-      for (let j = 0; j < size; j++) {
-        bT[j][i] = b[i][j];
-      }
-    }
-
-    const c: number[][] = Array(size)
-      .fill(0)
-      .map(() => Array(size).fill(0));
-
-    const numParts = 8;
-    const rowsPerPart = Math.ceil(size / numParts);
-
-    for (let part = 0; part < numParts; part++) {
-      const startRow = part * rowsPerPart;
-      const endRow = Math.min(startRow + rowsPerPart, size);
-
-      for (let i = startRow; i < endRow; i++) {
-        const ai = a[i];
-        const ci = c[i];
-
-        for (let j = 0; j < size; j++) {
-          let sum = 0.0;
-          const bTj = bT[j];
-
-          for (let k = 0; k < size; k++) {
-            sum += ai[k] * bTj[k];
-          }
-
-          ci[j] = sum;
-        }
-      }
-    }
-
-    return c;
-  }
-
-  run(_iteration_id: number): void {
-    const a = this.matgen(this.n);
-    const b = this.matgen(this.n);
-    const c = this.matmulParallel(a, b);
+  override run(_iteration_id: number): void {
+    const c = this.matmulParallel(this.a, this.b, 8);
     const value = c[this.n >> 1][this.n >> 1];
-
     this.resultValue =
       (this.resultValue + Helper.checksumFloat(value)) & 0xffffffff;
   }
 
-  checksum(): number {
-    return this.resultValue >>> 0;
-  }
   override get name(): string {
     return "Matmul::T8";
   }
 }
 
-export class Matmul16T extends Benchmark {
-  private n: number;
-  private resultValue: number = 0;
-
+export class Matmul16T extends MatmulBase {
   constructor() {
-    super();
-    this.n = Number(Helper.configI64(this.name, "n"));
+    super("Matmul::T16");
   }
 
-  private matgen(n: number): number[][] {
-    const tmp = 1.0 / n / n;
-    const a: number[][] = Array(n)
-      .fill(0)
-      .map(() => Array(n).fill(0));
-
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        a[i][j] = tmp * (i - j) * (i + j);
-      }
-    }
-
-    return a;
-  }
-
-  private matmulParallel(a: number[][], b: number[][]): number[][] {
-    const size = a.length;
-
-    const bT: number[][] = Array(size)
-      .fill(0)
-      .map(() => Array(size).fill(0));
-    for (let i = 0; i < size; i++) {
-      for (let j = 0; j < size; j++) {
-        bT[j][i] = b[i][j];
-      }
-    }
-
-    const c: number[][] = Array(size)
-      .fill(0)
-      .map(() => Array(size).fill(0));
-
-    const numParts = 16;
-    const rowsPerPart = Math.ceil(size / numParts);
-
-    for (let part = 0; part < numParts; part++) {
-      const startRow = part * rowsPerPart;
-      const endRow = Math.min(startRow + rowsPerPart, size);
-
-      for (let i = startRow; i < endRow; i++) {
-        const ai = a[i];
-        const ci = c[i];
-
-        for (let j = 0; j < size; j++) {
-          let sum = 0.0;
-          const bTj = bT[j];
-
-          for (let k = 0; k < size; k++) {
-            sum += ai[k] * bTj[k];
-          }
-
-          ci[j] = sum;
-        }
-      }
-    }
-
-    return c;
-  }
-
-  run(_iteration_id: number): void {
-    const a = this.matgen(this.n);
-    const b = this.matgen(this.n);
-    const c = this.matmulParallel(a, b);
+  override run(_iteration_id: number): void {
+    const c = this.matmulParallel(this.a, this.b, 16);
     const value = c[this.n >> 1][this.n >> 1];
-
     this.resultValue =
       (this.resultValue + Helper.checksumFloat(value)) & 0xffffffff;
   }
 
-  checksum(): number {
-    return this.resultValue >>> 0;
-  }
   override get name(): string {
     return "Matmul::T16";
   }
@@ -5820,7 +5669,7 @@ Benchmark.registerBenchmark("CLBG::Fannkuchredux", Fannkuchredux);
 Benchmark.registerBenchmark("CLBG::Fasta", Fasta);
 Benchmark.registerBenchmark("CLBG::Knuckeotide", Knuckeotide);
 Benchmark.registerBenchmark("CLBG::Mandelbrot", Mandelbrot);
-Benchmark.registerBenchmark("Matmul::T1", Matmul1T);
+Benchmark.registerBenchmark("Matmul::Single", Matmul1T);
 Benchmark.registerBenchmark("Matmul::T4", Matmul4T);
 Benchmark.registerBenchmark("Matmul::T8", Matmul8T);
 Benchmark.registerBenchmark("Matmul::T16", Matmul16T);

@@ -21,8 +21,7 @@ import noise
 import textraytracer
 import neuralnet
 import mandelbrot
-import matmul1t
-import matmul_parallel
+import matmul
 import nbody
 import sorts
 import graph_paths
@@ -63,17 +62,17 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		benchmark.BenchmarkInfo{'CLBG::Mandelbrot', fn () &benchmark.IBenchmark {
 			return mandelbrot.new_mandelbrot()
 		}},
-		benchmark.BenchmarkInfo{'Matmul::T1', fn () &benchmark.IBenchmark {
-			return matmul1t.new_matmul1t()
+		benchmark.BenchmarkInfo{'Matmul::Single', fn () &benchmark.IBenchmark {
+			return matmul.new_matmul1t()
 		}},
 		benchmark.BenchmarkInfo{'Matmul::T4', fn () &benchmark.IBenchmark {
-			return matmul_parallel.new_matmul4t()
+			return matmul.new_matmul4t()
 		}},
 		benchmark.BenchmarkInfo{'Matmul::T8', fn () &benchmark.IBenchmark {
-			return matmul_parallel.new_matmul8t()
+			return matmul.new_matmul8t()
 		}},
 		benchmark.BenchmarkInfo{'Matmul::T16', fn () &benchmark.IBenchmark {
-			return matmul_parallel.new_matmul16t()
+			return matmul.new_matmul16t()
 		}},
 		benchmark.BenchmarkInfo{'Brainfuck::Array', fn () &benchmark.IBenchmark {
 			return brainfuck_array.new_brainfuck_array()

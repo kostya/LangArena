@@ -109,7 +109,7 @@ public abstract class Benchmark
             CreateBenchmarkInfo<BrainfuckArray>("Brainfuck::Array"),
             CreateBenchmarkInfo<BrainfuckRecursion>("Brainfuck::Recursion"),
 
-            CreateBenchmarkInfo<Matmul1T>("Matmul::T1"),
+            CreateBenchmarkInfo<Matmul1T>("Matmul::Single"),
             CreateBenchmarkInfo<Matmul4T>("Matmul::T4"),
             CreateBenchmarkInfo<Matmul8T>("Matmul::T8"),
             CreateBenchmarkInfo<Matmul16T>("Matmul::T16"),

@@ -1224,18 +1224,19 @@ class Mandelbrot extends Benchmark {
 abstract class MatmulBase extends Benchmark {
   late int n;
   int _resultValue = 0;
+  late List<Float64List> a;
+  late List<Float64List> b;
 
   @override
   void prepare() {
     n = Helper.configI64(benchmarkName, "n").toInt();
+    a = _matgen(n);
+    b = _matgen(n);
   }
 
-  List<List<double>> _matgen(int n) {
+  List<Float64List> _matgen(int n) {
     final tmp = 1.0 / n / n;
-    final a = List<List<double>>.generate(
-      n,
-      (_) => List<double>.filled(n, 0.0),
-    );
+    final a = List<Float64List>.generate(n, (_) => Float64List(n));
 
     for (int i = 0; i < n; i++) {
       for (int j = 0; j < n; j++) {
@@ -1246,104 +1247,37 @@ abstract class MatmulBase extends Benchmark {
     return a;
   }
 
-  List<List<double>> _matmulSync(List<List<double>> a, List<List<double>> b) {
-    final size = a.length;
+  List<Float64List> _transpose(List<Float64List> b) {
+    final n = b.length;
+    final bT = List<Float64List>.generate(n, (_) => Float64List(n));
 
-    final bT = List<List<double>>.generate(
-      size,
-      (_) => List<double>.filled(size, 0.0),
-    );
-
-    for (int i = 0; i < size; i++) {
-      for (int j = 0; j < size; j++) {
+    for (int i = 0; i < n; i++) {
+      for (int j = 0; j < n; j++) {
         bT[j][i] = b[i][j];
       }
     }
 
-    final c = List<List<double>>.generate(
-      size,
-      (_) => List<double>.filled(size, 0.0),
-    );
+    return bT;
+  }
 
-    for (int i = 0; i < size; i++) {
+  List<Float64List> _matmulSync(List<Float64List> a, List<Float64List> b) {
+    final n = a.length;
+    final bT = _transpose(b);
+    final c = List<Float64List>.generate(n, (_) => Float64List(n));
+
+    for (int i = 0; i < n; i++) {
       final ai = a[i];
       final ci = c[i];
 
-      for (int j = 0; j < size; j++) {
+      for (int j = 0; j < n; j++) {
         final bTj = bT[j];
         double sum = 0.0;
 
-        for (int k = 0; k < size; k++) {
+        for (int k = 0; k < n; k++) {
           sum += ai[k] * bTj[k];
         }
 
         ci[j] = sum;
-      }
-    }
-
-    return c;
-  }
-
-  Future<List<List<double>>> _matmulParallel(
-    List<List<double>> a,
-    List<List<double>> b,
-    int numThreads,
-  ) async {
-    final size = a.length;
-
-    final bT = List<List<double>>.generate(
-      size,
-      (_) => List<double>.filled(size, 0.0),
-    );
-
-    for (int i = 0; i < size; i++) {
-      for (int j = 0; j < size; j++) {
-        bT[j][i] = b[i][j];
-      }
-    }
-
-    final rowsPerThread = (size + numThreads - 1) ~/ numThreads;
-
-    final futures = List.generate(numThreads, (thread) async {
-      return await Isolate.run(() {
-        final start = thread * rowsPerThread;
-        final end = (start + rowsPerThread) < size
-            ? start + rowsPerThread
-            : size;
-
-        final localResult = List.generate(
-          end - start,
-          (_) => List.filled(size, 0.0),
-        );
-
-        for (int localI = 0; localI < end - start; localI++) {
-          final i = start + localI;
-          final ai = a[i];
-          final ci = localResult[localI];
-
-          for (int j = 0; j < size; j++) {
-            final bTj = bT[j];
-            double sum = 0.0;
-
-            for (int k = 0; k < size; k++) {
-              sum += ai[k] * bTj[k];
-            }
-
-            ci[j] = sum;
-          }
-        }
-
-        return (start, localResult);
-      });
-    });
-
-    final results = await Future.wait(futures);
-    final c = List.generate(size, (_) => List.filled(size, 0.0));
-
-    for (final result in results) {
-      final (start, rows) = result;
-      for (int i = 0; i < rows.length; i++) {
-        c[start + i] = rows[i];
       }
     }
 
@@ -1359,8 +1293,6 @@ abstract class MatmulBase extends Benchmark {
 class Matmul1T extends MatmulBase {
   @override
   Future<void> runBenchmark(int iterationId) async {
-    final a = _matgen(n);
-    final b = _matgen(n);
     final c = _matmulSync(a, b);
     final value = c[n >> 1][n >> 1];
 
@@ -1368,14 +1300,12 @@ class Matmul1T extends MatmulBase {
   }
 
   @override
-  String get benchmarkName => 'Matmul::T1';
+  String get benchmarkName => 'Matmul::Single';
 }
 
 class Matmul4T extends MatmulBase {
   @override
   Future<void> runBenchmark(int iterationId) async {
-    final a = _matgen(n);
-    final b = _matgen(n);
     final c = await _matmulParallel(a, b, 4);
     final value = c[n >> 1][n >> 1];
 
@@ -1389,8 +1319,6 @@ class Matmul4T extends MatmulBase {
 class Matmul8T extends MatmulBase {
   @override
   Future<void> runBenchmark(int iterationId) async {
-    final a = _matgen(n);
-    final b = _matgen(n);
     final c = await _matmulParallel(a, b, 8);
     final value = c[n >> 1][n >> 1];
 
@@ -1404,8 +1332,6 @@ class Matmul8T extends MatmulBase {
 class Matmul16T extends MatmulBase {
   @override
   Future<void> runBenchmark(int iterationId) async {
-    final a = _matgen(n);
-    final b = _matgen(n);
     final c = await _matmulParallel(a, b, 16);
     final value = c[n >> 1][n >> 1];
 
@@ -1414,6 +1340,61 @@ class Matmul16T extends MatmulBase {
 
   @override
   String get benchmarkName => 'Matmul::T16';
+}
+
+extension on MatmulBase {
+  Future<List<Float64List>> _matmulParallel(
+    List<Float64List> a,
+    List<Float64List> b,
+    int numThreads,
+  ) async {
+    final n = a.length;
+    final bT = _transpose(b);
+
+    final rowsPerThread = (n + numThreads - 1) ~/ numThreads;
+
+    final futures = List.generate(numThreads, (thread) async {
+      return await Isolate.run(() {
+        final start = thread * rowsPerThread;
+        final end = start + rowsPerThread < n ? start + rowsPerThread : n;
+        final localResult = List<Float64List>.generate(
+          end - start,
+          (_) => Float64List(n),
+        );
+
+        for (int localI = 0; localI < end - start; localI++) {
+          final i = start + localI;
+          final ai = a[i];
+          final ci = localResult[localI];
+
+          for (int j = 0; j < n; j++) {
+            final bTj = bT[j];
+            double sum = 0.0;
+
+            for (int k = 0; k < n; k++) {
+              sum += ai[k] * bTj[k];
+            }
+
+            ci[j] = sum;
+          }
+        }
+
+        return (start, localResult);
+      });
+    });
+
+    final results = await Future.wait(futures);
+    final c = List<Float64List>.generate(n, (_) => Float64List(n));
+
+    for (final result in results) {
+      final (start, rows) = result;
+      for (int i = 0; i < rows.length; i++) {
+        c[start + i] = rows[i];
+      }
+    }
+
+    return c;
+  }
 }
 
 const SOLAR_MASS = 4 * pi * pi;
@@ -5199,7 +5180,7 @@ void registerBenchmarks() {
   Benchmark.registerBenchmark('CLBG::Fasta', () => Fasta());
   Benchmark.registerBenchmark('CLBG::Knuckeotide', () => Knuckeotide());
   Benchmark.registerBenchmark('CLBG::Mandelbrot', () => Mandelbrot());
-  Benchmark.registerBenchmark('Matmul::T1', () => Matmul1T());
+  Benchmark.registerBenchmark('Matmul::Single', () => Matmul1T());
   Benchmark.registerBenchmark('Matmul::T4', () => Matmul4T());
   Benchmark.registerBenchmark('Matmul::T8', () => Matmul8T());
   Benchmark.registerBenchmark('Matmul::T16', () => Matmul16T());

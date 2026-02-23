@@ -247,10 +247,10 @@ func RunBenchmarks(singleBench string) {
 		&Fasta{BaseBenchmark: BaseBenchmark{className: "CLBG::Fasta"}},
 		&Knuckeotide{BaseBenchmark: BaseBenchmark{className: "CLBG::Knuckeotide"}},
 		&Mandelbrot{BaseBenchmark: BaseBenchmark{className: "CLBG::Mandelbrot"}},
-		&Matmul1T{BaseBenchmark: BaseBenchmark{className: "Matmul::T1"}},
-		&Matmul4T{BaseBenchmark: BaseBenchmark{className: "Matmul::T4"}},
-		&Matmul8T{BaseBenchmark: BaseBenchmark{className: "Matmul::T8"}},
-		&Matmul16T{BaseBenchmark: BaseBenchmark{className: "Matmul::T16"}},
+		&Matmul1T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::Single"}}},
+		&Matmul4T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::T4"}}},
+		&Matmul8T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::T8"}}},
+		&Matmul16T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::T16"}}},
 		&Nbody{BaseBenchmark: BaseBenchmark{className: "CLBG::Nbody"}},
 		&RegexDna{BaseBenchmark: BaseBenchmark{className: "CLBG::RegexDna"}},
 		&Revcomp{BaseBenchmark: BaseBenchmark{className: "CLBG::Revcomp"}},
@@ -1154,17 +1154,7 @@ func (m *Mandelbrot) Checksum() uint32 {
 	return ChecksumBytes(m.result.Bytes())
 }
 
-type Matmul1T struct {
-	BaseBenchmark
-	n      int64
-	result uint32
-}
-
-func (m *Matmul1T) Prepare() {
-	m.n = m.ConfigVal("n")
-}
-
-func (m *Matmul1T) matgen(n int) [][]float64 {
+func matgen(n int) [][]float64 {
 	tmp := 1.0 / float64(n) / float64(n)
 	a := make([][]float64, n)
 	for i := range a {
@@ -1176,305 +1166,165 @@ func (m *Matmul1T) matgen(n int) [][]float64 {
 	return a
 }
 
-func (m *Matmul1T) matmul(a, b [][]float64) [][]float64 {
-	mSize := len(a)
-	n := len(a[0])
-	p := len(b[0])
-
-	b2 := make([][]float64, n)
-	for i := range b2 {
-		b2[i] = make([]float64, p)
-		for j := range b2[i] {
-			b2[i][j] = b[j][i]
+func transpose(b [][]float64) [][]float64 {
+	n := len(b)
+	bT := make([][]float64, n)
+	for i := range bT {
+		bT[i] = make([]float64, n)
+		for j := 0; j < n; j++ {
+			bT[i][j] = b[j][i]
 		}
 	}
+	return bT
+}
 
-	c := make([][]float64, mSize)
+func matmulSequential(a, b [][]float64) [][]float64 {
+	n := len(a)
+	bT := transpose(b)
+
+	c := make([][]float64, n)
 	for i := range c {
-		c[i] = make([]float64, p)
+		c[i] = make([]float64, n)
 		ai := a[i]
-		for j := range c[i] {
+		ci := c[i]
+
+		for j := 0; j < n; j++ {
 			s := 0.0
-			b2j := b2[j]
-			for k := range b2j {
-				s += ai[k] * b2j[k]
+			bTj := bT[j]
+
+			for k := 0; k < n; k++ {
+				s += ai[k] * bTj[k]
 			}
-			c[i][j] = s
+			ci[j] = s
 		}
 	}
 	return c
 }
 
+func matmulParallel(a, b [][]float64, numThreads int) [][]float64 {
+	n := len(a)
+	bT := transpose(b)
+
+	c := make([][]float64, n)
+	for i := range c {
+		c[i] = make([]float64, n)
+	}
+
+	runtime.GOMAXPROCS(numThreads)
+
+	var wg sync.WaitGroup
+	workCh := make(chan int, n)
+
+	for w := 0; w < numThreads; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range workCh {
+				ai := a[i]
+				ci := c[i]
+				for j := 0; j < n; j++ {
+					sum := 0.0
+					bTj := bT[j]
+
+					for k := 0; k < n; k++ {
+						sum += ai[k] * bTj[k]
+					}
+					ci[j] = sum
+				}
+			}
+		}()
+	}
+
+	for i := 0; i < n; i++ {
+		workCh <- i
+	}
+	close(workCh)
+
+	wg.Wait()
+	return c
+}
+
+type BaseMatmul struct {
+	BaseBenchmark
+	n      int64
+	result uint32
+	a      [][]float64
+	b      [][]float64
+}
+
+func (m *BaseMatmul) Prepare() {
+	m.n = m.ConfigVal("n")
+	n := int(m.n)
+	m.a = matgen(n)
+	m.b = matgen(n)
+}
+
+type Matmul1T struct {
+	BaseMatmul
+}
+
 func (m *Matmul1T) Run(iteration_id int) {
-	a := m.matgen(int(m.n))
-	b := m.matgen(int(m.n))
-	c := m.matmul(a, b)
-	m.result += ChecksumFloat64(c[int(m.n)>>1][int(m.n)>>1])
+	c := matmulSequential(m.a, m.b)
+	m.result += ChecksumFloat64(c[m.n>>1][m.n>>1])
 }
 
 func (m *Matmul1T) Checksum() uint32 {
 	return m.result
 }
 
+func (m *Matmul1T) name() string {
+	return "Matmul::Single"
+}
+
 type Matmul4T struct {
-	BaseBenchmark
-	n      int64
-	result uint32
-}
-
-func (m *Matmul4T) Prepare() {
-	m.n = m.ConfigVal("n")
-}
-
-func (m *Matmul4T) matgen(n int) [][]float64 {
-	tmp := 1.0 / float64(n) / float64(n)
-	a := make([][]float64, n)
-	for i := range a {
-		a[i] = make([]float64, n)
-		for j := range a[i] {
-			a[i][j] = tmp * float64(i-j) * float64(i+j)
-		}
-	}
-	return a
-}
-
-func (m *Matmul4T) matmulParallel(a, b [][]float64) [][]float64 {
-	size := len(a)
-
-	bT := make([][]float64, size)
-	for i := range bT {
-		bT[i] = make([]float64, size)
-		for j := 0; j < size; j++ {
-			bT[i][j] = b[j][i]
-		}
-	}
-
-	c := make([][]float64, size)
-	for i := range c {
-		c[i] = make([]float64, size)
-	}
-
-	runtime.GOMAXPROCS(4)
-
-	var wg sync.WaitGroup
-	numWorkers := 4
-	workCh := make(chan int, size)
-
-	for w := 0; w < numWorkers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			for i := range workCh {
-				ai := a[i]
-				ci := c[i]
-
-				for j := 0; j < size; j++ {
-					sum := 0.0
-					bTj := bT[j]
-
-					for k := 0; k < size; k++ {
-						sum += ai[k] * bTj[k]
-					}
-
-					ci[j] = sum
-				}
-			}
-		}()
-	}
-
-	for i := 0; i < size; i++ {
-		workCh <- i
-	}
-	close(workCh)
-
-	wg.Wait()
-	return c
+	BaseMatmul
 }
 
 func (m *Matmul4T) Run(iteration_id int) {
-	a := m.matgen(int(m.n))
-	b := m.matgen(int(m.n))
-	c := m.matmulParallel(a, b)
-	m.result += ChecksumFloat64(c[int(m.n)>>1][int(m.n)>>1])
+	c := matmulParallel(m.a, m.b, 4)
+	m.result += ChecksumFloat64(c[m.n>>1][m.n>>1])
 }
 
 func (m *Matmul4T) Checksum() uint32 {
 	return m.result
 }
 
+func (m *Matmul4T) name() string {
+	return "Matmul::T4"
+}
+
 type Matmul8T struct {
-	BaseBenchmark
-	n      int64
-	result uint32
-}
-
-func (m *Matmul8T) Prepare() {
-	m.n = m.ConfigVal("n")
-}
-
-func (m *Matmul8T) matgen(n int) [][]float64 {
-	tmp := 1.0 / float64(n) / float64(n)
-	a := make([][]float64, n)
-	for i := range a {
-		a[i] = make([]float64, n)
-		for j := range a[i] {
-			a[i][j] = tmp * float64(i-j) * float64(i+j)
-		}
-	}
-	return a
-}
-
-func (m *Matmul8T) matmulParallel(a, b [][]float64) [][]float64 {
-	size := len(a)
-
-	bT := make([][]float64, size)
-	for i := range bT {
-		bT[i] = make([]float64, size)
-		for j := 0; j < size; j++ {
-			bT[i][j] = b[j][i]
-		}
-	}
-
-	c := make([][]float64, size)
-	for i := range c {
-		c[i] = make([]float64, size)
-	}
-
-	runtime.GOMAXPROCS(8)
-
-	var wg sync.WaitGroup
-	numWorkers := 8
-	workCh := make(chan int, size)
-
-	for w := 0; w < numWorkers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			for i := range workCh {
-				ai := a[i]
-				ci := c[i]
-
-				for j := 0; j < size; j++ {
-					sum := 0.0
-					bTj := bT[j]
-
-					for k := 0; k < size; k++ {
-						sum += ai[k] * bTj[k]
-					}
-
-					ci[j] = sum
-				}
-			}
-		}()
-	}
-
-	for i := 0; i < size; i++ {
-		workCh <- i
-	}
-	close(workCh)
-
-	wg.Wait()
-	return c
+	BaseMatmul
 }
 
 func (m *Matmul8T) Run(iteration_id int) {
-	a := m.matgen(int(m.n))
-	b := m.matgen(int(m.n))
-	c := m.matmulParallel(a, b)
-	m.result += ChecksumFloat64(c[int(m.n)>>1][int(m.n)>>1])
+	c := matmulParallel(m.a, m.b, 8)
+	m.result += ChecksumFloat64(c[m.n>>1][m.n>>1])
 }
 
 func (m *Matmul8T) Checksum() uint32 {
 	return m.result
 }
 
+func (m *Matmul8T) name() string {
+	return "Matmul::T8"
+}
+
 type Matmul16T struct {
-	BaseBenchmark
-	n      int64
-	result uint32
-}
-
-func (m *Matmul16T) Prepare() {
-	m.n = m.ConfigVal("n")
-}
-
-func (m *Matmul16T) matgen(n int) [][]float64 {
-	tmp := 1.0 / float64(n) / float64(n)
-	a := make([][]float64, n)
-	for i := range a {
-		a[i] = make([]float64, n)
-		for j := range a[i] {
-			a[i][j] = tmp * float64(i-j) * float64(i+j)
-		}
-	}
-	return a
-}
-
-func (m *Matmul16T) matmulParallel(a, b [][]float64) [][]float64 {
-	size := len(a)
-
-	bT := make([][]float64, size)
-	for i := range bT {
-		bT[i] = make([]float64, size)
-		for j := 0; j < size; j++ {
-			bT[i][j] = b[j][i]
-		}
-	}
-
-	c := make([][]float64, size)
-	for i := range c {
-		c[i] = make([]float64, size)
-	}
-
-	runtime.GOMAXPROCS(16)
-
-	var wg sync.WaitGroup
-	numWorkers := 16
-	workCh := make(chan int, size)
-
-	for w := 0; w < numWorkers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			for i := range workCh {
-				ai := a[i]
-				ci := c[i]
-
-				for j := 0; j < size; j++ {
-					sum := 0.0
-					bTj := bT[j]
-
-					for k := 0; k < size; k++ {
-						sum += ai[k] * bTj[k]
-					}
-
-					ci[j] = sum
-				}
-			}
-		}()
-	}
-
-	for i := 0; i < size; i++ {
-		workCh <- i
-	}
-	close(workCh)
-
-	wg.Wait()
-	return c
+	BaseMatmul
 }
 
 func (m *Matmul16T) Run(iteration_id int) {
-	a := m.matgen(int(m.n))
-	b := m.matgen(int(m.n))
-	c := m.matmulParallel(a, b)
-	m.result += ChecksumFloat64(c[int(m.n)>>1][int(m.n)>>1])
+	c := matmulParallel(m.a, m.b, 16)
+	m.result += ChecksumFloat64(c[m.n>>1][m.n>>1])
 }
 
 func (m *Matmul16T) Checksum() uint32 {
 	return m.result
+}
+
+func (m *Matmul16T) name() string {
+	return "Matmul::T16"
 }
 
 type Planet struct {

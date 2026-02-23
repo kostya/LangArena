@@ -15,7 +15,7 @@ func main() {
   BenchmarkManager.register("CLBG::Fasta") { Fasta() }
   BenchmarkManager.register("CLBG::Knuckeotide") { Knuckeotide() }
   BenchmarkManager.register("CLBG::Mandelbrot") { Mandelbrot() }
-  BenchmarkManager.register("Matmul::T1") { Matmul1T() }
+  BenchmarkManager.register("Matmul::Single") { Matmul1T() }
   BenchmarkManager.register("Matmul::T4") { Matmul4T() }
   BenchmarkManager.register("Matmul::T8") { Matmul8T() }
   BenchmarkManager.register("Matmul::T16") { Matmul16T() }

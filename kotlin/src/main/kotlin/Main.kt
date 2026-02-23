@@ -16,7 +16,7 @@ fun main(args: Array<String>) {
     Benchmark.registerBenchmark("CLBG::Fasta") { Fasta() }
     Benchmark.registerBenchmark("CLBG::Knuckeotide") { Knuckeotide() }
     Benchmark.registerBenchmark("CLBG::Mandelbrot") { Mandelbrot() }
-    Benchmark.registerBenchmark("Matmul::T1") { Matmul1T() }
+    Benchmark.registerBenchmark("Matmul::Single") { Matmul1T() }
     Benchmark.registerBenchmark("Matmul::T4") { Matmul4T() }
     Benchmark.registerBenchmark("Matmul::T8") { Matmul8T() }
     Benchmark.registerBenchmark("Matmul::T16") { Matmul16T() }

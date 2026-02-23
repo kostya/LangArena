@@ -985,14 +985,13 @@ public:
 };
 
 class Matmul1T : public Benchmark {
-private:
-  int64_t n;
+protected:
   uint32_t result_val;
+  std::vector<std::vector<double>> a, b;
 
   std::vector<std::vector<double>> matgen(int n) {
     double tmp = 1.0 / n / n;
     std::vector<std::vector<double>> a(n, std::vector<double>(n));
-
     for (int i = 0; i < n; i++) {
       for (int j = 0; j < n; j++) {
         a[i][j] = tmp * (i - j) * (i + j);
@@ -1002,99 +1001,88 @@ private:
   }
 
   std::vector<std::vector<double>>
-  matmul(const std::vector<std::vector<double>> &a,
+  matmul(int n, const std::vector<std::vector<double>> &a,
          const std::vector<std::vector<double>> &b) {
-    int m = static_cast<int>(a.size());
-    int n = static_cast<int>(a[0].size());
-    int p = static_cast<int>(b[0].size());
 
-    std::vector<std::vector<double>> b2(p, std::vector<double>(n));
+    std::vector<std::vector<double>> b_t(n, std::vector<double>(n));
     for (int i = 0; i < n; i++) {
-      for (int j = 0; j < p; j++) {
-        b2[j][i] = b[i][j];
+      for (int j = 0; j < n; j++) {
+        b_t[j][i] = b[i][j];
       }
     }
 
-    std::vector<std::vector<double>> c(m, std::vector<double>(p));
-    for (int i = 0; i < m; i++) {
+    std::vector<std::vector<double>> c(n, std::vector<double>(n));
+    for (int i = 0; i < n; i++) {
       const auto &ai = a[i];
-      for (int j = 0; j < p; j++) {
+      auto &ci = c[i];
+      for (int j = 0; j < n; j++) {
         double s = 0.0;
-        const auto &b2j = b2[j];
+        const auto &b_tj = b_t[j];
         for (int k = 0; k < n; k++) {
-          s += ai[k] * b2j[k];
+          s += ai[k] * b_tj[k];
         }
-        c[i][j] = s;
+        ci[j] = s;
       }
     }
     return c;
   }
 
 public:
-  Matmul1T() : n(config_val("n")), result_val(0) {}
+  Matmul1T() : result_val(0) {}
 
-  std::string name() const override { return "Matmul::T1"; }
+  std::string name() const override { return "Matmul::Single"; }
 
-  void run(int iteration_id) override {
-    auto a = matgen(static_cast<int>(n));
-    auto b = matgen(static_cast<int>(n));
-    auto c = matmul(a, b);
+  void prepare() override {
+    int n = static_cast<int>(config_val("n"));
+    a = matgen(n);
+    b = matgen(n);
+  }
+
+  void run(int) override {
+    int n = static_cast<int>(a.size());
+    auto c = matmul(n, a, b);
     result_val += Helper::checksum_f64(c[n >> 1][n >> 1]);
   }
 
   uint32_t checksum() override { return result_val; }
 };
 
-class Matmul4T : public Benchmark {
+class Matmul4T : public Matmul1T {
 protected:
-  int64_t n;
-  uint32_t result_val;
-
   virtual int get_num_threads() const { return 4; }
 
-  std::vector<std::vector<double>> matgen(int n) {
-    double tmp = 1.0 / n / n;
-    std::vector<std::vector<double>> a(n, std::vector<double>(n));
-
-    for (int i = 0; i < n; i++) {
-      for (int j = 0; j < n; j++) {
-        a[i][j] = tmp * (i - j) * (i + j);
-      }
-    }
-    return a;
-  }
-
   std::vector<std::vector<double>>
-  matmul_parallel(const std::vector<std::vector<double>> &a,
+  matmul_parallel(int n, const std::vector<std::vector<double>> &a,
                   const std::vector<std::vector<double>> &b) {
     int num_threads = get_num_threads();
-    int size = static_cast<int>(a.size());
 
-    std::vector<std::vector<double>> b_t(size, std::vector<double>(size));
-    for (int i = 0; i < size; i++) {
-      for (int j = 0; j < size; j++) {
+    std::vector<std::vector<double>> b_t(n, std::vector<double>(n));
+    for (int i = 0; i < n; i++) {
+      for (int j = 0; j < n; j++) {
         b_t[j][i] = b[i][j];
       }
     }
 
-    std::vector<std::vector<double>> c(size, std::vector<double>(size));
+    std::vector<std::vector<double>> c(n, std::vector<double>(n));
     std::vector<std::thread> threads;
     threads.reserve(num_threads);
 
+    int rows_per_thread = (n + num_threads - 1) / num_threads;
+
     for (int t = 0; t < num_threads; t++) {
-      threads.emplace_back([&, t, num_threads, size]() {
-        for (int i = t; i < size; i += num_threads) {
+      int start = t * rows_per_thread;
+      int end = std::min(start + rows_per_thread, n);
+
+      threads.emplace_back([&, start, end]() {
+        for (int i = start; i < end; i++) {
           const auto &ai = a[i];
           auto &ci = c[i];
-
-          for (int j = 0; j < size; j++) {
+          for (int j = 0; j < n; j++) {
             double sum = 0.0;
             const auto &b_tj = b_t[j];
-
-            for (int k = 0; k < size; k++) {
+            for (int k = 0; k < n; k++) {
               sum += ai[k] * b_tj[k];
             }
-
             ci[j] = sum;
           }
         }
@@ -1104,23 +1092,19 @@ protected:
     for (auto &thread : threads) {
       thread.join();
     }
-
     return c;
   }
 
 public:
-  Matmul4T() : n(config_val("n")), result_val(0) {}
+  Matmul4T() = default;
 
   std::string name() const override { return "Matmul::T4"; }
 
-  void run(int iteration_id) override {
-    auto a = matgen(static_cast<int>(n));
-    auto b = matgen(static_cast<int>(n));
-    auto c = matmul_parallel(a, b);
+  void run(int) override {
+    int n = static_cast<int>(a.size());
+    auto c = matmul_parallel(n, a, b);
     result_val += Helper::checksum_f64(c[n >> 1][n >> 1]);
   }
-
-  uint32_t checksum() override { return result_val; }
 };
 
 class Matmul8T : public Matmul4T {
@@ -1128,8 +1112,7 @@ protected:
   int get_num_threads() const override { return 8; }
 
 public:
-  Matmul8T() { n = config_val("n"); }
-
+  Matmul8T() = default;
   std::string name() const override { return "Matmul::T8"; }
 };
 
@@ -1138,8 +1121,7 @@ protected:
   int get_num_threads() const override { return 16; }
 
 public:
-  Matmul16T() { n = config_val("n"); }
-
+  Matmul16T() = default;
   std::string name() const override { return "Matmul::T16"; }
 };
 
@@ -4886,7 +4868,7 @@ void Benchmark::all(const std::string &single_bench) {
           {"CLBG::Knuckeotide",
            []() { return std::make_unique<Knuckeotide>(); }},
           {"CLBG::Mandelbrot", []() { return std::make_unique<Mandelbrot>(); }},
-          {"Matmul::T1", []() { return std::make_unique<Matmul1T>(); }},
+          {"Matmul::Single", []() { return std::make_unique<Matmul1T>(); }},
           {"Matmul::T4", []() { return std::make_unique<Matmul4T>(); }},
           {"Matmul::T8", []() { return std::make_unique<Matmul8T>(); }},
           {"Matmul::T16", []() { return std::make_unique<Matmul16T>(); }},
