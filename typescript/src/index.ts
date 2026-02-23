@@ -341,22 +341,51 @@ export abstract class Benchmark {
     }
   }
 
+  private static NamedFactory = class {
+    constructor(
+      public name: string,
+      public cls: new () => Benchmark,
+    ) {}
+  };
+
+  private static benchmarkFactories: InstanceType<
+    typeof Benchmark.NamedFactory
+  >[] = [];
+
+  static registerBenchmark(name: string, cls: new () => Benchmark): void {
+    if (this.benchmarkFactories.some((f) => f.name === name)) {
+      console.warn(
+        `Warning: Benchmark with name "${name}" already registered. Skipping.`,
+      );
+      return;
+    }
+    this.benchmarkFactories.push(new this.NamedFactory(name, cls));
+  }
+
+  static registerBenchmarkOld(cls: new () => Benchmark): void {
+    const temp = new cls();
+    this.benchmarkFactories.push(new this.NamedFactory(temp.name, cls));
+  }
+
   static run(singleBench?: string): void {
     const results: Record<string, number> = {};
     let summaryTime = 0;
     let ok = 0;
     let fails = 0;
 
-    const benchmarkClasses = Benchmark.getBenchmarkClasses();
-
-    for (const BenchmarkClass of benchmarkClasses) {
-      const bench = new BenchmarkClass();
-      const benchName = bench.name;
+    for (const factoryInfo of this.benchmarkFactories) {
+      const benchName = factoryInfo.name;
 
       if (
         singleBench &&
         !benchName.toLowerCase().includes(singleBench.toLowerCase())
       ) {
+        continue;
+      }
+
+      const config = (Helper as any).CONFIG;
+      if (!config || !config[benchName]) {
+        console.log(`\n[${benchName}]: SKIP - no config entry`);
         continue;
       }
 
@@ -373,6 +402,8 @@ export abstract class Benchmark {
       } catch {
         console.log(`${benchName}: `);
       }
+
+      const bench = new factoryInfo.cls();
 
       Helper.reset();
       bench.prepare();
@@ -472,17 +503,6 @@ export abstract class Benchmark {
         throw new Error("Benchmarks failed");
       }
     }
-  }
-
-  private static getBenchmarkClasses(): Array<new () => Benchmark> {
-    return (Benchmark as any)._benchmarkClasses || [];
-  }
-
-  static registerBenchmark<T extends Benchmark>(cls: new () => T): void {
-    if (!(Benchmark as any)._benchmarkClasses) {
-      (Benchmark as any)._benchmarkClasses = [];
-    }
-    (Benchmark as any)._benchmarkClasses.push(cls);
   }
 }
 
@@ -5661,54 +5681,54 @@ export class LZWDecode extends Benchmark {
   }
 }
 
-Benchmark.registerBenchmark(Pidigits);
-Benchmark.registerBenchmark(BinarytreesObj);
-Benchmark.registerBenchmark(BinarytreesArena);
-Benchmark.registerBenchmark(BrainfuckArray);
-Benchmark.registerBenchmark(BrainfuckRecursion);
-Benchmark.registerBenchmark(Fannkuchredux);
-Benchmark.registerBenchmark(Fasta);
-Benchmark.registerBenchmark(Knuckeotide);
-Benchmark.registerBenchmark(Mandelbrot);
-Benchmark.registerBenchmark(Matmul1T);
-Benchmark.registerBenchmark(Matmul4T);
-Benchmark.registerBenchmark(Matmul8T);
-Benchmark.registerBenchmark(Matmul16T);
-Benchmark.registerBenchmark(Nbody);
-Benchmark.registerBenchmark(RegexDna);
-Benchmark.registerBenchmark(Revcomp);
-Benchmark.registerBenchmark(Spectralnorm);
-Benchmark.registerBenchmark(Base64Encode);
-Benchmark.registerBenchmark(Base64Decode);
-Benchmark.registerBenchmark(JsonGenerate);
-Benchmark.registerBenchmark(JsonParseDom);
-Benchmark.registerBenchmark(JsonParseMapping);
-Benchmark.registerBenchmark(Primes);
-Benchmark.registerBenchmark(Noise);
-Benchmark.registerBenchmark(TextRaytracer);
-Benchmark.registerBenchmark(NeuralNet);
-Benchmark.registerBenchmark(SortQuick);
-Benchmark.registerBenchmark(SortMerge);
-Benchmark.registerBenchmark(SortSelf);
-Benchmark.registerBenchmark(GraphPathBFS);
-Benchmark.registerBenchmark(GraphPathDFS);
-Benchmark.registerBenchmark(GraphPathAStar);
-Benchmark.registerBenchmark(BufferHashSHA256);
-Benchmark.registerBenchmark(BufferHashCRC32);
-Benchmark.registerBenchmark(CacheSimulation);
-Benchmark.registerBenchmark(CalculatorAst);
-Benchmark.registerBenchmark(CalculatorInterpreter);
-Benchmark.registerBenchmark(GameOfLife);
-Benchmark.registerBenchmark(MazeGenerator);
-Benchmark.registerBenchmark(AStarPathfinder);
-Benchmark.registerBenchmark(BWTEncode);
-Benchmark.registerBenchmark(BWTDecode);
-Benchmark.registerBenchmark(HuffEncode);
-Benchmark.registerBenchmark(HuffDecode);
-Benchmark.registerBenchmark(ArithEncode);
+Benchmark.registerBenchmark("Pidigits", Pidigits);
+Benchmark.registerBenchmark("BinarytreesObj", BinarytreesObj);
+Benchmark.registerBenchmark("BinarytreesArena", BinarytreesArena);
+Benchmark.registerBenchmark("BrainfuckArray", BrainfuckArray);
+Benchmark.registerBenchmark("BrainfuckRecursion", BrainfuckRecursion);
+Benchmark.registerBenchmark("Fannkuchredux", Fannkuchredux);
+Benchmark.registerBenchmark("Fasta", Fasta);
+Benchmark.registerBenchmark("Knuckeotide", Knuckeotide);
+Benchmark.registerBenchmark("Mandelbrot", Mandelbrot);
+Benchmark.registerBenchmark("Matmul1T", Matmul1T);
+Benchmark.registerBenchmark("Matmul4T", Matmul4T);
+Benchmark.registerBenchmark("Matmul8T", Matmul8T);
+Benchmark.registerBenchmark("Matmul16T", Matmul16T);
+Benchmark.registerBenchmark("Nbody", Nbody);
+Benchmark.registerBenchmark("RegexDna", RegexDna);
+Benchmark.registerBenchmark("Revcomp", Revcomp);
+Benchmark.registerBenchmark("Spectralnorm", Spectralnorm);
+Benchmark.registerBenchmark("Base64Encode", Base64Encode);
+Benchmark.registerBenchmark("Base64Decode", Base64Decode);
+Benchmark.registerBenchmark("JsonGenerate", JsonGenerate);
+Benchmark.registerBenchmark("JsonParseDom", JsonParseDom);
+Benchmark.registerBenchmark("JsonParseMapping", JsonParseMapping);
+Benchmark.registerBenchmark("Primes", Primes);
+Benchmark.registerBenchmark("Noise", Noise);
+Benchmark.registerBenchmark("TextRaytracer", TextRaytracer);
+Benchmark.registerBenchmark("NeuralNet", NeuralNet);
+Benchmark.registerBenchmark("SortQuick", SortQuick);
+Benchmark.registerBenchmark("SortMerge", SortMerge);
+Benchmark.registerBenchmark("SortSelf", SortSelf);
+Benchmark.registerBenchmark("GraphPathBFS", GraphPathBFS);
+Benchmark.registerBenchmark("GraphPathDFS", GraphPathDFS);
+Benchmark.registerBenchmark("GraphPathAStar", GraphPathAStar);
+Benchmark.registerBenchmark("BufferHashSHA256", BufferHashSHA256);
+Benchmark.registerBenchmark("BufferHashCRC32", BufferHashCRC32);
+Benchmark.registerBenchmark("CacheSimulation", CacheSimulation);
+Benchmark.registerBenchmark("CalculatorAst", CalculatorAst);
+Benchmark.registerBenchmark("CalculatorInterpreter", CalculatorInterpreter);
+Benchmark.registerBenchmark("GameOfLife", GameOfLife);
+Benchmark.registerBenchmark("MazeGenerator", MazeGenerator);
+Benchmark.registerBenchmark("AStarPathfinder", AStarPathfinder);
+Benchmark.registerBenchmark("Compress::BWTEncode", BWTEncode);
+Benchmark.registerBenchmark("Compress::BWTDecode", BWTDecode);
+Benchmark.registerBenchmark("Compress::HuffEncode", HuffEncode);
+Benchmark.registerBenchmark("Compress::HuffDecode", HuffDecode);
+Benchmark.registerBenchmark("Compress::ArithEncode", ArithEncode);
 
-Benchmark.registerBenchmark(LZWEncode);
-Benchmark.registerBenchmark(LZWDecode);
+Benchmark.registerBenchmark("Compress::LZWEncode", LZWEncode);
+Benchmark.registerBenchmark("Compress::LZWDecode", LZWDecode);
 
 const RECOMPILE_MARKER = "RECOMPILE_MARKER_0";
 

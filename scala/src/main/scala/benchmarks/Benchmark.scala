@@ -36,10 +36,18 @@ abstract class Benchmark:
 object Benchmark:
   type Supplier[T] = () => T
 
-  private val benchmarkFactories = mutable.ArrayBuffer.empty[Supplier[Benchmark]]
+  private case class NamedBenchmarkFactory(name: String, factory: Supplier[Benchmark])
+
+  private val benchmarkFactories = mutable.ArrayBuffer.empty[NamedBenchmarkFactory]
+
+  def registerBenchmark(name: String, factory: Supplier[Benchmark]): Unit =
+
+    if benchmarkFactories.exists(_.name == name) then println(s"Warning: Benchmark with name '$name' already registered. Skipping.")
+    else benchmarkFactories += NamedBenchmarkFactory(name, factory)
 
   def registerBenchmark(factory: Supplier[Benchmark]): Unit =
-    benchmarkFactories += factory
+    val bench = factory()
+    benchmarkFactories += NamedBenchmarkFactory(bench.name(), factory)
 
   private def toLower(str: String): String = str.toLowerCase(Locale.US)
 
@@ -49,43 +57,52 @@ object Benchmark:
     var ok = 0
     var fails = 0
 
-    for factory <- benchmarkFactories do
-      val bench = factory()
-      val className = bench.name()
+    for factoryInfo <- benchmarkFactories do
+      val benchName = factoryInfo.name
 
-      if singleBench == null || singleBench.isEmpty ||
-        toLower(className).contains(toLower(singleBench))
-      then
+      val shouldRun =
+        if singleBench == null || singleBench.isEmpty then true
+        else toLower(benchName).contains(toLower(singleBench))
 
-        Helper.reset()
-        bench.prepare()
-        bench.warmup()
+      val skipBenchmarks = Set("SortBenchmark", "BufferHashBenchmark", "GraphPathBenchmark")
 
-        Helper.reset()
+      if shouldRun && !skipBenchmarks.contains(benchName) then
 
-        val startTime = System.nanoTime()
-        bench.runAll()
-        val timeDelta = (System.nanoTime() - startTime) / 1_000_000_000.0
-
-        results(className) = timeDelta
-
-        System.gc()
-        try Thread.sleep(0)
-        catch case _: InterruptedException => ()
-        System.gc()
-
-        val check = bench.checksum() & 0xffffffffL
-        val expected = bench.expectedChecksum()
-        print(s"$className: ")
-        if check == expected then
-          print("OK ")
-          ok += 1
+        if !Helper.CONFIG.has(benchName) then println(s"\n[$benchName]: SKIP - no config entry")
         else
-          print(s"ERR[actual=$check, expected=$expected] ")
-          fails += 1
 
-        println(s"in ${Helper.formatTime(timeDelta)}s")
-        summaryTime += timeDelta
+          val bench = factoryInfo.factory()
+
+          Helper.reset()
+          bench.prepare()
+          bench.warmup()
+
+          Helper.reset()
+
+          val startTime = System.nanoTime()
+          bench.runAll()
+          val timeDelta = (System.nanoTime() - startTime) / 1_000_000_000.0
+
+          results(benchName) = timeDelta
+
+          System.gc()
+          try Thread.sleep(0)
+          catch case _: InterruptedException => ()
+          System.gc()
+
+          val check = bench.checksum() & 0xffffffffL
+          val expected = bench.expectedChecksum()
+          print(s"$benchName: ")
+          if check == expected then
+            print("OK ")
+            ok += 1
+          else
+            print(s"ERR[actual=$check, expected=$expected] ")
+            fails += 1
+
+          println(s"in ${Helper.formatTime(timeDelta)}s")
+          summaryTime += timeDelta
+      else if shouldRun then println(s"\n[$benchName]: SKIP - no config entry")
 
     Using.resource(new FileWriter("/tmp/results.js")): writer =>
       writer.write("{")

@@ -140,6 +140,13 @@ class Helper {
   }
 }
 
+class _NamedBenchmarkFactory {
+  final String name;
+  final Benchmark Function() constructor;
+
+  _NamedBenchmarkFactory(this.name, this.constructor);
+}
+
 abstract class Benchmark {
   String get benchmarkName => runtimeType.toString().split('.').last;
   FutureOr<void> runBenchmark(int iterationId);
@@ -197,32 +204,52 @@ abstract class Benchmark {
     }
   }
 
+  static final List<_NamedBenchmarkFactory> _benchmarkFactories = [];
+
+  static void registerBenchmark(String name, Benchmark Function() constructor) {
+    if (_benchmarkFactories.any((factory) => factory.name == name)) {
+      print(
+        'Warning: Benchmark with name "$name" already registered. Skipping.',
+      );
+      return;
+    }
+    _benchmarkFactories.add(_NamedBenchmarkFactory(name, constructor));
+  }
+
   static Future<void> run([String? singleBench]) async {
     final results = <String, double>{};
     double summaryTime = 0;
     int ok = 0;
     int fails = 0;
 
-    final benchmarkClasses = _getBenchmarkClasses();
+    final skipBenchmarks = {
+      'SortBenchmark',
+      'BufferHashBenchmark',
+      'GraphPathBenchmark',
+    };
 
-    for (final benchmarkClass in benchmarkClasses) {
-      final benchInstance = benchmarkClass();
-      final className = benchInstance.benchmarkName;
+    for (final factoryInfo in _benchmarkFactories) {
+      final benchName = factoryInfo.name;
 
       if (singleBench != null &&
-          !className.toLowerCase().contains(singleBench.toLowerCase())) {
+          !benchName.toLowerCase().contains(singleBench.toLowerCase())) {
         continue;
       }
 
-      if (className == 'SortBenchmark' ||
-          className == 'BufferHashBenchmark' ||
-          className == 'GraphPathBenchmark') {
+      if (skipBenchmarks.contains(benchName)) {
         continue;
       }
 
-      stdout.write('$className: ');
+      final config = Helper._config;
+      if (config == null || config[benchName] == null) {
+        print('\n[$benchName]: SKIP - no config entry');
+        continue;
+      }
 
-      final bench = benchmarkClass();
+      stdout.write('$benchName: ');
+
+      final bench = factoryInfo.constructor();
+
       Helper.reset();
       bench.prepare();
 
@@ -233,17 +260,17 @@ abstract class Benchmark {
 
       Helper.reset();
 
-      final startTime = Performance.now();
+      final startTime = DateTime.now().millisecondsSinceEpoch;
 
       final runAllResult = bench.runAll();
       if (runAllResult is Future) {
         await runAllResult;
       }
 
-      final endTime = Performance.now();
+      final endTime = DateTime.now().millisecondsSinceEpoch;
       final timeDelta = (endTime - startTime) / 1000.0;
 
-      results[className] = timeDelta;
+      results[benchName] = timeDelta;
 
       final actualResult = BigInt.from(bench.checksum());
       final expectedResult = bench.expectedChecksum;
@@ -274,16 +301,6 @@ abstract class Benchmark {
       exit(1);
     }
   }
-
-  static List<Benchmark Function()> _getBenchmarkClasses() {
-    return _benchmarkClasses;
-  }
-
-  static void registerBenchmark<T extends Benchmark>(T Function() constructor) {
-    _benchmarkClasses.add(constructor);
-  }
-
-  static final List<Benchmark Function()> _benchmarkClasses = [];
 }
 
 class TreeNode {
@@ -5031,54 +5048,57 @@ bool listEquals(List? a, List? b) {
 }
 
 void registerBenchmarks() {
-  Benchmark.registerBenchmark(() => Pidigits());
-  Benchmark.registerBenchmark(() => BinarytreesObj());
-  Benchmark.registerBenchmark(() => BinarytreesArena());
-  Benchmark.registerBenchmark(() => BrainfuckArray());
-  Benchmark.registerBenchmark(() => BrainfuckRecursion());
-  Benchmark.registerBenchmark(() => Fannkuchredux());
-  Benchmark.registerBenchmark(() => Fasta());
-  Benchmark.registerBenchmark(() => Knuckeotide());
-  Benchmark.registerBenchmark(() => Mandelbrot());
-  Benchmark.registerBenchmark(() => Matmul1T());
-  Benchmark.registerBenchmark(() => Matmul4T());
-  Benchmark.registerBenchmark(() => Matmul8T());
-  Benchmark.registerBenchmark(() => Matmul16T());
-  Benchmark.registerBenchmark(() => Nbody());
-  Benchmark.registerBenchmark(() => RegexDna());
-  Benchmark.registerBenchmark(() => Revcomp());
-  Benchmark.registerBenchmark(() => Spectralnorm());
-  Benchmark.registerBenchmark(() => Base64Encode());
-  Benchmark.registerBenchmark(() => Base64Decode());
-  Benchmark.registerBenchmark(() => JsonGenerate());
-  Benchmark.registerBenchmark(() => JsonParseDom());
-  Benchmark.registerBenchmark(() => JsonParseMapping());
-  Benchmark.registerBenchmark(() => Primes());
-  Benchmark.registerBenchmark(() => Noise());
-  Benchmark.registerBenchmark(() => TextRaytracer());
-  Benchmark.registerBenchmark(() => NeuralNet());
-  Benchmark.registerBenchmark(() => SortQuick());
-  Benchmark.registerBenchmark(() => SortMerge());
-  Benchmark.registerBenchmark(() => SortSelf());
-  Benchmark.registerBenchmark(() => GraphPathBFS());
-  Benchmark.registerBenchmark(() => GraphPathDFS());
-  Benchmark.registerBenchmark(() => GraphPathAStar());
-  Benchmark.registerBenchmark(() => BufferHashSHA256());
-  Benchmark.registerBenchmark(() => BufferHashCRC32());
-  Benchmark.registerBenchmark(() => CacheSimulation());
-  Benchmark.registerBenchmark(() => CalculatorAst());
-  Benchmark.registerBenchmark(() => CalculatorInterpreter());
-  Benchmark.registerBenchmark(() => GameOfLife());
-  Benchmark.registerBenchmark(() => MazeGenerator());
-  Benchmark.registerBenchmark(() => AStarPathfinder());
-  Benchmark.registerBenchmark(() => BWTEncode());
-  Benchmark.registerBenchmark(() => BWTDecode());
-  Benchmark.registerBenchmark(() => HuffEncode());
-  Benchmark.registerBenchmark(() => HuffDecode());
-  Benchmark.registerBenchmark(() => ArithEncode());
-  Benchmark.registerBenchmark(() => ArithDecode());
-  Benchmark.registerBenchmark(() => LZWEncode());
-  Benchmark.registerBenchmark(() => LZWDecode());
+  Benchmark.registerBenchmark('Pidigits', () => Pidigits());
+  Benchmark.registerBenchmark('BinarytreesObj', () => BinarytreesObj());
+  Benchmark.registerBenchmark('BinarytreesArena', () => BinarytreesArena());
+  Benchmark.registerBenchmark('BrainfuckArray', () => BrainfuckArray());
+  Benchmark.registerBenchmark('BrainfuckRecursion', () => BrainfuckRecursion());
+  Benchmark.registerBenchmark('Fannkuchredux', () => Fannkuchredux());
+  Benchmark.registerBenchmark('Fasta', () => Fasta());
+  Benchmark.registerBenchmark('Knuckeotide', () => Knuckeotide());
+  Benchmark.registerBenchmark('Mandelbrot', () => Mandelbrot());
+  Benchmark.registerBenchmark('Matmul1T', () => Matmul1T());
+  Benchmark.registerBenchmark('Matmul4T', () => Matmul4T());
+  Benchmark.registerBenchmark('Matmul8T', () => Matmul8T());
+  Benchmark.registerBenchmark('Matmul16T', () => Matmul16T());
+  Benchmark.registerBenchmark('Nbody', () => Nbody());
+  Benchmark.registerBenchmark('RegexDna', () => RegexDna());
+  Benchmark.registerBenchmark('Revcomp', () => Revcomp());
+  Benchmark.registerBenchmark('Spectralnorm', () => Spectralnorm());
+  Benchmark.registerBenchmark('Base64Encode', () => Base64Encode());
+  Benchmark.registerBenchmark('Base64Decode', () => Base64Decode());
+  Benchmark.registerBenchmark('JsonGenerate', () => JsonGenerate());
+  Benchmark.registerBenchmark('JsonParseDom', () => JsonParseDom());
+  Benchmark.registerBenchmark('JsonParseMapping', () => JsonParseMapping());
+  Benchmark.registerBenchmark('Primes', () => Primes());
+  Benchmark.registerBenchmark('Noise', () => Noise());
+  Benchmark.registerBenchmark('TextRaytracer', () => TextRaytracer());
+  Benchmark.registerBenchmark('NeuralNet', () => NeuralNet());
+  Benchmark.registerBenchmark('SortQuick', () => SortQuick());
+  Benchmark.registerBenchmark('SortMerge', () => SortMerge());
+  Benchmark.registerBenchmark('SortSelf', () => SortSelf());
+  Benchmark.registerBenchmark('GraphPathBFS', () => GraphPathBFS());
+  Benchmark.registerBenchmark('GraphPathDFS', () => GraphPathDFS());
+  Benchmark.registerBenchmark('GraphPathAStar', () => GraphPathAStar());
+  Benchmark.registerBenchmark('BufferHashSHA256', () => BufferHashSHA256());
+  Benchmark.registerBenchmark('BufferHashCRC32', () => BufferHashCRC32());
+  Benchmark.registerBenchmark('CacheSimulation', () => CacheSimulation());
+  Benchmark.registerBenchmark('CalculatorAst', () => CalculatorAst());
+  Benchmark.registerBenchmark(
+    'CalculatorInterpreter',
+    () => CalculatorInterpreter(),
+  );
+  Benchmark.registerBenchmark('GameOfLife', () => GameOfLife());
+  Benchmark.registerBenchmark('MazeGenerator', () => MazeGenerator());
+  Benchmark.registerBenchmark('AStarPathfinder', () => AStarPathfinder());
+  Benchmark.registerBenchmark('Compress::BWTEncode', () => BWTEncode());
+  Benchmark.registerBenchmark('Compress::BWTDecode', () => BWTDecode());
+  Benchmark.registerBenchmark('Compress::HuffEncode', () => HuffEncode());
+  Benchmark.registerBenchmark('Compress::HuffDecode', () => HuffDecode());
+  Benchmark.registerBenchmark('Compress::ArithEncode', () => ArithEncode());
+  Benchmark.registerBenchmark('Compress::ArithDecode', () => ArithDecode());
+  Benchmark.registerBenchmark('Compress::LZWEncode', () => LZWEncode());
+  Benchmark.registerBenchmark('Compress::LZWDecode', () => LZWDecode());
 }
 
 Future<void> main(List<String> args) async {

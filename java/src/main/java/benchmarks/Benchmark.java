@@ -3,6 +3,7 @@ package benchmarks;
 import java.io.FileWriter;
 import java.util.*;
 import java.util.Locale;
+import java.util.function.Supplier;
 
 public abstract class Benchmark {
     public abstract void run(int iterationId);
@@ -51,10 +52,25 @@ public abstract class Benchmark {
         return configVal("checksum");
     }
 
-    private static final List<Supplier<Benchmark>> benchmarkFactories = new ArrayList<>();
+    private static final List<NamedBenchmarkFactory> benchmarkFactories = new ArrayList<>();
+
+    private static class NamedBenchmarkFactory {
+        final String name;
+        final Supplier<Benchmark> factory;
+
+        NamedBenchmarkFactory(String name, Supplier<Benchmark> factory) {
+            this.name = name;
+            this.factory = factory;
+        }
+    }
+
+    public static void registerBenchmark(String name, Supplier<Benchmark> factory) {
+        benchmarkFactories.add(new NamedBenchmarkFactory(name, factory));
+    }
 
     public static void registerBenchmark(Supplier<Benchmark> factory) {
-        benchmarkFactories.add(factory);
+        Benchmark bench = factory.get();
+        benchmarkFactories.add(new NamedBenchmarkFactory(bench.name(), factory));
     }
 
     private static String toLower(String str) {
@@ -66,14 +82,15 @@ public abstract class Benchmark {
         double summaryTime = 0.0;
         int ok = 0, fails = 0;
 
-        for (Supplier<Benchmark> factory : benchmarkFactories) {
-            Benchmark bench = factory.get();
-            String className = bench.name();
+        for (NamedBenchmarkFactory factoryInfo : benchmarkFactories) {
+            String benchName = factoryInfo.name;
 
             if (singleBench != null && !singleBench.isEmpty() &&
-                    !toLower(className).contains(toLower(singleBench))) {
+                    !toLower(benchName).contains(toLower(singleBench))) {
                 continue;
             }
+
+            Benchmark bench = factoryInfo.factory.get();
 
             Helper.reset();
 
@@ -86,7 +103,7 @@ public abstract class Benchmark {
             bench.runAll();
             double timeDelta = (System.nanoTime() - startTime) / 1_000_000_000.0;
 
-            results.put(className, timeDelta);
+            results.put(benchName, timeDelta);
 
             System.gc();
             try {
@@ -97,7 +114,7 @@ public abstract class Benchmark {
 
             long check = bench.checksum() & 0xFFFFFFFFL;
             long expected = bench.expectedChecksum();
-            System.out.print(className + ": ");
+            System.out.print(benchName + ": ");
             if (check == expected) {
                 System.out.print("OK ");
                 ok++;
@@ -129,10 +146,5 @@ public abstract class Benchmark {
         if (fails > 0) {
             System.exit(1);
         }
-    }
-
-    @FunctionalInterface
-    public interface Supplier<T> {
-        T get();
     }
 }

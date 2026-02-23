@@ -39,10 +39,27 @@ abstract class Benchmark {
     }
 
     companion object {
-        private val benchmarkFactories = mutableListOf<() -> Benchmark>()
+        private data class NamedBenchmarkFactory(
+            val name: String,
+            val factory: () -> Benchmark,
+        )
+
+        private val benchmarkFactories = mutableListOf<NamedBenchmarkFactory>()
+
+        fun registerBenchmark(
+            name: String,
+            factory: () -> Benchmark,
+        ) {
+            if (benchmarkFactories.any { it.name == name }) {
+                System.err.println("Warning: Benchmark with name '$name' already registered. Skipping.")
+                return
+            }
+            benchmarkFactories.add(NamedBenchmarkFactory(name, factory))
+        }
 
         fun registerBenchmark(factory: () -> Benchmark) {
-            benchmarkFactories.add(factory)
+            val bench = factory()
+            benchmarkFactories.add(NamedBenchmarkFactory(bench.name(), factory))
         }
 
         fun all(singleBench: String? = null) {
@@ -51,22 +68,31 @@ abstract class Benchmark {
             var ok = 0
             var fails = 0
 
-            benchmarkFactories.forEach { factory ->
-                val bench = factory()
-                val className = bench.name()
+            benchmarkFactories.forEach { factoryInfo ->
+                val benchName = factoryInfo.name
 
                 val shouldRun =
                     when {
                         singleBench == null -> true
-                        className.lowercase().contains(singleBench.lowercase()) -> true
+                        benchName.lowercase().contains(singleBench.lowercase()) -> true
                         else -> false
                     }
 
-                if (shouldRun &&
-                    className != "SortBenchmark" &&
-                    className != "BufferHashBenchmark" &&
-                    className != "GraphPathBenchmark"
-                ) {
+                val skipBenchmarks =
+                    setOf(
+                        "SortBenchmark",
+                        "BufferHashBenchmark",
+                        "GraphPathBenchmark",
+                    )
+
+                if (shouldRun && benchName !in skipBenchmarks) {
+                    if (!Helper.CONFIG.has(benchName)) {
+                        println("\n[$benchName]: SKIP - no config entry")
+                        return@forEach
+                    }
+
+                    val bench = factoryInfo.factory()
+
                     Helper.reset()
 
                     bench.prepare()
@@ -79,13 +105,13 @@ abstract class Benchmark {
                     val timeDelta2 = (System.nanoTime() - startTime) / 1_000_000_000.0
 
                     bench.setTimeDelta(timeDelta2)
-                    results[className] = timeDelta2
+                    results[benchName] = timeDelta2
 
                     System.gc()
                     Thread.sleep(1)
                     System.gc()
 
-                    print("$className: ")
+                    print("$benchName: ")
                     if (bench.checksum().toLong() == bench.expectedChecksum()) {
                         print("OK ")
                         ok++
@@ -96,6 +122,8 @@ abstract class Benchmark {
 
                     print("in %.3fs\n".format(timeDelta2))
                     summaryTime += timeDelta2
+                } else if (shouldRun) {
+                    println("\n[$benchName]: SKIP - no config entry")
                 }
             }
 

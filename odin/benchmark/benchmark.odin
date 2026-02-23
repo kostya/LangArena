@@ -2,19 +2,19 @@ package benchmark
 
 import "core:fmt"
 import "core:time"
-import "core:strings"  
+import "core:strings"
+import "core:mem"
 
 Benchmark_VTable :: struct {
     run:      proc(bench: ^Benchmark, iteration_id: int),
     checksum: proc(bench: ^Benchmark) -> u32,
     prepare:  proc(bench: ^Benchmark),
     cleanup:  proc(bench: ^Benchmark),
-    warmup:  proc(bench: ^Benchmark),
+    warmup:   proc(bench: ^Benchmark),
 }
 
 Benchmark :: struct {
     vtable: ^Benchmark_VTable,
-
     name: string,
     iterations:      int,
     expected_checksum: i64,
@@ -22,14 +22,22 @@ Benchmark :: struct {
 
 Benchmark_Factory :: proc() -> ^Benchmark
 
-Benchmark_Registry :: struct {
+Named_Benchmark_Factory :: struct {
+    name: string,
     factory: Benchmark_Factory,
 }
 
-benchmark_registry: [dynamic]Benchmark_Registry
+benchmark_registry: [dynamic]Named_Benchmark_Factory
 
-register_benchmark_factory :: proc(factory: Benchmark_Factory) {
-    append(&benchmark_registry, Benchmark_Registry{factory})
+register_benchmark_factory :: proc(name: string, factory: Benchmark_Factory) {
+
+    for item in benchmark_registry {
+        if item.name == name {
+            fmt.eprintf("Warning: Benchmark with name '%s' already registered. Skipping.\n", name)
+            return
+        }
+    }
+    append(&benchmark_registry, Named_Benchmark_Factory{name, factory})
 }
 
 run_all_benchmarks :: proc(single_bench: string = "") {
@@ -38,9 +46,14 @@ run_all_benchmarks :: proc(single_bench: string = "") {
     fails := 0
 
     for registry_item in benchmark_registry {
-        bench_name := registry_item.factory().name
+        bench_name := registry_item.name
 
         if len(single_bench) > 0 && !strings.contains(strings.to_lower(bench_name), strings.to_lower(single_bench)) {
+            continue
+        }
+
+        if bench_name not_in _state.config {
+            fmt.printf("\n[%s]: SKIP - no config entry\n", bench_name)
             continue
         }
 
@@ -78,6 +91,10 @@ run_all_benchmarks :: proc(single_bench: string = "") {
     }
 
     fmt.printf("Summary: %.4fs, %d, %d, %d\n", summary_time, ok + fails, ok, fails)
+
+    if fails > 0 {
+
+    }
 }
 
 run_all :: proc(bench: ^Benchmark) {

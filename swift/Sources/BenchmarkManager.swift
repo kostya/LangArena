@@ -69,10 +69,17 @@ extension BenchmarkProtocol {
 }
 
 class BenchmarkManager {
-  private static var benchmarks: [() -> BenchmarkProtocol] = []
+
+  private static var benchmarks: [(name: String, factory: () -> BenchmarkProtocol)] = []
+
+  static func register(_ name: String, factory: @escaping () -> BenchmarkProtocol) {
+    benchmarks.append((name: name, factory: factory))
+  }
 
   static func register(_ factory: @escaping () -> BenchmarkProtocol) {
-    benchmarks.append(factory)
+    let bench = factory()
+    let name = bench.name()
+    benchmarks.append((name: name, factory: factory))
   }
 
   static func run(singleBench: String? = nil) {
@@ -84,28 +91,28 @@ class BenchmarkManager {
     let now = Date().timeIntervalSince1970 * 1000
     print("start: \(Int64(now))")
 
-    for factory in benchmarks {
-      let bench = factory()
-      let className = bench.name()
-
-      if className == "SortBenchmark" || className == "BufferHashBenchmark"
-        || className == "GraphPathBenchmark"
-      {
-        continue
-      }
+    for benchInfo in benchmarks {
+      let benchName = benchInfo.name
 
       let shouldRun: Bool
       if let singleBench = singleBench {
-
-        shouldRun = className.lowercased().contains(singleBench.lowercased())
+        shouldRun = benchName.lowercased().contains(singleBench.lowercased())
       } else {
         shouldRun = true
       }
 
-      let hasConfig = Helper.config[className] != nil
+      if benchName == "SortBenchmark" || benchName == "BufferHashBenchmark"
+        || benchName == "GraphPathBenchmark"
+      {
+        continue
+      }
+
+      let hasConfig = Helper.config[benchName] != nil
 
       if shouldRun && hasConfig {
-        print("\(className): ", terminator: "")
+        print("\(benchName): ", terminator: "")
+
+        let bench = benchInfo.factory()
 
         Helper.reset()
 
@@ -121,7 +128,7 @@ class BenchmarkManager {
         let nanoTime = endTime.uptimeNanoseconds - startTime.uptimeNanoseconds
         let timeDelta = Double(nanoTime) / 1_000_000_000.0
 
-        results[className] = timeDelta
+        results[benchName] = timeDelta
 
         let expected = UInt32(truncatingIfNeeded: Int64(bench.expectedChecksum))
         let actual = bench.checksum
@@ -139,7 +146,7 @@ class BenchmarkManager {
 
         usleep(1000)
       } else if shouldRun {
-        print("\n[\(className)]: SKIP - no config entry", terminator: "")
+        print("\n[\(benchName)]: SKIP - no config entry", terminator: "")
       }
     }
 

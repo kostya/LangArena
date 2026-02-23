@@ -176,7 +176,7 @@ class Benchmark(ABC):
     @property
     def config(self) -> Dict[str, Any]:
         config = Helper._config
-        if config and class_name in config:
+        if config and self.name() in config:
             return config[self.name()]
         return {}
 
@@ -213,6 +213,27 @@ class Benchmark(ABC):
         except:
             return 0
 
+    class _NamedBenchmarkFactory:
+
+        def __init__(self, name: str, constructor: Callable[[], 'Benchmark']):
+            self.name = name
+            self.constructor = constructor
+
+    _benchmark_factories: List[_NamedBenchmarkFactory] = []
+
+    @staticmethod
+    def register_benchmark(name: str,
+                           constructor: Callable[[], 'Benchmark']) -> None:
+
+        if any(factory.name == name
+               for factory in Benchmark._benchmark_factories):
+            print(
+                f'Warning: Benchmark with name "{name}" already registered. Skipping.'
+            )
+            return
+        Benchmark._benchmark_factories.append(
+            Benchmark._NamedBenchmarkFactory(name, constructor))
+
     @staticmethod
     def run(single_bench: Optional[str] = None) -> None:
         results = {}
@@ -220,21 +241,28 @@ class Benchmark(ABC):
         ok = 0
         fails = 0
 
-        for benchmark_class in Benchmark._benchmark_classes:
-            bench_instance = benchmark_class()
-            class_name = bench_instance.name()
+        skip_benchmarks = {
+            'SortBenchmark', 'BufferHashBenchmark', 'GraphPathBenchmark'
+        }
 
-            if single_bench and single_bench.lower() not in class_name.lower():
+        for factory_info in Benchmark._benchmark_factories:
+            bench_name = factory_info.name
+
+            if single_bench and single_bench.lower() not in bench_name.lower():
                 continue
 
-            if class_name in [
-                    'SortBenchmark', 'BufferHashBenchmark', 'GraphPathBenchmark'
-            ]:
+            if bench_name in skip_benchmarks:
                 continue
 
-            print(f'{class_name}: ', end='', flush=True)
+            config = Helper._config
+            if not config or bench_name not in config:
+                print(f'\n[{bench_name}]: SKIP - no config entry')
+                continue
 
-            bench = benchmark_class()
+            print(f'{bench_name}: ', end='', flush=True)
+
+            bench = factory_info.constructor()
+
             Helper.reset()
             bench.prepare()
 
@@ -250,12 +278,12 @@ class Benchmark(ABC):
                 bench.run_all()
                 end_time = Performance.now()
                 time_delta = (end_time - start_time) / 1000.0
-                results[class_name] = time_delta
+                results[bench_name] = time_delta
                 actual_result = bench.checksum()
             except TimeoutError:
                 end_time = Performance.now()
                 time_delta = (end_time - start_time) / 1000.0
-                results[class_name] = time_delta
+                results[bench_name] = time_delta
                 actual_result = "Timeout"
 
             expected_result = bench.expected_checksum
@@ -283,12 +311,6 @@ class Benchmark(ABC):
 
         if fails > 0:
             sys.exit(1)
-
-    _benchmark_classes: List[Callable[[], 'Benchmark']] = []
-
-    @staticmethod
-    def register_benchmark(constructor: Callable[[], 'Benchmark']) -> None:
-        Benchmark._benchmark_classes.append(constructor)
 
 
 class BinarytreesObj(Benchmark):
@@ -4266,54 +4288,54 @@ class LZWDecode(Benchmark):
 
 
 def register_benchmarks():
-    Benchmark.register_benchmark(Pidigits)
-    Benchmark.register_benchmark(BinarytreesObj)
-    Benchmark.register_benchmark(BinarytreesArena)
-    Benchmark.register_benchmark(BrainfuckArray)
-    Benchmark.register_benchmark(BrainfuckRecursion)
-    Benchmark.register_benchmark(Fannkuchredux)
-    Benchmark.register_benchmark(Fasta)
-    Benchmark.register_benchmark(Knuckeotide)
-    Benchmark.register_benchmark(Mandelbrot)
-    Benchmark.register_benchmark(Matmul1T)
-    Benchmark.register_benchmark(Matmul4T)
-    Benchmark.register_benchmark(Matmul8T)
-    Benchmark.register_benchmark(Matmul16T)
-    Benchmark.register_benchmark(Nbody)
-    Benchmark.register_benchmark(RegexDna)
-    Benchmark.register_benchmark(Revcomp)
-    Benchmark.register_benchmark(Spectralnorm)
-    Benchmark.register_benchmark(Base64Encode)
-    Benchmark.register_benchmark(Base64Decode)
-    Benchmark.register_benchmark(JsonGenerate)
-    Benchmark.register_benchmark(JsonParseDom)
-    Benchmark.register_benchmark(JsonParseMapping)
-    Benchmark.register_benchmark(Primes)
-    Benchmark.register_benchmark(Noise)
-    Benchmark.register_benchmark(TextRaytracer)
-    Benchmark.register_benchmark(NeuralNet)
-    Benchmark.register_benchmark(SortQuick)
-    Benchmark.register_benchmark(SortMerge)
-    Benchmark.register_benchmark(SortSelf)
-    Benchmark.register_benchmark(GraphPathBFS)
-    Benchmark.register_benchmark(GraphPathDFS)
-    Benchmark.register_benchmark(GraphPathAStar)
-    Benchmark.register_benchmark(BufferHashSHA256)
-    Benchmark.register_benchmark(BufferHashCRC32)
-    Benchmark.register_benchmark(CacheSimulation)
-    Benchmark.register_benchmark(CalculatorAst)
-    Benchmark.register_benchmark(CalculatorInterpreter)
-    Benchmark.register_benchmark(GameOfLife)
-    Benchmark.register_benchmark(MazeGenerator)
-    Benchmark.register_benchmark(AStarPathfinder)
-    Benchmark.register_benchmark(BWTEncode)
-    Benchmark.register_benchmark(BWTDecode)
-    Benchmark.register_benchmark(HuffEncode)
-    Benchmark.register_benchmark(HuffDecode)
-    Benchmark.register_benchmark(ArithEncode)
-    Benchmark.register_benchmark(ArithDecode)
-    Benchmark.register_benchmark(LZWEncode)
-    Benchmark.register_benchmark(LZWDecode)
+    Benchmark.register_benchmark('Pidigits', Pidigits)
+    Benchmark.register_benchmark('BinarytreesObj', BinarytreesObj)
+    Benchmark.register_benchmark('BinarytreesArena', BinarytreesArena)
+    Benchmark.register_benchmark('BrainfuckArray', BrainfuckArray)
+    Benchmark.register_benchmark('BrainfuckRecursion', BrainfuckRecursion)
+    Benchmark.register_benchmark('Fannkuchredux', Fannkuchredux)
+    Benchmark.register_benchmark('Fasta', Fasta)
+    Benchmark.register_benchmark('Knuckeotide', Knuckeotide)
+    Benchmark.register_benchmark('Mandelbrot', Mandelbrot)
+    Benchmark.register_benchmark('Matmul1T', Matmul1T)
+    Benchmark.register_benchmark('Matmul4T', Matmul4T)
+    Benchmark.register_benchmark('Matmul8T', Matmul8T)
+    Benchmark.register_benchmark('Matmul16T', Matmul16T)
+    Benchmark.register_benchmark('Nbody', Nbody)
+    Benchmark.register_benchmark('RegexDna', RegexDna)
+    Benchmark.register_benchmark('Revcomp', Revcomp)
+    Benchmark.register_benchmark('Spectralnorm', Spectralnorm)
+    Benchmark.register_benchmark('Base64Encode', Base64Encode)
+    Benchmark.register_benchmark('Base64Decode', Base64Decode)
+    Benchmark.register_benchmark('JsonGenerate', JsonGenerate)
+    Benchmark.register_benchmark('JsonParseDom', JsonParseDom)
+    Benchmark.register_benchmark('JsonParseMapping', JsonParseMapping)
+    Benchmark.register_benchmark('Primes', Primes)
+    Benchmark.register_benchmark('Noise', Noise)
+    Benchmark.register_benchmark('TextRaytracer', TextRaytracer)
+    Benchmark.register_benchmark('NeuralNet', NeuralNet)
+    Benchmark.register_benchmark('SortQuick', SortQuick)
+    Benchmark.register_benchmark('SortMerge', SortMerge)
+    Benchmark.register_benchmark('SortSelf', SortSelf)
+    Benchmark.register_benchmark('GraphPathBFS', GraphPathBFS)
+    Benchmark.register_benchmark('GraphPathDFS', GraphPathDFS)
+    Benchmark.register_benchmark('GraphPathAStar', GraphPathAStar)
+    Benchmark.register_benchmark('BufferHashSHA256', BufferHashSHA256)
+    Benchmark.register_benchmark('BufferHashCRC32', BufferHashCRC32)
+    Benchmark.register_benchmark('CacheSimulation', CacheSimulation)
+    Benchmark.register_benchmark('CalculatorAst', CalculatorAst)
+    Benchmark.register_benchmark('CalculatorInterpreter', CalculatorInterpreter)
+    Benchmark.register_benchmark('GameOfLife', GameOfLife)
+    Benchmark.register_benchmark('MazeGenerator', MazeGenerator)
+    Benchmark.register_benchmark('AStarPathfinder', AStarPathfinder)
+    Benchmark.register_benchmark('Compress::BWTEncode', BWTEncode)
+    Benchmark.register_benchmark('Compress::BWTDecode', BWTDecode)
+    Benchmark.register_benchmark('Compress::HuffEncode', HuffEncode)
+    Benchmark.register_benchmark('Compress::HuffDecode', HuffDecode)
+    Benchmark.register_benchmark('Compress::ArithEncode', ArithEncode)
+    Benchmark.register_benchmark('Compress::ArithDecode', ArithDecode)
+    Benchmark.register_benchmark('Compress::LZWEncode', LZWEncode)
+    Benchmark.register_benchmark('Compress::LZWDecode', LZWDecode)
 
 
 def main():
