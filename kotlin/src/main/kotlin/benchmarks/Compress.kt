@@ -462,7 +462,7 @@ class ArithEncode : Benchmark() {
     class BitOutputStream {
         private var buffer: Int = 0
         private var bitPos: Int = 0
-        private val bytes: MutableList<Byte> = mutableListOf()
+        private val bytes = java.io.ByteArrayOutputStream()
         private var bitsWritten: Int = 0
 
         fun writeBit(bit: Int) {
@@ -471,7 +471,7 @@ class ArithEncode : Benchmark() {
             bitsWritten++
 
             if (bitPos == 8) {
-                bytes.add(buffer.toByte())
+                bytes.write(buffer)
                 buffer = 0
                 bitPos = 0
             }
@@ -480,7 +480,7 @@ class ArithEncode : Benchmark() {
         fun flush(): ByteArray {
             if (bitPos > 0) {
                 buffer = buffer shl (8 - bitPos)
-                bytes.add(buffer.toByte())
+                bytes.write(buffer)
             }
             return bytes.toByteArray()
         }

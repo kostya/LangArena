@@ -854,7 +854,6 @@ pub fn (b ArithDecode) checksum() u32 {
 }
 
 struct LZWResult {
-pub:
 	data      []u8
 	dict_size int
 }
@@ -886,17 +885,23 @@ fn lzw_encode(input []u8) LZWResult {
 	dict.reserve(4096)
 
 	for i := 0; i < 256; i++ {
-		dict[i.str()] = i
+		mut s := [u8(0)]
+		s[0] = u8(i)
+		dict[unsafe { s.bytestr() }] = i
 	}
 
 	mut next_code := 256
-
 	mut result := []u8{cap: input.len * 2}
 
-	mut current := input[0].str()
+	mut s := [u8(0)]
+	s[0] = input[0]
+	mut current := unsafe { s.bytestr() }
 
 	for i := 1; i < input.len; i++ {
-		next_char := input[i].str()
+		mut next_s := [u8(0)]
+		next_s[0] = input[i]
+		next_char := unsafe { next_s.bytestr() }
+
 		new_str := current + next_char
 
 		if new_str in dict {
@@ -963,22 +968,20 @@ fn lzw_decode(encoded LZWResult) []u8 {
 
 	mut dict := []string{cap: 4096}
 	for i := 0; i < 256; i++ {
-		dict << i.str()
+		mut s := [u8(0)]
+		s[0] = u8(i)
+		dict << unsafe { s.bytestr() }
 	}
 
 	mut result := []u8{cap: encoded.data.len * 2}
-
 	data := encoded.data
 	mut pos := 0
 
-	mut old_code := (int(data[pos]) << 8) | int(data[pos + 1])
+	old_code := (int(data[pos]) << 8) | int(data[pos + 1])
 	pos += 2
 
 	mut old_str := dict[old_code]
-
-	for c in old_str {
-		result << u8(c)
-	}
+	result << old_str.bytes()
 
 	mut next_code := 256
 
@@ -990,18 +993,20 @@ fn lzw_decode(encoded LZWResult) []u8 {
 		if new_code < dict.len {
 			new_str = dict[new_code]
 		} else if new_code == next_code {
-			first_char := old_str[0].str()
-			new_str = old_str + first_char
+			first_char := old_str[0]
+			mut s := [u8(0)]
+			s[0] = first_char
+			new_str = old_str + unsafe { s.bytestr() }
 		} else {
-			panic('Error decode')
+			panic('LZW decode error: invalid code')
 		}
 
-		for c in new_str {
-			result << u8(c)
-		}
+		result << new_str.bytes()
 
-		first_char := new_str[0].str()
-		dict << old_str + first_char
+		first_char := new_str[0]
+		mut s := [u8(0)]
+		s[0] = first_char
+		dict << old_str + unsafe { s.bytestr() }
 		next_code++
 
 		old_str = new_str
@@ -1015,7 +1020,6 @@ pub fn (b LZWDecode) name() string {
 }
 
 pub fn (mut b LZWDecode) prepare() {
-	b.size_val = b.BaseBenchmark.config_i64('size')
 	b.test_data = generate_test_data(b.size_val)
 
 	mut encoder := new_lzwencode() as LZWEncode

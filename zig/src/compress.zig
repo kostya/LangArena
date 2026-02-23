@@ -1230,6 +1230,145 @@ const LZWResult = struct {
     }
 };
 
+fn lzwEncode(input: []const u8, allocator: std.mem.Allocator) !LZWResult {
+    if (input.len == 0) {
+        return LZWResult{ .data = &.{}, .dict_size = 256 };
+    }
+
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const arena_alloc = arena.allocator();
+
+    var dict = std.StringHashMap(u32).init(arena_alloc);
+    defer dict.deinit();
+
+    var i: u32 = 0;
+    while (i < 256) : (i += 1) {
+        const key = try arena_alloc.dupe(u8, &[_]u8{@as(u8, @intCast(i))});
+        try dict.put(key, i);
+    }
+
+    var next_code: u32 = 256;
+
+    var result = std.ArrayList(u8).empty;
+    defer result.deinit(allocator);
+
+    try result.ensureTotalCapacity(allocator, input.len * 2);
+
+    var current_start: usize = 0;
+    var current_len: usize = 1;
+
+    i = 1;
+    while (i < input.len) : (i += 1) {
+        const next_char = input[i];
+
+        var temp_buf: [4096]u8 = undefined;
+
+        const new_str = if (current_len + 1 <= temp_buf.len) blk: {
+            @memcpy(temp_buf[0..current_len], input[current_start .. current_start + current_len]);
+            temp_buf[current_len] = next_char;
+            break :blk temp_buf[0 .. current_len + 1];
+        } else blk: {
+            const allocated = try std.fmt.allocPrint(arena_alloc, "{s}{c}", .{ input[current_start .. current_start + current_len], next_char });
+            break :blk allocated;
+        };
+
+        if (dict.contains(new_str)) {
+            current_len += 1;
+        } else {
+            const code = dict.get(input[current_start .. current_start + current_len]) orelse return error.InvalidState;
+
+            try result.append(allocator, @as(u8, @intCast((code >> 8) & 0xFF)));
+            try result.append(allocator, @as(u8, @intCast(code & 0xFF)));
+
+            const new_key = try arena_alloc.dupe(u8, new_str);
+            try dict.put(new_key, next_code);
+
+            next_code += 1;
+
+            current_start = i;
+            current_len = 1;
+        }
+    }
+
+    const last_code = dict.get(input[current_start .. current_start + current_len]) orelse return error.InvalidState;
+    try result.append(allocator, @as(u8, @intCast((last_code >> 8) & 0xFF)));
+    try result.append(allocator, @as(u8, @intCast(last_code & 0xFF)));
+
+    const result_slice = try result.toOwnedSlice(allocator);
+
+    return LZWResult{
+        .data = result_slice,
+        .dict_size = next_code,
+    };
+}
+
+fn lzwDecode(encoded: LZWResult, allocator: std.mem.Allocator) ![]u8 {
+    if (encoded.data.len == 0) return &.{};
+
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const arena_alloc = arena.allocator();
+
+    var dict = std.ArrayList([]u8).empty;
+    defer dict.deinit(arena_alloc);
+
+    var i: u32 = 0;
+    while (i < 256) : (i += 1) {
+        const entry = try arena_alloc.dupe(u8, &[_]u8{@as(u8, @intCast(i))});
+        try dict.append(arena_alloc, entry);
+    }
+
+    var result = std.ArrayList(u8).empty;
+    defer result.deinit(allocator);
+
+    try result.ensureTotalCapacity(allocator, encoded.data.len * 4);
+
+    const data = encoded.data;
+    var pos: usize = 0;
+
+    const first_code = (@as(u32, data[pos]) << 8) | @as(u32, data[pos + 1]);
+    pos += 2;
+
+    if (first_code >= dict.items.len) return error.InvalidCode;
+
+    const first_str = dict.items[first_code];
+    try result.appendSlice(allocator, first_str);
+
+    var previous_code = first_code;
+    var previous_str = first_str;
+    var next_code: u32 = 256;
+
+    while (pos < data.len) {
+        const current_code = (@as(u32, data[pos]) << 8) | @as(u32, data[pos + 1]);
+        pos += 2;
+
+        const current_str = if (current_code < dict.items.len) blk: {
+            break :blk dict.items[current_code];
+        } else if (current_code == next_code) blk: {
+            const entry = try arena_alloc.alloc(u8, previous_str.len + 1);
+            @memcpy(entry[0..previous_str.len], previous_str);
+            entry[previous_str.len] = previous_str[0];
+            break :blk entry;
+        } else {
+            return error.InvalidCode;
+        };
+
+        try result.appendSlice(allocator, current_str);
+
+        const new_entry = try arena_alloc.alloc(u8, previous_str.len + 1);
+        @memcpy(new_entry[0..previous_str.len], previous_str);
+        new_entry[previous_str.len] = current_str[0];
+        try dict.append(arena_alloc, new_entry);
+
+        next_code += 1;
+        previous_code = current_code;
+        previous_str = current_str;
+    }
+
+    const result_slice = try result.toOwnedSlice(allocator);
+    return result_slice;
+}
 pub const LZWEncode = struct {
     allocator: std.mem.Allocator,
     helper: *Helper,
@@ -1238,108 +1377,11 @@ pub const LZWEncode = struct {
     encoded: LZWResult,
     result_val: u32,
 
-    fn lzwEncode(input: []const u8, allocator: std.mem.Allocator) !LZWResult {
-        if (input.len == 0) {
-            return LZWResult{ .data = &.{}, .dict_size = 256 };
-        }
-
-        var dict = std.StringHashMap(u32).init(allocator);
-        errdefer {
-            var it = dict.keyIterator();
-            while (it.next()) |key| {
-                allocator.free(key.*);
-            }
-            dict.deinit();
-        }
-
-        var i: u32 = 0;
-        while (i < 256) : (i += 1) {
-            var buf: [1]u8 = undefined;
-            buf[0] = @as(u8, @intCast(i));
-            const key = try allocator.dupe(u8, &buf);
-            try dict.put(key, i);
-        }
-
-        var next_code: u32 = 256;
-        var result = std.ArrayList(u8).empty;
-        defer result.deinit(allocator);
-        try result.ensureTotalCapacity(allocator, input.len * 2);
-
-        var current_bytes = try allocator.dupe(u8, input[0..1]);
-        errdefer allocator.free(current_bytes);
-        var current = current_bytes;
-
-        i = 1;
-        while (i < input.len) : (i += 1) {
-            const next_bytes = try allocator.dupe(u8, input[i .. i + 1]);
-            errdefer allocator.free(next_bytes);
-
-            const new_bytes = try std.mem.concat(allocator, u8, &.{ current, next_bytes });
-            errdefer allocator.free(new_bytes);
-
-            if (dict.contains(new_bytes)) {
-                allocator.free(current_bytes);
-                current_bytes = new_bytes;
-                current = current_bytes;
-                allocator.free(next_bytes);
-
-                _ = @as(?*anyopaque, @ptrCast(new_bytes));
-            } else {
-                const code_opt = dict.get(current);
-                if (code_opt == null) {
-                    allocator.free(current_bytes);
-                    allocator.free(next_bytes);
-                    allocator.free(new_bytes);
-                    return error.InvalidState;
-                }
-                const code = code_opt.?;
-
-                try result.append(allocator, @as(u8, @intCast((code >> 8) & 0xFF)));
-                try result.append(allocator, @as(u8, @intCast(code & 0xFF)));
-
-                const new_key = try allocator.dupe(u8, new_bytes);
-                try dict.put(new_key, next_code);
-                next_code += 1;
-
-                allocator.free(current_bytes);
-                allocator.free(new_bytes);
-
-                current_bytes = next_bytes;
-                current = current_bytes;
-
-                _ = @as(?*anyopaque, @ptrCast(next_bytes));
-            }
-        }
-
-        const last_code_opt = dict.get(current);
-        if (last_code_opt == null) {
-            allocator.free(current_bytes);
-            return error.InvalidState;
-        }
-        const last_code = last_code_opt.?;
-
-        try result.append(allocator, @as(u8, @intCast((last_code >> 8) & 0xFF)));
-        try result.append(allocator, @as(u8, @intCast(last_code & 0xFF)));
-
-        allocator.free(current_bytes);
-
-        var it = dict.keyIterator();
-        while (it.next()) |key| {
-            allocator.free(key.*);
-        }
-        dict.deinit();
-
-        return LZWResult{
-            .data = try result.toOwnedSlice(allocator),
-            .dict_size = next_code,
-        };
-    }
-
     const vtable = Benchmark.VTable{
-        .run = runImpl,
-        .checksum = checksumImpl,
-        .prepare = prepareImpl,
-        .deinit = deinitImpl,
+        .run = run,
+        .checksum = checksum,
+        .prepare = prepare,
+        .deinit = deinit,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*LZWEncode {
@@ -1350,42 +1392,38 @@ pub const LZWEncode = struct {
             .helper = helper,
             .size_val = size,
             .test_data = &.{},
-            .encoded = undefined,
+            .encoded = LZWResult{ .data = &.{}, .dict_size = 256 },
             .result_val = 0,
         };
         return self;
-    }
-
-    pub fn deinit(self: *LZWEncode) void {
-        if (self.test_data.len > 0) {
-            self.allocator.free(self.test_data);
-        }
-        if (self.encoded.data.len > 0) {
-            self.encoded.deinit(self.allocator);
-        }
-        self.allocator.destroy(self);
     }
 
     pub fn asBenchmark(self: *LZWEncode) Benchmark {
         return Benchmark.init(self, &vtable, self.helper, "Compress::LZWEncode");
     }
 
-    fn prepareImpl(ptr: *anyopaque) void {
-        const self: *LZWEncode = @ptrCast(@alignCast(ptr));
+    fn prepare(ctx: *anyopaque) void {
+        const self: *LZWEncode = @ptrCast(@alignCast(ctx));
 
         if (self.test_data.len > 0) {
             self.allocator.free(self.test_data);
+            self.test_data = &.{};
         }
-        self.test_data = generateTestData(self.size_val, self.allocator) catch &.{};
+
+        self.encoded.deinit(self.allocator);
+
+        self.test_data = generateTestData(self.size_val, self.allocator) catch {
+            self.test_data = &.{};
+            return;
+        };
+
         self.result_val = 0;
     }
 
-    fn runImpl(ptr: *anyopaque, _: i64) void {
-        const self: *LZWEncode = @ptrCast(@alignCast(ptr));
+    fn run(ctx: *anyopaque, _: i64) void {
+        const self: *LZWEncode = @ptrCast(@alignCast(ctx));
 
-        if (self.encoded.data.len > 0) {
-            self.encoded.deinit(self.allocator);
-        }
+        self.encoded.deinit(self.allocator);
 
         self.encoded = lzwEncode(self.test_data, self.allocator) catch {
             self.encoded = LZWResult{ .data = &.{}, .dict_size = 256 };
@@ -1395,14 +1433,22 @@ pub const LZWEncode = struct {
         self.result_val +%= @as(u32, @intCast(self.encoded.data.len));
     }
 
-    fn checksumImpl(ptr: *anyopaque) u32 {
-        const self: *LZWEncode = @ptrCast(@alignCast(ptr));
+    fn checksum(ctx: *anyopaque) u32 {
+        const self: *LZWEncode = @ptrCast(@alignCast(ctx));
         return self.result_val;
     }
 
-    fn deinitImpl(ptr: *anyopaque) void {
-        const self: *LZWEncode = @ptrCast(@alignCast(ptr));
-        self.deinit();
+    fn deinit(ctx: *anyopaque) void {
+        const self: *LZWEncode = @ptrCast(@alignCast(ctx));
+
+        if (self.test_data.len > 0) {
+            self.allocator.free(self.test_data);
+            self.test_data = &.{};
+        }
+
+        self.encoded.deinit(self.allocator);
+
+        self.allocator.destroy(self);
     }
 };
 
@@ -1415,80 +1461,11 @@ pub const LZWDecode = struct {
     encoded: LZWResult,
     result_val: u32,
 
-    fn lzwDecode(encoded: LZWResult, allocator: std.mem.Allocator) ![]u8 {
-        if (encoded.data.len == 0) {
-            return &.{};
-        }
-
-        var dict: std.ArrayList([]u8) = .empty;
-        defer {
-            for (dict.items) |item| {
-                allocator.free(item);
-            }
-            dict.deinit(allocator);
-        }
-
-        var i: u32 = 0;
-        while (i < 256) : (i += 1) {
-            var buf = try allocator.alloc(u8, 1);
-            buf[0] = @as(u8, @intCast(i));
-            try dict.append(allocator, buf);
-        }
-
-        var result: std.ArrayList(u8) = .empty;
-        defer result.deinit(allocator);
-
-        const data = encoded.data;
-        var pos: usize = 0;
-
-        const first_high = @as(u32, data[pos]);
-        const first_low = @as(u32, data[pos + 1]);
-        var old_code = (first_high << 8) | first_low;
-        pos += 2;
-
-        var old_str = dict.items[old_code];
-        try result.appendSlice(allocator, old_str);
-
-        var next_code: u32 = 256;
-
-        while (pos < data.len) {
-            const cur_high = @as(u32, data[pos]);
-            const cur_low = @as(u32, data[pos + 1]);
-            const new_code = (cur_high << 8) | cur_low;
-            pos += 2;
-
-            var new_str: []u8 = undefined;
-            if (new_code < dict.items.len) {
-                new_str = dict.items[new_code];
-            } else if (new_code == next_code) {
-                var buf = try allocator.alloc(u8, old_str.len + 1);
-                @memcpy(buf[0..old_str.len], old_str);
-                buf[old_str.len] = old_str[0];
-                new_str = buf;
-            } else {
-                return error.InvalidCode;
-            }
-
-            try result.appendSlice(allocator, new_str);
-
-            var new_entry = try allocator.alloc(u8, old_str.len + 1);
-            @memcpy(new_entry[0..old_str.len], old_str);
-            new_entry[old_str.len] = new_str[0];
-            try dict.append(allocator, new_entry);
-
-            next_code += 1;
-            old_code = new_code;
-            old_str = new_str;
-        }
-
-        return try result.toOwnedSlice(allocator);
-    }
-
     const vtable = Benchmark.VTable{
-        .run = runImpl,
-        .checksum = checksumImpl,
-        .prepare = prepareImpl,
-        .deinit = deinitImpl,
+        .run = run,
+        .checksum = checksum,
+        .prepare = prepare,
+        .deinit = deinit,
     };
 
     pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*LZWDecode {
@@ -1500,48 +1477,48 @@ pub const LZWDecode = struct {
             .size_val = size,
             .test_data = &.{},
             .decoded = &.{},
-            .encoded = undefined,
+            .encoded = LZWResult{ .data = &.{}, .dict_size = 256 },
             .result_val = 0,
         };
         return self;
-    }
-
-    pub fn deinit(self: *LZWDecode) void {
-        if (self.test_data.len > 0) {
-            self.allocator.free(self.test_data);
-        }
-        if (self.decoded.len > 0) {
-            self.allocator.free(self.decoded);
-        }
-        if (@intFromPtr(&self.encoded) != 0 and self.encoded.data.len > 0) {
-            self.encoded.deinit(self.allocator);
-        }
-        self.allocator.destroy(self);
     }
 
     pub fn asBenchmark(self: *LZWDecode) Benchmark {
         return Benchmark.init(self, &vtable, self.helper, "Compress::LZWDecode");
     }
 
-    fn prepareImpl(ptr: *anyopaque) void {
-        const self: *LZWDecode = @ptrCast(@alignCast(ptr));
+    fn prepare(ctx: *anyopaque) void {
+        const self: *LZWDecode = @ptrCast(@alignCast(ctx));
 
-        var encoder = LZWEncode.init(self.allocator, self.helper) catch return;
-        defer encoder.deinit();
-        encoder.size_val = self.size_val;
-        LZWEncode.prepareImpl(@ptrCast(encoder));
-        LZWEncode.runImpl(@ptrCast(encoder), 0);
+        if (self.test_data.len > 0) {
+            self.allocator.free(self.test_data);
+            self.test_data = &.{};
+        }
 
-        self.test_data = self.allocator.dupe(u8, encoder.test_data) catch &.{};
-        self.encoded = .{
-            .data = self.allocator.dupe(u8, encoder.encoded.data) catch &.{},
-            .dict_size = encoder.encoded.dict_size,
+        if (self.decoded.len > 0) {
+            self.allocator.free(self.decoded);
+            self.decoded = &.{};
+        }
+
+        self.encoded.deinit(self.allocator);
+
+        self.test_data = generateTestData(self.size_val, self.allocator) catch {
+            self.test_data = &.{};
+            return;
         };
+
+        const encode_result = lzwEncode(self.test_data, self.allocator) catch {
+            self.encoded = LZWResult{ .data = &.{}, .dict_size = 256 };
+            return;
+        };
+
+        self.encoded = encode_result;
+
         self.result_val = 0;
     }
 
-    fn runImpl(ptr: *anyopaque, _: i64) void {
-        const self: *LZWDecode = @ptrCast(@alignCast(ptr));
+    fn run(ctx: *anyopaque, _: i64) void {
+        const self: *LZWDecode = @ptrCast(@alignCast(ctx));
 
         if (self.decoded.len > 0) {
             self.allocator.free(self.decoded);
@@ -1556,8 +1533,8 @@ pub const LZWDecode = struct {
         self.result_val +%= @as(u32, @intCast(self.decoded.len));
     }
 
-    fn checksumImpl(ptr: *anyopaque) u32 {
-        const self: *LZWDecode = @ptrCast(@alignCast(ptr));
+    fn checksum(ctx: *anyopaque) u32 {
+        const self: *LZWDecode = @ptrCast(@alignCast(ctx));
 
         var res = self.result_val;
         if (self.test_data.len > 0 and self.decoded.len > 0) {
@@ -1568,8 +1545,21 @@ pub const LZWDecode = struct {
         return res;
     }
 
-    fn deinitImpl(ptr: *anyopaque) void {
-        const self: *LZWDecode = @ptrCast(@alignCast(ptr));
-        self.deinit();
+    fn deinit(ctx: *anyopaque) void {
+        const self: *LZWDecode = @ptrCast(@alignCast(ctx));
+
+        if (self.test_data.len > 0) {
+            self.allocator.free(self.test_data);
+            self.test_data = &.{};
+        }
+
+        if (self.decoded.len > 0) {
+            self.allocator.free(self.decoded);
+            self.decoded = &.{};
+        }
+
+        self.encoded.deinit(self.allocator);
+
+        self.allocator.destroy(self);
     }
 };

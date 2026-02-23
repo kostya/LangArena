@@ -350,7 +350,8 @@ proc huffmanDecode*(encoded: seq[byte], root: HuffmanNode, bitCount: int): seq[b
   if encoded.len == 0 or root.isNil:
     return newSeq[byte]()
 
-  var resultData = newSeqOfCap[byte](bitCount)
+  var resultData = newSeq[byte](bitCount)
+  var resultIdx = 0
 
   var currentNode = root
   var bitsProcessed = 0
@@ -360,19 +361,25 @@ proc huffmanDecode*(encoded: seq[byte], root: HuffmanNode, bitCount: int): seq[b
     let byteVal = encoded[byteIndex]
     inc byteIndex
 
-    for bitPos in countdown(7, 0):
-      if bitsProcessed >= bitCount:
-        break
-
+    var bitPos = 7
+    while bitPos >= 0 and bitsProcessed < bitCount:
       let bit = ((byteVal shr bitPos) and 1) == 1
       inc bitsProcessed
 
-      currentNode = if bit: currentNode.right else: currentNode.left
+      if bit:
+        currentNode = currentNode.right
+      else:
+        currentNode = currentNode.left
 
       if currentNode.isLeaf:
-
-        resultData.add(currentNode.byteVal)
+        resultData[resultIdx] = currentNode.byteVal
+        inc resultIdx
         currentNode = root
+
+      dec bitPos
+
+  if resultIdx < bitCount:
+    resultData.setLen(resultIdx)
 
   return resultData
 
@@ -388,7 +395,6 @@ method checksum(self: HuffDecode): uint32 =
   res
 
 registerBenchmark("Compress::HuffDecode", newHuffDecode)
-
 type
   ArithFreqTable = object
     total: int
@@ -662,17 +668,22 @@ proc lzwEncode*(input: seq[byte]): LZWResult =
     return LZWResult(data: @[], dictSize: 256)
 
   var dict = initTable[string, int](4096)
+
   for i in 0..<256:
-    dict[$chr(i)] = i
+    var s = newString(1)
+    s[0] = char(i)
+    dict[s] = i
 
   var nextCode = 256
 
   var resultData = newSeqOfCap[byte](input.len * 2)
 
-  var current = $chr(input[0].int)
+  var current = newString(1)
+  current[0] = char(input[0])
 
   for i in 1..<input.len:
-    let nextChar = $chr(input[i].int)
+    let nextChar = char(input[i])
+
     let newStr = current & nextChar
 
     if dict.hasKey(newStr):
@@ -680,16 +691,18 @@ proc lzwEncode*(input: seq[byte]): LZWResult =
     else:
       let code = dict[current]
 
-      resultData.add(((code shr 8) and 0xFF).byte)
-      resultData.add((code and 0xFF).byte)
+      resultData.add(byte((code shr 8) and 0xFF))
+      resultData.add(byte(code and 0xFF))
 
       dict[newStr] = nextCode
       nextCode += 1
-      current = nextChar
+
+      current = newString(1)
+      current[0] = nextChar
 
   let code = dict[current]
-  resultData.add(((code shr 8) and 0xFF).byte)
-  resultData.add((code and 0xFF).byte)
+  resultData.add(byte((code shr 8) and 0xFF))
+  resultData.add(byte(code and 0xFF))
 
   LZWResult(data: resultData, dictSize: nextCode)
 
@@ -731,8 +744,11 @@ proc lzwDecode*(encoded: LZWResult): seq[byte] =
     return @[]
 
   var dict = newSeqOfCap[string](4096)
+
   for i in 0..<256:
-    dict.add($chr(i))
+    var s = newString(1)
+    s[0] = char(i)
+    dict.add(s)
 
   var resultData = newSeqOfCap[byte](encoded.data.len * 2)
 
@@ -745,7 +761,7 @@ proc lzwDecode*(encoded: LZWResult): seq[byte] =
   var oldStr = dict[oldCode]
 
   for c in oldStr:
-    resultData.add(c.byte)
+    resultData.add(byte(c))
 
   var nextCode = 256
 
@@ -753,18 +769,19 @@ proc lzwDecode*(encoded: LZWResult): seq[byte] =
     let newCode = (data[pos].int shl 8) or data[pos + 1].int
     pos += 2
 
-    let newStr = if newCode < nextCode:
+    let currentStr = if newCode < nextCode:
       dict[newCode]
     else:
-
       oldStr & oldStr[0]
 
-    for c in newStr:
-      resultData.add(c.byte)
+    for c in currentStr:
+      resultData.add(byte(c))
 
-    dict.add(oldStr & newStr[0])
+    var newEntry = oldStr & currentStr[0]
+    dict.add(newEntry)
+
     nextCode += 1
-    oldStr = newStr
+    oldStr = currentStr
 
   return resultData
 

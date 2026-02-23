@@ -5358,9 +5358,13 @@ class ArithFreqTable {
   high: number[];
 
   constructor(frequencies: number[]) {
-    this.total = frequencies.reduce((a, b) => a + b, 0);
-    this.low = new Array(256).fill(0);
-    this.high = new Array(256).fill(0);
+    this.total = 0;
+    for (let i = 0; i < 256; i++) {
+      this.total += frequencies[i];
+    }
+
+    this.low = new Array(256);
+    this.high = new Array(256);
 
     let cum = 0;
     for (let i = 0; i < 256; i++) {
@@ -5383,7 +5387,7 @@ class BitOutputStream {
     this.bitsWritten++;
 
     if (this.bitPos === 8) {
-      this.bytes.push(this.buffer & 0xff);
+      this.bytes.push(this.buffer);
       this.buffer = 0;
       this.bitPos = 0;
     }
@@ -5392,7 +5396,7 @@ class BitOutputStream {
   flush(): Uint8Array {
     if (this.bitPos > 0) {
       this.buffer <<= 8 - this.bitPos;
-      this.bytes.push(this.buffer & 0xff);
+      this.bytes.push(this.buffer);
     }
     return new Uint8Array(this.bytes);
   }
@@ -5441,57 +5445,61 @@ export class ArithEncode extends Benchmark {
 
   protected arithEncode(data: Uint8Array): ArithEncodedResult {
     const frequencies = new Array(256).fill(0);
-    for (const byte of data) {
-      frequencies[byte]++;
+    for (let i = 0; i < data.length; i++) {
+      frequencies[data[i]]++;
     }
 
     const freqTable = new ArithFreqTable(frequencies);
 
     let low: number = 0;
     let high: number = 0xffffffff;
-    let pending = 0;
+    let pending: number = 0;
     const output = new BitOutputStream();
 
-    for (const byte of data) {
-      const idx = byte;
+    for (let i = 0; i < data.length; i++) {
+      const idx = data[i];
+
       const range = high - low + 1;
 
-      high =
-        low + Math.floor((range * freqTable.high[idx]) / freqTable.total) - 1;
-      low = low + Math.floor((range * freqTable.low[idx]) / freqTable.total);
+      const highVal = Math.floor(
+        (range * freqTable.high[idx]) / freqTable.total,
+      );
+      const lowVal = Math.floor((range * freqTable.low[idx]) / freqTable.total);
+
+      high = ((low + highVal - 1) & 0xffffffff) >>> 0;
+      low = ((low + lowVal) & 0xffffffff) >>> 0;
 
       while (true) {
         if (high < 0x80000000) {
           output.writeBit(0);
-          for (let i = 0; i < pending; i++) output.writeBit(1);
+          for (let j = 0; j < pending; j++) output.writeBit(1);
           pending = 0;
         } else if (low >= 0x80000000) {
           output.writeBit(1);
-          for (let i = 0; i < pending; i++) output.writeBit(0);
+          for (let j = 0; j < pending; j++) output.writeBit(0);
           pending = 0;
-          low -= 0x80000000;
-          high -= 0x80000000;
+          low = (low - 0x80000000) >>> 0;
+          high = (high - 0x80000000) >>> 0;
         } else if (low >= 0x40000000 && high < 0xc0000000) {
           pending++;
-          low -= 0x40000000;
-          high -= 0x40000000;
+          low = (low - 0x40000000) >>> 0;
+          high = (high - 0x40000000) >>> 0;
         } else {
           break;
         }
 
-        low <<= 1;
-        high = (high << 1) | 1;
-        high >>>= 0;
+        low = (low << 1) >>> 0;
+        high = ((high << 1) | 1) >>> 0;
       }
     }
 
     pending++;
     if (low < 0x40000000) {
       output.writeBit(0);
-      for (let i = 0; i < pending; i++) output.writeBit(1);
+      for (let j = 0; j < pending; j++) output.writeBit(1);
     } else {
       output.writeBit(1);
-      for (let i = 0; i < pending; i++) output.writeBit(0);
+      for (let j = 0; j < pending; j++) output.writeBit(0);
     }
 
     return new ArithEncodedResult(
@@ -5555,25 +5563,37 @@ export class ArithDecode extends Benchmark {
   }
 
   override run(_iteration_id: number): void {
-    this.decoded = this.arithDecode(this.encoded!);
-    this.resultVal = (this.resultVal + this.decoded.length) >>> 0;
+    if (this.encoded) {
+      this.decoded = this.arithDecode(this.encoded);
+      this.resultVal = (this.resultVal + this.decoded.length) >>> 0;
+    }
   }
 
   override checksum(): number {
     let res = this.resultVal;
-    if (Compress.arraysEqual(this.decoded, this.testData)) {
-      res += 100000;
+    if (this.decoded.length === this.testData.length) {
+      let equal = true;
+      for (let i = 0; i < this.testData.length; i++) {
+        if (this.decoded[i] !== this.testData[i]) {
+          equal = false;
+          break;
+        }
+      }
+      if (equal) {
+        res += 100000;
+      }
     }
     return res >>> 0;
   }
 
   protected arithDecode(encoded: ArithEncodedResult): Uint8Array {
     const frequencies = encoded.frequencies;
-    const total = frequencies.reduce((a, b) => a + b, 0);
+    let total = 0;
+    for (let i = 0; i < 256; i++) total += frequencies[i];
     const dataSize = total;
 
-    const lowTable = new Array(256).fill(0);
-    const highTable = new Array(256).fill(0);
+    const lowTable = new Array(256);
+    const highTable = new Array(256);
     let cum = 0;
     for (let i = 0; i < 256; i++) {
       lowTable[i] = cum;
@@ -5586,7 +5606,7 @@ export class ArithDecode extends Benchmark {
 
     let value = 0;
     for (let i = 0; i < 32; i++) {
-      value = (value << 1) | input.readBit();
+      value = ((value << 1) | input.readBit()) >>> 0;
     }
 
     let low = 0;
@@ -5594,7 +5614,9 @@ export class ArithDecode extends Benchmark {
 
     for (let j = 0; j < dataSize; j++) {
       const range = high - low + 1;
-      const scaled = Math.floor(((value - low + 1) * total - 1) / range);
+      const scaled = Math.floor(
+        (((value - low + 1) >>> 0) * total - 1) / range,
+      );
 
       let symbol = 0;
       while (symbol < 255 && highTable[symbol] <= scaled) {
@@ -5603,26 +5625,29 @@ export class ArithDecode extends Benchmark {
 
       result[j] = symbol;
 
-      high = low + Math.floor((range * highTable[symbol]) / total) - 1;
-      low = low + Math.floor((range * lowTable[symbol]) / total);
+      const highVal = Math.floor((range * highTable[symbol]) / total);
+      const lowVal = Math.floor((range * lowTable[symbol]) / total);
+
+      high = ((low + highVal - 1) & 0xffffffff) >>> 0;
+      low = ((low + lowVal) & 0xffffffff) >>> 0;
 
       while (true) {
         if (high < 0x80000000) {
         } else if (low >= 0x80000000) {
-          value -= 0x80000000;
-          low -= 0x80000000;
-          high -= 0x80000000;
+          value = (value - 0x80000000) >>> 0;
+          low = (low - 0x80000000) >>> 0;
+          high = (high - 0x80000000) >>> 0;
         } else if (low >= 0x40000000 && high < 0xc0000000) {
-          value -= 0x40000000;
-          low -= 0x40000000;
-          high -= 0x40000000;
+          value = (value - 0x40000000) >>> 0;
+          low = (low - 0x40000000) >>> 0;
+          high = (high - 0x40000000) >>> 0;
         } else {
           break;
         }
 
-        low <<= 1;
-        high = (high << 1) | 1;
-        value = (value << 1) | input.readBit();
+        low = (low << 1) >>> 0;
+        high = ((high << 1) | 1) >>> 0;
+        value = ((value << 1) | input.readBit()) >>> 0;
       }
     }
 
@@ -5843,7 +5868,7 @@ Benchmark.registerBenchmark("Compress::BWTDecode", BWTDecode);
 Benchmark.registerBenchmark("Compress::HuffEncode", HuffEncode);
 Benchmark.registerBenchmark("Compress::HuffDecode", HuffDecode);
 Benchmark.registerBenchmark("Compress::ArithEncode", ArithEncode);
-
+Benchmark.registerBenchmark("Compress::ArithDecode", ArithDecode);
 Benchmark.registerBenchmark("Compress::LZWEncode", LZWEncode);
 Benchmark.registerBenchmark("Compress::LZWDecode", LZWDecode);
 

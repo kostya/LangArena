@@ -676,19 +676,19 @@ type LZWEncode =
     member private this.LzwEncode(input: byte[]) : LZWResult =
         if input.Length = 0 then { Data = [||]; DictSize = 256 }
         else
+            let dict = System.Collections.Generic.Dictionary<string, int>(4096)
 
-            let dict = Dictionary<string, int>(4096)
             for i = 0 to 255 do
-                dict.[string(byte i)] <- i
+                dict.[string(char i)] <- i
 
             let mutable nextCode = 256
 
-            let result = ResizeArray<byte>(input.Length * 2)
+            let result = System.Collections.Generic.List<byte>(input.Length * 2)
 
-            let mutable current = string input.[0]
+            let mutable current = string(char input.[0])
 
             for i = 1 to input.Length - 1 do
-                let nextChar = string input.[i]
+                let nextChar = string(char input.[i])
                 let newStr = current + nextChar
 
                 if dict.ContainsKey(newStr) then
@@ -732,11 +732,12 @@ type LZWDecode() =
     member private this.LzwDecode(encoded: LZWResult) : byte[] =
         if encoded.Data.Length = 0 then [||]
         else
-            let dict = List<string>()
+            let dict = System.Collections.Generic.List<string>()
             for i = 0 to 255 do
-                dict.Add(string(byte i))
 
-            let result = List<byte>()
+                dict.Add(string(char i))
+
+            let result = System.Collections.Generic.List<byte>()
             let data = encoded.Data
             let mutable pos = 0
 
@@ -746,7 +747,8 @@ type LZWDecode() =
             pos <- pos + 2
 
             let mutable oldStr = dict.[oldCode]
-            for c in oldStr.ToCharArray() do
+
+            for c in oldStr do
                 result.Add(byte c)
 
             let mutable nextCode = 256
@@ -761,17 +763,17 @@ type LZWDecode() =
                     if newCode < dict.Count then
                         dict.[newCode]
                     elif newCode = nextCode then
-                        oldStr + string (oldStr.[0])  
-                    else
-                        failwith "Error decode"
 
-                for c in newStr.ToCharArray() do
+                        oldStr + string(oldStr.[0])
+                    else
+                        failwithf "LZW decode error: invalid code %d (nextCode=%d, dict.Count=%d)" newCode nextCode dict.Count
+
+                for c in newStr do
                     result.Add(byte c)
 
-                dict.Add(oldStr + string (newStr.[0]))
+                dict.Add(oldStr + string(newStr.[0]))
                 nextCode <- nextCode + 1
-                oldCode <- newCode  
-                oldStr <- newStr     
+                oldStr <- newStr
 
             result.ToArray()
 
@@ -796,6 +798,9 @@ type LZWDecode() =
         if decoded <> null && testData <> null && decoded.Length = testData.Length then
             let mutable equal = true
             for i = 0 to decoded.Length - 1 do
-                if decoded.[i] <> testData.[i] then equal <- false
-            if equal then res <- res + 100000u
+                if decoded.[i] <> testData.[i] then 
+                    equal <- false
+
+            if equal then 
+                res <- res + 100000u
         res

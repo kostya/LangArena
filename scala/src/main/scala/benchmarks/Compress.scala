@@ -2,6 +2,8 @@ package benchmarks
 
 import java.util.PriorityQueue
 import scala.collection.mutable.{HashMap, ArrayBuffer}
+import java.util.ArrayList
+import java.io.ByteArrayOutputStream
 
 object Compress {
   def generateTestData(dataSize: Long): Array[Byte] = {
@@ -460,8 +462,6 @@ class HuffDecode extends Benchmark {
   }
 }
 
-import scala.collection.mutable.ArrayBuffer
-
 class ArithFreqTable(frequencies: Array[Int]) {
   val total: Int = frequencies.sum
   val low: Array[Int] = new Array[Int](256)
@@ -480,7 +480,7 @@ class ArithFreqTable(frequencies: Array[Int]) {
 class BitOutputStream {
   private var buffer: Int = 0
   private var bitPos: Int = 0
-  private val bytes = ArrayBuffer.empty[Byte]
+  private val bytes = new java.io.ByteArrayOutputStream()
   private var bitsWritten: Int = 0
 
   def writeBit(bit: Int): Unit = {
@@ -489,7 +489,7 @@ class BitOutputStream {
     bitsWritten += 1
 
     if (bitPos == 8) {
-      bytes += buffer.toByte
+      bytes.write(buffer)
       buffer = 0
       bitPos = 0
     }
@@ -498,19 +498,12 @@ class BitOutputStream {
   def flush(): Array[Byte] = {
     if (bitPos > 0) {
       buffer <<= (8 - bitPos)
-      bytes += buffer.toByte
+      bytes.write(buffer)
     }
-    bytes.toArray
+    bytes.toByteArray
   }
 
   def getBitsWritten: Int = bitsWritten
-
-  def clear(): Unit = {
-    buffer = 0
-    bitPos = 0
-    bytes.clear()
-    bitsWritten = 0
-  }
 }
 
 class ArithEncodedResult(
@@ -592,9 +585,11 @@ class ArithEncode extends Benchmark {
           cont = false
         }
 
-        low <<= 1
-        high = (high << 1) | 1
-        high &= 0xffffffffL
+        if (cont) {
+          low <<= 1
+          high = (high << 1) | 1
+          high &= 0xffffffffL
+        }
       }
       i += 1
     }
@@ -855,9 +850,6 @@ class LZWDecode extends Benchmark {
     if (encoded.data.length == 0) {
       return new Array[Byte](0)
     }
-
-    import java.util.ArrayList
-    import java.io.ByteArrayOutputStream
 
     val dict = new ArrayList[String](4096)
     var i = 0

@@ -2,6 +2,7 @@ package benchmark
 
 import "core:fmt"
 import "core:mem"
+import "core:mem/virtual"
 import "core:slice"
 import "core:slice/heap"
 import "core:sort"
@@ -987,56 +988,161 @@ lzw_encode :: proc(input: []u8) -> LZWResult {
         return LZWResult{data = make([]u8, 0), dict_size = 256}
     }
 
-    dict := make(map[string]int)
+    arena: virtual.Arena
+    err := virtual.arena_init_growing(&arena)
+    defer virtual.arena_destroy(&arena)
+
+    arena_alloc := virtual.arena_allocator(&arena)
+
+    dict := make(map[string]int, 4096, arena_alloc)
     defer delete(dict)
 
     for i in 0..<256 {
-        str := make([]u8, 1)
-        str[0] = u8(i)
-        dict[string(str)] = i
+        bytes := make([]u8, 1, arena_alloc)
+        bytes[0] = u8(i)
+        dict[string(bytes)] = i
     }
 
     next_code := 256
-    result_data := make([dynamic]u8)
-    defer delete(result_data)
 
-    current_bytes := make([]u8, 1)
-    current_bytes[0] = input[0]
-    current := string(current_bytes)
+    result := make([dynamic]u8)
+    defer delete(result)
+    reserve(&result, len(input) * 2)
 
-    for i in 1..<len(input) {
-        next_bytes := make([]u8, 1)
-        next_bytes[0] = input[i]
-        next_char := string(next_bytes)
+    current_start := 0
+    current_len := 1
 
-        new_str_bytes := make([]u8, len(current_bytes) + 1)
-        copy(new_str_bytes[:len(current_bytes)], current_bytes)
-        new_str_bytes[len(current_bytes)] = input[i]
-        new_str := string(new_str_bytes)
+    temp_buf: [4096]u8
 
-        if new_str in dict {
-            current = new_str
-            current_bytes = new_str_bytes
+    i := 1
+    for i < len(input) {
+        next_char := input[i]
+
+        if current_len + 1 <= 4096 {
+            copy(temp_buf[:current_len], input[current_start:current_start+current_len])
+            temp_buf[current_len] = next_char
+            new_str := string(temp_buf[:current_len+1])
+
+            if new_str in dict {
+                current_len += 1
+            } else {
+                code := dict[string(input[current_start:current_start+current_len])]
+                append(&result, u8((code >> 8) & 0xFF))
+                append(&result, u8(code & 0xFF))
+
+                key_bytes := make([]u8, len(new_str), arena_alloc)
+                copy(key_bytes, temp_buf[:current_len+1])
+                dict[string(key_bytes)] = next_code
+                next_code += 1
+
+                current_start = i
+                current_len = 1
+            }
         } else {
-            code := dict[current]
-            append_elem(&result_data, u8((code >> 8) & 0xFF))
-            append_elem(&result_data, u8(code & 0xFF))
+            bytes := make([]u8, current_len + 1, arena_alloc)
+            copy(bytes[:current_len], input[current_start:current_start+current_len])
+            bytes[current_len] = next_char
+            new_str := string(bytes)
 
-            dict[new_str] = next_code
-            next_code += 1
-            current = next_char
-            current_bytes = next_bytes
+            if new_str in dict {
+                current_len += 1
+            } else {
+                code := dict[string(input[current_start:current_start+current_len])]
+                append(&result, u8((code >> 8) & 0xFF))
+                append(&result, u8(code & 0xFF))
+
+                dict[new_str] = next_code
+                next_code += 1
+
+                current_start = i
+                current_len = 1
+            }
         }
+        i += 1
     }
 
-    code := dict[current]
-    append_elem(&result_data, u8((code >> 8) & 0xFF))
-    append_elem(&result_data, u8(code & 0xFF))
+    last_slice := input[current_start:current_start+current_len]
+    code := dict[string(last_slice)]
+    append(&result, u8((code >> 8) & 0xFF))
+    append(&result, u8(code & 0xFF))
+
+    result_copy := slice.clone(result[:])
 
     return LZWResult{
-        data = slice.clone(result_data[:]),
+        data = result_copy,
         dict_size = next_code,
     }
+}
+
+lzw_decode :: proc(encoded: LZWResult) -> []u8 {
+    if len(encoded.data) == 0 {
+        return make([]u8, 0)
+    }
+
+    arena: virtual.Arena
+    err := virtual.arena_init_growing(&arena)
+    defer virtual.arena_destroy(&arena)
+
+    arena_alloc := virtual.arena_allocator(&arena)
+
+    dict := make([dynamic][]u8, 0, 4096, arena_alloc)
+    defer delete(dict)
+
+    for i in 0..<256 {
+        bytes := make([]u8, 1, arena_alloc)
+        bytes[0] = u8(i)
+        append(&dict, bytes)
+    }
+
+    result := make([dynamic]u8)
+    defer delete(result)
+    reserve(&result, len(encoded.data) * 4)
+
+    data := encoded.data
+    pos := 0
+
+    high := int(data[pos])
+    low := int(data[pos + 1])
+    old_code := (high << 8) | low
+    pos += 2
+
+    old_str := dict[old_code]
+    append(&result, ..old_str)
+
+    next_code := 256
+
+    for pos < len(data) {
+        high = int(data[pos])
+        low = int(data[pos + 1])
+        new_code := (high << 8) | low
+        pos += 2
+
+        current_str: []u8
+        if new_code < len(dict) {
+            current_str = dict[new_code]
+        } else if new_code == next_code {
+
+            bytes := make([]u8, len(old_str) + 1, arena_alloc)
+            copy(bytes[:len(old_str)], old_str)
+            bytes[len(old_str)] = old_str[0]
+            current_str = bytes
+        } else {
+            panic("Invalid code")
+        }
+
+        append(&result, ..current_str)
+
+        bytes := make([]u8, len(old_str) + 1, arena_alloc)
+        copy(bytes[:len(old_str)], old_str)
+        bytes[len(old_str)] = current_str[0]
+        append(&dict, bytes)
+
+        next_code += 1
+        old_code = new_code
+        old_str = current_str
+    }
+
+    return slice.clone(result[:])
 }
 
 lzw_encode_prepare :: proc(bench: ^Benchmark) {
@@ -1091,86 +1197,6 @@ LZWDecode :: struct {
     decoded:    []u8,
     encoded:    LZWResult,
     result_val: u32,
-}
-
-lzw_decode :: proc(encoded: LZWResult) -> []u8 {
-    if len(encoded.data) == 0 {
-        return make([]u8, 0)
-    }
-
-    dict := make([dynamic]string)
-    defer delete(dict)
-
-    for i in 0..<256 {
-        bytes := make([]u8, 1)
-        bytes[0] = u8(i)
-        append_elem(&dict, string(bytes))
-    }
-
-    result := make([dynamic]u8)
-    defer delete(result)
-
-    data := encoded.data
-    pos := 0
-
-    high := int(data[pos])
-    low := int(data[pos + 1])
-    old_code := (high << 8) | low
-    pos += 2
-
-    if old_code < 0 || old_code >= len(dict) {
-        panic("Invalid old code")
-    }
-
-    old_str := dict[old_code]
-    for c in old_str {
-        append_elem(&result, u8(c))
-    }
-
-    next_code := 256
-
-    for pos < len(data) {
-        high = int(data[pos])
-        low = int(data[pos + 1])
-        new_code := (high << 8) | low
-        pos += 2
-
-        new_str: string
-        if new_code >= 0 && new_code < len(dict) {
-            new_str = dict[new_code]
-        } else if new_code == next_code {
-
-            bytes := make([]u8, len(old_str) + 1)
-            copy(bytes[:len(old_str)], transmute([]u8)old_str)
-            bytes[len(old_str)] = old_str[0]
-            new_str = string(bytes)
-        } else {
-
-            if new_code == next_code {
-                bytes := make([]u8, len(old_str) + 1)
-                copy(bytes[:len(old_str)], transmute([]u8)old_str)
-                bytes[len(old_str)] = old_str[0]
-                new_str = string(bytes)
-            } else {
-                panic("Error decode: invalid code")
-            }
-        }
-
-        for c in new_str {
-            append_elem(&result, u8(c))
-        }
-
-        bytes := make([]u8, len(old_str) + 1)
-        copy(bytes[:len(old_str)], transmute([]u8)old_str)
-        bytes[len(old_str)] = new_str[0]
-        append_elem(&dict, string(bytes))
-
-        next_code += 1
-        old_code = new_code
-        old_str = new_str
-    }
-
-    return slice.clone(result[:])
 }
 
 lzw_decode_prepare :: proc(bench: ^Benchmark) {
