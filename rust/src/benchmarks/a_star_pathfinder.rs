@@ -48,17 +48,14 @@ pub struct AStarPathfinder {
 }
 
 impl AStarPathfinder {
-    #[inline]
     fn distance(a_x: i32, a_y: i32, b_x: i32, b_y: i32) -> i32 {
         (a_x - b_x).abs() + (a_y - b_y).abs()
     }
 
-    #[inline]
     fn pack_coords(x: i32, y: i32, width: i32) -> i32 {
         y * width + x
     }
 
-    #[inline]
     fn unpack_coords(packed: i32, width: i32) -> (i32, i32) {
         (packed % width, packed / width)
     }

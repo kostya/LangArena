@@ -29,15 +29,15 @@ pub const BrainfuckRecursion = struct {
             allocator.free(self.data);
         }
 
-        inline fn get(self: *const Tape) u8 {
+        fn get(self: *const Tape) u8 {
             return self.data[self.pos];
         }
 
-        inline fn inc(self: *Tape) void {
+        fn inc(self: *Tape) void {
             self.data[self.pos] +%= 1;
         }
 
-        inline fn dec(self: *Tape) void {
+        fn dec(self: *Tape) void {
             self.data[self.pos] -%= 1;
         }
 
@@ -113,7 +113,7 @@ pub const BrainfuckRecursion = struct {
             return StrIterator{ .text = text };
         }
 
-        inline fn next(self: *StrIterator) ?u8 {
+        fn next(self: *StrIterator) ?u8 {
             if (self.pos < self.text.len) {
                 const c = self.text[self.pos];
                 self.pos += 1;

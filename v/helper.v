@@ -23,18 +23,15 @@ pub fn reset() {
 	g.last = 42
 }
 
-@[inline]
 pub fn next_int(max int) int {
 	g.last = (g.last * ia + ic) % im
 	return int((i64(g.last) * i64(max)) / im)
 }
 
-@[inline]
 pub fn next_int_range(from int, to int) int {
 	return next_int(to - from + 1) + from
 }
 
-@[inline]
 pub fn next_float(max f64) f64 {
 	g.last = (g.last * ia + ic) % im
 	return max * f64(g.last) / f64(im)

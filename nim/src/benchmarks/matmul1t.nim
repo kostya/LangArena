@@ -16,7 +16,7 @@ method prepare(self: Matmul1T) =
   self.n = self.config_val("n")
   self.resultVal = 0
 
-proc matgen(n: int): seq[seq[float64]] {.inline.} =
+proc matgen(n: int): seq[seq[float64]] =
   let tmp = 1.0 / float64(n * n)
 
   result = newSeq[seq[float64]](n)
@@ -29,8 +29,7 @@ proc matgen(n: int): seq[seq[float64]] {.inline.} =
       result[i][j] = tmp * float64(i - j) * float64(i + j)
   {.pop.}
 
-proc matmul_single_thread(a, b: seq[seq[float64]]): seq[seq[
-    float64]] {.inline.} =
+proc matmul_single_thread(a, b: seq[seq[float64]]): seq[seq[float64]] =
   let n = a.len
 
   var bT = newSeq[seq[float64]](n)

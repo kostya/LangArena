@@ -29,8 +29,8 @@ class MazeGenerator extends Benchmark:
       }
     }
 
-    @inline def get(x: Int, y: Int): Int = cells(y)(x)
-    @inline def set(x: Int, y: Int, cell: Int): Unit = cells(y)(x) = cell
+    def get(x: Int, y: Int): Int = cells(y)(x)
+    def set(x: Int, y: Int, cell: Int): Unit = cells(y)(x) = cell
 
     private def addRandomPaths(): Unit = {
       val numExtraPaths = (width * height) / 20

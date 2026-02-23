@@ -2335,7 +2335,6 @@ class TextRaytracer extends Benchmark {
     h = Helper.configI64(benchmarkName, "h").toInt();
   }
 
-  @pragma('vm:prefer-inline')
   int _shadePixel(TextRaytracerRay ray, TextRaytracerSphere obj, double tval) {
     final pi = ray.orig.add(ray.dir.scale(tval));
     final color = _diffuseShading(pi, obj, _light1);
@@ -2343,7 +2342,6 @@ class TextRaytracer extends Benchmark {
     return (col * 6.0).floor();
   }
 
-  @pragma('vm:prefer-inline')
   double? _intersectSphere(
     TextRaytracerRay ray,
     TextRaytracerVector center,
@@ -2367,10 +2365,8 @@ class TextRaytracer extends Benchmark {
     return t0;
   }
 
-  @pragma('vm:prefer-inline')
   double _clamp(double x, double a, double b) => x < a ? a : (x > b ? b : x);
 
-  @pragma('vm:prefer-inline')
   TextRaytracerColor _diffuseShading(
     TextRaytracerVector pi,
     TextRaytracerSphere obj,
@@ -2382,7 +2378,6 @@ class TextRaytracer extends Benchmark {
     return light.color.scale(lam2 * 0.5).add(obj.color.scale(0.3));
   }
 
-  @pragma('vm:prefer-inline')
   TextRaytracerVector _createRayDir(int i, int j, double fw, double fh) {
     return TextRaytracerVector(
       (i - fw / 2.0) / fw,
@@ -2441,19 +2436,15 @@ class TextRaytracerVector {
 
   TextRaytracerVector(this.x, this.y, this.z);
 
-  @pragma('vm:prefer-inline')
   TextRaytracerVector scale(double s) =>
       TextRaytracerVector(x * s, y * s, z * s);
 
-  @pragma('vm:prefer-inline')
   TextRaytracerVector add(TextRaytracerVector other) =>
       TextRaytracerVector(x + other.x, y + other.y, z + other.z);
 
-  @pragma('vm:prefer-inline')
   TextRaytracerVector subtract(TextRaytracerVector other) =>
       TextRaytracerVector(x - other.x, y - other.y, z - other.z);
 
-  @pragma('vm:prefer-inline')
   double dot(TextRaytracerVector other) =>
       x * other.x + y * other.y + z * other.z;
 
@@ -2473,10 +2464,8 @@ class TextRaytracerColor {
 
   TextRaytracerColor(this.r, this.g, this.b);
 
-  @pragma('vm:prefer-inline')
   TextRaytracerColor scale(double s) => TextRaytracerColor(r * s, g * s, b * s);
 
-  @pragma('vm:prefer-inline')
   TextRaytracerColor add(TextRaytracerColor other) =>
       TextRaytracerColor(r + other.r, g + other.g, b + other.b);
 }
@@ -3128,7 +3117,6 @@ class FastLRUCache<K, V> {
 
   FastLRUCache(this.capacity) : _cache = {};
 
-  @pragma('vm:prefer-inline')
   V? get(K key) {
     final node = _cache[key];
     if (node == null) return null;
@@ -3137,7 +3125,6 @@ class FastLRUCache<K, V> {
     return node.value;
   }
 
-  @pragma('vm:prefer-inline')
   void put(K key, V value) {
     var node = _cache[key];
     if (node != null) {
@@ -3158,7 +3145,6 @@ class FastLRUCache<K, V> {
 
   int size() => _size;
 
-  @pragma('vm:prefer-inline')
   void _moveToFront(_Node<K, V> node) {
     if (node == _head) return;
 
@@ -3177,7 +3163,6 @@ class FastLRUCache<K, V> {
     if (_tail == null) _tail = node;
   }
 
-  @pragma('vm:prefer-inline')
   void _addToFront(_Node<K, V> node) {
     node.next = _head;
     if (_head != null) _head!.prev = node;
@@ -3185,7 +3170,6 @@ class FastLRUCache<K, V> {
     if (_tail == null) _tail = node;
   }
 
-  @pragma('vm:prefer-inline')
   void _removeOldest() {
     if (_tail == null) return;
 

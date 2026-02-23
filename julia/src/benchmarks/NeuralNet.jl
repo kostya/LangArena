@@ -24,7 +24,7 @@ function Neuron()
     return Neuron(t, t, 0.0, 0.0, Int32[], Int32[])
 end
 
-@inline function derivative(neuron::Neuron)::Float64
+function derivative(neuron::Neuron)::Float64
     return neuron.output * (1.0 - neuron.output)
 end
 
@@ -82,7 +82,7 @@ end
 function train!(net::NeuralNetwork, inputs::Vector{Float64}, targets::Vector{Float64})
     feed_forward!(net, inputs)
 
-    @inbounds for (i, target) in enumerate(targets)
+    for (i, target) in enumerate(targets)
         neuron_idx = net.output_layer[i]
         neuron = net.neurons[neuron_idx]
 
@@ -119,7 +119,7 @@ function train!(net::NeuralNetwork, inputs::Vector{Float64}, targets::Vector{Flo
 
     hidden_errors = Vector{Float64}(undef, length(net.hidden_layer))
 
-    @inbounds for (i, neuron_idx) in enumerate(net.hidden_layer)
+    for (i, neuron_idx) in enumerate(net.hidden_layer)
         neuron = net.neurons[neuron_idx]
         sum_error = 0.0
 
@@ -132,7 +132,7 @@ function train!(net::NeuralNetwork, inputs::Vector{Float64}, targets::Vector{Flo
         hidden_errors[i] = sum_error * derivative(neuron)
     end
 
-    @inbounds for (i, neuron_idx) in enumerate(net.hidden_layer)
+    for (i, neuron_idx) in enumerate(net.hidden_layer)
         error = hidden_errors[i]
         neuron = net.neurons[neuron_idx]
         net.neurons[neuron_idx].error = error
@@ -168,7 +168,7 @@ end
 
 function feed_forward!(net::NeuralNetwork, inputs::Vector{Float64})
 
-    @inbounds for (i, input) in enumerate(inputs)
+    for (i, input) in enumerate(inputs)
         neuron_idx = net.input_layer[i]
         net.neurons[neuron_idx] = Neuron(
             net.neurons[neuron_idx].threshold,
@@ -180,7 +180,7 @@ function feed_forward!(net::NeuralNetwork, inputs::Vector{Float64})
         )
     end
 
-    @inbounds for neuron_idx in net.hidden_layer
+    for neuron_idx in net.hidden_layer
         neuron = net.neurons[neuron_idx]
         activation = 0.0
 
@@ -201,7 +201,7 @@ function feed_forward!(net::NeuralNetwork, inputs::Vector{Float64})
         )
     end
 
-    @inbounds for neuron_idx in net.output_layer
+    for neuron_idx in net.output_layer
         neuron = net.neurons[neuron_idx]
         activation = 0.0
 
@@ -225,7 +225,7 @@ end
 
 function current_outputs(net::NeuralNetwork)::Vector{Float64}
     outputs = Vector{Float64}(undef, length(net.output_layer))
-    @inbounds for (i, neuron_idx) in enumerate(net.output_layer)
+    for (i, neuron_idx) in enumerate(net.output_layer)
         outputs[i] = net.neurons[neuron_idx].output
     end
     return outputs

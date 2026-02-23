@@ -11,7 +11,6 @@ struct FastNode {
 	f_score int
 }
 
-@[inline]
 fn fast_node_compare(a &FastNode, b &FastNode) int {
 	if a.f_score != b.f_score {
 		return a.f_score - b.f_score
@@ -35,12 +34,10 @@ fn new_fast_binary_heap(initial_capacity int) FastBinaryHeap {
 	}
 }
 
-@[inline]
 fn (heap &FastBinaryHeap) len() int {
 	return heap.size
 }
 
-@[inline]
 fn (heap &FastBinaryHeap) is_empty() bool {
 	return heap.size == 0
 }
@@ -141,19 +138,16 @@ pub fn (b AStarPathfinder) name() string {
 	return 'AStarPathfinder'
 }
 
-@[inline]
 fn heuristic(x1 int, y1 int, x2 int, y2 int) int {
 	dx := if x1 > x2 { x1 - x2 } else { x2 - x1 }
 	dy := if y1 > y2 { y1 - y2 } else { y2 - y1 }
 	return dx + dy
 }
 
-@[inline]
 fn (b AStarPathfinder) pack_coords(x int, y int) int {
 	return y * b.width + x
 }
 
-@[inline]
 fn (b AStarPathfinder) unpack_coords(idx int) (int, int) {
 	return idx % b.width, idx / b.width
 }

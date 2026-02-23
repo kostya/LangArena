@@ -28,22 +28,21 @@ end
 
 name(b::Noise)::String = "Etc::Noise"
 
-@inline @fastmath function lerp(a::Float64, b::Float64, v::Float64)::Float64
+function lerp(a::Float64, b::Float64, v::Float64)::Float64
     return a + v * (b - a)
 end
 
-@inline @fastmath function smooth(v::Float64)::Float64
+function smooth(v::Float64)::Float64
     v2 = v * v
     return v2 * (3.0 - 2.0 * v)
 end
 
-@inline function get_gradient(b::Noise, x::Int32, y::Int32)::SVector{2,Float64}
-
+function get_gradient(b::Noise, x::Int32, y::Int32)::SVector{2,Float64}
     idx = b.permutations[(x&(b.size-1))+1] + b.permutations[(y&(b.size-1))+1]
     return b.rgradients[(idx&(b.size-1))+1]
 end
 
-@inline @fastmath function get(b::Noise, x::Float64, y::Float64)::Float64
+function get(b::Noise, x::Float64, y::Float64)::Float64
     x0f = floor(x)
     y0f = floor(y)
     x0 = Int32(x0f)
@@ -59,10 +58,10 @@ end
     perm = b.permutations
     grad = b.rgradients
 
-    g00 = @inbounds grad[(perm[px0]+perm[py0])&size_mask+1]
-    g10 = @inbounds grad[(perm[px1]+perm[py0])&size_mask+1]
-    g01 = @inbounds grad[(perm[px0]+perm[py1])&size_mask+1]
-    g11 = @inbounds grad[(perm[px1]+perm[py1])&size_mask+1]
+    g00 = grad[(perm[px0]+perm[py0])&size_mask+1]
+    g10 = grad[(perm[px1]+perm[py0])&size_mask+1]
+    g01 = grad[(perm[px0]+perm[py1])&size_mask+1]
+    g11 = grad[(perm[px1]+perm[py1])&size_mask+1]
 
     dx = x - x0f
     dy = y - y0f
@@ -91,9 +90,9 @@ function run(b::Noise, iteration_id::Int64)
     y_step = 0.1
     y_start = iteration_id * 12.8
 
-    @inbounds for y = 0:(size_val-1)
+    for y = 0:(size_val-1)
         fy = y * y_step + y_start
-        @simd for x = 0:(size_val-1)
+        for x = 0:(size_val-1)
             fx = x * y_step
 
             v = (get(b, fx, fy) + 1.0) * 0.5

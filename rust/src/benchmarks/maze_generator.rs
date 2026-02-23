@@ -9,7 +9,6 @@ pub enum Cell {
 }
 
 impl Cell {
-    #[inline]
     fn is_walkable(&self) -> bool {
         matches!(self, Cell::Path)
     }
@@ -34,12 +33,10 @@ impl Maze {
         }
     }
 
-    #[inline]
     pub fn get(&self, x: usize, y: usize) -> Cell {
         self.cells[y][x]
     }
 
-    #[inline]
     pub fn get_mut(&mut self, x: usize, y: usize) -> &mut Cell {
         &mut self.cells[y][x]
     }

@@ -1633,7 +1633,7 @@ typedef struct {
   uint32_t result_val;
 } FannkuchreduxData;
 
-static inline void fannkuchredux_swap(int *a, int *b) {
+static void fannkuchredux_swap(int *a, int *b) {
   int temp = *a;
   *a = *b;
   *b = temp;
@@ -6996,7 +6996,7 @@ typedef struct {
   GameOfLifeGrid grid;
 } GameOfLifeData;
 
-static inline uint32_t fnv1a_hash(uint32_t hash, uint32_t value) {
+static uint32_t fnv1a_hash(uint32_t hash, uint32_t value) {
   const uint32_t FNV_OFFSET_BASIS = 2166136261UL;
   const uint32_t FNV_PRIME = 16777619UL;
 
@@ -7608,17 +7608,15 @@ static bool astar_binary_heap_empty(AStarBinaryHeap *heap) {
   return heap->size == 0;
 }
 
-static inline int astar_manhattan_distance(int a_x, int a_y, int b_x, int b_y) {
+static int astar_manhattan_distance(int a_x, int a_y, int b_x, int b_y) {
   int dx = a_x > b_x ? a_x - b_x : b_x - a_x;
   int dy = a_y > b_y ? a_y - b_y : b_y - a_y;
   return dx + dy;
 }
 
-static inline int astar_pack_coords(int x, int y, int width) {
-  return y * width + x;
-}
+static int astar_pack_coords(int x, int y, int width) { return y * width + x; }
 
-static inline void astar_unpack_coords(int packed, int width, int *x, int *y) {
+static void astar_unpack_coords(int packed, int width, int *x, int *y) {
   *x = packed % width;
   *y = packed / width;
 }

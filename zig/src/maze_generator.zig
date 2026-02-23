@@ -44,14 +44,14 @@ pub const MazeGenerator = struct {
             self.allocator.free(self.cells);
         }
 
-        inline fn get(self: *const Maze, x: i32, y: i32) Cell {
+        fn get(self: *const Maze, x: i32, y: i32) Cell {
             if (x < 0 or x >= self.width or y < 0 or y >= self.height) {
                 return Cell.wall;
             }
             return self.cells[@as(usize, @intCast(y * self.width + x))];
         }
 
-        inline fn set(self: *Maze, x: i32, y: i32, cell: Cell) void {
+        fn set(self: *Maze, x: i32, y: i32, cell: Cell) void {
             if (x >= 0 and x < self.width and y >= 0 and y < self.height) {
                 self.cells[@as(usize, @intCast(y * self.width + x))] = cell;
             }

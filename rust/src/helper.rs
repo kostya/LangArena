@@ -11,12 +11,10 @@ pub fn reset() {
     LAST.store(INIT, Ordering::SeqCst);
 }
 
-#[inline(always)]
 pub fn last() -> i32 {
     LAST.load(Ordering::SeqCst)
 }
 
-#[inline(always)]
 pub fn set_last(x: i32) {
     LAST.store(x, Ordering::SeqCst);
 }
@@ -53,7 +51,6 @@ pub fn checksum_f64(v: f64) -> u32 {
     checksum_str(&format!("{:.7}", v))
 }
 
-#[inline(always)]
 pub fn debug_print(msg: &str) {
     #[cfg(debug_assertions)]
     {

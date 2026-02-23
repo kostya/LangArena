@@ -23,15 +23,15 @@ pub const BrainfuckArray = struct {
             allocator.free(self.tape);
         }
 
-        pub inline fn get(self: *const Tape) u8 {
+        pub fn get(self: *const Tape) u8 {
             return self.tape[self.pos];
         }
 
-        pub inline fn inc(self: *Tape) void {
+        pub fn inc(self: *Tape) void {
             self.tape[self.pos] +%= 1;
         }
 
-        pub inline fn dec(self: *Tape) void {
+        pub fn dec(self: *Tape) void {
             self.tape[self.pos] -%= 1;
         }
 

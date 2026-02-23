@@ -50,7 +50,7 @@ const HOMO_SORTED = sort(HOMO, by = x->x.prob)
 function select_random(genelist::Vector{Gene})::Char
     r = Helper.next_float()
 
-    @inbounds for i = 1:length(genelist)
+    for i = 1:length(genelist)
         if r < genelist[i].prob
             return genelist[i].c
         end
@@ -74,7 +74,7 @@ function make_random_fasta(
     while todo > 0
         m = min(todo, LINE_LENGTH)
 
-        @inbounds for i = 1:m
+        for i = 1:m
             buffer[i] = UInt8(select_random(genelist))
         end
 

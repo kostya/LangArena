@@ -22,13 +22,13 @@ type Noise2DContext(size: int) =
             arr.[b] <- temp
         arr
 
-    static member inline gradient (orig: Vec2) (grad: Vec2) (p: Vec2) =
+    static member gradient (orig: Vec2) (grad: Vec2) (p: Vec2) =
         let spX = p.X - orig.X
         let spY = p.Y - orig.Y
         grad.X * spX + grad.Y * spY
 
-    static member inline lerp a b v = a * (1.0 - v) + b * v
-    static member inline smooth v = v * v * (3.0 - 2.0 * v)
+    static member lerp a b v = a * (1.0 - v) + b * v
+    static member smooth v = v * v * (3.0 - 2.0 * v)
 
     member private this.getGradient x y =
         let idx = permutations.[x &&& sizeMask] + permutations.[y &&& sizeMask]
