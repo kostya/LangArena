@@ -8,146 +8,140 @@ pub const CacheSimulation = struct {
     result_val: u32,
     values_size: i64,
     cache_size: i64,
-    cache: ?FastLRUCache,
+    cache: FastLRUCache,
     hits: u32,
     misses: u32,
 
     const CacheNode = struct {
-        key: []const u8,
-        next: ?*CacheNode = null,
-        prev: ?*CacheNode = null,
-    };
-
-    const CacheEntry = struct {
-        value: []const u8,
-        node: *CacheNode,
+        key: i32,
+        value: i64,
+        prev: ?*CacheNode,
+        next: ?*CacheNode,
     };
 
     const FastLRUCache = struct {
-        allocator: std.mem.Allocator,
         capacity: usize,
-        map: std.StringHashMap(CacheEntry),
-        lru_head: ?*CacheNode = null,
-        lru_tail: ?*CacheNode = null,
-        size: usize = 0,
+        nodes: []CacheNode,
+        map: std.AutoHashMapUnmanaged(i32, *CacheNode),
+        free_stack: []usize,
+        free_top: usize,
+        head: ?*CacheNode,
+        tail: ?*CacheNode,
+        size: usize,
+        allocator: std.mem.Allocator,
 
         fn init(allocator: std.mem.Allocator, capacity: usize) !FastLRUCache {
-            const map = std.StringHashMap(CacheEntry).init(allocator);
+            const nodes = try allocator.alloc(CacheNode, capacity);
+
+            const free_stack = try allocator.alloc(usize, capacity);
+            for (0..capacity) |i| {
+                free_stack[i] = i;
+            }
 
             return FastLRUCache{
-                .allocator = allocator,
                 .capacity = capacity,
-                .map = map,
-                .lru_head = null,
-                .lru_tail = null,
+                .nodes = nodes,
+                .map = .{},
+                .free_stack = free_stack,
+                .free_top = capacity,
+                .head = null,
+                .tail = null,
                 .size = 0,
+                .allocator = allocator,
             };
         }
 
         fn deinit(self: *FastLRUCache) void {
-            var current = self.lru_head;
-            while (current) |node| {
-                const next = node.next;
-                self.allocator.free(node.key);
-                self.allocator.destroy(node);
-                current = next;
-            }
-
-            var iter = self.map.iterator();
-            while (iter.next()) |entry| {
-                self.allocator.free(entry.value_ptr.value);
-            }
-            self.map.deinit();
+            self.map.deinit(self.allocator);
+            self.allocator.free(self.nodes);
+            self.allocator.free(self.free_stack);
         }
 
-        fn removeNode(self: *FastLRUCache, node: *CacheNode) void {
-            if (node.prev) |prev| {
-                prev.next = node.next;
-            } else {
-                self.lru_head = node.next;
-            }
+        fn allocNode(self: *FastLRUCache) ?*CacheNode {
+            if (self.free_top == 0) return null;
+            self.free_top -= 1;
+            const index = self.free_stack[self.free_top];
+            return &self.nodes[index];
+        }
 
-            if (node.next) |next| {
-                next.prev = node.prev;
-            } else {
-                self.lru_tail = node.prev;
-            }
+        fn freeNode(self: *FastLRUCache, node: *CacheNode) void {
+            const index = (@intFromPtr(node) - @intFromPtr(self.nodes.ptr)) / @sizeOf(CacheNode);
+            self.free_stack[self.free_top] = index;
+            self.free_top += 1;
+        }
 
-            node.next = null;
+        fn moveToFront(self: *FastLRUCache, node: *CacheNode) void {
+            if (node == self.head) return;
+
+            if (node.prev) |prev| prev.next = node.next;
+            if (node.next) |next| next.prev = node.prev;
+
+            if (node == self.tail) self.tail = node.prev;
+
             node.prev = null;
+            node.next = self.head;
+            if (self.head) |head| head.prev = node;
+            self.head = node;
+
+            if (self.tail == null) self.tail = node;
         }
 
-        fn prependNode(self: *FastLRUCache, node: *CacheNode) void {
-            node.next = self.lru_head;
+        fn addToFront(self: *FastLRUCache, node: *CacheNode) void {
+            node.next = self.head;
             node.prev = null;
-
-            if (self.lru_head) |head| {
-                head.prev = node;
-            }
-
-            self.lru_head = node;
-
-            if (self.lru_tail == null) {
-                self.lru_tail = node;
-            }
+            if (self.head) |head| head.prev = node;
+            self.head = node;
+            if (self.tail == null) self.tail = node;
         }
 
-        fn get(self: *FastLRUCache, key: []const u8) bool {
-            if (self.map.getPtr(key)) |entry| {
-                self.removeNode(entry.node);
-                self.prependNode(entry.node);
-                return true;
+        fn removeOldest(self: *FastLRUCache) void {
+            const oldest = self.tail orelse return;
+
+            _ = self.map.remove(oldest.key);
+
+            if (oldest.prev) |prev| {
+                prev.next = null;
+                self.tail = prev;
+            } else {
+                self.head = null;
+                self.tail = null;
             }
-            return false;
+
+            self.freeNode(oldest);
+            self.size -= 1;
         }
 
-        fn put(self: *FastLRUCache, key: []const u8, value: []const u8) !void {
-            if (self.map.getPtr(key)) |entry| {
-                self.removeNode(entry.node);
-                self.prependNode(entry.node);
+        fn get(self: *FastLRUCache, key_num: i32) ?i64 {
+            const node = self.map.get(key_num) orelse return null;
 
-                self.allocator.free(entry.value);
-                const value_copy = try self.allocator.dupe(u8, value);
-                entry.value = value_copy;
+            self.moveToFront(node);
+            return node.value;
+        }
+
+        fn put(self: *FastLRUCache, key_num: i32, value_num: i64) !void {
+            if (self.map.get(key_num)) |node| {
+                node.value = value_num;
+                self.moveToFront(node);
                 return;
             }
 
             if (self.size >= self.capacity) {
-                if (self.lru_tail) |oldest| {
-                    if (self.map.fetchRemove(oldest.key)) |old_entry| {
-                        self.removeNode(oldest);
-                        self.allocator.free(old_entry.key);
-                        self.allocator.free(old_entry.value.value);
-                        self.allocator.destroy(oldest);
-                        self.size -= 1;
-                    }
-                }
+                self.removeOldest();
             }
 
-            const key_copy = try self.allocator.dupe(u8, key);
-            errdefer self.allocator.free(key_copy);
+            const node = self.allocNode() orelse return error.OutOfMemory;
 
-            const value_copy = try self.allocator.dupe(u8, value);
-            errdefer self.allocator.free(value_copy);
+            node.key = key_num;
+            node.value = value_num;
+            node.prev = null;
+            node.next = null;
 
-            const node = try self.allocator.create(CacheNode);
-            errdefer self.allocator.destroy(node);
-            node.* = CacheNode{
-                .key = key_copy,
-                .next = null,
-                .prev = null,
-            };
-
-            self.prependNode(node);
+            try self.map.put(self.allocator, key_num, node);
+            self.addToFront(node);
             self.size += 1;
-
-            try self.map.put(key_copy, CacheEntry{
-                .value = value_copy,
-                .node = node,
-            });
         }
 
-        fn cacheSize(self: *FastLRUCache) usize {
+        fn getSize(self: *FastLRUCache) usize {
             return self.size;
         }
     };
@@ -163,13 +157,16 @@ pub const CacheSimulation = struct {
         const self = try allocator.create(CacheSimulation);
         errdefer allocator.destroy(self);
 
+        const values_size = helper.config_i64("Etc::CacheSimulation", "values");
+        const cache_size = helper.config_i64("Etc::CacheSimulation", "size");
+
         self.* = CacheSimulation{
             .allocator = allocator,
             .helper = helper,
             .result_val = 5432,
-            .values_size = 0,
-            .cache_size = 0,
-            .cache = null,
+            .values_size = values_size,
+            .cache_size = cache_size,
+            .cache = try FastLRUCache.init(allocator, @intCast(cache_size)),
             .hits = 0,
             .misses = 0,
         };
@@ -178,9 +175,7 @@ pub const CacheSimulation = struct {
     }
 
     pub fn deinit(self: *CacheSimulation) void {
-        if (self.cache) |*cache| {
-            cache.deinit();
-        }
+        self.cache.deinit();
         self.allocator.destroy(self);
     }
 
@@ -190,59 +185,30 @@ pub const CacheSimulation = struct {
 
     fn prepareImpl(ptr: *anyopaque) void {
         const self: *CacheSimulation = @ptrCast(@alignCast(ptr));
-        const allocator = self.allocator;
-
-        if (self.cache) |*cache| {
-            cache.deinit();
-            self.cache = null;
-        }
-
-        self.values_size = self.helper.config_i64("Etc::CacheSimulation", "values");
-        self.cache_size = self.helper.config_i64("Etc::CacheSimulation", "size");
-
         self.hits = 0;
         self.misses = 0;
-
-        const cache = FastLRUCache.init(allocator, @as(usize, @intCast(self.cache_size))) catch return;
-        self.cache = cache;
     }
 
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
         const self: *CacheSimulation = @ptrCast(@alignCast(ptr));
 
-        if (self.cache == null) {
-            return;
-        }
+        const key_num = self.helper.nextInt(@intCast(self.values_size));
 
-        const cache = &self.cache.?;
-        var key_buf: [32]u8 = undefined;
-        var val_buf: [32]u8 = undefined;
-
-        const key_num = self.helper.nextInt(@as(i32, @intCast(self.values_size)));
-        const key = std.fmt.bufPrint(&key_buf, "item_{}", .{key_num}) catch return;
-
-        if (cache.get(key)) {
+        if (self.cache.get(key_num)) |_| {
             self.hits += 1;
-            const value = std.fmt.bufPrint(&val_buf, "updated_{}", .{iteration_id}) catch return;
-            cache.put(key, value) catch return;
+            self.cache.put(key_num, iteration_id) catch return;
         } else {
             self.misses += 1;
-            const value = std.fmt.bufPrint(&val_buf, "new_{}", .{iteration_id}) catch return;
-            cache.put(key, value) catch return;
+            self.cache.put(key_num, iteration_id) catch return;
         }
     }
 
     fn checksumImpl(ptr: *anyopaque) u32 {
         const self: *CacheSimulation = @ptrCast(@alignCast(ptr));
-
         var final_result: u32 = self.result_val;
         final_result = (final_result << 5) + self.hits;
         final_result = (final_result << 5) + self.misses;
-
-        if (self.cache) |*cache| {
-            final_result = (final_result << 5) + @as(u32, @intCast(cache.cacheSize()));
-        }
-
+        final_result = (final_result << 5) + @as(u32, @intCast(self.cache.getSize()));
         return final_result;
     }
 

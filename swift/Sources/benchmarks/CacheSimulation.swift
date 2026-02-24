@@ -18,35 +18,38 @@ final class CacheSimulation: BenchmarkProtocol {
     private var cache: [String: Node] = [:]
     private var head: Node?
     private var tail: Node?
+    private var currentSize: Int = 0
 
     init(capacity: Int) {
       self.capacity = capacity
     }
 
-    func get(_ key: String) -> Bool {
-      guard let node = cache[key] else { return false }
+    func get(_ key: String) -> String? {
+      guard let node = cache[key] else { return nil }
       moveToFront(node)
-      return true
+      return node.value
     }
 
-    func put(key: String, value: String) {
+    func put(_ key: String, _ value: String) {
       if let existing = cache[key] {
         existing.value = value
         moveToFront(existing)
         return
       }
 
-      if cache.count >= capacity {
+      if currentSize >= capacity {
         removeOldest()
       }
 
       let node = Node(key: key, value: value)
       cache[key] = node
       addToFront(node)
+      currentSize += 1
     }
 
     private func moveToFront(_ node: Node) {
       if node === head { return }
+
       node.prev?.next = node.next
       node.next?.prev = node.prev
 
@@ -75,16 +78,22 @@ final class CacheSimulation: BenchmarkProtocol {
 
     private func removeOldest() {
       guard let oldest = tail else { return }
+
       cache.removeValue(forKey: oldest.key)
-      oldest.prev?.next = nil
-      tail = oldest.prev
-      if head === oldest {
+
+      if let prevNode = oldest.prev {
+        prevNode.next = nil
+        tail = prevNode
+      } else {
         head = nil
+        tail = nil
       }
+
+      currentSize -= 1
     }
 
-    func size() -> Int {
-      return cache.count
+    var size: Int {
+      return currentSize
     }
   }
 
@@ -95,26 +104,25 @@ final class CacheSimulation: BenchmarkProtocol {
   private var hits = 0
   private var misses = 0
 
-  init() {
+  func prepare() {
     valuesSize = Int(configValue("values") ?? 0)
     cacheSize = Int(configValue("size") ?? 0)
-  }
-
-  func prepare() {
     cache = FastLRUCache(capacity: cacheSize)
+    hits = 0
+    misses = 0
   }
 
   func run(iterationId: Int) {
     let key = String(format: "item_%d", Helper.nextInt(max: valuesSize))
 
-    if cache.get(key) {
+    if cache.get(key) != nil {
       hits += 1
       let value = String(format: "updated_%d", iterationId)
-      cache.put(key: key, value: value)
+      cache.put(key, value)
     } else {
       misses += 1
       let value = String(format: "new_%d", iterationId)
-      cache.put(key: key, value: value)
+      cache.put(key, value)
     }
   }
 
@@ -122,9 +130,10 @@ final class CacheSimulation: BenchmarkProtocol {
     var finalResult = resultVal
     finalResult = (finalResult << 5) &+ UInt32(hits)
     finalResult = (finalResult << 5) &+ UInt32(misses)
-    finalResult = (finalResult << 5) &+ UInt32(cache.size())
+    finalResult = (finalResult << 5) &+ UInt32(cache.size)
     return finalResult
   }
+
   func name() -> String {
     return "Etc::CacheSimulation"
   }

@@ -30,31 +30,27 @@ fn new_fast_lru_cache(capacity int) FastLRUCache {
 	}
 }
 
-fn (mut cache FastLRUCache) remove_node(mut node LRUNode) {
-	if node.prev != unsafe { nil } {
-		mut prev_node := node.prev
-		prev_node.next = node.next
-	} else {
-		cache.head = node.next
+fn (mut cache FastLRUCache) move_to_front(mut node LRUNode) {
+	if unsafe { cache.head == node } {
+		return
 	}
 
+	if node.prev != unsafe { nil } {
+		node.prev.next = node.next
+	}
 	if node.next != unsafe { nil } {
-		mut next_node := node.next
-		next_node.prev = node.prev
-	} else {
+		node.next.prev = node.prev
+	}
+
+	if unsafe { cache.tail == node } {
 		cache.tail = node.prev
 	}
-}
 
-fn (mut cache FastLRUCache) add_to_front(mut node LRUNode) {
-	node.next = cache.head
 	node.prev = unsafe { nil }
-
+	node.next = cache.head
 	if cache.head != unsafe { nil } {
-		mut head_node := cache.head
-		head_node.prev = node
+		cache.head.prev = node
 	}
-
 	cache.head = node
 
 	if cache.tail == unsafe { nil } {
@@ -62,13 +58,34 @@ fn (mut cache FastLRUCache) add_to_front(mut node LRUNode) {
 	}
 }
 
-fn (mut cache FastLRUCache) move_to_front(mut node LRUNode) {
-	if unsafe { cache.head == node } {
+fn (mut cache FastLRUCache) add_to_front(mut node LRUNode) {
+	node.next = cache.head
+	if cache.head != unsafe { nil } {
+		cache.head.prev = node
+	}
+	cache.head = node
+	if cache.tail == unsafe { nil } {
+		cache.tail = node
+	}
+}
+
+fn (mut cache FastLRUCache) remove_oldest() {
+	if cache.tail == unsafe { nil } {
 		return
 	}
 
-	cache.remove_node(mut node)
-	cache.add_to_front(mut node)
+	mut oldest := cache.tail
+	cache.cache.delete(oldest.key)
+
+	if oldest.prev != unsafe { nil } {
+		oldest.prev.next = unsafe { nil }
+		cache.tail = oldest.prev
+	} else {
+		cache.head = unsafe { nil }
+		cache.tail = unsafe { nil }
+	}
+
+	cache.size--
 }
 
 fn (mut cache FastLRUCache) get(key string) ?string {
@@ -88,19 +105,13 @@ fn (mut cache FastLRUCache) put(key string, value string) {
 		return
 	}
 
+	if cache.size >= cache.capacity {
+		cache.remove_oldest()
+	}
+
 	mut new_node := &LRUNode{
 		key:   key
 		value: value
-	}
-
-	if cache.size >= cache.capacity {
-		if cache.tail != unsafe { nil } {
-			mut oldest_node := cache.tail
-			oldest_key := oldest_node.key
-			cache.remove_node(mut oldest_node)
-			cache.cache.delete(oldest_key)
-			cache.size--
-		}
 	}
 
 	cache.add_to_front(mut new_node)

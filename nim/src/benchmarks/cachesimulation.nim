@@ -1,12 +1,20 @@
-import std/[strformat, tables, lists]
+import std/[strformat, tables]
 import ../benchmark
 import ../helper
 
 type
+  Node = ref object
+    key: string
+    value: string
+    prev: Node
+    next: Node
+
   FastLRUCache = ref object
     capacity: int
-    cache: Table[string, tuple[value: string, node: DoublyLinkedNode[string]]]
-    lruList: DoublyLinkedList[string]
+    cache: Table[string, Node]
+    head: Node
+    tail: Node
+    size: int
 
   CacheSimulation* = ref object of Benchmark
     resultVal: uint32
@@ -17,44 +25,85 @@ type
     misses: int
 
 proc newFastLRUCache(capacity: int): FastLRUCache =
-  result = FastLRUCache(
+  FastLRUCache(
     capacity: capacity,
-    cache: initTable[string, tuple[value: string, node: DoublyLinkedNode[
-        string]]](),
-    lruList: initDoublyLinkedList[string]()
+    cache: initTable[string, Node](),
+    head: nil,
+    tail: nil,
+    size: 0
   )
 
-proc get(cache: FastLRUCache, key: string): bool =
-  if cache.cache.hasKey(key):
-    let node = cache.cache[key].node
-    cache.lruList.remove(node)
-    cache.lruList.prepend(node)
-    return true
-  false
-
-proc put(cache: FastLRUCache, key, value: string) =
-  if cache.cache.hasKey(key):
-
-    let node = cache.cache[key].node
-    cache.lruList.remove(node)
-    cache.lruList.prepend(node)
-    cache.cache[key] = (value: value, node: node)
+proc moveToFront(cache: FastLRUCache, node: Node) =
+  if node == cache.head:
     return
 
-  if cache.cache.len >= cache.capacity:
+  if node.prev != nil:
+    node.prev.next = node.next
+  if node.next != nil:
+    node.next.prev = node.prev
 
-    let oldestNode = cache.lruList.tail
-    if oldestNode != nil:
-      let oldestKey = oldestNode.value
-      cache.lruList.remove(oldestNode)
-      cache.cache.del(oldestKey)
+  if node == cache.tail:
+    cache.tail = node.prev
 
-  let node = newDoublyLinkedNode(key)
-  cache.lruList.prepend(node)
-  cache.cache[key] = (value: value, node: node)
+  node.prev = nil
+  node.next = cache.head
+  if cache.head != nil:
+    cache.head.prev = node
+  cache.head = node
+
+  if cache.tail == nil:
+    cache.tail = node
+
+proc addToFront(cache: FastLRUCache, node: Node) =
+  node.next = cache.head
+  if cache.head != nil:
+    cache.head.prev = node
+  cache.head = node
+  if cache.tail == nil:
+    cache.tail = node
+
+proc removeOldest(cache: FastLRUCache) =
+  if cache.tail == nil:
+    return
+
+  let oldest = cache.tail
+
+  cache.cache.del(oldest.key)
+
+  if oldest.prev != nil:
+    oldest.prev.next = nil
+  cache.tail = oldest.prev
+
+  if cache.head == oldest:
+    cache.head = nil
+
+  cache.size -= 1
+
+proc get(cache: FastLRUCache, key: string): (bool, string) =
+  if cache.cache.hasKey(key):
+    let node = cache.cache[key]
+    cache.moveToFront(node)
+    return (true, node.value)
+  (false, "")
+
+proc put(cache: FastLRUCache, key: string, value: string) =
+  if cache.cache.hasKey(key):
+    let node = cache.cache[key]
+    node.value = value
+    cache.moveToFront(node)
+    return
+
+  if cache.size >= cache.capacity:
+    cache.removeOldest()
+
+  let node = Node(key: key, value: value, prev: nil, next: nil)
+
+  cache.cache[key] = node
+  cache.addToFront(node)
+  cache.size += 1
 
 proc size(cache: FastLRUCache): int =
-  cache.cache.len
+  cache.size
 
 proc newCacheSimulation(): Benchmark =
   CacheSimulation()
@@ -72,12 +121,13 @@ method prepare(self: CacheSimulation) =
 method run(self: CacheSimulation, iteration_id: int) =
   let key = fmt"item_{nextInt(self.valuesSize.int32)}"
 
-  if self.cache.get(key):
-    inc self.hits
+  let (found, _) = self.cache.get(key)
+  if found:
+    self.hits += 1
     let value = fmt"updated_{iteration_id}"
     self.cache.put(key, value)
   else:
-    inc self.misses
+    self.misses += 1
     let value = fmt"new_{iteration_id}"
     self.cache.put(key, value)
 

@@ -23,7 +23,8 @@ from dataclasses import dataclass
 from enum import Enum
 from io import StringIO
 from pathlib import Path
-from typing import (Any, Callable, Dict, List, NamedTuple, Optional, Union)
+from typing import (Any, Callable, Dict, List, NamedTuple, Optional, Union,
+                    TypeVar, Generic)
 
 
 def with_timeout(timeout_seconds):
@@ -2802,33 +2803,102 @@ class BufferHashSHA256(BufferHashBenchmark):
         return "Hash::SHA256"
 
 
-class LRUCacheOrderedDict:
+from typing import Optional, TypeVar, Generic, Dict
+
+K = TypeVar('K')
+V = TypeVar('V')
+
+
+class Node(Generic[K, V]):
+    __slots__ = ('key', 'value', 'prev', 'next')
+
+    def __init__(self, key: K, value: V):
+        self.key = key
+        self.value = value
+        self.prev: Optional['Node[K, V]'] = None
+        self.next: Optional['Node[K, V]'] = None
+
+
+class LRUCache(Generic[K, V]):
 
     def __init__(self, capacity: int):
         self.capacity = capacity
-        self.cache = OrderedDict()
+        self.cache: Dict[K, Node[K, V]] = {}
+        self.head: Optional[Node[K, V]] = None
+        self.tail: Optional[Node[K, V]] = None
+        self._size = 0
+
+    def _move_to_front(self, node: Node[K, V]) -> None:
+        if node == self.head:
+            return
+
+        if node.prev:
+            node.prev.next = node.next
+        if node.next:
+            node.next.prev = node.prev
+
+        if node == self.tail:
+            self.tail = node.prev
+
+        node.prev = None
+        node.next = self.head
+        if self.head:
+            self.head.prev = node
+        self.head = node
+
+        if self.tail is None:
+            self.tail = node
+
+    def _add_to_front(self, node: Node[K, V]) -> None:
+        node.next = self.head
+        if self.head:
+            self.head.prev = node
+        self.head = node
+        if self.tail is None:
+            self.tail = node
+
+    def _remove_oldest(self) -> None:
+        if not self.tail:
+            return
+
+        oldest = self.tail
+        del self.cache[oldest.key]
+
+        if oldest.prev:
+            oldest.prev.next = None
+            self.tail = oldest.prev
+        else:
+            self.head = None
+            self.tail = None
+
+        self._size -= 1
 
     def get(self, key: K) -> Optional[V]:
-
-        if key not in self.cache:
+        node = self.cache.get(key)
+        if not node:
             return None
 
-        self.cache.move_to_end(key)
-        return self.cache[key]
+        self._move_to_front(node)
+        return node.value
 
-    def put(self, key: K, value: V):
+    def put(self, key: K, value: V) -> None:
+        node = self.cache.get(key)
+        if node:
+            node.value = value
+            self._move_to_front(node)
+            return
 
-        if key in self.cache:
-            self.cache[key] = value
-            self.cache.move_to_end(key)
-        else:
-            if len(self.cache) >= self.capacity:
-                self.cache.popitem(last=False)
-            self.cache[key] = value
+        if self._size >= self.capacity:
+            self._remove_oldest()
+
+        node = Node(key, value)
+        self.cache[key] = node
+        self._add_to_front(node)
+        self._size += 1
 
     @property
     def size(self) -> int:
-        return len(self.cache)
+        return self._size
 
 
 class CacheSimulation(Benchmark):
@@ -2837,14 +2907,14 @@ class CacheSimulation(Benchmark):
         super().__init__()
         self.result = 5432
         self.values_size = 0
-        self.cache: Optional[LRUCacheOrderedDict] = None
+        self.cache: Optional[LRUCache[str, str]] = None
         self.hits = 0
         self.misses = 0
 
     def prepare(self):
         self.values_size = Helper.config_i64(self.name(), "values")
         cache_size = Helper.config_i64(self.name(), "size")
-        self.cache = LRUCacheOrderedDict(cache_size)
+        self.cache = LRUCache[str, str](cache_size)
         self.hits = 0
         self.misses = 0
 
@@ -2852,11 +2922,9 @@ class CacheSimulation(Benchmark):
         key = f"item_{Helper.next_int(self.values_size)}"
 
         if self.cache.get(key) is not None:
-
             self.hits += 1
             self.cache.put(key, f"updated_{iteration_id}")
         else:
-
             self.misses += 1
             self.cache.put(key, f"new_{iteration_id}")
 

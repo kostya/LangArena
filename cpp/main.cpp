@@ -2892,94 +2892,171 @@ public:
 };
 
 class CacheSimulation : public Benchmark {
-private:
-  class FastLRUCache {
+  template <typename K, typename V> class LRUCache {
   private:
-    size_t capacity_;
-    std::unordered_map<
-        std::string,
-        std::pair<std::string, typename std::list<std::string>::iterator>>
-        cache_;
-    std::list<std::string> lru_list_;
+    struct Node {
+      K key;
+      V value;
+      Node *prev;
+      Node *next;
 
-  public:
-    FastLRUCache(size_t capacity) : capacity_(capacity) {}
+      Node(const K &k, const V &v)
+          : key(k), value(v), prev(nullptr), next(nullptr) {}
+    };
 
-    bool get(const std::string &key) {
-      auto it = cache_.find(key);
-      if (it != cache_.end()) {
-        lru_list_.erase(it->second.second);
-        lru_list_.push_front(key);
-        it->second.second = lru_list_.begin();
-        return true;
+    int capacity_;
+    std::unordered_map<K, Node *> cache_;
+    Node *head_;
+    Node *tail_;
+    int size_;
+
+    void move_to_front(Node *node) {
+      if (node == head_)
+        return;
+
+      if (node->prev) {
+        node->prev->next = node->next;
       }
-      return false;
+      if (node->next) {
+        node->next->prev = node->prev;
+      }
+
+      if (node == tail_) {
+        tail_ = node->prev;
+      }
+
+      node->prev = nullptr;
+      node->next = head_;
+      if (head_) {
+        head_->prev = node;
+      }
+      head_ = node;
+
+      if (!tail_) {
+        tail_ = node;
+      }
     }
 
-    void put(const std::string &key, const std::string &value) {
+    void add_to_front(Node *node) {
+      node->next = head_;
+      if (head_) {
+        head_->prev = node;
+      }
+      head_ = node;
+      if (!tail_) {
+        tail_ = node;
+      }
+    }
+
+    void remove_oldest() {
+      if (!tail_)
+        return;
+
+      Node *oldest = tail_;
+      cache_.erase(oldest->key);
+
+      if (oldest->prev) {
+        oldest->prev->next = nullptr;
+      }
+      tail_ = oldest->prev;
+
+      if (head_ == oldest) {
+        head_ = nullptr;
+      }
+
+      delete oldest;
+      size_--;
+    }
+
+  public:
+    LRUCache(int capacity)
+        : capacity_(capacity), head_(nullptr), tail_(nullptr), size_(0) {}
+
+    ~LRUCache() {
+      Node *current = head_;
+      while (current) {
+        Node *next = current->next;
+        delete current;
+        current = next;
+      }
+    }
+
+    std::optional<V> get(const K &key) {
+      auto it = cache_.find(key);
+      if (it == cache_.end()) {
+        return std::nullopt;
+      }
+
+      Node *node = it->second;
+      move_to_front(node);
+      return node->value;
+    }
+
+    void put(const K &key, const V &value) {
       auto it = cache_.find(key);
       if (it != cache_.end()) {
-        lru_list_.erase(it->second.second);
-        lru_list_.push_front(key);
-        cache_[key] = {value, lru_list_.begin()};
+        Node *node = it->second;
+        node->value = value;
+        move_to_front(node);
         return;
       }
 
-      if (cache_.size() >= capacity_) {
-        std::string oldest_key = lru_list_.back();
-        lru_list_.pop_back();
-        cache_.erase(oldest_key);
+      if (size_ >= capacity_) {
+        remove_oldest();
       }
 
-      lru_list_.push_front(key);
-      cache_[key] = {value, lru_list_.begin()};
+      Node *node = new Node(key, value);
+      cache_[key] = node;
+      add_to_front(node);
+      size_++;
     }
 
-    size_t size() const { return cache_.size(); }
+    int size() const { return size_; }
   };
 
+private:
   uint32_t result_val;
   int values_size;
-  int cache_size;
-  FastLRUCache cache;
-  int hits = 0;
-  int misses = 0;
+  LRUCache<std::string, std::string> cache;
+  int hits;
+  int misses;
 
 public:
-  CacheSimulation() : result_val(5432), cache(0) {
-    values_size = static_cast<int>(config_val("values"));
-    cache_size = static_cast<int>(config_val("size"));
-  }
+  CacheSimulation()
+      : result_val(5432), values_size(config_val("values")),
+        cache(config_val("size")), hits(0), misses(0) {}
 
   std::string name() const override { return "Etc::CacheSimulation"; }
 
-  void prepare() override { cache = FastLRUCache(cache_size); }
+  void run(int iteration_id) {
 
-  void run(int iteration_id) override {
     char key_buf[32];
     snprintf(key_buf, sizeof(key_buf), "item_%d",
              Helper::next_int(values_size));
     std::string key(key_buf);
 
-    if (cache.get(key)) {
+    auto value = cache.get(key);
+    if (value.has_value()) {
       hits++;
+
       char val_buf[32];
       snprintf(val_buf, sizeof(val_buf), "updated_%d", iteration_id);
       cache.put(key, std::string(val_buf));
     } else {
       misses++;
+
       char val_buf[32];
       snprintf(val_buf, sizeof(val_buf), "new_%d", iteration_id);
       cache.put(key, std::string(val_buf));
     }
   }
 
-  uint32_t checksum() override {
-    uint32_t final_result = result_val;
-    final_result = (final_result << 5) + hits;
-    final_result = (final_result << 5) + misses;
-    final_result = (final_result << 5) + static_cast<uint32_t>(cache.size());
-    return final_result;
+  uint32_t checksum() {
+    uint32_t result = result_val;
+    result = (result << 5) + hits;
+    result = (result << 5) + misses;
+    result = (result << 5) + static_cast<uint32_t>(cache.size());
+    return result;
   }
 };
 
