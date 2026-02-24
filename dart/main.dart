@@ -1768,30 +1768,30 @@ class Revcomp extends Benchmark {
 
 class Spectralnorm extends Benchmark {
   late int size;
-  late List<double> u;
-  late List<double> v;
+  late Float64List u;
+  late Float64List v;
+  int _resultValue = 0;
 
   @override
   void prepare() {
     size = Helper.configI64(benchmarkName, "size").toInt();
-    u = List.filled(size, 1.0);
-    v = List.filled(size, 1.0);
+
+    u = Float64List(size)..fillRange(0, size, 1.0);
+    v = Float64List(size)..fillRange(0, size, 1.0);
   }
 
   double _evalA(int i, int j) {
     return 1.0 / ((i + j) * (i + j + 1) / 2.0 + i + 1.0);
   }
 
-  List<double> _evalATimesU(List<double> uVec) {
+  Float64List _evalATimesU(Float64List uVec) {
     final n = uVec.length;
-    final result = List.filled(n, 0.0);
+    final result = Float64List(n);
 
     for (int i = 0; i < n; i++) {
       double sum = 0.0;
-      int j = 0;
-      for (var val in uVec) {
-        sum += _evalA(i, j) * val;
-        j++;
+      for (int j = 0; j < n; j++) {
+        sum += _evalA(i, j) * uVec[j];
       }
       result[i] = sum;
     }
@@ -1799,16 +1799,14 @@ class Spectralnorm extends Benchmark {
     return result;
   }
 
-  List<double> _evalAtTimesU(List<double> uVec) {
+  Float64List _evalAtTimesU(Float64List uVec) {
     final n = uVec.length;
-    final result = List.filled(n, 0.0);
+    final result = Float64List(n);
 
     for (int i = 0; i < n; i++) {
       double sum = 0.0;
-      int j = 0;
-      for (var val in uVec) {
-        sum += _evalA(j, i) * val;
-        j++;
+      for (int j = 0; j < n; j++) {
+        sum += _evalA(j, i) * uVec[j];
       }
       result[i] = sum;
     }
@@ -1816,7 +1814,7 @@ class Spectralnorm extends Benchmark {
     return result;
   }
 
-  List<double> _evalAtATimesU(List<double> uVec) {
+  Float64List _evalAtATimesU(Float64List uVec) {
     return _evalAtTimesU(_evalATimesU(uVec));
   }
 
@@ -2096,7 +2094,7 @@ class Primes extends Benchmark {
     }
 
     final estimatedSize = (limit / (log(limit) - 1.1)).floor();
-    final primes = List<int>.filled(estimatedSize, 0);
+    final primes = Int32List(estimatedSize);
     var count = 0;
 
     for (int i = 2; i <= limit; i++) {
