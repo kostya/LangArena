@@ -53,6 +53,7 @@ pub fn run_benchmarks(factories []BenchmarkInfo, single_bench string) {
 			helper.reset()
 			bench.prepare()
 			warmup(mut bench)
+			gc_collect() 
 
 			helper.reset()
 
@@ -84,7 +85,9 @@ pub fn run_benchmarks(factories []BenchmarkInfo, single_bench string) {
 			fails++
 		}
 
+		gc_collect() 
 		time.sleep(1 * time.millisecond)
+		gc_collect() 
 	}
 
 	save_results(results)

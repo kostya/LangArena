@@ -96,6 +96,7 @@ proc all*(singleBench = "") =
     bench.prepare()
 
     bench.warmup
+    GC_fullCollect()
     reset()
 
     let start = epochTime()
@@ -116,7 +117,7 @@ proc all*(singleBench = "") =
     echo "in ", formatFloat(duration, ffDecimal, 3), "s"
     summaryTime += duration
 
-    sleep(1)
+    GC_fullCollect()
 
   let resultsFile = open("/tmp/results.js", fmWrite)
   resultsFile.write("{")

@@ -305,6 +305,7 @@ func RunBenchmarks(singleBench string) {
 		Reset()
 		bench.Prepare()
 		Warmup(bench)
+		runtime.GC()
 
 		Reset()
 
@@ -323,6 +324,8 @@ func RunBenchmarks(singleBench string) {
 			fmt.Printf("ERR[actual=%d, expected=%d] ", chks, expected)
 			fails++
 		}
+
+		runtime.GC()
 
 		fmt.Printf("in %.3fs\n", elapsed)
 		summaryTime += elapsed

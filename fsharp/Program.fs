@@ -105,6 +105,7 @@ module BenchmarkRunner =
 
                     benchmark.Prepare()
                     benchmark.Warmup()
+                    GC.Collect()
 
                     Helper.Reset()
 

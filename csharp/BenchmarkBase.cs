@@ -222,7 +222,7 @@ public abstract class Benchmark
 
                 benchmark.Prepare();
                 benchmark.Warmup();
-
+                GC.Collect();
                 Helper.Reset();
 
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();

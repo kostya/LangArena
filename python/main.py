@@ -14,6 +14,7 @@ import os
 import re
 import sys
 import time
+import gc
 
 from abc import ABC, abstractmethod
 from collections import OrderedDict, deque
@@ -271,6 +272,7 @@ class Benchmark(ABC):
             except TimeoutError:
                 pass
 
+            gc.collect()
             Helper.reset()
 
             start_time = Performance.now()
@@ -297,6 +299,7 @@ class Benchmark(ABC):
                     end='')
                 fails += 1
 
+            gc.collect()
             print(f'in {time_delta:.3f}s')
             summary_time += time_delta
 

@@ -76,6 +76,7 @@ object Benchmark:
           Helper.reset()
           bench.prepare()
           bench.warmup()
+          System.gc()
 
           Helper.reset()
 

@@ -97,6 +97,7 @@ abstract class Benchmark {
 
                     bench.prepare()
                     bench.warmup()
+                    System.gc()
 
                     Helper.reset()
 

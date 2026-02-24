@@ -111,6 +111,7 @@ function run_all_benchmarks(single_bench::String = "")
         prepare(bench)
 
         warmup(bench)
+        GC.gc()
         Helper.reset()
 
         start_time = time()

@@ -9,6 +9,7 @@ import std.file;
 import std.json;
 import core.thread : Thread;
 import core.stdc.stdlib : exit;
+import core.memory;
 
 import benchmark;
 import benchmark_registry;
@@ -95,6 +96,7 @@ void benchmarkAll(string singleBench = "")
         bench.prepare();
 
         bench.warmup();
+        GC.collect();
         Helper.reset();
 
         auto start = MonoTime.currTime;
@@ -118,7 +120,7 @@ void benchmarkAll(string singleBench = "")
         }
 
         std.stdio.writefln("in %.3fs", duration);
-
+        GC.collect();
         summaryTime += duration;
         bench = null;
     }
