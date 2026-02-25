@@ -3257,13 +3257,15 @@ func (c *CacheSimulation) Prepare() {
 }
 
 func (c *CacheSimulation) Run(iteration_id int) {
-	key := fmt.Sprintf("item_%d", NextInt(int(c.ConfigVal("values"))))
-	if _, ok := c.cache.Get(key); ok {
-		c.hits += 1
-		c.cache.Put(key, fmt.Sprintf("updated_%d", iteration_id))
-	} else {
-		c.misses += 1
-		c.cache.Put(key, fmt.Sprintf("new_%d", iteration_id))
+	for k := 0; k < 1000; k += 1 {
+		key := fmt.Sprintf("item_%d", NextInt(int(c.ConfigVal("values"))))
+		if _, ok := c.cache.Get(key); ok {
+			c.hits += 1
+			c.cache.Put(key, fmt.Sprintf("updated_%d", iteration_id))
+		} else {
+			c.misses += 1
+			c.cache.Put(key, fmt.Sprintf("new_%d", iteration_id))
+		}
 	}
 }
 

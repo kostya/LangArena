@@ -3575,14 +3575,18 @@ export class CacheSimulation extends Benchmark {
   }
 
   run(_iteration_id: number): void {
-    const key = `item_${Helper.nextInt(this.valuesSize)}`;
+    let j = 0;
+    while (j < 1000) {
+      const key = `item_${Helper.nextInt(this.valuesSize)}`;
 
-    if (this.cache.get(key) !== undefined) {
-      this.hits++;
-      this.cache.put(key, `updated_${this.iterations}`);
-    } else {
-      this.misses++;
-      this.cache.put(key, `new_${this.iterations}`);
+      if (this.cache.get(key) !== undefined) {
+        this.hits++;
+        this.cache.put(key, `updated_${this.iterations}`);
+      } else {
+        this.misses++;
+        this.cache.put(key, `new_${this.iterations}`);
+      }
+      j++;
     }
   }
 

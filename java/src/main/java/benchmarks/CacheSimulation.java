@@ -145,13 +145,15 @@ public class CacheSimulation extends Benchmark {
 
     @Override
     public void run(int iterationId) {
-        String key = "item_" + Helper.nextInt(valuesSize);
-        if (cache.get(key) != null) {
-            hits++;
-            cache.put(key, "updated_" + iterationId);
-        } else {
-            misses++;
-            cache.put(key, "new_" + iterationId);
+        for (int n = 0; n < 1000; n++) {
+            String key = "item_" + Helper.nextInt(valuesSize);
+            if (cache.get(key) != null) {
+                hits++;
+                cache.put(key, "updated_" + iterationId);
+            } else {
+                misses++;
+                cache.put(key, "new_" + iterationId);
+            }
         }
     }
 

@@ -165,27 +165,29 @@ public:
 
     override void run(int iterationId)
     {
-
-        char[32] keyBuf;
-        int keyNum = Helper.nextInt(valuesSize);
-        auto keyLen = snprintf(keyBuf.ptr, keyBuf.length, "item_%d", keyNum);
-        string key = keyBuf[0 .. keyLen].idup;
-
-        if (cache.get(key))
+        for (int n = 0; n < 1000; n++)
         {
-            hits++;
-            char[32] valBuf;
-            auto valLen = snprintf(valBuf.ptr, valBuf.length, "updated_%d", iterationId);
-            string value = valBuf[0 .. valLen].idup;
-            cache.put(key, value);
-        }
-        else
-        {
-            misses++;
-            char[32] valBuf;
-            auto valLen = snprintf(valBuf.ptr, valBuf.length, "new_%d", iterationId);
-            string value = valBuf[0 .. valLen].idup;
-            cache.put(key, value);
+            char[32] keyBuf;
+            int keyNum = Helper.nextInt(valuesSize);
+            auto keyLen = snprintf(keyBuf.ptr, keyBuf.length, "item_%d", keyNum);
+            string key = keyBuf[0 .. keyLen].idup;
+
+            if (cache.get(key))
+            {
+                hits++;
+                char[32] valBuf;
+                auto valLen = snprintf(valBuf.ptr, valBuf.length, "updated_%d", iterationId);
+                string value = valBuf[0 .. valLen].idup;
+                cache.put(key, value);
+            }
+            else
+            {
+                misses++;
+                char[32] valBuf;
+                auto valLen = snprintf(valBuf.ptr, valBuf.length, "new_%d", iterationId);
+                string value = valBuf[0 .. valLen].idup;
+                cache.put(key, value);
+            }
         }
     }
 

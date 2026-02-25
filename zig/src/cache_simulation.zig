@@ -192,14 +192,18 @@ pub const CacheSimulation = struct {
     fn runImpl(ptr: *anyopaque, iteration_id: i64) void {
         const self: *CacheSimulation = @ptrCast(@alignCast(ptr));
 
-        const key_num = self.helper.nextInt(@intCast(self.values_size));
+        var n: usize = 0;
+        while (n < 1000) {
+            const key_num = self.helper.nextInt(@intCast(self.values_size));
 
-        if (self.cache.get(key_num)) |_| {
-            self.hits += 1;
-            self.cache.put(key_num, iteration_id) catch return;
-        } else {
-            self.misses += 1;
-            self.cache.put(key_num, iteration_id) catch return;
+            if (self.cache.get(key_num)) |_| {
+                self.hits += 1;
+                self.cache.put(key_num, iteration_id) catch return;
+            } else {
+                self.misses += 1;
+                self.cache.put(key_num, iteration_id) catch return;
+            }
+            n += 1;
         }
     }
 

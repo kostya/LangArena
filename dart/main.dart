@@ -3256,14 +3256,16 @@ class CacheSimulation extends Benchmark {
 
   @override
   void runBenchmark(int iterationId) {
-    final key = 'item_${Helper.nextInt(_valuesSize)}';
+    for (int n = 0; n < 1000; n++) {
+      final key = 'item_${Helper.nextInt(_valuesSize)}';
 
-    if (_cache.get(key) != null) {
-      _hits++;
-      _cache.put(key, 'updated_$iterations');
-    } else {
-      _misses++;
-      _cache.put(key, 'new_$iterations');
+      if (_cache.get(key) != null) {
+        _hits++;
+        _cache.put(key, 'updated_$iterations');
+      } else {
+        _misses++;
+        _cache.put(key, 'new_$iterations');
+      }
     }
   }
 

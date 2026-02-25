@@ -113,13 +113,15 @@ class CacheSimulation : Benchmark() {
     }
 
     override fun run(iterationId: Int) {
-        val key = "item_${Helper.nextInt(valuesSize)}"
-        if (cache.get(key) != null) {
-            hits++
-            cache.put(key, "updated_$iterationId")
-        } else {
-            misses++
-            cache.put(key, "new_$iterationId")
+        repeat(1000) {
+            val key = "item_${Helper.nextInt(valuesSize)}"
+            if (cache.get(key) != null) {
+                hits++
+                cache.put(key, "updated_$iterationId")
+            } else {
+                misses++
+                cache.put(key, "new_$iterationId")
+            }
         }
     }
 

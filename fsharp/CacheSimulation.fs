@@ -157,12 +157,13 @@ type CacheSimulation() =
 
     override this.Run(_: int64) =
         if not (isNull cache) then
-            let key = buildKey (Helper.NextInt(valuesSize))
+            for т in 1 .. 1000 do
+                let key = buildKey (Helper.NextInt(valuesSize))
 
-            match cache.Get(key) with
-            | Some _ ->
-                hits <- hits + 1
-                cache.Put(key, buildUpdatedValue this.Iterations)
-            | None ->
-                misses <- misses + 1
-                cache.Put(key, buildNewValue this.Iterations)
+                match cache.Get(key) with
+                | Some _ ->
+                    hits <- hits + 1
+                    cache.Put(key, buildUpdatedValue this.Iterations)
+                | None ->
+                    misses <- misses + 1
+                    cache.Put(key, buildNewValue this.Iterations)

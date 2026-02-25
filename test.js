@@ -90,10 +90,10 @@
     "iterations": 100
   },
   "Etc::CacheSimulation": {
-    "checksum": 178440695,
+    "checksum": 179773224,
     "values": 2000,
     "size": 1000,
-    "iterations": 1000
+    "iterations": 2
   },
   "Etc::GameOfLife": {
     "checksum": 4006235749,

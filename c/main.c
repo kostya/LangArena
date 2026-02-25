@@ -6085,20 +6085,22 @@ void CacheSimulation_prepare(Benchmark *self) {
 void CacheSimulation_run(Benchmark *self, int iteration_id) {
   CacheSimulationData *data = (CacheSimulationData *)self->data;
 
-  char key_buf[32];
-  snprintf(key_buf, sizeof(key_buf), "item_%u",
-           Helper_next_int((uint32_t)data->values_size));
+  for (int i = 0; i < 1000; i++) {
+    char key_buf[32];
+    snprintf(key_buf, sizeof(key_buf), "item_%u",
+             Helper_next_int((uint32_t)data->values_size));
 
-  if (cache_simulation_cache_get(data->cache, key_buf)) {
-    data->hits++;
-    char value_buf[32];
-    snprintf(value_buf, sizeof(value_buf), "updated_%d", iteration_id);
-    cache_simulation_cache_put(data->cache, key_buf, value_buf);
-  } else {
-    data->misses++;
-    char value_buf[32];
-    snprintf(value_buf, sizeof(value_buf), "new_%d", iteration_id);
-    cache_simulation_cache_put(data->cache, key_buf, value_buf);
+    if (cache_simulation_cache_get(data->cache, key_buf)) {
+      data->hits++;
+      char value_buf[32];
+      snprintf(value_buf, sizeof(value_buf), "updated_%d", iteration_id);
+      cache_simulation_cache_put(data->cache, key_buf, value_buf);
+    } else {
+      data->misses++;
+      char value_buf[32];
+      snprintf(value_buf, sizeof(value_buf), "new_%d", iteration_id);
+      cache_simulation_cache_put(data->cache, key_buf, value_buf);
+    }
   }
 }
 

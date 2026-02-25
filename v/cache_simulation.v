@@ -160,17 +160,21 @@ pub fn (mut b CacheSimulation) prepare() {
 }
 
 pub fn (mut b CacheSimulation) run(iteration_id int) {
-	key_idx := helper.next_int(b.values_size)
-	key := 'item_${key_idx}'
+	mut j := 0
+	for j < 1000 {
+		key_idx := helper.next_int(b.values_size)
+		key := 'item_${key_idx}'
 
-	value := b.cache.get(key)
+		value := b.cache.get(key)
 
-	if value != none {
-		b.hits++
-		b.cache.put(key, 'updated_${iteration_id}')
-	} else {
-		b.misses++
-		b.cache.put(key, 'new_${iteration_id}')
+		if value != none {
+			b.hits++
+			b.cache.put(key, 'updated_${iteration_id}')
+		} else {
+			b.misses++
+			b.cache.put(key, 'new_${iteration_id}')
+		}
+		j++
 	}
 }
 

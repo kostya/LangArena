@@ -2919,14 +2919,15 @@ class CacheSimulation(Benchmark):
         self.misses = 0
 
     def run_benchmark(self, iteration_id: int):
-        key = f"item_{Helper.next_int(self.values_size)}"
+        for _ in range(1000):
+            key = f"item_{Helper.next_int(self.values_size)}"
 
-        if self.cache.get(key) is not None:
-            self.hits += 1
-            self.cache.put(key, f"updated_{iteration_id}")
-        else:
-            self.misses += 1
-            self.cache.put(key, f"new_{iteration_id}")
+            if self.cache.get(key) is not None:
+                self.hits += 1
+                self.cache.put(key, f"updated_{iteration_id}")
+            else:
+                self.misses += 1
+                self.cache.put(key, f"new_{iteration_id}")
 
     def checksum(self) -> int:
         self.result = ((self.result << 5) + self.hits) & 0xFFFFFFFF

@@ -125,17 +125,20 @@ public class CacheSimulation : Benchmark
 
     public override void Run(long IterationId)
     {
-        string key = $"item_{Helper.NextInt(_valuesSize)}";
+        for (int n = 0; n < 1000; n++)
+        {
+            string key = $"item_{Helper.NextInt(_valuesSize)}";
 
-        if (_cache.Get(key) != null)
-        {
-            _hits++;
-            _cache.Put(key, $"updated_{Iterations}");
-        }
-        else
-        {
-            _misses++;
-            _cache.Put(key, $"new_{Iterations}");
+            if (_cache.Get(key) != null)
+            {
+                _hits++;
+                _cache.Put(key, $"updated_{Iterations}");
+            }
+            else
+            {
+                _misses++;
+                _cache.Put(key, $"new_{Iterations}");
+            }
         }
     }
 

@@ -2,6 +2,7 @@ package benchmark
 
 import "core:fmt"
 import "core:mem"
+import "core:strings"
 import "core:container/small_array"
 
 LRUNode :: struct($K, $V: typeid) {
@@ -31,6 +32,14 @@ lru_cache_destroy :: proc(cache: ^LRUCache($K, $V)) {
     node := cache.head
     for node != nil {
         next := node.next
+
+        when K == string {
+            delete(node.key)
+        }
+        when V == string {
+            delete(node.value)
+        }
+
         free(node)
         node = next
     }
@@ -93,6 +102,13 @@ lru_cache_remove_oldest :: proc(cache: ^LRUCache($K, $V)) {
         cache.head = nil
     }
 
+    when K == string {
+        delete(oldest.key)
+    }
+    when V == string {
+        delete(oldest.value)
+    }
+
     free(oldest)
     cache.size -= 1
 }
@@ -110,6 +126,9 @@ lru_cache_get :: proc(cache: ^LRUCache($K, $V), key: K) -> (V, bool) {
 lru_cache_put :: proc(cache: ^LRUCache($K, $V), key: K, value: V) {
     node_ptr, ok := cache.cache[key]
     if ok {
+        when V == string {
+            delete(node_ptr.value)
+        }
         node_ptr.value = value
         lru_cache_move_to_front(cache, node_ptr)
         return
@@ -142,35 +161,45 @@ CacheSimulation :: struct {
     cache: LRUCache(string, string),
     hits: int,
     misses: int,
+
 }
 
 cachesimulation_run :: proc(bench: ^Benchmark, iteration_id: int) {
     cs := cast(^CacheSimulation)bench
 
-    key_idx := next_int(cs.values_size)
-    key := fmt.tprintf("item_%d", key_idx)
+    for i in 0..<1000 {
+        key_idx := next_int(cs.values_size)
 
-    _, found := lru_cache_get(&cs.cache, key)
+        key_buf: [32]byte
+        val_buf: [32]byte
 
-    if found {
-        cs.hits += 1
-        new_value := fmt.tprintf("updated_%d", iteration_id)
-        lru_cache_put(&cs.cache, key, new_value)
-    } else {
-        cs.misses += 1
-        new_value := fmt.tprintf("new_%d", iteration_id)
-        lru_cache_put(&cs.cache, key, new_value)
+        key := fmt.bprintf(key_buf[:], "item_%d", key_idx)
+
+        _, found := lru_cache_get(&cs.cache, key)
+
+        if found {
+            cs.hits += 1
+
+            new_value := fmt.bprintf(val_buf[:], "updated_%d", iteration_id)
+
+            lru_cache_put(&cs.cache, key, strings.clone(new_value))
+        } else {
+            cs.misses += 1
+
+            stored_key := strings.clone(fmt.bprintf(key_buf[:], "item_%d", key_idx))
+            stored_value := strings.clone(fmt.bprintf(val_buf[:], "new_%d", iteration_id))
+
+            lru_cache_put(&cs.cache, stored_key, stored_value)
+        }
     }
 }
 
 cachesimulation_checksum :: proc(bench: ^Benchmark) -> u32 {
     cs := cast(^CacheSimulation)bench
-
     final_result := cs.result_val
     final_result = (final_result << 5) + u32(cs.hits)
     final_result = (final_result << 5) + u32(cs.misses)
     final_result = (final_result << 5) + u32(lru_cache_size(&cs.cache))
-
     return final_result
 }
 

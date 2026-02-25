@@ -233,17 +233,19 @@ impl Benchmark for CacheSimulation {
     }
 
     fn run(&mut self, iteration_id: i64) {
-        let key_idx = helper::next_int(self.values_size);
-        let key = format!("item_{}", key_idx);
+        for _ in 0..1000 {
+            let key_idx = helper::next_int(self.values_size);
+            let key = format!("item_{}", key_idx);
 
-        if let Some(_) = self.cache.get(&key) {
-            self.hits += 1;
-            let val = format!("updated_{}", iteration_id);
-            self.cache.put(key, val);
-        } else {
-            self.misses += 1;
-            let val = format!("new_{}", iteration_id);
-            self.cache.put(key, val);
+            if let Some(_) = self.cache.get(&key) {
+                self.hits += 1;
+                let val = format!("updated_{}", iteration_id);
+                self.cache.put(key, val);
+            } else {
+                self.misses += 1;
+                let val = format!("new_{}", iteration_id);
+                self.cache.put(key, val);
+            }
         }
     }
 

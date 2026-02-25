@@ -1492,13 +1492,15 @@ module Etc
     end
 
     def run(iteration_id)
-      key = "item_#{Helper.next_int(@values_size)}"
-      if @cache.get(key)
-        @hits += 1
-        @cache.put(key, "updated_#{iteration_id}")
-      else
-        @misses += 1
-        @cache.put(key, "new_#{iteration_id}")
+      1000.times do
+        key = "item_#{Helper.next_int(@values_size)}"
+        if @cache.get(key)
+          @hits += 1
+          @cache.put(key, "updated_#{iteration_id}")
+        else
+          @misses += 1
+          @cache.put(key, "new_#{iteration_id}")
+        end
       end
     end
 

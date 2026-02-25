@@ -3029,25 +3029,27 @@ public:
   std::string name() const override { return "Etc::CacheSimulation"; }
 
   void run(int iteration_id) {
+    for (int i = 0; i < 1000; i++) {
 
-    char key_buf[32];
-    snprintf(key_buf, sizeof(key_buf), "item_%d",
-             Helper::next_int(values_size));
-    std::string key(key_buf);
+      char key_buf[32];
+      snprintf(key_buf, sizeof(key_buf), "item_%d",
+               Helper::next_int(values_size));
+      std::string key(key_buf);
 
-    auto value = cache.get(key);
-    if (value.has_value()) {
-      hits++;
+      auto value = cache.get(key);
+      if (value.has_value()) {
+        hits++;
 
-      char val_buf[32];
-      snprintf(val_buf, sizeof(val_buf), "updated_%d", iteration_id);
-      cache.put(key, std::string(val_buf));
-    } else {
-      misses++;
+        char val_buf[32];
+        snprintf(val_buf, sizeof(val_buf), "updated_%d", iteration_id);
+        cache.put(key, std::string(val_buf));
+      } else {
+        misses++;
 
-      char val_buf[32];
-      snprintf(val_buf, sizeof(val_buf), "new_%d", iteration_id);
-      cache.put(key, std::string(val_buf));
+        char val_buf[32];
+        snprintf(val_buf, sizeof(val_buf), "new_%d", iteration_id);
+        cache.put(key, std::string(val_buf));
+      }
     }
   }
 

@@ -96,14 +96,18 @@ class CacheSimulation extends Benchmark:
     misses = 0L
 
   override def run(iterationId: Int): Unit =
-    val key = s"item_${Helper.nextInt(valuesSize)}"
-    cache.get(key) match
-      case Some(_) =>
-        hits += 1
-        cache.put(key, s"updated_$iterationId")
-      case None =>
-        misses += 1
-        cache.put(key, s"new_$iterationId")
+    var j = 0
+    while (j < 1000) {
+      val key = s"item_${Helper.nextInt(valuesSize)}"
+      cache.get(key) match
+        case Some(_) =>
+          hits += 1
+          cache.put(key, s"updated_$iterationId")
+        case None =>
+          misses += 1
+          cache.put(key, s"new_$iterationId")
+      j += 1
+    }
 
   override def checksum(): Long =
     var finalResult = resultVal

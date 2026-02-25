@@ -113,16 +113,20 @@ final class CacheSimulation: BenchmarkProtocol {
   }
 
   func run(iterationId: Int) {
-    let key = String(format: "item_%d", Helper.nextInt(max: valuesSize))
+    var j = 0
+    while j < 1000 {
+      let key = String(format: "item_%d", Helper.nextInt(max: valuesSize))
 
-    if cache.get(key) != nil {
-      hits += 1
-      let value = String(format: "updated_%d", iterationId)
-      cache.put(key, value)
-    } else {
-      misses += 1
-      let value = String(format: "new_%d", iterationId)
-      cache.put(key, value)
+      if cache.get(key) != nil {
+        hits += 1
+        let value = String(format: "updated_%d", iterationId)
+        cache.put(key, value)
+      } else {
+        misses += 1
+        let value = String(format: "new_%d", iterationId)
+        cache.put(key, value)
+      }
+      j += 1
     }
   }
 

@@ -119,17 +119,18 @@ method prepare(self: CacheSimulation) =
   self.resultVal = 5432'u32
 
 method run(self: CacheSimulation, iteration_id: int) =
-  let key = fmt"item_{nextInt(self.valuesSize.int32)}"
+  for j in 0..<1000:
+    let key = fmt"item_{nextInt(self.valuesSize.int32)}"
 
-  let (found, _) = self.cache.get(key)
-  if found:
-    self.hits += 1
-    let value = fmt"updated_{iteration_id}"
-    self.cache.put(key, value)
-  else:
-    self.misses += 1
-    let value = fmt"new_{iteration_id}"
-    self.cache.put(key, value)
+    let (found, _) = self.cache.get(key)
+    if found:
+      self.hits += 1
+      let value = fmt"updated_{iteration_id}"
+      self.cache.put(key, value)
+    else:
+      self.misses += 1
+      let value = fmt"new_{iteration_id}"
+      self.cache.put(key, value)
 
 method checksum(self: CacheSimulation): uint32 =
   var finalResult = self.resultVal

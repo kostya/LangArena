@@ -147,20 +147,21 @@ function prepare(b::CacheSimulation)
 end
 
 function run(b::CacheSimulation, iteration_id::Int64)
-    key = "item_$(Helper.next_int(b.values_size))"
+    for n = 1:1000
+        key = "item_$(Helper.next_int(b.values_size))"
 
-    value = cache_get(b.cache, key)
-    if value !== nothing
-        b.hits += 1
-        cache_put!(b.cache, key, "updated_$iteration_id")
-    else
-        b.misses += 1
-        cache_put!(b.cache, key, "new_$iteration_id")
+        value = cache_get(b.cache, key)
+        if value !== nothing
+            b.hits += 1
+            cache_put!(b.cache, key, "updated_$iteration_id")
+        else
+            b.misses += 1
+            cache_put!(b.cache, key, "new_$iteration_id")
+        end
     end
 end
 
 function checksum(b::CacheSimulation)::UInt32
-
     b.result = ((b.result << 5) + b.hits) & 0xffffffff
     b.result = ((b.result << 5) + b.misses) & 0xffffffff
     b.result = ((b.result << 5) + cache_size(b.cache)) & 0xffffffff

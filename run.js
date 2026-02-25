@@ -93,7 +93,7 @@
     "checksum": 3263751556,
     "values": 5000,
     "size": 2500,
-    "iterations": 5000000
+    "iterations": 5000
   },
   "Etc::GameOfLife": {
     "checksum": 3805797673,
