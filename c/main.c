@@ -7077,8 +7077,13 @@ static void maze_reset(Maze *maze) {
 }
 
 static void maze_dig(Maze *maze, MazeCell *start_cell) {
-  MazeCell **stack = malloc(maze->width * maze->height * sizeof(MazeCell *));
-  int stack_size = 0;
+  size_t max_size = maze->width * maze->height;
+  MazeCell **stack = malloc(max_size * sizeof(MazeCell *));
+
+  if (!stack)
+    return;
+
+  size_t stack_size = 0;
   stack[stack_size++] = start_cell;
 
   while (stack_size > 0) {
@@ -7098,6 +7103,18 @@ static void maze_dig(Maze *maze, MazeCell *start_cell) {
     for (int i = 0; i < cell->neighbor_count; i++) {
       MazeCell *n = cell->neighbors[i];
       if (n->kind == MAZE_CELL_WALL) {
+
+        if (stack_size >= max_size) {
+
+          max_size *= 2;
+          MazeCell **new_stack = realloc(stack, max_size * sizeof(MazeCell *));
+          if (!new_stack) {
+
+            free(stack);
+            return;
+          }
+          stack = new_stack;
+        }
         stack[stack_size++] = n;
       }
     }
@@ -7105,7 +7122,6 @@ static void maze_dig(Maze *maze, MazeCell *start_cell) {
 
   free(stack);
 }
-
 static void maze_ensure_open_finish(Maze *maze, MazeCell *start_cell) {
   MazeCell **stack = malloc(maze->width * maze->height * sizeof(MazeCell *));
   int stack_size = 0;

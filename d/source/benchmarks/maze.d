@@ -147,8 +147,11 @@ public:
 
     void dig(Cell startCell)
     {
-        Cell[] stack = new Cell[](width * height);
-        int stackPtr = 0;
+
+        size_t stackCapacity = width * height;
+        Cell[] stack = new Cell[](stackCapacity);
+        size_t stackPtr = 0;
+
         stack[stackPtr++] = startCell;
 
         while (stackPtr > 0)
@@ -171,6 +174,13 @@ public:
             {
                 if (n.kind == CellKind.Wall)
                 {
+
+                    if (stackPtr >= stackCapacity)
+                    {
+                        stackCapacity *= 2;
+                        stack.length = stackCapacity;
+                    }
+
                     stack[stackPtr++] = n;
                 }
             }

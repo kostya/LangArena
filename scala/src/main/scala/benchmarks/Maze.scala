@@ -86,32 +86,25 @@ object MazeTypes {
     }
 
     def dig(startCell: Cell): Unit = {
-      val stack = new Array[Cell](w * h)
-      var stackPtr = 0
-      stack(stackPtr) = startCell
-      stackPtr += 1
+      import scala.collection.mutable.ArrayStack
 
-      while (stackPtr > 0) {
-        stackPtr -= 1
-        val cell = stack(stackPtr)
+      val stack = new ArrayStack[Cell](w * h)
+      stack.push(startCell)
+
+      while (stack.nonEmpty) {
+        val cell = stack.pop()
 
         var walkable = 0
-        var i = 0
-        while (i < 4) {
-          if (cell.neighbors(i).isWalkable) walkable += 1
-          i += 1
+        for (n <- cell.neighbors) {
+          if (n.isWalkable) walkable += 1
         }
 
         if (walkable == 1) {
           cell.kind = CellKind.SPACE
-          i = 0
-          while (i < 4) {
-            val n = cell.neighbors(i)
+          for (n <- cell.neighbors) {
             if (n.kind == CellKind.WALL) {
-              stack(stackPtr) = n
-              stackPtr += 1
+              stack.push(n)
             }
-            i += 1
           }
         }
       }

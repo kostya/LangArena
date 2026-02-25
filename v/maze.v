@@ -121,30 +121,25 @@ fn (mut m Maze) reset() {
 fn (mut m Maze) dig(start_cell &Cell) {
 	mut stack := []&Cell{}
 	stack << start_cell
-	mut stack_ptr := 1
 
-	for stack_ptr > 0 {
-		stack_ptr--
-		mut cell := stack[stack_ptr]
+	for stack.len > 0 {
+		mut cell := stack.pop()
 
 		mut walkable := 0
-		for i in 0 .. cell.neighbors.len {
-			if is_walkable(cell.neighbors[i].kind) {
+		for neighbor in cell.neighbors {
+			if is_walkable(neighbor.kind) {
 				walkable++
 			}
 		}
 
-		if walkable == 1 {
-			cell.kind = .space
-			for i in 0 .. cell.neighbors.len {
-				if cell.neighbors[i].kind == .wall {
-					if stack.len <= stack_ptr {
-						stack << cell.neighbors[i]
-					} else {
-						stack[stack_ptr] = cell.neighbors[i]
-					}
-					stack_ptr++
-				}
+		if walkable != 1 {
+			continue
+		}
+
+		cell.kind = .space
+		for neighbor in cell.neighbors {
+			if neighbor.kind == .wall {
+				stack << neighbor
 			}
 		}
 	}
@@ -307,29 +302,29 @@ fn (mut b MazeBFS) bfs(start &Cell, target &Cell) []&Cell {
 		return [start]
 	}
 
-	mut queue := []int{}
 	mut visited := [][]bool{len: b.height}
 	for i in 0 .. b.height {
-		visited[i] = []bool{len: b.width}
+		visited[i] = []bool{len: b.width, init: false}
 	}
-	mut path_nodes := []PathNode{}
+
+	mut queue := []PathNode{}
+	mut head := 0
 
 	visited[start.y][start.x] = true
-	path_nodes << PathNode{start, -1}
-	queue << 0
+	queue << PathNode{start, -1}
 
-	for queue.len > 0 {
-		path_id := queue[0]
-		queue.delete(0)
-		node := path_nodes[path_id]
+	for head < queue.len {
+		path_id := head
+		node := queue[head]
+		head++
 
 		for neighbor in node.cell.neighbors {
 			if neighbor == target {
 				mut result := [target]
 				mut cur := path_id
 				for cur >= 0 {
-					result << path_nodes[cur].cell
-					cur = path_nodes[cur].parent
+					result << queue[cur].cell
+					cur = queue[cur].parent
 				}
 				result.reverse_in_place()
 				return result
@@ -337,8 +332,7 @@ fn (mut b MazeBFS) bfs(start &Cell, target &Cell) []&Cell {
 
 			if is_walkable(neighbor.kind) && !visited[neighbor.y][neighbor.x] {
 				visited[neighbor.y][neighbor.x] = true
-				path_nodes << PathNode{neighbor, path_id}
-				queue << path_nodes.len - 1
+				queue << PathNode{neighbor, path_id}  // parent = path_id!
 			}
 		}
 	}

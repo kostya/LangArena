@@ -3689,6 +3689,7 @@ public:
         return;
 
       std::vector<Cell *> stack;
+
       stack.push_back(start_cell);
 
       while (!stack.empty()) {

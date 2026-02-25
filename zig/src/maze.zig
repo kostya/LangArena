@@ -158,42 +158,38 @@ pub const MazeGenerator = struct {
             self.start.kind = .start;
             self.finish.kind = .finish;
         }
-
         pub fn dig(self: *Maze, start_cell: *Cell) !void {
             var stack = try std.ArrayListUnmanaged(*Cell).initCapacity(self.allocator, @intCast(self.width * self.height));
             defer stack.deinit(self.allocator);
 
             stack.appendAssumeCapacity(start_cell);
-            var stack_ptr: usize = 1;
 
-            while (stack_ptr > 0) {
-                stack_ptr -= 1;
-                const cell = stack.items[stack_ptr];
+            while (stack.items.len > 0) {
+                const cell = stack.pop();
 
-                var walkable: u32 = 0;
-                const neighbors = cell.neighbors.items;
-                for (neighbors) |n| {
-                    if (n.kind.isWalkable()) {
-                        walkable += 1;
+                if (cell) |c| {
+                    var walkable: u32 = 0;
+
+                    const neighbors = c.neighbors.items;
+                    for (neighbors) |n| {
+                        if (n.kind.isWalkable()) {
+                            walkable += 1;
+                        }
                     }
-                }
 
-                if (walkable == 1) {
-                    cell.kind = .space;
+                    if (walkable != 1) {
+                        continue;
+                    }
+
+                    c.kind = .space;
                     for (neighbors) |n| {
                         if (n.kind == .wall) {
-                            if (stack_ptr >= stack.items.len) {
-                                try stack.append(self.allocator, n);
-                            } else {
-                                stack.items[stack_ptr] = n;
-                            }
-                            stack_ptr += 1;
+                            try stack.append(self.allocator, n);
                         }
                     }
                 }
             }
         }
-
         pub fn ensureOpenFinish(self: *Maze, start_cell: *Cell) !void {
             var stack = try std.ArrayListUnmanaged(*Cell).initCapacity(self.allocator, @intCast(self.width * self.height));
             defer stack.deinit(self.allocator);
@@ -377,6 +373,7 @@ pub const MazeBFS = struct {
 
         var queue = std.ArrayListUnmanaged(i32){};
         defer queue.deinit(self.allocator);
+        var head: usize = 0;
 
         const visited = try self.allocator.alloc(bool, @intCast(self.width * self.height));
         defer self.allocator.free(visited);
@@ -389,8 +386,9 @@ pub const MazeBFS = struct {
         try path_nodes.append(self.allocator, PathNode{ .cell = start, .parent = -1 });
         try queue.append(self.allocator, 0);
 
-        while (queue.items.len > 0) {
-            const path_id = queue.orderedRemove(0);
+        while (head < queue.items.len) {
+            const path_id = queue.items[head];
+            head += 1;
             const node = path_nodes.items[@intCast(path_id)];
 
             for (node.cell.neighbors.items) |neighbor| {

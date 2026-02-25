@@ -405,7 +405,7 @@ impl MazeAStar {
     }
 
     fn heuristic(&self, a: (usize, usize), b: (usize, usize)) -> i32 {
-        (a.0 as i32 - b.0 as i32).abs() + (a.1 as i32 - b.1 as i32).abs() 
+        (a.0 as i32 - b.0 as i32).abs() + (a.1 as i32 - b.1 as i32).abs()
     }
 
     fn astar(&self, start: (usize, usize), target: (usize, usize)) -> Vec<(usize, usize)> {
