@@ -4314,18 +4314,25 @@ class BWTEncode extends Benchmark {
     int n = input.length;
     if (n == 0) return BWTResult(Uint8List(0), 0);
 
-    List<int> sa = List<int>.generate(n, (i) => i);
-
-    List<List<int>> buckets = List.generate(256, (_) => []);
-    for (int idx in sa) {
-      buckets[input[idx]].add(idx);
+    List<int> counts = List<int>.filled(256, 0);
+    for (int i = 0; i < n; i++) {
+      counts[input[i]]++;
     }
 
-    int pos = 0;
-    for (var bucket in buckets) {
-      for (int idx in bucket) {
-        sa[pos++] = idx;
-      }
+    List<int> positions = List<int>.filled(256, 0);
+    int total = 0;
+    for (int i = 0; i < 256; i++) {
+      positions[i] = total;
+      total += counts[i];
+      counts[i] = 0;
+    }
+
+    List<int> sa = List<int>.filled(n, 0);
+    for (int i = 0; i < n; i++) {
+      int byteVal = input[i];
+      int pos = positions[byteVal] + counts[byteVal];
+      sa[pos] = i;
+      counts[byteVal]++;
     }
 
     if (n > 1) {
@@ -4345,26 +4352,24 @@ class BWTEncode extends Benchmark {
 
       int k = 1;
       while (k < n) {
-        List<(int, int)> pairs = List.generate(
-          n,
-          (i) => (rank[i], rank[(i + k) % n]),
-        );
-
         sa.sort((a, b) {
-          var pairA = pairs[a];
-          var pairB = pairs[b];
-          if (pairA.$1 != pairB.$1) return pairA.$1 - pairB.$1;
-          return pairA.$2 - pairB.$2;
+          int ra = rank[a];
+          int rb = rank[b];
+          if (ra != rb) return ra - rb;
+          int rak = rank[(a + k) % n];
+          int rbk = rank[(b + k) % n];
+          return rak - rbk;
         });
 
         List<int> newRank = List<int>.filled(n, 0);
         newRank[sa[0]] = 0;
         for (int i = 1; i < n; i++) {
-          var prevPair = pairs[sa[i - 1]];
-          var currPair = pairs[sa[i]];
-          newRank[sa[i]] =
-              newRank[sa[i - 1]] +
-              ((prevPair.$1 != currPair.$1 || prevPair.$2 != currPair.$2)
+          int prevIdx = sa[i - 1];
+          int currIdx = sa[i];
+          newRank[currIdx] =
+              newRank[prevIdx] +
+              ((rank[prevIdx] != rank[currIdx] ||
+                      rank[(prevIdx + k) % n] != rank[(currIdx + k) % n])
                   ? 1
                   : 0);
         }

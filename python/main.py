@@ -3832,39 +3832,51 @@ class BWTEncode(Benchmark):
         if n == 0:
             return BWTResult(b'', 0)
 
-        sa = list(range(n))
+        counts = [0] * 256
+        for b in input_data:
+            counts[b] += 1
 
-        buckets = [[] for _ in range(256)]
-        for idx in sa:
-            buckets[input_data[idx]].append(idx)
+        positions = [0] * 256
+        total = 0
+        for i in range(256):
+            positions[i] = total
+            total += counts[i]
+            counts[i] = 0
 
-        sa = []
-        for bucket in buckets:
-            sa.extend(bucket)
+        sa = [0] * n
+        for i in range(n):
+            byte_val = input_data[i]
+            pos = positions[byte_val] + counts[byte_val]
+            sa[pos] = i
+            counts[byte_val] += 1
 
         if n > 1:
             rank = [0] * n
             current_rank = 0
             prev_char = input_data[sa[0]]
 
-            for i, idx in enumerate(sa):
-                if input_data[idx] != prev_char:
+            for i in range(n):
+                idx = sa[i]
+                curr_char = input_data[idx]
+                if curr_char != prev_char:
                     current_rank += 1
-                    prev_char = input_data[idx]
+                    prev_char = curr_char
                 rank[idx] = current_rank
 
             k = 1
             while k < n:
-                pairs = [(rank[i], rank[(i + k) % n]) for i in range(n)]
-                sa.sort(key=lambda i: (pairs[i][0], pairs[i][1]))
+
+                sa.sort(key=lambda i: (rank[i], rank[(i + k) % n]))
 
                 new_rank = [0] * n
                 new_rank[sa[0]] = 0
                 for i in range(1, n):
-                    prev_pair = pairs[sa[i - 1]]
-                    curr_pair = pairs[sa[i]]
-                    new_rank[sa[i]] = new_rank[sa[i - 1]] + (
-                        1 if prev_pair != curr_pair else 0)
+                    prev_idx = sa[i - 1]
+                    curr_idx = sa[i]
+                    new_rank[curr_idx] = new_rank[prev_idx] + (
+                        1 if rank[prev_idx] != rank[curr_idx] or
+                        rank[(prev_idx + k) % n] != rank[(curr_idx + k) % n]
+                        else 0)
 
                 rank = new_rank
                 k *= 2

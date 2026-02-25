@@ -51,18 +51,31 @@ fn bwt_transform(input []u8) BWTResult {
 		sa[i] = i
 	}
 
-	mut buckets := [][]int{len: 256}
-	for idx in sa {
-		first_char := input[idx]
-		buckets[first_char] << idx
+	mut counts := [256]int{}
+	for i in 0 .. n {
+		counts[input[i]]++
 	}
 
-	mut pos := 0
-	for bucket in buckets {
-		for idx in bucket {
-			sa[pos] = idx
-			pos++
-		}
+	mut positions := [256]int{}
+	mut total := 0
+	for i in 0 .. 256 {
+		positions[i] = total
+		total += counts[i]
+	}
+
+	mut temp_counts := [256]int{}
+	mut temp_sa := []int{len: n}
+
+	for i in 0 .. n {
+		idx := sa[i]
+		byte_val := input[idx]
+		pos := positions[byte_val] + temp_counts[byte_val]
+		temp_sa[pos] = idx
+		temp_counts[byte_val]++
+	}
+
+	for i in 0 .. n {
+		sa[i] = temp_sa[i]
 	}
 
 	if n > 1 {
@@ -120,7 +133,9 @@ fn bwt_transform(input []u8) BWTResult {
 				new_rank[curr_idx] = new_rank[prev_idx] + if are_equal { 0 } else { 1 }
 			}
 
-			rank = new_rank.clone()
+			for i in 0 .. n {
+				rank[i] = new_rank[i]
+			}
 			k *= 2
 		}
 	}

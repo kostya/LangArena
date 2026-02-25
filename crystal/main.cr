@@ -3467,19 +3467,26 @@ module Compress
 
       sa = Array.new(n) { |i| i }
 
-      buckets = Array.new(256) { [] of Int32 }
-      sa.each do |idx|
-        first_char = input[idx]
-        buckets[first_char] << idx
+      counts = Array.new(256, 0)
+      input.each { |byte| counts[byte] += 1 }
+
+      positions = Array.new(256, 0)
+      total = 0
+      256.times do |i|
+        positions[i] = total
+        total += counts[i]
       end
 
-      pos = 0
-      buckets.each do |bucket|
-        bucket.each do |idx|
-          sa[pos] = idx
-          pos += 1
-        end
+      temp_counts = Array.new(256, 0)
+      sorted_sa = Array.new(n, 0)
+      n.times do |i|
+        idx = sa[i]
+        byte = input[idx]
+        pos = positions[byte] + temp_counts[byte]
+        sorted_sa[pos] = idx
+        temp_counts[byte] += 1
       end
+      sa = sorted_sa
 
       if n > 1
         rank = Array.new(n, 0)

@@ -4073,20 +4073,25 @@ private:
     if (n == 0)
       return BWTResult({}, 0);
 
-    std::vector<size_t> sa(n);
-    for (size_t i = 0; i < n; i++)
-      sa[i] = i;
-
-    std::vector<std::vector<size_t>> buckets(256);
-    for (size_t idx : sa) {
-      buckets[input[idx]].push_back(idx);
+    int32_t counts[256] = {0};
+    for (uint8_t byte : input) {
+      counts[byte]++;
     }
 
-    size_t pos = 0;
-    for (const auto &bucket : buckets) {
-      for (size_t idx : bucket) {
-        sa[pos++] = idx;
-      }
+    int32_t positions[256] = {0};
+    int32_t total = 0;
+    for (int i = 0; i < 256; i++) {
+      positions[i] = total;
+      total += counts[i];
+    }
+
+    std::vector<size_t> sa(n);
+    int32_t temp_counts[256] = {0};
+    for (size_t i = 0; i < n; i++) {
+      uint8_t byte = input[i];
+      size_t pos = positions[byte] + temp_counts[byte];
+      sa[pos] = i;
+      temp_counts[byte]++;
     }
 
     if (n > 1) {

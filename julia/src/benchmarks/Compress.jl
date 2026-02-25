@@ -41,18 +41,27 @@ function bwt_transform(input::Vector{UInt8})::BWTResult
 
     sa = collect(0:(n-1))
 
-    buckets = [Int[] for _ = 1:256]
-    for idx in sa
-        push!(buckets[input[idx+1]+1], idx)
+    counts = zeros(Int, 256)
+    for i = 1:n
+        counts[input[i]+1] += 1
     end
 
-    pos = 1
-    for bucket in buckets
-        for idx in bucket
-            sa[pos] = idx
-            pos += 1
-        end
+    positions = zeros(Int, 256)
+    total = 0
+    for i = 1:256
+        positions[i] = total
+        total += counts[i]
+        counts[i] = 0
     end
+
+    temp_sa = Vector{Int}(undef, n)
+    for i = 1:n
+        byte_val = input[i] + 1
+        pos = positions[byte_val] + counts[byte_val] + 1
+        temp_sa[pos] = i - 1
+        counts[byte_val] += 1
+    end
+    sa = temp_sa
 
     if n > 1
         rank = Vector{Int}(undef, n)
@@ -60,17 +69,18 @@ function bwt_transform(input::Vector{UInt8})::BWTResult
         prev_char = input[sa[1]+1]
 
         for i = 1:n
-            idx = sa[i]
-            curr_char = input[idx+1]
+            idx = sa[i] + 1
+            curr_char = input[idx]
             if curr_char != prev_char
                 current_rank += 1
                 prev_char = curr_char
             end
-            rank[idx+1] = current_rank
+            rank[idx] = current_rank
         end
 
         k = 1
         while k < n
+
             pairs = Vector{Tuple{Int,Int}}(undef, n)
             for i = 1:n
                 idx = i - 1

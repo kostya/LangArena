@@ -38,27 +38,31 @@ pub const BWTEncode = struct {
         errdefer allocator.free(sa);
         for (0..n) |i| sa[i] = i;
 
-        var buckets = try allocator.alloc(std.ArrayList(usize), 256);
-        defer {
-            for (buckets) |*b| b.deinit(allocator);
-            allocator.free(buckets);
+        var counts = [_]usize{0} ** 256;
+        for (data) |byte| {
+            counts[byte] += 1;
         }
 
+        var positions = [_]usize{0} ** 256;
+        var total: usize = 0;
         for (0..256) |i| {
-            buckets[i] = .empty;
+            positions[i] = total;
+            total += counts[i];
+            counts[i] = 0;
         }
 
-        for (sa) |idx| {
-            try buckets[data[idx]].append(allocator, idx);
+        var temp_sa = try allocator.alloc(usize, n);
+        defer allocator.free(temp_sa);
+
+        for (0..n) |i| {
+            const idx = sa[i];
+            const byte_val = data[idx];
+            const pos = positions[byte_val] + counts[byte_val];
+            temp_sa[pos] = idx;
+            counts[byte_val] += 1;
         }
 
-        var pos: usize = 0;
-        for (buckets) |bucket| {
-            for (bucket.items) |idx| {
-                sa[pos] = idx;
-                pos += 1;
-            }
-        }
+        @memcpy(sa, temp_sa);
 
         if (n > 1) {
             var rank = try allocator.alloc(i32, n);

@@ -33,28 +33,23 @@ proc bwtTransform*(input: seq[byte]): BWTResult =
   if n == 0:
     return BWTResult(transformed: @[], originalIdx: 0)
 
-  var doubled = newSeq[byte](n * 2)
+  var counts: array[256, int]
   for i in 0..<n:
-    doubled[i] = input[i]
-    doubled[i + n] = input[i]
+    counts[input[i].int] += 1
+
+  var positions: array[256, int]
+  var total = 0
+  for i in 0..<256:
+    positions[i] = total
+    total += counts[i]
+    counts[i] = 0
 
   var sa = newSeq[int](n)
   for i in 0..<n:
-    sa[i] = i
-
-  var buckets = newSeq[seq[int]](256)
-  for i in 0..<256:
-    buckets[i] = newSeq[int]()
-
-  for idx in sa:
-    let firstChar = input[idx]
-    buckets[firstChar.int].add(idx)
-
-  var pos = 0
-  for bucket in buckets:
-    for idx in bucket:
-      sa[pos] = idx
-      inc pos
+    let byteVal = input[i].int
+    let pos = positions[byteVal] + counts[byteVal]
+    sa[pos] = i
+    counts[byteVal] += 1
 
   if n > 1:
     var rank = newSeq[int](n)
@@ -71,25 +66,23 @@ proc bwtTransform*(input: seq[byte]): BWTResult =
 
     var k = 1
     while k < n:
-      var pairs = newSeq[(int, int)](n)
-      for i in 0..<n:
-        pairs[i] = (rank[i], rank[(i + k) mod n])
 
       sa.sort(proc(a, b: int): int =
-        let pairA = pairs[a]
-        let pairB = pairs[b]
-        if pairA[0] != pairB[0]:
-          return cmp(pairA[0], pairB[0])
-        return cmp(pairA[1], pairB[1])
+        let ra = rank[a]
+        let rb = rank[b]
+        if ra != rb:
+          return cmp(ra, rb)
+        return cmp(rank[(a + k) mod n], rank[(b + k) mod n])
       )
 
       var newRank = newSeq[int](n)
       newRank[sa[0]] = 0
       for i in 1..<n:
-        let prevPair = pairs[sa[i - 1]]
-        let currPair = pairs[sa[i]]
-        newRank[sa[i]] = newRank[sa[i - 1]] +
-          (if prevPair != currPair: 1 else: 0)
+        let prevIdx = sa[i-1]
+        let currIdx = sa[i]
+        newRank[currIdx] = newRank[prevIdx] +
+          (if rank[prevIdx] != rank[currIdx] or
+             rank[(prevIdx + k) mod n] != rank[(currIdx + k) mod n]: 1 else: 0)
 
       rank = newRank
       k *= 2

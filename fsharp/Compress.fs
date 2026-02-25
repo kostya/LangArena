@@ -39,17 +39,24 @@ type BWTEncode =
         let n = input.Length
         if n = 0 then { Transformed = [||]; OriginalIdx = 0 }
         else
-            let sa = Array.init n id
 
-            let buckets = Array.init 256 (fun _ -> List<int>())
+            let counts = Array.zeroCreate<int> 256
             for i = 0 to n - 1 do
-                buckets.[int input.[i]].Add(i)
+                counts.[int input.[i]] <- counts.[int input.[i]] + 1
 
-            let mutable pos = 0
-            for bucket in buckets do
-                for idx in bucket do
-                    sa.[pos] <- idx
-                    pos <- pos + 1
+            let positions = Array.zeroCreate<int> 256
+            let mutable total = 0
+            for i = 0 to 255 do
+                positions.[i] <- total
+                total <- total + counts.[i]
+                counts.[i] <- 0
+
+            let sa = Array.zeroCreate<int> n
+            for i = 0 to n - 1 do
+                let byteVal = int input.[i]
+                let pos = positions.[byteVal] + counts.[byteVal]
+                sa.[pos] <- i
+                counts.[byteVal] <- counts.[byteVal] + 1
 
             if n > 1 then
                 let rank = Array.zeroCreate<int> n
@@ -66,31 +73,29 @@ type BWTEncode =
 
                 let mutable k = 1
                 while k < n do
-                    let pairs = Array.zeroCreate<int * int> n
-                    for i = 0 to n - 1 do
-                        pairs.[i] <- (rank.[i], rank.[(i + k) % n])
 
-                    let comparer = 
-                        { new IComparer<int> with
+                    let saCopy = Array.copy sa
+                    System.Array.Sort(sa, 
+                        { new System.Collections.Generic.IComparer<int> with
                             member _.Compare(a, b) =
-                                let (a1, a2) = pairs.[a]
-                                let (b1, b2) = pairs.[b]
-                                if a1 <> b1 then compare a1 b1
-                                else compare a2 b2 }
-
-                    Array.Sort(sa, comparer)
+                                let ra = rank.[a]
+                                let rb = rank.[b]
+                                if ra <> rb then compare ra rb
+                                else compare rank.[(a + k) % n] rank.[(b + k) % n] })
 
                     let newRank = Array.zeroCreate<int> n
                     newRank.[sa.[0]] <- 0
 
                     for i = 1 to n - 1 do
-                        let prevPair = pairs.[sa.[i - 1]]
-                        let currPair = pairs.[sa.[i]]
-                        newRank.[sa.[i]] <- 
-                            newRank.[sa.[i - 1]] + 
-                            (if prevPair <> currPair then 1 else 0)
+                        let prevIdx = sa.[i - 1]
+                        let currIdx = sa.[i]
+                        newRank.[currIdx] <- 
+                            newRank.[prevIdx] + 
+                            (if rank.[prevIdx] <> rank.[currIdx] || 
+                                rank.[(prevIdx + k) % n] <> rank.[(currIdx + k) % n] 
+                             then 1 else 0)
 
-                    Array.blit newRank 0 rank 0 n
+                    System.Array.Copy(newRank, rank, n)
                     k <- k * 2
 
             let transformed = Array.zeroCreate<byte> n

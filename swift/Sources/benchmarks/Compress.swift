@@ -55,21 +55,30 @@ class BWTEncode: BenchmarkProtocol {
       return BWTResult(transformed: [], originalIdx: 0)
     }
 
-    var sa = [Int](0..<n)
-
-    var buckets = [[Int]](repeating: [], count: 256)
-    for idx in sa {
-      let firstChar = Int(input[idx])
-      buckets[firstChar].append(idx)
+    var counts = [Int](repeating: 0, count: 256)
+    for i in 0..<n {
+      counts[Int(input[i])] += 1
     }
 
-    var pos = 0
-    for bucket in buckets {
-      for idx in bucket {
-        sa[pos] = idx
-        pos += 1
-      }
+    var positions = [Int](repeating: 0, count: 256)
+    var total = 0
+    for i in 0..<256 {
+      positions[i] = total
+      total += counts[i]
     }
+
+    var tempCounts = [Int](repeating: 0, count: 256)
+    var tempSA = [Int](repeating: 0, count: n)
+
+    for i in 0..<n {
+      let idx = i
+      let byteVal = Int(input[idx])
+      let pos = positions[byteVal] + tempCounts[byteVal]
+      tempSA[pos] = idx
+      tempCounts[byteVal] += 1
+    }
+
+    var sa = tempSA
 
     if n > 1 {
       var rank = [Int](repeating: 0, count: n)
@@ -88,6 +97,7 @@ class BWTEncode: BenchmarkProtocol {
 
       var k = 1
       while k < n {
+
         var pairs = [(Int, Int)](repeating: (0, 0), count: n)
         for i in 0..<n {
           pairs[i] = (rank[i], rank[(i + k) % n])
@@ -98,9 +108,8 @@ class BWTEncode: BenchmarkProtocol {
           let pairB = pairs[b]
           if pairA.0 != pairB.0 {
             return pairA.0 < pairB.0
-          } else {
-            return pairA.1 < pairB.1
           }
+          return pairA.1 < pairB.1
         }
 
         var newRank = [Int](repeating: 0, count: n)

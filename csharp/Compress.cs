@@ -39,22 +39,30 @@ public class BWTEncode : CompressBenchmark
         int n = input.Length;
         if (n == 0) return new BWTResult(new byte[0], 0);
 
-        var sa = Enumerable.Range(0, n).ToArray();
+        int[] counts = new int[256];
+        foreach (byte b in input) counts[b]++;
 
-        var buckets = new List<int>[256];
-        for (int i = 0; i < 256; i++) buckets[i] = new List<int>();
-
-        foreach (int idx in sa) buckets[input[idx]].Add(idx);
-
-        int pos = 0;
-        for (int b = 0; b < 256; b++)
+        int[] positions = new int[256];
+        int total = 0;
+        for (int i = 0; i < 256; i++)
         {
-            foreach (int idx in buckets[b]) sa[pos++] = idx;
+            positions[i] = total;
+            total += counts[i];
+        }
+
+        int[] sa = new int[n];
+        int[] tempCounts = new int[256];
+        for (int i = 0; i < n; i++)
+        {
+            int byteIdx = input[i];
+            int pos = positions[byteIdx] + tempCounts[byteIdx];
+            sa[pos] = i;
+            tempCounts[byteIdx]++;
         }
 
         if (n > 1)
         {
-            var rank = new int[n];
+            int[] rank = new int[n];
             int currentRank = 0;
             byte prevChar = input[sa[0]];
 
@@ -83,7 +91,8 @@ public class BWTEncode : CompressBenchmark
                 {
                     var pairA = pairs[a];
                     var pairB = pairs[b];
-                    if (pairA.Item1 != pairB.Item1) return pairA.Item1.CompareTo(pairB.Item1);
+                    if (pairA.Item1 != pairB.Item1)
+                        return pairA.Item1.CompareTo(pairB.Item1);
                     return pairA.Item2.CompareTo(pairB.Item2);
                 });
 
@@ -94,15 +103,16 @@ public class BWTEncode : CompressBenchmark
                     var prevPair = pairs[sa[i - 1]];
                     var currPair = pairs[sa[i]];
                     newRank[sa[i]] = newRank[sa[i - 1]] +
-                        (prevPair.Item1 != currPair.Item1 || prevPair.Item2 != currPair.Item2 ? 1 : 0);
+                        (prevPair.Item1 != currPair.Item1 ||
+                         prevPair.Item2 != currPair.Item2 ? 1 : 0);
                 }
 
-                newRank.CopyTo(rank, 0);
+                rank = newRank;
                 k *= 2;
             }
         }
 
-        var transformed = new byte[n];
+        byte[] transformed = new byte[n];
         int originalIdx = 0;
 
         for (int i = 0; i < n; i++)

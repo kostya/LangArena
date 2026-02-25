@@ -54,21 +54,25 @@ class BWTEncode extends Benchmark {
             return new BWTResult(new byte[0], 0);
         }
 
-        int[] sa = new int[n];
-        for (int i = 0; i < n; i++) sa[i] = i;
-
-        List<Integer>[] buckets = new List[256];
-        for (int i = 0; i < 256; i++) buckets[i] = new ArrayList<>();
-
-        for (int idx : sa) {
-            buckets[input[idx] & 0xFF].add(idx);
+        int[] counts = new int[256];
+        for (byte b : input) {
+            counts[b & 0xFF]++;
         }
 
-        int pos = 0;
-        for (int b = 0; b < 256; b++) {
-            for (int idx : buckets[b]) {
-                sa[pos++] = idx;
-            }
+        int[] positions = new int[256];
+        int total = 0;
+        for (int i = 0; i < 256; i++) {
+            positions[i] = total;
+            total += counts[i];
+        }
+
+        int[] sa = new int[n];
+        int[] tempCounts = new int[256];
+        for (int i = 0; i < n; i++) {
+            int byteIdx = input[i] & 0xFF;
+            int pos = positions[byteIdx] + tempCounts[byteIdx];
+            sa[pos] = i;
+            tempCounts[byteIdx]++;
         }
 
         if (n > 1) {
@@ -88,32 +92,38 @@ class BWTEncode extends Benchmark {
 
             int k = 1;
             while (k < n) {
-                int[][] pairs = new int[n][2];
-                for (int i = 0; i < n; i++) {
-                    pairs[i][0] = rank[i];
-                    pairs[i][1] = rank[(i + k) % n];
-                }
 
                 Integer[] saObj = new Integer[n];
                 for (int i = 0; i < n; i++) saObj[i] = sa[i];
+
+                final int[] rankCopy = rank.clone();
+                final int kFinal = k;
+
                 Arrays.sort(saObj, (a, b) -> {
-                    if (pairs[a][0] != pairs[b][0]) {
-                        return Integer.compare(pairs[a][0], pairs[b][0]);
+                    int ra = rankCopy[a];
+                    int rb = rankCopy[b];
+                    if (ra != rb) {
+                        return Integer.compare(ra, rb);
                     }
-                    return Integer.compare(pairs[a][1], pairs[b][1]);
+                    int rak = rankCopy[(a + kFinal) % n];
+                    int rbk = rankCopy[(b + kFinal) % n];
+                    return Integer.compare(rak, rbk);
                 });
+
                 for (int i = 0; i < n; i++) sa[i] = saObj[i];
 
                 int[] newRank = new int[n];
                 newRank[sa[0]] = 0;
                 for (int i = 1; i < n; i++) {
-                    newRank[sa[i]] = newRank[sa[i - 1]] +
-                                     (pairs[sa[i - 1]][0] != pairs[sa[i]][0] ||
-                                      pairs[sa[i - 1]][1] != pairs[sa[i]][1] ? 1 : 0);
+                    int prevIdx = sa[i - 1];
+                    int currIdx = sa[i];
+                    newRank[currIdx] = newRank[prevIdx] +
+                                       (rank[prevIdx] != rank[currIdx] ||
+                                        rank[(prevIdx + k) % n] != rank[(currIdx + k) % n] ? 1 : 0);
                 }
 
                 rank = newRank;
-                k *= 2;
+                k <<= 1;
             }
         }
 

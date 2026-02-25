@@ -4286,27 +4286,25 @@ func (b *BWTEncode) bwtTransform(input []byte) BWTResult {
 		return BWTResult{[]byte{}, 0}
 	}
 
+	counts := [256]int{}
+	for i := 0; i < n; i++ {
+		counts[input[i]]++
+	}
+
+	positions := [256]int{}
+	total := 0
+	for i := 0; i < 256; i++ {
+		positions[i] = total
+		total += counts[i]
+		counts[i] = 0
+	}
+
 	sa := make([]int, n)
 	for i := 0; i < n; i++ {
-		sa[i] = i
-	}
-
-	buckets := make([][]int, 256)
-	for i := 0; i < 256; i++ {
-		buckets[i] = make([]int, 0)
-	}
-
-	for _, idx := range sa {
-		firstChar := input[idx]
-		buckets[firstChar] = append(buckets[firstChar], idx)
-	}
-
-	pos := 0
-	for b := 0; b < 256; b++ {
-		for _, idx := range buckets[b] {
-			sa[pos] = idx
-			pos++
-		}
+		byteVal := input[i]
+		pos := positions[byteVal] + counts[byteVal]
+		sa[pos] = i
+		counts[byteVal]++
 	}
 
 	if n > 1 {
@@ -4326,34 +4324,26 @@ func (b *BWTEncode) bwtTransform(input []byte) BWTResult {
 
 		k := 1
 		for k < n {
-			type pair struct{ first, second int }
-			pairs := make([]pair, n)
-
-			for i := 0; i < n; i++ {
-				pairs[i] = pair{
-					first:  rank[i],
-					second: rank[(i+k)%n],
-				}
-			}
 
 			sort.Slice(sa, func(i, j int) bool {
-				pi := pairs[sa[i]]
-				pj := pairs[sa[j]]
-				if pi.first != pj.first {
-					return pi.first < pj.first
+				a, b := sa[i], sa[j]
+				ra, rb := rank[a], rank[b]
+				if ra != rb {
+					return ra < rb
 				}
-				return pi.second < pj.second
+				return rank[(a+k)%n] < rank[(b+k)%n]
 			})
 
 			newRank := make([]int, n)
 			newRank[sa[0]] = 0
 			for i := 1; i < n; i++ {
-				prevPair := pairs[sa[i-1]]
-				currPair := pairs[sa[i]]
-				if prevPair == currPair {
-					newRank[sa[i]] = newRank[sa[i-1]]
+				prevIdx := sa[i-1]
+				currIdx := sa[i]
+				if rank[prevIdx] == rank[currIdx] &&
+					rank[(prevIdx+k)%n] == rank[(currIdx+k)%n] {
+					newRank[currIdx] = newRank[prevIdx]
 				} else {
-					newRank[sa[i]] = newRank[sa[i-1]] + 1
+					newRank[currIdx] = newRank[prevIdx] + 1
 				}
 			}
 

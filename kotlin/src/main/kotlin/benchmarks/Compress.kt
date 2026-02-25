@@ -53,19 +53,25 @@ class BWTEncode : Benchmark() {
             return BWTResult(ByteArray(0), 0)
         }
 
-        val sa = Array(n) { it }
-
-        val buckets = Array(256) { mutableListOf<Int>() }
-        sa.forEach { idx ->
-            val firstChar = input[idx].toInt() and 0xFF
-            buckets[firstChar].add(idx)
+        val counts = IntArray(256)
+        for (i in 0 until n) {
+            counts[input[i].toInt() and 0xFF]++
         }
 
-        var pos = 0
-        buckets.forEach { bucket ->
-            bucket.forEach { idx ->
-                sa[pos++] = idx
-            }
+        val positions = IntArray(256)
+        var total = 0
+        for (i in 0 until 256) {
+            positions[i] = total
+            total += counts[i]
+            counts[i] = 0
+        }
+
+        val sa = IntArray(n)
+        for (i in 0 until n) {
+            val byteVal = input[i].toInt() and 0xFF
+            val pos = positions[byteVal] + counts[byteVal]
+            sa[pos] = i
+            counts[byteVal]++
         }
 
         if (n > 1) {
@@ -73,7 +79,8 @@ class BWTEncode : Benchmark() {
             var currentRank = 0
             var prevChar = input[sa[0]].toInt() and 0xFF
 
-            sa.forEachIndexed { i, idx ->
+            for (i in 0 until n) {
+                val idx = sa[i]
                 val currChar = input[idx].toInt() and 0xFF
                 if (currChar != prevChar) {
                     currentRank++
@@ -84,28 +91,38 @@ class BWTEncode : Benchmark() {
 
             var k = 1
             while (k < n) {
-                val pairs =
-                    Array(n) { i ->
-                        intArrayOf(rank[i], rank[(i + k) % n])
-                    }
+                val saArray = Array(n) { sa[it] }
 
-                sa.sortWith(
-                    compareBy(
-                        { pairs[it][0] },
-                        { pairs[it][1] },
-                    ),
-                )
+                saArray.sortWith { a, b ->
+                    val ra = rank[a]
+                    val rb = rank[b]
+                    if (ra != rb) {
+                        ra.compareTo(rb)
+                    } else {
+                        rank[(a + k) % n].compareTo(rank[(b + k) % n])
+                    }
+                }
+
+                for (i in 0 until n) {
+                    sa[i] = saArray[i]
+                }
 
                 val newRank = IntArray(n)
                 newRank[sa[0]] = 0
                 for (i in 1 until n) {
-                    val prevPair = pairs[sa[i - 1]]
-                    val currPair = pairs[sa[i]]
-                    newRank[sa[i]] = newRank[sa[i - 1]] +
-                        if (prevPair[0] != currPair[0] || prevPair[1] != currPair[1]) 1 else 0
+                    val prevIdx = sa[i - 1]
+                    val currIdx = sa[i]
+                    newRank[currIdx] = newRank[prevIdx] +
+                        if (rank[prevIdx] != rank[currIdx] ||
+                            rank[(prevIdx + k) % n] != rank[(currIdx + k) % n]
+                        ) {
+                            1
+                        } else {
+                            0
+                        }
                 }
 
-                System.arraycopy(newRank, 0, rank, 0, n)
+                rank.indices.forEach { rank[it] = newRank[it] }
                 k *= 2
             }
         }
@@ -113,7 +130,8 @@ class BWTEncode : Benchmark() {
         val transformed = ByteArray(n)
         var originalIdx = 0
 
-        sa.forEachIndexed { i, suffix ->
+        for (i in 0 until n) {
+            val suffix = sa[i]
             if (suffix == 0) {
                 transformed[i] = input[n - 1]
                 originalIdx = i

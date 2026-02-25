@@ -37,19 +37,25 @@ fn bwt_transform(input: &[u8]) -> BWTResult {
         return BWTResult::new(Vec::new(), 0);
     }
 
-    let mut sa: Vec<usize> = (0..n).collect();
-
-    let mut buckets: Vec<Vec<usize>> = vec![Vec::new(); 256];
-    for &idx in &sa {
-        buckets[input[idx] as usize].push(idx);
+    let mut counts = [0; 256];
+    for &byte in input {
+        counts[byte as usize] += 1;
     }
 
-    let mut pos = 0;
-    for bucket in &buckets {
-        for &idx in bucket {
-            sa[pos] = idx;
-            pos += 1;
-        }
+    let mut positions = [0; 256];
+    let mut total = 0;
+    for i in 0..256 {
+        positions[i] = total;
+        total += counts[i];
+    }
+
+    let mut sa = vec![0; n];
+    let mut temp_counts = [0; 256];
+    for i in 0..n {
+        let byte = input[i] as usize;
+        let pos = positions[byte] + temp_counts[byte];
+        sa[pos] = i;
+        temp_counts[byte] += 1;
     }
 
     if n > 1 {
@@ -68,26 +74,25 @@ fn bwt_transform(input: &[u8]) -> BWTResult {
 
         let mut k = 1;
         while k < n {
-            let mut pairs = vec![(0, 0); n];
-            for i in 0..n {
-                pairs[i] = (rank[i], rank[(i + k) % n]);
-            }
-
             sa.sort_by(|&a, &b| {
-                let pa = pairs[a];
-                let pb = pairs[b];
-                if pa.0 != pb.0 {
-                    pa.0.cmp(&pb.0)
+                let ra = rank[a];
+                let rb = rank[b];
+                if ra != rb {
+                    ra.cmp(&rb)
                 } else {
-                    pa.1.cmp(&pb.1)
+                    let rak = rank[(a + k) % n];
+                    let rbk = rank[(b + k) % n];
+                    rak.cmp(&rbk)
                 }
             });
 
             let mut new_rank = vec![0; n];
             new_rank[sa[0]] = 0;
             for i in 1..n {
-                new_rank[sa[i]] = new_rank[sa[i - 1]]
-                    + if pairs[sa[i - 1]] != pairs[sa[i]] {
+                let prev = sa[i - 1];
+                let curr = sa[i];
+                new_rank[curr] = new_rank[prev]
+                    + if rank[prev] != rank[curr] || rank[(prev + k) % n] != rank[(curr + k) % n] {
                         1
                     } else {
                         0
@@ -95,7 +100,7 @@ fn bwt_transform(input: &[u8]) -> BWTResult {
             }
 
             rank = new_rank;
-            k *= 2;
+            k <<= 1;
         }
     }
 

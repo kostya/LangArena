@@ -4771,24 +4771,29 @@ export class BWTEncode extends Benchmark {
       return new BWTResult(new Uint8Array(), 0);
     }
 
-    let sa: number[] = Array.from({ length: n }, (_, i) => i);
-
-    const buckets: number[][] = Array.from({ length: 256 }, () => []);
-
-    for (const idx of sa) {
-      const firstChar = input[idx];
-      buckets[firstChar].push(idx);
+    const counts = new Int32Array(256);
+    for (let i = 0; i < n; i++) {
+      counts[input[i]]++;
     }
 
-    let pos = 0;
-    for (const bucket of buckets) {
-      for (const idx of bucket) {
-        sa[pos++] = idx;
-      }
+    const positions = new Int32Array(256);
+    let total = 0;
+    for (let i = 0; i < 256; i++) {
+      positions[i] = total;
+      total += counts[i];
+      counts[i] = 0;
+    }
+
+    const sa = new Int32Array(n);
+    for (let i = 0; i < n; i++) {
+      const byteVal = input[i];
+      const pos = positions[byteVal] + counts[byteVal];
+      sa[pos] = i;
+      counts[byteVal]++;
     }
 
     if (n > 1) {
-      const rank = new Array(n).fill(0);
+      const rank = new Int32Array(n);
       let currentRank = 0;
       let prevChar = input[sa[0]];
 
@@ -4804,35 +4809,29 @@ export class BWTEncode extends Benchmark {
 
       let k = 1;
       while (k < n) {
-        const pairs: [number, number][] = new Array(n);
-        for (let i = 0; i < n; i++) {
-          pairs[i] = [rank[i], rank[(i + k) % n]];
-        }
-
-        sa.sort((a, b) => {
-          const pairA = pairs[a];
-          const pairB = pairs[b];
-          if (pairA[0] !== pairB[0]) {
-            return pairA[0] - pairB[0];
-          }
-          return pairA[1] - pairB[1];
+        const saArray = Array.from(sa);
+        saArray.sort((a, b) => {
+          const ra = rank[a];
+          const rb = rank[b];
+          if (ra !== rb) return ra - rb;
+          return rank[(a + k) % n] - rank[(b + k) % n];
         });
+        for (let i = 0; i < n; i++) sa[i] = saArray[i];
 
-        const newRank = new Array(n).fill(0);
+        const newRank = new Int32Array(n);
         newRank[sa[0]] = 0;
         for (let i = 1; i < n; i++) {
-          const prevPair = pairs[sa[i - 1]];
-          const currPair = pairs[sa[i]];
-          newRank[sa[i]] =
-            newRank[sa[i - 1]] +
-            (prevPair[0] !== currPair[0] || prevPair[1] !== currPair[1]
+          const prevIdx = sa[i - 1];
+          const currIdx = sa[i];
+          newRank[currIdx] =
+            newRank[prevIdx] +
+            (rank[prevIdx] !== rank[currIdx] ||
+            rank[(prevIdx + k) % n] !== rank[(currIdx + k) % n]
               ? 1
               : 0);
         }
 
-        for (let i = 0; i < n; i++) {
-          rank[i] = newRank[i];
-        }
+        for (let i = 0; i < n; i++) rank[i] = newRank[i];
         k *= 2;
       }
     }
