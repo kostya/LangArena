@@ -1,8 +1,6 @@
 use super::super::Benchmark;
 use crate::config_i64;
-use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::collections::VecDeque;
 
 fn generate_test_data(size: i64) -> Vec<u8> {
     let pattern = b"ABRACADABRA";

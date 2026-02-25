@@ -1,6 +1,5 @@
 use super::super::helper;
 use crate::config_i64;
-use std::cmp;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::collections::VecDeque;

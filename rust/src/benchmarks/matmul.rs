@@ -93,7 +93,7 @@ struct BaseMatmul {
 }
 
 impl BaseMatmul {
-    fn new(name: &str, num_threads: Option<usize>) -> Self {
+    fn new(name: &str, _num_threads: Option<usize>) -> Self {
         let n = config_i64(name, "n") as usize;
         let a = matgen(n);
         let b = matgen(n);
