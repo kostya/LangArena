@@ -21,20 +21,20 @@ class Spectralnorm : Benchmark() {
 
     private fun evalATimesU(u: DoubleArray): DoubleArray =
         DoubleArray(u.size) { i ->
-            var v = 0.0
-            for ((j, value) in u.withIndex()) {
-                v += evalA(i, j) * value
+            var sum = 0.0
+            repeat(u.size) { j ->
+                sum += evalA(i, j) * u[j]
             }
-            v
+            sum
         }
 
     private fun evalAtTimesU(u: DoubleArray): DoubleArray =
         DoubleArray(u.size) { i ->
-            var v = 0.0
-            for ((j, value) in u.withIndex()) {
-                v += evalA(j, i) * value
+            var sum = 0.0
+            repeat(u.size) { j ->
+                sum += evalA(j, i) * u[j]
             }
-            v
+            sum
         }
 
     private fun evalAtATimesU(u: DoubleArray): DoubleArray = evalAtTimesU(evalATimesU(u))
