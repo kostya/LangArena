@@ -229,11 +229,9 @@ pub const BWTDecode = struct {
         }
 
         var next = try allocator.alloc(usize, n);
-        defer allocator.free(next);
-        @memset(next, 0);
+        errdefer allocator.free(next);
 
         var temp_counts: [256]usize = [_]usize{0} ** 256;
-
         for (0..n) |i| {
             const byte = bwt[i];
             const pos = positions[byte] + temp_counts[byte];
@@ -242,13 +240,15 @@ pub const BWTDecode = struct {
         }
 
         var result = try allocator.alloc(u8, n);
-        var idx = bwt_result.original_idx;
+        errdefer allocator.free(result);
 
+        var idx = bwt_result.original_idx;
         for (0..n) |i| {
             idx = next[idx];
             result[i] = bwt[idx];
         }
 
+        allocator.free(next);
         return result;
     }
 
