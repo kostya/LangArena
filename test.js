@@ -259,5 +259,17 @@
     "checksum": 100244,
     "size": 61,
     "iterations": 3
+  },
+  "Distance::Jaro": {
+    "checksum": 7020,
+    "iterations": 1,
+    "count": 10,
+    "size": 5
+  },
+  "Distance::NGram": {
+    "checksum": 42,
+    "iterations": 1,
+    "count": 2,
+    "size": 500
   }
 }

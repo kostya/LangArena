@@ -82,6 +82,10 @@ module BenchmarkRunner =
         createBenchmarkInfo<ArithDecode> "Compress::ArithDecode"
         createBenchmarkInfo<LZWEncode> "Compress::LZWEncode"
         createBenchmarkInfo<LZWDecode> "Compress::LZWDecode"
+
+        createBenchmarkInfo<Jaro> "Distance::Jaro"
+        createBenchmarkInfo<NGram> "Distance::NGram"
+
     ]
 
     let private runBenchmark (factory: BenchmarkInfo) (singleBench: string option) =

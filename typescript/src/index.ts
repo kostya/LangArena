@@ -5663,6 +5663,210 @@ export class LZWDecode extends Benchmark {
   }
 }
 
+class Jaro extends Benchmark {
+  private count: number = 0;
+  private size: number = 0;
+  private pairs: Array<[string, string]> = [];
+  private resultVal: number = 0;
+
+  constructor() {
+    super();
+    this.count = Number(Helper.configI64(this.name, "count"));
+    this.size = Number(Helper.configI64(this.name, "size"));
+  }
+
+  override get name(): string {
+    return "Distance::Jaro";
+  }
+
+  override prepare(): void {
+    this.pairs = this.generatePairStrings(this.count, this.size);
+    this.resultVal = 0;
+  }
+
+  private generatePairStrings(n: number, m: number): Array<[string, string]> {
+    const pairs: Array<[string, string]> = [];
+    const chars = "abcdefghij".split("");
+
+    for (let i = 0; i < n; i++) {
+      const len1 = Helper.nextInt(m) + 4;
+      const len2 = Helper.nextInt(m) + 4;
+
+      let str1 = "";
+      let str2 = "";
+
+      for (let j = 0; j < len1; j++) {
+        str1 += chars[Helper.nextInt(10)];
+      }
+      for (let j = 0; j < len2; j++) {
+        str2 += chars[Helper.nextInt(10)];
+      }
+
+      pairs.push([str1, str2]);
+    }
+
+    return pairs;
+  }
+
+  private jaro(s1: string, s2: string): number {
+    const len1 = s1.length;
+    const len2 = s2.length;
+
+    if (len1 === 0 || len2 === 0) return 0.0;
+
+    let matchDist = Math.floor(Math.max(len1, len2) / 2) - 1;
+    if (matchDist < 0) matchDist = 0;
+
+    const s1Matches = new Array<boolean>(len1).fill(false);
+    const s2Matches = new Array<boolean>(len2).fill(false);
+
+    let matches = 0;
+    for (let i = 0; i < len1; i++) {
+      const start = Math.max(0, i - matchDist);
+      const end = Math.min(len2 - 1, i + matchDist);
+
+      for (let j = start; j <= end; j++) {
+        if (!s2Matches[j] && s1.charCodeAt(i) === s2.charCodeAt(j)) {
+          s1Matches[i] = true;
+          s2Matches[j] = true;
+          matches++;
+          break;
+        }
+      }
+    }
+
+    if (matches === 0) return 0.0;
+
+    let transpositions = 0;
+    let k = 0;
+    for (let i = 0; i < len1; i++) {
+      if (s1Matches[i]) {
+        while (k < len2 && !s2Matches[k]) {
+          k++;
+        }
+        if (k < len2) {
+          if (s1.charCodeAt(i) !== s2.charCodeAt(k)) {
+            transpositions++;
+          }
+          k++;
+        }
+      }
+    }
+    transpositions = Math.floor(transpositions / 2);
+
+    const m = matches;
+    return (m / len1 + m / len2 + (m - transpositions) / m) / 3.0;
+  }
+
+  override run(_iteration_id: number): void {
+    for (const [s1, s2] of this.pairs) {
+      this.resultVal =
+        (this.resultVal + Math.floor(this.jaro(s1, s2) * 1000)) >>> 0;
+    }
+  }
+
+  override checksum(): number {
+    return this.resultVal >>> 0;
+  }
+}
+
+class NGram extends Benchmark {
+  private count: number = 0;
+  private size: number = 0;
+  private pairs: Array<[string, string]> = [];
+  private resultVal: number = 0;
+  private readonly n: number = 4;
+
+  constructor() {
+    super();
+    this.count = Number(Helper.configI64(this.name, "count"));
+    this.size = Number(Helper.configI64(this.name, "size"));
+  }
+
+  override get name(): string {
+    return "Distance::NGram";
+  }
+
+  override prepare(): void {
+    this.pairs = this.generatePairStrings(this.count, this.size);
+    this.resultVal = 0;
+  }
+
+  private generatePairStrings(n: number, m: number): Array<[string, string]> {
+    const pairs: Array<[string, string]> = [];
+    const chars = "abcdefghij".split("");
+
+    for (let i = 0; i < n; i++) {
+      const len1 = Helper.nextInt(m) + 4;
+      const len2 = Helper.nextInt(m) + 4;
+
+      let str1 = "";
+      let str2 = "";
+
+      for (let j = 0; j < len1; j++) {
+        str1 += chars[Helper.nextInt(10)];
+      }
+      for (let j = 0; j < len2; j++) {
+        str2 += chars[Helper.nextInt(10)];
+      }
+
+      pairs.push([str1, str2]);
+    }
+
+    return pairs;
+  }
+
+  private ngram(s1: string, s2: string): number {
+    if (s1.length < this.n || s2.length < this.n) return 0.0;
+
+    const grams1: Map<number, number> = new Map();
+
+    for (let i = 0; i <= s1.length - this.n; i++) {
+      const gram =
+        (s1.charCodeAt(i) << 24) |
+        (s1.charCodeAt(i + 1) << 16) |
+        (s1.charCodeAt(i + 2) << 8) |
+        s1.charCodeAt(i + 3);
+
+      const val = grams1.get(gram) || 0;
+      grams1.set(gram, val + 1);
+    }
+
+    const grams2: Map<number, number> = new Map();
+    let intersection = 0;
+
+    for (let i = 0; i <= s2.length - this.n; i++) {
+      const gram =
+        (s2.charCodeAt(i) << 24) |
+        (s2.charCodeAt(i + 1) << 16) |
+        (s2.charCodeAt(i + 2) << 8) |
+        s2.charCodeAt(i + 3);
+
+      const val2 = grams2.get(gram) || 0;
+      grams2.set(gram, val2 + 1);
+
+      const count1 = grams1.get(gram);
+      if (count1 !== undefined && val2 + 1 <= count1) {
+        intersection++;
+      }
+    }
+
+    const total = grams1.size + grams2.size;
+    return total > 0 ? intersection / total : 0.0;
+  }
+
+  override run(_iteration_id: number): void {
+    for (const [s1, s2] of this.pairs) {
+      this.resultVal =
+        (this.resultVal + Math.floor(this.ngram(s1, s2) * 1000)) >>> 0;
+    }
+  }
+
+  override checksum(): number {
+    return this.resultVal >>> 0;
+  }
+}
+
 Benchmark.registerBenchmark("CLBG::Pidigits", Pidigits);
 Benchmark.registerBenchmark("Binarytrees::Obj", BinarytreesObj);
 Benchmark.registerBenchmark("Binarytrees::Arena", BinarytreesArena);
@@ -5712,6 +5916,8 @@ Benchmark.registerBenchmark("Compress::ArithEncode", ArithEncode);
 Benchmark.registerBenchmark("Compress::ArithDecode", ArithDecode);
 Benchmark.registerBenchmark("Compress::LZWEncode", LZWEncode);
 Benchmark.registerBenchmark("Compress::LZWDecode", LZWDecode);
+Benchmark.registerBenchmark("Distance::Jaro", Jaro);
+Benchmark.registerBenchmark("Distance::NGram", NGram);
 
 const RECOMPILE_MARKER = "RECOMPILE_MARKER_0";
 

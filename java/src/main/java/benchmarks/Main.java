@@ -54,6 +54,8 @@ public class Main {
         Benchmark.registerBenchmark("Compress::ArithDecode", () -> new ArithDecode());
         Benchmark.registerBenchmark("Compress::LZWEncode", () -> new LZWEncode());
         Benchmark.registerBenchmark("Compress::LZWDecode", () -> new LZWDecode());
+        Benchmark.registerBenchmark("Distance::Jaro", () -> new Distance.Jaro());
+        Benchmark.registerBenchmark("Distance::NGram", () -> new Distance.NGram());
 
         long now = Instant.now().toEpochMilli();
         System.out.println("start: " + now);

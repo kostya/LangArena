@@ -35,7 +35,8 @@
     <Compile Include="Calculator.fs" />
     <Compile Include="GameOfLife.fs" />
     <Compile Include="Maze.fs" />
-    <Compile Include="Compress.fs" />    
+    <Compile Include="Compress.fs" />  
+    <Compile Include="Distance.fs" />    
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

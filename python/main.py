@@ -24,7 +24,7 @@ from enum import Enum
 from io import StringIO
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, NamedTuple, Optional, Union,
-                    TypeVar, Generic)
+                    TypeVar, Generic, Tuple)
 
 
 def with_timeout(timeout_seconds):
@@ -1081,10 +1081,6 @@ class Mandelbrot(Benchmark):
 
     def name(self) -> str:
         return "CLBG::Mandelbrot"
-
-
-import concurrent.futures
-from typing import List, Tuple
 
 
 class MatmulBase(Benchmark):
@@ -2802,8 +2798,6 @@ class BufferHashSHA256(BufferHashBenchmark):
     def name(self) -> str:
         return "Hash::SHA256"
 
-
-from typing import Optional, TypeVar, Generic, Dict
 
 K = TypeVar('K')
 V = TypeVar('V')
@@ -4542,6 +4536,173 @@ class LZWDecode(Benchmark):
         return bytes(result)
 
 
+class Jaro(Benchmark):
+
+    def __init__(self):
+        super().__init__()
+        self.count = 0
+        self.size = 0
+        self.pairs: List[Tuple[str, str]] = []
+        self.result_val = 0
+
+    def prepare(self):
+        self.count = Helper.config_i64(self.name(), "count")
+        self.size = Helper.config_i64(self.name(), "size")
+        self.pairs = self._generate_pair_strings(self.count, self.size)
+        self.result_val = 0
+
+    def _generate_pair_strings(self, n: int, m: int) -> List[Tuple[str, str]]:
+        pairs = []
+        chars = "abcdefghij"
+        next_int = Helper.next_int
+
+        for _ in range(n):
+            len1 = next_int(m) + 4
+            len2 = next_int(m) + 4
+
+            str1 = ''.join([chars[next_int(10)] for _ in range(len1)])
+            str2 = ''.join([chars[next_int(10)] for _ in range(len2)])
+
+            pairs.append((str1, str2))
+
+        return pairs
+
+    @staticmethod
+    def _jaro(s1: str, s2: str) -> float:
+        len1 = len(s1)
+        len2 = len(s2)
+
+        if len1 == 0 or len2 == 0:
+            return 0.0
+
+        match_dist = max(len1, len2) // 2 - 1
+        if match_dist < 0:
+            match_dist = 0
+
+        s1_matches = [False] * len1
+        s2_matches = [False] * len2
+
+        matches = 0
+        for i in range(len1):
+            start = max(0, i - match_dist)
+            end = min(len2 - 1, i + match_dist)
+
+            for j in range(start, end + 1):
+                if not s2_matches[j] and s1[i] == s2[j]:
+                    s1_matches[i] = True
+                    s2_matches[j] = True
+                    matches += 1
+                    break
+
+        if matches == 0:
+            return 0.0
+
+        transpositions = 0
+        k = 0
+        for i in range(len1):
+            if s1_matches[i]:
+                while k < len2 and not s2_matches[k]:
+                    k += 1
+                if k < len2:
+                    if s1[i] != s2[k]:
+                        transpositions += 1
+                    k += 1
+
+        transpositions //= 2
+
+        m = float(matches)
+        return (m / len1 + m / len2 + (m - transpositions) / m) / 3.0
+
+    def run_benchmark(self, iteration_id: int):
+        for s1, s2 in self.pairs:
+            self.result_val = (self.result_val +
+                               int(self._jaro(s1, s2) * 1000)) & 0xFFFFFFFF
+
+    def checksum(self) -> int:
+        return self.result_val
+
+    def name(self) -> str:
+        return "Distance::Jaro"
+
+
+class NGram(Benchmark):
+
+    def __init__(self):
+        super().__init__()
+        self.count = 0
+        self.size = 0
+        self.pairs: List[Tuple[str, str]] = []
+        self.result_val = 0
+        self.N = 4
+
+    def prepare(self):
+        self.count = Helper.config_i64(self.name(), "count")
+        self.size = Helper.config_i64(self.name(), "size")
+        self.pairs = self._generate_pair_strings(self.count, self.size)
+        self.result_val = 0
+
+    def _generate_pair_strings(self, n: int, m: int) -> List[Tuple[str, str]]:
+        pairs = []
+        chars = "abcdefghij"
+        next_int = Helper.next_int
+
+        for _ in range(n):
+            len1 = next_int(m) + 4
+            len2 = next_int(m) + 4
+
+            str1 = ''.join([chars[next_int(10)] for _ in range(len1)])
+            str2 = ''.join([chars[next_int(10)] for _ in range(len2)])
+
+            pairs.append((str1, str2))
+
+        return pairs
+
+    def _ngram(self, s1: str, s2: str) -> float:
+        if len(s1) < self.N or len(s2) < self.N:
+            return 0.0
+
+        grams1: Dict[int, int] = {}
+        get1 = grams1.get
+
+        for i in range(len(s1) - self.N + 1):
+            gram = (ord(s1[i]) << 24) | \
+                   (ord(s1[i + 1]) << 16) | \
+                   (ord(s1[i + 2]) << 8) | \
+                    ord(s1[i + 3])
+
+            grams1[gram] = get1(gram, 0) + 1
+
+        grams2: Dict[int, int] = {}
+        intersection = 0
+        get2 = grams2.get
+
+        for i in range(len(s2) - self.N + 1):
+            gram = (ord(s2[i]) << 24) | \
+                   (ord(s2[i + 1]) << 16) | \
+                   (ord(s2[i + 2]) << 8) | \
+                    ord(s2[i + 3])
+
+            grams2[gram] = get2(gram, 0) + 1
+
+            count1 = grams1.get(gram)
+            if count1 is not None and grams2[gram] <= count1:
+                intersection += 1
+
+        total = len(grams1) + len(grams2)
+        return intersection / total if total > 0 else 0.0
+
+    def run_benchmark(self, iteration_id: int):
+        for s1, s2 in self.pairs:
+            self.result_val = (self.result_val +
+                               int(self._ngram(s1, s2) * 1000)) & 0xFFFFFFFF
+
+    def checksum(self) -> int:
+        return self.result_val
+
+    def name(self) -> str:
+        return "Distance::NGram"
+
+
 def register_benchmarks():
     Benchmark.register_benchmark('CLBG::Pidigits', Pidigits)
     Benchmark.register_benchmark('Binarytrees::Obj', BinarytreesObj)
@@ -4593,6 +4754,8 @@ def register_benchmarks():
     Benchmark.register_benchmark('Compress::ArithDecode', ArithDecode)
     Benchmark.register_benchmark('Compress::LZWEncode', LZWEncode)
     Benchmark.register_benchmark('Compress::LZWDecode', LZWDecode)
+    Benchmark.register_benchmark('Distance::Jaro', Jaro)
+    Benchmark.register_benchmark('Distance::NGram', NGram)
 
 
 def main():

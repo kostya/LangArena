@@ -35,6 +35,7 @@ import benchmarks/calculatorinterpreter
 import benchmarks/gameoflife
 import benchmarks/maze
 import benchmarks/compress
+import benchmarks/distance
 
 proc main() =
   let now = (epochTime() * 1000).int64

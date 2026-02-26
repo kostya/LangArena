@@ -10,6 +10,7 @@ pub mod cache_simulation;
 pub mod calculator_ast;
 pub mod calculator_interpreter;
 pub mod compress;
+pub mod distance;
 pub mod fannkuchredux;
 pub mod fasta;
 pub mod game_of_life;

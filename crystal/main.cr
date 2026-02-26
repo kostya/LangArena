@@ -4302,4 +4302,164 @@ module Compress
   end
 end
 
+module Distance
+  def self.generate_pair_strings(n, m)
+    pairs = [] of Tuple(String, String)
+    chars = ('a'..'j').to_a
+
+    n.times do
+      len1 = Helper.next_int(m) + 4
+      len2 = Helper.next_int(m) + 4
+
+      str1 = String.build(len1) { |io| len1.times { io << chars[Helper.next_int(10)] } }
+      str2 = String.build(len2) { |io| len2.times { io << chars[Helper.next_int(10)] } }
+
+      pairs << {str1, str2}
+    end
+
+    pairs
+  end
+
+  class Jaro < Benchmark
+    @count : Int64
+    @size : Int64
+    @pairs : Array(Tuple(String, String))
+    @result : UInt32
+
+    def initialize
+      @pairs = [] of Tuple(String, String)
+      @result = 0_u32
+      @count = config_val("count").to_i64
+      @size = config_val("size").to_i64
+    end
+
+    def prepare
+      @pairs = Distance.generate_pair_strings(@count, @size)
+    end
+
+    def jaro(s1 : String, s2 : String) : Float64
+      s1 = s1.bytes
+      s2 = s2.bytes
+      len1 = s1.size
+      len2 = s2.size
+
+      return 0.0 if len1 == 0 || len2 == 0
+
+      match_dist = {len1, len2}.max // 2 - 1
+      match_dist = 0 if match_dist < 0
+
+      s1_matches = Array(Bool).new(len1, false)
+      s2_matches = Array(Bool).new(len2, false)
+
+      matches = 0
+      len1.times do |i|
+        start = {0, i - match_dist}.max
+        fin = {len2 - 1, i + match_dist}.min
+
+        (start..fin).each do |j|
+          if !s2_matches[j] && s1[i] == s2[j]
+            s1_matches[i] = true
+            s2_matches[j] = true
+            matches += 1
+            break
+          end
+        end
+      end
+
+      return 0.0 if matches == 0
+
+      k = 0
+      transpositions = 0
+      len1.times do |i|
+        if s1_matches[i]
+          while k < len2 && !s2_matches[k]
+            k += 1
+          end
+          if k < len2
+            transpositions += 1 if s1[i] != s2[k]
+            k += 1
+          end
+        end
+      end
+      transpositions //= 2
+
+      m = matches.to_f
+      (m/len1 + m/len2 + (m - transpositions)/m) / 3.0
+    end
+
+    def run(iteration_id)
+      @pairs.each do |(s1, s2)|
+        @result &+= (jaro(s1, s2) * 1000).to_u32
+      end
+    end
+
+    def checksum : UInt32
+      @result
+    end
+  end
+
+  class NGram < Benchmark
+    @count : Int64
+    @size : Int64
+    @pairs : Array(Tuple(String, String))
+    @result : UInt32
+
+    def initialize
+      @pairs = [] of Tuple(String, String)
+      @result = 0_u32
+      @count = config_val("count").to_i64
+      @size = config_val("size").to_i64
+    end
+
+    def prepare
+      @pairs = Distance.generate_pair_strings(@count, @size)
+    end
+
+    def ngram(s1 : String, s2 : String) : Float64
+      bytes1 = s1.bytes
+      bytes2 = s2.bytes
+      len1 = bytes1.size
+      len2 = bytes2.size
+
+      grams1 = Hash(UInt32, Int32).new(initial_capacity: len1) { 0 }
+
+      (0..len1 - 4).each do |i|
+        gram = (bytes1[i].to_u32 << 24) |
+               (bytes1[i + 1].to_u32 << 16) |
+               (bytes1[i + 2].to_u32 << 8) |
+               bytes1[i + 3].to_u32
+        grams1.update(gram, &.+(1))
+      end
+
+      grams2 = Hash(UInt32, Int32).new(initial_capacity: len2) { 0 }
+      intersection = 0
+
+      (0..len2 - 4).each do |i|
+        gram = (bytes2[i].to_u32 << 24) |
+               (bytes2[i + 1].to_u32 << 16) |
+               (bytes2[i + 2].to_u32 << 8) |
+               bytes2[i + 3].to_u32
+        grams2.update(gram, &.+(1))
+
+        if (v = grams1[gram]?) && grams2[gram] <= v
+          intersection += 1
+        end
+      end
+
+      total = grams1.size + grams2.size
+      total > 0 ? intersection.to_f / total : 0.0
+    end
+
+    def run(iteration_id)
+      @pairs.each do |(s1, s2)|
+        @result &+= (ngram(s1, s2) * 1000).to_u32
+      end
+    end
+
+    def checksum : UInt32
+      @result
+    end
+  end
+end
+
 File.write("/tmp/recompile_marker", "RECOMPILE_MARKER_0")

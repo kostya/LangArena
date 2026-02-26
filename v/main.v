@@ -31,6 +31,7 @@ import calculator
 import game_of_life
 import mazebench
 import compress
+import distance
 import json_benchmarks
 
 fn get_benchmark_factories() []benchmark.BenchmarkInfo {
@@ -181,6 +182,12 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		}},
 		benchmark.BenchmarkInfo{'Compress::LZWDecode', fn () &benchmark.IBenchmark {
 			return compress.new_lzwdecode()
+		}},
+		benchmark.BenchmarkInfo{'Distance::Jaro', fn () &benchmark.IBenchmark {
+			return distance.new_jaro()
+		}},
+		benchmark.BenchmarkInfo{'Distance::NGram', fn () &benchmark.IBenchmark {
+			return distance.new_ngram()
 		}},
 	]
 }

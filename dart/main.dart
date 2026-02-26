@@ -5163,6 +5163,192 @@ class LZWDecode extends Benchmark {
   }
 }
 
+List<(String, String)> generatePairStrings(int n, int m) {
+  var pairs = <(String, String)>[];
+  var chars = 'abcdefghij';
+
+  for (int i = 0; i < n; i++) {
+    int len1 = Helper.nextInt(m) + 4;
+    int len2 = Helper.nextInt(m) + 4;
+
+    var str1 = StringBuffer();
+    var str2 = StringBuffer();
+
+    for (int j = 0; j < len1; j++) {
+      str1.write(chars[Helper.nextInt(10)]);
+    }
+    for (int j = 0; j < len2; j++) {
+      str2.write(chars[Helper.nextInt(10)]);
+    }
+
+    pairs.add((str1.toString(), str2.toString()));
+  }
+
+  return pairs;
+}
+
+class Jaro extends Benchmark {
+  late int count;
+  late int size;
+  late List<(String, String)> pairs;
+  int resultVal = 0;
+
+  Jaro() {
+    count = Helper.configI64(benchmarkName, 'count').toInt();
+    size = Helper.configI64(benchmarkName, 'size').toInt();
+  }
+
+  @override
+  String get benchmarkName => 'Distance::Jaro';
+
+  @override
+  void prepare() {
+    pairs = generatePairStrings(count, size);
+    resultVal = 0;
+  }
+
+  double jaro(String s1, String s2) {
+    final bytes1 = s1.codeUnits;
+    final bytes2 = s2.codeUnits;
+
+    int len1 = bytes1.length;
+    int len2 = bytes2.length;
+
+    if (len1 == 0 || len2 == 0) return 0.0;
+
+    int matchDist = (len1 > len2 ? len1 : len2) ~/ 2 - 1;
+    if (matchDist < 0) matchDist = 0;
+
+    var s1Matches = List<bool>.filled(len1, false);
+    var s2Matches = List<bool>.filled(len2, false);
+
+    int matches = 0;
+    for (int i = 0; i < len1; i++) {
+      int start = i > matchDist ? i - matchDist : 0;
+      int end = (len2 - 1) < (i + matchDist) ? len2 - 1 : i + matchDist;
+
+      for (int j = start; j <= end; j++) {
+        if (!s2Matches[j] && bytes1[i] == bytes2[j]) {
+          s1Matches[i] = true;
+          s2Matches[j] = true;
+          matches++;
+          break;
+        }
+      }
+    }
+
+    if (matches == 0) return 0.0;
+
+    int transpositions = 0;
+    int k = 0;
+    for (int i = 0; i < len1; i++) {
+      if (s1Matches[i]) {
+        while (k < len2 && !s2Matches[k]) {
+          k++;
+        }
+        if (k < len2) {
+          if (bytes1[i] != bytes2[k]) {
+            transpositions++;
+          }
+          k++;
+        }
+      }
+    }
+    transpositions = transpositions ~/ 2;
+
+    double m = matches.toDouble();
+    return (m / len1 + m / len2 + (m - transpositions) / m) / 3.0;
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    for (var pair in pairs) {
+      resultVal =
+          (resultVal + (jaro(pair.$1, pair.$2) * 1000).toInt()) & 0xFFFFFFFF;
+    }
+  }
+
+  @override
+  int checksum() {
+    return resultVal;
+  }
+}
+
+class NGram extends Benchmark {
+  late int count;
+  late int size;
+  late List<(String, String)> pairs;
+  int resultVal = 0;
+  static const int N = 4;
+
+  NGram() {
+    count = Helper.configI64(benchmarkName, 'count').toInt();
+    size = Helper.configI64(benchmarkName, 'size').toInt();
+  }
+
+  @override
+  String get benchmarkName => 'Distance::NGram';
+
+  @override
+  void prepare() {
+    pairs = generatePairStrings(count, size);
+    resultVal = 0;
+  }
+
+  double ngram(String s1, String s2) {
+    if (s1.length < N || s2.length < N) return 0.0;
+
+    final bytes1 = s1.codeUnits;
+    final bytes2 = s2.codeUnits;
+
+    var grams1 = <int, int>{};
+
+    for (int i = 0; i <= bytes1.length - N; i++) {
+      int gram =
+          (bytes1[i] << 24) |
+          (bytes1[i + 1] << 16) |
+          (bytes1[i + 2] << 8) |
+          bytes1[i + 3];
+
+      grams1[gram] = (grams1[gram] ?? 0) + 1;
+    }
+
+    var grams2 = <int, int>{};
+    int intersection = 0;
+
+    for (int i = 0; i <= bytes2.length - N; i++) {
+      int gram =
+          (bytes2[i] << 24) |
+          (bytes2[i + 1] << 16) |
+          (bytes2[i + 2] << 8) |
+          bytes2[i + 3];
+
+      grams2[gram] = (grams2[gram] ?? 0) + 1;
+
+      var count1 = grams1[gram];
+      if (count1 != null && grams2[gram]! <= count1) {
+        intersection++;
+      }
+    }
+
+    int total = grams1.length + grams2.length;
+    return total > 0 ? intersection / total : 0.0;
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    for (var pair in pairs) {
+      resultVal =
+          (resultVal + (ngram(pair.$1, pair.$2) * 1000).toInt()) & 0xFFFFFFFF;
+    }
+  }
+
+  @override
+  int checksum() {
+    return resultVal;
+  }
+}
+
 bool listEquals(List? a, List? b) {
   if (a == null) return b == null;
   if (b == null || a.length != b.length) return false;
@@ -5228,6 +5414,8 @@ void registerBenchmarks() {
   Benchmark.registerBenchmark('Compress::ArithDecode', () => ArithDecode());
   Benchmark.registerBenchmark('Compress::LZWEncode', () => LZWEncode());
   Benchmark.registerBenchmark('Compress::LZWDecode', () => LZWDecode());
+  Benchmark.registerBenchmark('Distance::Jaro', () => Jaro());
+  Benchmark.registerBenchmark('Distance::NGram', () => NGram());
 }
 
 Future<void> main(List<String> args) async {

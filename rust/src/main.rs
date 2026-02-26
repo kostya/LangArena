@@ -183,6 +183,10 @@ fn run_benchmarks(single_bench: Option<&str>) {
         Compress_ArithDecode: benchmarks::compress::ArithDecode,
         Compress_LZWEncode: benchmarks::compress::LZWEncode,
         Compress_LZWDecode: benchmarks::compress::LZWDecode,
+
+        Distance_Jaro: benchmarks::distance::Jaro,
+        Distance_NGram: benchmarks::distance::NGram,
+
     ];
 
     let mut results = HashMap::new();

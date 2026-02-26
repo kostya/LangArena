@@ -56,6 +56,8 @@ fun main(args: Array<String>) {
     Benchmark.registerBenchmark("Compress::ArithDecode") { ArithDecode() }
     Benchmark.registerBenchmark("Compress::LZWEncode") { LZWEncode() }
     Benchmark.registerBenchmark("Compress::LZWDecode") { LZWDecode() }
+    Benchmark.registerBenchmark("Distance::Jaro") { Distance.Jaro() }
+    Benchmark.registerBenchmark("Distance::NGram") { Distance.NGram() }
 
     val now = Instant.now().toEpochMilli()
     println("start: $now")

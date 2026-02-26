@@ -154,6 +154,10 @@ public abstract class Benchmark
             CreateBenchmarkInfo<ArithDecode>("Compress::ArithDecode"),
             CreateBenchmarkInfo<LZWEncode>("Compress::LZWEncode"),
             CreateBenchmarkInfo<LZWDecode>("Compress::LZWDecode"),
+
+            CreateBenchmarkInfo<Jaro>("Distance::Jaro"),
+            CreateBenchmarkInfo<NGram>("Distance::NGram"),
+
         };
     }
 
