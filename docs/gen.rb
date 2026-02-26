@@ -85,10 +85,8 @@ class Gen
     <br>
     <strong>Important:</strong> The reported time represents <strong>pure benchmark execution time only</strong>. For JIT-based languages (Java, C#, JavaScript, Julia), a dedicated warmup phase was performed before timing to ensure fair comparison and eliminate JIT compilation overhead from measurements.<br>
     <br>
-    <strong>Matmul1T</strong> — single-threaded naive matrix multiplication.<br>
-    <strong>Matmul4T/8T/16T</strong> — multi-threaded versions (4/8/16 threads).<br>
-    <br>
-    <strong>Note:</strong> Julia shows inconsistent performance in <strong>Matmul1T/4T/8T/16T</strong> tests - excellent on Apple M1 but poor on AMD Ryzen 3800x. This suggests architecture-specific optimization differences in Julia's code generation and thread scheduling.<br>
+    <strong>Matmul::Single</strong> — single-threaded naive matrix multiplication.<br>
+    <strong>Matmul::T4/T8/T16</strong> — multi-threaded versions (4/8/16 threads).<br>
     <br>
     Heatmap visualization: greener = faster, redder = slower (relative performance within each benchmark).
     DESC

@@ -1,7 +1,7 @@
 ## LangArena: A Balanced Programming Language Benchmark Suite
 ---
 
-**LangArena** is a collection of **41 diverse benchmarks** designed for a **realistic, apples-to-apples comparison** of programming language performance. The goal is not to find the ultimate winner in micro-optimizations, but to evaluate how well each language's compiler or runtime optimizes clean and readable code.
+**LangArena** is a collection of **50+ diverse benchmarks** designed for a **realistic, apples-to-apples comparison** of programming language performance. The goal is not to find the ultimate winner in micro-optimizations, but to evaluate how well each language's compiler or runtime optimizes clean and readable code.
 
 ### Results Page
 
@@ -21,11 +21,11 @@ Not all algorithms could be implemented identically across all languages — sim
 
 ### Core Philosophy
 
-*   **Realistic Code:** Benchmarks reflect how an average developer would solve a problem, using standard libraries and idiomatic constructs.
+*   **Clean Code**: Benchmarks are written in a clear, idiomatic style that prioritizes readability and maintainability.
 *   **Algorithmic Consistency:** The same core algorithm is implemented across all languages for each task to ensure a fair comparison.
 *   **No "Hacks":** Low-level tricks, impractical compiler flags (e.g., bounds check disabling), or non-standard libraries are intentionally avoided.
+*   **Testing Language "Muscle":** We measure the **cost of abstractions**. Can a language take clean, idiomatic code and optimize it to efficient machine code? Languages that can (like Rust, Java) prove their compilers are powerful. Languages that can't show the honest price of their abstractions. Benchmarks like matrix multiplication use **naive implementations** intentionally. We're not measuring how fast a language can call a C library (like BLAS via numpy), but how efficiently it handles fundamental computational patterns — because one day you'll have to write that loop yourself.
 *   **Pull Requests Welcome:** While consistency is key, improvements that maintain the philosophy and fix suboptimal implementations are encouraged.
-* **Testing Language "Muscle"**: We measure the **cost of abstractions**. Can a language take clean, idiomatic code and optimize it to efficient machine code? Languages that can (like Rust, Java) prove their compilers are powerful. Languages that can't show the honest price of their abstractions. Benchmarks like matrix multiplication use **naive implementations** intentionally. We're not measuring how fast a language can call a C library (like BLAS via numpy), but how efficiently it handles fundamental computational patterns — because one day you'll have to write that loop yourself.
 
 ### Benchmarking Methodology
 

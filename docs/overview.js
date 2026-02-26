@@ -162,7 +162,7 @@ function overview_tab($results) {
 
 <h1>LangArena: A Balanced Programming Language Benchmark Suite</h1>
 
-<p><strong>LangArena</strong> is a collection of <span class="highlight">41 diverse benchmarks</span> designed for a <span class="highlight">realistic, apples-to-apples comparison</span> of programming language performance. The goal is not to find the ultimate winner in micro-optimizations, but to evaluate how well each language's compiler or runtime optimizes clean and readable code.</p>
+<p><strong>LangArena</strong> is a collection of <span class="highlight">50+ diverse benchmarks</span> designed for a <span class="highlight">realistic, apples-to-apples comparison</span> of programming language performance. The goal is not to find the ultimate winner in micro-optimizations, but to evaluate how well each language's compiler or runtime optimizes clean and readable code.</p>
 
 <h2>Origin & Approach</h2>
 
@@ -182,11 +182,11 @@ function overview_tab($results) {
 <h2>Core Philosophy</h2>
 
 <ul class="philosophy-list">
-  <li><strong>Realistic Code:</strong> Benchmarks reflect how an average developer would solve a problem, using standard libraries and idiomatic constructs.</li>
+  <li><strong>Clean Code:</strong> Benchmarks are written in a clear, idiomatic style that prioritizes readability and maintainability.</li>
   <li><strong>Algorithmic Consistency:</strong> The same core algorithm is implemented across all languages for each task to ensure a fair comparison.</li>
   <li><strong>No "Hacks":</strong> Low-level tricks, impractical compiler flags (e.g., bounds check disabling), or non-standard libraries are intentionally avoided.</li>
+  <li><strong>Testing Language "Muscle":</strong> We measure the **cost of abstractions**. Can a language take clean, idiomatic code and optimize it to efficient machine code? Languages that can (like Rust, Java) prove their compilers are powerful. Languages that can't show the honest price of their abstractions. Benchmarks like matrix multiplication use **naive implementations** intentionally. We're not measuring how fast a language can call a C library (like BLAS via numpy), but how efficiently it handles fundamental computational patterns — because one day you'll have to write that loop yourself.</li>
   <li><strong>Pull Requests Welcome:</strong> While consistency is key, improvements that maintain the philosophy and fix suboptimal implementations are encouraged.</li>
-  <li><strong>Testing Language "Muscle":</strong> We measure the <strong>cost of abstractions</strong>. Can a language take clean, idiomatic code and optimize it to efficient machine code? Languages that can (like Rust, Java) prove their compilers are powerful. Languages that can't show the honest price of their abstractions. Benchmarks like matrix multiplication use <strong>naive implementations</strong> intentionally. We're not measuring how fast a language can call a C library (like BLAS via numpy), but how efficiently it handles fundamental computational patterns — because one day you'll have to write that loop yourself.</li>
 </ul>
 
 <h2>Benchmarking Methodology</h2>
