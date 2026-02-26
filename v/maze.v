@@ -332,7 +332,7 @@ fn (mut b MazeBFS) bfs(start &Cell, target &Cell) []&Cell {
 
 			if is_walkable(neighbor.kind) && !visited[neighbor.y][neighbor.x] {
 				visited[neighbor.y][neighbor.x] = true
-				queue << PathNode{neighbor, path_id}  // parent = path_id!
+				queue << PathNode{neighbor, path_id}
 			}
 		}
 	}
