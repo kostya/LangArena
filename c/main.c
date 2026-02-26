@@ -3497,404 +3497,84 @@ Benchmark *Base64Decode_create(void) {
   return bench;
 }
 
-typedef struct PrimesNode {
-  struct PrimesNode *children[10];
-  bool terminal;
-} PrimesNode;
-
-typedef struct {
-  PrimesNode **node_pool;
-  size_t pool_size;
-  size_t pool_capacity;
-  PrimesNode *root;
-} PrimesTrie;
-
 typedef struct {
   int64_t limit;
-  int64_t prefix_val;
-  uint32_t result_val;
-} PrimesData;
+  uint32_t checksum;
+} SieveData;
 
-static PrimesNode *primes_node_create(PrimesTrie *trie) {
-  if (trie->pool_size >= trie->pool_capacity) {
-    size_t new_capacity = trie->pool_capacity * 2;
-    if (new_capacity < 64)
-      new_capacity = 64;
-
-    PrimesNode **new_pool =
-        realloc(trie->node_pool, new_capacity * sizeof(PrimesNode *));
-    if (!new_pool)
-      return NULL;
-
-    trie->node_pool = new_pool;
-    trie->pool_capacity = new_capacity;
-  }
-
-  PrimesNode *node = malloc(sizeof(PrimesNode));
-  if (!node)
-    return NULL;
-
-  memset(node->children, 0, sizeof(node->children));
-  node->terminal = false;
-
-  trie->node_pool[trie->pool_size++] = node;
-  return node;
-}
-
-static PrimesTrie *primes_trie_create(void) {
-  PrimesTrie *trie = malloc(sizeof(PrimesTrie));
-  if (!trie)
-    return NULL;
-
-  trie->node_pool = NULL;
-  trie->pool_size = 0;
-  trie->pool_capacity = 0;
-
-  trie->root = primes_node_create(trie);
-  if (!trie->root) {
-    free(trie);
-    return NULL;
-  }
-
-  return trie;
-}
-
-static bool primes_trie_insert(PrimesTrie *trie, int number) {
-  if (number < 0)
-    return false;
-
-  char buffer[12];
-  char *end = buffer + sizeof(buffer) - 1;
-  *end = '\0';
-
-  int n = number;
-  if (n == 0) {
-    *--end = '0';
-  } else {
-    do {
-      *--end = '0' + (n % 10);
-      n /= 10;
-    } while (n > 0);
-  }
-
-  PrimesNode *current = trie->root;
-  const char *digit_ptr = end;
-
-  while (*digit_ptr) {
-    int digit = *digit_ptr - '0';
-
-    if (digit < 0 || digit > 9)
-      return false;
-
-    if (!current->children[digit]) {
-      current->children[digit] = primes_node_create(trie);
-      if (!current->children[digit])
-        return false;
-    }
-    current = current->children[digit];
-    digit_ptr++;
-  }
-
-  current->terminal = true;
-  return true;
-}
-
-static void primes_trie_free(PrimesTrie *trie) {
-  if (!trie)
-    return;
-
-  for (size_t i = 0; i < trie->pool_size; i++) {
-    free(trie->node_pool[i]);
-  }
-
-  free(trie->node_pool);
-  free(trie);
-}
-
-static int *primes_generate(int64_t limit, int *count) {
+static int *sieve_generate(int64_t limit, int *count) {
   if (limit < 2) {
     *count = 0;
     return NULL;
   }
 
-  size_t sieve_size = (size_t)(limit / 2);
-  unsigned char *is_prime = malloc(sieve_size);
-  if (!is_prime) {
-    *count = 0;
+  uint8_t *primes = malloc((limit + 1) * sizeof(uint8_t));
+  if (!primes)
     return NULL;
-  }
 
-  memset(is_prime, 1, sieve_size);
+  memset(primes, 1, (limit + 1) * sizeof(uint8_t));
+  primes[0] = 0;
+  primes[1] = 0;
 
   int sqrt_limit = (int)sqrt((double)limit);
 
-  for (int64_t i = 3; i <= sqrt_limit; i += 2) {
-    size_t idx = (size_t)(i / 2);
-    if (is_prime[idx]) {
+  for (int p = 2; p <= sqrt_limit; p++) {
+    if (primes[p] == 1) {
 
-      for (int64_t j = i * i; j <= limit; j += 2 * i) {
-        size_t j_idx = (size_t)(j / 2);
-        is_prime[j_idx] = 0;
+      for (int multiple = p * p; multiple <= limit; multiple += p) {
+        primes[multiple] = 0;
       }
     }
   }
 
-  int prime_count = 1;
-  for (size_t i = 1; i < sieve_size; i++) {
-    if (is_prime[i])
-      prime_count++;
-  }
+  int last_prime = 2;
+  int count_primes = 1;
 
-  int *primes = malloc(prime_count * sizeof(int));
-  if (!primes) {
-    free(is_prime);
-    *count = 0;
-    return NULL;
-  }
-
-  primes[0] = 2;
-  int index = 1;
-  for (size_t i = 1; i < sieve_size; i++) {
-    if (is_prime[i]) {
-      primes[index++] = (int)(2 * i + 1);
+  for (int n = 3; n <= limit; n += 2) {
+    if (primes[n] == 1) {
+      last_prime = n;
+      count_primes++;
     }
   }
 
-  free(is_prime);
-  *count = prime_count;
-  return primes;
+  free(primes);
+
+  *count = last_prime + count_primes;
+  return NULL;
 }
 
-typedef struct {
-  PrimesNode *node;
-  int number;
-} PrimesQueueItem;
-
-static int *primes_find_with_prefix(PrimesTrie *trie, int prefix,
-                                    int *result_count) {
-  *result_count = 0;
-
-  if (!trie || !trie->root)
-    return NULL;
-
-  char prefix_str[12];
-  char *end = prefix_str + sizeof(prefix_str) - 1;
-  *end = '\0';
-
-  if (prefix == 0) {
-    *--end = '0';
-  } else {
-    int n = prefix;
-    do {
-      *--end = '0' + (n % 10);
-      n /= 10;
-    } while (n > 0);
-  }
-
-  PrimesNode *current = trie->root;
-  const char *digit_ptr = end;
-
-  while (*digit_ptr) {
-    int digit = *digit_ptr - '0';
-
-    if (!current->children[digit]) {
-      return NULL;
-    }
-    current = current->children[digit];
-    digit_ptr++;
-  }
-
-  size_t queue_capacity = 65536;
-  PrimesQueueItem *queue = malloc(queue_capacity * sizeof(PrimesQueueItem));
-  if (!queue)
-    return NULL;
-
-  size_t results_capacity = 65536;
-  int *results = malloc(results_capacity * sizeof(int));
-  if (!results) {
-    free(queue);
-    return NULL;
-  }
-
-  int queue_front = 0, queue_back = 0;
-  int found_count = 0;
-
-  queue[queue_back++] = (PrimesQueueItem){current, prefix};
-
-  while (queue_front < queue_back) {
-    PrimesQueueItem current_item = queue[queue_front++];
-
-    if (current_item.node->terminal) {
-      if (found_count >= (int)results_capacity) {
-        results_capacity *= 2;
-        int *new_results = realloc(results, results_capacity * sizeof(int));
-        if (!new_results) {
-          free(queue);
-          free(results);
-          return NULL;
-        }
-        results = new_results;
-      }
-      results[found_count++] = current_item.number;
-    }
-
-    for (int digit = 0; digit < 10; digit++) {
-      if (current_item.node->children[digit]) {
-        if (queue_back >= (int)queue_capacity) {
-          queue_capacity *= 2;
-          PrimesQueueItem *new_queue =
-              realloc(queue, queue_capacity * sizeof(PrimesQueueItem));
-          if (!new_queue) {
-            free(queue);
-            free(results);
-            return NULL;
-          }
-          queue = new_queue;
-        }
-
-        if (current_item.number <= INT_MAX / 10) {
-          queue[queue_back++] =
-              (PrimesQueueItem){current_item.node->children[digit],
-                                current_item.number * 10 + digit};
-        }
-      }
-    }
-  }
-
-  free(queue);
-
-  if (found_count == 0) {
-    free(results);
-    return NULL;
-  }
-
-  if (found_count > 1) {
-
-    int *stack = malloc(found_count * 2 * sizeof(int));
-    if (stack) {
-      int top = -1;
-      int low = 0;
-      int high = found_count - 1;
-
-      stack[++top] = low;
-      stack[++top] = high;
-
-      while (top >= 0) {
-
-        high = stack[top--];
-        low = stack[top--];
-
-        int pivot = results[high];
-        int i = low - 1;
-
-        for (int j = low; j < high; j++) {
-          if (results[j] <= pivot) {
-            i++;
-
-            int temp = results[i];
-            results[i] = results[j];
-            results[j] = temp;
-          }
-        }
-
-        int pi = i + 1;
-        int temp = results[pi];
-        results[pi] = results[high];
-        results[high] = temp;
-
-        if (pi - 1 > low) {
-          stack[++top] = low;
-          stack[++top] = pi - 1;
-        }
-
-        if (pi + 1 < high) {
-          stack[++top] = pi + 1;
-          stack[++top] = high;
-        }
-      }
-      free(stack);
-    }
-  }
-
-  if (found_count > 0) {
-    int *resized = realloc(results, found_count * sizeof(int));
-    if (resized) {
-      results = resized;
-    }
-  }
-
-  *result_count = found_count;
-  return results;
-}
-
-void Primes_prepare(Benchmark *self) {
-  PrimesData *data = (PrimesData *)self->data;
-
+void Sieve_prepare(Benchmark *self) {
+  SieveData *data = (SieveData *)self->data;
   data->limit = Helper_config_i64(self->name, "limit");
   if (data->limit <= 0)
-    data->limit = 5000000;
-
-  data->prefix_val = Helper_config_i64(self->name, "prefix");
-  if (data->prefix_val < 0)
-    data->prefix_val = 32338;
-
-  data->result_val = 5432;
+    data->limit = 1000000;
+  data->checksum = 0;
 }
 
-void Primes_run(Benchmark *self, int iteration_id) {
-  PrimesData *data = (PrimesData *)self->data;
+void Sieve_run(Benchmark *self, int iteration_id) {
+  SieveData *data = (SieveData *)self->data;
 
-  uint32_t current_result = 0;
+  int sum;
+  sieve_generate(data->limit, &sum);
 
-  int prime_count;
-  int *primes = primes_generate(data->limit, &prime_count);
-
-  if (primes && prime_count > 0) {
-
-    PrimesTrie *trie = primes_trie_create();
-    if (trie) {
-      for (int i = 0; i < prime_count; i++) {
-        primes_trie_insert(trie, primes[i]);
-      }
-
-      int result_count;
-      int *results =
-          primes_find_with_prefix(trie, (int)data->prefix_val, &result_count);
-
-      if (results) {
-        current_result += (uint32_t)result_count;
-
-        for (int i = 0; i < result_count; i++) {
-          current_result += (uint32_t)results[i];
-        }
-        free(results);
-      }
-
-      primes_trie_free(trie);
-    }
-
-    free(primes);
-  }
-
-  data->result_val += current_result;
+  data->checksum += (uint32_t)sum;
 }
 
-uint32_t Primes_checksum(Benchmark *self) {
-  PrimesData *data = (PrimesData *)self->data;
-  return data->result_val;
+uint32_t Sieve_checksum(Benchmark *self) {
+  SieveData *data = (SieveData *)self->data;
+  return data->checksum;
 }
 
-Benchmark *Primes_create(void) {
-  Benchmark *bench = Benchmark_create("Etc::Primes");
+Benchmark *Sieve_create(void) {
+  Benchmark *bench = Benchmark_create("Etc::Sieve");
 
-  PrimesData *data = malloc(sizeof(PrimesData));
-  memset(data, 0, sizeof(PrimesData));
+  SieveData *data = malloc(sizeof(SieveData));
+  memset(data, 0, sizeof(SieveData));
 
   bench->data = data;
-
-  bench->prepare = Primes_prepare;
-  bench->run = Primes_run;
-  bench->checksum = Primes_checksum;
+  bench->prepare = Sieve_prepare;
+  bench->run = Sieve_run;
+  bench->checksum = Sieve_checksum;
 
   return bench;
 }
@@ -9646,7 +9326,7 @@ void register_all_benchmarks(void) {
   Benchmark_register("Json::Generate", JsonGenerate_create);
   Benchmark_register("Json::ParseDom", JsonParseDom_create);
   Benchmark_register("Json::ParseMapping", JsonParseMapping_create);
-  Benchmark_register("Etc::Primes", Primes_create);
+  Benchmark_register("Etc::Sieve", Sieve_create);
   Benchmark_register("Etc::Noise", Noise_create);
   Benchmark_register("Etc::TextRaytracer", TextRaytracer_create);
   Benchmark_register("Etc::NeuralNet", NeuralNet_create);

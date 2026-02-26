@@ -30,7 +30,7 @@ import benchmarks.nbody;
 import benchmarks.spectralnorm;
 import benchmarks.base64encode;
 import benchmarks.base64decode;
-import benchmarks.primes;
+import benchmarks.sieve;
 import benchmarks.noise;
 import benchmarks.textraytracer;
 import benchmarks.neuralnet;
@@ -57,7 +57,7 @@ mixin(registerAllBenchmarks!("CLBG::Pidigits", Pidigits, "Binarytrees::Obj",
         "CLBG::Spectralnorm", Spectralnorm, "Base64::Encode",
         Base64Encode, "Base64::Decode", Base64Decode, "Json::Generate",
         JsonGenerate, "Json::ParseDom", JsonParseDom, "Json::ParseMapping",
-        JsonParseMapping, "Etc::Primes", Primes, "Etc::Noise", Noise,
+        JsonParseMapping, "Etc::Sieve", Sieve, "Etc::Noise", Noise,
         "Etc::TextRaytracer", TextRaytracer, "Etc::NeuralNet", NeuralNet,
         "Sort::Quick", SortQuick, "Sort::Merge", SortMerge, "Sort::Self",
         SortSelf, "Graph::BFS", GraphPathBFS, "Graph::DFS",

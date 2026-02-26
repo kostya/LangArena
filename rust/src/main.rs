@@ -150,7 +150,7 @@ fn run_benchmarks(single_bench: Option<&str>) {
         Json_ParseDom: benchmarks::json_parse_dom::JsonParseDom,
         Json_ParseMapping: benchmarks::json_parse_mapping::JsonParseMapping,
 
-        Etc_Primes: benchmarks::primes::Primes,
+        Etc_Sieve: benchmarks::sieve::Sieve,
         Etc_Noise: benchmarks::noise::Noise,
         Etc_TextRaytracer: benchmarks::text_raytracer::TextRaytracer,
         Etc_NeuralNet: benchmarks::neural_net::NeuralNet,
@@ -186,7 +186,6 @@ fn run_benchmarks(single_bench: Option<&str>) {
 
         Distance_Jaro: benchmarks::distance::Jaro,
         Distance_NGram: benchmarks::distance::NGram,
-
     ];
 
     let mut results = HashMap::new();

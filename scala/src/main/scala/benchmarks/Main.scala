@@ -29,7 +29,7 @@ object Main:
     Benchmark.registerBenchmark("Json::Generate", () => new JsonGenerate())
     Benchmark.registerBenchmark("Json::ParseDom", () => new JsonParseDom())
     Benchmark.registerBenchmark("Json::ParseMapping", () => new JsonParseMapping())
-    Benchmark.registerBenchmark("Etc::Primes", () => new Primes())
+    Benchmark.registerBenchmark("Etc::Sieve", () => new Sieve())
     Benchmark.registerBenchmark("Etc::Noise", () => new Noise())
     Benchmark.registerBenchmark("Etc::TextRaytracer", () => new TextRaytracer())
     Benchmark.registerBenchmark("Etc::NeuralNet", () => new NeuralNet())

@@ -1843,141 +1843,47 @@ public:
   uint32_t checksum() override { return result_val; }
 };
 
-class Primes : public Benchmark {
+class Sieve : public Benchmark {
 private:
-  struct Node {
-    std::array<std::unique_ptr<Node>, 10> children;
-    bool is_terminal;
-
-    Node() : is_terminal(false) {}
-
-    Node(const Node &) = delete;
-    Node &operator=(const Node &) = delete;
-
-    Node(Node &&) = default;
-    Node &operator=(Node &&) = default;
-
-    ~Node() = default;
-  };
-
-  static std::vector<int> generate_primes(int limit) {
-    if (limit < 2)
-      return {};
-
-    std::vector<bool> is_prime(limit + 1, true);
-    is_prime[0] = is_prime[1] = false;
-
-    const int sqrt_limit = static_cast<int>(std::sqrt(limit));
-
-    for (int p = 2; p <= sqrt_limit; ++p) {
-      if (is_prime[p]) {
-        for (int multiple = p * p; multiple <= limit; multiple += p) {
-          is_prime[multiple] = false;
-        }
-      }
-    }
-
-    std::vector<int> primes;
-    primes.reserve(static_cast<size_t>(limit / (std::log(limit) - 1.1)));
-
-    using namespace std::views;
-    auto prime_numbers =
-        iota(2, limit + 1) | filter([&is_prime](int n) { return is_prime[n]; });
-
-    std::ranges::copy(prime_numbers, std::back_inserter(primes));
-
-    return primes;
-  }
-
-  static std::unique_ptr<Node> build_trie(const std::vector<int> &primes) {
-    auto root = std::make_unique<Node>();
-
-    for (int prime : primes) {
-      Node *current = root.get();
-      std::string digits = std::to_string(prime);
-
-      for (char digit_char : digits) {
-        int digit = digit_char - '0';
-
-        if (!current->children[digit]) {
-          current->children[digit] = std::make_unique<Node>();
-        }
-        current = current->children[digit].get();
-      }
-      current->is_terminal = true;
-    }
-
-    return root;
-  }
-
-  static std::vector<int>
-  find_primes_with_prefix(const std::unique_ptr<Node> &trie_root, int prefix) {
-    std::string prefix_str = std::to_string(prefix);
-
-    const Node *current = trie_root.get();
-    for (char digit_char : prefix_str) {
-      int digit = digit_char - '0';
-
-      if (!current->children[digit]) {
-        return {};
-      }
-      current = current->children[digit].get();
-    }
-
-    std::vector<int> results;
-
-    struct QueueItem {
-      const Node *node;
-      int number;
-    };
-
-    std::queue<QueueItem> bfs_queue;
-    bfs_queue.push({current, prefix});
-
-    while (!bfs_queue.empty()) {
-      auto [node, number] = bfs_queue.front();
-      bfs_queue.pop();
-
-      if (node->is_terminal) {
-        results.push_back(number);
-      }
-
-      for (int digit = 0; digit < 10; ++digit) {
-        if (node->children[digit]) {
-          bfs_queue.push({node->children[digit].get(), number * 10 + digit});
-        }
-      }
-    }
-
-    std::ranges::sort(results);
-    return results;
-  }
-
-  int64_t n;
-  int64_t prefix;
-  uint32_t result_val;
+  int64_t limit;
+  uint32_t checksum_val;
 
 public:
-  Primes() : n(config_val("limit")), result_val(5432) {
-    prefix = config_val("prefix");
-  }
+  Sieve() : limit(config_val("limit")), checksum_val(0) {}
 
-  std::string name() const override { return "Etc::Primes"; }
+  std::string name() const override { return "Etc::Sieve"; }
 
   void run(int iteration_id) override {
-    auto primes = generate_primes(static_cast<int>(n));
+    size_t sz = static_cast<size_t>(limit);
+    std::vector<uint8_t> primes(sz + 1, 1);
+    primes[0] = 0;
+    primes[1] = 0;
 
-    auto trie = build_trie(primes);
+    size_t sqrt_limit =
+        static_cast<size_t>(std::sqrt(static_cast<double>(limit)));
 
-    auto results = find_primes_with_prefix(trie, static_cast<int>(prefix));
-
-    result_val += static_cast<uint32_t>(results.size());
-    for (int prime : results) {
-      result_val += static_cast<uint32_t>(prime);
+    for (size_t p = 2; p <= sqrt_limit; ++p) {
+      if (primes[p] == 1) {
+        for (size_t multiple = p * p; multiple <= sz; multiple += p) {
+          primes[multiple] = 0;
+        }
+      }
     }
+
+    int last_prime = 2;
+    int count = 1;
+
+    for (size_t n = 3; n <= sz; n += 2) {
+      if (primes[n] == 1) {
+        last_prime = static_cast<int>(n);
+        count++;
+      }
+    }
+
+    checksum_val += static_cast<uint32_t>(last_prime + count);
   }
 
-  uint32_t checksum() override { return result_val; }
+  uint32_t checksum() override { return checksum_val; }
 };
 
 class Noise : public Benchmark {
@@ -5141,7 +5047,7 @@ void Benchmark::all(const std::string &single_bench) {
           {"Json::ParseDom", []() { return std::make_unique<JsonParseDom>(); }},
           {"Json::ParseMapping",
            []() { return std::make_unique<JsonParseMapping>(); }},
-          {"Etc::Primes", []() { return std::make_unique<Primes>(); }},
+          {"Etc::Sieve", []() { return std::make_unique<Sieve>(); }},
           {"Etc::Noise", []() { return std::make_unique<Noise>(); }},
           {"Etc::TextRaytracer",
            []() { return std::make_unique<TextRaytracer>(); }},

@@ -32,7 +32,7 @@ main :: proc() {
     benchmark.register_benchmark_factory("Json::Generate", benchmark.create_jsongenerate)
     benchmark.register_benchmark_factory("Json::ParseDom", benchmark.create_jsonparsedom)
     benchmark.register_benchmark_factory("Json::ParseMapping", benchmark.create_jsonparsemapping)
-    benchmark.register_benchmark_factory("Etc::Primes", benchmark.create_primes)
+    benchmark.register_benchmark_factory("Etc::Sieve", benchmark.create_sieve)
     benchmark.register_benchmark_factory("Etc::Noise", benchmark.create_noise)
     benchmark.register_benchmark_factory("Etc::TextRaytracer", benchmark.create_textraytracer)
     benchmark.register_benchmark_factory("Etc::NeuralNet", benchmark.create_neuralnet)

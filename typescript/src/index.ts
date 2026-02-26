@@ -2278,126 +2278,54 @@ export class JsonParseMapping extends Benchmark {
   }
 }
 
-class PrimesNode {
-  children: (PrimesNode | null)[] = new Array(10).fill(null);
-  terminal: boolean = false;
-}
-
-export class Primes extends Benchmark {
-  private n: bigint;
-  private prefix: bigint;
-  private resultValue: number = 5432;
+export class Sieve extends Benchmark {
+  private limit: bigint;
+  private checksumValue: number = 0;
 
   constructor() {
     super();
-    this.n = Helper.configI64(this.name, "limit");
-    this.prefix = Helper.configI64(this.name, "prefix");
+    this.limit = Helper.configI64(this.name, "limit");
   }
 
-  private generatePrimes(limit: number): number[] {
-    if (limit < 2) return [];
-
-    const isPrime = new Array(limit + 1).fill(true);
-    isPrime[0] = isPrime[1] = false;
+  private generatePrimes(limit: number): void {
+    const primes = new Uint8Array(limit + 1);
+    primes.fill(1);
+    primes[0] = 0;
+    primes[1] = 0;
 
     const sqrtLimit = Math.floor(Math.sqrt(limit));
 
     for (let p = 2; p <= sqrtLimit; p++) {
-      if (isPrime[p]) {
+      if (primes[p] === 1) {
         for (let multiple = p * p; multiple <= limit; multiple += p) {
-          isPrime[multiple] = false;
+          primes[multiple] = 0;
         }
       }
     }
 
-    const estimatedSize = Math.floor(limit / (Math.log(limit) - 1.1));
-    const primes: number[] = [];
-    primes.length = estimatedSize;
-    let count = 0;
+    let lastPrime = 2;
+    let count = 1;
 
-    for (let i = 2; i <= limit; i++) {
-      if (isPrime[i]) {
-        primes[count++] = i;
+    for (let n = 3; n <= limit; n += 2) {
+      if (primes[n] === 1) {
+        lastPrime = n;
+        count++;
       }
     }
 
-    primes.length = count;
-    return primes;
-  }
-
-  private buildTrie(numbers: number[]): PrimesNode {
-    const root = new PrimesNode();
-
-    for (const num of numbers) {
-      let current = root;
-      const str = num.toString();
-
-      for (let i = 0; i < str.length; i++) {
-        const digit = str.charCodeAt(i) - 48;
-
-        if (current.children[digit] === null) {
-          current.children[digit] = new PrimesNode();
-        }
-        current = current.children[digit]!;
-      }
-      current.terminal = true;
-    }
-
-    return root;
-  }
-
-  private findPrimesWithPrefix(root: PrimesNode, prefix: number): number[] {
-    const prefixStr = prefix.toString();
-    let current = root;
-
-    for (let i = 0; i < prefixStr.length; i++) {
-      const digit = prefixStr.charCodeAt(i) - 48;
-      const next = current.children[digit];
-      if (next === null) {
-        return [];
-      }
-      current = next;
-    }
-
-    const results: number[] = [];
-    const queue: Array<[PrimesNode, number]> = [];
-    queue.push([current, prefix]);
-
-    while (queue.length > 0) {
-      const [node, number] = queue.shift()!;
-
-      if (node.terminal) {
-        results.push(number);
-      }
-
-      for (let digit = 0; digit < 10; digit++) {
-        const child = node.children[digit];
-        if (child !== null) {
-          queue.push([child, number * 10 + digit]);
-        }
-      }
-    }
-
-    results.sort((a, b) => a - b);
-    return results;
+    this.checksumValue = (this.checksumValue + lastPrime + count) & 0xffffffff;
   }
 
   run(_iteration_id: number): void {
-    const primes = this.generatePrimes(Number(this.n));
-    const trie = this.buildTrie(primes);
-    const results = this.findPrimesWithPrefix(trie, Number(this.prefix));
-
-    this.resultValue = (this.resultValue + results.length) & 0xffffffff;
-    for (const num of results) {
-      this.resultValue = (this.resultValue + num) & 0xffffffff;
-    }
+    this.generatePrimes(Number(this.limit));
   }
 
   checksum(): number {
-    return this.resultValue;
+    return this.checksumValue;
   }
+
   override get name(): string {
-    return "Etc::Primes";
+    return "Etc::Sieve";
   }
 }
 
@@ -5889,7 +5817,7 @@ Benchmark.registerBenchmark("Base64::Decode", Base64Decode);
 Benchmark.registerBenchmark("Json::Generate", JsonGenerate);
 Benchmark.registerBenchmark("Json::ParseDom", JsonParseDom);
 Benchmark.registerBenchmark("Json::ParseMapping", JsonParseMapping);
-Benchmark.registerBenchmark("Etc::Primes", Primes);
+Benchmark.registerBenchmark("Etc::Sieve", Sieve);
 Benchmark.registerBenchmark("Etc::Noise", Noise);
 Benchmark.registerBenchmark("Etc::TextRaytracer", TextRaytracer);
 Benchmark.registerBenchmark("Etc::NeuralNet", NeuralNet);

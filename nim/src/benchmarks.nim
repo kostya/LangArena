@@ -19,7 +19,7 @@ import benchmarks/base64decode
 import benchmarks/jsongenerate
 import benchmarks/jsonparsedom
 import benchmarks/jsonparsemapping
-import benchmarks/primes
+import benchmarks/sieve
 import benchmarks/noise
 import benchmarks/textraytracer
 import benchmarks/neuralnet

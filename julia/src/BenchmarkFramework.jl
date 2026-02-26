@@ -27,7 +27,7 @@ include("benchmarks/Spectralnorm.jl")
 include("benchmarks/Base64Encode.jl")
 include("benchmarks/Base64Decode.jl")
 include("benchmarks/Json.jl")
-include("benchmarks/Primes.jl")
+include("benchmarks/Sieve.jl")
 include("benchmarks/Noise.jl")
 include("benchmarks/TextRaytracer.jl")
 include("benchmarks/NeuralNet.jl")
@@ -64,7 +64,7 @@ const ALL_BENCHMARKS = [
     ("Json::Generate", JsonGenerate),
     ("Json::ParseDom", JsonParseDom),
     ("Json::ParseMapping", JsonParseMapping),
-    ("Etc::Primes", Primes),
+    ("Etc::Sieve", Sieve),
     ("Etc::Noise", Noise),
     ("Etc::TextRaytracer", TextRaytracer),
     ("Etc::NeuralNet", NeuralNet),

@@ -2061,127 +2061,54 @@ class JsonParseMapping extends Benchmark {
   String get benchmarkName => 'Json::ParseMapping';
 }
 
-class PrimesNode {
-  final List<PrimesNode?> children = List.filled(10, null);
-  bool terminal = false;
-}
-
-class Primes extends Benchmark {
-  late BigInt n;
-  late BigInt prefix;
-  int _resultValue = 5432;
+class Sieve extends Benchmark {
+  late BigInt limit;
+  int _checksum = 0;
 
   @override
   void prepare() {
-    n = Helper.configI64(benchmarkName, "limit");
-    prefix = Helper.configI64(benchmarkName, "prefix");
-  }
-
-  List<int> _generatePrimes(int limit) {
-    if (limit < 2) return [];
-
-    final isPrime = List<bool>.filled(limit + 1, true);
-    isPrime[0] = isPrime[1] = false;
-
-    final sqrtLimit = sqrt(limit).floor();
-
-    for (int p = 2; p <= sqrtLimit; p++) {
-      if (isPrime[p]) {
-        for (int multiple = p * p; multiple <= limit; multiple += p) {
-          isPrime[multiple] = false;
-        }
-      }
-    }
-
-    final estimatedSize = (limit / (log(limit) - 1.1)).floor();
-    final primes = Int32List(estimatedSize);
-    var count = 0;
-
-    for (int i = 2; i <= limit; i++) {
-      if (isPrime[i]) {
-        primes[count++] = i;
-      }
-    }
-
-    return primes.sublist(0, count);
-  }
-
-  PrimesNode _buildTrie(List<int> numbers) {
-    final root = PrimesNode();
-
-    for (final num in numbers) {
-      var current = root;
-      final str = num.toString();
-
-      for (int i = 0; i < str.length; i++) {
-        final digit = str.codeUnitAt(i) - 48;
-
-        if (current.children[digit] == null) {
-          current.children[digit] = PrimesNode();
-        }
-        current = current.children[digit]!;
-      }
-      current.terminal = true;
-    }
-
-    return root;
-  }
-
-  List<int> _findPrimesWithPrefix(PrimesNode root, int prefix) {
-    final prefixStr = prefix.toString();
-    var current = root;
-
-    for (int i = 0; i < prefixStr.length; i++) {
-      final digit = prefixStr.codeUnitAt(i) - 48;
-      final next = current.children[digit];
-      if (next == null) {
-        return [];
-      }
-      current = next;
-    }
-
-    final results = <int>[];
-    final queue = Queue<(PrimesNode, int)>();
-    queue.add((current, prefix));
-
-    while (queue.isNotEmpty) {
-      final (node, number) = queue.removeFirst();
-
-      if (node.terminal) {
-        results.add(number);
-      }
-
-      for (int digit = 0; digit < 10; digit++) {
-        final child = node.children[digit];
-        if (child != null) {
-          queue.add((child, number * 10 + digit));
-        }
-      }
-    }
-
-    results.sort();
-    return results;
+    limit = Helper.configI64(benchmarkName, "limit");
   }
 
   @override
   void runBenchmark(int iterationId) {
-    final primes = _generatePrimes(n.toInt());
-    final trie = _buildTrie(primes);
-    final results = _findPrimesWithPrefix(trie, prefix.toInt());
+    int lim = limit.toInt();
 
-    _resultValue = (_resultValue + results.length) & 0xFFFFFFFF;
-    for (final num in results) {
-      _resultValue = (_resultValue + num) & 0xFFFFFFFF;
+    final primes = Uint8List(lim + 1);
+    for (int i = 0; i <= lim; i++) primes[i] = 1;
+    primes[0] = 0;
+    primes[1] = 0;
+
+    int sqrtLimit = sqrt(lim).floor();
+
+    for (int p = 2; p <= sqrtLimit; p++) {
+      if (primes[p] == 1) {
+        for (int multiple = p * p; multiple <= lim; multiple += p) {
+          primes[multiple] = 0;
+        }
+      }
     }
+
+    int lastPrime = 2;
+    int count = 1;
+
+    for (int n = 3; n <= lim; n += 2) {
+      if (primes[n] == 1) {
+        lastPrime = n;
+        count++;
+      }
+    }
+
+    _checksum = (_checksum + lastPrime + count) & 0xFFFFFFFF;
   }
 
   @override
   int checksum() {
-    return _resultValue;
+    return _checksum;
   }
 
   @override
-  String get benchmarkName => 'Etc::Primes';
+  String get benchmarkName => 'Etc::Sieve';
 }
 
 class NoiseVec2 {
@@ -5384,7 +5311,7 @@ void registerBenchmarks() {
   Benchmark.registerBenchmark('Json::Generate', () => JsonGenerate());
   Benchmark.registerBenchmark('Json::ParseDom', () => JsonParseDom());
   Benchmark.registerBenchmark('Json::ParseMapping', () => JsonParseMapping());
-  Benchmark.registerBenchmark('Etc::Primes', () => Primes());
+  Benchmark.registerBenchmark('Etc::Sieve', () => Sieve());
   Benchmark.registerBenchmark('Etc::Noise', () => Noise());
   Benchmark.registerBenchmark('Etc::TextRaytracer', () => TextRaytracer());
   Benchmark.registerBenchmark('Etc::NeuralNet', () => NeuralNet());

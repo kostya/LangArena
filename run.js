@@ -68,11 +68,10 @@
     "coords": 25000,
     "iterations": 100
   },
-  "Etc::Primes": {
-    "checksum": 139698008,
+  "Etc::Sieve": {
+    "checksum": 270212460,
     "limit": 3000000,
-    "prefix": 3233,
-    "iterations": 40
+    "iterations": 70
   },
   "Etc::Noise": {
     "checksum": 1166030192,

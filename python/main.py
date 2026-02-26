@@ -1809,151 +1809,47 @@ class JsonParseMapping(Benchmark):
         return "Json::ParseMapping"
 
 
-class PrimesNode:
-
-    def __init__(self):
-        self.children: List[Optional['PrimesNode']] = [None] * 10
-        self.terminal: bool = False
-
-    def __getitem__(self, digit: int) -> Optional['PrimesNode']:
-        return self.children[digit]
-
-    def __setitem__(self, digit: int, node: 'PrimesNode'):
-        self.children[digit] = node
-
-
-class Sieve:
-
-    def __init__(self, limit: int):
-        self.limit = limit
-        self.prime = [True] * (limit + 1)
-        if limit >= 1:
-            self.prime[0] = self.prime[1] = False
-
-    def calculate(self) -> 'Sieve':
-
-        sqrt_limit = int(math.sqrt(self.limit))
-
-        for p in range(2, sqrt_limit + 1):
-            if self.prime[p]:
-                start = p * p
-                for multiple in range(start, self.limit + 1, p):
-                    self.prime[multiple] = False
-        return self
-
-    def to_list(self) -> List[int]:
-
-        if self.limit < 2:
-            return []
-
-        try:
-            capacity = int(self.limit / math.log(self.limit))
-        except:
-            capacity = self.limit // 10
-
-        result: List[int] = []
-
-        if self.limit >= 2:
-            result.append(2)
-
-        for p in range(3, self.limit + 1, 2):
-            if self.prime[p]:
-                result.append(p)
-
-        return result
-
-
-class Primes(Benchmark):
+class Sieve(Benchmark):
 
     def __init__(self):
         super().__init__()
-        self.n = 0
-        self.prefix = 0
-        self.result = 5432
+        self.limit = 0
+        self._checksum = 0
 
     def prepare(self):
-        self.n = Helper.config_i64(self.name(), "limit")
-        self.prefix = Helper.config_i64(self.name(), "prefix")
-
-    def _generate_trie(self, primes: List[int]) -> PrimesNode:
-
-        root = PrimesNode()
-
-        for prime in primes:
-            node = root
-            temp = prime
-            digits: List[int] = []
-
-            while temp > 0:
-                digits.append(temp % 10)
-                temp //= 10
-            digits.reverse()
-
-            for digit in digits:
-                child = node[digit]
-                if child is None:
-                    child = PrimesNode()
-                    node[digit] = child
-                node = child
-
-            node.terminal = True
-
-        return root
-
-    def _find_primes_with_prefix(self, trie: PrimesNode,
-                                 prefix: int) -> List[int]:
-
-        node = trie
-        prefix_value = 0
-        temp_prefix = prefix
-        prefix_digits: List[int] = []
-
-        while temp_prefix > 0:
-            prefix_digits.append(temp_prefix % 10)
-            temp_prefix //= 10
-        prefix_digits.reverse()
-
-        for digit in prefix_digits:
-            prefix_value = prefix_value * 10 + digit
-            child = node[digit]
-            if child is None:
-                return []
-            node = child
-
-        results: List[int] = []
-        queue: List[Tuple[PrimesNode, int]] = [(node, prefix_value)]
-
-        while queue:
-            current_node, current_number = queue.pop(0)
-
-            if current_node.terminal:
-                results.append(current_number)
-
-            for digit in range(10):
-                child = current_node[digit]
-                if child:
-                    queue.append((child, current_number * 10 + digit))
-
-        results.sort()
-        return results
+        self.limit = Helper.config_i64(self.name(), "limit")
+        self._checksum = 0
 
     def run_benchmark(self, iteration_id: int):
+        lim = self.limit
+        primes = [1] * (lim + 1)
+        primes[0] = 0
+        primes[1] = 0
 
-        primes = Sieve(self.n).calculate().to_list()
+        sqrt_limit = int(math.sqrt(lim))
 
-        trie = self._generate_trie(primes)
+        for p in range(2, sqrt_limit + 1):
+            if primes[p] == 1:
+                for multiple in range(p * p, lim + 1, p):
+                    primes[multiple] = 0
 
-        results = self._find_primes_with_prefix(trie, self.prefix)
+        last_prime = 2
+        count = 1
 
-        self.result = (self.result + len(results)) & 0xFFFFFFFF
-        for prime in results:
-            self.result = (self.result + prime) & 0xFFFFFFFF
+        n = 3
+        while n <= lim:
+            if primes[n] == 1:
+                last_prime = n
+                count += 1
+            n += 2
+
+        self._checksum = (self._checksum + last_prime + count) & 0xFFFFFFFF
 
     def checksum(self) -> int:
-        return self.result & 0xFFFFFFFF
+        return self._checksum & 0xFFFFFFFF
 
     def name(self) -> str:
-        return "Etc::Primes"
+        return "Etc::Sieve"
 
 
 @dataclass
@@ -4726,7 +4622,7 @@ def register_benchmarks():
     Benchmark.register_benchmark('Json::Generate', JsonGenerate)
     Benchmark.register_benchmark('Json::ParseDom', JsonParseDom)
     Benchmark.register_benchmark('Json::ParseMapping', JsonParseMapping)
-    Benchmark.register_benchmark('Etc::Primes', Primes)
+    Benchmark.register_benchmark('Etc::Sieve', Sieve)
     Benchmark.register_benchmark('Etc::Noise', Noise)
     Benchmark.register_benchmark('Etc::TextRaytracer', TextRaytracer)
     Benchmark.register_benchmark('Etc::NeuralNet', NeuralNet)

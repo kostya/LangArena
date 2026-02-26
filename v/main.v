@@ -16,7 +16,7 @@ import revcomp
 import spectralnorm
 import base64encode
 import base64decode
-import primes
+import sieve
 import noise
 import textraytracer
 import neuralnet
@@ -54,8 +54,8 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		benchmark.BenchmarkInfo{'CLBG::Spectralnorm', fn () &benchmark.IBenchmark {
 			return spectralnorm.new_spectralnorm()
 		}},
-		benchmark.BenchmarkInfo{'Etc::Primes', fn () &benchmark.IBenchmark {
-			return primes.new_primes()
+		benchmark.BenchmarkInfo{'Etc::Sieve', fn () &benchmark.IBenchmark {
+			return sieve.new_sieve()
 		}},
 		benchmark.BenchmarkInfo{'Etc::Noise', fn () &benchmark.IBenchmark {
 			return noise.new_noise()

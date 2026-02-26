@@ -817,167 +817,48 @@ module Json
 end
 
 module Etc
-  class Primes < Benchmark
-    class Node
-      property children : Array(Node | Nil)
-      property terminal : Bool
+  class Sieve < Benchmark
+    property limit : Int64
+    getter list
 
-      def initialize
-        @children = Array(Node | Nil).new(10, nil)
-        @terminal = false
-      end
-
-      def [](digit : Int) : Node | Nil
-        @children[digit]
-      end
-
-      def []=(digit : Int, node : Node)
-        @children[digit] = node
-      end
-    end
-
-    class Sieve
-      @limit : Int32
-      @prime : Array(Bool)
-
-      def initialize(@limit : Int32)
-        @prime = Array.new(@limit + 1, true)
-        @prime[0] = @prime[1] = false if @limit >= 1
-      end
-
-      def calculate : self
-        sqrt_limit = Math.sqrt(@limit).to_i
-
-        (2..sqrt_limit).each do |p|
-          if @prime[p]
-            start = p * p
-            (start..@limit).step(p) do |multiple|
-              @prime[multiple] = false
-            end
-          end
-        end
-        self
-      end
-
-      def to_list : Array(Int32)
-        capacity = (@limit / Math.log(@limit)).to_i rescue @limit // 10
-        result = Array(Int32).new(capacity)
-
-        result << 2 if @limit >= 2
-
-        3.step(to: @limit, by: 2) do |p|
-          result << p if @prime[p]
-        end
-
-        result
-      end
-    end
-
-    private def generate_trie(primes : Array(Int32)) : Node
-      root = Node.new
-
-      primes.each do |prime|
-        node = root
-
-        temp = prime
-        digits = uninitialized Int8[12]
-        digit_count = 0
-
-        while temp > 0
-          digits[digit_count] = (temp % 10).to_i8
-          temp //= 10
-          digit_count += 1
-        end
-
-        (digit_count - 1).downto(0) do |i|
-          digit = digits[i]
-          child = node[digit]
-
-          unless child
-            child = Node.new
-            node[digit] = child
-          end
-
-          node = child.as(Node)
-        end
-
-        node.terminal = true
-      end
-
-      root
-    end
-
-    private def find_primes_with_prefix(trie : Node, prefix : Int32) : Array(Int32)
-      node = trie
-      prefix_value = 0
-      temp_prefix = prefix
-
-      prefix_digits = uninitialized Int8[12]
-      prefix_len = 0
-
-      while temp_prefix > 0
-        prefix_digits[prefix_len] = (temp_prefix % 10).to_i8
-        temp_prefix //= 10
-        prefix_len += 1
-      end
-
-      (prefix_len - 1).downto(0) do |i|
-        digit = prefix_digits[i]
-        prefix_value = prefix_value * 10 + digit
-
-        child = node[digit]
-        return [] of Int32 unless child
-        node = child.as(Node)
-      end
-
-      results = [] of Int32
-
-      queue = Array(Tuple(Node, Int32)).new(10000)
-      queue.push({node, prefix_value})
-
-      index = 0
-      while index < queue.size
-        current_node, current_number = queue[index]
-        index += 1
-
-        results << current_number if current_node.terminal
-
-        10.times do |digit|
-          child = current_node[digit]
-          if child
-            queue.push({child.as(Node), current_number * 10 + digit})
-          end
-        end
-      end
-
-      results.sort!
-      results
-    end
-
-    def initialize
-      @n = config_val("limit")
-      @result = 5432_u32
-      @prefix = config_val("prefix")
+    def initialize(@limit : Int64 = config_val("limit"))
+      @checksum = 0_u32
+      @list = Array(Int32).new
     end
 
     def run(iteration_id)
-      primes = Sieve.new(@n.to_i32).calculate.to_list
+      primes = Array(UInt8).new(@limit + 1, 1_u8)
+      primes[0] = primes[1] = 0_u8
 
-      trie = generate_trie(primes)
+      limit = @limit
+      sqrt_limit = Math.sqrt(limit).to_i
 
-      results = find_primes_with_prefix(trie, @prefix.to_i32)
-
-      @result &+= results.size.to_u32
-      results.each do |prime|
-        @result &+= prime.to_u32
+      2.upto(sqrt_limit) do |p|
+        if primes[p] == 1_u8
+          start = p * p
+          (start..limit).step(p) do |multiple|
+            primes[multiple] = 0_u8
+          end
+        end
       end
+
+      last_prime = 2_i64
+      count = 1_i64
+
+      n = 3
+      while n <= limit
+        if primes[n] == 1_u8
+          last_prime = n
+          count += 1
+        end
+        n += 2
+      end
+
+      @checksum &+= (last_prime + count).to_u32!
     end
 
-    getter n : Int64
-    getter prefix : Int64
-
     def checksum : UInt32
-      @result
+      @checksum
     end
   end
 

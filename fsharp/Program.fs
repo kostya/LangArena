@@ -49,7 +49,7 @@ module BenchmarkRunner =
         createBenchmarkInfo<JsonParseDom> "Json::ParseDom"
         createBenchmarkInfo<JsonParseMapping> "Json::ParseMapping"
 
-        createBenchmarkInfo<Primes> "Etc::Primes"
+        createBenchmarkInfo<Sieve> "Etc::Sieve"
         createBenchmarkInfo<Noise> "Etc::Noise"
         createBenchmarkInfo<TextRaytracer> "Etc::TextRaytracer"
         createBenchmarkInfo<NeuralNet> "Etc::NeuralNet"

@@ -121,7 +121,7 @@ public abstract class Benchmark
             CreateBenchmarkInfo<JsonParseDom>("Json::ParseDom"),
             CreateBenchmarkInfo<JsonParseMapping>("Json::ParseMapping"),
 
-            CreateBenchmarkInfo<Primes>("Etc::Primes"),
+            CreateBenchmarkInfo<Sieve>("Etc::Sieve"),
             CreateBenchmarkInfo<Noise>("Etc::Noise"),
             CreateBenchmarkInfo<TextRaytracer>("Etc::TextRaytracer"),
             CreateBenchmarkInfo<NeuralNet>("Etc::NeuralNet"),

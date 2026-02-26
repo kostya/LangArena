@@ -24,7 +24,7 @@
     <Compile Include="Spectralnorm.fs" />
     <Compile Include="Base64Benchmarks.fs" />
     <Compile Include="JsonBenchmarks.fs" />
-    <Compile Include="Primes.fs" />
+    <Compile Include="Sieve.fs" />
     <Compile Include="Noise.fs" />
     <Compile Include="TextRaytracer.fs" />
     <Compile Include="NeuralNet.fs" />

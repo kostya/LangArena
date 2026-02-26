@@ -259,7 +259,7 @@ func RunBenchmarks(singleBench string) {
 		&JsonGenerate{BaseBenchmark: BaseBenchmark{className: "Json::Generate"}},
 		&JsonParseDom{BaseBenchmark: BaseBenchmark{className: "Json::ParseDom"}},
 		&JsonParseMapping{BaseBenchmark: BaseBenchmark{className: "Json::ParseMapping"}},
-		&Primes{BaseBenchmark: BaseBenchmark{className: "Etc::Primes"}},
+		&Sieve{BaseBenchmark: BaseBenchmark{className: "Etc::Sieve"}},
 		&Noise{BaseBenchmark: BaseBenchmark{className: "Etc::Noise"}},
 		&TextRaytracer{BaseBenchmark: BaseBenchmark{className: "Etc::TextRaytracer"}},
 		&NeuralNet{BaseBenchmark: BaseBenchmark{className: "Etc::NeuralNet"}},
@@ -1737,166 +1737,51 @@ func (b *Base64Decode) Checksum() uint32 {
 	return Checksum(resultStr)
 }
 
-type Node struct {
-	children [10]*Node
-	terminal bool
-}
-
-type Primes struct {
+type Sieve struct {
 	BaseBenchmark
-	n      int64
-	prefix int64
-	result uint32
+	limit    int64
+	checksum uint32
 }
 
-func (p *Primes) Prepare() {
-	p.n = p.ConfigVal("limit")
-	p.prefix = p.ConfigVal("prefix")
-	p.result = 5432
+func (s *Sieve) Prepare() {
+	s.limit = s.ConfigVal("limit")
+	s.checksum = 0
 }
 
-func generatePrimes(limit int) []int {
-	if limit < 2 {
-		return nil
+func (s *Sieve) Run(iteration_id int) {
+	lim := int(s.limit)
+	primes := make([]byte, lim+1)
+	for i := 0; i <= lim; i++ {
+		primes[i] = 1
 	}
+	primes[0] = 0
+	primes[1] = 0
 
-	isPrime := make([]byte, limit+1)
-	for i := 2; i <= limit; i++ {
-		isPrime[i] = 1
-	}
-
-	sqrtLimit := int(math.Sqrt(float64(limit)))
+	sqrtLimit := int(math.Sqrt(float64(lim)))
 
 	for p := 2; p <= sqrtLimit; p++ {
-		if isPrime[p] == 1 {
-			for multiple := p * p; multiple <= limit; multiple += p {
-				isPrime[multiple] = 0
+		if primes[p] == 1 {
+			for multiple := p * p; multiple <= lim; multiple += p {
+				primes[multiple] = 0
 			}
 		}
 	}
 
-	estimatedCount := 0
-	if limit > 1000 {
-		estimatedCount = int(float64(limit) / (math.Log(float64(limit)) - 1.1))
-	}
-	if estimatedCount < 1000 {
-		estimatedCount = 1000
-	}
+	lastPrime := 2
+	count := 1
 
-	primes := make([]int, 0, estimatedCount)
-
-	if limit >= 2 {
-		primes = append(primes, 2)
-	}
-
-	for p := 3; p <= limit; p += 2 {
-		if isPrime[p] == 1 {
-			primes = append(primes, p)
+	for n := 3; n <= lim; n += 2 {
+		if primes[n] == 1 {
+			lastPrime = n
+			count++
 		}
 	}
 
-	return primes
+	s.checksum += uint32(lastPrime + count)
 }
 
-func buildTrie(primes []int) *Node {
-	root := &Node{}
-	digits := make([]byte, 0, 12)
-
-	for _, prime := range primes {
-		node := root
-		digits = digits[:0]
-		temp := prime
-		for temp > 0 {
-			digits = append(digits, byte('0'+(temp%10)))
-			temp /= 10
-		}
-
-		for i := len(digits) - 1; i >= 0; i-- {
-			digit := int(digits[i] - '0')
-			if node.children[digit] == nil {
-				node.children[digit] = &Node{}
-			}
-			node = node.children[digit]
-		}
-		node.terminal = true
-	}
-
-	return root
-}
-
-func findWithPrefix(trie *Node, prefix int) []int {
-	node := trie
-	prefixDigits := make([]int, 0, 12)
-	prefixValue := 0
-	temp := prefix
-
-	for temp > 0 {
-		prefixDigits = append(prefixDigits, temp%10)
-		temp /= 10
-	}
-
-	for i := len(prefixDigits) - 1; i >= 0; i-- {
-		digit := prefixDigits[i]
-		prefixValue = prefixValue*10 + digit
-		if node.children[digit] == nil {
-			return nil
-		}
-		node = node.children[digit]
-	}
-
-	results := make([]int, 0, 10000)
-	type queueItem struct {
-		node   *Node
-		number int
-	}
-
-	queue := make([]queueItem, 0, 10000)
-	queue = append(queue, queueItem{node, prefixValue})
-
-	for front := 0; front < len(queue); front++ {
-		current := queue[front]
-
-		if current.node.terminal {
-			results = append(results, current.number)
-		}
-
-		for digit := 0; digit < 10; digit++ {
-			if child := current.node.children[digit]; child != nil {
-				queue = append(queue, queueItem{
-					node:   child,
-					number: current.number*10 + digit,
-				})
-			}
-		}
-	}
-
-	for i := 1; i < len(results); i++ {
-		key := results[i]
-		j := i - 1
-
-		for j >= 0 && results[j] > key {
-			results[j+1] = results[j]
-			j--
-		}
-		results[j+1] = key
-	}
-
-	return results
-}
-
-func (p *Primes) Run(iteration_id int) {
-	primes := generatePrimes(int(p.n))
-	trie := buildTrie(primes)
-	results := findWithPrefix(trie, int(p.prefix))
-	p.result += uint32(len(results))
-
-	for _, r := range results {
-		p.result += uint32(r)
-	}
-}
-
-func (p *Primes) Checksum() uint32 {
-	return p.result
+func (s *Sieve) Checksum() uint32 {
+	return s.checksum
 }
 
 type Coordinate struct {

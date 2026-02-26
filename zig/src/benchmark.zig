@@ -167,7 +167,7 @@ pub const all_benchmarks_list = blk: {
         createBenchInfo("Json::Generate", @import("json_generate.zig").JsonGenerate),
         createBenchInfo("Json::ParseDom", @import("json_parse_dom.zig").JsonParseDom),
         createBenchInfo("Json::ParseMapping", @import("json_parse_mapping.zig").JsonParseMapping),
-        createBenchInfo("Etc::Primes", @import("primes.zig").Primes),
+        createBenchInfo("Etc::Sieve", @import("sieve.zig").Sieve),
         createBenchInfo("Etc::Noise", @import("noise.zig").Noise),
         createBenchInfo("Etc::TextRaytracer", @import("text_raytracer.zig").TextRaytracer),
         createBenchInfo("Etc::NeuralNet", @import("neural_net.zig").NeuralNet),
