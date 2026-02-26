@@ -186,7 +186,7 @@ function overview_tab($results) {
   <li><strong>Algorithmic Consistency:</strong> The same core algorithm is implemented across all languages for each task to ensure a fair comparison.</li>
   <li><strong>No "Hacks":</strong> Low-level tricks, impractical compiler flags (e.g., bounds check disabling), or non-standard libraries are intentionally avoided.</li>
   <li><strong>Pull Requests Welcome:</strong> While consistency is key, improvements that maintain the philosophy and fix suboptimal implementations are encouraged.</li>
-  <li><strong>Testing Language "Muscle":</strong> Benchmarks like matrix multiplication use naive implementations intentionally. We're not measuring how fast a language can call a C library (like BLAS via numpy), but how efficiently it handles the fundamental computational pattern of nested loops over double arrays. This predicts performance in future tasks where no pre-built library exists — you'll be writing similar loops yourself.</li>
+  <li><strong>Testing Language "Muscle":</strong> We measure the <strong>cost of abstractions</strong>. Can a language take clean, idiomatic code and optimize it to efficient machine code? Languages that can (like Rust, Java) prove their compilers are powerful. Languages that can't show the honest price of their abstractions. Benchmarks like matrix multiplication use <strong>naive implementations</strong> intentionally. We're not measuring how fast a language can call a C library (like BLAS via numpy), but how efficiently it handles fundamental computational patterns — because one day you'll have to write that loop yourself.</li>
 </ul>
 
 <h2>Benchmarking Methodology</h2>

@@ -25,7 +25,7 @@ Not all algorithms could be implemented identically across all languages — sim
 *   **Algorithmic Consistency:** The same core algorithm is implemented across all languages for each task to ensure a fair comparison.
 *   **No "Hacks":** Low-level tricks, impractical compiler flags (e.g., bounds check disabling), or non-standard libraries are intentionally avoided.
 *   **Pull Requests Welcome:** While consistency is key, improvements that maintain the philosophy and fix suboptimal implementations are encouraged.
-* **Testing Language "Muscle"**: Benchmarks like matrix multiplication use naive implementations intentionally. We're not measuring how fast a language can call a C library (like BLAS via numpy), but how efficiently it handles the fundamental computational pattern of nested loops over double arrays. This predicts performance in future tasks where no pre-built library exists — you'll be writing similar loops yourself.
+* **Testing Language "Muscle"**: We measure the **cost of abstractions**. Can a language take clean, idiomatic code and optimize it to efficient machine code? Languages that can (like Rust, Java) prove their compilers are powerful. Languages that can't show the honest price of their abstractions. Benchmarks like matrix multiplication use **naive implementations** intentionally. We're not measuring how fast a language can call a C library (like BLAS via numpy), but how efficiently it handles fundamental computational patterns — because one day you'll have to write that loop yourself.
 
 ### Benchmarking Methodology
 
