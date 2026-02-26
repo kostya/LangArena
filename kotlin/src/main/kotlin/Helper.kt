@@ -94,21 +94,4 @@ object Helper {
             System.err.println(e.message)
             ""
         }
-
-    private fun inspect(str: String): String {
-        val sb = StringBuilder("\"")
-        for (c in str.toCharArray()) {
-            when (c) {
-                '\n' -> sb.append("\\n")
-                '\r' -> sb.append("\\r")
-                '\t' -> sb.append("\\t")
-                '\\' -> sb.append("\\\\")
-                '\"' -> sb.append("\\\"")
-                in ' '..'~' -> sb.append(c)
-                else -> sb.append(String.format("\\u%04x", c.code))
-            }
-        }
-        sb.append("\"")
-        return sb.toString()
-    }
 }

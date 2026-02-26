@@ -377,11 +377,6 @@ void Benchmark_all(const char *single_bench) {
   }
 }
 
-static double custom_round(double value, int decimals) {
-  double factor = pow(10.0, decimals);
-  return round(value * factor) / factor;
-}
-
 typedef struct {
   int nn;
   char *result_str;

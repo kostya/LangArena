@@ -120,24 +120,3 @@ struct Helper {
     return jsonConfig
   }
 }
-
-extension String {
-  func inspect() -> String {
-    return self.map { char in
-      switch char {
-      case "\n": return "\\n"
-      case "\r": return "\\r"
-      case "\t": return "\\t"
-      case "\\": return "\\\\"
-      case "\"": return "\\\""
-      default:
-        let scalar = char.unicodeScalars.first!
-        if scalar.value >= 32 && scalar.value <= 126 {
-          return String(char)
-        } else {
-          return String(format: "\\u%04x", scalar.value)
-        }
-      }
-    }.joined(separator: "")
-  }
-}

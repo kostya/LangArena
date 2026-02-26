@@ -77,18 +77,3 @@ object Helper:
       case e: Exception =>
         System.err.println(e.getMessage)
         ""
-
-  private def inspect(str: String): String =
-    val sb = new StringBuilder("\"")
-    for c <- str.toCharArray do
-      c match
-        case '\n' => sb.append("\\n")
-        case '\r' => sb.append("\\r")
-        case '\t' => sb.append("\\t")
-        case '\\' => sb.append("\\\\")
-        case '\"' => sb.append("\\\"")
-        case _    =>
-          if c >= ' ' && c <= '~' then sb.append(c)
-          else sb.append(f"\\u$c%04x")
-    sb.append("\"")
-    sb.toString
