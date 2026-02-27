@@ -195,6 +195,7 @@ pub const all_benchmarks_list = blk: {
         createBenchInfo("Compress::LZWDecode", @import("compress.zig").LZWDecode),
         createBenchInfo("Distance::Jaro", @import("distance.zig").Jaro),
         createBenchInfo("Distance::NGram", @import("distance.zig").NGram),
+        createBenchInfo("Etc::Words", @import("words.zig").Words),
     };
     break :blk list;
 };

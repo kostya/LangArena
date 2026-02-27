@@ -44,6 +44,7 @@ import benchmarks.maze;
 import benchmarks.compress;
 import benchmarks.jsonbench;
 import benchmarks.distance;
+import benchmarks.words;
 
 mixin(registerAllBenchmarks!("CLBG::Pidigits", Pidigits, "Binarytrees::Obj",
         BinarytreesObj, "Binarytrees::Arena", BinarytreesArena, "Brainfuck::Array",
@@ -68,9 +69,9 @@ mixin(registerAllBenchmarks!("CLBG::Pidigits", Pidigits, "Binarytrees::Obj",
         "Compress::BWTEncode",
         BWTEncode, "Compress::BWTDecode", BWTDecode, "Compress::HuffEncode",
         HuffEncode, "Compress::HuffDecode", HuffDecode, "Compress::ArithEncode",
-        ArithEncode, "Compress::ArithDecode", ArithDecode,
-        "Compress::LZWEncode", LZWEncode, "Compress::LZWDecode",
-        LZWDecode, "Distance::Jaro", Jaro, "Distance::NGram", NGram));
+        ArithEncode, "Compress::ArithDecode", ArithDecode, "Compress::LZWEncode",
+        LZWEncode, "Compress::LZWDecode", LZWDecode, "Distance::Jaro",
+        Jaro, "Distance::NGram", NGram, "Etc::Words", Words));
 
 void benchmarkAll(string singleBench = "")
 {

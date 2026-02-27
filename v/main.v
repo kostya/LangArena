@@ -32,6 +32,7 @@ import mazebench
 import compress
 import distance
 import json_benchmarks
+import words
 
 fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 	return [
@@ -184,6 +185,9 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		}},
 		benchmark.BenchmarkInfo{'Distance::NGram', fn () &benchmark.IBenchmark {
 			return distance.new_ngram()
+		}},
+		benchmark.BenchmarkInfo{'Etc::Words', fn () &benchmark.IBenchmark {
+			return words.new_words()
 		}},
 	]
 }

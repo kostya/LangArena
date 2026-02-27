@@ -1411,6 +1411,38 @@ module Etc
       @grid.compute_hash + @grid.count_alive.to_u32
     end
   end
+
+  class Words < Benchmark
+    @text : String
+    @checksum : UInt32 = 0u32
+
+    def initialize(@words : Int32 = config_val("words").to_i32, @word_len : Int32 = config_val("word_len").to_i32)
+      @text = ""
+    end
+
+    def prepare
+      chars = ('a'..'z').to_a
+      @text = String.build do |str|
+        @words.times do |i|
+          word_len = Helper.next_int(@word_len) + Helper.next_int(3) + 3
+          word_len.times { str << chars[Helper.next_int(chars.size)] }
+          str << ' ' unless i == @words - 1
+        end
+      end
+    end
+
+    def run(iteration_id)
+      frequencies = Hash(String, Int32).new(0)
+      @text.split(' ') { |w| frequencies.update(w, &.+(1)) }
+      max_word, max_count = frequencies.max_by { |_, v| v }
+
+      @checksum &+= max_count &+ Helper.checksum(max_word) &+ frequencies.size
+    end
+
+    def checksum : UInt32
+      @checksum
+    end
+  end
 end
 
 module Sort

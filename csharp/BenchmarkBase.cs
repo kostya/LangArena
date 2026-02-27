@@ -157,6 +157,8 @@ public abstract class Benchmark
             CreateBenchmarkInfo<Jaro>("Distance::Jaro"),
             CreateBenchmarkInfo<NGram>("Distance::NGram"),
 
+            CreateBenchmarkInfo<Words>("Etc::Words"),
+
         };
     }
 

@@ -39,6 +39,7 @@ include("benchmarks/GameOfLife.jl")
 include("benchmarks/Maze.jl")
 include("benchmarks/Compress.jl")
 include("benchmarks/Distance.jl")
+include("benchmarks/Words.jl")
 
 const ALL_BENCHMARKS = [
     ("CLBG::Pidigits", Pidigits),
@@ -91,6 +92,7 @@ const ALL_BENCHMARKS = [
     ("Compress::LZWDecode", LZWDecode),
     ("Distance::Jaro", Jaro),
     ("Distance::NGram", NGram),
+    ("Etc::Words", Words),
 ]
 
 function run_all_benchmarks(single_bench::String = "")

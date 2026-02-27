@@ -95,6 +95,12 @@
     "h": 20,
     "iterations": 3
   },
+  "Etc::Words": {
+    "checksum": 580539813,
+    "words": 600,
+    "word_len": 1,
+    "iterations": 2
+  },
   "Sort::Quick": {
     "checksum": 2548773,
     "size": 100000,

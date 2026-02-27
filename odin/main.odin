@@ -60,6 +60,7 @@ main :: proc() {
     benchmark.register_benchmark_factory("Compress::LZWDecode", benchmark.create_lzwdecode)
     benchmark.register_benchmark_factory("Distance::Jaro", benchmark.create_jaro)
     benchmark.register_benchmark_factory("Distance::NGram", benchmark.create_ngram)
+    benchmark.register_benchmark_factory("Etc::Words", benchmark.create_words)
 
     config_file := "../test.json"
     if len(os.args) > 1 {

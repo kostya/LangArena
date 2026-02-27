@@ -56,6 +56,7 @@ func main() {
   BenchmarkManager.register("Compress::LZWDecode") { LZWDecode() }
   BenchmarkManager.register("Distance::Jaro") { Jaro() }
   BenchmarkManager.register("Distance::NGram") { NGram() }
+  BenchmarkManager.register("Etc::Words") { Words() }
 
   let args = CommandLine.arguments.dropFirst()
   let configFile = args.first { $0.hasSuffix(".txt") || $0.hasSuffix(".js") }

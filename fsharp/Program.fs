@@ -85,6 +85,8 @@ module BenchmarkRunner =
         createBenchmarkInfo<Jaro> "Distance::Jaro"
         createBenchmarkInfo<NGram> "Distance::NGram"
 
+        createBenchmarkInfo<Words> "Etc::Words"
+
     ]
 
     let private runBenchmark (factory: BenchmarkInfo) (singleBench: string option) =

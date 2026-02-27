@@ -4479,6 +4479,61 @@ class NGram(Benchmark):
         return "Distance::NGram"
 
 
+class Words(Benchmark):
+
+    def __init__(self):
+        super().__init__()
+        self.words = 0
+        self.word_len = 0
+        self.text = ""
+        self._checksum_val = 0
+
+    def prepare(self):
+        self.words = Helper.config_i64(self.name(), "words")
+        self.word_len = Helper.config_i64(self.name(), "word_len")
+
+        chars = "abcdefghijklmnopqrstuvwxyz"
+        words_list = []
+
+        for i in range(self.words):
+            length = Helper.next_int(self.word_len) + Helper.next_int(3) + 3
+            word = ''.join(
+                chars[Helper.next_int(len(chars))] for _ in range(length))
+            words_list.append(word)
+
+        self.text = ' '.join(words_list)
+        self._checksum_val = 0
+
+    def run_benchmark(self, iteration_id: int):
+
+        frequencies = collections.defaultdict(int)
+
+        for word in self.text.split(' '):
+            if not word:
+                continue
+            frequencies[word] += 1
+
+        max_word = ""
+        max_count = 0
+
+        for word, count in frequencies.items():
+            if count > max_count:
+                max_count = count
+                max_word = word
+
+        freq_size = len(frequencies)
+        word_checksum = Helper.checksum_string(max_word)
+
+        self._checksum_val += max_count + word_checksum + freq_size
+        self._checksum_val &= 0xFFFFFFFF
+
+    def checksum(self) -> int:
+        return self._checksum_val & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Etc::Words"
+
+
 def register_benchmarks():
     Benchmark.register_benchmark('CLBG::Pidigits', Pidigits)
     Benchmark.register_benchmark('Binarytrees::Obj', BinarytreesObj)
@@ -4531,6 +4586,7 @@ def register_benchmarks():
     Benchmark.register_benchmark('Compress::LZWDecode', LZWDecode)
     Benchmark.register_benchmark('Distance::Jaro', Jaro)
     Benchmark.register_benchmark('Distance::NGram', NGram)
+    Benchmark.register_benchmark('Etc::Words', Words)
 
 
 def main():

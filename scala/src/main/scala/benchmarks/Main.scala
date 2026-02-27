@@ -57,6 +57,7 @@ object Main:
     Benchmark.registerBenchmark("Compress::LZWDecode", () => new LZWDecode())
     Benchmark.registerBenchmark("Distance::Jaro", () => new Distance.Jaro())
     Benchmark.registerBenchmark("Distance::NGram", () => new Distance.NGram())
+    Benchmark.registerBenchmark("Etc::Words", () => new Words())
 
     val now = Instant.now().toEpochMilli
     println(s"start: $now")

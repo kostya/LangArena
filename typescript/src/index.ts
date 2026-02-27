@@ -5688,6 +5688,70 @@ class NGram extends Benchmark {
   }
 }
 
+export class Words extends Benchmark {
+  private words: number;
+  private wordLen: number;
+  private text: string = "";
+  private checksumVal: number = 0;
+  private readonly chars = "abcdefghijklmnopqrstuvwxyz";
+
+  constructor() {
+    super();
+    this.words = Number(Helper.configI64(this.name, "words"));
+    this.wordLen = Number(Helper.configI64(this.name, "word_len"));
+  }
+
+  prepare(): void {
+    const wordsList: string[] = [];
+
+    for (let i = 0; i < this.words; i++) {
+      const len = Helper.nextInt(this.wordLen) + Helper.nextInt(3) + 3;
+      let word = "";
+      for (let j = 0; j < len; j++) {
+        const idx = Helper.nextInt(this.chars.length);
+        word += this.chars[idx];
+      }
+      wordsList.push(word);
+    }
+
+    this.text = wordsList.join(" ");
+    this.checksumVal = 0;
+  }
+
+  run(_iteration_id: number): void {
+    const frequencies = new Map<string, number>();
+
+    for (const word of this.text.split(" ")) {
+      if (word === "") continue;
+      frequencies.set(word, (frequencies.get(word) || 0) + 1);
+    }
+
+    let maxWord = "";
+    let maxCount = 0;
+
+    for (const [word, count] of frequencies) {
+      if (count > maxCount) {
+        maxCount = count;
+        maxWord = word;
+      }
+    }
+
+    const freqSize = frequencies.size;
+    const wordChecksum = Helper.checksumString(maxWord);
+
+    this.checksumVal =
+      (this.checksumVal + maxCount + wordChecksum + freqSize) >>> 0;
+  }
+
+  checksum(): number {
+    return this.checksumVal >>> 0;
+  }
+
+  override get name(): string {
+    return "Etc::Words";
+  }
+}
+
 Benchmark.registerBenchmark("CLBG::Pidigits", Pidigits);
 Benchmark.registerBenchmark("Binarytrees::Obj", BinarytreesObj);
 Benchmark.registerBenchmark("Binarytrees::Arena", BinarytreesArena);
@@ -5738,6 +5802,7 @@ Benchmark.registerBenchmark("Compress::LZWEncode", LZWEncode);
 Benchmark.registerBenchmark("Compress::LZWDecode", LZWDecode);
 Benchmark.registerBenchmark("Distance::Jaro", Jaro);
 Benchmark.registerBenchmark("Distance::NGram", NGram);
+Benchmark.registerBenchmark("Etc::Words", Words);
 
 const RECOMPILE_MARKER = "RECOMPILE_MARKER_0";
 

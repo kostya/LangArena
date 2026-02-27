@@ -2248,6 +2248,70 @@ public:
   }
 };
 
+class Words : public Benchmark {
+private:
+  int words;
+  int word_len;
+  std::string text;
+  uint32_t checksum_val;
+
+public:
+  Words() : checksum_val(0) {
+    words = config_val("words");
+    word_len = config_val("word_len");
+  }
+
+  std::string name() const override { return "Etc::Words"; }
+
+  void prepare() override {
+    const char chars[] = "abcdefghijklmnopqrstuvwxyz";
+    const int char_count = 26;
+
+    std::string result;
+    result.reserve(words * (word_len + 1));
+
+    for (int i = 0; i < words; ++i) {
+      int len = Helper::next_int(word_len) + Helper::next_int(3) + 3;
+      for (int j = 0; j < len; ++j) {
+        result.push_back(chars[Helper::next_int(char_count)]);
+      }
+      if (i != words - 1) {
+        result.push_back(' ');
+      }
+    }
+
+    text = std::move(result);
+  }
+
+  void run(int iteration_id) override {
+    std::unordered_map<std::string, int> frequencies;
+    std::istringstream iss(text);
+    std::string word;
+
+    while (iss >> word) {
+      if (auto [it, inserted] = frequencies.try_emplace(word, 1); !inserted) {
+        it->second++;
+      }
+    }
+
+    std::string max_word;
+    int max_count = 0;
+
+    for (const auto &pair : frequencies) {
+      if (pair.second > max_count) {
+        max_count = pair.second;
+        max_word = pair.first;
+      }
+    }
+
+    checksum_val += static_cast<uint32_t>(max_count) +
+                    Helper::checksum(max_word) +
+                    static_cast<uint32_t>(frequencies.size());
+  }
+
+  uint32_t checksum() override { return checksum_val; }
+};
+
 class SortBenchmark : public Benchmark {
 protected:
   std::vector<int32_t> data;
@@ -4941,6 +5005,7 @@ void Benchmark::all(const std::string &single_bench) {
           {"Etc::TextRaytracer",
            []() { return std::make_unique<TextRaytracer>(); }},
           {"Etc::NeuralNet", []() { return std::make_unique<NeuralNet>(); }},
+          {"Etc::Words", []() { return std::make_unique<Words>(); }},
           {"Sort::Quick", []() { return std::make_unique<SortQuick>(); }},
           {"Sort::Merge", []() { return std::make_unique<SortMerge>(); }},
           {"Sort::Self", []() { return std::make_unique<SortSelf>(); }},

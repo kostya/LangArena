@@ -5171,6 +5171,67 @@ class NGram extends Benchmark {
   }
 }
 
+class Words extends Benchmark {
+  late int words;
+  late int wordLen;
+  late String text;
+  int checksumVal = 0;
+
+  @override
+  void prepare() {
+    words = Helper.configI64(benchmarkName, "words").toInt();
+    wordLen = Helper.configI64(benchmarkName, "word_len").toInt();
+
+    const chars = 'abcdefghijklmnopqrstuvwxyz';
+    final wordsList = <String>[];
+
+    for (int i = 0; i < words; i++) {
+      final len = Helper.nextInt(wordLen) + Helper.nextInt(3) + 3;
+      final wordChars = List.generate(
+        len,
+        (_) => chars[Helper.nextInt(chars.length)],
+      );
+      wordsList.add(wordChars.join());
+    }
+
+    text = wordsList.join(' ');
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    final frequencies = HashMap<String, int>();
+
+    for (final word in text.split(' ')) {
+      if (word.isEmpty) continue;
+      frequencies[word] = (frequencies[word] ?? 0) + 1;
+    }
+
+    String maxWord = '';
+    int maxCount = 0;
+
+    frequencies.forEach((word, count) {
+      if (count > maxCount) {
+        maxCount = count;
+        maxWord = word;
+      }
+    });
+
+    final freqSize = frequencies.length;
+    final wordChecksum = Helper.checksumString(maxWord);
+
+    checksumVal =
+        (checksumVal + maxCount + wordChecksum + freqSize) & 0xFFFFFFFF;
+  }
+
+  @override
+  int checksum() {
+    return checksumVal & 0xFFFFFFFF;
+  }
+
+  @override
+  String get benchmarkName => 'Etc::Words';
+}
+
 bool listEquals(List? a, List? b) {
   if (a == null) return b == null;
   if (b == null || a.length != b.length) return false;
@@ -5237,6 +5298,7 @@ void registerBenchmarks() {
   Benchmark.registerBenchmark('Compress::LZWDecode', () => LZWDecode());
   Benchmark.registerBenchmark('Distance::Jaro', () => Jaro());
   Benchmark.registerBenchmark('Distance::NGram', () => NGram());
+  Benchmark.registerBenchmark('Etc::Words', () => Words());
 }
 
 Future<void> main(List<String> args) async {
