@@ -5555,22 +5555,23 @@ export class LZWDecode extends Benchmark {
       return new Uint8Array();
     }
 
-    const dict: string[] = new Array(4096);
+    const dict: Uint8Array[] = new Array(4096);
     for (let i = 0; i < 256; i++) {
-      dict[i] = String.fromCharCode(i);
+      dict[i] = new Uint8Array([i]);
     }
 
-    const result: number[] = [];
+    const resultChunks: Uint8Array[] = [];
+    let totalLength = 0;
+
     const data = encoded.data;
     let pos = 0;
 
     let oldCode = (data[pos] << 8) | data[pos + 1];
     pos += 2;
 
-    let oldStr = dict[oldCode];
-    for (let j = 0; j < oldStr.length; j++) {
-      result.push(oldStr.charCodeAt(j));
-    }
+    var oldStr = dict[oldCode];
+    resultChunks.push(oldStr);
+    totalLength += oldStr.length;
 
     let nextCode = 256;
 
@@ -5578,27 +5579,39 @@ export class LZWDecode extends Benchmark {
       const newCode = (data[pos] << 8) | data[pos + 1];
       pos += 2;
 
-      let newStr: string;
+      let newStr: Uint8Array;
       if (newCode < dict.length && dict[newCode] !== undefined) {
         newStr = dict[newCode];
       } else if (newCode === nextCode) {
-        newStr = oldStr + oldStr[0];
+        const firstChar = oldStr[0];
+        newStr = new Uint8Array(oldStr.length + 1);
+        newStr.set(oldStr);
+        newStr[oldStr.length] = firstChar;
       } else {
         throw new Error(`Error decode: invalid code ${newCode}`);
       }
 
-      for (let j = 0; j < newStr.length; j++) {
-        result.push(newStr.charCodeAt(j));
-      }
+      resultChunks.push(newStr);
+      totalLength += newStr.length;
 
-      dict[nextCode] = oldStr + newStr[0];
+      const newEntry = new Uint8Array(oldStr.length + 1);
+      newEntry.set(oldStr);
+      newEntry[oldStr.length] = newStr[0];
+      dict[nextCode] = newEntry;
       nextCode++;
 
       oldCode = newCode;
       oldStr = newStr;
     }
 
-    return new Uint8Array(result);
+    const result = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of resultChunks) {
+      result.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    return result;
   }
 }
 
