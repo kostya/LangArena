@@ -1,5 +1,12 @@
 use super::super::{helper, Benchmark};
 
+const INPUT_00: [f64; 2] = [0.0, 0.0];
+const INPUT_01: [f64; 2] = [0.0, 1.0];
+const INPUT_10: [f64; 2] = [1.0, 0.0];
+const INPUT_11: [f64; 2] = [1.0, 1.0];
+const TARGET_0: [f64; 1] = [0.0];
+const TARGET_1: [f64; 1] = [1.0];
+
 #[derive(Clone)]
 struct Synapse {
     weight: f64,
@@ -235,10 +242,12 @@ impl Benchmark for NeuralNet {
     }
 
     fn run(&mut self, _iteration_id: i64) {
-        self.xor_net.train(&[0.0, 0.0], &[0.0]);
-        self.xor_net.train(&[1.0, 0.0], &[1.0]);
-        self.xor_net.train(&[0.0, 1.0], &[1.0]);
-        self.xor_net.train(&[1.0, 1.0], &[0.0]);
+        for _ in 0..1000 {
+            self.xor_net.train(&INPUT_00, &TARGET_0);
+            self.xor_net.train(&INPUT_10, &TARGET_1);
+            self.xor_net.train(&INPUT_01, &TARGET_1);
+            self.xor_net.train(&INPUT_11, &TARGET_0);
+        }
     }
 
     fn checksum(&self) -> u32 {

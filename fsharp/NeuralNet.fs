@@ -8,19 +8,12 @@ type Synapse(sourceNeuron: Neuron, destNeuron: Neuron) =
 
     member _.SourceNeuron = sourceNeuron
     member _.DestNeuron = destNeuron
-
-    member _.Weight 
-        with get() = weight 
-        and set(v) = weight <- v
-
-    member _.PrevWeight 
-        with get() = prevWeight 
-        and set(v) = prevWeight <- v
+    member _.Weight with get() = weight and set(v) = weight <- v
+    member _.PrevWeight with get() = prevWeight and set(v) = prevWeight <- v
 
 and Neuron() =
     [<Literal>]
     let LEARNING_RATE = 1.0
-
     [<Literal>]
     let MOMENTUM = 0.3
 
@@ -34,22 +27,10 @@ and Neuron() =
 
     member _.SynapsesIn = synapsesIn
     member _.SynapsesOut = synapsesOut
-
-    member _.Threshold 
-        with get() = threshold 
-        and set(v) = threshold <- v
-
-    member _.PrevThreshold 
-        with get() = prevThreshold 
-        and set(v) = prevThreshold <- v
-
-    member _.Error 
-        with get() = error 
-        and set(v) = error <- v
-
-    member _.Output 
-        with get() = output 
-        and set(v) = output <- v
+    member _.Threshold with get() = threshold and set(v) = threshold <- v
+    member _.PrevThreshold with get() = prevThreshold and set(v) = prevThreshold <- v
+    member _.Error with get() = error and set(v) = error <- v
+    member _.Output with get() = output and set(v) = output <- v
 
     member this.CalculateOutput() =
         let mutable activation = 0.0
@@ -91,7 +72,6 @@ type NeuralNetwork(inputs: int, hidden: int, outputs: int) =
     let outputLayer = Array.init outputs (fun _ -> Neuron())
 
     do
-
         for source in inputLayer do
             for dest in hiddenLayer do
                 let synapse = Synapse(source, dest)
@@ -126,46 +106,34 @@ type NeuralNetwork(inputs: int, hidden: int, outputs: int) =
     member this.CurrentOutputs() =
         outputLayer |> Array.map (fun n -> n.Output)
 
-    member this.GetWeightSum() =
-        let mutable sum = 0.0
-
-        for neuron in inputLayer do
-            sum <- sum + neuron.Threshold
-            for synapse in neuron.SynapsesOut do
-                sum <- sum + synapse.Weight
-
-        for neuron in hiddenLayer do
-            sum <- sum + neuron.Threshold
-            for synapse in neuron.SynapsesOut do
-                sum <- sum + synapse.Weight
-
-        for neuron in outputLayer do
-            sum <- sum + neuron.Threshold
-
-        sum
-
 type NeuralNet() =
     inherit Benchmark()
+
+    static let INPUT_00 = [|0.0; 0.0|]
+    static let INPUT_01 = [|0.0; 1.0|]
+    static let INPUT_10 = [|1.0; 0.0|]
+    static let INPUT_11 = [|1.0; 1.0|]
+    static let TARGET_0 = [|0.0|]
+    static let TARGET_1 = [|1.0|]
 
     let mutable xorNet : NeuralNetwork option = None
 
     override this.Checksum =
         match xorNet with
         | Some net ->
-            net.FeedForward([|0.0; 0.0|])
+            net.FeedForward(INPUT_00)
             let outputs1 = net.CurrentOutputs()
 
-            net.FeedForward([|0.0; 1.0|])
+            net.FeedForward(INPUT_01)
             let outputs2 = net.CurrentOutputs()
 
-            net.FeedForward([|1.0; 0.0|])
+            net.FeedForward(INPUT_10)
             let outputs3 = net.CurrentOutputs()
 
-            net.FeedForward([|1.0; 1.0|])
+            net.FeedForward(INPUT_11)
             let outputs4 = net.CurrentOutputs()
 
             let mutable sum = 0.0
-
             for v in outputs1 do sum <- sum + v
             for v in outputs2 do sum <- sum + v
             for v in outputs3 do sum <- sum + v
@@ -173,6 +141,7 @@ type NeuralNet() =
 
             Helper.Checksum(sum)
         | None -> 0u
+
     override this.Name = "Etc::NeuralNet"
 
     override this.Prepare() =
@@ -181,8 +150,9 @@ type NeuralNet() =
     override this.Run(_: int64) =
         match xorNet with
         | Some net ->
-            net.Train([|0.0; 0.0|], [|0.0|])
-            net.Train([|1.0; 0.0|], [|1.0|])
-            net.Train([|0.0; 1.0|], [|1.0|])
-            net.Train([|1.0; 1.0|], [|0.0|])
+            for _ in 1 .. 1000 do
+                net.Train(INPUT_00, TARGET_0)
+                net.Train(INPUT_10, TARGET_1)
+                net.Train(INPUT_01, TARGET_1)
+                net.Train(INPUT_11, TARGET_0)
         | None -> ()

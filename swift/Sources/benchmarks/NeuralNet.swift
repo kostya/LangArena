@@ -4,6 +4,13 @@ final class NeuralNet: BenchmarkProtocol {
   private static let LEARNING_RATE = 1.0
   private static let MOMENTUM = 0.3
 
+  private let INPUT_00 = [0, 0]
+  private let INPUT_01 = [0, 1]
+  private let INPUT_10 = [1, 0]
+  private let INPUT_11 = [1, 1]
+  private let TARGET_0 = [0]
+  private let TARGET_1 = [1]
+
   final class Synapse {
     let sourceNeuron: Neuron
     let destNeuron: Neuron
@@ -130,13 +137,11 @@ final class NeuralNet: BenchmarkProtocol {
     }
   }
 
-  private var outputs: [Double] = []
   private var xorNet: NeuralNetwork!
   private var resultVal: UInt32 = 0
 
   init() {
     xorNet = NeuralNetwork(inputs: 0, hidden: 0, outputs: 0)
-    outputs.reserveCapacity(4)
   }
 
   func prepare() {
@@ -144,23 +149,25 @@ final class NeuralNet: BenchmarkProtocol {
   }
 
   func run(iterationId: Int) {
-    xorNet.train(inputs: [0, 0], targets: [0])
-    xorNet.train(inputs: [1, 0], targets: [1])
-    xorNet.train(inputs: [0, 1], targets: [1])
-    xorNet.train(inputs: [1, 1], targets: [0])
+    for _ in 0..<1000 {
+      xorNet.train(inputs: INPUT_00, targets: TARGET_0)
+      xorNet.train(inputs: INPUT_10, targets: TARGET_1)
+      xorNet.train(inputs: INPUT_01, targets: TARGET_1)
+      xorNet.train(inputs: INPUT_11, targets: TARGET_0)
+    }
   }
 
   var checksum: UInt32 {
-    xorNet.feedForward(inputs: [0, 0])
+    xorNet.feedForward(inputs: INPUT_00)
     let outputs1 = xorNet.currentOutputs()
 
-    xorNet.feedForward(inputs: [0, 1])
+    xorNet.feedForward(inputs: INPUT_01)
     let outputs2 = xorNet.currentOutputs()
 
-    xorNet.feedForward(inputs: [1, 0])
+    xorNet.feedForward(inputs: INPUT_10)
     let outputs3 = xorNet.currentOutputs()
 
-    xorNet.feedForward(inputs: [1, 1])
+    xorNet.feedForward(inputs: INPUT_11)
     let outputs4 = xorNet.currentOutputs()
 
     var allOutputs: [Double] = []

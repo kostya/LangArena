@@ -85,8 +85,8 @@
     "iterations": 3
   },
   "Etc::NeuralNet": {
-    "checksum": 340629928,
-    "iterations": 100
+    "checksum": 1586674334,
+    "iterations": 2
   },
   "Etc::CacheSimulation": {
     "checksum": 179773224,

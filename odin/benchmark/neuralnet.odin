@@ -2,6 +2,13 @@ package benchmark
 
 import "core:math"
 
+INPUT_00 := [2]f64{0.0, 0.0}
+INPUT_01 := [2]f64{0.0, 1.0}
+INPUT_10 := [2]f64{1.0, 0.0}
+INPUT_11 := [2]f64{1.0, 1.0}
+TARGET_0 := [1]f64{0.0}
+TARGET_1 := [1]f64{1.0}
+
 Neuron :: struct {
     synapses_in: [dynamic]^Synapse,
     synapses_out: [dynamic]^Synapse,
@@ -213,10 +220,12 @@ neuralnet_prepare :: proc(bench: ^Benchmark) {
 neuralnet_run :: proc(bench: ^Benchmark, iteration_id: int) {
     nn := cast(^NeuralNet)bench
 
-    train(nn.xor_net, {0.0, 0.0}, {0.0})
-    train(nn.xor_net, {1.0, 0.0}, {1.0})
-    train(nn.xor_net, {0.0, 1.0}, {1.0})
-    train(nn.xor_net, {1.0, 1.0}, {0.0})
+    for _ in 0..<1000 {
+        train(nn.xor_net, INPUT_00[:], TARGET_0[:])
+        train(nn.xor_net, INPUT_10[:], TARGET_1[:])
+        train(nn.xor_net, INPUT_01[:], TARGET_1[:])
+        train(nn.xor_net, INPUT_11[:], TARGET_0[:])
+    }
 }
 
 neuralnet_checksum :: proc(bench: ^Benchmark) -> u32 {

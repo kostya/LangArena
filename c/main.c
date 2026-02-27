@@ -4647,11 +4647,14 @@ void NeuralNet_run(Benchmark *self, int iteration_id) {
   double targets_1[1] = {1};
 
   double inputs_11[2] = {1, 1};
+  double targets_0_again[1] = {0};
 
-  network_train(data->xor_net, inputs_00, targets_0);
-  network_train(data->xor_net, inputs_10, targets_1);
-  network_train(data->xor_net, inputs_01, targets_1);
-  network_train(data->xor_net, inputs_11, targets_0);
+  for (int iter = 0; iter < 1000; iter++) {
+    network_train(data->xor_net, inputs_00, targets_0);
+    network_train(data->xor_net, inputs_10, targets_1);
+    network_train(data->xor_net, inputs_01, targets_1);
+    network_train(data->xor_net, inputs_11, targets_0_again);
+  }
 }
 
 uint32_t NeuralNet_checksum(Benchmark *self) {

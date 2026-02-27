@@ -2311,7 +2311,6 @@ private:
     }
   };
 
-  std::vector<double> res;
   std::unique_ptr<NeuralNetwork> xor_net;
 
 public:
@@ -2325,10 +2324,20 @@ public:
 
   void run(int iteration_id) override {
     NeuralNetwork &xor_ref = *xor_net;
-    xor_ref.train({0, 0}, {0});
-    xor_ref.train({1, 0}, {1});
-    xor_ref.train({0, 1}, {1});
-    xor_ref.train({1, 1}, {0});
+
+    static const std::vector<double> INPUT_00 = {0, 0};
+    static const std::vector<double> INPUT_01 = {0, 1};
+    static const std::vector<double> INPUT_10 = {1, 0};
+    static const std::vector<double> INPUT_11 = {1, 1};
+    static const std::vector<double> TARGET_0 = {0};
+    static const std::vector<double> TARGET_1 = {1};
+
+    for (int iter = 0; iter < 1000; iter++) {
+      xor_ref.train(INPUT_00, TARGET_0);
+      xor_ref.train(INPUT_10, TARGET_1);
+      xor_ref.train(INPUT_01, TARGET_1);
+      xor_ref.train(INPUT_11, TARGET_0);
+    }
   }
 
   uint32_t checksum() override {

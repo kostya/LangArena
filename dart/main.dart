@@ -2401,9 +2401,8 @@ class NeuralNetSynapse {
   final NeuralNetNeuron destNeuron;
 
   NeuralNetSynapse(this.sourceNeuron, this.destNeuron) {
-    final randomWeight = Helper.nextFloat() * 2 - 1;
-    prevWeight = randomWeight;
-    weight = randomWeight;
+    weight = Helper.nextFloat() * 2 - 1;
+    prevWeight = weight;
   }
 }
 
@@ -2419,9 +2418,8 @@ class NeuralNetNeuron {
   double output = 0;
 
   NeuralNetNeuron() {
-    final randomThreshold = Helper.nextFloat() * 2 - 1;
-    prevThreshold = randomThreshold;
-    threshold = randomThreshold;
+    threshold = Helper.nextFloat() * 2 - 1;
+    prevThreshold = threshold;
   }
 
   void calculateOutput() {
@@ -2430,7 +2428,6 @@ class NeuralNetNeuron {
       activation += synapse.weight * synapse.sourceNeuron.output;
     }
     activation -= threshold;
-
     output = 1.0 / (1.0 + exp(-activation));
   }
 
@@ -2468,15 +2465,14 @@ class NeuralNetNeuron {
 }
 
 class NeuralNetNetwork {
-  final inputLayer = <NeuralNetNeuron>[];
-  final hiddenLayer = <NeuralNetNeuron>[];
-  final outputLayer = <NeuralNetNeuron>[];
+  final List<NeuralNetNeuron> inputLayer;
+  final List<NeuralNetNeuron> hiddenLayer;
+  final List<NeuralNetNeuron> outputLayer;
 
-  NeuralNetNetwork(int inputs, int hidden, int outputs) {
-    inputLayer.addAll(List.generate(inputs, (_) => NeuralNetNeuron()));
-    hiddenLayer.addAll(List.generate(hidden, (_) => NeuralNetNeuron()));
-    outputLayer.addAll(List.generate(outputs, (_) => NeuralNetNeuron()));
-
+  NeuralNetNetwork(int inputs, int hidden, int outputs)
+    : inputLayer = List.generate(inputs, (_) => NeuralNetNeuron()),
+      hiddenLayer = List.generate(hidden, (_) => NeuralNetNeuron()),
+      outputLayer = List.generate(outputs, (_) => NeuralNetNeuron()) {
     for (final source in inputLayer) {
       for (final dest in hiddenLayer) {
         final synapse = NeuralNetSynapse(source, dest);
@@ -2494,7 +2490,7 @@ class NeuralNetNetwork {
     }
   }
 
-  void train(List<double> inputs, List<double> targets) {
+  void train(Float64List inputs, Float64List targets) {
     feedForward(inputs);
 
     for (int i = 0; i < outputLayer.length; i++) {
@@ -2506,7 +2502,7 @@ class NeuralNetNetwork {
     }
   }
 
-  void feedForward(List<double> inputs) {
+  void feedForward(Float64List inputs) {
     for (int i = 0; i < inputLayer.length; i++) {
       inputLayer[i].output = inputs[i];
     }
@@ -2520,22 +2516,23 @@ class NeuralNetNetwork {
     }
   }
 
-  List<double> currentOutputs() =>
-      outputLayer.map((neuron) => neuron.output).toList();
-
-  double getWeightSum() {
-    double sum = 0;
-    for (final neuron in [...inputLayer, ...hiddenLayer, ...outputLayer]) {
-      sum += neuron.threshold;
-      for (final synapse in neuron.synapsesOut) {
-        sum += synapse.weight;
-      }
+  Float64List currentOutputs() {
+    final outputs = Float64List(outputLayer.length);
+    for (int i = 0; i < outputLayer.length; i++) {
+      outputs[i] = outputLayer[i].output;
     }
-    return sum;
+    return outputs;
   }
 }
 
 class NeuralNet extends Benchmark {
+  static final INPUT_00 = Float64List.fromList([0, 0]);
+  static final INPUT_01 = Float64List.fromList([0, 1]);
+  static final INPUT_10 = Float64List.fromList([1, 0]);
+  static final INPUT_11 = Float64List.fromList([1, 1]);
+  static final TARGET_0 = Float64List.fromList([0]);
+  static final TARGET_1 = Float64List.fromList([1]);
+
   late NeuralNetNetwork xor;
 
   @override
@@ -2546,32 +2543,32 @@ class NeuralNet extends Benchmark {
 
   @override
   void runBenchmark(int iterationId) {
-    xor.train([0, 0], [0]);
-    xor.train([1, 0], [1]);
-    xor.train([0, 1], [1]);
-    xor.train([1, 1], [0]);
+    for (int iter = 0; iter < 1000; iter++) {
+      xor.train(INPUT_00, TARGET_0);
+      xor.train(INPUT_10, TARGET_1);
+      xor.train(INPUT_01, TARGET_1);
+      xor.train(INPUT_11, TARGET_0);
+    }
   }
 
   @override
   int checksum() {
-    final results = <double>[];
+    final results = Float64List(4);
 
-    xor.feedForward([0, 0]);
-    results.addAll(xor.currentOutputs());
+    xor.feedForward(INPUT_00);
+    results[0] = xor.currentOutputs()[0];
 
-    xor.feedForward([0, 1]);
-    results.addAll(xor.currentOutputs());
+    xor.feedForward(INPUT_01);
+    results[1] = xor.currentOutputs()[0];
 
-    xor.feedForward([1, 0]);
-    results.addAll(xor.currentOutputs());
+    xor.feedForward(INPUT_10);
+    results[2] = xor.currentOutputs()[0];
 
-    xor.feedForward([1, 1]);
-    results.addAll(xor.currentOutputs());
+    xor.feedForward(INPUT_11);
+    results[3] = xor.currentOutputs()[0];
 
     final sum = results.fold(0.0, (a, b) => a + b);
-    final checksumValue = Helper.checksumFloat(sum);
-
-    return checksumValue;
+    return Helper.checksumFloat(sum);
   }
 
   @override

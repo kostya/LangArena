@@ -7,6 +7,13 @@ class NeuralNet : Benchmark() {
     companion object {
         private const val LEARNING_RATE = 1.0
         private const val MOMENTUM = 0.3
+
+        private val INPUT_00 = listOf(0, 0)
+        private val INPUT_01 = listOf(0, 1)
+        private val INPUT_10 = listOf(1, 0)
+        private val INPUT_11 = listOf(1, 1)
+        private val TARGET_0 = listOf(0)
+        private val TARGET_1 = listOf(1)
     }
 
     private class Synapse(
@@ -76,7 +83,6 @@ class NeuralNet : Benchmark() {
         private val outputLayer = List(outputs) { Neuron() }
 
         init {
-
             for (input in inputLayer) {
                 for (hidden in hiddenLayer) {
                     val synapse = Synapse(input, hidden)
@@ -127,41 +133,34 @@ class NeuralNet : Benchmark() {
     }
 
     private lateinit var xorNet: NeuralNetwork
-    private val res = mutableListOf<Double>()
-
-    init {
-        xorNet = NeuralNetwork(0, 0, 0)
-    }
 
     override fun prepare() {
         xorNet = NeuralNetwork(2, 10, 1)
     }
 
     override fun run(iterationId: Int) {
-        xorNet.train(listOf(0, 0), listOf(0))
-        xorNet.train(listOf(1, 0), listOf(1))
-        xorNet.train(listOf(0, 1), listOf(1))
-        xorNet.train(listOf(1, 1), listOf(0))
+        for (i in 0 until 1000) {
+            xorNet.train(INPUT_00, TARGET_0)
+            xorNet.train(INPUT_10, TARGET_1)
+            xorNet.train(INPUT_01, TARGET_1)
+            xorNet.train(INPUT_11, TARGET_0)
+        }
     }
 
     override fun checksum(): UInt {
-        xorNet.feedForward(listOf(0, 0))
-        val outputs1 = xorNet.currentOutputs()
-
-        xorNet.feedForward(listOf(0, 1))
-        val outputs2 = xorNet.currentOutputs()
-
-        xorNet.feedForward(listOf(1, 0))
-        val outputs3 = xorNet.currentOutputs()
-
-        xorNet.feedForward(listOf(1, 1))
-        val outputs4 = xorNet.currentOutputs()
-
         val allOutputs = mutableListOf<Double>()
-        allOutputs.addAll(outputs1)
-        allOutputs.addAll(outputs2)
-        allOutputs.addAll(outputs3)
-        allOutputs.addAll(outputs4)
+
+        xorNet.feedForward(INPUT_00)
+        allOutputs.addAll(xorNet.currentOutputs())
+
+        xorNet.feedForward(INPUT_01)
+        allOutputs.addAll(xorNet.currentOutputs())
+
+        xorNet.feedForward(INPUT_10)
+        allOutputs.addAll(xorNet.currentOutputs())
+
+        xorNet.feedForward(INPUT_11)
+        allOutputs.addAll(xorNet.currentOutputs())
 
         val sum = allOutputs.sum()
         return Helper.checksumF64(sum)

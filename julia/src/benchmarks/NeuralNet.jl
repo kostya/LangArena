@@ -24,13 +24,18 @@ function Neuron()
     return Neuron(t, t, 0.0, 0.0, Int32[], Int32[])
 end
 
-function derivative(neuron::Neuron)::Float64
-    return neuron.output * (1.0 - neuron.output)
-end
+derivative(neuron::Neuron) = neuron.output * (1.0 - neuron.output)
 
 const LEARNING_RATE = 1.0
 const MOMENTUM = 0.3
 const TRAIN_RATE = 0.3
+
+const INPUT_00 = [0.0, 0.0]
+const INPUT_01 = [0.0, 1.0]
+const INPUT_10 = [1.0, 0.0]
+const INPUT_11 = [1.0, 1.0]
+const TARGET_0 = [0.0]
+const TARGET_1 = [1.0]
 
 mutable struct NeuralNetwork
     input_layer::Vector{Int32}
@@ -79,6 +84,28 @@ function NeuralNetwork(inputs::Int, hidden::Int, outputs::Int)
     return NeuralNetwork(input_layer, hidden_layer, output_layer, neurons, synapses)
 end
 
+function update_neuron_output!(neuron::Neuron, value::Float64)
+    neuron.output = value
+end
+
+function update_neuron_error!(neuron::Neuron, value::Float64)
+    neuron.error = value
+end
+
+function update_neuron_threshold!(
+    neuron::Neuron,
+    threshold::Float64,
+    prev_threshold::Float64,
+)
+    neuron.threshold = threshold
+    neuron.prev_threshold = prev_threshold
+end
+
+function update_synapse!(synapse::Synapse, weight::Float64, prev_weight::Float64)
+    synapse.weight = weight
+    synapse.prev_weight = prev_weight
+end
+
 function train!(net::NeuralNetwork, inputs::Vector{Float64}, targets::Vector{Float64})
     feed_forward!(net, inputs)
 
@@ -87,7 +114,7 @@ function train!(net::NeuralNetwork, inputs::Vector{Float64}, targets::Vector{Flo
         neuron = net.neurons[neuron_idx]
 
         error = (target - neuron.output) * derivative(neuron)
-        net.neurons[neuron_idx].error = error
+        update_neuron_error!(neuron, error)
 
         for synapse_idx in neuron.synapses_in
             synapse = net.synapses[synapse_idx]
@@ -96,24 +123,16 @@ function train!(net::NeuralNetwork, inputs::Vector{Float64}, targets::Vector{Flo
             temp_weight = synapse.weight
             delta = TRAIN_RATE * LEARNING_RATE * error * source_output
             momentum_term = MOMENTUM * (synapse.weight - synapse.prev_weight)
-            net.synapses[synapse_idx] = Synapse(
-                synapse.weight + delta + momentum_term,
-                temp_weight,
-                synapse.source_neuron,
-                synapse.dest_neuron,
-            )
+            update_synapse!(synapse, synapse.weight + delta + momentum_term, temp_weight)
         end
 
         temp_threshold = neuron.threshold
         delta_threshold = TRAIN_RATE * LEARNING_RATE * error * -1.0
         momentum_threshold = MOMENTUM * (neuron.threshold - neuron.prev_threshold)
-        net.neurons[neuron_idx] = Neuron(
+        update_neuron_threshold!(
+            neuron,
             neuron.threshold + delta_threshold + momentum_threshold,
             temp_threshold,
-            neuron.output,
-            error,
-            neuron.synapses_in,
-            neuron.synapses_out,
         )
     end
 
@@ -125,7 +144,6 @@ function train!(net::NeuralNetwork, inputs::Vector{Float64}, targets::Vector{Flo
 
         for synapse_idx in neuron.synapses_out
             synapse = net.synapses[synapse_idx]
-
             sum_error += synapse.prev_weight * net.neurons[synapse.dest_neuron].error
         end
 
@@ -135,7 +153,7 @@ function train!(net::NeuralNetwork, inputs::Vector{Float64}, targets::Vector{Flo
     for (i, neuron_idx) in enumerate(net.hidden_layer)
         error = hidden_errors[i]
         neuron = net.neurons[neuron_idx]
-        net.neurons[neuron_idx].error = error
+        update_neuron_error!(neuron, error)
 
         for synapse_idx in neuron.synapses_in
             synapse = net.synapses[synapse_idx]
@@ -144,40 +162,24 @@ function train!(net::NeuralNetwork, inputs::Vector{Float64}, targets::Vector{Flo
             temp_weight = synapse.weight
             delta = TRAIN_RATE * LEARNING_RATE * error * source_output
             momentum_term = MOMENTUM * (synapse.weight - synapse.prev_weight)
-            net.synapses[synapse_idx] = Synapse(
-                synapse.weight + delta + momentum_term,
-                temp_weight,
-                synapse.source_neuron,
-                synapse.dest_neuron,
-            )
+            update_synapse!(synapse, synapse.weight + delta + momentum_term, temp_weight)
         end
 
         temp_threshold = neuron.threshold
         delta_threshold = TRAIN_RATE * LEARNING_RATE * error * -1.0
         momentum_threshold = MOMENTUM * (neuron.threshold - neuron.prev_threshold)
-        net.neurons[neuron_idx] = Neuron(
+        update_neuron_threshold!(
+            neuron,
             neuron.threshold + delta_threshold + momentum_threshold,
             temp_threshold,
-            neuron.output,
-            error,
-            neuron.synapses_in,
-            neuron.synapses_out,
         )
     end
 end
 
 function feed_forward!(net::NeuralNetwork, inputs::Vector{Float64})
-
     for (i, input) in enumerate(inputs)
         neuron_idx = net.input_layer[i]
-        net.neurons[neuron_idx] = Neuron(
-            net.neurons[neuron_idx].threshold,
-            net.neurons[neuron_idx].prev_threshold,
-            input,
-            net.neurons[neuron_idx].error,
-            net.neurons[neuron_idx].synapses_in,
-            net.neurons[neuron_idx].synapses_out,
-        )
+        update_neuron_output!(net.neurons[neuron_idx], input)
     end
 
     for neuron_idx in net.hidden_layer
@@ -191,14 +193,7 @@ function feed_forward!(net::NeuralNetwork, inputs::Vector{Float64})
         activation -= neuron.threshold
 
         output = 1.0 / (1.0 + exp(-activation))
-        net.neurons[neuron_idx] = Neuron(
-            neuron.threshold,
-            neuron.prev_threshold,
-            output,
-            neuron.error,
-            neuron.synapses_in,
-            neuron.synapses_out,
-        )
+        update_neuron_output!(neuron, output)
     end
 
     for neuron_idx in net.output_layer
@@ -212,14 +207,7 @@ function feed_forward!(net::NeuralNetwork, inputs::Vector{Float64})
         activation -= neuron.threshold
 
         output = 1.0 / (1.0 + exp(-activation))
-        net.neurons[neuron_idx] = Neuron(
-            neuron.threshold,
-            neuron.prev_threshold,
-            output,
-            neuron.error,
-            neuron.synapses_in,
-            neuron.synapses_out,
-        )
+        update_neuron_output!(neuron, output)
     end
 end
 
@@ -243,7 +231,6 @@ end
 name(b::NeuralNet)::String = "Etc::NeuralNet"
 
 function prepare(b::NeuralNet)
-
     b.xor_net = NeuralNetwork(2, 10, 1)
 end
 
@@ -252,10 +239,12 @@ function run(b::NeuralNet, iteration_id::Int64)
         error("Neural network not initialized. Call prepare() first.")
     end
 
-    train!(b.xor_net, [0.0, 0.0], [0.0])
-    train!(b.xor_net, [1.0, 0.0], [1.0])
-    train!(b.xor_net, [0.0, 1.0], [1.0])
-    train!(b.xor_net, [1.0, 1.0], [0.0])
+    for _ = 1:1000
+        train!(b.xor_net, INPUT_00, TARGET_0)
+        train!(b.xor_net, INPUT_10, TARGET_1)
+        train!(b.xor_net, INPUT_01, TARGET_1)
+        train!(b.xor_net, INPUT_11, TARGET_0)
+    end
 end
 
 function checksum(b::NeuralNet)::UInt32
@@ -264,19 +253,18 @@ function checksum(b::NeuralNet)::UInt32
     end
 
     net = b.xor_net
-
     total = 0.0
 
-    feed_forward!(net, [0.0, 0.0])
+    feed_forward!(net, INPUT_00)
     total += Base.sum(current_outputs(net))
 
-    feed_forward!(net, [0.0, 1.0])
+    feed_forward!(net, INPUT_01)
     total += Base.sum(current_outputs(net))
 
-    feed_forward!(net, [1.0, 0.0])
+    feed_forward!(net, INPUT_10)
     total += Base.sum(current_outputs(net))
 
-    feed_forward!(net, [1.0, 1.0])
+    feed_forward!(net, INPUT_11)
     total += Base.sum(current_outputs(net))
 
     return Helper.checksum_f64(total)

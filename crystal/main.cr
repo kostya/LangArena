@@ -1241,12 +1241,22 @@ module Etc
       @xor = NeuralNetwork.new(2, 10, 1)
     end
 
+    INPUT_00 = [0, 0]
+    INPUT_01 = [0, 1]
+    INPUT_10 = [1, 0]
+    INPUT_11 = [1, 1]
+    TARGET_0 = [0]
+    TARGET_1 = [1]
+
     def run(iteration_id)
       xor = @xor
-      xor.train([0, 0], [0])
-      xor.train([1, 0], [1])
-      xor.train([0, 1], [1])
-      xor.train([1, 1], [0])
+
+      1000.times do
+        xor.train(INPUT_00, TARGET_0)
+        xor.train(INPUT_10, TARGET_1)
+        xor.train(INPUT_01, TARGET_1)
+        xor.train(INPUT_11, TARGET_0)
+      end
     end
 
     def checksum : UInt32

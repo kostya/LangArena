@@ -2846,7 +2846,13 @@ class NeuralNetNetwork {
 }
 
 export class NeuralNet extends Benchmark {
-  private results: number[] = [];
+  private static readonly INPUT_00 = [0, 0];
+  private static readonly INPUT_01 = [0, 1];
+  private static readonly INPUT_10 = [1, 0];
+  private static readonly INPUT_11 = [1, 1];
+  private static readonly TARGET_0 = [0];
+  private static readonly TARGET_1 = [1];
+
   private xor: NeuralNetNetwork;
 
   constructor() {
@@ -2859,28 +2865,33 @@ export class NeuralNet extends Benchmark {
   }
 
   run(_iteration_id: number): void {
-    this.xor.train([0, 0], [0]);
-    this.xor.train([1, 0], [1]);
-    this.xor.train([0, 1], [1]);
-    this.xor.train([1, 1], [0]);
+    for (let i = 0; i < 1000; i++) {
+      this.xor.train(NeuralNet.INPUT_00, NeuralNet.TARGET_0);
+      this.xor.train(NeuralNet.INPUT_10, NeuralNet.TARGET_1);
+      this.xor.train(NeuralNet.INPUT_01, NeuralNet.TARGET_1);
+      this.xor.train(NeuralNet.INPUT_11, NeuralNet.TARGET_0);
+    }
   }
 
   checksum(): number {
-    this.xor.feedForward([0, 0]);
-    this.results.push(...this.xor.currentOutputs());
+    const results: number[] = [];
 
-    this.xor.feedForward([0, 1]);
-    this.results.push(...this.xor.currentOutputs());
+    this.xor.feedForward(NeuralNet.INPUT_00);
+    results.push(...this.xor.currentOutputs());
 
-    this.xor.feedForward([1, 0]);
-    this.results.push(...this.xor.currentOutputs());
+    this.xor.feedForward(NeuralNet.INPUT_01);
+    results.push(...this.xor.currentOutputs());
 
-    this.xor.feedForward([1, 1]);
-    this.results.push(...this.xor.currentOutputs());
+    this.xor.feedForward(NeuralNet.INPUT_10);
+    results.push(...this.xor.currentOutputs());
 
-    const sum = this.results.reduce((a, b) => a + b, 0);
+    this.xor.feedForward(NeuralNet.INPUT_11);
+    results.push(...this.xor.currentOutputs());
+
+    const sum = results.reduce((a, b) => a + b, 0);
     return Helper.checksumFloat(sum);
   }
+
   override get name(): string {
     return "Etc::NeuralNet";
   }

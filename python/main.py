@@ -2165,30 +2165,27 @@ class Neuron:
         self.error = 0.0
 
     def calculate_output(self):
-
-        activation = sum(synapse.weight * synapse.source_neuron.output
-                         for synapse in self.synapses_in)
+        activation = 0.0
+        for synapse in self.synapses_in:
+            activation += synapse.weight * synapse.source_neuron.output
         activation -= self.threshold
         self.output = 1.0 / (1.0 + math.exp(-activation))
 
     def derivative(self) -> float:
-
         return self.output * (1.0 - self.output)
 
     def output_train(self, rate: float, target: float):
-
         self.error = (target - self.output) * self.derivative()
         self._update_weights(rate)
 
     def hidden_train(self, rate: float):
-
-        error_sum = sum(synapse.dest_neuron.error * synapse.prev_weight
-                        for synapse in self.synapses_out)
+        error_sum = 0.0
+        for synapse in self.synapses_out:
+            error_sum += synapse.dest_neuron.error * synapse.prev_weight
         self.error = error_sum * self.derivative()
         self._update_weights(rate)
 
     def _update_weights(self, rate: float):
-
         for synapse in self.synapses_in:
             temp_weight = synapse.weight
             synapse.weight += (rate * self.LEARNING_RATE * self.error *
@@ -2222,7 +2219,6 @@ class NeuralNetwork:
                 dest.synapses_in.append(synapse)
 
     def train(self, inputs: List[float], targets: List[float]):
-
         self.feed_forward(inputs)
 
         for neuron, target in zip(self.output_layer, targets):
@@ -2232,7 +2228,6 @@ class NeuralNetwork:
             neuron.hidden_train(0.3)
 
     def feed_forward(self, inputs: List[float]):
-
         for neuron, input_val in zip(self.input_layer, inputs):
             neuron.output = input_val
 
@@ -2243,41 +2238,45 @@ class NeuralNetwork:
             neuron.calculate_output()
 
     def current_outputs(self) -> List[float]:
-
         return [neuron.output for neuron in self.output_layer]
 
 
 class NeuralNet(Benchmark):
+
+    INPUT_00 = [0.0, 0.0]
+    INPUT_01 = [0.0, 1.0]
+    INPUT_10 = [1.0, 0.0]
+    INPUT_11 = [1.0, 1.0]
+    TARGET_0 = [0.0]
+    TARGET_1 = [1.0]
 
     def __init__(self):
         super().__init__()
         self.xor: Optional[NeuralNetwork] = None
 
     def prepare(self):
-
         self.xor = NeuralNetwork(2, 10, 1)
 
     def run_benchmark(self, iteration_id: int):
-
-        self.xor.train([0.0, 0.0], [0.0])
-        self.xor.train([1.0, 0.0], [1.0])
-        self.xor.train([0.0, 1.0], [1.0])
-        self.xor.train([1.0, 1.0], [0.0])
+        for _ in range(1000):
+            self.xor.train(self.INPUT_00, self.TARGET_0)
+            self.xor.train(self.INPUT_10, self.TARGET_1)
+            self.xor.train(self.INPUT_01, self.TARGET_1)
+            self.xor.train(self.INPUT_11, self.TARGET_0)
 
     def checksum(self) -> int:
-
         outputs: List[float] = []
 
-        self.xor.feed_forward([0.0, 0.0])
+        self.xor.feed_forward(self.INPUT_00)
         outputs.extend(self.xor.current_outputs())
 
-        self.xor.feed_forward([0.0, 1.0])
+        self.xor.feed_forward(self.INPUT_01)
         outputs.extend(self.xor.current_outputs())
 
-        self.xor.feed_forward([1.0, 0.0])
+        self.xor.feed_forward(self.INPUT_10)
         outputs.extend(self.xor.current_outputs())
 
-        self.xor.feed_forward([1.0, 1.0])
+        self.xor.feed_forward(self.INPUT_11)
         outputs.extend(self.xor.current_outputs())
 
         total = sum(outputs)

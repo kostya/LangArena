@@ -2434,32 +2434,39 @@ type NeuralNet struct {
 	xorNet *NeuralNetwork
 }
 
-func (n *NeuralNet) Prepare() {
+var (
+	input00 = []float64{0, 0}
+	input01 = []float64{0, 1}
+	input10 = []float64{1, 0}
+	input11 = []float64{1, 1}
+	target0 = []float64{0}
+	target1 = []float64{1}
+)
 
+func (n *NeuralNet) Prepare() {
 	n.xorNet = NewNeuralNetwork(2, 10, 1)
-	n.res = make([]float64, 0, 4)
 }
 
 func (n *NeuralNet) Run(iteration_id int) {
-
-	n.xorNet.Train([]float64{0, 0}, []float64{0})
-	n.xorNet.Train([]float64{1, 0}, []float64{1})
-	n.xorNet.Train([]float64{0, 1}, []float64{1})
-	n.xorNet.Train([]float64{1, 1}, []float64{0})
+	for i := 0; i < 1000; i++ {
+		n.xorNet.Train(input00, target0)
+		n.xorNet.Train(input10, target1)
+		n.xorNet.Train(input01, target1)
+		n.xorNet.Train(input11, target0)
+	}
 }
 
 func (n *NeuralNet) Checksum() uint32 {
-
-	n.xorNet.FeedForward([]float64{0, 0})
+	n.xorNet.FeedForward(input00)
 	outputs1 := n.xorNet.CurrentOutputs()
 
-	n.xorNet.FeedForward([]float64{0, 1})
+	n.xorNet.FeedForward(input01)
 	outputs2 := n.xorNet.CurrentOutputs()
 
-	n.xorNet.FeedForward([]float64{1, 0})
+	n.xorNet.FeedForward(input10)
 	outputs3 := n.xorNet.CurrentOutputs()
 
-	n.xorNet.FeedForward([]float64{1, 1})
+	n.xorNet.FeedForward(input11)
 	outputs4 := n.xorNet.CurrentOutputs()
 
 	allOutputs := make([]float64, 0, 4)
