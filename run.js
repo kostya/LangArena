@@ -69,9 +69,9 @@
     "iterations": 100
   },
   "Etc::Sieve": {
-    "checksum": 270212460,
+    "checksum": 1042248060,
     "limit": 3000000,
-    "iterations": 70
+    "iterations": 270
   },
   "Etc::Noise": {
     "checksum": 1166030192,
