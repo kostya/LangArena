@@ -92,22 +92,16 @@ end
 function run_ops(ops::Vector{AbstractOp}, tape::RTape)::Int64
     result = Int64(0)
 
-    function execute(op::AbstractOp)
-        if op isa OpInc
-            inc!(tape)
-        elseif op isa OpDec
-            dec!(tape)
-        elseif op isa OpNext
-            next!(tape)
-        elseif op isa OpPrev
-            prev!(tape)
-        elseif op isa OpPrint
-            result = (result << 2) + Int64(get(tape))
-        elseif op isa OpLoop
-            while get(tape) != 0x00
-                for inner_op in op.ops
-                    execute(inner_op)
-                end
+    execute(op::OpInc) = inc!(tape)
+    execute(op::OpDec) = dec!(tape)
+    execute(op::OpNext) = next!(tape)
+    execute(op::OpPrev) = prev!(tape)
+    execute(op::OpPrint) = result = (result << 2) + Int64(get(tape))
+    
+    function execute(op::OpLoop)
+        while get(tape) != 0x00
+            for inner_op in op.ops
+                execute(inner_op)
             end
         end
     end
