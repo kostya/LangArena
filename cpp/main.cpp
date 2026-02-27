@@ -1886,125 +1886,6 @@ public:
   uint32_t checksum() override { return checksum_val; }
 };
 
-class Noise : public Benchmark {
-private:
-  struct Vec2 {
-    double x, y;
-  };
-
-  class Noise2DContext {
-  private:
-    std::vector<Vec2> rgradients;
-    std::vector<int> permutations;
-    int size_val;
-
-    static Vec2 random_gradient() {
-      double v = Helper::next_float() * M_PI * 2.0;
-      return {std::cos(v), std::sin(v)};
-    }
-
-    static double lerp(double a, double b, double v) {
-      return a * (1.0 - v) + b * v;
-    }
-
-    static double smooth(double v) { return v * v * (3.0 - 2.0 * v); }
-
-    static double gradient(const Vec2 &orig, const Vec2 &grad, const Vec2 &p) {
-      Vec2 sp = {p.x - orig.x, p.y - orig.y};
-      return grad.x * sp.x + grad.y * sp.y;
-    }
-
-  public:
-    Noise2DContext(int size) : size_val(size) {
-      rgradients.resize(size);
-      permutations.resize(size);
-
-      for (int i = 0; i < size; i++) {
-        rgradients[i] = random_gradient();
-        permutations[i] = i;
-      }
-
-      for (int i = 0; i < size; i++) {
-        int a = Helper::next_int(size);
-        int b = Helper::next_int(size);
-        std::swap(permutations[a], permutations[b]);
-      }
-    }
-
-    Vec2 get_gradient(int x, int y) {
-      int idx =
-          permutations[x & (size_val - 1)] + permutations[y & (size_val - 1)];
-      return rgradients[idx & (size_val - 1)];
-    }
-
-    std::pair<std::array<Vec2, 4>, std::array<Vec2, 4>>
-    get_gradients(double x, double y) {
-      double x0f = std::floor(x);
-      double y0f = std::floor(y);
-      int x0 = static_cast<int>(x0f);
-      int y0 = static_cast<int>(y0f);
-      int x1 = x0 + 1;
-      int y1 = y0 + 1;
-
-      std::array<Vec2, 4> gradients = {
-          get_gradient(x0, y0), get_gradient(x1, y0), get_gradient(x0, y1),
-          get_gradient(x1, y1)};
-
-      std::array<Vec2, 4> origins = {
-          Vec2{x0f + 0.0, y0f + 0.0}, Vec2{x0f + 1.0, y0f + 0.0},
-          Vec2{x0f + 0.0, y0f + 1.0}, Vec2{x0f + 1.0, y0f + 1.0}};
-
-      return {gradients, origins};
-    }
-
-    double get(double x, double y) {
-      Vec2 p = {x, y};
-      auto [gradients, origins] = get_gradients(x, y);
-
-      double v0 = gradient(origins[0], gradients[0], p);
-      double v1 = gradient(origins[1], gradients[1], p);
-      double v2 = gradient(origins[2], gradients[2], p);
-      double v3 = gradient(origins[3], gradients[3], p);
-
-      double fx = smooth(x - origins[0].x);
-      double vx0 = lerp(v0, v1, fx);
-      double vx1 = lerp(v2, v3, fx);
-
-      double fy = smooth(y - origins[0].y);
-      return lerp(vx0, vx1, fy);
-    }
-  };
-
-  static constexpr char32_t SYM[6] = {U' ', U'░', U'▒', U'▓', U'█', U'█'};
-
-  int64_t size_val;
-  uint32_t result_val;
-  std::unique_ptr<Noise2DContext> n2d;
-
-public:
-  Noise() : result_val(0) {
-    size_val = config_val("size");
-    n2d = std::make_unique<Noise2DContext>(static_cast<int>(size_val));
-  }
-
-  std::string name() const override { return "Etc::Noise"; }
-
-  void run(int iteration_id) override {
-    for (int64_t y = 0; y < size_val; y++) {
-      for (int64_t x = 0; x < size_val; x++) {
-        double v =
-            n2d->get(x * 0.1, (y + (iteration_id * 128)) * 0.1) * 0.5 + 0.5;
-        int idx = static_cast<int>(v / 0.2);
-        if (idx >= 6)
-          idx = 5;
-        result_val += static_cast<uint32_t>(SYM[idx]);
-      }
-    }
-  }
-
-  uint32_t checksum() override { return result_val; }
-};
-
 class TextRaytracer : public Benchmark {
 private:
   struct Vector {
@@ -5057,7 +4938,6 @@ void Benchmark::all(const std::string &single_bench) {
           {"Json::ParseMapping",
            []() { return std::make_unique<JsonParseMapping>(); }},
           {"Etc::Sieve", []() { return std::make_unique<Sieve>(); }},
-          {"Etc::Noise", []() { return std::make_unique<Noise>(); }},
           {"Etc::TextRaytracer",
            []() { return std::make_unique<TextRaytracer>(); }},
           {"Etc::NeuralNet", []() { return std::make_unique<NeuralNet>(); }},

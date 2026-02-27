@@ -28,7 +28,6 @@ include("benchmarks/Base64Encode.jl")
 include("benchmarks/Base64Decode.jl")
 include("benchmarks/Json.jl")
 include("benchmarks/Sieve.jl")
-include("benchmarks/Noise.jl")
 include("benchmarks/TextRaytracer.jl")
 include("benchmarks/NeuralNet.jl")
 include("benchmarks/Sort.jl")
@@ -65,7 +64,6 @@ const ALL_BENCHMARKS = [
     ("Json::ParseDom", JsonParseDom),
     ("Json::ParseMapping", JsonParseMapping),
     ("Etc::Sieve", Sieve),
-    ("Etc::Noise", Noise),
     ("Etc::TextRaytracer", TextRaytracer),
     ("Etc::NeuralNet", NeuralNet),
     ("Sort::Quick", SortQuick),

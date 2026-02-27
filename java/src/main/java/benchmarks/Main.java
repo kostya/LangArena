@@ -28,7 +28,6 @@ public class Main {
         Benchmark.registerBenchmark("Json::ParseDom", () -> new JsonParseDom());
         Benchmark.registerBenchmark("Json::ParseMapping", () -> new JsonParseMapping());
         Benchmark.registerBenchmark("Etc::Sieve", () -> new Sieve());
-        Benchmark.registerBenchmark("Etc::Noise", () -> new Noise());
         Benchmark.registerBenchmark("Etc::TextRaytracer", () -> new TextRaytracer());
         Benchmark.registerBenchmark("Etc::NeuralNet", () -> new NeuralNet());
         Benchmark.registerBenchmark("Sort::Quick", () -> new SortQuick());

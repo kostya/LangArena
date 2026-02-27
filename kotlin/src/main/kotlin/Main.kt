@@ -30,7 +30,6 @@ fun main(args: Array<String>) {
     Benchmark.registerBenchmark("Json::ParseDom") { JsonParseDom() }
     Benchmark.registerBenchmark("Json::ParseMapping") { JsonParseMapping() }
     Benchmark.registerBenchmark("Etc::Sieve") { Sieve() }
-    Benchmark.registerBenchmark("Etc::Noise") { Noise() }
     Benchmark.registerBenchmark("Etc::TextRaytracer") { TextRaytracer() }
     Benchmark.registerBenchmark("Etc::NeuralNet") { NeuralNet() }
     Benchmark.registerBenchmark("Sort::Quick") { SortQuick() }

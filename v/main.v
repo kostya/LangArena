@@ -17,7 +17,6 @@ import spectralnorm
 import base64encode
 import base64decode
 import sieve
-import noise
 import textraytracer
 import neuralnet
 import mandelbrot
@@ -56,9 +55,6 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		}},
 		benchmark.BenchmarkInfo{'Etc::Sieve', fn () &benchmark.IBenchmark {
 			return sieve.new_sieve()
-		}},
-		benchmark.BenchmarkInfo{'Etc::Noise', fn () &benchmark.IBenchmark {
-			return noise.new_noise()
 		}},
 		benchmark.BenchmarkInfo{'CLBG::Mandelbrot', fn () &benchmark.IBenchmark {
 			return mandelbrot.new_mandelbrot()

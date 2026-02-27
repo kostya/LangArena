@@ -24,7 +24,6 @@ pub mod matmul;
 pub mod maze;
 pub mod nbody;
 pub mod neural_net;
-pub mod noise;
 pub mod pidigits;
 pub mod regex_dna;
 pub mod revcomp;

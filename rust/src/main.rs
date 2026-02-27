@@ -151,7 +151,6 @@ fn run_benchmarks(single_bench: Option<&str>) {
         Json_ParseMapping: benchmarks::json_parse_mapping::JsonParseMapping,
 
         Etc_Sieve: benchmarks::sieve::Sieve,
-        Etc_Noise: benchmarks::noise::Noise,
         Etc_TextRaytracer: benchmarks::text_raytracer::TextRaytracer,
         Etc_NeuralNet: benchmarks::neural_net::NeuralNet,
         Etc_CacheSimulation: benchmarks::cache_simulation::CacheSimulation,

@@ -122,7 +122,6 @@ public abstract class Benchmark
             CreateBenchmarkInfo<JsonParseMapping>("Json::ParseMapping"),
 
             CreateBenchmarkInfo<Sieve>("Etc::Sieve"),
-            CreateBenchmarkInfo<Noise>("Etc::Noise"),
             CreateBenchmarkInfo<TextRaytracer>("Etc::TextRaytracer"),
             CreateBenchmarkInfo<NeuralNet>("Etc::NeuralNet"),
             CreateBenchmarkInfo<CacheSimulation>("Etc::CacheSimulation"),

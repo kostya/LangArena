@@ -50,7 +50,6 @@ module BenchmarkRunner =
         createBenchmarkInfo<JsonParseMapping> "Json::ParseMapping"
 
         createBenchmarkInfo<Sieve> "Etc::Sieve"
-        createBenchmarkInfo<Noise> "Etc::Noise"
         createBenchmarkInfo<TextRaytracer> "Etc::TextRaytracer"
         createBenchmarkInfo<NeuralNet> "Etc::NeuralNet"
         createBenchmarkInfo<CacheSimulation> "Etc::CacheSimulation"

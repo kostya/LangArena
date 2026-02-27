@@ -1853,125 +1853,6 @@ class Sieve(Benchmark):
 
 
 @dataclass
-class Vec2:
-    x: float
-    y: float
-
-
-class Noise2DContext:
-
-    def __init__(self, size: int):
-        self.size = size
-
-        self.rgradients = [self._random_gradient() for _ in range(size)]
-
-        self.permutations = list(range(size))
-        for _ in range(size):
-            a = Helper.next_int(size)
-            b = Helper.next_int(size)
-            self.permutations[a], self.permutations[b] = self.permutations[
-                b], self.permutations[a]
-
-    @staticmethod
-    def _random_gradient() -> Vec2:
-
-        v = Helper.next_float() * math.pi * 2.0
-        return Vec2(math.cos(v), math.sin(v))
-
-    def get_gradient(self, x: int, y: int) -> Vec2:
-
-        idx = (self.permutations[x & (self.size - 1)] +
-               self.permutations[y & (self.size - 1)])
-        return self.rgradients[idx & (self.size - 1)]
-
-    def get_gradients(self, x: float, y: float):
-
-        x0f = math.floor(x)
-        y0f = math.floor(y)
-        x0 = int(x0f)
-        y0 = int(y0f)
-        x1 = x0 + 1
-        y1 = y0 + 1
-
-        gradients = (
-            self.get_gradient(x0, y0),
-            self.get_gradient(x1, y0),
-            self.get_gradient(x0, y1),
-            self.get_gradient(x1, y1),
-        )
-
-        origins = (
-            Vec2(x0f + 0.0, y0f + 0.0),
-            Vec2(x0f + 1.0, y0f + 0.0),
-            Vec2(x0f + 0.0, y0f + 1.0),
-            Vec2(x0f + 1.0, y0f + 1.0),
-        )
-
-        return gradients, origins
-
-    @staticmethod
-    def _smooth(v: float) -> float:
-
-        return v * v * (3.0 - 2.0 * v)
-
-    @staticmethod
-    def _lerp(a: float, b: float, v: float) -> float:
-
-        return a * (1.0 - v) + b * v
-
-    @staticmethod
-    def _gradient(orig: Vec2, grad: Vec2, p: Vec2) -> float:
-
-        sp = Vec2(p.x - orig.x, p.y - orig.y)
-        return grad.x * sp.x + grad.y * sp.y
-
-    def get(self, x: float, y: float) -> float:
-
-        p = Vec2(x, y)
-        gradients, origins = self.get_gradients(x, y)
-
-        v0 = self._gradient(origins[0], gradients[0], p)
-        v1 = self._gradient(origins[1], gradients[1], p)
-        v2 = self._gradient(origins[2], gradients[2], p)
-        v3 = self._gradient(origins[3], gradients[3], p)
-
-        fx = self._smooth(x - origins[0].x)
-        vx0 = self._lerp(v0, v1, fx)
-        vx1 = self._lerp(v2, v3, fx)
-
-        fy = self._smooth(y - origins[0].y)
-        return self._lerp(vx0, vx1, fy)
-
-
-class Noise(Benchmark):
-    SYM = [' ', '░', '▒', '▓', '█', '█']
-
-    def __init__(self):
-        super().__init__()
-        self.size = 0
-        self.result = 0
-        self.n2d: Optional[Noise2DContext] = None
-
-    def prepare(self):
-        self.size = Helper.config_i64(self.name(), "size")
-        self.n2d = Noise2DContext(self.size)
-
-    def run_benchmark(self, iteration_id: int):
-        for y in range(self.size):
-            for x in range(self.size):
-                v = self.n2d.get(x * 0.1,
-                                 (y + (iteration_id * 128)) * 0.1) * 0.5 + 0.5
-                idx = int(v / 0.2)
-                self.result = (self.result + ord(self.SYM[idx])) & 0xFFFFFFFF
-
-    def checksum(self) -> int:
-        return self.result & 0xFFFFFFFF
-
-    def name(self) -> str:
-        return "Etc::Noise"
-
-
-@dataclass
 class Vector:
     x: float
     y: float
@@ -4622,7 +4503,6 @@ def register_benchmarks():
     Benchmark.register_benchmark('Json::ParseDom', JsonParseDom)
     Benchmark.register_benchmark('Json::ParseMapping', JsonParseMapping)
     Benchmark.register_benchmark('Etc::Sieve', Sieve)
-    Benchmark.register_benchmark('Etc::Noise', Noise)
     Benchmark.register_benchmark('Etc::TextRaytracer', TextRaytracer)
     Benchmark.register_benchmark('Etc::NeuralNet', NeuralNet)
     Benchmark.register_benchmark('Sort::Quick', SortQuick)

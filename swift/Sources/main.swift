@@ -29,7 +29,6 @@ func main() {
   BenchmarkManager.register("Json::ParseDom") { JsonParseDom() }
   BenchmarkManager.register("Json::ParseMapping") { JsonParseMapping() }
   BenchmarkManager.register("Etc::Sieve") { Sieve() }
-  BenchmarkManager.register("Etc::Noise") { Noise() }
   BenchmarkManager.register("Etc::TextRaytracer") { TextRaytracer() }
   BenchmarkManager.register("Etc::NeuralNet") { NeuralNet() }
   BenchmarkManager.register("Sort::Quick") { SortQuick() }

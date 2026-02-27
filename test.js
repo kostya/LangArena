@@ -73,11 +73,6 @@
     "limit": 1000,
     "iterations": 3
   },
-  "Etc::Noise": {
-    "checksum": 430865288,
-    "size": 64,
-    "iterations": 100
-  },
   "Etc::TextRaytracer": {
     "checksum": 1438660,
     "w": 100,

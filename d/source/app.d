@@ -31,7 +31,6 @@ import benchmarks.spectralnorm;
 import benchmarks.base64encode;
 import benchmarks.base64decode;
 import benchmarks.sieve;
-import benchmarks.noise;
 import benchmarks.textraytracer;
 import benchmarks.neuralnet;
 import benchmarks.sort;
@@ -55,23 +54,23 @@ mixin(registerAllBenchmarks!("CLBG::Pidigits", Pidigits, "Binarytrees::Obj",
         "Matmul::T8", Matmul8T, "Matmul::T16", Matmul16T, "CLBG::Nbody", Nbody,
         "CLBG::RegexDna", RegexDna, "CLBG::Revcomp", Revcomp,
         "CLBG::Spectralnorm", Spectralnorm, "Base64::Encode",
-        Base64Encode, "Base64::Decode", Base64Decode, "Json::Generate",
-        JsonGenerate, "Json::ParseDom", JsonParseDom, "Json::ParseMapping",
-        JsonParseMapping, "Etc::Sieve", Sieve, "Etc::Noise", Noise,
-        "Etc::TextRaytracer", TextRaytracer, "Etc::NeuralNet", NeuralNet,
-        "Sort::Quick", SortQuick, "Sort::Merge", SortMerge, "Sort::Self",
-        SortSelf, "Graph::BFS", GraphPathBFS, "Graph::DFS",
-        GraphPathDFS, "Graph::AStar", GraphPathAStar, "Hash::SHA256",
-        BufferHashSHA256, "Hash::CRC32", BufferHashCRC32,
-        "Etc::CacheSimulation", CacheSimulation, "Calculator::Ast",
-        CalculatorAst, "Calculator::Interpreter", CalculatorInterpreter,
-        "Etc::GameOfLife", GameOfLife, "Maze::Generator", MazeGenerator, "Maze::BFS",
-        MazeBFS, "Maze::AStar", MazeAStar, "Compress::BWTEncode", BWTEncode,
-        "Compress::BWTDecode", BWTDecode, "Compress::HuffEncode", HuffEncode,
-        "Compress::HuffDecode", HuffDecode, "Compress::ArithEncode", ArithEncode,
-        "Compress::ArithDecode", ArithDecode, "Compress::LZWEncode",
-        LZWEncode, "Compress::LZWDecode", LZWDecode, "Distance::Jaro", Jaro,
-        "Distance::NGram", NGram));
+        Base64Encode, "Base64::Decode", Base64Decode, "Json::Generate", JsonGenerate,
+        "Json::ParseDom", JsonParseDom, "Json::ParseMapping", JsonParseMapping,
+        "Etc::Sieve", Sieve, "Etc::TextRaytracer",
+        TextRaytracer, "Etc::NeuralNet", NeuralNet, "Sort::Quick", SortQuick,
+        "Sort::Merge", SortMerge, "Sort::Self", SortSelf, "Graph::BFS",
+        GraphPathBFS, "Graph::DFS", GraphPathDFS, "Graph::AStar",
+        GraphPathAStar, "Hash::SHA256", BufferHashSHA256, "Hash::CRC32",
+        BufferHashCRC32, "Etc::CacheSimulation",
+        CacheSimulation, "Calculator::Ast", CalculatorAst, "Calculator::Interpreter",
+        CalculatorInterpreter, "Etc::GameOfLife", GameOfLife, "Maze::Generator",
+        MazeGenerator, "Maze::BFS", MazeBFS, "Maze::AStar", MazeAStar,
+        "Compress::BWTEncode",
+        BWTEncode, "Compress::BWTDecode", BWTDecode, "Compress::HuffEncode",
+        HuffEncode, "Compress::HuffDecode", HuffDecode, "Compress::ArithEncode",
+        ArithEncode, "Compress::ArithDecode", ArithDecode,
+        "Compress::LZWEncode", LZWEncode, "Compress::LZWDecode",
+        LZWDecode, "Distance::Jaro", Jaro, "Distance::NGram", NGram));
 
 void benchmarkAll(string singleBench = "")
 {

@@ -97,7 +97,7 @@ function run_ops(ops::Vector{AbstractOp}, tape::RTape)::Int64
     execute(op::OpNext) = next!(tape)
     execute(op::OpPrev) = prev!(tape)
     execute(op::OpPrint) = result = (result << 2) + Int64(get(tape))
-    
+
     function execute(op::OpLoop)
         while get(tape) != 0x00
             for inner_op in op.ops

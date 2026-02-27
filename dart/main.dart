@@ -2111,108 +2111,6 @@ class Sieve extends Benchmark {
   String get benchmarkName => 'Etc::Sieve';
 }
 
-class NoiseVec2 {
-  final double x, y;
-
-  NoiseVec2(this.x, this.y);
-}
-
-class Noise2DContext {
-  final int size;
-  final int mask;
-  final List<NoiseVec2> _rgradients;
-  final List<int> _permutations;
-
-  Noise2DContext(this.size)
-    : mask = size - 1,
-      _rgradients = List.generate(size, (_) {
-        final v = Helper.nextFloat() * pi * 2.0;
-        return NoiseVec2(cos(v), sin(v));
-      }),
-      _permutations = List.generate(size, (i) => i) {
-    for (int i = 0; i < size; i++) {
-      final a = Helper.nextInt(size);
-      final b = Helper.nextInt(size);
-      final temp = _permutations[a];
-      _permutations[a] = _permutations[b];
-      _permutations[b] = temp;
-    }
-  }
-
-  double _gradient(double ox, double oy, NoiseVec2 grad, double px, double py) {
-    return grad.x * (px - ox) + grad.y * (py - oy);
-  }
-
-  double _lerp(double a, double b, double v) => a + (b - a) * v;
-
-  double _smooth(double v) => v * v * (3.0 - 2.0 * v);
-
-  NoiseVec2 _getGradient(int x, int y) {
-    final idx = _permutations[x & mask] + _permutations[y & mask];
-    return _rgradients[idx & mask];
-  }
-
-  double get(double x, double y) {
-    final x0f = x.floorToDouble();
-    final y0f = y.floorToDouble();
-    final x0 = x0f.toInt();
-    final y0 = y0f.toInt();
-
-    final g00 = _getGradient(x0, y0);
-    final g10 = _getGradient(x0 + 1, y0);
-    final g01 = _getGradient(x0, y0 + 1);
-    final g11 = _getGradient(x0 + 1, y0 + 1);
-
-    final v0 = _gradient(x0f, y0f, g00, x, y);
-    final v1 = _gradient(x0f + 1.0, y0f, g10, x, y);
-    final v2 = _gradient(x0f, y0f + 1.0, g01, x, y);
-    final v3 = _gradient(x0f + 1.0, y0f + 1.0, g11, x, y);
-
-    final fx = _smooth(x - x0f);
-    final vx0 = _lerp(v0, v1, fx);
-    final vx1 = _lerp(v2, v3, fx);
-
-    final fy = _smooth(y - y0f);
-    return _lerp(vx0, vx1, fy);
-  }
-}
-
-class Noise extends Benchmark {
-  static const _sym = [' ', '░', '▒', '▓', '█', '█'];
-
-  late int size;
-  late Noise2DContext _n2d;
-  int _resultValue = 0;
-
-  @override
-  void prepare() {
-    size = Helper.configI64(benchmarkName, "size").toInt();
-    _n2d = Noise2DContext(size);
-  }
-
-  @override
-  void runBenchmark(int iterationId) {
-    for (int y = 0; y < size; y++) {
-      for (int x = 0; x < size; x++) {
-        final v =
-            _n2d.get(x * 0.1, (y + (iterationId * 128)) * 0.1) * 0.5 + 0.5;
-        final idx = (v / 0.2).floor();
-        final charIdx = idx.clamp(0, _sym.length - 1);
-        _resultValue =
-            (_resultValue + _sym[charIdx].codeUnitAt(0)) & 0xFFFFFFFF;
-      }
-    }
-  }
-
-  @override
-  int checksum() {
-    return _resultValue;
-  }
-
-  @override
-  String get benchmarkName => 'Etc::Noise';
-}
-
 class TextRaytracer extends Benchmark {
   static final _white = TextRaytracerColor(1.0, 1.0, 1.0);
   static final _red = TextRaytracerColor(1.0, 0.0, 0.0);
@@ -5309,7 +5207,6 @@ void registerBenchmarks() {
   Benchmark.registerBenchmark('Json::ParseDom', () => JsonParseDom());
   Benchmark.registerBenchmark('Json::ParseMapping', () => JsonParseMapping());
   Benchmark.registerBenchmark('Etc::Sieve', () => Sieve());
-  Benchmark.registerBenchmark('Etc::Noise', () => Noise());
   Benchmark.registerBenchmark('Etc::TextRaytracer', () => TextRaytracer());
   Benchmark.registerBenchmark('Etc::NeuralNet', () => NeuralNet());
   Benchmark.registerBenchmark('Sort::Quick', () => SortQuick());
