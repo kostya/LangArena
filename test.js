@@ -101,6 +101,11 @@
     "word_len": 1,
     "iterations": 2
   },
+  "Etc::LogParser": {
+    "checksum": 66,
+    "iterations": 2,
+    "lines_count": 10
+  },
   "Sort::Quick": {
     "checksum": 2548773,
     "size": 100000,

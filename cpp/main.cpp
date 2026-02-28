@@ -4955,6 +4955,119 @@ public:
 };
 } // namespace Distance
 
+class LogParser : public Benchmark {
+private:
+  std::string log;
+  uint32_t checksum_val;
+
+  std::vector<std::unique_ptr<re2::RE2>> compiled_patterns;
+  std::vector<std::string> pattern_names;
+
+  const std::vector<std::string> IPS = [] {
+    std::vector<std::string> ips;
+    for (int i = 1; i <= 255; i++) {
+      ips.push_back("192.168.1." + std::to_string(i));
+    }
+    return ips;
+  }();
+
+  const std::vector<std::string> METHODS = {"GET", "POST", "PUT", "DELETE"};
+  const std::vector<std::string> PATHS = {"/index.html",
+                                          "/api/users",
+                                          "/login",
+                                          "/admin",
+                                          "/images/logo.png",
+                                          "/etc/passwd",
+                                          "/wp-admin/setup.php"};
+  const std::vector<int> STATUSES = {200, 201, 301, 302, 400, 401,
+                                     403, 404, 500, 502, 503};
+  const std::vector<std::string> AGENTS = {"Mozilla/5.0", "Googlebot/2.1",
+                                           "curl/7.68.0", "scanner/2.0"};
+
+  static constexpr std::array<const char *, 8> PATTERNS = {
+      " [5][0-9]{2} ",
+      "(?i)bot|crawler|scanner",
+      "(?i)etc/passwd|wp-admin|\\.\\./",
+      "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.35",
+      "/api/[^ \"]+",
+      "POST [^ ]* HTTP",
+      "(?i)/login|/signin",
+      "(?i)get|post",
+  };
+
+  static constexpr std::array<const char *, 8> NAMES = {
+      "errors",    "bots",          "suspicious",    "ips",
+      "api_calls", "post_requests", "auth_attempts", "methods"};
+
+  void generate_log_line(std::string &str, int i) {
+    str += IPS[i % IPS.size()];
+    str += " - - [" + std::to_string(i % 31) + "/Oct/2023:13:55:36 +0000] \"";
+    str += METHODS[i % METHODS.size()] + " " + PATHS[i % PATHS.size()] +
+           " HTTP/1.0\" ";
+    str += std::to_string(STATUSES[i % STATUSES.size()]) + " 2326 \"-\" \"";
+    str += AGENTS[i % AGENTS.size()] + "\"\n";
+  }
+
+public:
+  LogParser() : checksum_val(0) { log.reserve(1000000 * 150); }
+
+  std::string name() const override { return "Etc::LogParser"; }
+
+  void prepare() override {
+    int lines_count = config_val("lines_count");
+
+    std::string log_builder;
+    log_builder.reserve(lines_count * 150);
+
+    for (int i = 0; i < lines_count; i++) {
+      generate_log_line(log_builder, i);
+    }
+
+    log = std::move(log_builder);
+
+    for (size_t i = 0; i < PATTERNS.size(); i++) {
+      auto re = std::make_unique<re2::RE2>(PATTERNS[i]);
+      if (!re->ok()) {
+        std::cerr << "RE2 error for " << PATTERNS[i] << ": " << re->error()
+                  << std::endl;
+      }
+      compiled_patterns.push_back(std::move(re));
+      pattern_names.push_back(NAMES[i]);
+    }
+  }
+
+  void run(int iteration_id) override {
+
+    std::unordered_map<std::string, int> matches;
+
+    for (size_t i = 0; i < compiled_patterns.size(); i++) {
+      const auto &re = compiled_patterns[i];
+      if (!re || !re->ok())
+        continue;
+
+      re2::StringPiece input(log);
+      size_t count = 0;
+
+      re2::StringPiece match;
+      while (
+          re->Match(input, 0, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
+        count++;
+        input.remove_prefix(match.data() - input.data() + match.size());
+      }
+
+      matches[pattern_names[i]] = count;
+    }
+
+    uint32_t total = 0;
+    for (const auto &[_, count] : matches) {
+      total += count;
+    }
+    checksum_val += total;
+  }
+
+  uint32_t checksum() override { return checksum_val; }
+};
+
 std::string to_lower(const std::string &str) {
   std::string result = str;
   std::transform(result.begin(), result.end(), result.begin(),
@@ -5046,6 +5159,7 @@ void Benchmark::all(const std::string &single_bench) {
            []() { return std::make_unique<Distance::Jaro>(); }},
           {"Distance::NGram",
            []() { return std::make_unique<Distance::NGram>(); }},
+          {"Etc::LogParser", []() { return std::make_unique<LogParser>(); }},
 
       };
 

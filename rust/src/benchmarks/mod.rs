@@ -19,6 +19,7 @@ pub mod json_generate;
 pub mod json_parse_dom;
 pub mod json_parse_mapping;
 pub mod knuckeotide;
+pub mod log_parser;
 pub mod mandelbrot;
 pub mod matmul;
 pub mod maze;

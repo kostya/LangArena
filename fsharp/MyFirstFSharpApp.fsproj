@@ -36,7 +36,8 @@
     <Compile Include="Maze.fs" />
     <Compile Include="Compress.fs" />  
     <Compile Include="Distance.fs" />    
-    <Compile Include="Words.fs" />    
+    <Compile Include="Words.fs" /> 
+    <Compile Include="LogParser.fs" />    
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

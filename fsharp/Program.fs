@@ -86,6 +86,7 @@ module BenchmarkRunner =
         createBenchmarkInfo<NGram> "Distance::NGram"
 
         createBenchmarkInfo<Words> "Etc::Words"
+        createBenchmarkInfo<LogParser> "Etc::LogParser"
 
     ]
 

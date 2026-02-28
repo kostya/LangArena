@@ -4534,6 +4534,67 @@ class Words(Benchmark):
         return "Etc::Words"
 
 
+class LogParser(Benchmark):
+    PATTERNS = [
+        ("errors", re.compile(r' [5][0-9]{2} ')),
+        ("bots", re.compile(r'bot|crawler|scanner', re.IGNORECASE)),
+        ("suspicious", re.compile(r'etc/passwd|wp-admin|\.\./', re.IGNORECASE)),
+        ("ips", re.compile(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.35')),
+        ("api_calls", re.compile(r'/api/[^ "]+')),
+        ("post_requests", re.compile(r'POST [^ ]* HTTP')),
+        ("auth_attempts", re.compile(r'/login|/signin', re.IGNORECASE)),
+        ("methods", re.compile(r'get|post', re.IGNORECASE)),
+    ]
+
+    IPS = [f"192.168.1.{i}" for i in range(1, 256)]
+    METHODS = ["GET", "POST", "PUT", "DELETE"]
+    PATHS = [
+        "/index.html", "/api/users", "/login", "/admin", "/images/logo.png",
+        "/etc/passwd", "/wp-admin/setup.php"
+    ]
+    STATUSES = [200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503]
+    AGENTS = ["Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0"]
+
+    def __init__(self):
+        super().__init__()
+        self.lines_count = 0
+        self.log = ""
+        self.checksum_val = 0
+
+    def prepare(self):
+        self.lines_count = Helper.config_i64(self.name(), "lines_count")
+
+        lines = []
+        for i in range(self.lines_count):
+            lines.append(self._generate_log_line(i))
+
+        self.log = ''.join(lines)
+        self.checksum_val = 0
+
+    def _generate_log_line(self, i):
+        return (
+            f"{self.IPS[i % len(self.IPS)]} - - [{i % 31}/Oct/2023:13:55:36 +0000] "
+            f"\"{self.METHODS[i % len(self.METHODS)]} {self.PATHS[i % len(self.PATHS)]} HTTP/1.0\" "
+            f"{self.STATUSES[i % len(self.STATUSES)]} 2326 \"-\" \"{self.AGENTS[i % len(self.AGENTS)]}\"\n"
+        )
+
+    def run_benchmark(self, iteration_id: int):
+        matches = {}
+
+        for name, pattern in self.PATTERNS:
+            matches[name] = len(pattern.findall(self.log))
+
+        total = sum(matches.values())
+        self.checksum_val += total
+        self.checksum_val &= 0xFFFFFFFF
+
+    def checksum(self) -> int:
+        return self.checksum_val & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Etc::LogParser"
+
+
 def register_benchmarks():
     Benchmark.register_benchmark('CLBG::Pidigits', Pidigits)
     Benchmark.register_benchmark('Binarytrees::Obj', BinarytreesObj)
@@ -4587,6 +4648,7 @@ def register_benchmarks():
     Benchmark.register_benchmark('Distance::Jaro', Jaro)
     Benchmark.register_benchmark('Distance::NGram', NGram)
     Benchmark.register_benchmark('Etc::Words', Words)
+    Benchmark.register_benchmark('Etc::LogParser', LogParser)
 
 
 def main():

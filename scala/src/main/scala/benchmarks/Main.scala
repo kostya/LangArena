@@ -58,6 +58,7 @@ object Main:
     Benchmark.registerBenchmark("Distance::Jaro", () => new Distance.Jaro())
     Benchmark.registerBenchmark("Distance::NGram", () => new Distance.NGram())
     Benchmark.registerBenchmark("Etc::Words", () => new Words())
+    Benchmark.registerBenchmark("Etc::LogParser", () => new LogParser())
 
     val now = Instant.now().toEpochMilli
     println(s"start: $now")

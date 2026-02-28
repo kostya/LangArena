@@ -57,6 +57,7 @@ func main() {
   BenchmarkManager.register("Distance::Jaro") { Jaro() }
   BenchmarkManager.register("Distance::NGram") { NGram() }
   BenchmarkManager.register("Etc::Words") { Words() }
+  BenchmarkManager.register("Etc::LogParser") { LogParser() }
 
   let args = CommandLine.arguments.dropFirst()
   let configFile = args.first { $0.hasSuffix(".txt") || $0.hasSuffix(".js") }

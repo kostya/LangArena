@@ -156,6 +156,7 @@ fn run_benchmarks(single_bench: Option<&str>) {
         Etc_CacheSimulation: benchmarks::cache_simulation::CacheSimulation,
         Etc_GameOfLife: benchmarks::game_of_life::GameOfLife,
         Etc_Words: benchmarks::words::Words,
+        Etc_LogParser: benchmarks::log_parser::LogParser,
 
         Sort_Quick: benchmarks::sort_quick::SortQuick,
         Sort_Merge: benchmarks::sort_merge::SortMerge,

@@ -158,7 +158,7 @@ public abstract class Benchmark
             CreateBenchmarkInfo<NGram>("Distance::NGram"),
 
             CreateBenchmarkInfo<Words>("Etc::Words"),
-
+            CreateBenchmarkInfo<Words>("Etc::LogParser"),
         };
     }
 

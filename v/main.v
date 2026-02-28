@@ -33,6 +33,7 @@ import compress
 import distance
 import json_benchmarks
 import words
+import logparser
 
 fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 	return [
@@ -188,6 +189,9 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		}},
 		benchmark.BenchmarkInfo{'Etc::Words', fn () &benchmark.IBenchmark {
 			return words.new_words()
+		}},
+		benchmark.BenchmarkInfo{'Etc::LogParser', fn () &benchmark.IBenchmark {
+			return logparser.new_logparser()
 		}},
 	]
 }

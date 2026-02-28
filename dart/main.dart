@@ -5232,6 +5232,102 @@ class Words extends Benchmark {
   String get benchmarkName => 'Etc::Words';
 }
 
+class LogParser extends Benchmark {
+  late int linesCount;
+  late String log;
+  int checksumVal = 0;
+
+  static final List<String> IPS = List.generate(
+    255,
+    (i) => '192.168.1.${i + 1}',
+  );
+  static const List<String> METHODS = ['GET', 'POST', 'PUT', 'DELETE'];
+  static const List<String> PATHS = [
+    '/index.html',
+    '/api/users',
+    '/login',
+    '/admin',
+    '/images/logo.png',
+    '/etc/passwd',
+    '/wp-admin/setup.php',
+  ];
+  static const List<int> STATUSES = [
+    200,
+    201,
+    301,
+    302,
+    400,
+    401,
+    403,
+    404,
+    500,
+    502,
+    503,
+  ];
+  static const List<String> AGENTS = [
+    'Mozilla/5.0',
+    'Googlebot/2.1',
+    'curl/7.68.0',
+    'scanner/2.0',
+  ];
+
+  static final List<MapEntry<String, String>> PATTERNS = [
+    const MapEntry('errors', r' [5][0-9]{2} '),
+    const MapEntry('bots', r'bot|crawler|scanner'),
+    const MapEntry('suspicious', r'etc/passwd|wp-admin|\.\./'),
+    const MapEntry('ips', r'\d{1,3}\.\d{1,3}\.\d{1,3}\.35'),
+    const MapEntry('api_calls', r'/api/[^ "]+'),
+    const MapEntry('post_requests', r'POST [^ ]* HTTP'),
+    const MapEntry('auth_attempts', r'/login|/signin'),
+    const MapEntry('methods', r'get|post'),
+  ];
+
+  LogParser() {
+    linesCount = Helper.configI64(benchmarkName, 'lines_count').toInt();
+  }
+
+  @override
+  void prepare() {
+    final buffer = StringBuffer();
+    for (int i = 0; i < linesCount; i++) {
+      buffer.write(generateLogLine(i));
+    }
+    log = buffer.toString();
+  }
+
+  String generateLogLine(int i) {
+    return '${IPS[i % IPS.length]} - - [${i % 31}/Oct/2023:13:55:36 +0000] "${METHODS[i % METHODS.length]} ${PATHS[i % PATHS.length]} HTTP/1.0" ${STATUSES[i % STATUSES.length]} 2326 "-" "${AGENTS[i % AGENTS.length]}"\n';
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    final matches = HashMap<String, int>();
+
+    for (final pattern in PATTERNS) {
+      matches[pattern.key] = 0;
+    }
+
+    for (final pattern in PATTERNS) {
+      final regex = RegExp(pattern.value, caseSensitive: false);
+      matches[pattern.key] = regex.allMatches(log).length;
+    }
+
+    int total = 0;
+    for (final count in matches.values) {
+      total += count;
+    }
+    checksumVal += total;
+  }
+
+  @override
+  int checksum() {
+    return checksumVal & 0xFFFFFFFF;
+  }
+
+  @override
+  String get benchmarkName => 'Etc::LogParser';
+}
+
 bool listEquals(List? a, List? b) {
   if (a == null) return b == null;
   if (b == null || a.length != b.length) return false;
@@ -5299,6 +5395,7 @@ void registerBenchmarks() {
   Benchmark.registerBenchmark('Distance::Jaro', () => Jaro());
   Benchmark.registerBenchmark('Distance::NGram', () => NGram());
   Benchmark.registerBenchmark('Etc::Words', () => Words());
+  Benchmark.registerBenchmark('Etc::LogParser', () => LogParser());
 }
 
 Future<void> main(List<String> args) async {

@@ -1443,6 +1443,60 @@ module Etc
       @checksum
     end
   end
+
+  class LogParser < Benchmark
+    PATTERNS = {
+      "errors"        => / [5][0-9]{2} /,
+      "bots"          => /bot|crawler|scanner/i,
+      "suspicious"    => /etc\/passwd|wp-admin|\.\.\//i,
+      "ips"           => /\d{1,3}\.\d{1,3}\.\d{1,3}\.35/,
+      "api_calls"     => /\/api\/[^ "]+/,
+      "post_requests" => /POST [^ ]* HTTP/,
+      "auth_attempts" => /\/login|\/signin/i,
+      "methods"       => /get|post/i,
+    }
+
+    def initialize(@lines_count : Int32 = config_val("lines_count").to_i32)
+      @checksum = 0_u32
+      @log = ""
+    end
+
+    IPS     = (1..255).map { |i| "192.168.1.#{i}" }
+    METHODS = ["GET", "POST", "PUT", "DELETE"]
+    PATHS   = ["/index.html", "/api/users", "/login", "/admin",
+               "/images/logo.png", "/etc/passwd", "/wp-admin/setup.php"]
+    STATUSES = [200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503]
+    AGENTS   = ["Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0"]
+
+    private def generate_log_line(str, i)
+      str << IPS[i % IPS.size] << " - - [#{i % 31}/Oct/2023:13:55:36 +0000] \""
+      str << METHODS[i % METHODS.size] << " " << PATHS[i % PATHS.size] << " HTTP/1.0\" "
+      str << STATUSES[i % STATUSES.size] << " 2326 \"-\" \"" << AGENTS[i % AGENTS.size] << "\""
+      str << "\n"
+    end
+
+    def prepare
+      @log = String.build do |str|
+        @lines_count.times do |i|
+          generate_log_line(str, i)
+        end
+      end
+    end
+
+    def run(iteration_id)
+      matches = Hash(String, Int32).new(0)
+
+      PATTERNS.each do |name, regex|
+        @log.scan(regex) { matches.update(name, &.+(1)) }
+      end
+
+      @checksum &+= matches.each_value.sum
+    end
+
+    def checksum : UInt32
+      @checksum
+    end
+  end
 end
 
 module Sort

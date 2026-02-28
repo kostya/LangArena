@@ -5752,6 +5752,85 @@ export class Words extends Benchmark {
   }
 }
 
+export class LogParser extends Benchmark {
+  private linesCount: number = 0;
+  private log: string = "";
+  private checksumVal: number = 0;
+
+  private readonly PATTERNS: [string, RegExp][] = [
+    ["errors", / [5][0-9]{2} /g],
+    ["bots", /bot|crawler|scanner/gi],
+    ["suspicious", /etc\/passwd|wp-admin|\.\.\//gi],
+    ["ips", /\d{1,3}\.\d{1,3}\.\d{1,3}\.35/g],
+    ["api_calls", /\/api\/[^ "]+/g],
+    ["post_requests", /POST [^ ]* HTTP/g],
+    ["auth_attempts", /\/login|\/signin/gi],
+    ["methods", /get|post/gi],
+  ];
+
+  private readonly IPS: string[] = Array.from(
+    { length: 255 },
+    (_, i) => `192.168.1.${i + 1}`,
+  );
+  private readonly METHODS: string[] = ["GET", "POST", "PUT", "DELETE"];
+  private readonly PATHS: string[] = [
+    "/index.html",
+    "/api/users",
+    "/login",
+    "/admin",
+    "/images/logo.png",
+    "/etc/passwd",
+    "/wp-admin/setup.php",
+  ];
+  private readonly STATUSES: number[] = [
+    200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503,
+  ];
+  private readonly AGENTS: string[] = [
+    "Mozilla/5.0",
+    "Googlebot/2.1",
+    "curl/7.68.0",
+    "scanner/2.0",
+  ];
+
+  constructor() {
+    super();
+    this.linesCount = Number(Helper.configI64(this.name, "lines_count"));
+  }
+
+  private generateLogLine(i: number): string {
+    return `${this.IPS[i % this.IPS.length]} - - [${i % 31}/Oct/2023:13:55:36 +0000] "${this.METHODS[i % this.METHODS.length]} ${this.PATHS[i % this.PATHS.length]} HTTP/1.0" ${this.STATUSES[i % this.STATUSES.length]} 2326 "-" "${this.AGENTS[i % this.AGENTS.length]}"\n`;
+  }
+
+  prepare(): void {
+    let logBuilder = "";
+    for (let i = 0; i < this.linesCount; i++) {
+      logBuilder += this.generateLogLine(i);
+    }
+    this.log = logBuilder;
+    this.checksumVal = 0;
+  }
+
+  run(_iteration_id: number): void {
+    const matches: Record<string, number> = {};
+
+    for (const [name, regex] of this.PATTERNS) {
+      const count = (this.log.match(regex) || []).length;
+      matches[name] = count;
+    }
+
+    const total = Object.values(matches).reduce((a, b) => a + b, 0);
+    this.checksumVal = (this.checksumVal + total) >>> 0;
+  }
+
+  checksum(): number {
+    return this.checksumVal >>> 0;
+  }
+
+  override get name(): string {
+    return "Etc::LogParser";
+  }
+}
+
 Benchmark.registerBenchmark("CLBG::Pidigits", Pidigits);
 Benchmark.registerBenchmark("Binarytrees::Obj", BinarytreesObj);
 Benchmark.registerBenchmark("Binarytrees::Arena", BinarytreesArena);
@@ -5803,6 +5882,7 @@ Benchmark.registerBenchmark("Compress::LZWDecode", LZWDecode);
 Benchmark.registerBenchmark("Distance::Jaro", Jaro);
 Benchmark.registerBenchmark("Distance::NGram", NGram);
 Benchmark.registerBenchmark("Etc::Words", Words);
+Benchmark.registerBenchmark("Etc::LogParser", LogParser);
 
 const RECOMPILE_MARKER = "RECOMPILE_MARKER_0";
 

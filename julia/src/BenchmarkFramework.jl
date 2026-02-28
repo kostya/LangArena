@@ -40,6 +40,7 @@ include("benchmarks/Maze.jl")
 include("benchmarks/Compress.jl")
 include("benchmarks/Distance.jl")
 include("benchmarks/Words.jl")
+include("benchmarks/LogParser.jl")
 
 const ALL_BENCHMARKS = [
     ("CLBG::Pidigits", Pidigits),
@@ -93,6 +94,7 @@ const ALL_BENCHMARKS = [
     ("Distance::Jaro", Jaro),
     ("Distance::NGram", NGram),
     ("Etc::Words", Words),
+    ("Etc::LogParser", LogParser),
 ]
 
 function run_all_benchmarks(single_bench::String = "")

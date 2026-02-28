@@ -288,6 +288,7 @@ func RunBenchmarks(singleBench string) {
 		&Jaro{BaseBenchmark: BaseBenchmark{className: "Distance::Jaro"}},
 		&NGram{BaseBenchmark: BaseBenchmark{className: "Distance::NGram"}},
 		&Words{BaseBenchmark: BaseBenchmark{className: "Etc::Words"}},
+		&LogParser{BaseBenchmark: BaseBenchmark{className: "Etc::LogParser"}},
 	}
 
 	for _, bench := range allBenches {
@@ -5190,6 +5191,89 @@ func (w *Words) Run(iteration_id int) {
 
 func (w *Words) Checksum() uint32 {
 	return w.checksumVal
+}
+
+type LogParser struct {
+	BaseBenchmark
+	linesCount  int
+	log         string
+	checksumVal uint32
+}
+
+var (
+	ips     = generateIPs()
+	methods = []string{"GET", "POST", "PUT", "DELETE"}
+	paths   = []string{
+		"/index.html", "/api/users", "/login", "/admin",
+		"/images/logo.png", "/etc/passwd", "/wp-admin/setup.php",
+	}
+	statuses = []int{200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503}
+	agents   = []string{
+		"Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0",
+	}
+
+	patterns = []struct {
+		name string
+		re   *regexp.Regexp
+	}{
+		{"errors", regexp.MustCompile(` [5][0-9]{2} `)},
+		{"bots", regexp.MustCompile(`(?i)bot|crawler|scanner`)},
+		{"suspicious", regexp.MustCompile(`(?i)etc/passwd|wp-admin|\.\./`)},
+		{"ips", regexp.MustCompile(`\d{1,3}\.\d{1,3}\.\d{1,3}\.35`)},
+		{"api_calls", regexp.MustCompile(`/api/[^ "]+`)},
+		{"post_requests", regexp.MustCompile(`POST [^ ]* HTTP`)},
+		{"auth_attempts", regexp.MustCompile(`(?i)/login|/signin`)},
+		{"methods", regexp.MustCompile(`(?i)get|post`)},
+	}
+)
+
+func generateIPs() []string {
+	ips := make([]string, 255)
+	for i := 0; i < 255; i++ {
+		ips[i] = fmt.Sprintf("192.168.1.%d", i+1)
+	}
+	return ips
+}
+
+func (p *LogParser) Prepare() {
+	p.linesCount = int(p.ConfigVal("lines_count"))
+
+	var builder strings.Builder
+	builder.Grow(p.linesCount * 150)
+
+	for i := 0; i < p.linesCount; i++ {
+		builder.WriteString(generateLogLine(i))
+	}
+
+	p.log = builder.String()
+}
+
+func generateLogLine(i int) string {
+	return fmt.Sprintf("%s - - [%d/Oct/2023:13:55:36 +0000] \"%s %s HTTP/1.0\" %d 2326 \"-\" \"%s\"\n",
+		ips[i%len(ips)],
+		i%31,
+		methods[i%len(methods)],
+		paths[i%len(paths)],
+		statuses[i%len(statuses)],
+		agents[i%len(agents)])
+}
+
+func (p *LogParser) Run(iteration_id int) {
+	matches := make(map[string]int)
+
+	for _, pattern := range patterns {
+		matches[pattern.name] = len(pattern.re.FindAllStringIndex(p.log, -1))
+	}
+
+	total := 0
+	for _, count := range matches {
+		total += count
+	}
+	p.checksumVal += uint32(total)
+}
+
+func (p *LogParser) Checksum() uint32 {
+	return p.checksumVal
 }
 
 func main() {

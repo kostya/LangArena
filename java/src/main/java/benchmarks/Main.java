@@ -56,6 +56,7 @@ public class Main {
         Benchmark.registerBenchmark("Distance::Jaro", () -> new Distance.Jaro());
         Benchmark.registerBenchmark("Distance::NGram", () -> new Distance.NGram());
         Benchmark.registerBenchmark("Etc::Words", () -> new Words());
+        Benchmark.registerBenchmark("Etc::LogParser", () -> new LogParser());
 
         long now = Instant.now().toEpochMilli();
         System.out.println("start: " + now);
