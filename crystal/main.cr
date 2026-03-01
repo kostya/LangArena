@@ -398,7 +398,7 @@ module Brainfuck
     record Print
     alias Op = Inc | Dec | Advance | Devance | Print | ::Array(Op)
 
-    struct Tape
+    class Tape
       def initialize
         @tape = ::Array(UInt8).new(30000, 0_u8)
         @pos = 0
