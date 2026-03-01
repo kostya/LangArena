@@ -47,46 +47,110 @@ AGENTS := [?]string{
     "Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0",
 }
 
+CompiledPattern :: struct {
+    name:  string,
+    regex: regex.Regular_Expression,
+    valid: bool,
+}
+
 LogParser :: struct {
-    using base:   Benchmark,
-    lines_count:  int,
-    log:          string,
-    checksum_val: u32,
-    ips:          []string,  
+    using base:      Benchmark,
+    lines_count:     int,
+    log:             string,
+    checksum_val:    u32,
+    compiled_patterns: []CompiledPattern,
 }
 
-generate_ips :: proc() -> []string {
-    ips := make([]string, 255)
-    for i in 0..<255 {
-        ips[i] = fmt.tprintf("192.168.1.%d", i + 1)
+write_ip :: proc(sb: ^strings.Builder, i: int) {
+    num := (i % 255) + 1
+    strings.write_string(sb, "192.168.1.")
+
+    if num < 10 {
+        strings.write_byte(sb, byte('0' + num))
+    } else if num < 100 {
+        strings.write_byte(sb, byte('0' + num / 10))
+        strings.write_byte(sb, byte('0' + num % 10))
+    } else {
+        strings.write_byte(sb, byte('0' + num / 100))
+        strings.write_byte(sb, byte('0' + (num / 10) % 10))
+        strings.write_byte(sb, byte('0' + num % 10))
     }
-    return ips
 }
 
-generate_log_line :: proc(ips: []string, i: int) -> string {
-    return fmt.tprintf("%s - - [%d/Oct/2023:13:55:36 +0000] \"%s %s HTTP/1.0\" %d 2326 \"-\" \"%s\"\n",
-        ips[i % len(ips)],
-        i % 31,
-        METHODS[i % len(METHODS)],
-        PATHS[i % len(PATHS)],
-        STATUSES[i % len(STATUSES)],
-        AGENTS[i % len(AGENTS)])
+write_day :: proc(sb: ^strings.Builder, i: int) {
+    day := i % 31 + 1
+    if day < 10 {
+        strings.write_byte(sb, '0')
+        strings.write_byte(sb, byte('0' + day))
+    } else {
+        strings.write_byte(sb, byte('0' + day / 10))
+        strings.write_byte(sb, byte('0' + day % 10))
+    }
+}
+
+write_status :: proc(sb: ^strings.Builder, status: int) {
+    strings.write_byte(sb, byte('0' + status / 100))
+    strings.write_byte(sb, byte('0' + (status / 10) % 10))
+    strings.write_byte(sb, byte('0' + status % 10))
+}
+
+compile_patterns :: proc() -> []CompiledPattern {
+    count := len(LOG_PATTERNS)
+    patterns := make([]CompiledPattern, count)
+
+    for i in 0..<count {
+        pattern := LOG_PATTERNS[i]
+        flags := LOG_PATTERN_FLAGS[i]
+
+        re, err := regex.create(pattern, { .Case_Insensitive } if flags == 1 else {})
+
+        patterns[i] = CompiledPattern{
+            name = LOG_PATTERN_NAMES[i],
+            regex = re,
+            valid = err == nil,
+        }
+
+        if err != nil {
+            fmt.printf("Warning: Error compiling pattern %s: %v\n", pattern, err)
+        }
+    }
+
+    return patterns
+}
+
+destroy_patterns :: proc(patterns: []CompiledPattern) {
+    for p in patterns {
+        if p.valid {
+            regex.destroy_regex(p.regex)
+        }
+    }
+    delete(patterns)
 }
 
 logparser_prepare :: proc(bench: ^Benchmark) {
     parser := cast(^LogParser)bench
-
     parser.lines_count = int(config_i64(parser.name, "lines_count"))
-    parser.ips = generate_ips()
 
-    sb := strings.builder_make()
-    defer strings.builder_destroy(&sb)
+    parser.compiled_patterns = compile_patterns()
+
+    sb := strings.builder_make(0, parser.lines_count * 150)
 
     for i in 0..<parser.lines_count {
-        strings.write_string(&sb, generate_log_line(parser.ips, i))
+        write_ip(&sb, i)
+        strings.write_string(&sb, " - - [")
+        write_day(&sb, i)
+        strings.write_string(&sb, "/Oct/2023:13:55:36 +0000] \"")
+        strings.write_string(&sb, METHODS[i % len(METHODS)])
+        strings.write_byte(&sb, ' ')
+        strings.write_string(&sb, PATHS[i % len(PATHS)])
+        strings.write_string(&sb, " HTTP/1.0\" ")
+        write_status(&sb, STATUSES[i % len(STATUSES)])
+        strings.write_string(&sb, " 2326 \"-\" \"")
+        strings.write_string(&sb, AGENTS[i % len(AGENTS)])
+        strings.write_string(&sb, "\"\n")
     }
 
-    parser.log = strings.clone(strings.to_string(sb))
+    parser.log = strings.to_string(sb)
     parser.checksum_val = 0
 }
 
@@ -96,23 +160,15 @@ logparser_run :: proc(bench: ^Benchmark, iteration_id: int) {
     matches := make(map[string]int)
     defer delete(matches)
 
-    for name, i in LOG_PATTERN_NAMES {
-        pattern := LOG_PATTERNS[i]
-        flag := LOG_PATTERN_FLAGS[i]
-
-        re, re_err := regex.create(pattern, { .Case_Insensitive } if flag == 1 else {})
-        if re_err != nil {
-            fmt.printf("Error compiling pattern %s: %v\n", pattern, re_err)
-            matches[name] = 0
-            continue
-        }
-        defer regex.destroy_regex(re)
+    for j in 0..<len(parser.compiled_patterns) {
+        p := parser.compiled_patterns[j]
+        if !p.valid do continue
 
         count := 0
         pos := 0
 
         for pos < len(parser.log) {
-            capture, ok := regex.match(re, parser.log[pos:])
+            capture, ok := regex.match(p.regex, parser.log[pos:])
             if !ok do break
 
             count += 1
@@ -123,7 +179,7 @@ logparser_run :: proc(bench: ^Benchmark, iteration_id: int) {
             }
         }
 
-        matches[name] = count
+        matches[p.name] = count
     }
 
     total: u32 = 0
@@ -140,8 +196,9 @@ logparser_checksum :: proc(bench: ^Benchmark) -> u32 {
 
 logparser_cleanup :: proc(bench: ^Benchmark) {
     parser := cast(^LogParser)bench
+
     delete(parser.log)
-    delete(parser.ips)  
+    destroy_patterns(parser.compiled_patterns)
     parser.checksum_val = 0
 }
 
