@@ -1,2 +1,4 @@
 #!/bin/sh
-dotnet run -c Release -- ../run.js $@
+rm -f ./bin/Release/net10.0/MyFirstFSharpApp.dll
+dotnet build -c Release
+../xtime.rb dotnet ./bin/Release/net10.0/MyFirstFSharpApp.dll ../run.js $@

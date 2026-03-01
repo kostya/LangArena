@@ -1,2 +1,4 @@
 #!/bin/sh
-sbt -J-server -J-Xms2g -J-Xmx2g "run ../run.js $@"
+rm -f ./target/benchmark.jar
+sbt 'assembly'
+../xtime.rb java -server -jar ./target/benchmark.jar ../run.js $@

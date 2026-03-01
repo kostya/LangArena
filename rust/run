@@ -1,2 +1,4 @@
 #!/bin/sh
-cargo run --release -- ../run.js "$@"
+rm -f ./target/release/benchmarks
+cargo build --release
+../xtime.rb ./target/release/benchmarks ../run.js "$@"

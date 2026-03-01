@@ -2,4 +2,4 @@
 mkdir -p target
 rm -f target/bin_benchmarks_release
 nim c -d:release --out:target/bin_benchmarks_release src/benchmarks.nim
-target/bin_benchmarks_release ../run.js $@
+../xtime.rb target/bin_benchmarks_release ../run.js $@

@@ -1,2 +1,2 @@
 #/bin/sh
-julia --project=. --threads=16 benchmark.jl ../run.js $@
+../xtime.rb julia --project=. --threads=16 benchmark.jl ../run.js $@

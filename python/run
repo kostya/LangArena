@@ -1,2 +1,2 @@
 #!/bin/bash
-pypy3 main.py ../run.js $@
+../xtime.rb pypy3 main.py ../run.js $@

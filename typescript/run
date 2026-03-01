@@ -1,3 +1,5 @@
 #!/bin/bash
+rm -f ./target/dist/index.js
 npm ci
-npm run bench:run -- $@
+npm run build:run --silent
+../xtime.rb node ./target/dist/index.js ../run.js $@
