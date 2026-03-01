@@ -1,2 +1,4 @@
 #!/bin/bash
-./gradlew runBenchmark --args="../run.js $@"
+rm -f ./build/libs/benchmarks.jar
+./gradlew fatJar --no-daemon -q
+../xtime.rb java -server -jar ./build/libs/benchmarks.jar ../run.js $@

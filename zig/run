@@ -1,2 +1,4 @@
 #!/bin/sh
-zig build run-zig -- ../run.js "$@"
+rm -f ./zig-out/bin/zig
+zig build build-zig
+../xtime.rb ./zig-out/bin/zig ../run.js "$@"

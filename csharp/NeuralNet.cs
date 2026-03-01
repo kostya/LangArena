@@ -127,20 +127,6 @@ public class NeuralNet : Benchmark
         }
 
         public double[] CurrentOutputs() => _outputLayer.Select(n => n.Output).ToArray();
-
-        public double GetWeightSum()
-        {
-            double sum = 0;
-            foreach (var neuron in _inputLayer.Concat(_hiddenLayer).Concat(_outputLayer))
-            {
-                sum += neuron.Threshold;
-                foreach (var synapse in neuron.SynapsesOut)
-                {
-                    sum += synapse.Weight;
-                }
-            }
-            return sum;
-        }
     }
 
     private NeuralNetwork _xorNet;
@@ -154,12 +140,22 @@ public class NeuralNet : Benchmark
         _xorNet = new NeuralNetwork(2, 10, 1);
     }
 
+    private static readonly double[] INPUT_00 = [0, 0];
+    private static readonly double[] INPUT_01 = [0, 1];
+    private static readonly double[] INPUT_10 = [1, 0];
+    private static readonly double[] INPUT_11 = [1, 1];
+    private static readonly double[] TARGET_0 = [0];
+    private static readonly double[] TARGET_1 = [1];
+
     public override void Run(long IterationId)
     {
-        _xorNet.Train([0, 0], [0]);
-        _xorNet.Train([1, 0], [1]);
-        _xorNet.Train([0, 1], [1]);
-        _xorNet.Train([1, 1], [0]);
+        for (int iter = 0; iter < 1000; iter++)
+        {
+            _xorNet.Train(INPUT_00, TARGET_0);
+            _xorNet.Train(INPUT_10, TARGET_1);
+            _xorNet.Train(INPUT_01, TARGET_1);
+            _xorNet.Train(INPUT_11, TARGET_0);
+        }
     }
 
     public override uint Checksum

@@ -2278,257 +2278,54 @@ export class JsonParseMapping extends Benchmark {
   }
 }
 
-class PrimesNode {
-  children: (PrimesNode | null)[] = new Array(10).fill(null);
-  terminal: boolean = false;
-}
-
-export class Primes extends Benchmark {
-  private n: bigint;
-  private prefix: bigint;
-  private resultValue: number = 5432;
+export class Sieve extends Benchmark {
+  private limit: bigint;
+  private checksumValue: number = 0;
 
   constructor() {
     super();
-    this.n = Helper.configI64(this.name, "limit");
-    this.prefix = Helper.configI64(this.name, "prefix");
+    this.limit = Helper.configI64(this.name, "limit");
   }
 
-  private generatePrimes(limit: number): number[] {
-    if (limit < 2) return [];
-
-    const isPrime = new Array(limit + 1).fill(true);
-    isPrime[0] = isPrime[1] = false;
+  private generatePrimes(limit: number): void {
+    const primes = new Uint8Array(limit + 1);
+    primes.fill(1);
+    primes[0] = 0;
+    primes[1] = 0;
 
     const sqrtLimit = Math.floor(Math.sqrt(limit));
 
     for (let p = 2; p <= sqrtLimit; p++) {
-      if (isPrime[p]) {
+      if (primes[p] === 1) {
         for (let multiple = p * p; multiple <= limit; multiple += p) {
-          isPrime[multiple] = false;
+          primes[multiple] = 0;
         }
       }
     }
 
-    const estimatedSize = Math.floor(limit / (Math.log(limit) - 1.1));
-    const primes: number[] = [];
-    primes.length = estimatedSize;
-    let count = 0;
+    let lastPrime = 2;
+    let count = 1;
 
-    for (let i = 2; i <= limit; i++) {
-      if (isPrime[i]) {
-        primes[count++] = i;
+    for (let n = 3; n <= limit; n += 2) {
+      if (primes[n] === 1) {
+        lastPrime = n;
+        count++;
       }
     }
 
-    primes.length = count;
-    return primes;
-  }
-
-  private buildTrie(numbers: number[]): PrimesNode {
-    const root = new PrimesNode();
-
-    for (const num of numbers) {
-      let current = root;
-      const str = num.toString();
-
-      for (let i = 0; i < str.length; i++) {
-        const digit = str.charCodeAt(i) - 48;
-
-        if (current.children[digit] === null) {
-          current.children[digit] = new PrimesNode();
-        }
-        current = current.children[digit]!;
-      }
-      current.terminal = true;
-    }
-
-    return root;
-  }
-
-  private findPrimesWithPrefix(root: PrimesNode, prefix: number): number[] {
-    const prefixStr = prefix.toString();
-    let current = root;
-
-    for (let i = 0; i < prefixStr.length; i++) {
-      const digit = prefixStr.charCodeAt(i) - 48;
-      const next = current.children[digit];
-      if (next === null) {
-        return [];
-      }
-      current = next;
-    }
-
-    const results: number[] = [];
-    const queue: Array<[PrimesNode, number]> = [];
-    queue.push([current, prefix]);
-
-    while (queue.length > 0) {
-      const [node, number] = queue.shift()!;
-
-      if (node.terminal) {
-        results.push(number);
-      }
-
-      for (let digit = 0; digit < 10; digit++) {
-        const child = node.children[digit];
-        if (child !== null) {
-          queue.push([child, number * 10 + digit]);
-        }
-      }
-    }
-
-    results.sort((a, b) => a - b);
-    return results;
+    this.checksumValue = (this.checksumValue + lastPrime + count) & 0xffffffff;
   }
 
   run(_iteration_id: number): void {
-    const primes = this.generatePrimes(Number(this.n));
-    const trie = this.buildTrie(primes);
-    const results = this.findPrimesWithPrefix(trie, Number(this.prefix));
-
-    this.resultValue = (this.resultValue + results.length) & 0xffffffff;
-    for (const num of results) {
-      this.resultValue = (this.resultValue + num) & 0xffffffff;
-    }
+    this.generatePrimes(Number(this.limit));
   }
 
   checksum(): number {
-    return this.resultValue;
+    return this.checksumValue;
   }
+
   override get name(): string {
-    return "Etc::Primes";
-  }
-}
-
-class NoiseVec2 {
-  constructor(
-    public x: number,
-    public y: number,
-  ) {}
-}
-
-class Noise2DContext {
-  private size: number;
-  private mask: number;
-  private rgradients: NoiseVec2[];
-  private permutations: number[];
-
-  constructor(size: number) {
-    this.size = size;
-    this.mask = size - 1;
-
-    this.rgradients = new Array(size);
-    for (let i = 0; i < size; i++) {
-      const v = Helper.nextFloat() * Math.PI * 2.0;
-      this.rgradients[i] = new NoiseVec2(Math.cos(v), Math.sin(v));
-    }
-
-    this.permutations = new Array(size);
-    for (let i = 0; i < size; i++) {
-      this.permutations[i] = i;
-    }
-
-    for (let i = 0; i < size; i++) {
-      const a = Helper.nextInt(size);
-      const b = Helper.nextInt(size);
-      const temp = this.permutations[a];
-      this.permutations[a] = this.permutations[b];
-      this.permutations[b] = temp;
-    }
-  }
-
-  private gradient(orig: NoiseVec2, grad: NoiseVec2, p: NoiseVec2): number {
-    return grad.x * (p.x - orig.x) + grad.y * (p.y - orig.y);
-  }
-
-  private lerp(a: number, b: number, v: number): number {
-    return a + (b - a) * v;
-  }
-
-  private smooth(v: number): number {
-    return v * v * (3.0 - 2.0 * v);
-  }
-
-  private getGradient(x: number, y: number): NoiseVec2 {
-    const idx =
-      this.permutations[x & this.mask] + this.permutations[y & this.mask];
-    return this.rgradients[idx & this.mask];
-  }
-
-  private getGradients(x: number, y: number): [NoiseVec2[], NoiseVec2[]] {
-    const x0f = Math.floor(x);
-    const y0f = Math.floor(y);
-    const x0 = x0f | 0;
-    const y0 = y0f | 0;
-
-    const gradients = [
-      this.getGradient(x0, y0),
-      this.getGradient(x0 + 1, y0),
-      this.getGradient(x0, y0 + 1),
-      this.getGradient(x0 + 1, y0 + 1),
-    ];
-
-    const origins = [
-      new NoiseVec2(x0f + 0.0, y0f + 0.0),
-      new NoiseVec2(x0f + 1.0, y0f + 0.0),
-      new NoiseVec2(x0f + 0.0, y0f + 1.0),
-      new NoiseVec2(x0f + 1.0, y0f + 1.0),
-    ];
-
-    return [gradients, origins];
-  }
-
-  get(x: number, y: number): number {
-    const p = new NoiseVec2(x, y);
-    const [gradients, origins] = this.getGradients(x, y);
-
-    const v0 = this.gradient(origins[0], gradients[0], p);
-    const v1 = this.gradient(origins[1], gradients[1], p);
-    const v2 = this.gradient(origins[2], gradients[2], p);
-    const v3 = this.gradient(origins[3], gradients[3], p);
-
-    const fx = this.smooth(x - origins[0].x);
-    const vx0 = this.lerp(v0, v1, fx);
-    const vx1 = this.lerp(v2, v3, fx);
-
-    const fy = this.smooth(y - origins[0].y);
-    return this.lerp(vx0, vx1, fy);
-  }
-}
-
-export class Noise extends Benchmark {
-  private static readonly SYM = [" ", "░", "▒", "▓", "█", "█"];
-
-  private size: bigint;
-  private n2d: Noise2DContext;
-  private resultValue: number = 0;
-
-  constructor() {
-    super();
-    this.size = Helper.configI64(this.name, "size");
-    this.n2d = new Noise2DContext(Number(this.size));
-  }
-
-  run(iteration_id: number): void {
-    for (let y = 0; y < this.size; y++) {
-      for (let x = 0; x < this.size; x++) {
-        const v =
-          this.n2d.get(x * 0.1, (y + iteration_id * 128) * 0.1) * 0.5 + 0.5;
-        const idx = Math.floor(v / 0.2);
-        const charIdx =
-          idx < 0 ? 0 : idx > Noise.SYM.length - 1 ? Noise.SYM.length - 1 : idx;
-        this.resultValue =
-          (this.resultValue + Noise.SYM[charIdx].charCodeAt(0)) & 0xffffffff;
-      }
-    }
-  }
-
-  checksum(): number {
-    return this.resultValue;
-  }
-  override get name(): string {
-    return "Etc::Noise";
+    return "Etc::Sieve";
   }
 }
 
@@ -2918,7 +2715,13 @@ class NeuralNetNetwork {
 }
 
 export class NeuralNet extends Benchmark {
-  private results: number[] = [];
+  private static readonly INPUT_00 = [0, 0];
+  private static readonly INPUT_01 = [0, 1];
+  private static readonly INPUT_10 = [1, 0];
+  private static readonly INPUT_11 = [1, 1];
+  private static readonly TARGET_0 = [0];
+  private static readonly TARGET_1 = [1];
+
   private xor: NeuralNetNetwork;
 
   constructor() {
@@ -2931,28 +2734,33 @@ export class NeuralNet extends Benchmark {
   }
 
   run(_iteration_id: number): void {
-    this.xor.train([0, 0], [0]);
-    this.xor.train([1, 0], [1]);
-    this.xor.train([0, 1], [1]);
-    this.xor.train([1, 1], [0]);
+    for (let i = 0; i < 1000; i++) {
+      this.xor.train(NeuralNet.INPUT_00, NeuralNet.TARGET_0);
+      this.xor.train(NeuralNet.INPUT_10, NeuralNet.TARGET_1);
+      this.xor.train(NeuralNet.INPUT_01, NeuralNet.TARGET_1);
+      this.xor.train(NeuralNet.INPUT_11, NeuralNet.TARGET_0);
+    }
   }
 
   checksum(): number {
-    this.xor.feedForward([0, 0]);
-    this.results.push(...this.xor.currentOutputs());
+    const results: number[] = [];
 
-    this.xor.feedForward([0, 1]);
-    this.results.push(...this.xor.currentOutputs());
+    this.xor.feedForward(NeuralNet.INPUT_00);
+    results.push(...this.xor.currentOutputs());
 
-    this.xor.feedForward([1, 0]);
-    this.results.push(...this.xor.currentOutputs());
+    this.xor.feedForward(NeuralNet.INPUT_01);
+    results.push(...this.xor.currentOutputs());
 
-    this.xor.feedForward([1, 1]);
-    this.results.push(...this.xor.currentOutputs());
+    this.xor.feedForward(NeuralNet.INPUT_10);
+    results.push(...this.xor.currentOutputs());
 
-    const sum = this.results.reduce((a, b) => a + b, 0);
+    this.xor.feedForward(NeuralNet.INPUT_11);
+    results.push(...this.xor.currentOutputs());
+
+    const sum = results.reduce((a, b) => a + b, 0);
     return Helper.checksumFloat(sum);
   }
+
   override get name(): string {
     return "Etc::NeuralNet";
   }
@@ -5616,22 +5424,23 @@ export class LZWDecode extends Benchmark {
       return new Uint8Array();
     }
 
-    const dict: string[] = new Array(4096);
+    const dict: Uint8Array[] = new Array(4096);
     for (let i = 0; i < 256; i++) {
-      dict[i] = String.fromCharCode(i);
+      dict[i] = new Uint8Array([i]);
     }
 
-    const result: number[] = [];
+    const resultChunks: Uint8Array[] = [];
+    let totalLength = 0;
+
     const data = encoded.data;
     let pos = 0;
 
     let oldCode = (data[pos] << 8) | data[pos + 1];
     pos += 2;
 
-    let oldStr = dict[oldCode];
-    for (let j = 0; j < oldStr.length; j++) {
-      result.push(oldStr.charCodeAt(j));
-    }
+    var oldStr = dict[oldCode];
+    resultChunks.push(oldStr);
+    totalLength += oldStr.length;
 
     let nextCode = 256;
 
@@ -5639,27 +5448,386 @@ export class LZWDecode extends Benchmark {
       const newCode = (data[pos] << 8) | data[pos + 1];
       pos += 2;
 
-      let newStr: string;
+      let newStr: Uint8Array;
       if (newCode < dict.length && dict[newCode] !== undefined) {
         newStr = dict[newCode];
       } else if (newCode === nextCode) {
-        newStr = oldStr + oldStr[0];
+        const firstChar = oldStr[0];
+        newStr = new Uint8Array(oldStr.length + 1);
+        newStr.set(oldStr);
+        newStr[oldStr.length] = firstChar;
       } else {
         throw new Error(`Error decode: invalid code ${newCode}`);
       }
 
-      for (let j = 0; j < newStr.length; j++) {
-        result.push(newStr.charCodeAt(j));
-      }
+      resultChunks.push(newStr);
+      totalLength += newStr.length;
 
-      dict[nextCode] = oldStr + newStr[0];
+      const newEntry = new Uint8Array(oldStr.length + 1);
+      newEntry.set(oldStr);
+      newEntry[oldStr.length] = newStr[0];
+      dict[nextCode] = newEntry;
       nextCode++;
 
       oldCode = newCode;
       oldStr = newStr;
     }
 
-    return new Uint8Array(result);
+    const result = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of resultChunks) {
+      result.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    return result;
+  }
+}
+
+class Jaro extends Benchmark {
+  private count: number = 0;
+  private size: number = 0;
+  private pairs: Array<[string, string]> = [];
+  private resultVal: number = 0;
+
+  constructor() {
+    super();
+    this.count = Number(Helper.configI64(this.name, "count"));
+    this.size = Number(Helper.configI64(this.name, "size"));
+  }
+
+  override get name(): string {
+    return "Distance::Jaro";
+  }
+
+  override prepare(): void {
+    this.pairs = this.generatePairStrings(this.count, this.size);
+    this.resultVal = 0;
+  }
+
+  private generatePairStrings(n: number, m: number): Array<[string, string]> {
+    const pairs: Array<[string, string]> = [];
+    const chars = "abcdefghij".split("");
+
+    for (let i = 0; i < n; i++) {
+      const len1 = Helper.nextInt(m) + 4;
+      const len2 = Helper.nextInt(m) + 4;
+
+      let str1 = "";
+      let str2 = "";
+
+      for (let j = 0; j < len1; j++) {
+        str1 += chars[Helper.nextInt(10)];
+      }
+      for (let j = 0; j < len2; j++) {
+        str2 += chars[Helper.nextInt(10)];
+      }
+
+      pairs.push([str1, str2]);
+    }
+
+    return pairs;
+  }
+
+  private jaro(s1: string, s2: string): number {
+    const len1 = s1.length;
+    const len2 = s2.length;
+
+    if (len1 === 0 || len2 === 0) return 0.0;
+
+    let matchDist = Math.floor(Math.max(len1, len2) / 2) - 1;
+    if (matchDist < 0) matchDist = 0;
+
+    const s1Matches = new Array<boolean>(len1).fill(false);
+    const s2Matches = new Array<boolean>(len2).fill(false);
+
+    let matches = 0;
+    for (let i = 0; i < len1; i++) {
+      const start = Math.max(0, i - matchDist);
+      const end = Math.min(len2 - 1, i + matchDist);
+
+      for (let j = start; j <= end; j++) {
+        if (!s2Matches[j] && s1.charCodeAt(i) === s2.charCodeAt(j)) {
+          s1Matches[i] = true;
+          s2Matches[j] = true;
+          matches++;
+          break;
+        }
+      }
+    }
+
+    if (matches === 0) return 0.0;
+
+    let transpositions = 0;
+    let k = 0;
+    for (let i = 0; i < len1; i++) {
+      if (s1Matches[i]) {
+        while (k < len2 && !s2Matches[k]) {
+          k++;
+        }
+        if (k < len2) {
+          if (s1.charCodeAt(i) !== s2.charCodeAt(k)) {
+            transpositions++;
+          }
+          k++;
+        }
+      }
+    }
+    transpositions = Math.floor(transpositions / 2);
+
+    const m = matches;
+    return (m / len1 + m / len2 + (m - transpositions) / m) / 3.0;
+  }
+
+  override run(_iteration_id: number): void {
+    for (const [s1, s2] of this.pairs) {
+      this.resultVal =
+        (this.resultVal + Math.floor(this.jaro(s1, s2) * 1000)) >>> 0;
+    }
+  }
+
+  override checksum(): number {
+    return this.resultVal >>> 0;
+  }
+}
+
+class NGram extends Benchmark {
+  private count: number = 0;
+  private size: number = 0;
+  private pairs: Array<[string, string]> = [];
+  private resultVal: number = 0;
+  private readonly n: number = 4;
+
+  constructor() {
+    super();
+    this.count = Number(Helper.configI64(this.name, "count"));
+    this.size = Number(Helper.configI64(this.name, "size"));
+  }
+
+  override get name(): string {
+    return "Distance::NGram";
+  }
+
+  override prepare(): void {
+    this.pairs = this.generatePairStrings(this.count, this.size);
+    this.resultVal = 0;
+  }
+
+  private generatePairStrings(n: number, m: number): Array<[string, string]> {
+    const pairs: Array<[string, string]> = [];
+    const chars = "abcdefghij".split("");
+
+    for (let i = 0; i < n; i++) {
+      const len1 = Helper.nextInt(m) + 4;
+      const len2 = Helper.nextInt(m) + 4;
+
+      let str1 = "";
+      let str2 = "";
+
+      for (let j = 0; j < len1; j++) {
+        str1 += chars[Helper.nextInt(10)];
+      }
+      for (let j = 0; j < len2; j++) {
+        str2 += chars[Helper.nextInt(10)];
+      }
+
+      pairs.push([str1, str2]);
+    }
+
+    return pairs;
+  }
+
+  private ngram(s1: string, s2: string): number {
+    if (s1.length < this.n || s2.length < this.n) return 0.0;
+
+    const grams1: Map<number, number> = new Map();
+
+    for (let i = 0; i <= s1.length - this.n; i++) {
+      const gram =
+        (s1.charCodeAt(i) << 24) |
+        (s1.charCodeAt(i + 1) << 16) |
+        (s1.charCodeAt(i + 2) << 8) |
+        s1.charCodeAt(i + 3);
+
+      const val = grams1.get(gram) || 0;
+      grams1.set(gram, val + 1);
+    }
+
+    const grams2: Map<number, number> = new Map();
+    let intersection = 0;
+
+    for (let i = 0; i <= s2.length - this.n; i++) {
+      const gram =
+        (s2.charCodeAt(i) << 24) |
+        (s2.charCodeAt(i + 1) << 16) |
+        (s2.charCodeAt(i + 2) << 8) |
+        s2.charCodeAt(i + 3);
+
+      const val2 = grams2.get(gram) || 0;
+      grams2.set(gram, val2 + 1);
+
+      const count1 = grams1.get(gram);
+      if (count1 !== undefined && val2 + 1 <= count1) {
+        intersection++;
+      }
+    }
+
+    const total = grams1.size + grams2.size;
+    return total > 0 ? intersection / total : 0.0;
+  }
+
+  override run(_iteration_id: number): void {
+    for (const [s1, s2] of this.pairs) {
+      this.resultVal =
+        (this.resultVal + Math.floor(this.ngram(s1, s2) * 1000)) >>> 0;
+    }
+  }
+
+  override checksum(): number {
+    return this.resultVal >>> 0;
+  }
+}
+
+export class Words extends Benchmark {
+  private words: number;
+  private wordLen: number;
+  private text: string = "";
+  private checksumVal: number = 0;
+  private readonly chars = "abcdefghijklmnopqrstuvwxyz";
+
+  constructor() {
+    super();
+    this.words = Number(Helper.configI64(this.name, "words"));
+    this.wordLen = Number(Helper.configI64(this.name, "word_len"));
+  }
+
+  prepare(): void {
+    const wordsList: string[] = [];
+
+    for (let i = 0; i < this.words; i++) {
+      const len = Helper.nextInt(this.wordLen) + Helper.nextInt(3) + 3;
+      let word = "";
+      for (let j = 0; j < len; j++) {
+        const idx = Helper.nextInt(this.chars.length);
+        word += this.chars[idx];
+      }
+      wordsList.push(word);
+    }
+
+    this.text = wordsList.join(" ");
+    this.checksumVal = 0;
+  }
+
+  run(_iteration_id: number): void {
+    const frequencies = new Map<string, number>();
+
+    for (const word of this.text.split(" ")) {
+      if (word === "") continue;
+      frequencies.set(word, (frequencies.get(word) || 0) + 1);
+    }
+
+    let maxWord = "";
+    let maxCount = 0;
+
+    for (const [word, count] of frequencies) {
+      if (count > maxCount) {
+        maxCount = count;
+        maxWord = word;
+      }
+    }
+
+    const freqSize = frequencies.size;
+    const wordChecksum = Helper.checksumString(maxWord);
+
+    this.checksumVal =
+      (this.checksumVal + maxCount + wordChecksum + freqSize) >>> 0;
+  }
+
+  checksum(): number {
+    return this.checksumVal >>> 0;
+  }
+
+  override get name(): string {
+    return "Etc::Words";
+  }
+}
+
+export class LogParser extends Benchmark {
+  private linesCount: number = 0;
+  private log: string = "";
+  private checksumVal: number = 0;
+
+  private readonly PATTERNS: [string, RegExp][] = [
+    ["errors", / [5][0-9]{2} /g],
+    ["bots", /bot|crawler|scanner/gi],
+    ["suspicious", /etc\/passwd|wp-admin|\.\.\//gi],
+    ["ips", /\d{1,3}\.\d{1,3}\.\d{1,3}\.35/g],
+    ["api_calls", /\/api\/[^ "]+/g],
+    ["post_requests", /POST [^ ]* HTTP/g],
+    ["auth_attempts", /\/login|\/signin/gi],
+    ["methods", /get|post/gi],
+  ];
+
+  private readonly IPS: string[] = Array.from(
+    { length: 255 },
+    (_, i) => `192.168.1.${i + 1}`,
+  );
+  private readonly METHODS: string[] = ["GET", "POST", "PUT", "DELETE"];
+  private readonly PATHS: string[] = [
+    "/index.html",
+    "/api/users",
+    "/login",
+    "/admin",
+    "/images/logo.png",
+    "/etc/passwd",
+    "/wp-admin/setup.php",
+  ];
+  private readonly STATUSES: number[] = [
+    200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503,
+  ];
+  private readonly AGENTS: string[] = [
+    "Mozilla/5.0",
+    "Googlebot/2.1",
+    "curl/7.68.0",
+    "scanner/2.0",
+  ];
+
+  constructor() {
+    super();
+    this.linesCount = Number(Helper.configI64(this.name, "lines_count"));
+  }
+
+  private generateLogLine(i: number): string {
+    return `${this.IPS[i % this.IPS.length]} - - [${i % 31}/Oct/2023:13:55:36 +0000] "${this.METHODS[i % this.METHODS.length]} ${this.PATHS[i % this.PATHS.length]} HTTP/1.0" ${this.STATUSES[i % this.STATUSES.length]} 2326 "-" "${this.AGENTS[i % this.AGENTS.length]}"\n`;
+  }
+
+  prepare(): void {
+    let logBuilder = "";
+    for (let i = 0; i < this.linesCount; i++) {
+      logBuilder += this.generateLogLine(i);
+    }
+    this.log = logBuilder;
+    this.checksumVal = 0;
+  }
+
+  run(_iteration_id: number): void {
+    const matches: Record<string, number> = {};
+
+    for (const [name, regex] of this.PATTERNS) {
+      const count = (this.log.match(regex) || []).length;
+      matches[name] = count;
+    }
+
+    const total = Object.values(matches).reduce((a, b) => a + b, 0);
+    this.checksumVal = (this.checksumVal + total) >>> 0;
+  }
+
+  checksum(): number {
+    return this.checksumVal >>> 0;
+  }
+
+  override get name(): string {
+    return "Etc::LogParser";
   }
 }
 
@@ -5685,8 +5853,7 @@ Benchmark.registerBenchmark("Base64::Decode", Base64Decode);
 Benchmark.registerBenchmark("Json::Generate", JsonGenerate);
 Benchmark.registerBenchmark("Json::ParseDom", JsonParseDom);
 Benchmark.registerBenchmark("Json::ParseMapping", JsonParseMapping);
-Benchmark.registerBenchmark("Etc::Primes", Primes);
-Benchmark.registerBenchmark("Etc::Noise", Noise);
+Benchmark.registerBenchmark("Etc::Sieve", Sieve);
 Benchmark.registerBenchmark("Etc::TextRaytracer", TextRaytracer);
 Benchmark.registerBenchmark("Etc::NeuralNet", NeuralNet);
 Benchmark.registerBenchmark("Sort::Quick", SortQuick);
@@ -5712,6 +5879,10 @@ Benchmark.registerBenchmark("Compress::ArithEncode", ArithEncode);
 Benchmark.registerBenchmark("Compress::ArithDecode", ArithDecode);
 Benchmark.registerBenchmark("Compress::LZWEncode", LZWEncode);
 Benchmark.registerBenchmark("Compress::LZWDecode", LZWDecode);
+Benchmark.registerBenchmark("Distance::Jaro", Jaro);
+Benchmark.registerBenchmark("Distance::NGram", NGram);
+Benchmark.registerBenchmark("Etc::Words", Words);
+Benchmark.registerBenchmark("Etc::LogParser", LogParser);
 
 const RECOMPILE_MARKER = "RECOMPILE_MARKER_0";
 

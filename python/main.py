@@ -24,7 +24,7 @@ from enum import Enum
 from io import StringIO
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, NamedTuple, Optional, Union,
-                    TypeVar, Generic)
+                    TypeVar, Generic, Tuple)
 
 
 def with_timeout(timeout_seconds):
@@ -1083,10 +1083,6 @@ class Mandelbrot(Benchmark):
         return "CLBG::Mandelbrot"
 
 
-import concurrent.futures
-from typing import List, Tuple
-
-
 class MatmulBase(Benchmark):
 
     def __init__(self):
@@ -1813,270 +1809,47 @@ class JsonParseMapping(Benchmark):
         return "Json::ParseMapping"
 
 
-class PrimesNode:
+class Sieve(Benchmark):
 
     def __init__(self):
-        self.children: List[Optional['PrimesNode']] = [None] * 10
-        self.terminal: bool = False
+        super().__init__()
+        self.limit = 0
+        self._checksum = 0
 
-    def __getitem__(self, digit: int) -> Optional['PrimesNode']:
-        return self.children[digit]
+    def prepare(self):
+        self.limit = Helper.config_i64(self.name(), "limit")
+        self._checksum = 0
 
-    def __setitem__(self, digit: int, node: 'PrimesNode'):
-        self.children[digit] = node
+    def run_benchmark(self, iteration_id: int):
+        lim = self.limit
+        primes = [1] * (lim + 1)
+        primes[0] = 0
+        primes[1] = 0
 
-
-class Sieve:
-
-    def __init__(self, limit: int):
-        self.limit = limit
-        self.prime = [True] * (limit + 1)
-        if limit >= 1:
-            self.prime[0] = self.prime[1] = False
-
-    def calculate(self) -> 'Sieve':
-
-        sqrt_limit = int(math.sqrt(self.limit))
+        sqrt_limit = int(math.sqrt(lim))
 
         for p in range(2, sqrt_limit + 1):
-            if self.prime[p]:
-                start = p * p
-                for multiple in range(start, self.limit + 1, p):
-                    self.prime[multiple] = False
-        return self
+            if primes[p] == 1:
+                for multiple in range(p * p, lim + 1, p):
+                    primes[multiple] = 0
 
-    def to_list(self) -> List[int]:
+        last_prime = 2
+        count = 1
 
-        if self.limit < 2:
-            return []
+        n = 3
+        while n <= lim:
+            if primes[n] == 1:
+                last_prime = n
+                count += 1
+            n += 2
 
-        try:
-            capacity = int(self.limit / math.log(self.limit))
-        except:
-            capacity = self.limit // 10
-
-        result: List[int] = []
-
-        if self.limit >= 2:
-            result.append(2)
-
-        for p in range(3, self.limit + 1, 2):
-            if self.prime[p]:
-                result.append(p)
-
-        return result
-
-
-class Primes(Benchmark):
-
-    def __init__(self):
-        super().__init__()
-        self.n = 0
-        self.prefix = 0
-        self.result = 5432
-
-    def prepare(self):
-        self.n = Helper.config_i64(self.name(), "limit")
-        self.prefix = Helper.config_i64(self.name(), "prefix")
-
-    def _generate_trie(self, primes: List[int]) -> PrimesNode:
-
-        root = PrimesNode()
-
-        for prime in primes:
-            node = root
-            temp = prime
-            digits: List[int] = []
-
-            while temp > 0:
-                digits.append(temp % 10)
-                temp //= 10
-            digits.reverse()
-
-            for digit in digits:
-                child = node[digit]
-                if child is None:
-                    child = PrimesNode()
-                    node[digit] = child
-                node = child
-
-            node.terminal = True
-
-        return root
-
-    def _find_primes_with_prefix(self, trie: PrimesNode,
-                                 prefix: int) -> List[int]:
-
-        node = trie
-        prefix_value = 0
-        temp_prefix = prefix
-        prefix_digits: List[int] = []
-
-        while temp_prefix > 0:
-            prefix_digits.append(temp_prefix % 10)
-            temp_prefix //= 10
-        prefix_digits.reverse()
-
-        for digit in prefix_digits:
-            prefix_value = prefix_value * 10 + digit
-            child = node[digit]
-            if child is None:
-                return []
-            node = child
-
-        results: List[int] = []
-        queue: List[Tuple[PrimesNode, int]] = [(node, prefix_value)]
-
-        while queue:
-            current_node, current_number = queue.pop(0)
-
-            if current_node.terminal:
-                results.append(current_number)
-
-            for digit in range(10):
-                child = current_node[digit]
-                if child:
-                    queue.append((child, current_number * 10 + digit))
-
-        results.sort()
-        return results
-
-    def run_benchmark(self, iteration_id: int):
-
-        primes = Sieve(self.n).calculate().to_list()
-
-        trie = self._generate_trie(primes)
-
-        results = self._find_primes_with_prefix(trie, self.prefix)
-
-        self.result = (self.result + len(results)) & 0xFFFFFFFF
-        for prime in results:
-            self.result = (self.result + prime) & 0xFFFFFFFF
+        self._checksum = (self._checksum + last_prime + count) & 0xFFFFFFFF
 
     def checksum(self) -> int:
-        return self.result & 0xFFFFFFFF
+        return self._checksum & 0xFFFFFFFF
 
     def name(self) -> str:
-        return "Etc::Primes"
-
-
-@dataclass
-class Vec2:
-    x: float
-    y: float
-
-
-class Noise2DContext:
-
-    def __init__(self, size: int):
-        self.size = size
-
-        self.rgradients = [self._random_gradient() for _ in range(size)]
-
-        self.permutations = list(range(size))
-        for _ in range(size):
-            a = Helper.next_int(size)
-            b = Helper.next_int(size)
-            self.permutations[a], self.permutations[b] = self.permutations[
-                b], self.permutations[a]
-
-    @staticmethod
-    def _random_gradient() -> Vec2:
-
-        v = Helper.next_float() * math.pi * 2.0
-        return Vec2(math.cos(v), math.sin(v))
-
-    def get_gradient(self, x: int, y: int) -> Vec2:
-
-        idx = (self.permutations[x & (self.size - 1)] +
-               self.permutations[y & (self.size - 1)])
-        return self.rgradients[idx & (self.size - 1)]
-
-    def get_gradients(self, x: float, y: float):
-
-        x0f = math.floor(x)
-        y0f = math.floor(y)
-        x0 = int(x0f)
-        y0 = int(y0f)
-        x1 = x0 + 1
-        y1 = y0 + 1
-
-        gradients = (
-            self.get_gradient(x0, y0),
-            self.get_gradient(x1, y0),
-            self.get_gradient(x0, y1),
-            self.get_gradient(x1, y1),
-        )
-
-        origins = (
-            Vec2(x0f + 0.0, y0f + 0.0),
-            Vec2(x0f + 1.0, y0f + 0.0),
-            Vec2(x0f + 0.0, y0f + 1.0),
-            Vec2(x0f + 1.0, y0f + 1.0),
-        )
-
-        return gradients, origins
-
-    @staticmethod
-    def _smooth(v: float) -> float:
-
-        return v * v * (3.0 - 2.0 * v)
-
-    @staticmethod
-    def _lerp(a: float, b: float, v: float) -> float:
-
-        return a * (1.0 - v) + b * v
-
-    @staticmethod
-    def _gradient(orig: Vec2, grad: Vec2, p: Vec2) -> float:
-
-        sp = Vec2(p.x - orig.x, p.y - orig.y)
-        return grad.x * sp.x + grad.y * sp.y
-
-    def get(self, x: float, y: float) -> float:
-
-        p = Vec2(x, y)
-        gradients, origins = self.get_gradients(x, y)
-
-        v0 = self._gradient(origins[0], gradients[0], p)
-        v1 = self._gradient(origins[1], gradients[1], p)
-        v2 = self._gradient(origins[2], gradients[2], p)
-        v3 = self._gradient(origins[3], gradients[3], p)
-
-        fx = self._smooth(x - origins[0].x)
-        vx0 = self._lerp(v0, v1, fx)
-        vx1 = self._lerp(v2, v3, fx)
-
-        fy = self._smooth(y - origins[0].y)
-        return self._lerp(vx0, vx1, fy)
-
-
-class Noise(Benchmark):
-    SYM = [' ', '░', '▒', '▓', '█', '█']
-
-    def __init__(self):
-        super().__init__()
-        self.size = 0
-        self.result = 0
-        self.n2d: Optional[Noise2DContext] = None
-
-    def prepare(self):
-        self.size = Helper.config_i64(self.name(), "size")
-        self.n2d = Noise2DContext(self.size)
-
-    def run_benchmark(self, iteration_id: int):
-        for y in range(self.size):
-            for x in range(self.size):
-                v = self.n2d.get(x * 0.1,
-                                 (y + (iteration_id * 128)) * 0.1) * 0.5 + 0.5
-                idx = int(v / 0.2)
-                self.result = (self.result + ord(self.SYM[idx])) & 0xFFFFFFFF
-
-    def checksum(self) -> int:
-        return self.result & 0xFFFFFFFF
-
-    def name(self) -> str:
-        return "Etc::Noise"
+        return "Etc::Sieve"
 
 
 @dataclass
@@ -2273,30 +2046,27 @@ class Neuron:
         self.error = 0.0
 
     def calculate_output(self):
-
-        activation = sum(synapse.weight * synapse.source_neuron.output
-                         for synapse in self.synapses_in)
+        activation = 0.0
+        for synapse in self.synapses_in:
+            activation += synapse.weight * synapse.source_neuron.output
         activation -= self.threshold
         self.output = 1.0 / (1.0 + math.exp(-activation))
 
     def derivative(self) -> float:
-
         return self.output * (1.0 - self.output)
 
     def output_train(self, rate: float, target: float):
-
         self.error = (target - self.output) * self.derivative()
         self._update_weights(rate)
 
     def hidden_train(self, rate: float):
-
-        error_sum = sum(synapse.dest_neuron.error * synapse.prev_weight
-                        for synapse in self.synapses_out)
+        error_sum = 0.0
+        for synapse in self.synapses_out:
+            error_sum += synapse.dest_neuron.error * synapse.prev_weight
         self.error = error_sum * self.derivative()
         self._update_weights(rate)
 
     def _update_weights(self, rate: float):
-
         for synapse in self.synapses_in:
             temp_weight = synapse.weight
             synapse.weight += (rate * self.LEARNING_RATE * self.error *
@@ -2330,7 +2100,6 @@ class NeuralNetwork:
                 dest.synapses_in.append(synapse)
 
     def train(self, inputs: List[float], targets: List[float]):
-
         self.feed_forward(inputs)
 
         for neuron, target in zip(self.output_layer, targets):
@@ -2340,7 +2109,6 @@ class NeuralNetwork:
             neuron.hidden_train(0.3)
 
     def feed_forward(self, inputs: List[float]):
-
         for neuron, input_val in zip(self.input_layer, inputs):
             neuron.output = input_val
 
@@ -2351,41 +2119,45 @@ class NeuralNetwork:
             neuron.calculate_output()
 
     def current_outputs(self) -> List[float]:
-
         return [neuron.output for neuron in self.output_layer]
 
 
 class NeuralNet(Benchmark):
+
+    INPUT_00 = [0.0, 0.0]
+    INPUT_01 = [0.0, 1.0]
+    INPUT_10 = [1.0, 0.0]
+    INPUT_11 = [1.0, 1.0]
+    TARGET_0 = [0.0]
+    TARGET_1 = [1.0]
 
     def __init__(self):
         super().__init__()
         self.xor: Optional[NeuralNetwork] = None
 
     def prepare(self):
-
         self.xor = NeuralNetwork(2, 10, 1)
 
     def run_benchmark(self, iteration_id: int):
-
-        self.xor.train([0.0, 0.0], [0.0])
-        self.xor.train([1.0, 0.0], [1.0])
-        self.xor.train([0.0, 1.0], [1.0])
-        self.xor.train([1.0, 1.0], [0.0])
+        for _ in range(1000):
+            self.xor.train(self.INPUT_00, self.TARGET_0)
+            self.xor.train(self.INPUT_10, self.TARGET_1)
+            self.xor.train(self.INPUT_01, self.TARGET_1)
+            self.xor.train(self.INPUT_11, self.TARGET_0)
 
     def checksum(self) -> int:
-
         outputs: List[float] = []
 
-        self.xor.feed_forward([0.0, 0.0])
+        self.xor.feed_forward(self.INPUT_00)
         outputs.extend(self.xor.current_outputs())
 
-        self.xor.feed_forward([0.0, 1.0])
+        self.xor.feed_forward(self.INPUT_01)
         outputs.extend(self.xor.current_outputs())
 
-        self.xor.feed_forward([1.0, 0.0])
+        self.xor.feed_forward(self.INPUT_10)
         outputs.extend(self.xor.current_outputs())
 
-        self.xor.feed_forward([1.0, 1.0])
+        self.xor.feed_forward(self.INPUT_11)
         outputs.extend(self.xor.current_outputs())
 
         total = sum(outputs)
@@ -2802,8 +2574,6 @@ class BufferHashSHA256(BufferHashBenchmark):
     def name(self) -> str:
         return "Hash::SHA256"
 
-
-from typing import Optional, TypeVar, Generic, Dict
 
 K = TypeVar('K')
 V = TypeVar('V')
@@ -4542,6 +4312,289 @@ class LZWDecode(Benchmark):
         return bytes(result)
 
 
+class Jaro(Benchmark):
+
+    def __init__(self):
+        super().__init__()
+        self.count = 0
+        self.size = 0
+        self.pairs: List[Tuple[str, str]] = []
+        self.result_val = 0
+
+    def prepare(self):
+        self.count = Helper.config_i64(self.name(), "count")
+        self.size = Helper.config_i64(self.name(), "size")
+        self.pairs = self._generate_pair_strings(self.count, self.size)
+        self.result_val = 0
+
+    def _generate_pair_strings(self, n: int, m: int) -> List[Tuple[str, str]]:
+        pairs = []
+        chars = "abcdefghij"
+        next_int = Helper.next_int
+
+        for _ in range(n):
+            len1 = next_int(m) + 4
+            len2 = next_int(m) + 4
+
+            str1 = ''.join([chars[next_int(10)] for _ in range(len1)])
+            str2 = ''.join([chars[next_int(10)] for _ in range(len2)])
+
+            pairs.append((str1, str2))
+
+        return pairs
+
+    @staticmethod
+    def _jaro(s1: str, s2: str) -> float:
+        len1 = len(s1)
+        len2 = len(s2)
+
+        if len1 == 0 or len2 == 0:
+            return 0.0
+
+        match_dist = max(len1, len2) // 2 - 1
+        if match_dist < 0:
+            match_dist = 0
+
+        s1_matches = [False] * len1
+        s2_matches = [False] * len2
+
+        matches = 0
+        for i in range(len1):
+            start = max(0, i - match_dist)
+            end = min(len2 - 1, i + match_dist)
+
+            for j in range(start, end + 1):
+                if not s2_matches[j] and s1[i] == s2[j]:
+                    s1_matches[i] = True
+                    s2_matches[j] = True
+                    matches += 1
+                    break
+
+        if matches == 0:
+            return 0.0
+
+        transpositions = 0
+        k = 0
+        for i in range(len1):
+            if s1_matches[i]:
+                while k < len2 and not s2_matches[k]:
+                    k += 1
+                if k < len2:
+                    if s1[i] != s2[k]:
+                        transpositions += 1
+                    k += 1
+
+        transpositions //= 2
+
+        m = float(matches)
+        return (m / len1 + m / len2 + (m - transpositions) / m) / 3.0
+
+    def run_benchmark(self, iteration_id: int):
+        for s1, s2 in self.pairs:
+            self.result_val = (self.result_val +
+                               int(self._jaro(s1, s2) * 1000)) & 0xFFFFFFFF
+
+    def checksum(self) -> int:
+        return self.result_val
+
+    def name(self) -> str:
+        return "Distance::Jaro"
+
+
+class NGram(Benchmark):
+
+    def __init__(self):
+        super().__init__()
+        self.count = 0
+        self.size = 0
+        self.pairs: List[Tuple[str, str]] = []
+        self.result_val = 0
+        self.N = 4
+
+    def prepare(self):
+        self.count = Helper.config_i64(self.name(), "count")
+        self.size = Helper.config_i64(self.name(), "size")
+        self.pairs = self._generate_pair_strings(self.count, self.size)
+        self.result_val = 0
+
+    def _generate_pair_strings(self, n: int, m: int) -> List[Tuple[str, str]]:
+        pairs = []
+        chars = "abcdefghij"
+        next_int = Helper.next_int
+
+        for _ in range(n):
+            len1 = next_int(m) + 4
+            len2 = next_int(m) + 4
+
+            str1 = ''.join([chars[next_int(10)] for _ in range(len1)])
+            str2 = ''.join([chars[next_int(10)] for _ in range(len2)])
+
+            pairs.append((str1, str2))
+
+        return pairs
+
+    def _ngram(self, s1: str, s2: str) -> float:
+        if len(s1) < self.N or len(s2) < self.N:
+            return 0.0
+
+        grams1: Dict[int, int] = {}
+        get1 = grams1.get
+
+        for i in range(len(s1) - self.N + 1):
+            gram = (ord(s1[i]) << 24) | \
+                   (ord(s1[i + 1]) << 16) | \
+                   (ord(s1[i + 2]) << 8) | \
+                    ord(s1[i + 3])
+
+            grams1[gram] = get1(gram, 0) + 1
+
+        grams2: Dict[int, int] = {}
+        intersection = 0
+        get2 = grams2.get
+
+        for i in range(len(s2) - self.N + 1):
+            gram = (ord(s2[i]) << 24) | \
+                   (ord(s2[i + 1]) << 16) | \
+                   (ord(s2[i + 2]) << 8) | \
+                    ord(s2[i + 3])
+
+            grams2[gram] = get2(gram, 0) + 1
+
+            count1 = grams1.get(gram)
+            if count1 is not None and grams2[gram] <= count1:
+                intersection += 1
+
+        total = len(grams1) + len(grams2)
+        return intersection / total if total > 0 else 0.0
+
+    def run_benchmark(self, iteration_id: int):
+        for s1, s2 in self.pairs:
+            self.result_val = (self.result_val +
+                               int(self._ngram(s1, s2) * 1000)) & 0xFFFFFFFF
+
+    def checksum(self) -> int:
+        return self.result_val
+
+    def name(self) -> str:
+        return "Distance::NGram"
+
+
+class Words(Benchmark):
+
+    def __init__(self):
+        super().__init__()
+        self.words = 0
+        self.word_len = 0
+        self.text = ""
+        self._checksum_val = 0
+
+    def prepare(self):
+        self.words = Helper.config_i64(self.name(), "words")
+        self.word_len = Helper.config_i64(self.name(), "word_len")
+
+        chars = "abcdefghijklmnopqrstuvwxyz"
+        words_list = []
+
+        for i in range(self.words):
+            length = Helper.next_int(self.word_len) + Helper.next_int(3) + 3
+            word = ''.join(
+                chars[Helper.next_int(len(chars))] for _ in range(length))
+            words_list.append(word)
+
+        self.text = ' '.join(words_list)
+        self._checksum_val = 0
+
+    def run_benchmark(self, iteration_id: int):
+
+        frequencies = collections.defaultdict(int)
+
+        for word in self.text.split(' '):
+            if not word:
+                continue
+            frequencies[word] += 1
+
+        max_word = ""
+        max_count = 0
+
+        for word, count in frequencies.items():
+            if count > max_count:
+                max_count = count
+                max_word = word
+
+        freq_size = len(frequencies)
+        word_checksum = Helper.checksum_string(max_word)
+
+        self._checksum_val += max_count + word_checksum + freq_size
+        self._checksum_val &= 0xFFFFFFFF
+
+    def checksum(self) -> int:
+        return self._checksum_val & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Etc::Words"
+
+
+class LogParser(Benchmark):
+    PATTERNS = [
+        ("errors", re.compile(r' [5][0-9]{2} ')),
+        ("bots", re.compile(r'bot|crawler|scanner', re.IGNORECASE)),
+        ("suspicious", re.compile(r'etc/passwd|wp-admin|\.\./', re.IGNORECASE)),
+        ("ips", re.compile(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.35')),
+        ("api_calls", re.compile(r'/api/[^ "]+')),
+        ("post_requests", re.compile(r'POST [^ ]* HTTP')),
+        ("auth_attempts", re.compile(r'/login|/signin', re.IGNORECASE)),
+        ("methods", re.compile(r'get|post', re.IGNORECASE)),
+    ]
+
+    IPS = [f"192.168.1.{i}" for i in range(1, 256)]
+    METHODS = ["GET", "POST", "PUT", "DELETE"]
+    PATHS = [
+        "/index.html", "/api/users", "/login", "/admin", "/images/logo.png",
+        "/etc/passwd", "/wp-admin/setup.php"
+    ]
+    STATUSES = [200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503]
+    AGENTS = ["Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0"]
+
+    def __init__(self):
+        super().__init__()
+        self.lines_count = 0
+        self.log = ""
+        self.checksum_val = 0
+
+    def prepare(self):
+        self.lines_count = Helper.config_i64(self.name(), "lines_count")
+
+        lines = []
+        for i in range(self.lines_count):
+            lines.append(self._generate_log_line(i))
+
+        self.log = ''.join(lines)
+        self.checksum_val = 0
+
+    def _generate_log_line(self, i):
+        return (
+            f"{self.IPS[i % len(self.IPS)]} - - [{i % 31}/Oct/2023:13:55:36 +0000] "
+            f"\"{self.METHODS[i % len(self.METHODS)]} {self.PATHS[i % len(self.PATHS)]} HTTP/1.0\" "
+            f"{self.STATUSES[i % len(self.STATUSES)]} 2326 \"-\" \"{self.AGENTS[i % len(self.AGENTS)]}\"\n"
+        )
+
+    def run_benchmark(self, iteration_id: int):
+        matches = {}
+
+        for name, pattern in self.PATTERNS:
+            matches[name] = len(pattern.findall(self.log))
+
+        total = sum(matches.values())
+        self.checksum_val += total
+        self.checksum_val &= 0xFFFFFFFF
+
+    def checksum(self) -> int:
+        return self.checksum_val & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Etc::LogParser"
+
+
 def register_benchmarks():
     Benchmark.register_benchmark('CLBG::Pidigits', Pidigits)
     Benchmark.register_benchmark('Binarytrees::Obj', BinarytreesObj)
@@ -4565,8 +4618,7 @@ def register_benchmarks():
     Benchmark.register_benchmark('Json::Generate', JsonGenerate)
     Benchmark.register_benchmark('Json::ParseDom', JsonParseDom)
     Benchmark.register_benchmark('Json::ParseMapping', JsonParseMapping)
-    Benchmark.register_benchmark('Etc::Primes', Primes)
-    Benchmark.register_benchmark('Etc::Noise', Noise)
+    Benchmark.register_benchmark('Etc::Sieve', Sieve)
     Benchmark.register_benchmark('Etc::TextRaytracer', TextRaytracer)
     Benchmark.register_benchmark('Etc::NeuralNet', NeuralNet)
     Benchmark.register_benchmark('Sort::Quick', SortQuick)
@@ -4593,6 +4645,10 @@ def register_benchmarks():
     Benchmark.register_benchmark('Compress::ArithDecode', ArithDecode)
     Benchmark.register_benchmark('Compress::LZWEncode', LZWEncode)
     Benchmark.register_benchmark('Compress::LZWDecode', LZWDecode)
+    Benchmark.register_benchmark('Distance::Jaro', Jaro)
+    Benchmark.register_benchmark('Distance::NGram', NGram)
+    Benchmark.register_benchmark('Etc::Words', Words)
+    Benchmark.register_benchmark('Etc::LogParser', LogParser)
 
 
 def main():

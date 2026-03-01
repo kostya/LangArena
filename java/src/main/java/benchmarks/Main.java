@@ -27,8 +27,7 @@ public class Main {
         Benchmark.registerBenchmark("Json::Generate", () -> new JsonGenerate());
         Benchmark.registerBenchmark("Json::ParseDom", () -> new JsonParseDom());
         Benchmark.registerBenchmark("Json::ParseMapping", () -> new JsonParseMapping());
-        Benchmark.registerBenchmark("Etc::Primes", () -> new Primes());
-        Benchmark.registerBenchmark("Etc::Noise", () -> new Noise());
+        Benchmark.registerBenchmark("Etc::Sieve", () -> new Sieve());
         Benchmark.registerBenchmark("Etc::TextRaytracer", () -> new TextRaytracer());
         Benchmark.registerBenchmark("Etc::NeuralNet", () -> new NeuralNet());
         Benchmark.registerBenchmark("Sort::Quick", () -> new SortQuick());
@@ -54,6 +53,10 @@ public class Main {
         Benchmark.registerBenchmark("Compress::ArithDecode", () -> new ArithDecode());
         Benchmark.registerBenchmark("Compress::LZWEncode", () -> new LZWEncode());
         Benchmark.registerBenchmark("Compress::LZWDecode", () -> new LZWDecode());
+        Benchmark.registerBenchmark("Distance::Jaro", () -> new Distance.Jaro());
+        Benchmark.registerBenchmark("Distance::NGram", () -> new Distance.NGram());
+        Benchmark.registerBenchmark("Etc::Words", () -> new Words());
+        Benchmark.registerBenchmark("Etc::LogParser", () -> new LogParser());
 
         long now = Instant.now().toEpochMilli();
         System.out.println("start: " + now);

@@ -1843,260 +1843,47 @@ public:
   uint32_t checksum() override { return result_val; }
 };
 
-class Primes : public Benchmark {
+class Sieve : public Benchmark {
 private:
-  struct Node {
-    std::array<std::unique_ptr<Node>, 10> children;
-    bool is_terminal;
-
-    Node() : is_terminal(false) {}
-
-    Node(const Node &) = delete;
-    Node &operator=(const Node &) = delete;
-
-    Node(Node &&) = default;
-    Node &operator=(Node &&) = default;
-
-    ~Node() = default;
-  };
-
-  static std::vector<int> generate_primes(int limit) {
-    if (limit < 2)
-      return {};
-
-    std::vector<bool> is_prime(limit + 1, true);
-    is_prime[0] = is_prime[1] = false;
-
-    const int sqrt_limit = static_cast<int>(std::sqrt(limit));
-
-    for (int p = 2; p <= sqrt_limit; ++p) {
-      if (is_prime[p]) {
-        for (int multiple = p * p; multiple <= limit; multiple += p) {
-          is_prime[multiple] = false;
-        }
-      }
-    }
-
-    std::vector<int> primes;
-    primes.reserve(static_cast<size_t>(limit / (std::log(limit) - 1.1)));
-
-    using namespace std::views;
-    auto prime_numbers =
-        iota(2, limit + 1) | filter([&is_prime](int n) { return is_prime[n]; });
-
-    std::ranges::copy(prime_numbers, std::back_inserter(primes));
-
-    return primes;
-  }
-
-  static std::unique_ptr<Node> build_trie(const std::vector<int> &primes) {
-    auto root = std::make_unique<Node>();
-
-    for (int prime : primes) {
-      Node *current = root.get();
-      std::string digits = std::to_string(prime);
-
-      for (char digit_char : digits) {
-        int digit = digit_char - '0';
-
-        if (!current->children[digit]) {
-          current->children[digit] = std::make_unique<Node>();
-        }
-        current = current->children[digit].get();
-      }
-      current->is_terminal = true;
-    }
-
-    return root;
-  }
-
-  static std::vector<int>
-  find_primes_with_prefix(const std::unique_ptr<Node> &trie_root, int prefix) {
-    std::string prefix_str = std::to_string(prefix);
-
-    const Node *current = trie_root.get();
-    for (char digit_char : prefix_str) {
-      int digit = digit_char - '0';
-
-      if (!current->children[digit]) {
-        return {};
-      }
-      current = current->children[digit].get();
-    }
-
-    std::vector<int> results;
-
-    struct QueueItem {
-      const Node *node;
-      int number;
-    };
-
-    std::queue<QueueItem> bfs_queue;
-    bfs_queue.push({current, prefix});
-
-    while (!bfs_queue.empty()) {
-      auto [node, number] = bfs_queue.front();
-      bfs_queue.pop();
-
-      if (node->is_terminal) {
-        results.push_back(number);
-      }
-
-      for (int digit = 0; digit < 10; ++digit) {
-        if (node->children[digit]) {
-          bfs_queue.push({node->children[digit].get(), number * 10 + digit});
-        }
-      }
-    }
-
-    std::ranges::sort(results);
-    return results;
-  }
-
-  int64_t n;
-  int64_t prefix;
-  uint32_t result_val;
+  int64_t limit;
+  uint32_t checksum_val;
 
 public:
-  Primes() : n(config_val("limit")), result_val(5432) {
-    prefix = config_val("prefix");
-  }
+  Sieve() : limit(config_val("limit")), checksum_val(0) {}
 
-  std::string name() const override { return "Etc::Primes"; }
+  std::string name() const override { return "Etc::Sieve"; }
 
   void run(int iteration_id) override {
-    auto primes = generate_primes(static_cast<int>(n));
+    size_t sz = static_cast<size_t>(limit);
+    std::vector<uint8_t> primes(sz + 1, 1);
+    primes[0] = 0;
+    primes[1] = 0;
 
-    auto trie = build_trie(primes);
+    size_t sqrt_limit =
+        static_cast<size_t>(std::sqrt(static_cast<double>(limit)));
 
-    auto results = find_primes_with_prefix(trie, static_cast<int>(prefix));
-
-    result_val += static_cast<uint32_t>(results.size());
-    for (int prime : results) {
-      result_val += static_cast<uint32_t>(prime);
-    }
-  }
-
-  uint32_t checksum() override { return result_val; }
-};
-
-class Noise : public Benchmark {
-private:
-  struct Vec2 {
-    double x, y;
-  };
-
-  class Noise2DContext {
-  private:
-    std::vector<Vec2> rgradients;
-    std::vector<int> permutations;
-    int size_val;
-
-    static Vec2 random_gradient() {
-      double v = Helper::next_float() * M_PI * 2.0;
-      return {std::cos(v), std::sin(v)};
-    }
-
-    static double lerp(double a, double b, double v) {
-      return a * (1.0 - v) + b * v;
-    }
-
-    static double smooth(double v) { return v * v * (3.0 - 2.0 * v); }
-
-    static double gradient(const Vec2 &orig, const Vec2 &grad, const Vec2 &p) {
-      Vec2 sp = {p.x - orig.x, p.y - orig.y};
-      return grad.x * sp.x + grad.y * sp.y;
-    }
-
-  public:
-    Noise2DContext(int size) : size_val(size) {
-      rgradients.resize(size);
-      permutations.resize(size);
-
-      for (int i = 0; i < size; i++) {
-        rgradients[i] = random_gradient();
-        permutations[i] = i;
-      }
-
-      for (int i = 0; i < size; i++) {
-        int a = Helper::next_int(size);
-        int b = Helper::next_int(size);
-        std::swap(permutations[a], permutations[b]);
+    for (size_t p = 2; p <= sqrt_limit; ++p) {
+      if (primes[p] == 1) {
+        for (size_t multiple = p * p; multiple <= sz; multiple += p) {
+          primes[multiple] = 0;
+        }
       }
     }
 
-    Vec2 get_gradient(int x, int y) {
-      int idx =
-          permutations[x & (size_val - 1)] + permutations[y & (size_val - 1)];
-      return rgradients[idx & (size_val - 1)];
-    }
+    int last_prime = 2;
+    int count = 1;
 
-    std::pair<std::array<Vec2, 4>, std::array<Vec2, 4>>
-    get_gradients(double x, double y) {
-      double x0f = std::floor(x);
-      double y0f = std::floor(y);
-      int x0 = static_cast<int>(x0f);
-      int y0 = static_cast<int>(y0f);
-      int x1 = x0 + 1;
-      int y1 = y0 + 1;
-
-      std::array<Vec2, 4> gradients = {
-          get_gradient(x0, y0), get_gradient(x1, y0), get_gradient(x0, y1),
-          get_gradient(x1, y1)};
-
-      std::array<Vec2, 4> origins = {
-          Vec2{x0f + 0.0, y0f + 0.0}, Vec2{x0f + 1.0, y0f + 0.0},
-          Vec2{x0f + 0.0, y0f + 1.0}, Vec2{x0f + 1.0, y0f + 1.0}};
-
-      return {gradients, origins};
-    }
-
-    double get(double x, double y) {
-      Vec2 p = {x, y};
-      auto [gradients, origins] = get_gradients(x, y);
-
-      double v0 = gradient(origins[0], gradients[0], p);
-      double v1 = gradient(origins[1], gradients[1], p);
-      double v2 = gradient(origins[2], gradients[2], p);
-      double v3 = gradient(origins[3], gradients[3], p);
-
-      double fx = smooth(x - origins[0].x);
-      double vx0 = lerp(v0, v1, fx);
-      double vx1 = lerp(v2, v3, fx);
-
-      double fy = smooth(y - origins[0].y);
-      return lerp(vx0, vx1, fy);
-    }
-  };
-
-  static constexpr char32_t SYM[6] = {U' ', U'░', U'▒', U'▓', U'█', U'█'};
-
-  int64_t size_val;
-  uint32_t result_val;
-  std::unique_ptr<Noise2DContext> n2d;
-
-public:
-  Noise() : result_val(0) {
-    size_val = config_val("size");
-    n2d = std::make_unique<Noise2DContext>(static_cast<int>(size_val));
-  }
-
-  std::string name() const override { return "Etc::Noise"; }
-
-  void run(int iteration_id) override {
-    for (int64_t y = 0; y < size_val; y++) {
-      for (int64_t x = 0; x < size_val; x++) {
-        double v =
-            n2d->get(x * 0.1, (y + (iteration_id * 128)) * 0.1) * 0.5 + 0.5;
-        int idx = static_cast<int>(v / 0.2);
-        if (idx >= 6)
-          idx = 5;
-        result_val += static_cast<uint32_t>(SYM[idx]);
+    for (size_t n = 3; n <= sz; n += 2) {
+      if (primes[n] == 1) {
+        last_prime = static_cast<int>(n);
+        count++;
       }
     }
+
+    checksum_val += static_cast<uint32_t>(last_prime + count);
   }
 
-  uint32_t checksum() override { return result_val; }
+  uint32_t checksum() override { return checksum_val; }
 };
 
 class TextRaytracer : public Benchmark {
@@ -2405,7 +2192,6 @@ private:
     }
   };
 
-  std::vector<double> res;
   std::unique_ptr<NeuralNetwork> xor_net;
 
 public:
@@ -2419,10 +2205,20 @@ public:
 
   void run(int iteration_id) override {
     NeuralNetwork &xor_ref = *xor_net;
-    xor_ref.train({0, 0}, {0});
-    xor_ref.train({1, 0}, {1});
-    xor_ref.train({0, 1}, {1});
-    xor_ref.train({1, 1}, {0});
+
+    static const std::vector<double> INPUT_00 = {0, 0};
+    static const std::vector<double> INPUT_01 = {0, 1};
+    static const std::vector<double> INPUT_10 = {1, 0};
+    static const std::vector<double> INPUT_11 = {1, 1};
+    static const std::vector<double> TARGET_0 = {0};
+    static const std::vector<double> TARGET_1 = {1};
+
+    for (int iter = 0; iter < 1000; iter++) {
+      xor_ref.train(INPUT_00, TARGET_0);
+      xor_ref.train(INPUT_10, TARGET_1);
+      xor_ref.train(INPUT_01, TARGET_1);
+      xor_ref.train(INPUT_11, TARGET_0);
+    }
   }
 
   uint32_t checksum() override {
@@ -2450,6 +2246,70 @@ public:
     }
     return Helper::checksum_f64(sum);
   }
+};
+
+class Words : public Benchmark {
+private:
+  int words;
+  int word_len;
+  std::string text;
+  uint32_t checksum_val;
+
+public:
+  Words() : checksum_val(0) {
+    words = config_val("words");
+    word_len = config_val("word_len");
+  }
+
+  std::string name() const override { return "Etc::Words"; }
+
+  void prepare() override {
+    const char chars[] = "abcdefghijklmnopqrstuvwxyz";
+    const int char_count = 26;
+
+    std::string result;
+    result.reserve(words * (word_len + 1));
+
+    for (int i = 0; i < words; ++i) {
+      int len = Helper::next_int(word_len) + Helper::next_int(3) + 3;
+      for (int j = 0; j < len; ++j) {
+        result.push_back(chars[Helper::next_int(char_count)]);
+      }
+      if (i != words - 1) {
+        result.push_back(' ');
+      }
+    }
+
+    text = std::move(result);
+  }
+
+  void run(int iteration_id) override {
+    std::unordered_map<std::string, int> frequencies;
+    std::istringstream iss(text);
+    std::string word;
+
+    while (iss >> word) {
+      if (auto [it, inserted] = frequencies.try_emplace(word, 1); !inserted) {
+        it->second++;
+      }
+    }
+
+    std::string max_word;
+    int max_count = 0;
+
+    for (const auto &pair : frequencies) {
+      if (pair.second > max_count) {
+        max_count = pair.second;
+        max_word = pair.first;
+      }
+    }
+
+    checksum_val += static_cast<uint32_t>(max_count) +
+                    Helper::checksum(max_word) +
+                    static_cast<uint32_t>(frequencies.size());
+  }
+
+  uint32_t checksum() override { return checksum_val; }
 };
 
 class SortBenchmark : public Benchmark {
@@ -4922,6 +4782,292 @@ public:
   }
 };
 
+namespace Distance {
+std::vector<std::pair<std::string, std::string>>
+generate_pair_strings(int64_t n, int64_t m) {
+  std::vector<std::pair<std::string, std::string>> pairs;
+  pairs.reserve(n);
+
+  for (int64_t i = 0; i < n; ++i) {
+    int len1 = Helper::next_int(m) + 4;
+    int len2 = Helper::next_int(m) + 4;
+
+    std::string str1, str2;
+    str1.reserve(len1);
+    str2.reserve(len2);
+
+    for (int j = 0; j < len1; ++j) {
+      str1 += 'a' + Helper::next_int(10);
+    }
+    for (int j = 0; j < len2; ++j) {
+      str2 += 'a' + Helper::next_int(10);
+    }
+
+    pairs.emplace_back(std::move(str1), std::move(str2));
+  }
+
+  return pairs;
+}
+
+class Jaro : public Benchmark {
+private:
+  int64_t count;
+  int64_t size;
+  std::vector<std::pair<std::string, std::string>> pairs;
+  uint32_t result_val;
+
+public:
+  Jaro()
+      : count(config_val("count")), size(config_val("size")), result_val(0) {}
+
+  void prepare() override { pairs = generate_pair_strings(count, size); }
+
+  double jaro(const std::string &s1, const std::string &s2) {
+    size_t len1 = s1.size();
+    size_t len2 = s2.size();
+
+    if (len1 == 0 || len2 == 0)
+      return 0.0;
+
+    int64_t match_dist = std::max(len1, len2) / 2 - 1;
+    if (match_dist < 0)
+      match_dist = 0;
+
+    std::vector<bool> s1_matches(len1, false);
+    std::vector<bool> s2_matches(len2, false);
+
+    int matches = 0;
+    for (size_t i = 0; i < len1; ++i) {
+      size_t start = i > match_dist ? i - match_dist : 0;
+      size_t end = std::min<size_t>(len2 - 1, i + match_dist);
+
+      for (size_t j = start; j <= end; ++j) {
+        if (!s2_matches[j] && s1[i] == s2[j]) {
+          s1_matches[i] = true;
+          s2_matches[j] = true;
+          matches++;
+          break;
+        }
+      }
+    }
+
+    if (matches == 0)
+      return 0.0;
+
+    int transpositions = 0;
+    size_t k = 0;
+    for (size_t i = 0; i < len1; ++i) {
+      if (s1_matches[i]) {
+        while (k < len2 && !s2_matches[k]) {
+          k++;
+        }
+        if (k < len2) {
+          if (s1[i] != s2[k]) {
+            transpositions++;
+          }
+          k++;
+        }
+      }
+    }
+    transpositions /= 2;
+
+    double m = static_cast<double>(matches);
+    double jaro = (m / len1 + m / len2 + (m - transpositions) / m) / 3.0;
+    return jaro;
+  }
+
+  void run(int iteration_id) override {
+    for (const auto &pair : pairs) {
+      result_val += static_cast<uint32_t>(jaro(pair.first, pair.second) * 1000);
+    }
+  }
+
+  uint32_t checksum() override { return result_val; }
+
+  std::string name() const override { return "Distance::Jaro"; }
+};
+
+class NGram : public Benchmark {
+private:
+  int64_t count;
+  int64_t size;
+  std::vector<std::pair<std::string, std::string>> pairs;
+  uint32_t result_val;
+
+public:
+  NGram()
+      : count(config_val("count")), size(config_val("size")), result_val(0) {}
+
+  void prepare() override {
+    pairs = Distance::generate_pair_strings(count, size);
+  }
+
+  double ngram(const std::string &_s1, const std::string &_s2) {
+    const auto &s1 = _s1;
+    const auto &s2 = _s2;
+
+    std::unordered_map<uint32_t, int> grams1;
+    grams1.reserve(s1.size());
+
+    for (size_t i = 0; i <= s1.size() - 4; ++i) {
+      uint32_t gram = (static_cast<uint8_t>(s1[i]) << 24) |
+                      (static_cast<uint8_t>(s1[i + 1]) << 16) |
+                      (static_cast<uint8_t>(s1[i + 2]) << 8) |
+                      static_cast<uint8_t>(s1[i + 3]);
+
+      auto [it, inserted] = grams1.try_emplace(gram, 0);
+      it->second++;
+    }
+
+    std::unordered_map<uint32_t, int> grams2;
+    grams2.reserve(s2.size());
+    int intersection = 0;
+
+    for (size_t i = 0; i <= s2.size() - 4; ++i) {
+      uint32_t gram = (static_cast<uint8_t>(s2[i]) << 24) |
+                      (static_cast<uint8_t>(s2[i + 1]) << 16) |
+                      (static_cast<uint8_t>(s2[i + 2]) << 8) |
+                      static_cast<uint8_t>(s2[i + 3]);
+
+      auto [it2, inserted2] = grams2.try_emplace(gram, 0);
+      it2->second++;
+
+      auto it1 = grams1.find(gram);
+      if (it1 != grams1.end() && it2->second <= it1->second) {
+        intersection++;
+      }
+    }
+
+    size_t total = grams1.size() + grams2.size();
+    return total > 0 ? static_cast<double>(intersection) / total : 0.0;
+  }
+
+  void run(int iteration_id) override {
+    for (const auto &pair : pairs) {
+      result_val +=
+          static_cast<uint32_t>(ngram(pair.first, pair.second) * 1000);
+    }
+  }
+
+  uint32_t checksum() override { return result_val; }
+
+  std::string name() const override { return "Distance::NGram"; }
+};
+} // namespace Distance
+
+class LogParser : public Benchmark {
+private:
+  std::string log;
+  uint32_t checksum_val;
+
+  std::vector<std::unique_ptr<re2::RE2>> compiled_patterns;
+  std::vector<std::string> pattern_names;
+
+  const std::vector<std::string> IPS = [] {
+    std::vector<std::string> ips;
+    for (int i = 1; i <= 255; i++) {
+      ips.push_back("192.168.1." + std::to_string(i));
+    }
+    return ips;
+  }();
+
+  const std::vector<std::string> METHODS = {"GET", "POST", "PUT", "DELETE"};
+  const std::vector<std::string> PATHS = {"/index.html",
+                                          "/api/users",
+                                          "/login",
+                                          "/admin",
+                                          "/images/logo.png",
+                                          "/etc/passwd",
+                                          "/wp-admin/setup.php"};
+  const std::vector<int> STATUSES = {200, 201, 301, 302, 400, 401,
+                                     403, 404, 500, 502, 503};
+  const std::vector<std::string> AGENTS = {"Mozilla/5.0", "Googlebot/2.1",
+                                           "curl/7.68.0", "scanner/2.0"};
+
+  static constexpr std::array<const char *, 8> PATTERNS = {
+      " [5][0-9]{2} ",
+      "(?i)bot|crawler|scanner",
+      "(?i)etc/passwd|wp-admin|\\.\\./",
+      "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.35",
+      "/api/[^ \"]+",
+      "POST [^ ]* HTTP",
+      "(?i)/login|/signin",
+      "(?i)get|post",
+  };
+
+  static constexpr std::array<const char *, 8> NAMES = {
+      "errors",    "bots",          "suspicious",    "ips",
+      "api_calls", "post_requests", "auth_attempts", "methods"};
+
+  void generate_log_line(std::string &str, int i) {
+    str += IPS[i % IPS.size()];
+    str += " - - [" + std::to_string(i % 31) + "/Oct/2023:13:55:36 +0000] \"";
+    str += METHODS[i % METHODS.size()] + " " + PATHS[i % PATHS.size()] +
+           " HTTP/1.0\" ";
+    str += std::to_string(STATUSES[i % STATUSES.size()]) + " 2326 \"-\" \"";
+    str += AGENTS[i % AGENTS.size()] + "\"\n";
+  }
+
+public:
+  LogParser() : checksum_val(0) { log.reserve(1000000 * 150); }
+
+  std::string name() const override { return "Etc::LogParser"; }
+
+  void prepare() override {
+    int lines_count = config_val("lines_count");
+
+    std::string log_builder;
+    log_builder.reserve(lines_count * 150);
+
+    for (int i = 0; i < lines_count; i++) {
+      generate_log_line(log_builder, i);
+    }
+
+    log = std::move(log_builder);
+
+    for (size_t i = 0; i < PATTERNS.size(); i++) {
+      auto re = std::make_unique<re2::RE2>(PATTERNS[i]);
+      if (!re->ok()) {
+        std::cerr << "RE2 error for " << PATTERNS[i] << ": " << re->error()
+                  << std::endl;
+      }
+      compiled_patterns.push_back(std::move(re));
+      pattern_names.push_back(NAMES[i]);
+    }
+  }
+
+  void run(int iteration_id) override {
+
+    std::unordered_map<std::string, int> matches;
+
+    for (size_t i = 0; i < compiled_patterns.size(); i++) {
+      const auto &re = compiled_patterns[i];
+      if (!re || !re->ok())
+        continue;
+
+      re2::StringPiece input(log);
+      size_t count = 0;
+
+      re2::StringPiece match;
+      while (
+          re->Match(input, 0, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
+        count++;
+        input.remove_prefix(match.data() - input.data() + match.size());
+      }
+
+      matches[pattern_names[i]] = count;
+    }
+
+    uint32_t total = 0;
+    for (const auto &[_, count] : matches) {
+      total += count;
+    }
+    checksum_val += total;
+  }
+
+  uint32_t checksum() override { return checksum_val; }
+};
+
 std::string to_lower(const std::string &str) {
   std::string result = str;
   std::transform(result.begin(), result.end(), result.begin(),
@@ -4968,11 +5114,11 @@ void Benchmark::all(const std::string &single_bench) {
           {"Json::ParseDom", []() { return std::make_unique<JsonParseDom>(); }},
           {"Json::ParseMapping",
            []() { return std::make_unique<JsonParseMapping>(); }},
-          {"Etc::Primes", []() { return std::make_unique<Primes>(); }},
-          {"Etc::Noise", []() { return std::make_unique<Noise>(); }},
+          {"Etc::Sieve", []() { return std::make_unique<Sieve>(); }},
           {"Etc::TextRaytracer",
            []() { return std::make_unique<TextRaytracer>(); }},
           {"Etc::NeuralNet", []() { return std::make_unique<NeuralNet>(); }},
+          {"Etc::Words", []() { return std::make_unique<Words>(); }},
           {"Sort::Quick", []() { return std::make_unique<SortQuick>(); }},
           {"Sort::Merge", []() { return std::make_unique<SortMerge>(); }},
           {"Sort::Self", []() { return std::make_unique<SortSelf>(); }},
@@ -5009,6 +5155,12 @@ void Benchmark::all(const std::string &single_bench) {
            []() { return std::make_unique<LZWEncode>(); }},
           {"Compress::LZWDecode",
            []() { return std::make_unique<LZWDecode>(); }},
+          {"Distance::Jaro",
+           []() { return std::make_unique<Distance::Jaro>(); }},
+          {"Distance::NGram",
+           []() { return std::make_unique<Distance::NGram>(); }},
+          {"Etc::LogParser", []() { return std::make_unique<LogParser>(); }},
+
       };
 
   for (auto &[name, create_benchmark] : benchmarks) {

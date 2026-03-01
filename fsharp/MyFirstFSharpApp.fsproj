@@ -24,8 +24,7 @@
     <Compile Include="Spectralnorm.fs" />
     <Compile Include="Base64Benchmarks.fs" />
     <Compile Include="JsonBenchmarks.fs" />
-    <Compile Include="Primes.fs" />
-    <Compile Include="Noise.fs" />
+    <Compile Include="Sieve.fs" />
     <Compile Include="TextRaytracer.fs" />
     <Compile Include="NeuralNet.fs" />
     <Compile Include="Sort.fs" />
@@ -35,7 +34,10 @@
     <Compile Include="Calculator.fs" />
     <Compile Include="GameOfLife.fs" />
     <Compile Include="Maze.fs" />
-    <Compile Include="Compress.fs" />    
+    <Compile Include="Compress.fs" />  
+    <Compile Include="Distance.fs" />    
+    <Compile Include="Words.fs" /> 
+    <Compile Include="LogParser.fs" />    
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

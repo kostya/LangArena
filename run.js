@@ -68,16 +68,10 @@
     "coords": 25000,
     "iterations": 100
   },
-  "Etc::Primes": {
-    "checksum": 139698008,
+  "Etc::Sieve": {
+    "checksum": 1042248060,
     "limit": 3000000,
-    "prefix": 3233,
-    "iterations": 40
-  },
-  "Etc::Noise": {
-    "checksum": 1166030192,
-    "size": 256,
-    "iterations": 1200
+    "iterations": 270
   },
   "Etc::TextRaytracer": {
     "checksum": 2761140480,
@@ -86,8 +80,8 @@
     "iterations": 100
   },
   "Etc::NeuralNet": {
-    "checksum": 1586999118,
-    "iterations": 1100000
+    "checksum": 144809143,
+    "iterations": 2200
   },
   "Etc::CacheSimulation": {
     "checksum": 3263751556,
@@ -100,6 +94,17 @@
     "w": 500,
     "h": 500,
     "iterations": 500
+  },
+  "Etc::Words": {
+    "checksum": 1998586832,
+    "words": 50000,
+    "word_len": 4,
+    "iterations": 360
+  },
+  "Etc::LogParser": {
+    "checksum": 2265912,
+    "iterations": 20,
+    "lines_count": 45000
   },
   "Sort::Quick": {
     "checksum": 118065786,
@@ -259,5 +264,17 @@
     "checksum": 1920113440,
     "size": 1000007,
     "iterations": 1600
+  },
+  "Distance::Jaro": {
+    "checksum": 567348912,
+    "iterations": 780,
+    "count": 1000,
+    "size": 50
+  },
+  "Distance::NGram": {
+    "checksum": 397440,
+    "iterations": 100,
+    "count": 10,
+    "size": 20000
   }
 }

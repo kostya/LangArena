@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -260,8 +259,7 @@ func RunBenchmarks(singleBench string) {
 		&JsonGenerate{BaseBenchmark: BaseBenchmark{className: "Json::Generate"}},
 		&JsonParseDom{BaseBenchmark: BaseBenchmark{className: "Json::ParseDom"}},
 		&JsonParseMapping{BaseBenchmark: BaseBenchmark{className: "Json::ParseMapping"}},
-		&Primes{BaseBenchmark: BaseBenchmark{className: "Etc::Primes"}},
-		&Noise{BaseBenchmark: BaseBenchmark{className: "Etc::Noise"}},
+		&Sieve{BaseBenchmark: BaseBenchmark{className: "Etc::Sieve"}},
 		&TextRaytracer{BaseBenchmark: BaseBenchmark{className: "Etc::TextRaytracer"}},
 		&NeuralNet{BaseBenchmark: BaseBenchmark{className: "Etc::NeuralNet"}},
 		&SortQuick{BaseBenchmark: BaseBenchmark{className: "Sort::Quick"}},
@@ -287,6 +285,10 @@ func RunBenchmarks(singleBench string) {
 		&ArithDecode{BaseBenchmark: BaseBenchmark{className: "Compress::ArithDecode"}},
 		&LZWEncode{BaseBenchmark: BaseBenchmark{className: "Compress::LZWEncode"}},
 		&LZWDecode{BaseBenchmark: BaseBenchmark{className: "Compress::LZWDecode"}},
+		&Jaro{BaseBenchmark: BaseBenchmark{className: "Distance::Jaro"}},
+		&NGram{BaseBenchmark: BaseBenchmark{className: "Distance::NGram"}},
+		&Words{BaseBenchmark: BaseBenchmark{className: "Etc::Words"}},
+		&LogParser{BaseBenchmark: BaseBenchmark{className: "Etc::LogParser"}},
 	}
 
 	for _, bench := range allBenches {
@@ -1736,166 +1738,51 @@ func (b *Base64Decode) Checksum() uint32 {
 	return Checksum(resultStr)
 }
 
-type Node struct {
-	children [10]*Node
-	terminal bool
-}
-
-type Primes struct {
+type Sieve struct {
 	BaseBenchmark
-	n      int64
-	prefix int64
-	result uint32
+	limit    int64
+	checksum uint32
 }
 
-func (p *Primes) Prepare() {
-	p.n = p.ConfigVal("limit")
-	p.prefix = p.ConfigVal("prefix")
-	p.result = 5432
+func (s *Sieve) Prepare() {
+	s.limit = s.ConfigVal("limit")
+	s.checksum = 0
 }
 
-func generatePrimes(limit int) []int {
-	if limit < 2 {
-		return nil
+func (s *Sieve) Run(iteration_id int) {
+	lim := int(s.limit)
+	primes := make([]byte, lim+1)
+	for i := 0; i <= lim; i++ {
+		primes[i] = 1
 	}
+	primes[0] = 0
+	primes[1] = 0
 
-	isPrime := make([]byte, limit+1)
-	for i := 2; i <= limit; i++ {
-		isPrime[i] = 1
-	}
-
-	sqrtLimit := int(math.Sqrt(float64(limit)))
+	sqrtLimit := int(math.Sqrt(float64(lim)))
 
 	for p := 2; p <= sqrtLimit; p++ {
-		if isPrime[p] == 1 {
-			for multiple := p * p; multiple <= limit; multiple += p {
-				isPrime[multiple] = 0
+		if primes[p] == 1 {
+			for multiple := p * p; multiple <= lim; multiple += p {
+				primes[multiple] = 0
 			}
 		}
 	}
 
-	estimatedCount := 0
-	if limit > 1000 {
-		estimatedCount = int(float64(limit) / (math.Log(float64(limit)) - 1.1))
-	}
-	if estimatedCount < 1000 {
-		estimatedCount = 1000
-	}
+	lastPrime := 2
+	count := 1
 
-	primes := make([]int, 0, estimatedCount)
-
-	if limit >= 2 {
-		primes = append(primes, 2)
-	}
-
-	for p := 3; p <= limit; p += 2 {
-		if isPrime[p] == 1 {
-			primes = append(primes, p)
+	for n := 3; n <= lim; n += 2 {
+		if primes[n] == 1 {
+			lastPrime = n
+			count++
 		}
 	}
 
-	return primes
+	s.checksum += uint32(lastPrime + count)
 }
 
-func buildTrie(primes []int) *Node {
-	root := &Node{}
-	digits := make([]byte, 0, 12)
-
-	for _, prime := range primes {
-		node := root
-		digits = digits[:0]
-		temp := prime
-		for temp > 0 {
-			digits = append(digits, byte('0'+(temp%10)))
-			temp /= 10
-		}
-
-		for i := len(digits) - 1; i >= 0; i-- {
-			digit := int(digits[i] - '0')
-			if node.children[digit] == nil {
-				node.children[digit] = &Node{}
-			}
-			node = node.children[digit]
-		}
-		node.terminal = true
-	}
-
-	return root
-}
-
-func findWithPrefix(trie *Node, prefix int) []int {
-	node := trie
-	prefixDigits := make([]int, 0, 12)
-	prefixValue := 0
-	temp := prefix
-
-	for temp > 0 {
-		prefixDigits = append(prefixDigits, temp%10)
-		temp /= 10
-	}
-
-	for i := len(prefixDigits) - 1; i >= 0; i-- {
-		digit := prefixDigits[i]
-		prefixValue = prefixValue*10 + digit
-		if node.children[digit] == nil {
-			return nil
-		}
-		node = node.children[digit]
-	}
-
-	results := make([]int, 0, 10000)
-	type queueItem struct {
-		node   *Node
-		number int
-	}
-
-	queue := make([]queueItem, 0, 10000)
-	queue = append(queue, queueItem{node, prefixValue})
-
-	for front := 0; front < len(queue); front++ {
-		current := queue[front]
-
-		if current.node.terminal {
-			results = append(results, current.number)
-		}
-
-		for digit := 0; digit < 10; digit++ {
-			if child := current.node.children[digit]; child != nil {
-				queue = append(queue, queueItem{
-					node:   child,
-					number: current.number*10 + digit,
-				})
-			}
-		}
-	}
-
-	for i := 1; i < len(results); i++ {
-		key := results[i]
-		j := i - 1
-
-		for j >= 0 && results[j] > key {
-			results[j+1] = results[j]
-			j--
-		}
-		results[j+1] = key
-	}
-
-	return results
-}
-
-func (p *Primes) Run(iteration_id int) {
-	primes := generatePrimes(int(p.n))
-	trie := buildTrie(primes)
-	results := findWithPrefix(trie, int(p.prefix))
-	p.result += uint32(len(results))
-
-	for _, r := range results {
-		p.result += uint32(r)
-	}
-}
-
-func (p *Primes) Checksum() uint32 {
-	return p.result
+func (s *Sieve) Checksum() uint32 {
+	return s.checksum
 }
 
 type Coordinate struct {
@@ -2042,142 +1929,6 @@ func (j *JsonParseMapping) Run(iteration_id int) {
 
 func (j *JsonParseMapping) Checksum() uint32 {
 	return j.result
-}
-
-type Vec2 struct {
-	X, Y float64
-}
-
-type Noise2DContext struct {
-	rgradients   []Vec2
-	permutations []int
-	size         int
-}
-
-func NewNoise2DContext(size int) *Noise2DContext {
-	ctx := &Noise2DContext{
-		rgradients:   make([]Vec2, size),
-		permutations: make([]int, size),
-		size:         size,
-	}
-
-	for i := range ctx.rgradients {
-		v := NextFloat(math.Pi * 2.0)
-		ctx.rgradients[i] = Vec2{math.Cos(v), math.Sin(v)}
-	}
-
-	for i := range ctx.permutations {
-		ctx.permutations[i] = i
-	}
-
-	for i := 0; i < size; i++ {
-		a := NextInt(size)
-		b := NextInt(size)
-		ctx.permutations[a], ctx.permutations[b] = ctx.permutations[b], ctx.permutations[a]
-	}
-
-	return ctx
-}
-
-func (n *Noise2DContext) GetGradient(x, y int) Vec2 {
-	idx := n.permutations[x&(n.size-1)] + n.permutations[y&(n.size-1)]
-	return n.rgradients[idx&(n.size-1)]
-}
-
-func (n *Noise2DContext) GetGradients(x, y int) ([4]Vec2, [4]Vec2) {
-	x0f := math.Floor(float64(x))
-	y0f := math.Floor(float64(y))
-	x0 := int(x0f)
-	y0 := int(y0f)
-	x1 := x0 + 1
-	y1 := y0 + 1
-
-	gradients := [4]Vec2{
-		n.GetGradient(x0, y0),
-		n.GetGradient(x1, y0),
-		n.GetGradient(x0, y1),
-		n.GetGradient(x1, y1),
-	}
-
-	origins := [4]Vec2{
-		{x0f + 0.0, y0f + 0.0},
-		{x0f + 1.0, y0f + 0.0},
-		{x0f + 0.0, y0f + 1.0},
-		{x0f + 1.0, y0f + 1.0},
-	}
-
-	return gradients, origins
-}
-
-func lerp(a, b, v float64) float64 {
-	return a*(1.0-v) + b*v
-}
-
-func smooth(v float64) float64 {
-	return v * v * (3.0 - 2.0*v)
-}
-
-func gradient(orig, grad, p Vec2) float64 {
-	sp := Vec2{p.X - orig.X, p.Y - orig.Y}
-	return grad.X*sp.X + grad.Y*sp.Y
-}
-
-func (n *Noise2DContext) Get(x, y float64) float64 {
-	p := Vec2{x, y}
-	gradients, origins := n.GetGradients(int(x), int(y))
-
-	v0 := gradient(origins[0], gradients[0], p)
-	v1 := gradient(origins[1], gradients[1], p)
-	v2 := gradient(origins[2], gradients[2], p)
-	v3 := gradient(origins[3], gradients[3], p)
-
-	fx := smooth(x - origins[0].X)
-	vx0 := lerp(v0, v1, fx)
-	vx1 := lerp(v2, v3, fx)
-
-	fy := smooth(y - origins[0].Y)
-	return lerp(vx0, vx1, fy)
-}
-
-type Noise struct {
-	BaseBenchmark
-	size   int64
-	result uint32
-	n2d    *Noise2DContext
-}
-
-func (n *Noise) Prepare() {
-	n.size = n.ConfigVal("size")
-	n.n2d = NewNoise2DContext(int(n.size))
-}
-
-func (n *Noise) Run(iteration_id int) {
-	SYM := []rune{' ', '░', '▒', '▓', '█', '█'}
-
-	yOffset := float64(iteration_id * 128)
-
-	size := int(n.size)
-	var sum uint32 = n.result
-
-	for y := 0; y < size; y++ {
-
-		yCoord := float64(y) + yOffset
-
-		for x := 0; x < size; x++ {
-			v := n.n2d.Get(float64(x)*0.1, yCoord*0.1)*0.5 + 0.5
-			idx := int(v / 0.2)
-			if idx >= len(SYM) {
-				idx = len(SYM) - 1
-			}
-			sum += uint32(SYM[idx])
-		}
-	}
-
-	n.result = sum
-}
-
-func (n *Noise) Checksum() uint32 {
-	return n.result
 }
 
 type TextRaytracer struct {
@@ -2548,32 +2299,39 @@ type NeuralNet struct {
 	xorNet *NeuralNetwork
 }
 
-func (n *NeuralNet) Prepare() {
+var (
+	input00 = []float64{0, 0}
+	input01 = []float64{0, 1}
+	input10 = []float64{1, 0}
+	input11 = []float64{1, 1}
+	target0 = []float64{0}
+	target1 = []float64{1}
+)
 
+func (n *NeuralNet) Prepare() {
 	n.xorNet = NewNeuralNetwork(2, 10, 1)
-	n.res = make([]float64, 0, 4)
 }
 
 func (n *NeuralNet) Run(iteration_id int) {
-
-	n.xorNet.Train([]float64{0, 0}, []float64{0})
-	n.xorNet.Train([]float64{1, 0}, []float64{1})
-	n.xorNet.Train([]float64{0, 1}, []float64{1})
-	n.xorNet.Train([]float64{1, 1}, []float64{0})
+	for i := 0; i < 1000; i++ {
+		n.xorNet.Train(input00, target0)
+		n.xorNet.Train(input10, target1)
+		n.xorNet.Train(input01, target1)
+		n.xorNet.Train(input11, target0)
+	}
 }
 
 func (n *NeuralNet) Checksum() uint32 {
-
-	n.xorNet.FeedForward([]float64{0, 0})
+	n.xorNet.FeedForward(input00)
 	outputs1 := n.xorNet.CurrentOutputs()
 
-	n.xorNet.FeedForward([]float64{0, 1})
+	n.xorNet.FeedForward(input01)
 	outputs2 := n.xorNet.CurrentOutputs()
 
-	n.xorNet.FeedForward([]float64{1, 0})
+	n.xorNet.FeedForward(input10)
 	outputs3 := n.xorNet.CurrentOutputs()
 
-	n.xorNet.FeedForward([]float64{1, 1})
+	n.xorNet.FeedForward(input11)
 	outputs4 := n.xorNet.CurrentOutputs()
 
 	allOutputs := make([]float64, 0, 4)
@@ -5171,6 +4929,351 @@ func (l *LZWDecode) lzwDecode(encoded LZWResult) []byte {
 	}
 
 	return result
+}
+
+func generatePairStrings(n, m int) []struct {
+	s1 string
+	s2 string
+} {
+	pairs := make([]struct {
+		s1 string
+		s2 string
+	}, n)
+	chars := "abcdefghij"
+
+	for i := 0; i < n; i++ {
+		len1 := int(NextInt(m)) + 4
+		len2 := int(NextInt(m)) + 4
+
+		var sb1 strings.Builder
+		var sb2 strings.Builder
+		sb1.Grow(len1)
+		sb2.Grow(len2)
+
+		for j := 0; j < len1; j++ {
+			sb1.WriteByte(chars[NextInt(10)])
+		}
+		for j := 0; j < len2; j++ {
+			sb2.WriteByte(chars[NextInt(10)])
+		}
+
+		pairs[i] = struct {
+			s1 string
+			s2 string
+		}{sb1.String(), sb2.String()}
+	}
+
+	return pairs
+}
+
+type Jaro struct {
+	BaseBenchmark
+	count int
+	size  int
+	pairs []struct {
+		s1 string
+		s2 string
+	}
+	result uint32
+}
+
+func (j *Jaro) Prepare() {
+	j.count = int(j.ConfigVal("count"))
+	j.size = int(j.ConfigVal("size"))
+	j.pairs = generatePairStrings(j.count, j.size)
+	j.result = 0
+}
+
+func (j *Jaro) jaro(s1, s2 string) float64 {
+
+	bytes1 := []byte(s1)
+	bytes2 := []byte(s2)
+
+	len1 := len(bytes1)
+	len2 := len(bytes2)
+
+	if len1 == 0 || len2 == 0 {
+		return 0.0
+	}
+
+	matchDist := max(len1, len2)/2 - 1
+	if matchDist < 0 {
+		matchDist = 0
+	}
+
+	s1Matches := make([]bool, len1)
+	s2Matches := make([]bool, len2)
+
+	matches := 0
+	for i := 0; i < len1; i++ {
+		start := max(0, i-matchDist)
+		end := min(len2-1, i+matchDist)
+
+		for j := start; j <= end; j++ {
+			if !s2Matches[j] && bytes1[i] == bytes2[j] {
+				s1Matches[i] = true
+				s2Matches[j] = true
+				matches++
+				break
+			}
+		}
+	}
+
+	if matches == 0 {
+		return 0.0
+	}
+
+	transpositions := 0
+	k := 0
+	for i := 0; i < len1; i++ {
+		if s1Matches[i] {
+			for k < len2 && !s2Matches[k] {
+				k++
+			}
+			if k < len2 {
+				if bytes1[i] != bytes2[k] {
+					transpositions++
+				}
+				k++
+			}
+		}
+	}
+	transpositions /= 2
+
+	m := float64(matches)
+	return (m/float64(len1) + m/float64(len2) + (m-float64(transpositions))/m) / 3.0
+}
+
+func (j *Jaro) Run(iterationID int) {
+	for _, pair := range j.pairs {
+		j.result += uint32(j.jaro(pair.s1, pair.s2) * 1000)
+	}
+}
+
+func (j *Jaro) Checksum() uint32 {
+	return j.result
+}
+
+func (j *Jaro) Name() string {
+	return "Distance::Jaro"
+}
+
+type NGram struct {
+	BaseBenchmark
+	count int
+	size  int
+	pairs []struct {
+		s1 string
+		s2 string
+	}
+	result uint32
+}
+
+const nGramN = 4
+
+func (n *NGram) Prepare() {
+	n.count = int(n.ConfigVal("count"))
+	n.size = int(n.ConfigVal("size"))
+	n.pairs = generatePairStrings(n.count, n.size)
+	n.result = 0
+}
+
+func (n *NGram) ngram(s1, s2 string) float64 {
+	if len(s1) < nGramN || len(s2) < nGramN {
+		return 0.0
+	}
+
+	bytes1 := []byte(s1)
+	bytes2 := []byte(s2)
+
+	grams1 := make(map[uint32]int, len(bytes1))
+
+	for i := 0; i <= len(bytes1)-nGramN; i++ {
+		gram := (uint32(bytes1[i]) << 24) |
+			(uint32(bytes1[i+1]) << 16) |
+			(uint32(bytes1[i+2]) << 8) |
+			uint32(bytes1[i+3])
+
+		grams1[gram]++
+	}
+
+	grams2 := make(map[uint32]int, len(bytes2))
+	intersection := 0
+
+	for i := 0; i <= len(bytes2)-nGramN; i++ {
+		gram := (uint32(bytes2[i]) << 24) |
+			(uint32(bytes2[i+1]) << 16) |
+			(uint32(bytes2[i+2]) << 8) |
+			uint32(bytes2[i+3])
+
+		grams2[gram]++
+
+		if cnt1, ok := grams1[gram]; ok && grams2[gram] <= cnt1 {
+			intersection++
+		}
+	}
+
+	total := len(grams1) + len(grams2)
+	if total > 0 {
+		return float64(intersection) / float64(total)
+	}
+	return 0.0
+}
+
+func (n *NGram) Run(iterationID int) {
+	for _, pair := range n.pairs {
+		n.result += uint32(n.ngram(pair.s1, pair.s2) * 1000)
+	}
+}
+
+func (n *NGram) Checksum() uint32 {
+	return n.result
+}
+
+func (n *NGram) Name() string {
+	return "Distance::NGram"
+}
+
+type Words struct {
+	BaseBenchmark
+	words       int64
+	wordLen     int64
+	text        string
+	checksumVal uint32
+}
+
+func (w *Words) Prepare() {
+	w.words = w.ConfigVal("words")
+	w.wordLen = w.ConfigVal("word_len")
+
+	chars := []byte("abcdefghijklmnopqrstuvwxyz")
+	charCount := len(chars)
+
+	var buf bytes.Buffer
+	buf.Grow(int(w.words * (w.wordLen + 1)))
+
+	for i := int64(0); i < w.words; i++ {
+		length := int(NextInt(int(w.wordLen))) + NextInt(3) + 3
+		for j := 0; j < length; j++ {
+			idx := NextInt(charCount)
+			buf.WriteByte(chars[idx])
+		}
+		if i < w.words-1 {
+			buf.WriteByte(' ')
+		}
+	}
+
+	w.text = buf.String()
+}
+
+func (w *Words) Run(iteration_id int) {
+
+	frequencies := make(map[string]int)
+
+	for _, word := range strings.Fields(w.text) {
+		frequencies[word]++
+	}
+
+	maxWord := ""
+	maxCount := 0
+	for word, count := range frequencies {
+		if count > maxCount {
+			maxCount = count
+			maxWord = word
+		}
+	}
+
+	freqSize := uint32(len(frequencies))
+	wordChecksum := Checksum(maxWord)
+
+	w.checksumVal += uint32(maxCount) + wordChecksum + freqSize
+}
+
+func (w *Words) Checksum() uint32 {
+	return w.checksumVal
+}
+
+type LogParser struct {
+	BaseBenchmark
+	linesCount  int
+	log         string
+	checksumVal uint32
+}
+
+var (
+	ips     = generateIPs()
+	methods = []string{"GET", "POST", "PUT", "DELETE"}
+	paths   = []string{
+		"/index.html", "/api/users", "/login", "/admin",
+		"/images/logo.png", "/etc/passwd", "/wp-admin/setup.php",
+	}
+	statuses = []int{200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503}
+	agents   = []string{
+		"Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0",
+	}
+
+	patterns = []struct {
+		name string
+		re   *regexp.Regexp
+	}{
+		{"errors", regexp.MustCompile(` [5][0-9]{2} `)},
+		{"bots", regexp.MustCompile(`(?i)bot|crawler|scanner`)},
+		{"suspicious", regexp.MustCompile(`(?i)etc/passwd|wp-admin|\.\./`)},
+		{"ips", regexp.MustCompile(`\d{1,3}\.\d{1,3}\.\d{1,3}\.35`)},
+		{"api_calls", regexp.MustCompile(`/api/[^ "]+`)},
+		{"post_requests", regexp.MustCompile(`POST [^ ]* HTTP`)},
+		{"auth_attempts", regexp.MustCompile(`(?i)/login|/signin`)},
+		{"methods", regexp.MustCompile(`(?i)get|post`)},
+	}
+)
+
+func generateIPs() []string {
+	ips := make([]string, 255)
+	for i := 0; i < 255; i++ {
+		ips[i] = fmt.Sprintf("192.168.1.%d", i+1)
+	}
+	return ips
+}
+
+func (p *LogParser) Prepare() {
+	p.linesCount = int(p.ConfigVal("lines_count"))
+
+	var builder strings.Builder
+	builder.Grow(p.linesCount * 150)
+
+	for i := 0; i < p.linesCount; i++ {
+		builder.WriteString(generateLogLine(i))
+	}
+
+	p.log = builder.String()
+}
+
+func generateLogLine(i int) string {
+	return fmt.Sprintf("%s - - [%d/Oct/2023:13:55:36 +0000] \"%s %s HTTP/1.0\" %d 2326 \"-\" \"%s\"\n",
+		ips[i%len(ips)],
+		i%31,
+		methods[i%len(methods)],
+		paths[i%len(paths)],
+		statuses[i%len(statuses)],
+		agents[i%len(agents)])
+}
+
+func (p *LogParser) Run(iteration_id int) {
+	matches := make(map[string]int)
+
+	for _, pattern := range patterns {
+		matches[pattern.name] = len(pattern.re.FindAllStringIndex(p.log, -1))
+	}
+
+	total := 0
+	for _, count := range matches {
+		total += count
+	}
+	p.checksumVal += uint32(total)
+}
+
+func (p *LogParser) Checksum() uint32 {
+	return p.checksumVal
 }
 
 func main() {

@@ -5,7 +5,6 @@ import subprocess
 import sys
 
 def run_cmd(cmd):
-    """Запускает команду безопасно"""
     try:
         result = subprocess.run(
             cmd, shell=True,
@@ -19,11 +18,9 @@ def run_cmd(cmd):
         return ""
 
 def get_cpu_info():
-    """Получаем информацию о CPU"""
     if sys.platform == 'darwin':
         cpu = run_cmd('sysctl -n machdep.cpu.brand_string')
     else:
-        # Linux
         cpu = run_cmd('grep -m1 "model name" /proc/cpuinfo | cut -d: -f2')
     
     if not cpu:
@@ -35,14 +32,12 @@ def get_cpu_info():
         elif cpu == 'arm64':
             cpu = 'ARM CPU'
     
-    # Базовая чистка (без удаления конкретных фраз)
     cpu = re.sub(r'\(R\)|®|™', '', cpu, flags=re.IGNORECASE)
     cpu = re.sub(r'\s+', ' ', cpu).strip()
     
     return cpu
 
 def get_memory_gb():
-    """Получаем объем памяти в GB"""
     if sys.platform == 'darwin':
         mem_str = run_cmd('sysctl -n hw.memsize')
         if mem_str.isdigit():
@@ -54,28 +49,22 @@ def get_memory_gb():
     return 0
 
 def detect_memory_type():
-    """Пытаемся определить тип памяти"""
     mem_type = ""
     
-    if sys.platform != 'darwin':  # Только для Linux
-        # Метод 1: dmidecode (лучший, но нужен sudo)
+    if sys.platform != 'darwin':
         dmidecode = run_cmd('dmidecode -t memory 2>/dev/null')
         if not dmidecode:
-            # Пробуем с sudo
             dmidecode = run_cmd('sudo dmidecode -t memory 2>/dev/null')
         
         if dmidecode:
-            # Ищем тип памяти
             type_match = re.search(r'Type:\s*(DDR[0-9])', dmidecode, re.IGNORECASE)
             if type_match:
                 mem_type = type_match.group(1).upper()
-                # Пробуем получить скорость
                 speed_match = re.search(r'Speed:\s*(\d+)\s*(MT/s|MHz)', dmidecode, re.IGNORECASE)
                 if speed_match:
                     mem_type += f"-{speed_match.group(1)}"
                 return mem_type
         
-        # Метод 2: lshw
         lshw = run_cmd('lshw -class memory 2>/dev/null')
         if lshw:
             type_match = re.search(r'DDR([0-9])', lshw, re.IGNORECASE)
@@ -86,16 +75,13 @@ def detect_memory_type():
                     mem_type += f"-{speed_match.group(1)}"
                 return mem_type
         
-        # Метод 3: decode-dimms (если есть)
         decode = run_cmd('decode-dimms 2>/dev/null | grep -i "ddr" | head -1')
         if decode:
             type_match = re.search(r'DDR([0-9])', decode, re.IGNORECASE)
             if type_match:
                 return f"DDR{type_match.group(1)}"
         
-        # Метод 4: /proc/device-tree (для некоторых систем)
         if os.path.exists('/proc/device-tree'):
-            # Ищем информацию о памяти в device tree
             for root, dirs, files in os.walk('/proc/device-tree'):
                 for file in files:
                     if 'ddr' in file.lower():
@@ -105,16 +91,13 @@ def detect_memory_type():
                             if type_match:
                                 return f"DDR{type_match.group(1)}"
     
-    # Если ничего не нашли - возвращаем пустую строку
     return mem_type
 
 def get_pc_specs():
-    """Основная функция"""
     cpu = get_cpu_info()
     mem_gb = get_memory_gb()
     mem_type = detect_memory_type()
     
-    # Формируем результат
     result = f"{cpu} {mem_gb}GB"
     if mem_type:
         result += f" {mem_type}"

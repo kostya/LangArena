@@ -2,4 +2,4 @@
 mkdir -p target
 rm -f target/dart_run
 dart compile exe main.dart -o target/dart_run
-target/dart_run ../run.js $@
+../xtime.rb target/dart_run ../run.js $@

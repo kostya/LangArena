@@ -29,8 +29,7 @@ fun main(args: Array<String>) {
     Benchmark.registerBenchmark("Json::Generate") { JsonGenerate() }
     Benchmark.registerBenchmark("Json::ParseDom") { JsonParseDom() }
     Benchmark.registerBenchmark("Json::ParseMapping") { JsonParseMapping() }
-    Benchmark.registerBenchmark("Etc::Primes") { Primes() }
-    Benchmark.registerBenchmark("Etc::Noise") { Noise() }
+    Benchmark.registerBenchmark("Etc::Sieve") { Sieve() }
     Benchmark.registerBenchmark("Etc::TextRaytracer") { TextRaytracer() }
     Benchmark.registerBenchmark("Etc::NeuralNet") { NeuralNet() }
     Benchmark.registerBenchmark("Sort::Quick") { SortQuick() }
@@ -56,6 +55,10 @@ fun main(args: Array<String>) {
     Benchmark.registerBenchmark("Compress::ArithDecode") { ArithDecode() }
     Benchmark.registerBenchmark("Compress::LZWEncode") { LZWEncode() }
     Benchmark.registerBenchmark("Compress::LZWDecode") { LZWDecode() }
+    Benchmark.registerBenchmark("Distance::Jaro") { Distance.Jaro() }
+    Benchmark.registerBenchmark("Distance::NGram") { Distance.NGram() }
+    Benchmark.registerBenchmark("Etc::Words") { Words() }
+    Benchmark.registerBenchmark("Etc::LogParser") { LogParser() }
 
     val now = Instant.now().toEpochMilli()
     println("start: $now")

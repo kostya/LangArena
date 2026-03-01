@@ -19,8 +19,7 @@ import benchmarks/base64decode
 import benchmarks/jsongenerate
 import benchmarks/jsonparsedom
 import benchmarks/jsonparsemapping
-import benchmarks/primes
-import benchmarks/noise
+import benchmarks/sieve
 import benchmarks/textraytracer
 import benchmarks/neuralnet
 import benchmarks/sortquick
@@ -35,6 +34,9 @@ import benchmarks/calculatorinterpreter
 import benchmarks/gameoflife
 import benchmarks/maze
 import benchmarks/compress
+import benchmarks/distance
+import benchmarks/words
+import benchmarks/logparser
 
 proc main() =
   let now = (epochTime() * 1000).int64

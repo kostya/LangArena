@@ -2,4 +2,4 @@
 mkdir -p target
 rm -f target/bin_run
 odin build . -o:speed -out:target/bin_run -collection:benchmark=./benchmark
-target/bin_run ../run.js $@
+../xtime.rb target/bin_run ../run.js $@

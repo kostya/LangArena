@@ -28,8 +28,7 @@ func main() {
   BenchmarkManager.register("Json::Generate") { JsonGenerate() }
   BenchmarkManager.register("Json::ParseDom") { JsonParseDom() }
   BenchmarkManager.register("Json::ParseMapping") { JsonParseMapping() }
-  BenchmarkManager.register("Etc::Primes") { Primes() }
-  BenchmarkManager.register("Etc::Noise") { Noise() }
+  BenchmarkManager.register("Etc::Sieve") { Sieve() }
   BenchmarkManager.register("Etc::TextRaytracer") { TextRaytracer() }
   BenchmarkManager.register("Etc::NeuralNet") { NeuralNet() }
   BenchmarkManager.register("Sort::Quick") { SortQuick() }
@@ -55,6 +54,10 @@ func main() {
   BenchmarkManager.register("Compress::ArithDecode") { ArithDecode() }
   BenchmarkManager.register("Compress::LZWEncode") { LZWEncode() }
   BenchmarkManager.register("Compress::LZWDecode") { LZWDecode() }
+  BenchmarkManager.register("Distance::Jaro") { Jaro() }
+  BenchmarkManager.register("Distance::NGram") { NGram() }
+  BenchmarkManager.register("Etc::Words") { Words() }
+  BenchmarkManager.register("Etc::LogParser") { LogParser() }
 
   let args = CommandLine.arguments.dropFirst()
   let configFile = args.first { $0.hasSuffix(".txt") || $0.hasSuffix(".js") }

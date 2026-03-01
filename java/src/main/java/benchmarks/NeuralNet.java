@@ -6,6 +6,13 @@ public class NeuralNet extends Benchmark {
     private static final double LEARNING_RATE = 1.0;
     private static final double MOMENTUM = 0.3;
 
+    private static final int[] INPUT_00 = {0, 0};
+    private static final int[] INPUT_01 = {0, 1};
+    private static final int[] INPUT_10 = {1, 0};
+    private static final int[] INPUT_11 = {1, 1};
+    private static final int[] TARGET_0 = {0};
+    private static final int[] TARGET_1 = {1};
+
     static class Synapse {
         double weight;
         double prevWeight;
@@ -166,26 +173,28 @@ public class NeuralNet extends Benchmark {
 
     @Override
     public void run(int iterationId) {
-        xorNet.train(new int[] {0, 0}, new int[] {0});
-        xorNet.train(new int[] {1, 0}, new int[] {1});
-        xorNet.train(new int[] {0, 1}, new int[] {1});
-        xorNet.train(new int[] {1, 1}, new int[] {0});
+        for (int iter = 0; iter < 1000; iter++) {
+            xorNet.train(INPUT_00, TARGET_0);
+            xorNet.train(INPUT_10, TARGET_1);
+            xorNet.train(INPUT_01, TARGET_1);
+            xorNet.train(INPUT_11, TARGET_0);
+        }
     }
 
     @Override
     public long checksum() {
         allOutputs.clear();
 
-        xorNet.feedForward(new int[] {0, 0});
+        xorNet.feedForward(INPUT_00);
         allOutputs.addAll(xorNet.currentOutputs());
 
-        xorNet.feedForward(new int[] {0, 1});
+        xorNet.feedForward(INPUT_01);
         allOutputs.addAll(xorNet.currentOutputs());
 
-        xorNet.feedForward(new int[] {1, 0});
+        xorNet.feedForward(INPUT_10);
         allOutputs.addAll(xorNet.currentOutputs());
 
-        xorNet.feedForward(new int[] {1, 1});
+        xorNet.feedForward(INPUT_11);
         allOutputs.addAll(xorNet.currentOutputs());
 
         double sum = 0.0;

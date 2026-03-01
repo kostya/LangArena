@@ -6,6 +6,13 @@ class NeuralNet extends Benchmark:
   private val LEARNING_RATE = 1.0
   private val MOMENTUM = 0.3
 
+  private val INPUT_00 = Array(0, 0)
+  private val INPUT_01 = Array(0, 1)
+  private val INPUT_10 = Array(1, 0)
+  private val INPUT_11 = Array(1, 1)
+  private val TARGET_0 = Array(0)
+  private val TARGET_1 = Array(1)
+
   private var xorNet: NeuralNetwork = _
   private val allOutputs = ArrayBuffer.empty[Double]
 
@@ -138,24 +145,25 @@ class NeuralNet extends Benchmark:
       outputs
 
   override def run(iterationId: Int): Unit =
-    xorNet.train(Array(0, 0), Array(0))
-    xorNet.train(Array(1, 0), Array(1))
-    xorNet.train(Array(0, 1), Array(1))
-    xorNet.train(Array(1, 1), Array(0))
+    for _ <- 0 until 1000 do
+      xorNet.train(INPUT_00, TARGET_0)
+      xorNet.train(INPUT_10, TARGET_1)
+      xorNet.train(INPUT_01, TARGET_1)
+      xorNet.train(INPUT_11, TARGET_0)
 
   override def checksum(): Long =
     allOutputs.clear()
 
-    xorNet.feedForward(Array(0, 0))
+    xorNet.feedForward(INPUT_00)
     allOutputs ++= xorNet.currentOutputs()
 
-    xorNet.feedForward(Array(0, 1))
+    xorNet.feedForward(INPUT_01)
     allOutputs ++= xorNet.currentOutputs()
 
-    xorNet.feedForward(Array(1, 0))
+    xorNet.feedForward(INPUT_10)
     allOutputs ++= xorNet.currentOutputs()
 
-    xorNet.feedForward(Array(1, 1))
+    xorNet.feedForward(INPUT_11)
     allOutputs ++= xorNet.currentOutputs()
 
     var sum = 0.0

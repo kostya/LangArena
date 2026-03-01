@@ -26,14 +26,23 @@ type
   NeuralNet* = ref object of Benchmark
     xorNet: NeuralNetwork
 
-proc newNeuralNet(): Benchmark =
-  NeuralNet()
-
-method name(self: NeuralNet): string = "Etc::NeuralNet"
+const
+  INPUT_00 = [0.0, 0.0]
+  INPUT_01 = [0.0, 1.0]
+  INPUT_10 = [1.0, 0.0]
+  INPUT_11 = [1.0, 1.0]
+  TARGET_0 = [0.0]
+  TARGET_1 = [1.0]
 
 const
   LEARNING_RATE = 1.0
   MOMENTUM = 0.3
+  TRAIN_RATE = 0.3
+
+proc newNeuralNet(): Benchmark =
+  NeuralNet()
+
+method name(self: NeuralNet): string = "Etc::NeuralNet"
 
 proc newNeuron(): Neuron =
   let t = nextFloat() * 2 - 1
@@ -125,8 +134,7 @@ proc newNeuralNetwork(inputs, hidden, outputs: int): NeuralNetwork =
       dest.synapsesIn.add(synapse)
       result.synapses.add(synapse)
 
-proc train(net: NeuralNetwork, inputs, targets: seq[float]) =
-
+proc feedForward(net: NeuralNetwork, inputs: openArray[float]) =
   for i in 0..<inputs.len:
     net.inputLayer[i].output = inputs[i]
 
@@ -136,11 +144,14 @@ proc train(net: NeuralNetwork, inputs, targets: seq[float]) =
   for neuron in net.outputLayer:
     neuron.calculateOutput()
 
+proc train(net: NeuralNetwork, inputs, targets: openArray[float]) =
+  net.feedForward(inputs)
+
   for i in 0..<targets.len:
-    net.outputLayer[i].outputTrain(0.3, targets[i])
+    net.outputLayer[i].outputTrain(TRAIN_RATE, targets[i])
 
   for neuron in net.hiddenLayer:
-    neuron.hiddenTrain(0.3)
+    neuron.hiddenTrain(TRAIN_RATE)
 
 proc currentOutputs(net: NeuralNetwork): seq[float] =
   result = newSeq[float](net.outputLayer.len)
@@ -153,33 +164,33 @@ method prepare(self: NeuralNet) =
 
 method run(self: NeuralNet, iteration_id: int) =
   let net = self.xorNet
-  net.train(@[0.0, 0.0], @[0.0])
-  net.train(@[1.0, 0.0], @[1.0])
-  net.train(@[0.0, 1.0], @[1.0])
-  net.train(@[1.0, 1.0], @[0.0])
+  for i in 0..<1000:
+    net.train(INPUT_00, TARGET_0)
+    net.train(INPUT_10, TARGET_1)
+    net.train(INPUT_01, TARGET_1)
+    net.train(INPUT_11, TARGET_0)
 
 method checksum(self: NeuralNet): uint32 =
   let net = self.xorNet
 
   var allOutputs: seq[float]
 
-  for inputs in [@[0.0, 0.0], @[0.0, 1.0], @[1.0, 0.0], @[1.0, 1.0]]:
+  net.feedForward(INPUT_00)
+  allOutputs.add(net.outputLayer[0].output)
 
-    for i in 0..<inputs.len:
-      net.inputLayer[i].output = inputs[i]
+  net.feedForward(INPUT_01)
+  allOutputs.add(net.outputLayer[0].output)
 
-    for neuron in net.hiddenLayer:
-      neuron.calculateOutput()
+  net.feedForward(INPUT_10)
+  allOutputs.add(net.outputLayer[0].output)
 
-    for neuron in net.outputLayer:
-      neuron.calculateOutput()
-
-    allOutputs.add(net.outputLayer[0].output)
+  net.feedForward(INPUT_11)
+  allOutputs.add(net.outputLayer[0].output)
 
   var sum = 0.0
   for v in allOutputs:
     sum += v
 
-  checksumF64(sum)
+  result = checksumF64(sum)
 
 registerBenchmark("Etc::NeuralNet", newNeuralNet)

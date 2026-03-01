@@ -853,19 +853,19 @@ DESC
       hist_log = []
       HISTORY.each do |hj|
         runtime2 = 0.0
-        cnt2 = 0
 
+        use_old_cnt = 0
         @tests.each do |test|
           if (rt = hj["#{test}-runtime"]) && rt[run]
             runtime2 += rt[run]
-            cnt2 += 1
+          else
+            use_old_cnt += 1
+            runtime2 += @j["#{test}-runtime"][run]
           end
         end
 
-        if cnt == cnt2 # both have same runs and same counts numbers
+        if use_old_cnt < 10
           res[_lang_for(run)][run].unshift [hj['date'], format_float(runtime2)]
-        else
-          # puts "Skip history file #{hj['date']} for #{run}, because of #{cnt.inspect} != #{cnt2.inspect}"
         end
       end
       puts "History for #{run}: #{res[_lang_for(run)][run].map &:first}"
