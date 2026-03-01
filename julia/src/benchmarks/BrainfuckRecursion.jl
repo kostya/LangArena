@@ -12,15 +12,13 @@ end
 
 name(b::BrainfuckRecursion)::String = "Brainfuck::Recursion"
 
-abstract type AbstractOp end
+@enum OpCode OpInc OpDec OpNext OpPrev OpPrint OpLoop
 
-struct OpInc <: AbstractOp end
-struct OpDec <: AbstractOp end
-struct OpNext <: AbstractOp end
-struct OpPrev <: AbstractOp end
-struct OpPrint <: AbstractOp end
-struct OpLoop <: AbstractOp
-    ops::Vector{AbstractOp}
+struct Op
+    opcode::OpCode
+    loop::Vector{Op}
+
+    Op(opcode::OpCode, loop::Vector{Op}=Op[]) = new(opcode, loop)
 end
 
 mutable struct RTape
@@ -57,72 +55,70 @@ function prev!(tape::RTape)
     end
 end
 
-function parse_program(code::String)::Vector{AbstractOp}
-    ops_stack = Vector{Vector{AbstractOp}}()
-    current_ops = AbstractOp[]
-    i = 1
+function _parse_program(code::String, ind=1)
+    ops = Op[]
 
-    while i <= length(code)
-        c = code[i]
-        i += 1
-
+    while checkbounds(Bool, code, ind)
+        c = code[ind]
         if c == '+'
-            push!(current_ops, OpInc())
+            push!(ops, Op(OpInc))
         elseif c == '-'
-            push!(current_ops, OpDec())
+            push!(ops, Op(OpDec))
         elseif c == '>'
-            push!(current_ops, OpNext())
+            push!(ops, Op(OpNext))
         elseif c == '<'
-            push!(current_ops, OpPrev())
+            push!(ops, Op(OpPrev))
         elseif c == '.'
-            push!(current_ops, OpPrint())
+            push!(ops, Op(OpPrint))
         elseif c == '['
-            push!(ops_stack, current_ops)
-            current_ops = AbstractOp[]
+            loop, nextind = _parse_program(code, ind + 1)
+            push!(ops, Op(OpLoop, loop))
+            ind = nextind
         elseif c == ']'
-            loop_ops = current_ops
-            current_ops = pop!(ops_stack)
-            push!(current_ops, OpLoop(loop_ops))
+            return ops, ind
         end
+        ind += 1
     end
 
-    return current_ops
+    return ops, ind
 end
 
-function run_ops(ops::Vector{AbstractOp}, tape::RTape)::Int64
-    result = Int64(0)
+parse_program(code) = _parse_program(code)[1]
 
-    function execute(op::AbstractOp)
-        if op isa OpInc
-            inc!(tape)
-        elseif op isa OpDec
-            dec!(tape)
-        elseif op isa OpNext
-            next!(tape)
-        elseif op isa OpPrev
-            prev!(tape)
-        elseif op isa OpPrint
-            result = (result << 2) + Int64(get(tape))
-        elseif op isa OpLoop
-            while get(tape) != 0x00
-                for inner_op in op.ops
-                    execute(inner_op)
-                end
-            end
+function execute!(op::Op, tape::RTape, result::Int)
+    if op.opcode == OpInc
+        inc!(tape)
+    elseif op.opcode == OpDec
+        dec!(tape)
+    elseif op.opcode == OpNext
+        next!(tape)
+    elseif op.opcode == OpPrev
+        prev!(tape)
+    elseif op.opcode == OpPrint
+        result <<= 2
+        result += get(tape)
+    elseif op.opcode == OpLoop
+        while !iszero(get(tape))
+            result = execute!(op.loop, tape, result)
         end
     end
-
-    for op in ops
-        execute(op)
-    end
-
     return result
 end
 
+function execute!(ops::Vector{Op}, tape::RTape=RTape(), result::Int=0)
+    for op in ops
+        result = execute!(op, tape, result)
+    end
+    return result
+end
+
+function run_program(program::Vector{Op})
+    return execute!(program)
+end
+
 function _run2(text::String)::Int64
-    ops = parse_program(text)
-    tape = RTape()
-    return run_ops(ops, tape)
+    program = parse_program(text)
+    return run_program(program)
 end
 
 function warmup(b::BrainfuckRecursion)
