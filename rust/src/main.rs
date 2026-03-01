@@ -150,12 +150,13 @@ fn run_benchmarks(single_bench: Option<&str>) {
         Json_ParseDom: benchmarks::json_parse_dom::JsonParseDom,
         Json_ParseMapping: benchmarks::json_parse_mapping::JsonParseMapping,
 
-        Etc_Primes: benchmarks::primes::Primes,
-        Etc_Noise: benchmarks::noise::Noise,
+        Etc_Sieve: benchmarks::sieve::Sieve,
         Etc_TextRaytracer: benchmarks::text_raytracer::TextRaytracer,
         Etc_NeuralNet: benchmarks::neural_net::NeuralNet,
         Etc_CacheSimulation: benchmarks::cache_simulation::CacheSimulation,
         Etc_GameOfLife: benchmarks::game_of_life::GameOfLife,
+        Etc_Words: benchmarks::words::Words,
+        Etc_LogParser: benchmarks::log_parser::LogParser,
 
         Sort_Quick: benchmarks::sort_quick::SortQuick,
         Sort_Merge: benchmarks::sort_merge::SortMerge,
@@ -183,6 +184,9 @@ fn run_benchmarks(single_bench: Option<&str>) {
         Compress_ArithDecode: benchmarks::compress::ArithDecode,
         Compress_LZWEncode: benchmarks::compress::LZWEncode,
         Compress_LZWDecode: benchmarks::compress::LZWDecode,
+
+        Distance_Jaro: benchmarks::distance::Jaro,
+        Distance_NGram: benchmarks::distance::NGram,
     ];
 
     let mut results = HashMap::new();

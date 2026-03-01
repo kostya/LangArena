@@ -167,8 +167,7 @@ pub const all_benchmarks_list = blk: {
         createBenchInfo("Json::Generate", @import("json_generate.zig").JsonGenerate),
         createBenchInfo("Json::ParseDom", @import("json_parse_dom.zig").JsonParseDom),
         createBenchInfo("Json::ParseMapping", @import("json_parse_mapping.zig").JsonParseMapping),
-        createBenchInfo("Etc::Primes", @import("primes.zig").Primes),
-        createBenchInfo("Etc::Noise", @import("noise.zig").Noise),
+        createBenchInfo("Etc::Sieve", @import("sieve.zig").Sieve),
         createBenchInfo("Etc::TextRaytracer", @import("text_raytracer.zig").TextRaytracer),
         createBenchInfo("Etc::NeuralNet", @import("neural_net.zig").NeuralNet),
         createBenchInfo("Sort::Quick", @import("sort_quick.zig").SortQuick),
@@ -194,6 +193,10 @@ pub const all_benchmarks_list = blk: {
         createBenchInfo("Compress::ArithDecode", @import("compress.zig").ArithDecode),
         createBenchInfo("Compress::LZWEncode", @import("compress.zig").LZWEncode),
         createBenchInfo("Compress::LZWDecode", @import("compress.zig").LZWDecode),
+        createBenchInfo("Distance::Jaro", @import("distance.zig").Jaro),
+        createBenchInfo("Distance::NGram", @import("distance.zig").NGram),
+        createBenchInfo("Etc::Words", @import("words.zig").Words),
+        createBenchInfo("Etc::LogParser", @import("logparser.zig").LogParser),
     };
     break :blk list;
 };

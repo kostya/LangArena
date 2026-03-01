@@ -49,8 +49,7 @@ module BenchmarkRunner =
         createBenchmarkInfo<JsonParseDom> "Json::ParseDom"
         createBenchmarkInfo<JsonParseMapping> "Json::ParseMapping"
 
-        createBenchmarkInfo<Primes> "Etc::Primes"
-        createBenchmarkInfo<Noise> "Etc::Noise"
+        createBenchmarkInfo<Sieve> "Etc::Sieve"
         createBenchmarkInfo<TextRaytracer> "Etc::TextRaytracer"
         createBenchmarkInfo<NeuralNet> "Etc::NeuralNet"
         createBenchmarkInfo<CacheSimulation> "Etc::CacheSimulation"
@@ -82,6 +81,13 @@ module BenchmarkRunner =
         createBenchmarkInfo<ArithDecode> "Compress::ArithDecode"
         createBenchmarkInfo<LZWEncode> "Compress::LZWEncode"
         createBenchmarkInfo<LZWDecode> "Compress::LZWDecode"
+
+        createBenchmarkInfo<Jaro> "Distance::Jaro"
+        createBenchmarkInfo<NGram> "Distance::NGram"
+
+        createBenchmarkInfo<Words> "Etc::Words"
+        createBenchmarkInfo<LogParser> "Etc::LogParser"
+
     ]
 
     let private runBenchmark (factory: BenchmarkInfo) (singleBench: string option) =

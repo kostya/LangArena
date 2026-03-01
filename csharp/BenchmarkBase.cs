@@ -121,8 +121,7 @@ public abstract class Benchmark
             CreateBenchmarkInfo<JsonParseDom>("Json::ParseDom"),
             CreateBenchmarkInfo<JsonParseMapping>("Json::ParseMapping"),
 
-            CreateBenchmarkInfo<Primes>("Etc::Primes"),
-            CreateBenchmarkInfo<Noise>("Etc::Noise"),
+            CreateBenchmarkInfo<Sieve>("Etc::Sieve"),
             CreateBenchmarkInfo<TextRaytracer>("Etc::TextRaytracer"),
             CreateBenchmarkInfo<NeuralNet>("Etc::NeuralNet"),
             CreateBenchmarkInfo<CacheSimulation>("Etc::CacheSimulation"),
@@ -154,6 +153,12 @@ public abstract class Benchmark
             CreateBenchmarkInfo<ArithDecode>("Compress::ArithDecode"),
             CreateBenchmarkInfo<LZWEncode>("Compress::LZWEncode"),
             CreateBenchmarkInfo<LZWDecode>("Compress::LZWDecode"),
+
+            CreateBenchmarkInfo<Jaro>("Distance::Jaro"),
+            CreateBenchmarkInfo<NGram>("Distance::NGram"),
+
+            CreateBenchmarkInfo<Words>("Etc::Words"),
+            CreateBenchmarkInfo<Words>("Etc::LogParser"),
         };
     }
 

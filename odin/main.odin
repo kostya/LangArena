@@ -32,8 +32,7 @@ main :: proc() {
     benchmark.register_benchmark_factory("Json::Generate", benchmark.create_jsongenerate)
     benchmark.register_benchmark_factory("Json::ParseDom", benchmark.create_jsonparsedom)
     benchmark.register_benchmark_factory("Json::ParseMapping", benchmark.create_jsonparsemapping)
-    benchmark.register_benchmark_factory("Etc::Primes", benchmark.create_primes)
-    benchmark.register_benchmark_factory("Etc::Noise", benchmark.create_noise)
+    benchmark.register_benchmark_factory("Etc::Sieve", benchmark.create_sieve)
     benchmark.register_benchmark_factory("Etc::TextRaytracer", benchmark.create_textraytracer)
     benchmark.register_benchmark_factory("Etc::NeuralNet", benchmark.create_neuralnet)
     benchmark.register_benchmark_factory("Sort::Quick", benchmark.create_sortquick)
@@ -59,6 +58,10 @@ main :: proc() {
     benchmark.register_benchmark_factory("Compress::ArithDecode", benchmark.create_arithdecode)
     benchmark.register_benchmark_factory("Compress::LZWEncode", benchmark.create_lzwencode)
     benchmark.register_benchmark_factory("Compress::LZWDecode", benchmark.create_lzwdecode)
+    benchmark.register_benchmark_factory("Distance::Jaro", benchmark.create_jaro)
+    benchmark.register_benchmark_factory("Distance::NGram", benchmark.create_ngram)
+    benchmark.register_benchmark_factory("Etc::Words", benchmark.create_words)
+    benchmark.register_benchmark_factory("Etc::LogParser", benchmark.create_logparser)
 
     config_file := "../test.json"
     if len(os.args) > 1 {

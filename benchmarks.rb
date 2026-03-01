@@ -161,15 +161,15 @@ module ClearComments
       
     when 'typescript'
       content.gsub!(/\/\*[\s\S]*?\*\//m, '')
-      
-      content.gsub!(/(\/\/\s*@ts-ignore)[^\n]*/) do |match|
-        "#{$1}"
+      content.gsub!(/^(\s*)\/\/\s*@ts-ignore.*$/) { |m| m }
+      content.gsub!(/^(\s*)\/\/[^\n]*$/) do |match|
+        if match.include?('@ts-ignore') || match.match?(/\/[gimsuy]+[,\]\)\}]?$/)
+          match
+        else
+          ''
+        end
       end
-      
-      content.gsub!(/\/\/[^\n]*/) do |match|
-        match.start_with?('// @ts-ignore') ? match : ''
-      end
-      
+            
     when 'crystal', 'julia', 'nim', 'python'
       content.gsub!(/^=begin[\s\S]*?^=end/m, '')
     

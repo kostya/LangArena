@@ -817,267 +817,48 @@ module Json
 end
 
 module Etc
-  class Primes < Benchmark
-    class Node
-      property children : Array(Node | Nil)
-      property terminal : Bool
+  class Sieve < Benchmark
+    property limit : Int64
+    getter list
 
-      def initialize
-        @children = Array(Node | Nil).new(10, nil)
-        @terminal = false
-      end
-
-      def [](digit : Int) : Node | Nil
-        @children[digit]
-      end
-
-      def []=(digit : Int, node : Node)
-        @children[digit] = node
-      end
-    end
-
-    class Sieve
-      @limit : Int32
-      @prime : Array(Bool)
-
-      def initialize(@limit : Int32)
-        @prime = Array.new(@limit + 1, true)
-        @prime[0] = @prime[1] = false if @limit >= 1
-      end
-
-      def calculate : self
-        sqrt_limit = Math.sqrt(@limit).to_i
-
-        (2..sqrt_limit).each do |p|
-          if @prime[p]
-            start = p * p
-            (start..@limit).step(p) do |multiple|
-              @prime[multiple] = false
-            end
-          end
-        end
-        self
-      end
-
-      def to_list : Array(Int32)
-        capacity = (@limit / Math.log(@limit)).to_i rescue @limit // 10
-        result = Array(Int32).new(capacity)
-
-        result << 2 if @limit >= 2
-
-        3.step(to: @limit, by: 2) do |p|
-          result << p if @prime[p]
-        end
-
-        result
-      end
-    end
-
-    private def generate_trie(primes : Array(Int32)) : Node
-      root = Node.new
-
-      primes.each do |prime|
-        node = root
-
-        temp = prime
-        digits = uninitialized Int8[12]
-        digit_count = 0
-
-        while temp > 0
-          digits[digit_count] = (temp % 10).to_i8
-          temp //= 10
-          digit_count += 1
-        end
-
-        (digit_count - 1).downto(0) do |i|
-          digit = digits[i]
-          child = node[digit]
-
-          unless child
-            child = Node.new
-            node[digit] = child
-          end
-
-          node = child.as(Node)
-        end
-
-        node.terminal = true
-      end
-
-      root
-    end
-
-    private def find_primes_with_prefix(trie : Node, prefix : Int32) : Array(Int32)
-      node = trie
-      prefix_value = 0
-      temp_prefix = prefix
-
-      prefix_digits = uninitialized Int8[12]
-      prefix_len = 0
-
-      while temp_prefix > 0
-        prefix_digits[prefix_len] = (temp_prefix % 10).to_i8
-        temp_prefix //= 10
-        prefix_len += 1
-      end
-
-      (prefix_len - 1).downto(0) do |i|
-        digit = prefix_digits[i]
-        prefix_value = prefix_value * 10 + digit
-
-        child = node[digit]
-        return [] of Int32 unless child
-        node = child.as(Node)
-      end
-
-      results = [] of Int32
-
-      queue = Array(Tuple(Node, Int32)).new(10000)
-      queue.push({node, prefix_value})
-
-      index = 0
-      while index < queue.size
-        current_node, current_number = queue[index]
-        index += 1
-
-        results << current_number if current_node.terminal
-
-        10.times do |digit|
-          child = current_node[digit]
-          if child
-            queue.push({child.as(Node), current_number * 10 + digit})
-          end
-        end
-      end
-
-      results.sort!
-      results
-    end
-
-    def initialize
-      @n = config_val("limit")
-      @result = 5432_u32
-      @prefix = config_val("prefix")
+    def initialize(@limit : Int64 = config_val("limit"))
+      @checksum = 0_u32
+      @list = Array(Int32).new
     end
 
     def run(iteration_id)
-      primes = Sieve.new(@n.to_i32).calculate.to_list
+      primes = Array(UInt8).new(@limit + 1, 1_u8)
+      primes[0] = primes[1] = 0_u8
 
-      trie = generate_trie(primes)
+      limit = @limit
+      sqrt_limit = Math.sqrt(limit).to_i
 
-      results = find_primes_with_prefix(trie, @prefix.to_i32)
-
-      @result &+= results.size.to_u32
-      results.each do |prime|
-        @result &+= prime.to_u32
-      end
-    end
-
-    getter n : Int64
-    getter prefix : Int64
-
-    def checksum : UInt32
-      @result
-    end
-  end
-
-  class Noise < Benchmark
-    record Vec2, x : Float64, y : Float64
-
-    def self.lerp(a, b, v)
-      a * (1.0 - v) + b * v
-    end
-
-    def self.smooth(v)
-      v * v * (3.0 - 2.0 * v)
-    end
-
-    def self.random_gradient
-      v = Helper.next_float * Math::PI * 2.0
-      Vec2.new(Math.cos(v), Math.sin(v))
-    end
-
-    def self.gradient(orig, grad, p)
-      sp = Vec2.new(p.x - orig.x, p.y - orig.y)
-      grad.x * sp.x + grad.y * sp.y
-    end
-
-    struct Noise2DContext
-      def initialize(@size : Int32)
-        @rgradients = Array(Vec2).new(@size) { Noise.random_gradient }
-        @permutations = Array(Int32).new(@size) { |i| i }
-        @size.times do
-          a = Helper.next_int(@size)
-          b = Helper.next_int(@size)
-          @permutations.swap a, b
+      2.upto(sqrt_limit) do |p|
+        if primes[p] == 1_u8
+          start = p * p
+          (start..limit).step(p) do |multiple|
+            primes[multiple] = 0_u8
+          end
         end
       end
 
-      def get_gradient(x, y)
-        idx = @permutations[x & (@size - 1)] + @permutations[y & (@size - 1)]
-        @rgradients[idx & (@size - 1)]
-      end
+      last_prime = 2_i64
+      count = 1_i64
 
-      def get_gradients(x, y)
-        x0f = x.floor
-        y0f = y.floor
-        x0 = x0f.to_i
-        y0 = y0f.to_i
-        x1 = x0 + 1
-        y1 = y0 + 1
-
-        {
-          {
-            get_gradient(x0, y0),
-            get_gradient(x1, y0),
-            get_gradient(x0, y1),
-            get_gradient(x1, y1),
-          },
-          {
-            Vec2.new(x0f + 0.0, y0f + 0.0),
-            Vec2.new(x0f + 1.0, y0f + 0.0),
-            Vec2.new(x0f + 0.0, y0f + 1.0),
-            Vec2.new(x0f + 1.0, y0f + 1.0),
-          },
-        }
-      end
-
-      def get(x, y)
-        p = Vec2.new(x, y)
-        gradients, origins = get_gradients(x, y)
-        v0 = Noise.gradient(origins[0], gradients[0], p)
-        v1 = Noise.gradient(origins[1], gradients[1], p)
-        v2 = Noise.gradient(origins[2], gradients[2], p)
-        v3 = Noise.gradient(origins[3], gradients[3], p)
-        fx = Noise.smooth(x - origins[0].x)
-        vx0 = Noise.lerp(v0, v1, fx)
-        vx1 = Noise.lerp(v2, v3, fx)
-        fy = Noise.smooth(y - origins[0].y)
-        Noise.lerp(vx0, vx1, fy)
-      end
-    end
-
-    SYM = [' ', '░', '▒', '▓', '█', '█']
-
-    @size : Int64
-
-    def initialize
-      @result = 0_u32
-      @size = config_val("size")
-      @n2d = Noise2DContext.new(@size.to_i32)
-    end
-
-    def run(iteration_id)
-      @size.times do |y|
-        @size.times do |x|
-          v = @n2d.get(x * 0.1, (y + (iteration_id * 128)) * 0.1) * 0.5 + 0.5
-          @result &+= SYM[(v / 0.2).to_i].ord
+      n = 3
+      while n <= limit
+        if primes[n] == 1_u8
+          last_prime = n
+          count += 1
         end
+        n += 2
       end
+
+      @checksum &+= (last_prime + count).to_u32!
     end
 
     def checksum : UInt32
-      @result
+      @checksum
     end
   end
 
@@ -1360,12 +1141,22 @@ module Etc
       @xor = NeuralNetwork.new(2, 10, 1)
     end
 
+    INPUT_00 = [0, 0]
+    INPUT_01 = [0, 1]
+    INPUT_10 = [1, 0]
+    INPUT_11 = [1, 1]
+    TARGET_0 = [0]
+    TARGET_1 = [1]
+
     def run(iteration_id)
       xor = @xor
-      xor.train([0, 0], [0])
-      xor.train([1, 0], [1])
-      xor.train([0, 1], [1])
-      xor.train([1, 1], [0])
+
+      1000.times do
+        xor.train(INPUT_00, TARGET_0)
+        xor.train(INPUT_10, TARGET_1)
+        xor.train(INPUT_01, TARGET_1)
+        xor.train(INPUT_11, TARGET_0)
+      end
     end
 
     def checksum : UInt32
@@ -1618,6 +1409,92 @@ module Etc
 
     def checksum : UInt32
       @grid.compute_hash + @grid.count_alive.to_u32
+    end
+  end
+
+  class Words < Benchmark
+    @text : String
+    @checksum : UInt32 = 0u32
+
+    def initialize(@words : Int32 = config_val("words").to_i32, @word_len : Int32 = config_val("word_len").to_i32)
+      @text = ""
+    end
+
+    def prepare
+      chars = ('a'..'z').to_a
+      @text = String.build do |str|
+        @words.times do |i|
+          word_len = Helper.next_int(@word_len) + Helper.next_int(3) + 3
+          word_len.times { str << chars[Helper.next_int(chars.size)] }
+          str << ' ' unless i == @words - 1
+        end
+      end
+    end
+
+    def run(iteration_id)
+      frequencies = Hash(String, Int32).new(0)
+      @text.split(' ') { |w| frequencies.update(w, &.+(1)) }
+      max_word, max_count = frequencies.max_by { |_, v| v }
+
+      @checksum &+= max_count &+ Helper.checksum(max_word) &+ frequencies.size
+    end
+
+    def checksum : UInt32
+      @checksum
+    end
+  end
+
+  class LogParser < Benchmark
+    PATTERNS = {
+      "errors"        => / [5][0-9]{2} /,
+      "bots"          => /bot|crawler|scanner/i,
+      "suspicious"    => /etc\/passwd|wp-admin|\.\.\//i,
+      "ips"           => /\d{1,3}\.\d{1,3}\.\d{1,3}\.35/,
+      "api_calls"     => /\/api\/[^ "]+/,
+      "post_requests" => /POST [^ ]* HTTP/,
+      "auth_attempts" => /\/login|\/signin/i,
+      "methods"       => /get|post/i,
+    }
+
+    def initialize(@lines_count : Int32 = config_val("lines_count").to_i32)
+      @checksum = 0_u32
+      @log = ""
+    end
+
+    IPS     = (1..255).map { |i| "192.168.1.#{i}" }
+    METHODS = ["GET", "POST", "PUT", "DELETE"]
+    PATHS   = ["/index.html", "/api/users", "/login", "/admin",
+               "/images/logo.png", "/etc/passwd", "/wp-admin/setup.php"]
+    STATUSES = [200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503]
+    AGENTS   = ["Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0"]
+
+    private def generate_log_line(str, i)
+      str << IPS[i % IPS.size] << " - - [#{i % 31}/Oct/2023:13:55:36 +0000] \""
+      str << METHODS[i % METHODS.size] << " " << PATHS[i % PATHS.size] << " HTTP/1.0\" "
+      str << STATUSES[i % STATUSES.size] << " 2326 \"-\" \"" << AGENTS[i % AGENTS.size] << "\""
+      str << "\n"
+    end
+
+    def prepare
+      @log = String.build do |str|
+        @lines_count.times do |i|
+          generate_log_line(str, i)
+        end
+      end
+    end
+
+    def run(iteration_id)
+      matches = Hash(String, Int32).new(0)
+
+      PATTERNS.each do |name, regex|
+        @log.scan(regex) { matches.update(name, &.+(1)) }
+      end
+
+      @checksum &+= matches.each_value.sum
+    end
+
+    def checksum : UInt32
+      @checksum
     end
   end
 end
@@ -4297,6 +4174,166 @@ module Compress
       if @decoded == @test_data
         @result &+= 100_000
       end
+      @result
+    end
+  end
+end
+
+module Distance
+  def self.generate_pair_strings(n, m)
+    pairs = [] of Tuple(String, String)
+    chars = ('a'..'j').to_a
+
+    n.times do
+      len1 = Helper.next_int(m) + 4
+      len2 = Helper.next_int(m) + 4
+
+      str1 = String.build(len1) { |io| len1.times { io << chars[Helper.next_int(10)] } }
+      str2 = String.build(len2) { |io| len2.times { io << chars[Helper.next_int(10)] } }
+
+      pairs << {str1, str2}
+    end
+
+    pairs
+  end
+
+  class Jaro < Benchmark
+    @count : Int64
+    @size : Int64
+    @pairs : Array(Tuple(String, String))
+    @result : UInt32
+
+    def initialize
+      @pairs = [] of Tuple(String, String)
+      @result = 0_u32
+      @count = config_val("count").to_i64
+      @size = config_val("size").to_i64
+    end
+
+    def prepare
+      @pairs = Distance.generate_pair_strings(@count, @size)
+    end
+
+    def jaro(s1 : String, s2 : String) : Float64
+      s1 = s1.bytes
+      s2 = s2.bytes
+      len1 = s1.size
+      len2 = s2.size
+
+      return 0.0 if len1 == 0 || len2 == 0
+
+      match_dist = {len1, len2}.max // 2 - 1
+      match_dist = 0 if match_dist < 0
+
+      s1_matches = Array(Bool).new(len1, false)
+      s2_matches = Array(Bool).new(len2, false)
+
+      matches = 0
+      len1.times do |i|
+        start = {0, i - match_dist}.max
+        fin = {len2 - 1, i + match_dist}.min
+
+        (start..fin).each do |j|
+          if !s2_matches[j] && s1[i] == s2[j]
+            s1_matches[i] = true
+            s2_matches[j] = true
+            matches += 1
+            break
+          end
+        end
+      end
+
+      return 0.0 if matches == 0
+
+      k = 0
+      transpositions = 0
+      len1.times do |i|
+        if s1_matches[i]
+          while k < len2 && !s2_matches[k]
+            k += 1
+          end
+          if k < len2
+            transpositions += 1 if s1[i] != s2[k]
+            k += 1
+          end
+        end
+      end
+      transpositions //= 2
+
+      m = matches.to_f
+      (m/len1 + m/len2 + (m - transpositions)/m) / 3.0
+    end
+
+    def run(iteration_id)
+      @pairs.each do |(s1, s2)|
+        @result &+= (jaro(s1, s2) * 1000).to_u32
+      end
+    end
+
+    def checksum : UInt32
+      @result
+    end
+  end
+
+  class NGram < Benchmark
+    @count : Int64
+    @size : Int64
+    @pairs : Array(Tuple(String, String))
+    @result : UInt32
+
+    def initialize
+      @pairs = [] of Tuple(String, String)
+      @result = 0_u32
+      @count = config_val("count").to_i64
+      @size = config_val("size").to_i64
+    end
+
+    def prepare
+      @pairs = Distance.generate_pair_strings(@count, @size)
+    end
+
+    def ngram(s1 : String, s2 : String) : Float64
+      bytes1 = s1.bytes
+      bytes2 = s2.bytes
+      len1 = bytes1.size
+      len2 = bytes2.size
+
+      grams1 = Hash(UInt32, Int32).new(initial_capacity: len1) { 0 }
+
+      (0..len1 - 4).each do |i|
+        gram = (bytes1[i].to_u32 << 24) |
+               (bytes1[i + 1].to_u32 << 16) |
+               (bytes1[i + 2].to_u32 << 8) |
+               bytes1[i + 3].to_u32
+        grams1.update(gram, &.+(1))
+      end
+
+      grams2 = Hash(UInt32, Int32).new(initial_capacity: len2) { 0 }
+      intersection = 0
+
+      (0..len2 - 4).each do |i|
+        gram = (bytes2[i].to_u32 << 24) |
+               (bytes2[i + 1].to_u32 << 16) |
+               (bytes2[i + 2].to_u32 << 8) |
+               bytes2[i + 3].to_u32
+        grams2.update(gram, &.+(1))
+
+        if (v = grams1[gram]?) && grams2[gram] <= v
+          intersection += 1
+        end
+      end
+
+      total = grams1.size + grams2.size
+      total > 0 ? intersection.to_f / total : 0.0
+    end
+
+    def run(iteration_id)
+      @pairs.each do |(s1, s2)|
+        @result &+= (ngram(s1, s2) * 1000).to_u32
+      end
+    end
+
+    def checksum : UInt32
       @result
     end
   end

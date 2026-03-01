@@ -229,12 +229,22 @@ public:
         xorNet = new NeuralNetwork(2, 10, 1);
     }
 
+    private static double[] INPUT_00 = [0.0, 0.0];
+    private static double[] INPUT_01 = [0.0, 1.0];
+    private static double[] INPUT_10 = [1.0, 0.0];
+    private static double[] INPUT_11 = [1.0, 1.0];
+    private static double[] TARGET_0 = [0.0];
+    private static double[] TARGET_1 = [1.0];
+
     override void run(int iterationId)
     {
-        xorNet.train([0.0, 0.0], [0.0]);
-        xorNet.train([1.0, 0.0], [1.0]);
-        xorNet.train([0.0, 1.0], [1.0]);
-        xorNet.train([1.0, 1.0], [0.0]);
+        for (int iter = 0; iter < 1000; iter++)
+        {
+            xorNet.train(INPUT_00, TARGET_0);
+            xorNet.train(INPUT_10, TARGET_1);
+            xorNet.train(INPUT_01, TARGET_1);
+            xorNet.train(INPUT_11, TARGET_0);
+        }
     }
 
     override uint checksum()

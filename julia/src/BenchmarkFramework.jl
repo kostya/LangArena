@@ -27,8 +27,7 @@ include("benchmarks/Spectralnorm.jl")
 include("benchmarks/Base64Encode.jl")
 include("benchmarks/Base64Decode.jl")
 include("benchmarks/Json.jl")
-include("benchmarks/Primes.jl")
-include("benchmarks/Noise.jl")
+include("benchmarks/Sieve.jl")
 include("benchmarks/TextRaytracer.jl")
 include("benchmarks/NeuralNet.jl")
 include("benchmarks/Sort.jl")
@@ -39,6 +38,9 @@ include("benchmarks/Calculator.jl")
 include("benchmarks/GameOfLife.jl")
 include("benchmarks/Maze.jl")
 include("benchmarks/Compress.jl")
+include("benchmarks/Distance.jl")
+include("benchmarks/Words.jl")
+include("benchmarks/LogParser.jl")
 
 const ALL_BENCHMARKS = [
     ("CLBG::Pidigits", Pidigits),
@@ -63,8 +65,7 @@ const ALL_BENCHMARKS = [
     ("Json::Generate", JsonGenerate),
     ("Json::ParseDom", JsonParseDom),
     ("Json::ParseMapping", JsonParseMapping),
-    ("Etc::Primes", Primes),
-    ("Etc::Noise", Noise),
+    ("Etc::Sieve", Sieve),
     ("Etc::TextRaytracer", TextRaytracer),
     ("Etc::NeuralNet", NeuralNet),
     ("Sort::Quick", SortQuick),
@@ -90,6 +91,10 @@ const ALL_BENCHMARKS = [
     ("Compress::ArithDecode", ArithDecode),
     ("Compress::LZWEncode", LZWEncode),
     ("Compress::LZWDecode", LZWDecode),
+    ("Distance::Jaro", Jaro),
+    ("Distance::NGram", NGram),
+    ("Etc::Words", Words),
+    ("Etc::LogParser", LogParser),
 ]
 
 function run_all_benchmarks(single_bench::String = "")

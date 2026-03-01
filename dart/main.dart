@@ -2061,229 +2061,54 @@ class JsonParseMapping extends Benchmark {
   String get benchmarkName => 'Json::ParseMapping';
 }
 
-class PrimesNode {
-  final List<PrimesNode?> children = List.filled(10, null);
-  bool terminal = false;
-}
-
-class Primes extends Benchmark {
-  late BigInt n;
-  late BigInt prefix;
-  int _resultValue = 5432;
+class Sieve extends Benchmark {
+  late BigInt limit;
+  int _checksum = 0;
 
   @override
   void prepare() {
-    n = Helper.configI64(benchmarkName, "limit");
-    prefix = Helper.configI64(benchmarkName, "prefix");
+    limit = Helper.configI64(benchmarkName, "limit");
   }
 
-  List<int> _generatePrimes(int limit) {
-    if (limit < 2) return [];
+  @override
+  void runBenchmark(int iterationId) {
+    int lim = limit.toInt();
 
-    final isPrime = List<bool>.filled(limit + 1, true);
-    isPrime[0] = isPrime[1] = false;
+    final primes = Uint8List(lim + 1);
+    for (int i = 0; i <= lim; i++) primes[i] = 1;
+    primes[0] = 0;
+    primes[1] = 0;
 
-    final sqrtLimit = sqrt(limit).floor();
+    int sqrtLimit = sqrt(lim).floor();
 
     for (int p = 2; p <= sqrtLimit; p++) {
-      if (isPrime[p]) {
-        for (int multiple = p * p; multiple <= limit; multiple += p) {
-          isPrime[multiple] = false;
+      if (primes[p] == 1) {
+        for (int multiple = p * p; multiple <= lim; multiple += p) {
+          primes[multiple] = 0;
         }
       }
     }
 
-    final estimatedSize = (limit / (log(limit) - 1.1)).floor();
-    final primes = Int32List(estimatedSize);
-    var count = 0;
+    int lastPrime = 2;
+    int count = 1;
 
-    for (int i = 2; i <= limit; i++) {
-      if (isPrime[i]) {
-        primes[count++] = i;
+    for (int n = 3; n <= lim; n += 2) {
+      if (primes[n] == 1) {
+        lastPrime = n;
+        count++;
       }
     }
 
-    return primes.sublist(0, count);
-  }
-
-  PrimesNode _buildTrie(List<int> numbers) {
-    final root = PrimesNode();
-
-    for (final num in numbers) {
-      var current = root;
-      final str = num.toString();
-
-      for (int i = 0; i < str.length; i++) {
-        final digit = str.codeUnitAt(i) - 48;
-
-        if (current.children[digit] == null) {
-          current.children[digit] = PrimesNode();
-        }
-        current = current.children[digit]!;
-      }
-      current.terminal = true;
-    }
-
-    return root;
-  }
-
-  List<int> _findPrimesWithPrefix(PrimesNode root, int prefix) {
-    final prefixStr = prefix.toString();
-    var current = root;
-
-    for (int i = 0; i < prefixStr.length; i++) {
-      final digit = prefixStr.codeUnitAt(i) - 48;
-      final next = current.children[digit];
-      if (next == null) {
-        return [];
-      }
-      current = next;
-    }
-
-    final results = <int>[];
-    final queue = Queue<(PrimesNode, int)>();
-    queue.add((current, prefix));
-
-    while (queue.isNotEmpty) {
-      final (node, number) = queue.removeFirst();
-
-      if (node.terminal) {
-        results.add(number);
-      }
-
-      for (int digit = 0; digit < 10; digit++) {
-        final child = node.children[digit];
-        if (child != null) {
-          queue.add((child, number * 10 + digit));
-        }
-      }
-    }
-
-    results.sort();
-    return results;
-  }
-
-  @override
-  void runBenchmark(int iterationId) {
-    final primes = _generatePrimes(n.toInt());
-    final trie = _buildTrie(primes);
-    final results = _findPrimesWithPrefix(trie, prefix.toInt());
-
-    _resultValue = (_resultValue + results.length) & 0xFFFFFFFF;
-    for (final num in results) {
-      _resultValue = (_resultValue + num) & 0xFFFFFFFF;
-    }
+    _checksum = (_checksum + lastPrime + count) & 0xFFFFFFFF;
   }
 
   @override
   int checksum() {
-    return _resultValue;
+    return _checksum;
   }
 
   @override
-  String get benchmarkName => 'Etc::Primes';
-}
-
-class NoiseVec2 {
-  final double x, y;
-
-  NoiseVec2(this.x, this.y);
-}
-
-class Noise2DContext {
-  final int size;
-  final int mask;
-  final List<NoiseVec2> _rgradients;
-  final List<int> _permutations;
-
-  Noise2DContext(this.size)
-    : mask = size - 1,
-      _rgradients = List.generate(size, (_) {
-        final v = Helper.nextFloat() * pi * 2.0;
-        return NoiseVec2(cos(v), sin(v));
-      }),
-      _permutations = List.generate(size, (i) => i) {
-    for (int i = 0; i < size; i++) {
-      final a = Helper.nextInt(size);
-      final b = Helper.nextInt(size);
-      final temp = _permutations[a];
-      _permutations[a] = _permutations[b];
-      _permutations[b] = temp;
-    }
-  }
-
-  double _gradient(double ox, double oy, NoiseVec2 grad, double px, double py) {
-    return grad.x * (px - ox) + grad.y * (py - oy);
-  }
-
-  double _lerp(double a, double b, double v) => a + (b - a) * v;
-
-  double _smooth(double v) => v * v * (3.0 - 2.0 * v);
-
-  NoiseVec2 _getGradient(int x, int y) {
-    final idx = _permutations[x & mask] + _permutations[y & mask];
-    return _rgradients[idx & mask];
-  }
-
-  double get(double x, double y) {
-    final x0f = x.floorToDouble();
-    final y0f = y.floorToDouble();
-    final x0 = x0f.toInt();
-    final y0 = y0f.toInt();
-
-    final g00 = _getGradient(x0, y0);
-    final g10 = _getGradient(x0 + 1, y0);
-    final g01 = _getGradient(x0, y0 + 1);
-    final g11 = _getGradient(x0 + 1, y0 + 1);
-
-    final v0 = _gradient(x0f, y0f, g00, x, y);
-    final v1 = _gradient(x0f + 1.0, y0f, g10, x, y);
-    final v2 = _gradient(x0f, y0f + 1.0, g01, x, y);
-    final v3 = _gradient(x0f + 1.0, y0f + 1.0, g11, x, y);
-
-    final fx = _smooth(x - x0f);
-    final vx0 = _lerp(v0, v1, fx);
-    final vx1 = _lerp(v2, v3, fx);
-
-    final fy = _smooth(y - y0f);
-    return _lerp(vx0, vx1, fy);
-  }
-}
-
-class Noise extends Benchmark {
-  static const _sym = [' ', '░', '▒', '▓', '█', '█'];
-
-  late int size;
-  late Noise2DContext _n2d;
-  int _resultValue = 0;
-
-  @override
-  void prepare() {
-    size = Helper.configI64(benchmarkName, "size").toInt();
-    _n2d = Noise2DContext(size);
-  }
-
-  @override
-  void runBenchmark(int iterationId) {
-    for (int y = 0; y < size; y++) {
-      for (int x = 0; x < size; x++) {
-        final v =
-            _n2d.get(x * 0.1, (y + (iterationId * 128)) * 0.1) * 0.5 + 0.5;
-        final idx = (v / 0.2).floor();
-        final charIdx = idx.clamp(0, _sym.length - 1);
-        _resultValue =
-            (_resultValue + _sym[charIdx].codeUnitAt(0)) & 0xFFFFFFFF;
-      }
-    }
-  }
-
-  @override
-  int checksum() {
-    return _resultValue;
-  }
-
-  @override
-  String get benchmarkName => 'Etc::Noise';
+  String get benchmarkName => 'Etc::Sieve';
 }
 
 class TextRaytracer extends Benchmark {
@@ -2474,9 +2299,8 @@ class NeuralNetSynapse {
   final NeuralNetNeuron destNeuron;
 
   NeuralNetSynapse(this.sourceNeuron, this.destNeuron) {
-    final randomWeight = Helper.nextFloat() * 2 - 1;
-    prevWeight = randomWeight;
-    weight = randomWeight;
+    weight = Helper.nextFloat() * 2 - 1;
+    prevWeight = weight;
   }
 }
 
@@ -2492,9 +2316,8 @@ class NeuralNetNeuron {
   double output = 0;
 
   NeuralNetNeuron() {
-    final randomThreshold = Helper.nextFloat() * 2 - 1;
-    prevThreshold = randomThreshold;
-    threshold = randomThreshold;
+    threshold = Helper.nextFloat() * 2 - 1;
+    prevThreshold = threshold;
   }
 
   void calculateOutput() {
@@ -2503,7 +2326,6 @@ class NeuralNetNeuron {
       activation += synapse.weight * synapse.sourceNeuron.output;
     }
     activation -= threshold;
-
     output = 1.0 / (1.0 + exp(-activation));
   }
 
@@ -2541,15 +2363,14 @@ class NeuralNetNeuron {
 }
 
 class NeuralNetNetwork {
-  final inputLayer = <NeuralNetNeuron>[];
-  final hiddenLayer = <NeuralNetNeuron>[];
-  final outputLayer = <NeuralNetNeuron>[];
+  final List<NeuralNetNeuron> inputLayer;
+  final List<NeuralNetNeuron> hiddenLayer;
+  final List<NeuralNetNeuron> outputLayer;
 
-  NeuralNetNetwork(int inputs, int hidden, int outputs) {
-    inputLayer.addAll(List.generate(inputs, (_) => NeuralNetNeuron()));
-    hiddenLayer.addAll(List.generate(hidden, (_) => NeuralNetNeuron()));
-    outputLayer.addAll(List.generate(outputs, (_) => NeuralNetNeuron()));
-
+  NeuralNetNetwork(int inputs, int hidden, int outputs)
+    : inputLayer = List.generate(inputs, (_) => NeuralNetNeuron()),
+      hiddenLayer = List.generate(hidden, (_) => NeuralNetNeuron()),
+      outputLayer = List.generate(outputs, (_) => NeuralNetNeuron()) {
     for (final source in inputLayer) {
       for (final dest in hiddenLayer) {
         final synapse = NeuralNetSynapse(source, dest);
@@ -2567,7 +2388,7 @@ class NeuralNetNetwork {
     }
   }
 
-  void train(List<double> inputs, List<double> targets) {
+  void train(Float64List inputs, Float64List targets) {
     feedForward(inputs);
 
     for (int i = 0; i < outputLayer.length; i++) {
@@ -2579,7 +2400,7 @@ class NeuralNetNetwork {
     }
   }
 
-  void feedForward(List<double> inputs) {
+  void feedForward(Float64List inputs) {
     for (int i = 0; i < inputLayer.length; i++) {
       inputLayer[i].output = inputs[i];
     }
@@ -2593,22 +2414,23 @@ class NeuralNetNetwork {
     }
   }
 
-  List<double> currentOutputs() =>
-      outputLayer.map((neuron) => neuron.output).toList();
-
-  double getWeightSum() {
-    double sum = 0;
-    for (final neuron in [...inputLayer, ...hiddenLayer, ...outputLayer]) {
-      sum += neuron.threshold;
-      for (final synapse in neuron.synapsesOut) {
-        sum += synapse.weight;
-      }
+  Float64List currentOutputs() {
+    final outputs = Float64List(outputLayer.length);
+    for (int i = 0; i < outputLayer.length; i++) {
+      outputs[i] = outputLayer[i].output;
     }
-    return sum;
+    return outputs;
   }
 }
 
 class NeuralNet extends Benchmark {
+  static final INPUT_00 = Float64List.fromList([0, 0]);
+  static final INPUT_01 = Float64List.fromList([0, 1]);
+  static final INPUT_10 = Float64List.fromList([1, 0]);
+  static final INPUT_11 = Float64List.fromList([1, 1]);
+  static final TARGET_0 = Float64List.fromList([0]);
+  static final TARGET_1 = Float64List.fromList([1]);
+
   late NeuralNetNetwork xor;
 
   @override
@@ -2619,32 +2441,32 @@ class NeuralNet extends Benchmark {
 
   @override
   void runBenchmark(int iterationId) {
-    xor.train([0, 0], [0]);
-    xor.train([1, 0], [1]);
-    xor.train([0, 1], [1]);
-    xor.train([1, 1], [0]);
+    for (int iter = 0; iter < 1000; iter++) {
+      xor.train(INPUT_00, TARGET_0);
+      xor.train(INPUT_10, TARGET_1);
+      xor.train(INPUT_01, TARGET_1);
+      xor.train(INPUT_11, TARGET_0);
+    }
   }
 
   @override
   int checksum() {
-    final results = <double>[];
+    final results = Float64List(4);
 
-    xor.feedForward([0, 0]);
-    results.addAll(xor.currentOutputs());
+    xor.feedForward(INPUT_00);
+    results[0] = xor.currentOutputs()[0];
 
-    xor.feedForward([0, 1]);
-    results.addAll(xor.currentOutputs());
+    xor.feedForward(INPUT_01);
+    results[1] = xor.currentOutputs()[0];
 
-    xor.feedForward([1, 0]);
-    results.addAll(xor.currentOutputs());
+    xor.feedForward(INPUT_10);
+    results[2] = xor.currentOutputs()[0];
 
-    xor.feedForward([1, 1]);
-    results.addAll(xor.currentOutputs());
+    xor.feedForward(INPUT_11);
+    results[3] = xor.currentOutputs()[0];
 
     final sum = results.fold(0.0, (a, b) => a + b);
-    final checksumValue = Helper.checksumFloat(sum);
-
-    return checksumValue;
+    return Helper.checksumFloat(sum);
   }
 
   @override
@@ -5163,6 +4985,349 @@ class LZWDecode extends Benchmark {
   }
 }
 
+List<(String, String)> generatePairStrings(int n, int m) {
+  var pairs = <(String, String)>[];
+  var chars = 'abcdefghij';
+
+  for (int i = 0; i < n; i++) {
+    int len1 = Helper.nextInt(m) + 4;
+    int len2 = Helper.nextInt(m) + 4;
+
+    var str1 = StringBuffer();
+    var str2 = StringBuffer();
+
+    for (int j = 0; j < len1; j++) {
+      str1.write(chars[Helper.nextInt(10)]);
+    }
+    for (int j = 0; j < len2; j++) {
+      str2.write(chars[Helper.nextInt(10)]);
+    }
+
+    pairs.add((str1.toString(), str2.toString()));
+  }
+
+  return pairs;
+}
+
+class Jaro extends Benchmark {
+  late int count;
+  late int size;
+  late List<(String, String)> pairs;
+  int resultVal = 0;
+
+  Jaro() {
+    count = Helper.configI64(benchmarkName, 'count').toInt();
+    size = Helper.configI64(benchmarkName, 'size').toInt();
+  }
+
+  @override
+  String get benchmarkName => 'Distance::Jaro';
+
+  @override
+  void prepare() {
+    pairs = generatePairStrings(count, size);
+    resultVal = 0;
+  }
+
+  double jaro(String s1, String s2) {
+    final bytes1 = s1.codeUnits;
+    final bytes2 = s2.codeUnits;
+
+    int len1 = bytes1.length;
+    int len2 = bytes2.length;
+
+    if (len1 == 0 || len2 == 0) return 0.0;
+
+    int matchDist = (len1 > len2 ? len1 : len2) ~/ 2 - 1;
+    if (matchDist < 0) matchDist = 0;
+
+    var s1Matches = List<bool>.filled(len1, false);
+    var s2Matches = List<bool>.filled(len2, false);
+
+    int matches = 0;
+    for (int i = 0; i < len1; i++) {
+      int start = i > matchDist ? i - matchDist : 0;
+      int end = (len2 - 1) < (i + matchDist) ? len2 - 1 : i + matchDist;
+
+      for (int j = start; j <= end; j++) {
+        if (!s2Matches[j] && bytes1[i] == bytes2[j]) {
+          s1Matches[i] = true;
+          s2Matches[j] = true;
+          matches++;
+          break;
+        }
+      }
+    }
+
+    if (matches == 0) return 0.0;
+
+    int transpositions = 0;
+    int k = 0;
+    for (int i = 0; i < len1; i++) {
+      if (s1Matches[i]) {
+        while (k < len2 && !s2Matches[k]) {
+          k++;
+        }
+        if (k < len2) {
+          if (bytes1[i] != bytes2[k]) {
+            transpositions++;
+          }
+          k++;
+        }
+      }
+    }
+    transpositions = transpositions ~/ 2;
+
+    double m = matches.toDouble();
+    return (m / len1 + m / len2 + (m - transpositions) / m) / 3.0;
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    for (var pair in pairs) {
+      resultVal =
+          (resultVal + (jaro(pair.$1, pair.$2) * 1000).toInt()) & 0xFFFFFFFF;
+    }
+  }
+
+  @override
+  int checksum() {
+    return resultVal;
+  }
+}
+
+class NGram extends Benchmark {
+  late int count;
+  late int size;
+  late List<(String, String)> pairs;
+  int resultVal = 0;
+  static const int N = 4;
+
+  NGram() {
+    count = Helper.configI64(benchmarkName, 'count').toInt();
+    size = Helper.configI64(benchmarkName, 'size').toInt();
+  }
+
+  @override
+  String get benchmarkName => 'Distance::NGram';
+
+  @override
+  void prepare() {
+    pairs = generatePairStrings(count, size);
+    resultVal = 0;
+  }
+
+  double ngram(String s1, String s2) {
+    if (s1.length < N || s2.length < N) return 0.0;
+
+    final bytes1 = s1.codeUnits;
+    final bytes2 = s2.codeUnits;
+
+    var grams1 = <int, int>{};
+
+    for (int i = 0; i <= bytes1.length - N; i++) {
+      int gram =
+          (bytes1[i] << 24) |
+          (bytes1[i + 1] << 16) |
+          (bytes1[i + 2] << 8) |
+          bytes1[i + 3];
+
+      grams1[gram] = (grams1[gram] ?? 0) + 1;
+    }
+
+    var grams2 = <int, int>{};
+    int intersection = 0;
+
+    for (int i = 0; i <= bytes2.length - N; i++) {
+      int gram =
+          (bytes2[i] << 24) |
+          (bytes2[i + 1] << 16) |
+          (bytes2[i + 2] << 8) |
+          bytes2[i + 3];
+
+      grams2[gram] = (grams2[gram] ?? 0) + 1;
+
+      var count1 = grams1[gram];
+      if (count1 != null && grams2[gram]! <= count1) {
+        intersection++;
+      }
+    }
+
+    int total = grams1.length + grams2.length;
+    return total > 0 ? intersection / total : 0.0;
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    for (var pair in pairs) {
+      resultVal =
+          (resultVal + (ngram(pair.$1, pair.$2) * 1000).toInt()) & 0xFFFFFFFF;
+    }
+  }
+
+  @override
+  int checksum() {
+    return resultVal;
+  }
+}
+
+class Words extends Benchmark {
+  late int words;
+  late int wordLen;
+  late String text;
+  int checksumVal = 0;
+
+  @override
+  void prepare() {
+    words = Helper.configI64(benchmarkName, "words").toInt();
+    wordLen = Helper.configI64(benchmarkName, "word_len").toInt();
+
+    const chars = 'abcdefghijklmnopqrstuvwxyz';
+    final wordsList = <String>[];
+
+    for (int i = 0; i < words; i++) {
+      final len = Helper.nextInt(wordLen) + Helper.nextInt(3) + 3;
+      final wordChars = List.generate(
+        len,
+        (_) => chars[Helper.nextInt(chars.length)],
+      );
+      wordsList.add(wordChars.join());
+    }
+
+    text = wordsList.join(' ');
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    final frequencies = HashMap<String, int>();
+
+    for (final word in text.split(' ')) {
+      if (word.isEmpty) continue;
+      frequencies[word] = (frequencies[word] ?? 0) + 1;
+    }
+
+    String maxWord = '';
+    int maxCount = 0;
+
+    frequencies.forEach((word, count) {
+      if (count > maxCount) {
+        maxCount = count;
+        maxWord = word;
+      }
+    });
+
+    final freqSize = frequencies.length;
+    final wordChecksum = Helper.checksumString(maxWord);
+
+    checksumVal =
+        (checksumVal + maxCount + wordChecksum + freqSize) & 0xFFFFFFFF;
+  }
+
+  @override
+  int checksum() {
+    return checksumVal & 0xFFFFFFFF;
+  }
+
+  @override
+  String get benchmarkName => 'Etc::Words';
+}
+
+class LogParser extends Benchmark {
+  late int linesCount;
+  late String log;
+  int checksumVal = 0;
+
+  static final List<String> IPS = List.generate(
+    255,
+    (i) => '192.168.1.${i + 1}',
+  );
+  static const List<String> METHODS = ['GET', 'POST', 'PUT', 'DELETE'];
+  static const List<String> PATHS = [
+    '/index.html',
+    '/api/users',
+    '/login',
+    '/admin',
+    '/images/logo.png',
+    '/etc/passwd',
+    '/wp-admin/setup.php',
+  ];
+  static const List<int> STATUSES = [
+    200,
+    201,
+    301,
+    302,
+    400,
+    401,
+    403,
+    404,
+    500,
+    502,
+    503,
+  ];
+  static const List<String> AGENTS = [
+    'Mozilla/5.0',
+    'Googlebot/2.1',
+    'curl/7.68.0',
+    'scanner/2.0',
+  ];
+
+  static final List<MapEntry<String, String>> PATTERNS = [
+    const MapEntry('errors', r' [5][0-9]{2} '),
+    const MapEntry('bots', r'bot|crawler|scanner'),
+    const MapEntry('suspicious', r'etc/passwd|wp-admin|\.\./'),
+    const MapEntry('ips', r'\d{1,3}\.\d{1,3}\.\d{1,3}\.35'),
+    const MapEntry('api_calls', r'/api/[^ "]+'),
+    const MapEntry('post_requests', r'POST [^ ]* HTTP'),
+    const MapEntry('auth_attempts', r'/login|/signin'),
+    const MapEntry('methods', r'get|post'),
+  ];
+
+  LogParser() {
+    linesCount = Helper.configI64(benchmarkName, 'lines_count').toInt();
+  }
+
+  @override
+  void prepare() {
+    final buffer = StringBuffer();
+    for (int i = 0; i < linesCount; i++) {
+      buffer.write(generateLogLine(i));
+    }
+    log = buffer.toString();
+  }
+
+  String generateLogLine(int i) {
+    return '${IPS[i % IPS.length]} - - [${i % 31}/Oct/2023:13:55:36 +0000] "${METHODS[i % METHODS.length]} ${PATHS[i % PATHS.length]} HTTP/1.0" ${STATUSES[i % STATUSES.length]} 2326 "-" "${AGENTS[i % AGENTS.length]}"\n';
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    final matches = HashMap<String, int>();
+
+    for (final pattern in PATTERNS) {
+      matches[pattern.key] = 0;
+    }
+
+    for (final pattern in PATTERNS) {
+      final regex = RegExp(pattern.value, caseSensitive: false);
+      matches[pattern.key] = regex.allMatches(log).length;
+    }
+
+    int total = 0;
+    for (final count in matches.values) {
+      total += count;
+    }
+    checksumVal += total;
+  }
+
+  @override
+  int checksum() {
+    return checksumVal & 0xFFFFFFFF;
+  }
+
+  @override
+  String get benchmarkName => 'Etc::LogParser';
+}
+
 bool listEquals(List? a, List? b) {
   if (a == null) return b == null;
   if (b == null || a.length != b.length) return false;
@@ -5198,8 +5363,7 @@ void registerBenchmarks() {
   Benchmark.registerBenchmark('Json::Generate', () => JsonGenerate());
   Benchmark.registerBenchmark('Json::ParseDom', () => JsonParseDom());
   Benchmark.registerBenchmark('Json::ParseMapping', () => JsonParseMapping());
-  Benchmark.registerBenchmark('Etc::Primes', () => Primes());
-  Benchmark.registerBenchmark('Etc::Noise', () => Noise());
+  Benchmark.registerBenchmark('Etc::Sieve', () => Sieve());
   Benchmark.registerBenchmark('Etc::TextRaytracer', () => TextRaytracer());
   Benchmark.registerBenchmark('Etc::NeuralNet', () => NeuralNet());
   Benchmark.registerBenchmark('Sort::Quick', () => SortQuick());
@@ -5228,6 +5392,10 @@ void registerBenchmarks() {
   Benchmark.registerBenchmark('Compress::ArithDecode', () => ArithDecode());
   Benchmark.registerBenchmark('Compress::LZWEncode', () => LZWEncode());
   Benchmark.registerBenchmark('Compress::LZWDecode', () => LZWDecode());
+  Benchmark.registerBenchmark('Distance::Jaro', () => Jaro());
+  Benchmark.registerBenchmark('Distance::NGram', () => NGram());
+  Benchmark.registerBenchmark('Etc::Words', () => Words());
+  Benchmark.registerBenchmark('Etc::LogParser', () => LogParser());
 }
 
 Future<void> main(List<String> args) async {

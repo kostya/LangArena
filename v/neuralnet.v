@@ -22,6 +22,13 @@ pub fn (b NeuralNet) name() string {
 	return 'Etc::NeuralNet'
 }
 
+const input_00 = [0, 0]
+const input_01 = [0, 1]
+const input_10 = [1, 0]
+const input_11 = [1, 1]
+const target_0 = [0]
+const target_1 = [1]
+
 struct Synapse {
 mut:
 	weight      f64
@@ -208,38 +215,36 @@ pub fn (mut n NeuralNet) prepare() {
 
 pub fn (mut n NeuralNet) run(iteration_id int) {
 	mut net := n.xor_net
-	net.train([0, 0], [0])
-	net.train([1, 0], [1])
-	net.train([0, 1], [1])
-	net.train([1, 1], [0])
+	for _ in 0 .. 1000 {
+		net.train(input_00, target_0)
+		net.train(input_10, target_1)
+		net.train(input_01, target_1)
+		net.train(input_11, target_0)
+	}
 }
 
 pub fn (n NeuralNet) checksum() u32 {
 	mut net := n.xor_net
 
-	net.feed_forward([0, 0])
-	outputs1 := net.current_outputs()
-
-	net.feed_forward([0, 1])
-	outputs2 := net.current_outputs()
-
-	net.feed_forward([1, 0])
-	outputs3 := net.current_outputs()
-
-	net.feed_forward([1, 1])
-	outputs4 := net.current_outputs()
-
 	mut sum := 0.0
-	for v in outputs1 {
+
+	net.feed_forward(input_00)
+	for v in net.current_outputs() {
 		sum += v
 	}
-	for v in outputs2 {
+
+	net.feed_forward(input_01)
+	for v in net.current_outputs() {
 		sum += v
 	}
-	for v in outputs3 {
+
+	net.feed_forward(input_10)
+	for v in net.current_outputs() {
 		sum += v
 	}
-	for v in outputs4 {
+
+	net.feed_forward(input_11)
+	for v in net.current_outputs() {
 		sum += v
 	}
 

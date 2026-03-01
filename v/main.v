@@ -16,8 +16,7 @@ import revcomp
 import spectralnorm
 import base64encode
 import base64decode
-import primes
-import noise
+import sieve
 import textraytracer
 import neuralnet
 import mandelbrot
@@ -31,7 +30,10 @@ import calculator
 import game_of_life
 import mazebench
 import compress
+import distance
 import json_benchmarks
+import words
+import logparser
 
 fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 	return [
@@ -53,11 +55,8 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		benchmark.BenchmarkInfo{'CLBG::Spectralnorm', fn () &benchmark.IBenchmark {
 			return spectralnorm.new_spectralnorm()
 		}},
-		benchmark.BenchmarkInfo{'Etc::Primes', fn () &benchmark.IBenchmark {
-			return primes.new_primes()
-		}},
-		benchmark.BenchmarkInfo{'Etc::Noise', fn () &benchmark.IBenchmark {
-			return noise.new_noise()
+		benchmark.BenchmarkInfo{'Etc::Sieve', fn () &benchmark.IBenchmark {
+			return sieve.new_sieve()
 		}},
 		benchmark.BenchmarkInfo{'CLBG::Mandelbrot', fn () &benchmark.IBenchmark {
 			return mandelbrot.new_mandelbrot()
@@ -181,6 +180,18 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		}},
 		benchmark.BenchmarkInfo{'Compress::LZWDecode', fn () &benchmark.IBenchmark {
 			return compress.new_lzwdecode()
+		}},
+		benchmark.BenchmarkInfo{'Distance::Jaro', fn () &benchmark.IBenchmark {
+			return distance.new_jaro()
+		}},
+		benchmark.BenchmarkInfo{'Distance::NGram', fn () &benchmark.IBenchmark {
+			return distance.new_ngram()
+		}},
+		benchmark.BenchmarkInfo{'Etc::Words', fn () &benchmark.IBenchmark {
+			return words.new_words()
+		}},
+		benchmark.BenchmarkInfo{'Etc::LogParser', fn () &benchmark.IBenchmark {
+			return logparser.new_logparser()
 		}},
 	]
 }
