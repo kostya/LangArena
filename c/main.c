@@ -9256,7 +9256,7 @@ static const char *PATTERNS[] = {
     "(?i)get|post",
 };
 
-static const int PATTERNS_COUNT = 8;
+#define PATTERNS_COUNT 8
 
 static const char *IPS[255];
 static const char *METHODS[] = {"GET", "POST", "PUT", "DELETE"};
