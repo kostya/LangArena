@@ -1,2 +1,0 @@
-#/bin/sh
-julia -e 'using Pkg; Pkg.add("JuliaFormatter"); using JuliaFormatter; format(".")'

@@ -16,7 +16,6 @@ IS_ONE_RUN_PER_LANG = ENV["BY_LANG"] == "1" # run only one run for each language
 IS_NO_BUILD = ENV["NO_BUILD"] == "1" # not test build stage
 IS_NO_DEPS = ENV["NO_DEPS"] == "1" # not test deps stage
 IS_NO_VERSION = ENV["NO_VERSION"] == "1" # not test versions
-IS_CLEAR_COMMENTS = ENV["CLEAR_COMMENTS"] == "1" # start special mode to clear comments
 APPEND_RESULTS = (ENV["APPEND"] && ENV["APPEND"] != "") ? ENV["APPEND"] : nil
 
 require 'json'
@@ -148,103 +147,6 @@ def check_source_files(verbose = false)
   RESULTS["source-size-kb"] = results.transform_values { |data| data["source_kb"] }
   RESULTS["source-gzip-size-kb"] = results.transform_values { |data| data["gzip_kb"] }
   RESULTS["source-lines-count"] = results.transform_values { |data| data["lines"] }
-end
-
-module ClearComments
-  def self.remove_comments(filepath, lang)
-    content = File.read(filepath, encoding: 'utf-8')
-    
-    case lang
-    when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 'fsharp', 'dart', 'zig', 'odin', 'scala'
-      content.gsub!(/\/\*[\s\S]*?\*\//m, '')
-      content.gsub!(/\/\/[^\n]*/, '')
-      
-    when 'typescript'
-      content.gsub!(/\/\*[\s\S]*?\*\//m, '')
-      content.gsub!(/^(\s*)\/\/\s*@ts-ignore.*$/) { |m| m }
-      content.gsub!(/^(\s*)\/\/[^\n]*$/) do |match|
-        if match.include?('@ts-ignore') || match.match?(/\/[gimsuy]+[,\]\)\}]?$/)
-          match
-        else
-          ''
-        end
-      end
-            
-    when 'crystal', 'julia', 'nim', 'python'
-      content.gsub!(/^=begin[\s\S]*?^=end/m, '')
-    
-      lines = content.lines.map do |line|
-        comment_pos = -1
-        in_string = false
-        string_char = nil
-        
-        line.chars.each_with_index do |char, i|
-          if char == '"' || char == "'" || char == '`'
-            if !in_string
-              in_string = true
-              string_char = char
-            elsif string_char == char && (i == 0 || line[i-1] != '\\')
-              in_string = false
-              string_char = nil
-            end
-          end
-          
-          if !in_string && char == '#' && (i == 0 || line[i-1] != '\\')
-            if i + 1 < line.length && line[i+1] == '{'
-              next
-            else
-              comment_pos = i
-              break
-            end
-          end
-        end
-        
-        if comment_pos >= 0
-          line[0...comment_pos].rstrip
-        else
-          line.rstrip
-        end
-      end
-      
-      content = lines.join("\n")
-    end
-    
-    content.gsub!(/^[ \t]+$/, '')
-    
-    while content.gsub!(/\n\n\n+/, "\n\n")
-    end
-    
-    content.sub!(/\A\n+/, '')
-    
-    content.sub!(/\n+\z/, '')
-    
-    File.write(filepath, content, encoding: 'utf-8')
-    puts "Обработан: #{filepath}"
-  end
-
-  def self.process_all_files(lang_masks)
-    lang_masks.each do |lang, config|
-      dir, exts, excludes = config
-      
-      puts "Обрабатываю язык: #{lang}"
-      
-      pattern = "#{dir}/**/*{#{exts.join(',')}}"
-      files = Dir.glob(pattern, File::FNM_DOTMATCH)
-      
-      files.reject! do |file|
-        excludes.any? { |exclude| file.include?(exclude) }
-      end
-      
-      files.each do |file|
-        begin
-          remove_comments(file, lang)
-          puts "  ✓ #{file}"
-        rescue => e
-          puts "  ✗ Ошибка в #{file}: #{e.message}"
-        end
-      end
-    end
-  end
 end
 
 class Run
@@ -1961,11 +1863,6 @@ def write_results
   if !ARGV[0] || APPEND_RESULTS
     File.write("./results/#{RESULTS["date"]}-#{RESULTS["uname-name"]}.js", JSON.pretty_generate(RESULTS))  
   end
-end
-
-if IS_CLEAR_COMMENTS
-  ClearComments.process_all_files(LANG_MASKS)
-  exit
 end
 
 check_source_files(IS_VERBOSE)

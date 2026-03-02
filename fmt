@@ -1,0 +1,147 @@
+#!/usr/bin/env ruby
+
+LANG_MASKS = {
+  'c' => ['./c', ['.c', '.h'], ['target', 'deps'], "clang-format -i $@"],
+  'cpp' => ['./cpp', ['.cpp', '.hpp', '.h', '.cc', '.cxx'], ['target', 'deps'], "clang-format -i $@"],
+  'golang' => ['./golang', ['.go'], ['target'], "go fmt $@"],
+  'crystal' => ['./crystal', ['.cr'], ['target', 'lib'], "crystal tool format $@"],
+  'rust' => ['./rust', ['.rs'], ['target'], "cargo fmt"],
+  'csharp' => ['./csharp', ['.cs'], ['obj', 'bin'], "dotnet format"],
+  'swift' => ['./swift', ['.swift'], ['.build', 'Package.swift'], "swift format format --in-place $@"],
+  'java' => ['./java', ['.java'], ['target'], "astyle -n --mode=java $@"],
+  'kotlin' => ['./kotlin', ['.kt'], ['build', '.gradle', 'gradle'], "ktlint -F $@"],
+  'typescript' => ['./typescript', ['.ts', '.tsx'], ['node_modules', 'target'], "npx prettier --write $@"],
+  'zig' => ['./zig', ['.zig'], ['.zig-cache'], "zig fmt $@"],
+  'd' => ['./d', ['.d'], [], "dfmt --inplace $@"],
+  'v' => ['./v', ['.v'], ['target'], "v fmt -w $@"],
+  'julia' => ['./julia', ['.jl'], ['target'], "julia -e 'using Pkg; Pkg.add(\"JuliaFormatter\"); using JuliaFormatter; format(\".\")'"],
+  'nim' => ['./nim', ['.nim'], ['target'], "nimpretty $@"],
+  'fsharp' => ['./fsharp', ['.fs'], ['bin', 'obj'], "dotnet fantomas $@"],
+  'dart' => ['./dart', ['.dart'], ['target'], "dart format $@"],
+  'python' => ['./python', ['.py'], ['__pycache__'], "yapf --in-place --style=google $@"],
+  'odin' => ['./odin', ['.odin'], ['target'], "odinfmt -w $@"],
+  'scala' => ['./scala', ['.scala'], ['target', 'project'], "\"/Users/kostya/Library/Application Support/Coursier/bin/scalafmt\" $@"],
+}
+
+def remove_comments(filepath, lang)
+  content = File.read(filepath, encoding: 'utf-8')
+  
+  case lang
+  when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 'fsharp', 'dart', 'zig', 'odin', 'scala'
+    content.gsub!(/\/\*[\s\S]*?\*\//m, '')
+    content.gsub!(/\/\/[^\n]*/, '')
+    
+  when 'typescript'
+    content.gsub!(/\/\*[\s\S]*?\*\//m, '')
+    content.gsub!(/^(\s*)\/\/\s*@ts-ignore.*$/) { |m| m }
+    content.gsub!(/^(\s*)\/\/[^\n]*$/) do |match|
+      if match.include?('@ts-ignore') || match.match?(/\/[gimsuy]+[,\]\)\}]?$/)
+        match
+      else
+        ''
+      end
+    end
+          
+  when 'crystal', 'julia', 'nim', 'python'
+    content.gsub!(/^=begin[\s\S]*?^=end/m, '')
+  
+    lines = content.lines.map do |line|
+      comment_pos = -1
+      in_string = false
+      string_char = nil
+      
+      line.chars.each_with_index do |char, i|
+        if char == '"' || char == "'" || char == '`'
+          if !in_string
+            in_string = true
+            string_char = char
+          elsif string_char == char && (i == 0 || line[i-1] != '\\')
+            in_string = false
+            string_char = nil
+          end
+        end
+        
+        if !in_string && char == '#' && (i == 0 || line[i-1] != '\\')
+          if i + 1 < line.length && line[i+1] == '{'
+            next
+          else
+            comment_pos = i
+            break
+          end
+        end
+      end
+      
+      if comment_pos >= 0
+        line[0...comment_pos].rstrip
+      else
+        line.rstrip
+      end
+    end
+    
+    content = lines.join("\n")
+  end
+  
+  content.gsub!(/^[ \t]+$/, '')
+  
+  while content.gsub!(/\n\n\n+/, "\n\n")
+  end
+  
+  content.sub!(/\A\n+/, '')
+  
+  content.sub!(/\n+\z/, '')
+  
+  File.write(filepath, content, encoding: 'utf-8')
+end
+
+def get_files(lang)
+  dir, exts, excludes, _ = LANG_MASKS[lang]
+  
+  pattern = "#{dir}/**/*{#{exts.join(',')}}"
+  files = Dir.glob(pattern, File::FNM_DOTMATCH)
+  
+  files.reject! do |file|
+    excludes.any? { |exclude| file.include?(exclude) }
+  end
+
+  files
+end
+
+mask = ARGV[0] 
+
+LANG_MASKS.each do |lang, (dir, _, _, format_cmd)|
+  if mask
+    unless lang.downcase.include?(mask.downcase)
+      next
+    end
+  end
+  puts '-' * 100
+  files = get_files(lang)
+  puts "Lang: #{lang}, files: #{files.size}"
+  print "Remove comments: #{lang} "
+  t = Time.now
+  files.each do |file|
+    remove_comments(file, lang)
+  end
+  puts "in #{(Time.now - t).to_f.round(3)}s"
+
+  unless format_cmd
+    puts "no fmt command"
+    next
+  end
+
+  print "Formatting: #{lang} "
+  Dir.chdir(dir) do
+    if format_cmd.include?("$@")
+      files.each do |filename|
+        cmd = "#{format_cmd.gsub("$@", "'" + filename.gsub("#{dir}/", "") + "'")}"
+        # puts cmd
+        `#{cmd}`
+      end
+    else
+      cmd = "#{format_cmd}"
+      # puts cmd
+      `#{cmd}`
+    end
+  end
+  puts "in #{(Time.now - t).to_f.round(3)}s"
+end

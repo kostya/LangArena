@@ -1,2 +1,0 @@
-#/bin/sh
-yapf --in-place --recursive --style=google .
