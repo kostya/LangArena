@@ -20,18 +20,22 @@ type Benchmark() =
     default _.Prepare() = ()
 
     abstract member Warmup: unit -> unit
+
     default this.Warmup() =
         let prepareIters = this.WarmupIterations
+
         for i in 0L .. prepareIters - 1L do
             this.Run(i)
 
     member val TimeDelta = 0.0 with get, set
 
-    member this.WarmupIterations : int64 =
+    member this.WarmupIterations: int64 =
         let className = this.Name
         let mutable benchObj = JsonElement()
+
         if Helper.Config.TryGetProperty(className, &benchObj) then
             let mutable warmupProp = JsonElement()
+
             if benchObj.TryGetProperty("warmup_iterations", &warmupProp) then
                 warmupProp.GetInt64()
             else
@@ -43,12 +47,12 @@ type Benchmark() =
 
     member this.RunAll() =
         let iters = this.Iterations
+
         for i in 0L .. iters - 1L do
             this.Run(i)
 
-    member this.ConfigVal(fieldName: string) : int64 =
-        Helper.Config_i64(this.Name, fieldName)
+    member this.ConfigVal(fieldName: string) : int64 = Helper.Config_i64(this.Name, fieldName)
 
-    member this.Iterations : int64 = this.ConfigVal("iterations")
+    member this.Iterations: int64 = this.ConfigVal("iterations")
 
-    member this.ExpectedChecksum : int64 = this.ConfigVal("checksum")
+    member this.ExpectedChecksum: int64 = this.ConfigVal("checksum")

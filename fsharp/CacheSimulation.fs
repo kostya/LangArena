@@ -20,14 +20,15 @@ type private Node<'K, 'V>() =
     member _.SetNext(v) = next <- v
 
 [<AllowNullLiteral>]
-type private LRUCache<'K, 'V when 'K : equality>(capacity: int) =
+type private LRUCache<'K, 'V when 'K: equality>(capacity: int) =
     let cache = Dictionary<'K, Node<'K, 'V>>()
     let mutable head: Node<'K, 'V> = null
     let mutable tail: Node<'K, 'V> = null
     let mutable size = 0
 
     let moveToFront (node: Node<'K, 'V>) =
-        if obj.ReferenceEquals(node, head) then ()  
+        if obj.ReferenceEquals(node, head) then
+            ()
         else
 
             let prevNode = node.Prev
@@ -71,6 +72,7 @@ type private LRUCache<'K, 'V when 'K : equality>(capacity: int) =
             cache.Remove(oldest.Key) |> ignore
 
             let oldestPrev = oldest.Prev
+
             if not (isNull oldestPrev) then
                 oldestPrev.SetNext(null)
                 tail <- oldestPrev
@@ -140,11 +142,14 @@ type CacheSimulation() =
         let mutable finalResult = result
         finalResult <- (finalResult <<< 5) + uint32 hits
         finalResult <- (finalResult <<< 5) + uint32 misses
-        if not (isNull cache) then 
+
+        if not (isNull cache) then
             finalResult <- (finalResult <<< 5) + uint32 cache.Size
-        else 
+        else
             finalResult <- finalResult <<< 5
+
         finalResult
+
     override this.Name = "Etc::CacheSimulation"
 
     override this.Prepare() =
@@ -157,7 +162,7 @@ type CacheSimulation() =
 
     override this.Run(_: int64) =
         if not (isNull cache) then
-            for т in 1 .. 1000 do
+            for т in 1..1000 do
                 let key = buildKey (Helper.NextInt(valuesSize))
 
                 match cache.Get(key) with

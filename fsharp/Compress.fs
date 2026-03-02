@@ -9,11 +9,9 @@ module CompressHelpers =
         Array.init (int size) (fun i -> pattern.[i % pattern.Length])
 
 [<Struct>]
-type BWTResult = 
-    { 
-        Transformed: byte[]
-        OriginalIdx: int 
-    }
+type BWTResult =
+    { Transformed: byte[]
+      OriginalIdx: int }
 
 type BWTEncode =
     inherit Benchmark
@@ -26,32 +24,37 @@ type BWTEncode =
     member this.TestData = this.testData
     member this.BwtResult = this.bwtResult
 
-    new() = 
-        { 
-            inherit Benchmark()
-            sizeVal = Helper.Config_i64("Compress::BWTEncode", "size")
-            testData = Array.empty<byte>
-            bwtResult = { Transformed = Array.empty<byte>; OriginalIdx = 0 }
-            resultVal = uint32 0
-        }
+    new() =
+        { inherit Benchmark()
+          sizeVal = Helper.Config_i64("Compress::BWTEncode", "size")
+          testData = Array.empty<byte>
+          bwtResult =
+            { Transformed = Array.empty<byte>
+              OriginalIdx = 0 }
+          resultVal = uint32 0 }
 
     member private this.BwtTransform(input: byte[]) : BWTResult =
         let n = input.Length
-        if n = 0 then { Transformed = [||]; OriginalIdx = 0 }
+
+        if n = 0 then
+            { Transformed = [||]; OriginalIdx = 0 }
         else
 
             let counts = Array.zeroCreate<int> 256
+
             for i = 0 to n - 1 do
                 counts.[int input.[i]] <- counts.[int input.[i]] + 1
 
             let positions = Array.zeroCreate<int> 256
             let mutable total = 0
+
             for i = 0 to 255 do
                 positions.[i] <- total
                 total <- total + counts.[i]
                 counts.[i] <- 0
 
             let sa = Array.zeroCreate<int> n
+
             for i = 0 to n - 1 do
                 let byteVal = int input.[i]
                 let pos = positions.[byteVal] + counts.[byteVal]
@@ -66,22 +69,31 @@ type BWTEncode =
                 for i = 0 to n - 1 do
                     let idx = sa.[i]
                     let currChar = input.[idx]
+
                     if currChar <> prevChar then
                         currentRank <- currentRank + 1
                         prevChar <- currChar
+
                     rank.[idx] <- currentRank
 
                 let mutable k = 1
+
                 while k < n do
 
                     let saCopy = Array.copy sa
-                    System.Array.Sort(sa, 
+
+                    System.Array.Sort(
+                        sa,
                         { new System.Collections.Generic.IComparer<int> with
                             member _.Compare(a, b) =
                                 let ra = rank.[a]
                                 let rb = rank.[b]
-                                if ra <> rb then compare ra rb
-                                else compare rank.[(a + k) % n] rank.[(b + k) % n] })
+
+                                if ra <> rb then
+                                    compare ra rb
+                                else
+                                    compare rank.[(a + k) % n] rank.[(b + k) % n] }
+                    )
 
                     let newRank = Array.zeroCreate<int> n
                     newRank.[sa.[0]] <- 0
@@ -89,11 +101,16 @@ type BWTEncode =
                     for i = 1 to n - 1 do
                         let prevIdx = sa.[i - 1]
                         let currIdx = sa.[i]
-                        newRank.[currIdx] <- 
-                            newRank.[prevIdx] + 
-                            (if rank.[prevIdx] <> rank.[currIdx] || 
-                                rank.[(prevIdx + k) % n] <> rank.[(currIdx + k) % n] 
-                             then 1 else 0)
+
+                        newRank.[currIdx] <-
+                            newRank.[prevIdx]
+                            + (if
+                                   rank.[prevIdx] <> rank.[currIdx]
+                                   || rank.[(prevIdx + k) % n] <> rank.[(currIdx + k) % n]
+                               then
+                                   1
+                               else
+                                   0)
 
                     System.Array.Copy(newRank, rank, n)
                     k <- k * 2
@@ -103,13 +120,15 @@ type BWTEncode =
 
             for i = 0 to n - 1 do
                 let suffix = sa.[i]
+
                 if suffix = 0 then
                     transformed.[i] <- input.[n - 1]
                     originalIdx <- i
                 else
                     transformed.[i] <- input.[suffix - 1]
 
-            { Transformed = transformed; OriginalIdx = originalIdx }
+            { Transformed = transformed
+              OriginalIdx = originalIdx }
 
     override this.Name = "Compress::BWTEncode"
 
@@ -129,19 +148,28 @@ type BWTDecode() =
     let mutable sizeVal = 0L
     let mutable testData = Array.empty<byte>
     let mutable inverted = Array.empty<byte>
-    let mutable bwtResult = { Transformed = Array.empty; OriginalIdx = 0 }
+
+    let mutable bwtResult =
+        { Transformed = Array.empty
+          OriginalIdx = 0 }
+
     let mutable resultVal = 0u
 
     member private this.BwtInverse(bwtResult: BWTResult) : byte[] =
         let bwt = bwtResult.Transformed
         let n = bwt.Length
-        if n = 0 then [||]
+
+        if n = 0 then
+            [||]
         else
             let counts = Array.zeroCreate<int> 256
-            for b in bwt do counts.[int b] <- counts.[int b] + 1
+
+            for b in bwt do
+                counts.[int b] <- counts.[int b] + 1
 
             let positions = Array.zeroCreate<int> 256
             let mutable total = 0
+
             for i = 0 to 255 do
                 positions.[i] <- total
                 total <- total + counts.[i]
@@ -182,11 +210,17 @@ type BWTDecode() =
 
     override this.Checksum =
         let mutable res = resultVal
+
         if inverted <> null && testData <> null && inverted.Length = testData.Length then
             let mutable equal = true
+
             for i = 0 to inverted.Length - 1 do
-                if inverted.[i] <> testData.[i] then equal <- false
-            if equal then res <- res + 100000u
+                if inverted.[i] <> testData.[i] then
+                    equal <- false
+
+            if equal then
+                res <- res + 100000u
+
         res
 
 module Huffman =
@@ -197,7 +231,7 @@ module Huffman =
         let mutable l = left
         let mutable r = right
 
-        new(frequency: int, byteVal: byte) = 
+        new(frequency: int, byteVal: byte) =
             HuffmanNode(frequency, byteVal, true, Unchecked.defaultof<HuffmanNode>, Unchecked.defaultof<HuffmanNode>)
 
         member this.Frequency = freq
@@ -217,12 +251,10 @@ module Huffman =
         member _.CodeLengths = codeLengths
         member _.Codes = codes
 
-    type EncodedResult = 
-        { 
-            Data: byte[]
-            BitCount: int
-            Frequencies: int[]
-        }
+    type EncodedResult =
+        { Data: byte[]
+          BitCount: int
+          Frequencies: int[] }
 
     let rec buildHuffmanTree (frequencies: int[]) : HuffmanNode =
         let nodes = List<HuffmanNode>()
@@ -247,9 +279,10 @@ module Huffman =
                 let parent = HuffmanNode(left.Frequency + right.Frequency, 0uy, false, left, right)
 
                 let pos = nodesList |> List.tryFindIndex (fun n -> n.Frequency >= parent.Frequency)
+
                 match pos with
-                | Some p -> nodesList <- nodesList.[0..p-1] @ [parent] @ nodesList.[p..]
-                | None -> nodesList <- nodesList @ [parent]
+                | Some p -> nodesList <- nodesList.[0 .. p - 1] @ [ parent ] @ nodesList.[p..]
+                | None -> nodesList <- nodesList @ [ parent ]
 
             nodesList.[0]
 
@@ -262,12 +295,13 @@ module Huffman =
         else
             if node.Left <> Unchecked.defaultof<HuffmanNode> then
                 buildHuffmanCodes node.Left (code <<< 1) (length + 1) codes
+
             if node.Right <> Unchecked.defaultof<HuffmanNode> then
                 buildHuffmanCodes node.Right ((code <<< 1) ||| 1) (length + 1) codes
 
     let huffmanEncode (data: byte[]) (codes: HuffmanCodes) (frequencies: int[]) : EncodedResult =
 
-        let result = ResizeArray<byte>(data.Length * 2)  
+        let result = ResizeArray<byte>(data.Length * 2)
         let mutable currentByte = 0uy
         let mutable bitPos = 0
         let mutable totalBits = 0
@@ -285,18 +319,16 @@ module Huffman =
                 totalBits <- totalBits + 1
 
                 if bitPos = 8 then
-                    result.Add(currentByte)  
+                    result.Add(currentByte)
                     currentByte <- 0uy
                     bitPos <- 0
 
         if bitPos > 0 then
-            result.Add(currentByte)  
+            result.Add(currentByte)
 
-        { 
-            Data = result.ToArray()
-            BitCount = totalBits
-            Frequencies = frequencies
-        }
+        { Data = result.ToArray()
+          BitCount = totalBits
+          Frequencies = frequencies }
 
     let huffmanDecode (encoded: byte[]) (root: HuffmanNode) (bitCount: int) : byte[] =
         let result = Array.zeroCreate<byte> bitCount
@@ -311,6 +343,7 @@ module Huffman =
             byteIndex <- byteIndex + 1
 
             let mutable bitPos = 7
+
             while bitPos >= 0 && bitsProcessed < bitCount do
                 let bit = (byteVal >>> bitPos) &&& 1uy
                 bitsProcessed <- bitsProcessed + 1
@@ -325,9 +358,9 @@ module Huffman =
 
                 bitPos <- bitPos - 1
 
-        if resultSize = bitCount then 
-            result 
-        else 
+        if resultSize = bitCount then
+            result
+        else
             Array.sub result 0 resultSize
 
 type HuffEncode =
@@ -341,14 +374,12 @@ type HuffEncode =
     member this.Encoded = this.encodedResult
     member this.TestData = this.testData
 
-    new() = 
-        { 
-            inherit Benchmark()
-            sizeVal = Helper.Config_i64("Compress::HuffEncode", "size")
-            testData = Array.empty<byte>
-            encodedResult = Unchecked.defaultof<Huffman.EncodedResult>
-            resultVal = uint32 0
-        }
+    new() =
+        { inherit Benchmark()
+          sizeVal = Helper.Config_i64("Compress::HuffEncode", "size")
+          testData = Array.empty<byte>
+          encodedResult = Unchecked.defaultof<Huffman.EncodedResult>
+          resultVal = uint32 0 }
 
     override this.Name = "Compress::HuffEncode"
 
@@ -358,6 +389,7 @@ type HuffEncode =
 
     override this.Run(iterationId: int64) =
         let frequencies = Array.zeroCreate<int> 256
+
         for b in this.testData do
             frequencies.[int b] <- frequencies.[int b] + 1
 
@@ -400,11 +432,17 @@ type HuffDecode() =
 
     override this.Checksum =
         let mutable res = resultVal
+
         if decoded <> null && testData <> null && decoded.Length = testData.Length then
             let mutable equal = true
+
             for i = 0 to decoded.Length - 1 do
-                if decoded.[i] <> testData.[i] then equal <- false
-            if equal then res <- res + 100000u
+                if decoded.[i] <> testData.[i] then
+                    equal <- false
+
+            if equal then
+                res <- res + 100000u
+
         res
 
 type ArithFreqTable(frequencies: int[]) =
@@ -413,9 +451,11 @@ type ArithFreqTable(frequencies: int[]) =
     let high = Array.zeroCreate<int> 256
 
     do
-        for f in frequencies do total <- total + f
+        for f in frequencies do
+            total <- total + f
 
         let mutable cum = 0
+
         for i = 0 to 255 do
             low.[i] <- cum
             cum <- cum + frequencies.[i]
@@ -445,16 +485,15 @@ type BitOutputStream() =
         if bitPos > 0 then
             buffer <- buffer <<< (8 - bitPos)
             bytes.Add(byte buffer)
+
         bytes.ToArray()
 
     member _.BitsWritten = bitsWritten
 
-type ArithEncodedResult = 
-    { 
-        Data: byte[]
-        BitCount: int
-        Frequencies: int[]
-    }
+type ArithEncodedResult =
+    { Data: byte[]
+      BitCount: int
+      Frequencies: int[] }
 
 type ArithEncode =
     inherit Benchmark
@@ -467,18 +506,21 @@ type ArithEncode =
     member this.TestData = this.testData
     member this.Encoded = this.encoded
 
-    new() = 
-        { 
-            inherit Benchmark()
-            sizeVal = Helper.Config_i64("Compress::ArithEncode", "size")
-            testData = Array.empty<byte>
-            encoded = { Data = Array.empty<byte>; BitCount = 0; Frequencies = Array.empty<int> }
-            resultVal = uint32 0
-        }
+    new() =
+        { inherit Benchmark()
+          sizeVal = Helper.Config_i64("Compress::ArithEncode", "size")
+          testData = Array.empty<byte>
+          encoded =
+            { Data = Array.empty<byte>
+              BitCount = 0
+              Frequencies = Array.empty<int> }
+          resultVal = uint32 0 }
 
     member private this.ArithEncode(data: byte[]) : ArithEncodedResult =
         let frequencies = Array.zeroCreate<int> 256
-        for b in data do frequencies.[int b] <- frequencies.[int b] + 1
+
+        for b in data do
+            frequencies.[int b] <- frequencies.[int b] + 1
 
         let freqTable = ArithFreqTable(frequencies)
 
@@ -495,14 +537,21 @@ type ArithEncode =
             low <- low + (range * uint64 freqTable.Low.[idx] / uint64 freqTable.Total)
 
             let mutable cont = true
+
             while cont do
                 if high < 0x80000000UL then
                     output.WriteBit(0)
-                    for i = 0 to pending - 1 do output.WriteBit(1)
+
+                    for i = 0 to pending - 1 do
+                        output.WriteBit(1)
+
                     pending <- 0
                 elif low >= 0x80000000UL then
                     output.WriteBit(1)
-                    for i = 0 to pending - 1 do output.WriteBit(0)
+
+                    for i = 0 to pending - 1 do
+                        output.WriteBit(0)
+
                     pending <- 0
                     low <- low - 0x80000000UL
                     high <- high - 0x80000000UL
@@ -513,24 +562,29 @@ type ArithEncode =
                 else
                     cont <- false
 
-                if not cont then () else
-                low <- low <<< 1
-                high <- (high <<< 1) ||| 1UL
-                high <- high &&& 0xFFFFFFFFUL
+                if not cont then
+                    ()
+                else
+                    low <- low <<< 1
+                    high <- (high <<< 1) ||| 1UL
+                    high <- high &&& 0xFFFFFFFFUL
 
         pending <- pending + 1
+
         if low < 0x40000000UL then
             output.WriteBit(0)
-            for i = 0 to pending - 1 do output.WriteBit(1)
+
+            for i = 0 to pending - 1 do
+                output.WriteBit(1)
         else
             output.WriteBit(1)
-            for i = 0 to pending - 1 do output.WriteBit(0)
 
-        { 
-            Data = output.Flush()
-            BitCount = output.BitsWritten
-            Frequencies = frequencies
-        }
+            for i = 0 to pending - 1 do
+                output.WriteBit(0)
+
+        { Data = output.Flush()
+          BitCount = output.BitsWritten
+          Frequencies = frequencies }
 
     override this.Name = "Compress::ArithEncode"
 
@@ -565,7 +619,12 @@ type ArithDecode() =
     let mutable sizeVal = 0L
     let mutable testData = Array.empty<byte>
     let mutable decoded = Array.empty<byte>
-    let mutable encoded = { Data = Array.empty; BitCount = 0; Frequencies = Array.empty }
+
+    let mutable encoded =
+        { Data = Array.empty
+          BitCount = 0
+          Frequencies = Array.empty }
+
     let mutable resultVal = 0u
 
     member private this.ArithDecode(encoded: ArithEncodedResult) : byte[] =
@@ -576,6 +635,7 @@ type ArithDecode() =
         let lowTable = Array.zeroCreate<int> 256
         let highTable = Array.zeroCreate<int> 256
         let mutable cum = 0
+
         for i = 0 to 255 do
             lowTable.[i] <- cum
             cum <- cum + frequencies.[i]
@@ -585,6 +645,7 @@ type ArithDecode() =
         let input = BitInputStream(encoded.Data)
 
         let mutable value = 0UL
+
         for i = 0 to 31 do
             value <- (value <<< 1) ||| uint64 (input.ReadBit())
 
@@ -596,6 +657,7 @@ type ArithDecode() =
             let scaled = ((value - low + 1UL) * uint64 total - 1UL) / range
 
             let mutable symbol = 0
+
             while symbol < 255 && uint64 highTable.[symbol] <= scaled do
                 symbol <- symbol + 1
 
@@ -605,6 +667,7 @@ type ArithDecode() =
             low <- low + (range * uint64 lowTable.[symbol] / uint64 total)
 
             let mutable cont = true
+
             while cont do
                 if high < 0x80000000UL then
 
@@ -645,18 +708,20 @@ type ArithDecode() =
 
     override this.Checksum =
         let mutable res = resultVal
+
         if decoded <> null && testData <> null && decoded.Length = testData.Length then
             let mutable equal = true
+
             for i = 0 to decoded.Length - 1 do
-                if decoded.[i] <> testData.[i] then equal <- false
-            if equal then res <- res + 100000u
+                if decoded.[i] <> testData.[i] then
+                    equal <- false
+
+            if equal then
+                res <- res + 100000u
+
         res
 
-type LZWResult = 
-    { 
-        Data: byte[]
-        DictSize: int 
-    }
+type LZWResult = { Data: byte[]; DictSize: int }
 
 type LZWEncode =
     inherit Benchmark
@@ -669,31 +734,32 @@ type LZWEncode =
     member this.TestData = this.testData
     member this.Encoded = this.encoded
 
-    new() = 
-        { 
-            inherit Benchmark()
-            sizeVal = Helper.Config_i64("Compress::LZWEncode", "size")
-            testData = Array.empty<byte>
-            encoded = { Data = Array.empty<byte>; DictSize = 256 }
-            resultVal = uint32 0
-        }
+    new() =
+        { inherit Benchmark()
+          sizeVal = Helper.Config_i64("Compress::LZWEncode", "size")
+          testData = Array.empty<byte>
+          encoded =
+            { Data = Array.empty<byte>
+              DictSize = 256 }
+          resultVal = uint32 0 }
 
     member private this.LzwEncode(input: byte[]) : LZWResult =
-        if input.Length = 0 then { Data = [||]; DictSize = 256 }
+        if input.Length = 0 then
+            { Data = [||]; DictSize = 256 }
         else
             let dict = System.Collections.Generic.Dictionary<string, int>(4096)
 
             for i = 0 to 255 do
-                dict.[string(char i)] <- i
+                dict.[string (char i)] <- i
 
             let mutable nextCode = 256
 
             let result = System.Collections.Generic.List<byte>(input.Length * 2)
 
-            let mutable current = string(char input.[0])
+            let mutable current = string (char input.[0])
 
             for i = 1 to input.Length - 1 do
-                let nextChar = string(char input.[i])
+                let nextChar = string (char input.[i])
                 let newStr = current + nextChar
 
                 if dict.ContainsKey(newStr) then
@@ -711,7 +777,8 @@ type LZWEncode =
             result.Add(byte ((code >>> 8) &&& 0xFF))
             result.Add(byte (code &&& 0xFF))
 
-            { Data = result.ToArray(); DictSize = nextCode }
+            { Data = result.ToArray()
+              DictSize = nextCode }
 
     override this.Name = "Compress::LZWEncode"
 
@@ -735,12 +802,14 @@ type LZWDecode() =
     let mutable resultVal = 0u
 
     member private this.LzwDecode(encoded: LZWResult) : byte[] =
-        if encoded.Data.Length = 0 then [||]
+        if encoded.Data.Length = 0 then
+            [||]
         else
             let dict = System.Collections.Generic.List<string>()
+
             for i = 0 to 255 do
 
-                dict.Add(string(char i))
+                dict.Add(string (char i))
 
             let result = System.Collections.Generic.List<byte>()
             let data = encoded.Data
@@ -764,19 +833,23 @@ type LZWDecode() =
                 let newCode = (high <<< 8) ||| low
                 pos <- pos + 2
 
-                let newStr = 
+                let newStr =
                     if newCode < dict.Count then
                         dict.[newCode]
                     elif newCode = nextCode then
 
-                        oldStr + string(oldStr.[0])
+                        oldStr + string (oldStr.[0])
                     else
-                        failwithf "LZW decode error: invalid code %d (nextCode=%d, dict.Count=%d)" newCode nextCode dict.Count
+                        failwithf
+                            "LZW decode error: invalid code %d (nextCode=%d, dict.Count=%d)"
+                            newCode
+                            nextCode
+                            dict.Count
 
                 for c in newStr do
                     result.Add(byte c)
 
-                dict.Add(oldStr + string(newStr.[0]))
+                dict.Add(oldStr + string (newStr.[0]))
                 nextCode <- nextCode + 1
                 oldStr <- newStr
 
@@ -800,12 +873,15 @@ type LZWDecode() =
 
     override this.Checksum =
         let mutable res = resultVal
+
         if decoded <> null && testData <> null && decoded.Length = testData.Length then
             let mutable equal = true
+
             for i = 0 to decoded.Length - 1 do
-                if decoded.[i] <> testData.[i] then 
+                if decoded.[i] <> testData.[i] then
                     equal <- false
 
-            if equal then 
+            if equal then
                 res <- res + 100000u
+
         res

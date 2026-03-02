@@ -8,28 +8,28 @@ type ArrayTape =
     val mutable tape: byte[]
     val mutable pos: int
 
-    new(tape: byte[], pos: int) = 
-        { tape = tape
-          pos = pos }
+    new(tape: byte[], pos: int) = { tape = tape; pos = pos }
 
     static member Default() : ArrayTape =
         ArrayTape(Array.zeroCreate<byte> 30000, 0)
 
     member this.Get() : byte = this.tape.[this.pos]
 
-    member this.Inc() : unit = 
+    member this.Inc() : unit =
         this.tape.[this.pos] <- this.tape.[this.pos] + 1uy
 
-    member this.Dec() : unit = 
+    member this.Dec() : unit =
         this.tape.[this.pos] <- this.tape.[this.pos] - 1uy
 
     member this.Advance() : unit =
         this.pos <- this.pos + 1
+
         if this.pos >= this.tape.Length then
             Array.Resize(&this.tape, this.tape.Length + 1)
 
     member this.Devance() : unit =
-        if this.pos > 0 then this.pos <- this.pos - 1
+        if this.pos > 0 then
+            this.pos <- this.pos - 1
 
 type BrainfuckArrayProgram(text: string) =
     let commands = ResizeArray<byte>()
@@ -46,6 +46,7 @@ type BrainfuckArrayProgram(text: string) =
 
         for i in 0 .. commands.Count - 1 do
             let cmd = commands.[i]
+
             if cmd = byte '[' then
                 stack.Push(i)
             elif cmd = byte ']' && stack.Count > 0 then
@@ -103,6 +104,7 @@ type BrainfuckArray() =
 
     override this.Warmup() =
         let prepareIters = base.WarmupIterations
+
         for i in 0L .. prepareIters - 1L do
             let program = BrainfuckArrayProgram(warmupText)
             program.Run() |> ignore
@@ -112,12 +114,12 @@ type BrainfuckArray() =
         result <- result + program.Run()
 
 type BfOp =
-    | OpInc      
-    | OpDec      
-    | OpNext     
-    | OpPrev     
-    | OpPrint    
-    | OpLoop of BfOp list  
+    | OpInc
+    | OpDec
+    | OpNext
+    | OpPrev
+    | OpPrint
+    | OpLoop of BfOp list
 
 type RecTape() =
     let mutable tape = Array.zeroCreate<byte> 30000
@@ -129,11 +131,13 @@ type RecTape() =
 
     member _.Next() =
         pos <- pos + 1
+
         if pos >= tape.Length then
             Array.Resize(&tape, pos + 1)
 
     member _.Prev() =
-        if pos > 0 then pos <- pos - 1
+        if pos > 0 then
+            pos <- pos - 1
 
 type BrainfuckRecursionProgram(code: string) =
     let mutable result = 0u
@@ -145,19 +149,19 @@ type BrainfuckRecursionProgram(code: string) =
                 ([], pos)
             else
                 match code.[pos] with
-                | '+' -> 
+                | '+' ->
                     let (rest, nextPos) = parseLoop (pos + 1)
                     (OpInc :: rest, nextPos)
-                | '-' -> 
+                | '-' ->
                     let (rest, nextPos) = parseLoop (pos + 1)
                     (OpDec :: rest, nextPos)
-                | '>' -> 
+                | '>' ->
                     let (rest, nextPos) = parseLoop (pos + 1)
                     (OpNext :: rest, nextPos)
-                | '<' -> 
+                | '<' ->
                     let (rest, nextPos) = parseLoop (pos + 1)
                     (OpPrev :: rest, nextPos)
-                | '.' -> 
+                | '.' ->
                     let (rest, nextPos) = parseLoop (pos + 1)
                     (OpPrint :: rest, nextPos)
                 | '[' ->
@@ -181,8 +185,7 @@ type BrainfuckRecursionProgram(code: string) =
                 | OpDec -> tape.Dec()
                 | OpNext -> tape.Next()
                 | OpPrev -> tape.Prev()
-                | OpPrint -> 
-                    result <- (result <<< 2) + uint32(tape.Get())
+                | OpPrint -> result <- (result <<< 2) + uint32 (tape.Get())
                 | OpLoop(inner) ->
                     while tape.Get() <> 0uy do
                         runOps inner
@@ -207,6 +210,7 @@ type BrainfuckRecursion() =
 
     override this.Warmup() =
         let prepareIters = base.WarmupIterations
+
         for i in 0L .. prepareIters - 1L do
             BrainfuckRecursionProgram(warmupText).Run() |> ignore
 

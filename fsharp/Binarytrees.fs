@@ -5,23 +5,29 @@ open System.Collections.Generic
 
 [<AllowNullLiteral>]
 type TreeNodeObj(item: int, depth: int) =
-    let left = 
-        if depth > 0 then 
+    let left =
+        if depth > 0 then
             let shift = 1 <<< (depth - 1)
             TreeNodeObj(item - shift, depth - 1)
-        else null
-    let right = 
-        if depth > 0 then 
+        else
+            null
+
+    let right =
+        if depth > 0 then
             let shift = 1 <<< (depth - 1)
             TreeNodeObj(item + shift, depth - 1)
-        else null
+        else
+            null
 
     member this.Sum() : uint32 =
         let mutable total = uint32 item + 1u
+
         if not (isNull left) then
             total <- total + left.Sum()
+
         if not (isNull right) then
             total <- total + right.Sum()
+
         total
 
 type BinarytreesObj() =
@@ -73,6 +79,7 @@ type TreeArena() =
 
         if node.Left >= 0 then
             total <- total + this.Sum(node.Left)
+
         if node.Right >= 0 then
             total <- total + this.Sum(node.Right)
 

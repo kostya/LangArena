@@ -7,8 +7,11 @@ open System.Text
 type Mandelbrot() =
     inherit Benchmark()
 
-    let [<Literal>] ITER = 50
-    let [<Literal>] LIMIT = 2.0
+    [<Literal>]
+    let ITER = 50
+
+    [<Literal>]
+    let LIMIT = 2.0
 
     let mutable width = 0L
     let mutable height = 0L
@@ -16,12 +19,16 @@ type Mandelbrot() =
 
     let inMandelbrotSet (x: int) (y: int) (w: int) (h: int) =
         let rec iterate zr zi cr ci i =
-            if i >= ITER then true
+            if i >= ITER then
+                true
             else
                 let tr = zr * zr - zi * zi + cr
                 let ti = 2.0 * zr * zi + ci
-                if tr * tr + ti * ti > LIMIT * LIMIT then false
-                else iterate tr ti cr ci (i + 1)
+
+                if tr * tr + ti * ti > LIMIT * LIMIT then
+                    false
+                else
+                    iterate tr ti cr ci (i + 1)
 
         let cr = 2.0 * float x / float w - 1.5
         let ci = 2.0 * float y / float h - 1.0
@@ -44,7 +51,7 @@ type Mandelbrot() =
             else
                 (newByteAcc, newBitNum)
 
-        Seq.fold folder (byteAcc, bitNum) [0..w-1]
+        Seq.fold folder (byteAcc, bitNum) [ 0 .. w - 1 ]
 
     override _.Checksum = Helper.Checksum(resultStream.ToArray())
     override this.Name = "CLBG::Mandelbrot"
@@ -65,7 +72,8 @@ type Mandelbrot() =
         let initialState = (0uy, 0)
 
         let rec processRows y (byteAcc, bitNum) =
-            if y >= h then ()
+            if y >= h then
+                ()
             else
                 let newState = processRow y w h (byteAcc, bitNum) resultStream
                 processRows (y + 1) newState

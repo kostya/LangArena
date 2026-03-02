@@ -4,16 +4,15 @@ open System
 
 module HashAlgorithms =
     module SHA256Like =
-        let private initialHashes = [|
-            0x6a09e667u
-            0xbb67ae85u
-            0x3c6ef372u
-            0xa54ff53au
-            0x510e527fu
-            0x9b05688cu
-            0x1f83d9abu
-            0x5be0cd19u
-        |]
+        let private initialHashes =
+            [| 0x6a09e667u
+               0xbb67ae85u
+               0x3c6ef372u
+               0xa54ff53au
+               0x510e527fu
+               0x9b05688cu
+               0x1f83d9abu
+               0x5be0cd19u |]
 
         let compute (data: byte[]) =
             let hashes = Array.copy initialHashes
@@ -23,7 +22,7 @@ module HashAlgorithms =
                 let hashIdx = i % 8
                 let b = uint32 b
 
-                let hash = 
+                let hash =
                     hashes.[hashIdx]
                     |> fun h -> ((h <<< 5) + h) + b
                     |> fun h -> h &&& 0xFFFFFFFFu
@@ -41,10 +40,10 @@ module HashAlgorithms =
                 result.[i * 4 + 2] <- byte ((hash >>> 8) &&& 0xFFu)
                 result.[i * 4 + 3] <- byte (hash &&& 0xFFu)
 
-            (uint32 result.[0]) |||
-            (uint32 result.[1] <<< 8) |||
-            (uint32 result.[2] <<< 16) |||
-            (uint32 result.[3] <<< 24)
+            (uint32 result.[0])
+            ||| (uint32 result.[1] <<< 8)
+            ||| (uint32 result.[2] <<< 16)
+            ||| (uint32 result.[3] <<< 24)
 
     module CRC32 =
         let compute (data: byte[]) =

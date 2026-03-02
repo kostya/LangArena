@@ -10,9 +10,17 @@ type SortBenchmark() =
     let mutable size = 0L
     let mutable result = 0u
 
-    member _.Data with get() = data and set(v) = data <- v
-    member _.Size with get() = size and set(v) = size <- v
-    member _.Result with get() = result and set(v) = result <- v
+    member _.Data
+        with get () = data
+        and set (v) = data <- v
+
+    member _.Size
+        with get () = size
+        and set (v) = size <- v
+
+    member _.Result
+        with get () = result
+        and set (v) = result <- v
 
     override this.Prepare() =
         size <- this.ConfigVal("size")
@@ -35,7 +43,8 @@ type SortMerge() =
         let temp = Array.zeroCreate<int> arr.Length
 
         let rec mergeSortHelper left right =
-            if left >= right then ()
+            if left >= right then
+                ()
             else
                 let mid = (left + right) / 2
                 mergeSortHelper left mid
@@ -58,6 +67,7 @@ type SortMerge() =
                 else
                     arr.[k] <- temp.[jIdx]
                     jIdx <- jIdx + 1
+
                 k <- k + 1
 
             while iIdx <= mid do
@@ -71,6 +81,7 @@ type SortMerge() =
         let arr = Array.copy this.Data
         mergeSortInplace arr
         arr
+
     override this.Name = "Sort::Merge"
 
 type SortQuick() =
@@ -78,7 +89,8 @@ type SortQuick() =
 
     let quickSort (arr: int[]) =
         let rec sort low high =
-            if low >= high then ()
+            if low >= high then
+                ()
             else
                 let pivot = arr.[(low + high) / 2]
                 let mutable i = low
@@ -107,6 +119,7 @@ type SortQuick() =
         let arr = Array.copy this.Data
         quickSort arr
         arr
+
     override this.Name = "Sort::Quick"
 
 type SortSelf() =
@@ -116,4 +129,5 @@ type SortSelf() =
         let arr = Array.copy this.Data
         Array.Sort(arr)
         arr
+
     override this.Name = "Sort::Self"

@@ -8,12 +8,19 @@ type Synapse(sourceNeuron: Neuron, destNeuron: Neuron) =
 
     member _.SourceNeuron = sourceNeuron
     member _.DestNeuron = destNeuron
-    member _.Weight with get() = weight and set(v) = weight <- v
-    member _.PrevWeight with get() = prevWeight and set(v) = prevWeight <- v
+
+    member _.Weight
+        with get () = weight
+        and set (v) = weight <- v
+
+    member _.PrevWeight
+        with get () = prevWeight
+        and set (v) = prevWeight <- v
 
 and Neuron() =
     [<Literal>]
     let LEARNING_RATE = 1.0
+
     [<Literal>]
     let MOMENTUM = 0.3
 
@@ -27,17 +34,31 @@ and Neuron() =
 
     member _.SynapsesIn = synapsesIn
     member _.SynapsesOut = synapsesOut
-    member _.Threshold with get() = threshold and set(v) = threshold <- v
-    member _.PrevThreshold with get() = prevThreshold and set(v) = prevThreshold <- v
-    member _.Error with get() = error and set(v) = error <- v
-    member _.Output with get() = output and set(v) = output <- v
+
+    member _.Threshold
+        with get () = threshold
+        and set (v) = threshold <- v
+
+    member _.PrevThreshold
+        with get () = prevThreshold
+        and set (v) = prevThreshold <- v
+
+    member _.Error
+        with get () = error
+        and set (v) = error <- v
+
+    member _.Output
+        with get () = output
+        and set (v) = output <- v
 
     member this.CalculateOutput() =
         let mutable activation = 0.0
+
         for synapse in synapsesIn do
             activation <- activation + synapse.Weight * synapse.SourceNeuron.Output
+
         activation <- activation - threshold
-        output <- 1.0 / (1.0 + exp(-activation))
+        output <- 1.0 / (1.0 + exp (-activation))
 
     member private this.Derivative() = output * (1.0 - output)
 
@@ -47,23 +68,31 @@ and Neuron() =
 
     member this.HiddenTrain(rate: double) =
         error <- 0.0
+
         for synapse in synapsesOut do
             error <- error + synapse.PrevWeight * synapse.DestNeuron.Error
+
         error <- error * this.Derivative()
         this.UpdateWeights(rate)
 
     member private this.UpdateWeights(rate: double) =
         for synapse in synapsesIn do
             let tempWeight = synapse.Weight
-            synapse.Weight <- synapse.Weight + 
-                (rate * LEARNING_RATE * error * synapse.SourceNeuron.Output) +
-                (MOMENTUM * (synapse.Weight - synapse.PrevWeight))
+
+            synapse.Weight <-
+                synapse.Weight
+                + (rate * LEARNING_RATE * error * synapse.SourceNeuron.Output)
+                + (MOMENTUM * (synapse.Weight - synapse.PrevWeight))
+
             synapse.PrevWeight <- tempWeight
 
         let tempThreshold = threshold
-        threshold <- threshold + 
-            (rate * LEARNING_RATE * error * -1.0) +
-            (MOMENTUM * (threshold - prevThreshold))
+
+        threshold <-
+            threshold
+            + (rate * LEARNING_RATE * error * -1.0)
+            + (MOMENTUM * (threshold - prevThreshold))
+
         prevThreshold <- tempThreshold
 
 type NeuralNetwork(inputs: int, hidden: int, outputs: int) =
@@ -109,14 +138,14 @@ type NeuralNetwork(inputs: int, hidden: int, outputs: int) =
 type NeuralNet() =
     inherit Benchmark()
 
-    static let INPUT_00 = [|0.0; 0.0|]
-    static let INPUT_01 = [|0.0; 1.0|]
-    static let INPUT_10 = [|1.0; 0.0|]
-    static let INPUT_11 = [|1.0; 1.0|]
-    static let TARGET_0 = [|0.0|]
-    static let TARGET_1 = [|1.0|]
+    static let INPUT_00 = [| 0.0; 0.0 |]
+    static let INPUT_01 = [| 0.0; 1.0 |]
+    static let INPUT_10 = [| 1.0; 0.0 |]
+    static let INPUT_11 = [| 1.0; 1.0 |]
+    static let TARGET_0 = [| 0.0 |]
+    static let TARGET_1 = [| 1.0 |]
 
-    let mutable xorNet : NeuralNetwork option = None
+    let mutable xorNet: NeuralNetwork option = None
 
     override this.Checksum =
         match xorNet with
@@ -134,23 +163,30 @@ type NeuralNet() =
             let outputs4 = net.CurrentOutputs()
 
             let mutable sum = 0.0
-            for v in outputs1 do sum <- sum + v
-            for v in outputs2 do sum <- sum + v
-            for v in outputs3 do sum <- sum + v
-            for v in outputs4 do sum <- sum + v
+
+            for v in outputs1 do
+                sum <- sum + v
+
+            for v in outputs2 do
+                sum <- sum + v
+
+            for v in outputs3 do
+                sum <- sum + v
+
+            for v in outputs4 do
+                sum <- sum + v
 
             Helper.Checksum(sum)
         | None -> 0u
 
     override this.Name = "Etc::NeuralNet"
 
-    override this.Prepare() =
-        xorNet <- Some (NeuralNetwork(2, 10, 1))
+    override this.Prepare() = xorNet <- Some(NeuralNetwork(2, 10, 1))
 
     override this.Run(_: int64) =
         match xorNet with
         | Some net ->
-            for _ in 1 .. 1000 do
+            for _ in 1..1000 do
                 net.Train(INPUT_00, TARGET_0)
                 net.Train(INPUT_10, TARGET_1)
                 net.Train(INPUT_01, TARGET_1)

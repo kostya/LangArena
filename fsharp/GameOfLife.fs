@@ -14,6 +14,7 @@ type Cell() =
 
     member this.ComputeNextState() =
         let mutable aliveNeighbors = 0
+
         for i in 0 .. this.NeighborCount - 1 do
             if this.Neighbors.[i].Alive then
                 aliveNeighbors <- aliveNeighbors + 1
@@ -24,8 +25,7 @@ type Cell() =
             else
                 aliveNeighbors = 3
 
-    member this.Update() =
-        this.Alive <- this.NextState
+    member this.Update() = this.Alive <- this.NextState
 
 type Grid(width: int, height: int) =
     let cells = Array2D.init height width (fun _ _ -> Cell())
@@ -35,6 +35,7 @@ type Grid(width: int, height: int) =
         for y in 0 .. height - 1 do
             for x in 0 .. width - 1 do
                 let cell = cells.[y, x]
+
                 for dy in -1 .. 1 do
                     for dx in -1 .. 1 do
                         if not (dx = 0 && dy = 0) then
@@ -59,18 +60,22 @@ type Grid(width: int, height: int) =
 
     member _.CountAlive() =
         let mutable count = 0
+
         for y in 0 .. height - 1 do
             for x in 0 .. width - 1 do
                 if cells.[y, x].Alive then
                     count <- count + 1
+
         count
 
     member _.ComputeHash() =
         let mutable hash = 2166136261u
+
         for y in 0 .. height - 1 do
             for x in 0 .. width - 1 do
                 let alive = if cells.[y, x].Alive then 1u else 0u
                 hash <- (hash ^^^ alive) * 16777619u
+
         hash
 
     member _.GetCells() = cells
@@ -78,12 +83,13 @@ type Grid(width: int, height: int) =
 type GameOfLife() =
     inherit Benchmark()
 
-    let mutable grid : Grid option = None
+    let mutable grid: Grid option = None
 
     override this.Checksum =
         match grid with
         | Some g -> g.ComputeHash() + uint32 (g.CountAlive())
         | None -> 0u
+
     override this.Name = "Etc::GameOfLife"
 
     override this.Prepare() =

@@ -10,7 +10,8 @@ type Spectralnorm() =
     let mutable v = Array.empty<double>
 
     let evalA i j =
-        1.0 / ((double i + double j) * (double i + double j + 1.0) / 2.0 + double i + 1.0)
+        1.0
+        / ((double i + double j) * (double i + double j + 1.0) / 2.0 + double i + 1.0)
 
     member private _.EvalA(i, j) = evalA i j
 
@@ -20,8 +21,10 @@ type Spectralnorm() =
 
         for i in 0 .. length - 1 do
             let mutable sum = 0.0
+
             for j in 0 .. length - 1 do
                 sum <- sum + evalA i j * uArr.[j]
+
             result.[i] <- sum
 
         result
@@ -32,13 +35,15 @@ type Spectralnorm() =
 
         for i in 0 .. length - 1 do
             let mutable sum = 0.0
+
             for j in 0 .. length - 1 do
                 sum <- sum + evalA j i * uArr.[j]
+
             result.[i] <- sum
 
         result
 
-    member private this.EvalAtATimesU(uArr: double[]) = 
+    member private this.EvalAtATimesU(uArr: double[]) =
         let temp = this.EvalATimesU uArr
         this.EvalAtTimesU temp
 
@@ -60,5 +65,6 @@ type Spectralnorm() =
             vBv <- vBv + u.[i] * v.[i]
             vv <- vv + v.[i] * v.[i]
 
-        Helper.Checksum (Math.Sqrt(vBv / vv))
+        Helper.Checksum(Math.Sqrt(vBv / vv))
+
     override this.Name = "CLBG::Spectralnorm"

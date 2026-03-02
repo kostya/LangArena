@@ -8,18 +8,22 @@ type Base64Encode() =
 
     let mutable n = 0
     let mutable str2 = ""
-    let mutable bytes : byte[] = [||]
+    let mutable bytes: byte[] = [||]
     let mutable result = 0u
 
     override this.Checksum =
         let str = Encoding.UTF8.GetString(bytes)
-        let resultStr = 
+
+        let resultStr =
             if str.Length > 4 then
                 $"encode {str.Substring(0, 4)}... to {str2.Substring(0, 4)}...: {result}"
             else
                 $"encode {str} to {str2}: {result}"
+
         Helper.Checksum(resultStr)
+
     override this.Name = "Base64::Encode"
+
     override this.Prepare() =
         n <- Helper.Config_i64("Base64::Encode", "size") |> int
         let str = String('a', n)
@@ -36,18 +40,22 @@ type Base64Decode() =
 
     let mutable n = 0
     let mutable str2 = ""
-    let mutable bytes : byte[] = [||]
+    let mutable bytes: byte[] = [||]
     let mutable result = 0u
 
     override this.Checksum =
         let str3 = Encoding.UTF8.GetString(bytes)
-        let resultStr = 
+
+        let resultStr =
             if str2.Length > 4 then
                 $"decode {str2.Substring(0, 4)}... to {str3.Substring(0, 4)}...: {result}"
             else
                 $"decode {str2} to {str3}: {result}"
+
         Helper.Checksum(resultStr)
+
     override this.Name = "Base64::Decode"
+
     override this.Prepare() =
         n <- Helper.Config_i64("Base64::Decode", "size") |> int
         let str = String('a', n)

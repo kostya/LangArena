@@ -6,14 +6,11 @@ open System.Threading.Tasks
 module MatmulCommon =
     let matGen (n: int) =
         let tmp = 1.0 / float n / float n
-        Array.init n (fun i ->
-            Array.init n (fun j ->
-                tmp * float (i - j) * float (i + j)))
+        Array.init n (fun i -> Array.init n (fun j -> tmp * float (i - j) * float (i + j)))
 
     let transpose (b: double[][]) =
         let n = b.Length
-        Array.init n (fun i ->
-            Array.init n (fun j -> b.[j].[i]))
+        Array.init n (fun i -> Array.init n (fun j -> b.[j].[i]))
 
     let matMulSingleThread (a: double[][]) (b: double[][]) =
         let n = a.Length
@@ -21,12 +18,14 @@ module MatmulCommon =
 
         Array.init n (fun i ->
             let ai = a.[i]
+
             Array.init n (fun j ->
                 let bTj = bT.[j]
                 let mutable sum = 0.0
 
                 for k = 0 to n - 1 do
                     sum <- sum + ai.[k] * bTj.[k]
+
                 sum))
 
     let matMulMultiThread (threads: int) (a: double[][]) (b: double[][]) =
@@ -36,19 +35,24 @@ module MatmulCommon =
 
         let options = ParallelOptions(MaxDegreeOfParallelism = threads)
 
-        Parallel.For(0, n, options, fun i ->
-            let ai = a.[i]
-            let ci = c.[i]
+        Parallel.For(
+            0,
+            n,
+            options,
+            fun i ->
+                let ai = a.[i]
+                let ci = c.[i]
 
-            for j = 0 to n - 1 do
-                let bTj = bT.[j]
-                let mutable sum = 0.0
+                for j = 0 to n - 1 do
+                    let bTj = bT.[j]
+                    let mutable sum = 0.0
 
-                for k = 0 to n - 1 do
-                    sum <- sum + ai.[k] * bTj.[k]
+                    for k = 0 to n - 1 do
+                        sum <- sum + ai.[k] * bTj.[k]
 
-                ci.[j] <- sum
-            ) |> ignore
+                    ci.[j] <- sum
+        )
+        |> ignore
 
         c
 
@@ -58,8 +62,8 @@ type MatmulBase(name: string) =
 
     let mutable n = 0
     let mutable result = 0u
-    let mutable a : double[][] = null
-    let mutable b : double[][] = null
+    let mutable a: double[][] = null
+    let mutable b: double[][] = null
 
     override this.Checksum = result
     override this.Name = name
@@ -73,7 +77,10 @@ type MatmulBase(name: string) =
     member this.N = n
     member this.A = a
     member this.B = b
-    member this.Result with get() = result and set(value) = result <- value
+
+    member this.Result
+        with get () = result
+        and set (value) = result <- value
 
 type Matmul1T() =
     inherit MatmulBase("Matmul::Single")

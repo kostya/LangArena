@@ -24,9 +24,10 @@ type Sieve() =
 
         let sqrtLimit = int (sqrt (float lim))
 
-        for p in 2 .. sqrtLimit do
+        for p in 2..sqrtLimit do
             if primes.[p] = 1uy then
                 let mutable multiple = p * p
+
                 while multiple <= lim do
                     primes.[multiple] <- 0uy
                     multiple <- multiple + p
@@ -35,10 +36,12 @@ type Sieve() =
         let mutable count = 1
 
         let mutable n = 3
+
         while n <= lim do
             if primes.[n] = 1uy then
                 lastPrime <- n
                 count <- count + 1
+
             n <- n + 2
 
         checksum <- checksum + (uint32 (lastPrime + count))

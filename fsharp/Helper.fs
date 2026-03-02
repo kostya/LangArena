@@ -33,24 +33,29 @@ type Helper() =
 
     static member Checksum(s: string) : uint32 =
         let mutable hash = 5381u
+
         for b in Encoding.UTF8.GetBytes(s) do
             hash <- ((hash <<< 5) + hash) + uint32 b
+
         hash
 
     static member Checksum(bytes: byte[]) : uint32 =
         let mutable hash = 5381u
+
         for b in bytes do
             hash <- ((hash <<< 5) + hash) + uint32 b
+
         hash
 
-    static member Checksum(v: float) : uint32 =
-        Helper.Checksum(v.ToString("F7"))
+    static member Checksum(v: float) : uint32 = Helper.Checksum(v.ToString("F7"))
 
     static member Config_i64(className: string, fieldName: string) : int64 =
         try
             let mutable benchObj = JsonElement()
+
             if Helper.Config.TryGetProperty(className, &benchObj) then
                 let mutable value = JsonElement()
+
                 if benchObj.TryGetProperty(fieldName, &value) then
                     value.GetInt64()
                 else
@@ -59,16 +64,17 @@ type Helper() =
             else
                 Console.WriteLine($"Config not found for {className}, field: {fieldName}")
                 0L
-        with
-        | ex ->
+        with ex ->
             Console.WriteLine($"Error in Config_i64: {ex.Message}")
             0L
 
     static member Config_s(className: string, fieldName: string) : string =
         try
             let mutable benchObj = JsonElement()
+
             if Helper.Config.TryGetProperty(className, &benchObj) then
                 let mutable value = JsonElement()
+
                 if benchObj.TryGetProperty(fieldName, &value) then
                     match value.GetString() with
                     | null -> ""
@@ -79,8 +85,7 @@ type Helper() =
             else
                 Console.WriteLine($"Config not found for {className}, field: {fieldName}")
                 ""
-        with
-        | ex ->
+        with ex ->
             Console.WriteLine($"Error in Config_s: {ex.Message}")
             ""
 
@@ -90,11 +95,10 @@ type Helper() =
         let mutable foundFile = filename
 
         if not (File.Exists foundFile) then
-            let alternatives = [
-                Path.Combine("../", filename)
-                Path.Combine("../../", filename)
-                Path.GetFileName(filename)
-            ]
+            let alternatives =
+                [ Path.Combine("../", filename)
+                  Path.Combine("../../", filename)
+                  Path.GetFileName(filename) ]
 
             for alt in alternatives do
                 if File.Exists alt then
@@ -108,7 +112,6 @@ type Helper() =
             try
                 let jsonText = File.ReadAllText foundFile
                 config <- JsonDocument.Parse jsonText
-            with
-            | ex -> 
+            with ex ->
                 Console.WriteLine($"Error parsing JSON config: {ex.Message}")
                 config <- JsonDocument.Parse("{}")

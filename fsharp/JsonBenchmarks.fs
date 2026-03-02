@@ -6,38 +6,46 @@ open System.Text.Json
 open System.Text.Json.Serialization
 
 [<CLIMutable>]
-type Coordinate = {
-    [<JsonPropertyName("x")>] X: double
-    [<JsonPropertyName("y")>] Y: double
-    [<JsonPropertyName("z")>] Z: double
-    [<JsonPropertyName("name")>] Name: string
-    [<JsonPropertyName("opts")>] Opts: Dictionary<string, Tuple<int, bool>>
-}
+type Coordinate =
+    { [<JsonPropertyName("x")>]
+      X: double
+      [<JsonPropertyName("y")>]
+      Y: double
+      [<JsonPropertyName("z")>]
+      Z: double
+      [<JsonPropertyName("name")>]
+      Name: string
+      [<JsonPropertyName("opts")>]
+      Opts: Dictionary<string, Tuple<int, bool>> }
 
 [<CLIMutable>]
-type CoordinatesWrapper = {
-    coordinates: Coordinate list
-    info: string
-}
+type CoordinatesWrapper =
+    { coordinates: Coordinate list
+      info: string }
 
 module JsonGenerator =
     let generateData (n: int64) =
 
-        [
-            for i in 1L .. n do
-                let x = Math.Round(Helper.NextFloat(1.0), 8)
-                let y = Math.Round(Helper.NextFloat(1.0), 8)
-                let z = Math.Round(Helper.NextFloat(1.0), 8)
-                let name = String.Format("{0:F7} {1}", Helper.NextFloat(1.0), Helper.NextInt(10000))
+        [ for i in 1L .. n do
+              let x = Math.Round(Helper.NextFloat(1.0), 8)
+              let y = Math.Round(Helper.NextFloat(1.0), 8)
+              let z = Math.Round(Helper.NextFloat(1.0), 8)
+              let name = String.Format("{0:F7} {1}", Helper.NextFloat(1.0), Helper.NextInt(10000))
 
-                let opts = Dictionary<string, Tuple<int, bool>>()
-                opts.["1"] <- Tuple.Create(1, true)
+              let opts = Dictionary<string, Tuple<int, bool>>()
+              opts.["1"] <- Tuple.Create(1, true)
 
-                { X = x; Y = y; Z = z; Name = name; Opts = opts }
-        ]
+              { X = x
+                Y = y
+                Z = z
+                Name = name
+                Opts = opts } ]
 
     let serializeData (data: Coordinate list) =
-        let wrapper = { coordinates = data; info = "some info" }
+        let wrapper =
+            { coordinates = data
+              info = "some info" }
+
         let options = JsonSerializerOptions(WriteIndented = false)
         JsonSerializer.Serialize(wrapper, options)
 
@@ -77,8 +85,11 @@ type JsonParseDom() =
             let root = doc.RootElement
 
             let mutable coordsElement = Unchecked.defaultof<JsonElement>
-            if root.TryGetProperty("coordinates", &coordsElement) && 
-               coordsElement.ValueKind = JsonValueKind.Array then
+
+            if
+                root.TryGetProperty("coordinates", &coordsElement)
+                && coordsElement.ValueKind = JsonValueKind.Array
+            then
 
                 let mutable x = 0.0
                 let mutable y = 0.0
@@ -107,8 +118,8 @@ type JsonParseDom() =
                     (0.0, 0.0, 0.0)
             else
                 (0.0, 0.0, 0.0)
-        with
-        | _ -> (0.0, 0.0, 0.0)
+        with _ ->
+            (0.0, 0.0, 0.0)
 
     override this.Checksum = result
     override this.Name = "Json::ParseDom"
@@ -143,9 +154,11 @@ type JsonParseMapping() =
 
         try
             while reader.Read() && not found do
-                if reader.TokenType = JsonTokenType.PropertyName && 
-                   reader.ValueTextEquals("coordinates".AsSpan()) then
-                    reader.Read() |> ignore 
+                if
+                    reader.TokenType = JsonTokenType.PropertyName
+                    && reader.ValueTextEquals("coordinates".AsSpan())
+                then
+                    reader.Read() |> ignore
 
                     while reader.TokenType <> JsonTokenType.EndArray do
                         if reader.TokenType = JsonTokenType.StartObject then
@@ -158,6 +171,7 @@ type JsonParseMapping() =
 
                             while reader.TokenType <> JsonTokenType.EndObject do
                                 reader.Read() |> ignore
+
                                 if reader.TokenType = JsonTokenType.PropertyName then
                                     if reader.ValueTextEquals("x".AsSpan()) then
                                         reader.Read() |> ignore
@@ -181,16 +195,18 @@ type JsonParseMapping() =
                                 sumZ <- sumZ + z
                                 count <- count + 1
 
-                            reader.Read() |> ignore 
+                            reader.Read() |> ignore
                         else
                             reader.Read() |> ignore
+
                     found <- true
+
             if count > 0 then
                 (sumX / double count, sumY / double count, sumZ / double count)
             else
                 (0.0, 0.0, 0.0)
-        with
-        | _ -> (0.0, 0.0, 0.0)
+        with _ ->
+            (0.0, 0.0, 0.0)
 
     override this.Checksum = result
     override this.Name = "Json::ParseMapping"

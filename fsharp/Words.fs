@@ -26,9 +26,11 @@ type Words() =
         for i in 0 .. (int words - 1) do
             let len = Helper.NextInt(wordLen |> int) + Helper.NextInt(3) + 3
             let wordChars = Array.zeroCreate len
+
             for j in 0 .. len - 1 do
                 let idx = Helper.NextInt(charCount)
                 wordChars.[j] <- chars.[idx]
+
             words_list.Add(String(wordChars))
 
         text <- String.Join(" ", words_list)
@@ -45,6 +47,7 @@ type Words() =
 
         let mutable maxWord = ""
         let mutable maxCount = 0
+
         for kvp in frequencies do
             if kvp.Value > maxCount then
                 maxCount <- kvp.Value

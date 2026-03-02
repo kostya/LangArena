@@ -28,15 +28,18 @@ module GraphAlgorithms =
 
             for v = 0 to vertices - 1 do
                 let numJumps = Helper.NextInt(jumpsCount)
+
                 for _ = 1 to numJumps do
                     let offset = Helper.NextInt(jumpLength) - jumpLength / 2
                     let u = v + offset
+
                     if u >= 0 && u < vertices && u <> v then
                         this.AddEdge(v, u)
 
     module BFS =
         let shortestPath (graph: Graph) start target =
-            if start = target then 0
+            if start = target then
+                0
             else
                 let visited = Array.zeroCreate<byte> graph.Vertices
                 let queue = Queue<int * int>()
@@ -45,7 +48,8 @@ module GraphAlgorithms =
                 queue.Enqueue(start, 0)
 
                 let rec loop () =
-                    if queue.Count = 0 then -1
+                    if queue.Count = 0 then
+                        -1
                     else
                         let (v, dist) = queue.Dequeue()
 
@@ -67,7 +71,8 @@ module GraphAlgorithms =
 
     module DFS =
         let findPath (graph: Graph) start target =
-            if start = target then 0
+            if start = target then
+                0
             else
                 let visited = Array.zeroCreate<byte> graph.Vertices
                 let stack = Stack<int * int>()
@@ -96,7 +101,8 @@ module GraphAlgorithms =
         let heuristic (v: int) (target: int) = target - v
 
         let shortestPath (graph: Graph) start target =
-            if start = target then 0
+            if start = target then
+                0
             else
                 let gScore = Array.create graph.Vertices INF
                 let fScore = Array.create graph.Vertices INF
@@ -105,7 +111,7 @@ module GraphAlgorithms =
                 gScore.[start] <- 0
                 fScore.[start] <- heuristic start target
 
-                let openSet = PriorityQueue<int, int>()  
+                let openSet = PriorityQueue<int, int>()
                 let inOpenSet = Array.zeroCreate<byte> graph.Vertices
 
                 openSet.Enqueue(start, fScore.[start])
@@ -146,7 +152,11 @@ type GraphPathBenchmark() =
     let mutable graph: GraphAlgorithms.Graph option = None
     let mutable result = 0u
 
-    member _.Graph = match graph with Some g -> g | None -> failwith "Graph not initialized"
+    member _.Graph =
+        match graph with
+        | Some g -> g
+        | None -> failwith "Graph not initialized"
+
     member _.UpdateResult value = result <- result + uint32 value
 
     override this.Prepare() =
@@ -174,6 +184,7 @@ type GraphPathBFS() =
     override this.Test() =
         let graph = this.Graph
         GraphAlgorithms.BFS.shortestPath graph 0 (graph.Vertices - 1) |> int64
+
     override this.Name = "Graph::BFS"
 
 type GraphPathDFS() =
@@ -182,6 +193,7 @@ type GraphPathDFS() =
     override this.Test() =
         let graph = this.Graph
         GraphAlgorithms.DFS.findPath graph 0 (graph.Vertices - 1) |> int64
+
     override this.Name = "Graph::DFS"
 
 type GraphPathAStar() =
@@ -190,4 +202,5 @@ type GraphPathAStar() =
     override this.Test() =
         let graph = this.Graph
         GraphAlgorithms.AStar.shortestPath graph 0 (graph.Vertices - 1) |> int64
+
     override this.Name = "Graph::AStar"

@@ -64,17 +64,16 @@ type Fannkuchredux() =
                     innerDone <- true
                 else
                     let perm0 = perm1.[0]
+
                     for i = 0 to r - 1 do
                         perm1.[i] <- perm1.[i + 1]
+
                     perm1.[r] <- perm0
 
                     count.[r] <- count.[r] - 1
                     let cntr = count.[r]
 
-                    if cntr > 0 then
-                        innerDone <- true
-                    else
-                        r <- r + 1
+                    if cntr > 0 then innerDone <- true else r <- r + 1
 
             if not doneFlag then
                 permCount <- permCount + 1

@@ -11,13 +11,14 @@ type Revcomp() =
     let mutable input = ""
     let mutable checksum = 0u
 
-    static let lookupTable = 
+    static let lookupTable =
         let table = Array.init 256 char
         let fromStr = "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
-        let toStr =   "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
+        let toStr = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
 
         for i in 0 .. fromStr.Length - 1 do
             table.[int fromStr.[i]] <- toStr.[i]
+
         table
 
     let reverseComplement (seq: string) =
@@ -55,7 +56,8 @@ type Revcomp() =
         let seqBuilder = StringBuilder()
 
         use reader = new StringReader(fastaResult)
-        let rec readLines() =
+
+        let rec readLines () =
             match reader.ReadLine() with
             | null -> ()
             | line ->
@@ -63,9 +65,10 @@ type Revcomp() =
                     seqBuilder.Append("\n---\n") |> ignore
                 else
                     seqBuilder.Append(line) |> ignore
-                readLines()
 
-        readLines()
+                readLines ()
+
+        readLines ()
         input <- seqBuilder.ToString()
 
     override _.Run(IterationId: int64) =
