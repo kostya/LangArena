@@ -27,6 +27,9 @@ class Helper {
   static final Map<String, String> inputMap = {};
   static final Map<String, BigInt> expectMap = {};
   static Map<String, dynamic>? _config;
+  static List<String> _order = [];
+
+  static List<String> get order => _order;
 
   static void reset() {
     lastValue = INIT;
@@ -87,18 +90,25 @@ class Helper {
       if (await file.exists()) {
         content = await file.readAsString();
       } else {
-        final cwd = Directory.current;
-        final absolutePath = '${cwd.path}/${configFile.replaceAll('../', '')}';
-        final absoluteFile = File(absolutePath);
-
-        if (await absoluteFile.exists()) {
-          content = await absoluteFile.readAsString();
-        } else {
-          throw Exception('Config file not found: $configFile');
-        }
+        throw Exception('Config file not found: $configFile');
       }
 
-      _config = jsonDecode(content) as Map<String, dynamic>;
+      final jsonData = jsonDecode(content);
+
+      if (jsonData is List) {
+        final dict = <String, dynamic>{};
+        _order.clear();
+
+        for (final item in jsonData) {
+          final name = item['name'] as String;
+          dict[name] = item;
+          _order.add(name);
+        }
+
+        _config = dict;
+      } else {
+        _config = jsonData as Map<String, dynamic>;
+      }
     } catch (error) {
       print('Error loading config file $configFile: $error');
       exit(1);
@@ -217,38 +227,31 @@ abstract class Benchmark {
   }
 
   static Future<void> run([String? singleBench]) async {
-    final results = <String, double>{};
     double summaryTime = 0;
     int ok = 0;
     int fails = 0;
 
-    final skipBenchmarks = {
-      'SortBenchmark',
-      'BufferHashBenchmark',
-      'GraphPathBenchmark',
+    final benchmarkFactories = {
+      for (var f in _benchmarkFactories) f.name: f.constructor,
     };
 
-    for (final factoryInfo in _benchmarkFactories) {
-      final benchName = factoryInfo.name;
-
+    for (final benchName in Helper.order) {
       if (singleBench != null &&
           !benchName.toLowerCase().contains(singleBench.toLowerCase())) {
         continue;
       }
 
-      if (skipBenchmarks.contains(benchName)) {
-        continue;
-      }
-
-      final config = Helper._config;
-      if (config == null || config[benchName] == null) {
-        print('\n[$benchName]: SKIP - no config entry');
+      final constructor = benchmarkFactories[benchName];
+      if (constructor == null) {
+        print(
+          'Warning: Benchmark "$benchName" defined in config but not found in code',
+        );
         continue;
       }
 
       stdout.write('$benchName: ');
 
-      final bench = factoryInfo.constructor();
+      final bench = constructor();
 
       Helper.reset();
       bench.prepare();
@@ -270,8 +273,6 @@ abstract class Benchmark {
       final endTime = DateTime.now().millisecondsSinceEpoch;
       final timeDelta = (endTime - startTime) / 1000.0;
 
-      results[benchName] = timeDelta;
-
       final actualResult = BigInt.from(bench.checksum());
       final expectedResult = bench.expectedChecksum;
 
@@ -287,11 +288,6 @@ abstract class Benchmark {
       print('in ${timeDelta.toStringAsFixed(3)}s');
       summaryTime += timeDelta;
     }
-
-    try {
-      final resultsFile = File('/tmp/results.dart.json');
-      resultsFile.writeAsStringSync(jsonEncode(results));
-    } catch (_) {}
 
     print(
       'Summary: ${summaryTime.toStringAsFixed(4)}s, ${ok + fails}, $ok, $fails',

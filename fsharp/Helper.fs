@@ -4,6 +4,7 @@ open System
 open System.IO
 open System.Text
 open System.Text.Json
+open System.Collections.Generic
 
 type Helper() =
     [<ThreadStatic; DefaultValue>]
@@ -15,8 +16,10 @@ type Helper() =
     static let INIT = 42L
 
     static let mutable config: JsonDocument = JsonDocument.Parse("{}")
+    static let mutable order: string list = []
 
     static member Config = config.RootElement
+    static member Order = order
 
     static member Reset() = Helper.last <- INIT
 
@@ -89,29 +92,28 @@ type Helper() =
             Console.WriteLine($"Error in Config_s: {ex.Message}")
             ""
 
-    static member LoadConfig(?filename: string) =
-        let filename = defaultArg filename "test.js"
-
-        let mutable foundFile = filename
-
-        if not (File.Exists foundFile) then
-            let alternatives =
-                [ Path.Combine("../", filename)
-                  Path.Combine("../../", filename)
-                  Path.GetFileName(filename) ]
-
-            for alt in alternatives do
-                if File.Exists alt then
-                    foundFile <- alt
-
-        if not (File.Exists foundFile) then
+    static member LoadConfig(filename: string) =
+        if not (File.Exists filename) then
             Console.WriteLine($"Error: Config file not found: {filename}")
-            Console.WriteLine($"Current directory: {Environment.CurrentDirectory}")
             config <- JsonDocument.Parse("{}")
         else
             try
-                let jsonText = File.ReadAllText foundFile
-                config <- JsonDocument.Parse jsonText
+                let jsonText = File.ReadAllText filename
+                use jsonDoc = JsonDocument.Parse(jsonText)
+                let jsonArray = jsonDoc.RootElement
+
+                let dict = System.Collections.Generic.Dictionary<string, JsonElement>()
+                let newOrder = ResizeArray<string>()
+
+                for item in jsonArray.EnumerateArray() do
+                    let name = item.GetProperty("name").GetString()
+
+                    if not (String.IsNullOrEmpty name) then
+                        dict.[name] <- item.Clone()
+                        newOrder.Add(name)
+
+                config <- JsonDocument.Parse(JsonSerializer.Serialize(dict))
+                order <- List.ofSeq newOrder
             with ex ->
                 Console.WriteLine($"Error parsing JSON config: {ex.Message}")
                 config <- JsonDocument.Parse("{}")

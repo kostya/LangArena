@@ -51,7 +51,14 @@ void load_config(const std::string &filename = "../test.js") {
   }
 
   try {
-    file >> CONFIG;
+    auto json_array = json::array();
+    file >> json_array;
+
+    CONFIG = json::object();
+    for (const auto &item : json_array) {
+      std::string name = item["name"];
+      CONFIG[name] = item;
+    }
   } catch (const std::exception &e) {
     std::cerr << "Error parsing JSON config: " << e.what() << std::endl;
     CONFIG = json::object();
@@ -181,7 +188,8 @@ public:
 
   int64_t expected_checksum() const { return config_val("checksum"); }
 
-  static void all(const std::string &single_bench = "");
+  static void all(const std::string &single_bench = "",
+                  const std::string &config_file = "../test.js");
 };
 
 double custom_round(double value, int32_t precision) {
@@ -4664,15 +4672,14 @@ std::string to_lower(const std::string &str) {
   return result;
 }
 
-void Benchmark::all(const std::string &single_bench) {
-  std::unordered_map<std::string, double> results;
+void Benchmark::all(const std::string &single_bench,
+                    const std::string &config_file) {
   double summary_time = 0.0;
   int ok = 0;
   int fails = 0;
 
-  std::vector<
-      std::pair<std::string, std::function<std::unique_ptr<Benchmark>()>>>
-      benchmarks = {
+  std::unordered_map<std::string, std::function<std::unique_ptr<Benchmark>()>>
+      available_benches = {
           {"CLBG::Pidigits", []() { return std::make_unique<Pidigits>(); }},
           {"Binarytrees::Obj",
            []() { return std::make_unique<BinarytreesObj>(); }},
@@ -4743,63 +4750,70 @@ void Benchmark::all(const std::string &single_bench) {
            []() { return std::make_unique<Distance::Jaro>(); }},
           {"Distance::NGram",
            []() { return std::make_unique<Distance::NGram>(); }},
-          {"Etc::LogParser", []() { return std::make_unique<LogParser>(); }},
+          {"Etc::LogParser", []() { return std::make_unique<LogParser>(); }}};
 
-      };
+  std::ifstream file(config_file);
+  if (!file.is_open()) {
+    std::cerr << "Cannot open config file: " << config_file << std::endl;
+    return;
+  }
 
-  for (auto &[name, create_benchmark] : benchmarks) {
+  auto json_array = json::array();
+  try {
+    file >> json_array;
+  } catch (const std::exception &e) {
+    std::cerr << "Error parsing JSON config: " << e.what() << std::endl;
+    return;
+  }
+
+  for (const auto &item : json_array) {
+    std::string bench_name = item["name"].get<std::string>();
+
     if (!single_bench.empty() &&
-        to_lower(name).find(to_lower(single_bench)) == std::string::npos) {
+        to_lower(bench_name).find(to_lower(single_bench)) ==
+            std::string::npos) {
       continue;
     }
 
-    std::cout << name << ": ";
-    std::cout.flush();
+    auto it = available_benches.find(bench_name);
+    if (it != available_benches.end()) {
+      std::cout << bench_name << ": ";
+      std::cout.flush();
 
-    auto bench = create_benchmark();
-    Helper::reset();
-    bench->prepare();
+      auto bench = it->second();
+      Helper::reset();
+      bench->prepare();
+      bench->warmup();
+      Helper::reset();
 
-    bench->warmup();
+      auto start = std::chrono::steady_clock::now();
+      bench->run_all();
+      auto end = std::chrono::steady_clock::now();
 
-    Helper::reset();
+      std::chrono::duration<double> duration = end - start;
 
-    auto start = std::chrono::steady_clock::now();
-    bench->run_all();
-    auto end = std::chrono::steady_clock::now();
+      uint32_t check = bench->checksum();
+      uint32_t expect = static_cast<uint32_t>(bench->expected_checksum());
+      if (check == expect) {
+        std::cout << "OK ";
+        ok++;
+      } else {
+        std::cout << "ERR[actual=" << check << ", expected=" << expect << "] ";
+        fails++;
+      }
 
-    std::chrono::duration<double> duration = end - start;
-    results[name] = duration.count();
+      std::cout << "in " << std::fixed << std::setprecision(3)
+                << duration.count() << "s" << std::endl;
 
-    if (bench->checksum() == bench->expected_checksum()) {
-      std::cout << "OK ";
-      ok++;
+      summary_time += duration.count();
+
+      bench.reset();
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     } else {
-      std::cout << "ERR[actual=" << bench->checksum()
-                << ", expected=" << bench->expected_checksum() << "] ";
-      fails++;
+      std::cout << "Warning: Benchmark '" << bench_name
+                << "' defined in config but not found in code" << std::endl;
     }
-
-    std::cout << "in " << std::fixed << std::setprecision(3) << duration.count()
-              << "s" << std::endl;
-
-    summary_time += duration.count();
-
-    bench.reset();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
-
-  std::ofstream results_file("/tmp/results.js");
-  results_file << "{";
-  bool first = true;
-  for (const auto &[name, time] : results) {
-    if (!first)
-      results_file << ",";
-    results_file << "\"" << name << "\":" << time;
-    first = false;
-  }
-  results_file << "}";
-  results_file.close();
 
   if (ok + fails > 0) {
     std::cout << "Summary: " << std::fixed << std::setprecision(4)
@@ -4818,16 +4832,18 @@ int main(int argc, char *argv[]) {
                  .count();
   std::cout << "start: " << now << std::endl;
 
+  std::string config_file = "../test.js";
   if (argc > 1) {
+    config_file = argv[1];
     load_config(argv[1]);
   } else {
     load_config();
   }
 
   if (argc > 2) {
-    Benchmark::all(argv[2]);
+    Benchmark::all(argv[2], config_file);
   } else {
-    Benchmark::all();
+    Benchmark::all("", config_file);
   }
 
   std::ofstream file("/tmp/recompile_marker");

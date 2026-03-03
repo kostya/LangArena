@@ -2,6 +2,7 @@ package benchmark
 
 import "core:fmt"
 import "core:mem"
+import "core:os"
 import "core:strings"
 import "core:time"
 
@@ -27,17 +28,14 @@ Named_Benchmark_Factory :: struct {
 	factory: Benchmark_Factory,
 }
 
-benchmark_registry: [dynamic]Named_Benchmark_Factory
+benchmark_registry: map[string]Benchmark_Factory
 
 register_benchmark_factory :: proc(name: string, factory: Benchmark_Factory) {
-
-	for item in benchmark_registry {
-		if item.name == name {
-			fmt.eprintf("Warning: Benchmark with name '%s' already registered. Skipping.\n", name)
-			return
-		}
+	if name in benchmark_registry {
+		fmt.eprintf("Warning: Benchmark with name '%s' already registered. Skipping.\n", name)
+		return
 	}
-	append(&benchmark_registry, Named_Benchmark_Factory{name, factory})
+	benchmark_registry[name] = factory
 }
 
 run_all_benchmarks :: proc(single_bench: string = "") {
@@ -45,22 +43,24 @@ run_all_benchmarks :: proc(single_bench: string = "") {
 	ok := 0
 	fails := 0
 
-	for registry_item in benchmark_registry {
-		bench_name := registry_item.name
-
+	for bench_name in _state.order {
 		if len(single_bench) > 0 &&
 		   !strings.contains(strings.to_lower(bench_name), strings.to_lower(single_bench)) {
 			continue
 		}
 
-		if bench_name not_in _state.config {
-			fmt.printf("\n[%s]: SKIP - no config entry\n", bench_name)
+		factory := benchmark_registry[bench_name]
+		if factory == nil {
+			fmt.printf(
+				"Warning: Benchmark '%s' defined in config but not found in code\n",
+				bench_name,
+			)
 			continue
 		}
 
 		fmt.printf("%s: ", bench_name)
 
-		bench := registry_item.factory()
+		bench := factory()
 		defer destroy_bench(bench)
 
 		bench.iterations = int(config_i64(bench_name, "iterations"))
@@ -94,7 +94,7 @@ run_all_benchmarks :: proc(single_bench: string = "") {
 	fmt.printf("Summary: %.4fs, %d, %d, %d\n", summary_time, ok + fails, ok, fails)
 
 	if fails > 0 {
-
+		os.exit(1)
 	}
 }
 

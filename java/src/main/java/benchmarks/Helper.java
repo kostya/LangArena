@@ -5,6 +5,7 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.function.Supplier;
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 public class Helper {
     private static final int IM = 139968;
@@ -13,6 +14,9 @@ public class Helper {
     private static final int INIT = 42;
 
     private static int last = INIT;
+
+    private static JSONObject CONFIG = new JSONObject();
+    private static List<String> ORDER = new ArrayList<>();
 
     public static void reset() {
         last = INIT;
@@ -62,12 +66,29 @@ public class Helper {
         return checksum(String.format(Locale.US, "%.7f", v)) & 0xFFFFFFFFL;
     }
 
-    public static JSONObject CONFIG = new JSONObject();
+    public static JSONObject getConfig() {
+        return CONFIG;
+    }
+
+    public static List<String> getOrder() {
+        return ORDER;
+    }
 
     public static void loadConfig(String filename) throws IOException {
         String file = filename != null ? filename : "../test.js";
         String content = new String(Files.readAllBytes(Paths.get(file)));
-        CONFIG = new JSONObject(content);
+
+        JSONArray array = new JSONArray(content);
+        JSONObject dict = new JSONObject();
+        ORDER.clear();
+
+        for (int i = 0; i < array.length(); i++) {
+            JSONObject item = array.getJSONObject(i);
+            String name = item.getString("name");
+            dict.put(name, item);
+            ORDER.add(name);
+        }
+        CONFIG = dict;
     }
 
     public static long configI64(String className, String fieldName) {

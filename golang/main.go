@@ -39,6 +39,7 @@ func (n *CfgNumber) UnmarshalJSON(data []byte) error {
 
 var (
 	CONFIG = make(map[string]map[string]CfgNumber)
+	ORDER  = make([]string, 0)
 )
 
 const (
@@ -113,9 +114,37 @@ func LoadConfig(filename string) {
 		panic(err)
 	}
 
-	err = json.Unmarshal(data, &CONFIG)
+	var jsonArray []map[string]json.RawMessage
+	err = json.Unmarshal(data, &jsonArray)
 	if err != nil {
 		panic(err)
+	}
+
+	CONFIG = make(map[string]map[string]CfgNumber)
+	ORDER = make([]string, 0)
+
+	for _, item := range jsonArray {
+		var name string
+		if nameRaw, ok := item["name"]; ok {
+			json.Unmarshal(nameRaw, &name)
+		}
+
+		if name == "" {
+			continue
+		}
+
+		configMap := make(map[string]CfgNumber)
+		for key, valueRaw := range item {
+			if key == "name" {
+				continue
+			}
+			var num CfgNumber
+			json.Unmarshal(valueRaw, &num)
+			configMap[key] = num
+		}
+
+		CONFIG[name] = configMap
+		ORDER = append(ORDER, name)
 	}
 }
 
@@ -229,72 +258,71 @@ func (b *BaseBenchmark) ExpectedChecksum() int64 {
 func RunBenchmarks(singleBench string) {
 	fmt.Printf("start: %d\n", time.Now().UnixMilli())
 
-	results := make(map[string]float64)
 	summaryTime := 0.0
-	ok := 0
+	ok_count := 0
 	fails := 0
 
 	singleBench = strings.ToLower(singleBench)
 
-	allBenches := []Benchmark{
-		&Pidigits{BaseBenchmark: BaseBenchmark{className: "CLBG::Pidigits"}},
-		&BinarytreesObj{BaseBenchmark: BaseBenchmark{className: "Binarytrees::Obj"}},
-		&BinarytreesArena{BaseBenchmark: BaseBenchmark{className: "Binarytrees::Arena"}},
-		&BrainfuckArray{BaseBenchmark: BaseBenchmark{className: "Brainfuck::Array"}},
-		&BrainfuckRecursion{BaseBenchmark: BaseBenchmark{className: "Brainfuck::Recursion"}},
-		&Fannkuchredux{BaseBenchmark: BaseBenchmark{className: "CLBG::Fannkuchredux"}},
-		&Mandelbrot{BaseBenchmark: BaseBenchmark{className: "CLBG::Mandelbrot"}},
-		&Matmul1T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::Single"}}},
-		&Matmul4T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::T4"}}},
-		&Matmul8T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::T8"}}},
-		&Matmul16T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::T16"}}},
-		&Nbody{BaseBenchmark: BaseBenchmark{className: "CLBG::Nbody"}},
-		&Spectralnorm{BaseBenchmark: BaseBenchmark{className: "CLBG::Spectralnorm"}},
-		&Base64Encode{BaseBenchmark: BaseBenchmark{className: "Base64::Encode"}},
-		&Base64Decode{BaseBenchmark: BaseBenchmark{className: "Base64::Decode"}},
-		&JsonGenerate{BaseBenchmark: BaseBenchmark{className: "Json::Generate"}},
-		&JsonParseDom{BaseBenchmark: BaseBenchmark{className: "Json::ParseDom"}},
-		&JsonParseMapping{BaseBenchmark: BaseBenchmark{className: "Json::ParseMapping"}},
-		&Sieve{BaseBenchmark: BaseBenchmark{className: "Etc::Sieve"}},
-		&TextRaytracer{BaseBenchmark: BaseBenchmark{className: "Etc::TextRaytracer"}},
-		&NeuralNet{BaseBenchmark: BaseBenchmark{className: "Etc::NeuralNet"}},
-		&SortQuick{BaseBenchmark: BaseBenchmark{className: "Sort::Quick"}},
-		&SortMerge{BaseBenchmark: BaseBenchmark{className: "Sort::Merge"}},
-		&SortSelf{BaseBenchmark: BaseBenchmark{className: "Sort::Self"}},
-		&GraphPathBFS{BaseBenchmark: BaseBenchmark{className: "Graph::BFS"}},
-		&GraphPathDFS{BaseBenchmark: BaseBenchmark{className: "Graph::DFS"}},
-		&GraphPathAStar{BaseBenchmark: BaseBenchmark{className: "Graph::AStar"}},
-		&BufferHashSHA256{BaseBenchmark: BaseBenchmark{className: "Hash::SHA256"}},
-		&BufferHashCRC32{BaseBenchmark: BaseBenchmark{className: "Hash::CRC32"}},
-		&CacheSimulation{BaseBenchmark: BaseBenchmark{className: "Etc::CacheSimulation"}},
-		&CalculatorAst{BaseBenchmark: BaseBenchmark{className: "Calculator::Ast"}},
-		&CalculatorInterpreter{BaseBenchmark: BaseBenchmark{className: "Calculator::Interpreter"}},
-		&GameOfLife{BaseBenchmark: BaseBenchmark{className: "Etc::GameOfLife"}},
-		&MazeGenerator{BaseBenchmark: BaseBenchmark{className: "Maze::Generator"}},
-		&MazeBFS{BaseBenchmark: BaseBenchmark{className: "Maze::BFS"}},
-		&MazeAStar{BaseBenchmark: BaseBenchmark{className: "Maze::AStar"}},
-		&BWTEncode{BaseBenchmark: BaseBenchmark{className: "Compress::BWTEncode"}},
-		&BWTDecode{BaseBenchmark: BaseBenchmark{className: "Compress::BWTDecode"}},
-		&HuffEncode{BaseBenchmark: BaseBenchmark{className: "Compress::HuffEncode"}},
-		&HuffDecode{BaseBenchmark: BaseBenchmark{className: "Compress::HuffDecode"}},
-		&ArithEncode{BaseBenchmark: BaseBenchmark{className: "Compress::ArithEncode"}},
-		&ArithDecode{BaseBenchmark: BaseBenchmark{className: "Compress::ArithDecode"}},
-		&LZWEncode{BaseBenchmark: BaseBenchmark{className: "Compress::LZWEncode"}},
-		&LZWDecode{BaseBenchmark: BaseBenchmark{className: "Compress::LZWDecode"}},
-		&Jaro{BaseBenchmark: BaseBenchmark{className: "Distance::Jaro"}},
-		&NGram{BaseBenchmark: BaseBenchmark{className: "Distance::NGram"}},
-		&Words{BaseBenchmark: BaseBenchmark{className: "Etc::Words"}},
-		&LogParser{BaseBenchmark: BaseBenchmark{className: "Etc::LogParser"}},
+	benchMap := map[string]Benchmark{
+		"CLBG::Pidigits":          &Pidigits{BaseBenchmark: BaseBenchmark{className: "CLBG::Pidigits"}},
+		"Binarytrees::Obj":        &BinarytreesObj{BaseBenchmark: BaseBenchmark{className: "Binarytrees::Obj"}},
+		"Binarytrees::Arena":      &BinarytreesArena{BaseBenchmark: BaseBenchmark{className: "Binarytrees::Arena"}},
+		"Brainfuck::Array":        &BrainfuckArray{BaseBenchmark: BaseBenchmark{className: "Brainfuck::Array"}},
+		"Brainfuck::Recursion":    &BrainfuckRecursion{BaseBenchmark: BaseBenchmark{className: "Brainfuck::Recursion"}},
+		"CLBG::Fannkuchredux":     &Fannkuchredux{BaseBenchmark: BaseBenchmark{className: "CLBG::Fannkuchredux"}},
+		"CLBG::Mandelbrot":        &Mandelbrot{BaseBenchmark: BaseBenchmark{className: "CLBG::Mandelbrot"}},
+		"Matmul::Single":          &Matmul1T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::Single"}}},
+		"Matmul::T4":              &Matmul4T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::T4"}}},
+		"Matmul::T8":              &Matmul8T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::T8"}}},
+		"Matmul::T16":             &Matmul16T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::T16"}}},
+		"CLBG::Nbody":             &Nbody{BaseBenchmark: BaseBenchmark{className: "CLBG::Nbody"}},
+		"CLBG::Spectralnorm":      &Spectralnorm{BaseBenchmark: BaseBenchmark{className: "CLBG::Spectralnorm"}},
+		"Base64::Encode":          &Base64Encode{BaseBenchmark: BaseBenchmark{className: "Base64::Encode"}},
+		"Base64::Decode":          &Base64Decode{BaseBenchmark: BaseBenchmark{className: "Base64::Decode"}},
+		"Json::Generate":          &JsonGenerate{BaseBenchmark: BaseBenchmark{className: "Json::Generate"}},
+		"Json::ParseDom":          &JsonParseDom{BaseBenchmark: BaseBenchmark{className: "Json::ParseDom"}},
+		"Json::ParseMapping":      &JsonParseMapping{BaseBenchmark: BaseBenchmark{className: "Json::ParseMapping"}},
+		"Etc::Sieve":              &Sieve{BaseBenchmark: BaseBenchmark{className: "Etc::Sieve"}},
+		"Etc::TextRaytracer":      &TextRaytracer{BaseBenchmark: BaseBenchmark{className: "Etc::TextRaytracer"}},
+		"Etc::NeuralNet":          &NeuralNet{BaseBenchmark: BaseBenchmark{className: "Etc::NeuralNet"}},
+		"Sort::Quick":             &SortQuick{BaseBenchmark: BaseBenchmark{className: "Sort::Quick"}},
+		"Sort::Merge":             &SortMerge{BaseBenchmark: BaseBenchmark{className: "Sort::Merge"}},
+		"Sort::Self":              &SortSelf{BaseBenchmark: BaseBenchmark{className: "Sort::Self"}},
+		"Graph::BFS":              &GraphPathBFS{BaseBenchmark: BaseBenchmark{className: "Graph::BFS"}},
+		"Graph::DFS":              &GraphPathDFS{BaseBenchmark: BaseBenchmark{className: "Graph::DFS"}},
+		"Graph::AStar":            &GraphPathAStar{BaseBenchmark: BaseBenchmark{className: "Graph::AStar"}},
+		"Hash::SHA256":            &BufferHashSHA256{BaseBenchmark: BaseBenchmark{className: "Hash::SHA256"}},
+		"Hash::CRC32":             &BufferHashCRC32{BaseBenchmark: BaseBenchmark{className: "Hash::CRC32"}},
+		"Etc::CacheSimulation":    &CacheSimulation{BaseBenchmark: BaseBenchmark{className: "Etc::CacheSimulation"}},
+		"Calculator::Ast":         &CalculatorAst{BaseBenchmark: BaseBenchmark{className: "Calculator::Ast"}},
+		"Calculator::Interpreter": &CalculatorInterpreter{BaseBenchmark: BaseBenchmark{className: "Calculator::Interpreter"}},
+		"Etc::GameOfLife":         &GameOfLife{BaseBenchmark: BaseBenchmark{className: "Etc::GameOfLife"}},
+		"Maze::Generator":         &MazeGenerator{BaseBenchmark: BaseBenchmark{className: "Maze::Generator"}},
+		"Maze::BFS":               &MazeBFS{BaseBenchmark: BaseBenchmark{className: "Maze::BFS"}},
+		"Maze::AStar":             &MazeAStar{BaseBenchmark: BaseBenchmark{className: "Maze::AStar"}},
+		"Compress::BWTEncode":     &BWTEncode{BaseBenchmark: BaseBenchmark{className: "Compress::BWTEncode"}},
+		"Compress::BWTDecode":     &BWTDecode{BaseBenchmark: BaseBenchmark{className: "Compress::BWTDecode"}},
+		"Compress::HuffEncode":    &HuffEncode{BaseBenchmark: BaseBenchmark{className: "Compress::HuffEncode"}},
+		"Compress::HuffDecode":    &HuffDecode{BaseBenchmark: BaseBenchmark{className: "Compress::HuffDecode"}},
+		"Compress::ArithEncode":   &ArithEncode{BaseBenchmark: BaseBenchmark{className: "Compress::ArithEncode"}},
+		"Compress::ArithDecode":   &ArithDecode{BaseBenchmark: BaseBenchmark{className: "Compress::ArithDecode"}},
+		"Compress::LZWEncode":     &LZWEncode{BaseBenchmark: BaseBenchmark{className: "Compress::LZWEncode"}},
+		"Compress::LZWDecode":     &LZWDecode{BaseBenchmark: BaseBenchmark{className: "Compress::LZWDecode"}},
+		"Distance::Jaro":          &Jaro{BaseBenchmark: BaseBenchmark{className: "Distance::Jaro"}},
+		"Distance::NGram":         &NGram{BaseBenchmark: BaseBenchmark{className: "Distance::NGram"}},
+		"Etc::Words":              &Words{BaseBenchmark: BaseBenchmark{className: "Etc::Words"}},
+		"Etc::LogParser":          &LogParser{BaseBenchmark: BaseBenchmark{className: "Etc::LogParser"}},
 	}
 
-	for _, bench := range allBenches {
-		className := bench.Name()
-
-		if className == "SortBenchmark" || className == "BufferHashBenchmark" || className == "GraphPathBenchmark" {
+	for _, className := range ORDER {
+		if singleBench != "" && !strings.Contains(strings.ToLower(className), singleBench) {
 			continue
 		}
 
-		if singleBench != "" && !strings.Contains(strings.ToLower(className), singleBench) {
+		bench, ok := benchMap[className]
+		if !ok {
+			fmt.Printf("Warning: Benchmark '%s' defined in config but not found in code\n", className)
 			continue
 		}
 
@@ -310,14 +338,13 @@ func RunBenchmarks(singleBench string) {
 		start := time.Now()
 		RunAll(bench)
 		elapsed := time.Since(start).Seconds()
-		results[className] = elapsed
 
 		chks := bench.Checksum()
 		expected := uint32(bench.ExpectedChecksum())
 
 		if chks == expected {
 			fmt.Printf("OK ")
-			ok++
+			ok_count++
 		} else {
 			fmt.Printf("ERR[actual=%d, expected=%d] ", chks, expected)
 			fails++
@@ -329,10 +356,7 @@ func RunBenchmarks(singleBench string) {
 		summaryTime += elapsed
 	}
 
-	jsonData, _ := json.Marshal(results)
-	os.WriteFile("/tmp/results.js", jsonData, 0644)
-
-	fmt.Printf("Summary: %.4fs, %d, %d, %d\n", summaryTime, ok+fails, ok, fails)
+	fmt.Printf("Summary: %.4fs, %d, %d, %d\n", summaryTime, ok_count+fails, ok_count, fails)
 
 	os.WriteFile("/tmp/recompile_marker", []byte("RECOMPILE_MARKER_0"), 0644)
 	if fails > 0 {

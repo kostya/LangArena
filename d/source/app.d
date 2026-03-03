@@ -70,10 +70,7 @@ mixin(registerAllBenchmarks!("CLBG::Pidigits", Pidigits, "Binarytrees::Obj",
 
 void benchmarkAll(string singleBench = "")
 {
-
     auto benchmarks = getAllBenchmarkNames();
-
-    double[string] results;
     double summaryTime = 0.0;
     int ok = 0;
     int fails = 0;
@@ -85,7 +82,18 @@ void benchmarkAll(string singleBench = "")
             continue;
         }
 
-        Benchmark bench = createBenchmark(benchName);
+        Benchmark bench;
+        try
+        {
+            bench = createBenchmark(benchName);
+        }
+        catch (Exception e)
+        {
+            writeln("Warning: Benchmark '", benchName,
+                    "' defined in config but not found in code");
+            continue;
+        }
+
         std.stdio.write(bench.name(), ": ");
         stdout.flush();
 
@@ -102,7 +110,6 @@ void benchmarkAll(string singleBench = "")
         auto duration = (end - start).total!"msecs" / 1000.0;
 
         bench.setTimeDelta(duration);
-        results[bench.name()] = duration;
 
         if (bench.checksum == bench.expectedChecksum)
         {
@@ -122,19 +129,6 @@ void benchmarkAll(string singleBench = "")
         bench = null;
     }
 
-    auto resultsFile = File("/tmp/results.js", "w");
-    resultsFile.write("{");
-    bool first = true;
-    foreach (name, time; results)
-    {
-        if (!first)
-            resultsFile.write(",");
-        resultsFile.writef(`"%s":%s`, name, time);
-        first = false;
-    }
-    resultsFile.write("}");
-    resultsFile.close();
-
     if (ok + fails > 0)
     {
         std.stdio.writefln("Summary: %.4fs, %s, %s, %s", summaryTime, ok + fails, ok, fails);
@@ -152,21 +146,12 @@ void main(string[] args)
     import std.datetime.systime : SysTime;
 
     auto now = Clock.currTime();
-
     auto unixSeconds = now.toUnixTime();
-
     long unixMs = unixSeconds * 1000L;
-
     writeln("start: ", unixMs);
 
-    if (args.length > 1)
-    {
-        loadConfig(args[1]);
-    }
-    else
-    {
-        loadConfig();
-    }
+    string configFile = args.length > 1 ? args[1] : "../test.js";
+    Helper.loadConfig(configFile);
 
     if (args.length > 2)
     {

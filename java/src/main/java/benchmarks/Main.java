@@ -71,7 +71,7 @@ public class Main {
         try {
             Helper.loadConfig(configFile);
 
-            if (Helper.CONFIG.length() == 0) {
+            if (Helper.getConfig().length() == 0) {
                 System.err.println("Warning: No test cases loaded from config file");
                 System.err.println("Usage: mvn exec:java -Dexec.args=\"test.js BrainfuckRecursion\"");
                 System.err.println("Or: mvn exec:java -Dexec.args=\"../run.js\"");

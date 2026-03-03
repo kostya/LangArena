@@ -67,15 +67,24 @@ module Helper
     Helper.checksum("%.7f" % {v})
   end
 
+  RAW_CONFIG = begin
+    Array(Hash(String, JSON::Any)).from_json(File.read(ARGV[0]? || "../test.js"))
+  end
+
   CONFIG = begin
-    Hash(String, Hash(String, String | Int64)).from_json(File.read(ARGV[0]? || "../test.js"))
+    hash = {} of String => Hash(String, JSON::Any)
+    RAW_CONFIG.each do |cfg|
+      name = cfg["name"].as_s
+      hash[name] = cfg
+    end
+    hash
   end
 
   def self.config_i64(class_name, field_name) : Int64
     if cfg = CONFIG[class_name]?
-      case i = cfg[field_name]?
-      when Int64
-        i
+      case value = cfg[field_name]?
+      when JSON::Any
+        value.as_i64
       else
         raise "Config for #{class_name}, not found i64 field: #{field_name} in #{cfg.inspect}"
       end
@@ -86,9 +95,9 @@ module Helper
 
   def self.config_s(class_name, field_name) : String
     if cfg = CONFIG[class_name]?
-      case s = cfg[field_name]?
-      when String
-        s
+      case value = cfg[field_name]?
+      when JSON::Any
+        value.as_s
       else
         raise "Config for #{class_name}, not found string field: #{field_name} in #{cfg.inspect}"
       end
@@ -106,12 +115,13 @@ abstract class Benchmark
   end
 
   def warmup_iterations
-    case wi = Helper::CONFIG["warmup_iterations"]?
-    when Int64
-      wi.to_i32
-    else
-      {(iterations * 0.2).to_i, 1}.max
+    if cfg = Helper::CONFIG[self.class.name.to_s]?
+      if wi = cfg["warmup_iterations"]?
+        return wi.as_i64.to_i32
+      end
     end
+
+    {(iterations * 0.2).to_i, 1}.max
   end
 
   def warmup
@@ -127,26 +137,34 @@ abstract class Benchmark
   end
 
   def iterations
-    config_val("iterations")
+    Helper.config_i64(self.class.name.to_s, "iterations").to_i32
   end
 
   def expected_checksum
-    config_val("checksum")
+    Helper.config_i64(self.class.name.to_s, "checksum")
   end
 
   def self.run(single_bench : String? = nil)
-    results = {} of String => Float64
-
     summary_time = 0.0
     ok = 0
     fails = 0
     single_bench = single_bench.downcase if single_bench
+    available_benches = {} of String => Benchmark.class
 
     {% for kl in @type.all_subclasses %}
-      if (!single_bench || ({{kl.stringify}}.downcase.includes?(single_bench))) && ({{kl.stringify}} != "Sort::SortBenchmark") && ({{kl.stringify}} != "Hash::BufferHashBenchmark") && ({{kl.stringify}} != "Graph::GraphPathBenchmark")
-        print "{{kl}}: "
+      available_benches[{{kl.stringify}}] = {{kl.id}}
+    {% end %}
 
-        bench = {{kl.id}}.new
+    order = Helper::RAW_CONFIG.map { |cfg| cfg["name"].as_s }
+    order.each do |bench_name|
+      if single_bench && !bench_name.downcase.includes?(single_bench)
+        next
+      end
+
+      if bench_class = available_benches[bench_name]?
+        print "#{bench_name}: "
+
+        bench = bench_class.new
 
         Helper.reset
         bench.prepare
@@ -159,27 +177,25 @@ abstract class Benchmark
         bench.run_all
         time_delta = (Time.instant - t).to_f
 
-        results["{{kl.id}}"] = time_delta
-
         GC.collect
         sleep 0.seconds
         GC.collect
 
-        chks = bench.checksum
-        if chks.to_i64 == bench.expected_checksum.to_i64
+        check = bench.checksum.to_u32
+        expect = bench.expected_checksum.to_u32
+        if check == expect
           print "OK "
           ok += 1
         else
-          print "ERR[actual=#{chks.inspect}, expected=#{bench.expected_checksum.inspect}] "
+          print "ERR[actual=#{check.inspect}, expected=#{expect.inspect}] "
           fails += 1
         end
 
         print "in %.3fs\n" % {time_delta}
         summary_time += time_delta
       end
-    {% end %}
+    end
 
-    File.open("/tmp/results.js", "w") { |f| results.to_json(f) }
     puts "Summary: %.4fs, %d, %d, %d" % {summary_time, ok + fails, ok, fails}
     exit 1 if fails > 0
   end

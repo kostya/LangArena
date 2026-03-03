@@ -11,11 +11,14 @@ public static class Helper
     private static long s_last = INIT;
 
     private static JsonDocument? s_config = null;
+    private static List<string> s_order = new List<string>();
 
     public static JsonDocument Config
     {
         get => s_config ?? JsonDocument.Parse("{}");
     }
+
+    public static List<string> Order => s_order;
 
     public static long Last
     {
@@ -110,34 +113,11 @@ public static class Helper
         }
     }
 
-    public static void LoadConfig(string? filename = null)
+    public static void LoadConfig(string filename)
     {
-        filename ??= "test.js";
-
-        if (!File.Exists(filename))
-        {
-
-            var alternatives = new[]
-            {
-                Path.Combine("../", filename),
-                Path.Combine("../../", filename),
-                Path.GetFileName(filename)
-            };
-
-            foreach (var alt in alternatives)
-            {
-                if (File.Exists(alt))
-                {
-                    filename = alt;
-                    break;
-                }
-            }
-        }
-
         if (!File.Exists(filename))
         {
             Console.WriteLine($"Error: Config file not found: {filename}");
-            Console.WriteLine("Current directory: " + Environment.CurrentDirectory);
             s_config = JsonDocument.Parse("{}");
             return;
         }
@@ -145,7 +125,22 @@ public static class Helper
         try
         {
             var jsonText = File.ReadAllText(filename);
-            s_config = JsonDocument.Parse(jsonText);
+            var jsonArray = JsonDocument.Parse(jsonText).RootElement;
+
+            var dict = new Dictionary<string, JsonElement>();
+            s_order.Clear();
+
+            foreach (var item in jsonArray.EnumerateArray())
+            {
+                var name = item.GetProperty("name").GetString();
+                if (!string.IsNullOrEmpty(name))
+                {
+                    dict[name] = item;
+                    s_order.Add(name);
+                }
+            }
+
+            s_config = JsonDocument.Parse(JsonSerializer.Serialize(dict));
         }
         catch (Exception ex)
         {

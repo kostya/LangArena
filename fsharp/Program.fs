@@ -17,9 +17,7 @@ module BenchmarkRunner =
           Creator = fun () -> new 'T() :> Benchmark }
 
     let private benchmarkFactories =
-        [
-
-          createBenchmarkInfo<Pidigits> "CLBG::Pidigits"
+        [ createBenchmarkInfo<Pidigits> "CLBG::Pidigits"
           createBenchmarkInfo<Fannkuchredux> "CLBG::Fannkuchredux"
           createBenchmarkInfo<Mandelbrot> "CLBG::Mandelbrot"
           createBenchmarkInfo<Nbody> "CLBG::Nbody"
@@ -80,9 +78,10 @@ module BenchmarkRunner =
           createBenchmarkInfo<NGram> "Distance::NGram"
 
           createBenchmarkInfo<Words> "Etc::Words"
-          createBenchmarkInfo<LogParser> "Etc::LogParser"
+          createBenchmarkInfo<LogParser> "Etc::LogParser" ]
 
-          ]
+    let private benchmarkMap =
+        benchmarkFactories |> List.map (fun f -> f.Name, f) |> dict
 
     let private runBenchmark (factory: BenchmarkInfo) (singleBench: string option) =
         let className = factory.Name
@@ -90,48 +89,41 @@ module BenchmarkRunner =
         match singleBench with
         | Some filter when not (className.ToLower().Contains(filter.ToLower())) -> None
         | _ ->
-            let mutable benchConfig = JsonElement()
+            Console.Write($"{className}: ")
+            Helper.Reset()
 
-            if not (Helper.Config.TryGetProperty(className, &benchConfig)) then
-                Console.WriteLine($"Skipping {className} - no config in test.js")
-                None
-            else
-                Console.Write($"{className}: ")
+            try
+                let benchmark = factory.Creator()
+
+                benchmark.Prepare()
+                benchmark.Warmup()
+                GC.Collect()
+
                 Helper.Reset()
 
-                try
+                let stopwatch = Stopwatch.StartNew()
+                benchmark.RunAll()
+                stopwatch.Stop()
 
-                    let benchmark = factory.Creator()
+                let timeDelta = stopwatch.Elapsed.TotalSeconds
+                benchmark.TimeDelta <- timeDelta
 
-                    benchmark.Prepare()
-                    benchmark.Warmup()
-                    GC.Collect()
+                GC.Collect()
+                Thread.Sleep(0)
+                GC.Collect()
 
-                    Helper.Reset()
+                let actual = benchmark.Checksum
+                let expected = uint32 benchmark.ExpectedChecksum
 
-                    let stopwatch = Stopwatch.StartNew()
-                    benchmark.RunAll()
-                    stopwatch.Stop()
-
-                    let timeDelta = stopwatch.Elapsed.TotalSeconds
-                    benchmark.TimeDelta <- timeDelta
-
-                    GC.Collect()
-                    Thread.Sleep(0)
-                    GC.Collect()
-
-                    let actual = benchmark.Checksum
-                    let expected = uint32 benchmark.ExpectedChecksum
-
-                    if actual = expected then
-                        Console.Write("OK ")
-                        Some(className, timeDelta, true)
-                    else
-                        Console.Write($"ERR[actual={actual}, expected={expected}] ")
-                        Some(className, timeDelta, false)
-                with ex ->
-                    Console.WriteLine($"ERROR: {ex.Message}")
-                    Some(className, 0.0, false)
+                if actual = expected then
+                    Console.Write("OK ")
+                    Some(className, timeDelta, true)
+                else
+                    Console.Write($"ERR[actual={actual}, expected={expected}] ")
+                    Some(className, timeDelta, false)
+            with ex ->
+                Console.WriteLine($"ERROR: {ex.Message}")
+                Some(className, 0.0, false)
 
     let All (singleBench: string option) =
         let now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
@@ -142,29 +134,30 @@ module BenchmarkRunner =
         let mutable ok = 0
         let mutable fails = 0
 
-        for factory in benchmarkFactories do
-            match runBenchmark factory singleBench with
-            | Some(className, timeDelta, success) ->
-                if timeDelta > 0.0 then
-                    results.[className] <- timeDelta
-                    summaryTime <- summaryTime + timeDelta
+        for className in Helper.Order do
+            match benchmarkMap.TryGetValue(className) with
+            | true, factory ->
+                match runBenchmark factory singleBench with
+                | Some(_, timeDelta, success) ->
+                    if timeDelta > 0.0 then
+                        results.[className] <- timeDelta
+                        summaryTime <- summaryTime + timeDelta
 
-                Console.WriteLine($"in {timeDelta:F3}s")
-                if success then ok <- ok + 1 else fails <- fails + 1
-            | None -> ()
-
-        try
-            let jsonEntries = results |> Seq.map (fun kv -> $"\"{kv.Key}\":{kv.Value}")
-            let json = "{" + String.Join(",", jsonEntries) + "}"
-            File.WriteAllText("/tmp/results.js", json)
-        with ex ->
-            Console.WriteLine($"Error saving results: {ex.Message}")
+                    Console.WriteLine($"in {timeDelta:F3}s")
+                    if success then ok <- ok + 1 else fails <- fails + 1
+                | None -> ()
+            | false, _ ->
+                if
+                    Option.isNone singleBench
+                    || className.ToLower().Contains(singleBench.Value.ToLower())
+                then
+                    Console.WriteLine($"Warning: Benchmark '{className}' defined in config but not found in code")
 
         Console.WriteLine("Summary: {0:F4}s, {1}, {2}, {3}", summaryTime, ok + fails, ok, fails)
 
         File.WriteAllText("/tmp/recompile_marker", "RECOMPILE_MARKER_0")
 
-        if fails > 0 || ok = 0 then
+        if fails > 0 then
             Environment.Exit(1)
 
 [<EntryPoint>]

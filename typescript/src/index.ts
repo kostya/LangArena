@@ -64,6 +64,12 @@ export class Helper {
   private static lastValue: number = Helper.INIT;
   private static inputMap: Record<string, string> = {};
   private static expectMap: Record<string, bigint> = {};
+  private static _config: any = null;
+  private static _order: string[] = [];
+
+  static get order(): string[] {
+    return this._order;
+  }
 
   static reset(): void {
     Helper.lastValue = Helper.INIT;
@@ -191,9 +197,26 @@ export class Helper {
         return;
       }
 
-      const config = JSON.parse(content);
+      const data = JSON.parse(content);
 
-      (Helper as any).CONFIG = config;
+      if (Array.isArray(data)) {
+        const configDict: Record<string, any> = {};
+        const orderList: string[] = [];
+
+        for (const item of data) {
+          const name = item.name;
+          if (name) {
+            configDict[name] = item;
+            orderList.push(name);
+          }
+        }
+
+        Helper._config = configDict;
+        Helper._order = orderList;
+      } else {
+        Helper._config = data;
+        Helper._order = [];
+      }
     } catch (error: any) {
       console.error(
         `Error loading config file ${configFile}:`,
@@ -220,7 +243,7 @@ export class Helper {
   }
 
   static configI64(className: string, fieldName: string): bigint {
-    const config = (Helper as any).CONFIG;
+    const config = Helper._config;
     if (!config || !config[className]) {
       throw new Error(`Config not found class ${className}`);
     }
@@ -238,7 +261,7 @@ export class Helper {
   }
 
   static configS(className: string, fieldName: string): string {
-    const config = (Helper as any).CONFIG;
+    const config = Helper._config;
     if (!config || !config[className]) {
       throw new Error(`Config not found class ${className}`);
     }
@@ -301,14 +324,18 @@ export abstract class Benchmark {
   prepare(): void {}
 
   get config(): Record<string, any> {
-    const config = (Helper as any).CONFIG;
+    const config = (Helper as any)._config;
     return config && config[this.name] ? config[this.name] : {};
   }
 
   get warmupIterations(): number {
-    const config = (Helper as any).CONFIG;
-    if (config && config.warmup_iterations !== undefined) {
-      return Number(config.warmup_iterations);
+    const config = (Helper as any)._config;
+    if (
+      config &&
+      config[this.name] &&
+      config[this.name].warmup_iterations !== undefined
+    ) {
+      return Number(config[this.name].warmup_iterations);
     }
     return Math.max(Math.floor(this.iterations * 0.2), 1);
   }
@@ -341,36 +368,24 @@ export abstract class Benchmark {
     }
   }
 
-  private static NamedFactory = class {
-    constructor(
-      public name: string,
-      public cls: new () => Benchmark,
-    ) {}
-  };
-
-  private static benchmarkFactories: InstanceType<
-    typeof Benchmark.NamedFactory
-  >[] = [];
+  private static benchmarkMap: Map<string, new () => Benchmark> = new Map();
 
   static registerBenchmark(name: string, cls: new () => Benchmark): void {
-    if (this.benchmarkFactories.some((f) => f.name === name)) {
+    if (this.benchmarkMap.has(name)) {
       console.warn(
         `Warning: Benchmark with name "${name}" already registered. Skipping.`,
       );
       return;
     }
-    this.benchmarkFactories.push(new this.NamedFactory(name, cls));
+    this.benchmarkMap.set(name, cls);
   }
 
   static run(singleBench?: string): void {
-    const results: Record<string, number> = {};
     let summaryTime = 0;
     let ok = 0;
     let fails = 0;
 
-    for (const factoryInfo of this.benchmarkFactories) {
-      const benchName = factoryInfo.name;
-
+    for (const benchName of Helper.order) {
       if (
         singleBench &&
         !benchName.toLowerCase().includes(singleBench.toLowerCase())
@@ -378,9 +393,11 @@ export abstract class Benchmark {
         continue;
       }
 
-      const config = (Helper as any).CONFIG;
-      if (!config || !config[benchName]) {
-        console.log(`\n[${benchName}]: SKIP - no config entry`);
+      const cls = this.benchmarkMap.get(benchName);
+      if (!cls) {
+        console.log(
+          `Warning: Benchmark '${benchName}' defined in config but not found in code`,
+        );
         continue;
       }
 
@@ -398,7 +415,7 @@ export abstract class Benchmark {
         console.log(`${benchName}: `);
       }
 
-      const bench = new factoryInfo.cls();
+      const bench = new cls();
 
       Helper.reset();
       bench.prepare();
@@ -410,8 +427,6 @@ export abstract class Benchmark {
       bench.runAll();
       const endTime = performance.now();
       const timeDelta = (endTime - startTime) / 1000;
-
-      results[benchName] = timeDelta;
 
       try {
         // @ts-ignore
@@ -460,26 +475,6 @@ export abstract class Benchmark {
       console.log(`in ${timeDelta.toFixed(3)}s`);
       summaryTime += timeDelta;
     }
-
-    try {
-      if (isNode) {
-        // @ts-ignore
-        const fs = require("fs");
-        // @ts-ignore
-        const path = require("path");
-        fs.writeFileSync(
-          "/tmp/results.js",
-          `window.results = ${JSON.stringify(results)};`,
-        );
-      } else if (isBun) {
-        // @ts-ignore
-        const fs = require("fs");
-        fs.writeFileSync(
-          "/tmp/results.js",
-          `window.results = ${JSON.stringify(results)};`,
-        );
-      }
-    } catch {}
 
     console.log(
       `Summary: ${summaryTime.toFixed(4)}s, ${ok + fails}, ${ok}, ${fails}`,
@@ -5455,8 +5450,6 @@ Benchmark.registerBenchmark("Distance::Jaro", Jaro);
 Benchmark.registerBenchmark("Distance::NGram", NGram);
 Benchmark.registerBenchmark("Etc::Words", Words);
 Benchmark.registerBenchmark("Etc::LogParser", LogParser);
-
-const RECOMPILE_MARKER = "RECOMPILE_MARKER_0";
 
 try {
   main().catch(console.error);

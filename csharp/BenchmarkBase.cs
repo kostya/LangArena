@@ -154,7 +154,7 @@ public abstract class Benchmark
             CreateBenchmarkInfo<NGram>("Distance::NGram"),
 
             CreateBenchmarkInfo<Words>("Etc::Words"),
-            CreateBenchmarkInfo<Words>("Etc::LogParser"),
+            CreateBenchmarkInfo<LogParser>("Etc::LogParser"),
         };
     }
 
@@ -187,28 +187,20 @@ public abstract class Benchmark
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         Console.WriteLine($"start: {now}");
 
-        var results = new Dictionary<string, double>();
         double summaryTime = 0.0;
         int ok = 0, fails = 0;
 
-        var benchmarkFactories = GetBenchmarkFactories();
+        var benchmarkFactories = GetBenchmarkFactories().ToDictionary(f => f.Name, f => f);
 
-        foreach (var factory in benchmarkFactories)
+        foreach (var className in Helper.Order)
         {
-            var className = factory.Name;
-
             if (!string.IsNullOrEmpty(singleBench) &&
                 !className.ToLower().Contains(singleBench.ToLower()))
                 continue;
 
-            if (className == "SortBenchmark" ||
-                className == "BufferHashBenchmark" ||
-                className == "GraphPathBenchmark")
-                continue;
-
-            if (!Helper.Config.RootElement.TryGetProperty(className, out _))
+            if (!benchmarkFactories.TryGetValue(className, out var factory))
             {
-                Console.WriteLine($"Skipping {className} - no config in test.js");
+                Console.WriteLine($"Warning: Benchmark '{className}' defined in config but not found in code");
                 continue;
             }
 
@@ -232,14 +224,13 @@ public abstract class Benchmark
 
                 var timeDelta = stopwatch.Elapsed.TotalSeconds;
                 benchmark.TimeDelta = timeDelta;
-                results[className] = timeDelta;
 
                 GC.Collect();
                 Thread.Sleep(0);
                 GC.Collect();
 
                 var actual = benchmark.Checksum;
-                var expected = benchmark.ExpectedChecksum;
+                var expected = (uint)benchmark.ExpectedChecksum;
 
                 if (actual == expected)
                 {
@@ -262,16 +253,6 @@ public abstract class Benchmark
             }
         }
 
-        try
-        {
-            var json = "{" + string.Join(",", results.Select(kv => $"\"{kv.Key}\":{kv.Value}")) + "}";
-            File.WriteAllText("/tmp/results.js", json);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error saving results: {ex.Message}");
-        }
-
         Console.WriteLine(
             string.Format(CultureInfo.InvariantCulture,
             "Summary: {0:F4}s, {1}, {2}, {3}",
@@ -279,7 +260,7 @@ public abstract class Benchmark
 
         File.WriteAllText("/tmp/recompile_marker", "RECOMPILE_MARKER_0");
 
-        if (fails > 0 || ok == 0)
+        if (fails > 0)
         {
             Environment.Exit(1);
         }

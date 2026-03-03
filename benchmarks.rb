@@ -1829,7 +1829,7 @@ LANGS = langs.keys
 puts "Unique languages: #{LANGS.size} #{LANGS.inspect}"
 
 test_txt = File.read("test.js")
-tests = JSON.parse(test_txt).keys
+tests = JSON.parse(test_txt).map { |h| h["name"] } 
 TESTS = case ARGV[1]
 when nil, ""
   tests

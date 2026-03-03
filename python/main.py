@@ -63,6 +63,7 @@ class Helper:
 
     _last_value = INIT
     _config: Optional[Dict[str, Any]] = None
+    _order: List[str] = []
 
     @staticmethod
     def reset() -> None:
@@ -124,11 +125,27 @@ class Helper:
         try:
             config_path = Path(config_file)
             if not config_path.exists():
-
                 config_path = Path(config_file.replace('../', ''))
 
             with open(config_path, 'r') as f:
-                Helper._config = json.load(f)
+                data = json.load(f)
+
+                if isinstance(data, list):
+                    config_dict = {}
+                    order_list = []
+
+                    for item in data:
+                        name = item.get('name')
+                        if name:
+                            config_dict[name] = item
+                            order_list.append(name)
+
+                    Helper._config = config_dict
+                    Helper._order = order_list
+                else:
+                    Helper._config = data
+                    Helper._order = []
+
         except Exception as e:
             print(f'Error loading config file {config_file}: {e}')
             sys.exit(1)
@@ -221,49 +238,38 @@ class Benchmark(ABC):
             self.name = name
             self.constructor = constructor
 
-    _benchmark_factories: List[_NamedBenchmarkFactory] = []
+    _benchmark_factories: Dict[str, Callable[[], 'Benchmark']] = {}
 
     @staticmethod
     def register_benchmark(name: str,
                            constructor: Callable[[], 'Benchmark']) -> None:
-
-        if any(factory.name == name
-               for factory in Benchmark._benchmark_factories):
+        if name in Benchmark._benchmark_factories:
             print(
                 f'Warning: Benchmark with name "{name}" already registered. Skipping.'
             )
             return
-        Benchmark._benchmark_factories.append(
-            Benchmark._NamedBenchmarkFactory(name, constructor))
+        Benchmark._benchmark_factories[name] = constructor
 
     @staticmethod
     def run(single_bench: Optional[str] = None) -> None:
-        results = {}
         summary_time = 0.0
         ok = 0
         fails = 0
 
-        skip_benchmarks = {
-            'SortBenchmark', 'BufferHashBenchmark', 'GraphPathBenchmark'
-        }
-
-        for factory_info in Benchmark._benchmark_factories:
-            bench_name = factory_info.name
-
+        for bench_name in Helper._order:
             if single_bench and single_bench.lower() not in bench_name.lower():
                 continue
 
-            if bench_name in skip_benchmarks:
-                continue
-
-            config = Helper._config
-            if not config or bench_name not in config:
-                print(f'\n[{bench_name}]: SKIP - no config entry')
+            constructor = Benchmark._benchmark_factories.get(bench_name)
+            if constructor is None:
+                print(
+                    f'Warning: Benchmark "{bench_name}" defined in config but not found in code'
+                )
                 continue
 
             print(f'{bench_name}: ', end='', flush=True)
 
-            bench = factory_info.constructor()
+            bench = constructor()
 
             Helper.reset()
             bench.prepare()
@@ -281,12 +287,10 @@ class Benchmark(ABC):
                 bench.run_all()
                 end_time = Performance.now()
                 time_delta = (end_time - start_time) / 1000.0
-                results[bench_name] = time_delta
                 actual_result = bench.checksum()
             except TimeoutError:
                 end_time = Performance.now()
                 time_delta = (end_time - start_time) / 1000.0
-                results[bench_name] = time_delta
                 actual_result = "Timeout"
 
             expected_result = bench.expected_checksum
@@ -303,13 +307,6 @@ class Benchmark(ABC):
             gc.collect()
             print(f'in {time_delta:.3f}s')
             summary_time += time_delta
-
-        try:
-            results_path = Path('/tmp/results.python.json')
-            with open(results_path, 'w') as f:
-                json.dump(results, f)
-        except:
-            pass
 
         print(f'Summary: {summary_time:.4f}s, {ok + fails}, {ok}, {fails}')
 

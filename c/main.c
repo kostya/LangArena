@@ -24,6 +24,8 @@
 static uint32_t Helper_last = INIT;
 
 static cJSON *global_config = NULL;
+static char **global_order = NULL;
+static size_t global_order_count = 0;
 
 void Helper_reset(void) { Helper_last = INIT; }
 
@@ -66,7 +68,6 @@ uint32_t Helper_checksum_f64(double v) {
 }
 
 void Helper_load_config(const char *filename) {
-
   FILE *file = fopen(filename, "rb");
   if (!file) {
     fprintf(stderr, "Cannot open config file: %s\n", filename);
@@ -88,12 +89,35 @@ void Helper_load_config(const char *filename) {
   json_data[read_size] = '\0';
   fclose(file);
 
-  global_config = cJSON_Parse(json_data);
+  cJSON *parsed = cJSON_Parse(json_data);
   free(json_data);
 
-  if (!global_config) {
+  if (!parsed) {
     fprintf(stderr, "Error parsing JSON config: %s\n", cJSON_GetErrorPtr());
     exit(1);
+  }
+
+  if (cJSON_IsArray(parsed)) {
+    cJSON *config_map = cJSON_CreateObject();
+    int array_size = cJSON_GetArraySize(parsed);
+    global_order = malloc(sizeof(char *) * array_size);
+    global_order_count = 0;
+
+    cJSON *item;
+    cJSON_ArrayForEach(item, parsed) {
+      cJSON *name_item = cJSON_GetObjectItem(item, "name");
+      if (name_item && cJSON_IsString(name_item)) {
+        const char *name = name_item->valuestring;
+        cJSON_AddItemToObject(config_map, name, cJSON_Duplicate(item, 1));
+        global_order[global_order_count] = strdup(name);
+        global_order_count++;
+      }
+    }
+
+    global_config = config_map;
+    cJSON_Delete(parsed);
+  } else {
+    global_config = parsed;
   }
 }
 
@@ -101,6 +125,14 @@ void Helper_free_config(void) {
   if (global_config) {
     cJSON_Delete(global_config);
     global_config = NULL;
+  }
+  if (global_order) {
+    for (size_t i = 0; i < global_order_count; i++) {
+      free(global_order[i]);
+    }
+    free(global_order);
+    global_order = NULL;
+    global_order_count = 0;
   }
 }
 
@@ -113,24 +145,19 @@ int64_t Helper_config_i64(const char *class_name, const char *field_name) {
   cJSON *class_obj =
       cJSON_GetObjectItemCaseSensitive(global_config, class_name);
   if (!class_obj) {
-
     return 0;
   }
 
   cJSON *field = cJSON_GetObjectItemCaseSensitive(class_obj, field_name);
   if (!field) {
-
     return 0;
   }
 
   if (cJSON_IsNumber(field)) {
-
     return (int64_t)field->valuedouble;
   } else if (cJSON_IsString(field)) {
-
     return atoll(field->valuestring);
   } else {
-
     return 0;
   }
 }
@@ -150,7 +177,6 @@ const char *Helper_config_s(const char *class_name, const char *field_name) {
 
   cJSON *field = cJSON_GetObjectItemCaseSensitive(class_obj, field_name);
   if (!field || !cJSON_IsString(field)) {
-
     return "";
   }
 
@@ -257,6 +283,9 @@ void Benchmark_register(const char *name, Benchmark *(*factory)(void)) {
 
   strncpy(benchmark_factories[benchmark_factories_count].name, name,
           sizeof(benchmark_factories[benchmark_factories_count].name) - 1);
+  benchmark_factories[benchmark_factories_count]
+      .name[sizeof(benchmark_factories[benchmark_factories_count].name) - 1] =
+      '\0';
   benchmark_factories[benchmark_factories_count].create = factory;
   benchmark_factories_count++;
 }
@@ -279,18 +308,10 @@ void Benchmark_all(const char *single_bench) {
   int ok = 0;
   int fails = 0;
 
-  FILE *results_file = fopen("/tmp/results.js", "w");
-  if (results_file) {
-    fprintf(results_file, "{");
-  }
-
-  int first_result = 1;
-
-  for (size_t i = 0; i < benchmark_factories_count; i++) {
-    const char *bench_name = benchmark_factories[i].name;
+  for (size_t i = 0; i < global_order_count; i++) {
+    const char *bench_name = global_order[i];
 
     if (single_bench && strlen(single_bench) > 0) {
-
       const char *haystack = bench_name;
       const char *needle = single_bench;
 
@@ -311,10 +332,25 @@ void Benchmark_all(const char *single_bench) {
       }
     }
 
+    BenchmarkFactory *factory = NULL;
+    for (size_t j = 0; j < benchmark_factories_count; j++) {
+      if (strcmp(benchmark_factories[j].name, bench_name) == 0) {
+        factory = &benchmark_factories[j];
+        break;
+      }
+    }
+
+    if (!factory) {
+      printf(
+          "Warning: Benchmark '%s' defined in config but not found in code\n",
+          bench_name);
+      continue;
+    }
+
     printf("%s: ", bench_name);
     fflush(stdout);
 
-    Benchmark *bench = benchmark_factories[i].create();
+    Benchmark *bench = factory->create();
 
     Helper_reset();
 
@@ -342,30 +378,17 @@ void Benchmark_all(const char *single_bench) {
       ok++;
     } else {
       printf("ERR[actual=%u, expected=%u] ", actual_checksum,
-             (long long)expected_checksum);
+             (unsigned int)expected_checksum);
       fails++;
     }
 
     printf("in %.3fs\n", duration);
-
-    if (results_file) {
-      if (!first_result) {
-        fprintf(results_file, ",");
-      }
-      fprintf(results_file, "\"%s\":%.6f", bench_name, duration);
-      first_result = 0;
-    }
 
     bench->cleanup(bench);
     free(bench->data);
     free(bench);
 
     usleep(1000);
-  }
-
-  if (results_file) {
-    fprintf(results_file, "}");
-    fclose(results_file);
   }
 
   if (ok + fails > 0) {

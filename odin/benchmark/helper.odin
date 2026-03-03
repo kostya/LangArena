@@ -16,6 +16,7 @@ INIT :: 42
 Helper_State :: struct {
 	last_value: int,
 	config:     map[string]json.Object,
+	order:      []string,
 }
 
 _state: Helper_State
@@ -23,6 +24,7 @@ _state: Helper_State
 helper_init :: proc() {
 	_state.last_value = INIT
 	_state.config = make(map[string]json.Object)
+	_state.order = nil
 }
 
 reset :: proc() {
@@ -56,9 +58,7 @@ checksum_bytes :: proc(bytes: []u8) -> u32 {
 }
 
 checksum_f64 :: proc(v: f64) -> u32 {
-
 	str := fmt.tprintf("%.7f", v)
-
 	return checksum_string(str)
 }
 
@@ -78,15 +78,26 @@ load_config :: proc(config_file: string = "../test.json") -> bool {
 		return false
 	}
 
-	if obj, ok := result.(json.Object); ok {
+	if arr, ok := result.(json.Array); ok {
 		clear_map(&_state.config)
+		if _state.order != nil {
+			delete(_state.order)
+		}
 
-		for key, val in obj {
+		order := make([dynamic]string)
 
-			if inner_obj, inner_ok := val.(json.Object); inner_ok {
-				_state.config[key] = inner_obj
+		for item in arr {
+			if obj, obj_ok := item.(json.Object); obj_ok {
+				if name_val, name_exists := obj["name"]; name_exists {
+					if name_str, name_ok := name_val.(string); name_ok {
+						_state.config[name_str] = obj
+						append(&order, name_str)
+					}
+				}
 			}
 		}
+
+		_state.order = order[:]
 		return true
 	}
 
@@ -157,4 +168,7 @@ config_string :: proc(className, fieldName: string) -> string {
 
 helper_cleanup :: proc() {
 	delete(_state.config)
+	if _state.order != nil {
+		delete(_state.order)
+	}
 }

@@ -2,8 +2,9 @@ package benchmarks
 
 import java.nio.file.{Files, Paths}
 import java.util.Locale
-import org.json.JSONObject
+import org.json.{JSONObject, JSONArray}
 import scala.util.Using
+import scala.jdk.CollectionConverters.*
 
 object Helper:
   private val IM = 139968
@@ -54,11 +55,24 @@ object Helper:
     checksum(String.format(Locale.US, "%.7f", v)) & 0xffffffffL
 
   @volatile var CONFIG: JSONObject = new JSONObject()
+  @volatile var ORDER: List[String] = List.empty
 
   def loadConfig(filename: String): Unit =
     val file = Option(filename).getOrElse("../test.js")
     val content = Files.readString(Paths.get(file))
-    CONFIG = new JSONObject(content)
+
+    val array = new JSONArray(content)
+    val dict = new JSONObject()
+    val order = scala.collection.mutable.ListBuffer.empty[String]
+
+    for i <- 0 until array.length() do
+      val item = array.getJSONObject(i)
+      val name = item.getString("name")
+      dict.put(name, item)
+      order += name
+
+    CONFIG = dict
+    ORDER = order.toList
 
   def configI64(className: String, fieldName: String): Long =
     try

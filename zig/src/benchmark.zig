@@ -197,22 +197,11 @@ pub const all_benchmarks_list = blk: {
     break :blk list;
 };
 
-pub fn registerBenchmark(
-    comptime name: []const u8,
-    comptime BenchType: type,
-) void {
-    _ = name;
-    _ = BenchType;
-}
-
 pub fn runAllBenchmarks(
     allocator: std.mem.Allocator,
     helper: *Helper,
     single_bench: ?[]const u8,
 ) !void {
-    var results = std.StringHashMap(f64).init(allocator);
-    defer results.deinit();
-
     var summary_time: f64 = 0.0;
     var ok: u32 = 0;
     var fails: u32 = 0;
@@ -221,9 +210,14 @@ pub fn runAllBenchmarks(
     var stdout_wrapper = std.fs.File.stdout().writer(&buffer);
     const stdout = &stdout_wrapper.interface;
 
-    for (all_benchmarks_list) |bench_info| {
-        const bench_name = bench_info.name;
+    var bench_map = std.StringHashMap(BenchInfo).init(allocator);
+    defer bench_map.deinit();
 
+    for (all_benchmarks_list) |info| {
+        try bench_map.put(info.name, info);
+    }
+
+    for (helper.order) |bench_name| {
         if (single_bench) |name| {
             var name_lower_buf: [256]u8 = undefined;
             var bench_lower_buf: [256]u8 = undefined;
@@ -235,6 +229,12 @@ pub fn runAllBenchmarks(
                 continue;
             }
         }
+
+        const bench_info = bench_map.get(bench_name) orelse {
+            try stdout.print("Warning: Benchmark '{s}' defined in config but not found in code\n", .{bench_name});
+            try stdout.flush();
+            continue;
+        };
 
         std.debug.print("{s}: ", .{bench_name});
 
@@ -257,8 +257,6 @@ pub fn runAllBenchmarks(
         const time_delta_ns = @as(f64, @floatFromInt(timer.read()));
         const time_delta = time_delta_ns / 1_000_000_000.0;
 
-        try results.put(bench_name, time_delta);
-
         const actual_checksum = benchmark.checksum();
         const expected_checksum = @as(u32, @intCast(helper.config_i64(bench_name, "checksum")));
 
@@ -269,7 +267,6 @@ pub fn runAllBenchmarks(
         } else {
             try stdout.print("ERR[actual={}, expected={}] ", .{ actual_checksum, expected_checksum });
             try stdout.flush();
-
             fails += 1;
         }
 
@@ -278,37 +275,13 @@ pub fn runAllBenchmarks(
         summary_time += time_delta;
     }
 
-    try stdout.print("\nSummary: {d:.4}s, {}, {}, {}\n", .{
+    try stdout.print("Summary: {d:.4}s, {}, {}, {}\n", .{
         summary_time,
         ok + fails,
         ok,
         fails,
     });
     try stdout.flush();
-
-    const results_file = try std.fs.cwd().createFile("/tmp/results.js", .{});
-    defer results_file.close();
-
-    var buffer2: [8192]u8 = undefined;
-    var fba = std.io.fixedBufferStream(&buffer2);
-    var writer = fba.writer();
-
-    try writer.print("{{", .{});
-
-    var first = true;
-    var iter = results.iterator();
-    while (iter.next()) |entry| {
-        if (!first) {
-            try writer.writeAll(",");
-        }
-        first = false;
-        try writer.print("\"{s}\":{d:.3}", .{ entry.key_ptr.*, entry.value_ptr.* });
-    }
-
-    try writer.writeAll("}");
-    try writer.writeAll("\n");
-
-    try results_file.writeAll(fba.getWritten());
 
     if (fails > 0) {
         std.process.exit(1);
