@@ -530,7 +530,7 @@ RUNS = [
     version_cmd: "crystal --version | head -n 1",
     dir: "/src/crystal",
     container: "crystal",
-    group: :prod,
+    group: :hack,
     deps_cmd: "mkdir -p target ; shards install",
   ),
 
