@@ -21,12 +21,8 @@ module BenchmarkRunner =
 
           createBenchmarkInfo<Pidigits> "CLBG::Pidigits"
           createBenchmarkInfo<Fannkuchredux> "CLBG::Fannkuchredux"
-          createBenchmarkInfo<Fasta> "CLBG::Fasta"
-          createBenchmarkInfo<Knuckeotide> "CLBG::Knuckeotide"
           createBenchmarkInfo<Mandelbrot> "CLBG::Mandelbrot"
           createBenchmarkInfo<Nbody> "CLBG::Nbody"
-          createBenchmarkInfo<RegexDna> "CLBG::RegexDna"
-          createBenchmarkInfo<Revcomp> "CLBG::Revcomp"
           createBenchmarkInfo<Spectralnorm> "CLBG::Spectralnorm"
 
           createBenchmarkInfo<BinarytreesObj> "Binarytrees::Obj"

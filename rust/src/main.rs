@@ -124,12 +124,8 @@ fn run_benchmarks(single_bench: Option<&str>) {
 
         CLBG_Pidigits: benchmarks::pidigits::Pidigits,
         CLBG_Fannkuchredux: benchmarks::fannkuchredux::Fannkuchredux,
-        CLBG_Fasta: benchmarks::fasta::Fasta,
-        CLBG_Knuckeotide: benchmarks::knuckeotide::Knuckeotide,
         CLBG_Mandelbrot: benchmarks::mandelbrot::Mandelbrot,
         CLBG_Nbody: benchmarks::nbody::Nbody,
-        CLBG_RegexDna: benchmarks::regex_dna::RegexDna,
-        CLBG_Revcomp: benchmarks::revcomp::Revcomp,
         CLBG_Spectralnorm: benchmarks::spectralnorm::Spectralnorm,
 
         Binarytrees_Obj: benchmarks::binarytrees::BinarytreesObj,

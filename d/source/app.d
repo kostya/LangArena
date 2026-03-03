@@ -20,10 +20,6 @@ import benchmarks.binarytrees;
 import benchmarks.brainfuckarray;
 import benchmarks.brainfuckrecursion;
 import benchmarks.fannkuchredux;
-import benchmarks.fasta;
-import benchmarks.knuckeotide;
-import benchmarks.regexdna;
-import benchmarks.revcomp;
 import benchmarks.mandelbrot;
 import benchmarks.matmul;
 import benchmarks.nbody;
@@ -50,29 +46,27 @@ import benchmarks.logparser;
 mixin(registerAllBenchmarks!("CLBG::Pidigits", Pidigits, "Binarytrees::Obj",
         BinarytreesObj, "Binarytrees::Arena", BinarytreesArena, "Brainfuck::Array",
         BrainfuckArray, "Brainfuck::Recursion", BrainfuckRecursion,
-        "CLBG::Fannkuchredux", Fannkuchredux, "CLBG::Fasta", Fasta,
-        "CLBG::Knuckeotide", Knuckeotide, "CLBG::Mandelbrot", Mandelbrot,
-        "Matmul::Single", Matmul1T, "Matmul::T4", Matmul4T,
-        "Matmul::T8", Matmul8T, "Matmul::T16", Matmul16T, "CLBG::Nbody", Nbody,
-        "CLBG::RegexDna", RegexDna, "CLBG::Revcomp", Revcomp,
-        "CLBG::Spectralnorm", Spectralnorm, "Base64::Encode",
-        Base64Encode, "Base64::Decode", Base64Decode, "Json::Generate", JsonGenerate,
+        "CLBG::Fannkuchredux", Fannkuchredux, "CLBG::Mandelbrot", Mandelbrot,
+        "Matmul::Single", Matmul1T, "Matmul::T4", Matmul4T, "Matmul::T8",
+        Matmul8T, "Matmul::T16", Matmul16T, "CLBG::Nbody",
+        Nbody, "CLBG::Spectralnorm", Spectralnorm, "Base64::Encode", Base64Encode,
+        "Base64::Decode", Base64Decode, "Json::Generate", JsonGenerate,
         "Json::ParseDom", JsonParseDom, "Json::ParseMapping", JsonParseMapping,
-        "Etc::Sieve", Sieve, "Etc::TextRaytracer",
-        TextRaytracer, "Etc::NeuralNet", NeuralNet, "Sort::Quick", SortQuick,
-        "Sort::Merge", SortMerge, "Sort::Self", SortSelf, "Graph::BFS",
-        GraphPathBFS, "Graph::DFS", GraphPathDFS, "Graph::AStar",
-        GraphPathAStar, "Hash::SHA256", BufferHashSHA256, "Hash::CRC32",
-        BufferHashCRC32, "Etc::CacheSimulation",
-        CacheSimulation, "Calculator::Ast", CalculatorAst, "Calculator::Interpreter",
-        CalculatorInterpreter, "Etc::GameOfLife", GameOfLife, "Maze::Generator",
-        MazeGenerator, "Maze::BFS", MazeBFS, "Maze::AStar", MazeAStar,
-        "Compress::BWTEncode",
-        BWTEncode, "Compress::BWTDecode", BWTDecode, "Compress::HuffEncode",
-        HuffEncode, "Compress::HuffDecode", HuffDecode, "Compress::ArithEncode",
-        ArithEncode, "Compress::ArithDecode", ArithDecode, "Compress::LZWEncode",
-        LZWEncode, "Compress::LZWDecode", LZWDecode, "Distance::Jaro",
-        Jaro, "Distance::NGram", NGram, "Etc::Words", Words, "Etc::LogParser", LogParser));
+        "Etc::Sieve", Sieve, "Etc::TextRaytracer", TextRaytracer,
+        "Etc::NeuralNet", NeuralNet, "Sort::Quick", SortQuick, "Sort::Merge",
+        SortMerge, "Sort::Self", SortSelf, "Graph::BFS", GraphPathBFS, "Graph::DFS",
+        GraphPathDFS, "Graph::AStar", GraphPathAStar, "Hash::SHA256",
+        BufferHashSHA256, "Hash::CRC32", BufferHashCRC32,
+        "Etc::CacheSimulation", CacheSimulation, "Calculator::Ast",
+        CalculatorAst, "Calculator::Interpreter", CalculatorInterpreter,
+        "Etc::GameOfLife", GameOfLife, "Maze::Generator",
+        MazeGenerator, "Maze::BFS", MazeBFS, "Maze::AStar",
+        MazeAStar, "Compress::BWTEncode", BWTEncode, "Compress::BWTDecode", BWTDecode,
+        "Compress::HuffEncode", HuffEncode, "Compress::HuffDecode", HuffDecode,
+        "Compress::ArithEncode",
+        ArithEncode, "Compress::ArithDecode", ArithDecode,
+        "Compress::LZWEncode", LZWEncode, "Compress::LZWDecode", LZWDecode, "Distance::Jaro", Jaro,
+        "Distance::NGram", NGram, "Etc::Words", Words, "Etc::LogParser", LogParser));
 
 void benchmarkAll(string singleBench = "")
 {

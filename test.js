@@ -190,26 +190,6 @@
     "n": 5,
     "iterations": 3
   },
-  "CLBG::Fasta": {
-    "checksum": 947682521,
-    "n": 100,
-    "iterations": 3
-  },
-  "CLBG::Knuckeotide": {
-    "checksum": 3392294105,
-    "n": 1000,
-    "iterations": 3
-  },
-  "CLBG::RegexDna": {
-    "checksum": 2183107957,
-    "n": 500,
-    "iterations": 3
-  },
-  "CLBG::Revcomp": {
-    "checksum": 3201314680,
-    "n": 1000,
-    "iterations": 3
-  },
   "CLBG::Mandelbrot": {
     "checksum": 2236342953,
     "w": 30,

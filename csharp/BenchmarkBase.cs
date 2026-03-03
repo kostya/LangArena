@@ -95,12 +95,8 @@ public abstract class Benchmark
 
             CreateBenchmarkInfo<Pidigits>("CLBG::Pidigits"),
             CreateBenchmarkInfo<Fannkuchredux>("CLBG::Fannkuchredux"),
-            CreateBenchmarkInfo<Fasta>("CLBG::Fasta"),
-            CreateBenchmarkInfo<Knuckeotide>("CLBG::Knuckeotide"),
             CreateBenchmarkInfo<Mandelbrot>("CLBG::Mandelbrot"),
             CreateBenchmarkInfo<Nbody>("CLBG::Nbody"),
-            CreateBenchmarkInfo<RegexDna>("CLBG::RegexDna"),
-            CreateBenchmarkInfo<Revcomp>("CLBG::Revcomp"),
             CreateBenchmarkInfo<Spectralnorm>("CLBG::Spectralnorm"),
 
             CreateBenchmarkInfo<BinarytreesObj>("Binarytrees::Obj"),

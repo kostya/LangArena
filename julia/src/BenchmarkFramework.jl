@@ -16,13 +16,9 @@ include("benchmarks/Binarytrees.jl")
 include("benchmarks/BrainfuckArray.jl")
 include("benchmarks/BrainfuckRecursion.jl")
 include("benchmarks/Fannkuchredux.jl")
-include("benchmarks/Fasta.jl")
-include("benchmarks/Knuckeotide.jl")
 include("benchmarks/Mandelbrot.jl")
 include("benchmarks/Matmul.jl")
 include("benchmarks/Nbody.jl")
-include("benchmarks/RegexDna.jl")
-include("benchmarks/Revcomp.jl")
 include("benchmarks/Spectralnorm.jl")
 include("benchmarks/Base64Encode.jl")
 include("benchmarks/Base64Decode.jl")
@@ -49,16 +45,12 @@ const ALL_BENCHMARKS = [
     ("Brainfuck::Array", BrainfuckArray),
     ("Brainfuck::Recursion", BrainfuckRecursion),
     ("CLBG::Fannkuchredux", Fannkuchredux),
-    ("CLBG::Fasta", Fasta),
-    ("CLBG::Knuckeotide", Knuckeotide),
     ("CLBG::Mandelbrot", Mandelbrot),
     ("Matmul::Single", Matmul1T),
     ("Matmul::T4", Matmul4T),
     ("Matmul::T8", Matmul8T),
     ("Matmul::T16", Matmul16T),
     ("CLBG::Nbody", Nbody),
-    ("CLBG::RegexDna", RegexDna),
-    ("CLBG::Revcomp", Revcomp),
     ("CLBG::Spectralnorm", Spectralnorm),
     ("Base64::Encode", Base64Encode),
     ("Base64::Decode", Base64Decode),

@@ -13,16 +13,12 @@ fun main(args: Array<String>) {
     Benchmark.registerBenchmark("Brainfuck::Array") { BrainfuckArray() }
     Benchmark.registerBenchmark("Brainfuck::Recursion") { BrainfuckRecursion() }
     Benchmark.registerBenchmark("CLBG::Fannkuchredux") { Fannkuchredux() }
-    Benchmark.registerBenchmark("CLBG::Fasta") { Fasta() }
-    Benchmark.registerBenchmark("CLBG::Knuckeotide") { Knuckeotide() }
     Benchmark.registerBenchmark("CLBG::Mandelbrot") { Mandelbrot() }
     Benchmark.registerBenchmark("Matmul::Single") { Matmul1T() }
     Benchmark.registerBenchmark("Matmul::T4") { Matmul4T() }
     Benchmark.registerBenchmark("Matmul::T8") { Matmul8T() }
     Benchmark.registerBenchmark("Matmul::T16") { Matmul16T() }
     Benchmark.registerBenchmark("CLBG::Nbody") { Nbody() }
-    Benchmark.registerBenchmark("CLBG::RegexDna") { RegexDna() }
-    Benchmark.registerBenchmark("CLBG::Revcomp") { Revcomp() }
     Benchmark.registerBenchmark("CLBG::Spectralnorm") { Spectralnorm() }
     Benchmark.registerBenchmark("Base64::Encode") { Base64Encode() }
     Benchmark.registerBenchmark("Base64::Decode") { Base64Decode() }

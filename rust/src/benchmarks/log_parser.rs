@@ -1,4 +1,4 @@
-use super::super::{helper, Benchmark};
+use super::super::Benchmark;
 use crate::config_i64;
 use once_cell::sync::Lazy;
 use regex::Regex;
