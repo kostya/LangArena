@@ -30,5 +30,6 @@ pub mod sort_merge;
 pub mod sort_quick;
 pub mod sort_self;
 pub mod spectralnorm;
+pub mod template;
 pub mod text_raytracer;
 pub mod words;

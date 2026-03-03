@@ -30,6 +30,7 @@ import distance
 import json_benchmarks
 import words
 import logparser
+import template
 
 fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 	return [
@@ -176,6 +177,12 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		}},
 		benchmark.BenchmarkInfo{'Etc::LogParser', fn () &benchmark.IBenchmark {
 			return logparser.new_logparser()
+		}},
+		benchmark.BenchmarkInfo{'Template::Regex', fn () &benchmark.IBenchmark {
+			return template.new_template_regex()
+		}},
+		benchmark.BenchmarkInfo{'Template::Parse', fn () &benchmark.IBenchmark {
+			return template.new_template_parse()
 		}},
 	]
 }

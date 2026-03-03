@@ -127,6 +127,18 @@
     "lines_count": 45000
   },
   {
+    "name": "Template::Regex",
+    "checksum": 3462120285,
+    "iterations": 32,
+    "count": 50000
+  },
+  {
+    "name": "Template::Parse",
+    "checksum": 3462120285,
+    "iterations": 32,
+    "count": 50000
+  },
+  {
     "name": "Sort::Quick",
     "checksum": 118065786,
     "size": 150000,

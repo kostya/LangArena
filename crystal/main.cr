@@ -1515,6 +1515,94 @@ module Etc
   end
 end
 
+module Template
+  class Regex < Benchmark
+    def initialize(@count : Int32 = config_val("count").to_i32)
+      @checksum = 0_u32
+      @text = ""
+      @rendered = ""
+      @vars = Hash(String, String).new
+    end
+
+    FIRST_NAMES = ["John", "Jane", "Bob", "Alice", "Charlie", "Diana", "Sarah", "Mike"]
+    LAST_NAMES  = ["Smith", "Johnson", "Brown", "Taylor", "Wilson", "Davis", "Miller", "Jones"]
+    CITIES      = ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "San Francisco"]
+
+    LOREM = "Lorem {ipsum} dolor {sit} amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore {et} dolore magna aliqua. "
+
+    def prepare
+      @text = String.build do |s|
+        s << "<html><body>"
+        s << "<h1>{{TITLE}}</h1>"
+        @vars["TITLE"] = "Template title"
+        s << "<p>"
+        s << LOREM
+        s << "</p>"
+        s << "<table>"
+
+        @count.times do |i|
+          s << "<!-- {comment} -->" if i % 3 == 0
+          s << "<tr>"
+          s << "<td>{{ FIRST_NAME#{i} }}</td>"
+          s << "<td>{{LAST_NAME#{i}}}</td>"
+          s << "<td>{{  CITY#{i}  }}</td>"
+          @vars["FIRST_NAME#{i}"] = FIRST_NAMES[i % FIRST_NAMES.size]
+          @vars["LAST_NAME#{i}"] = LAST_NAMES[i % LAST_NAMES.size]
+          @vars["CITY#{i}"] = CITIES[i % CITIES.size]
+          s << "<td>{balance: #{i % 100}}</td>"
+          s << "</tr>\n"
+        end
+
+        s << "</table>"
+        s << "</body></html>"
+      end
+    end
+
+    def run(iteration_id)
+      @rendered = @text.gsub(/{{\s*(.*?)\s*}}/) { @vars.fetch($1, "") }
+      @checksum &+= @rendered.bytesize
+    end
+
+    def checksum : UInt32
+      @checksum &+ Helper.checksum(@rendered)
+    end
+  end
+
+  class Parse < Regex
+    def run(iteration_id)
+      @rendered = String.build((@text.bytesize * 1.5).to_i) do |s|
+        i = 0
+        text = @text
+        text_size = text.bytesize
+
+        while i < text_size
+          if i + 1 < text_size && text[i] == '{' && text[i + 1] == '{'
+            j = i + 2
+            while j + 1 < text_size
+              if text[j] == '}' && text[j + 1] == '}'
+                break
+              end
+              j += 1
+            end
+
+            if j + 1 < text_size
+              key = text[(i + 2)...j].strip
+              s << @vars.fetch(key, "")
+              i = j + 2
+              next
+            end
+          end
+
+          s << text[i]
+          i += 1
+        end
+      end
+
+      @checksum &+= @rendered.bytesize
+    end
+  end
+end
+
 module Sort
   class SortBenchmark < Benchmark
     @data : Array(Int32)

@@ -33,6 +33,7 @@
     <Compile Include="Distance.fs" />    
     <Compile Include="Words.fs" /> 
     <Compile Include="LogParser.fs" />    
+    <Compile Include="Template.fs" />    
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

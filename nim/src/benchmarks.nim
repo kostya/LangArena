@@ -33,6 +33,7 @@ import benchmarks/compress
 import benchmarks/distance
 import benchmarks/words
 import benchmarks/logparser
+import benchmarks/templates
 
 proc main() =
   let now = (epochTime() * 1000).int64

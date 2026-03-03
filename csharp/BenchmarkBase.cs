@@ -155,6 +155,9 @@ public abstract class Benchmark
 
             CreateBenchmarkInfo<Words>("Etc::Words"),
             CreateBenchmarkInfo<LogParser>("Etc::LogParser"),
+
+            CreateBenchmarkInfo<TemplateRegex>("Template::Regex"),
+            CreateBenchmarkInfo<TemplateParse>("Template::Parse"),
         };
     }
 

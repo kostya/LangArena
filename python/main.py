@@ -4234,6 +4234,146 @@ class LogParser(Benchmark):
         return "Etc::LogParser"
 
 
+class TemplateBase(Benchmark):
+    FIRST_NAMES = [
+        "John", "Jane", "Bob", "Alice", "Charlie", "Diana", "Sarah", "Mike"
+    ]
+    LAST_NAMES = [
+        "Smith", "Johnson", "Brown", "Taylor", "Wilson", "Davis", "Miller",
+        "Jones"
+    ]
+    CITIES = [
+        "New York", "Los Angeles", "Chicago", "Houston", "Phoenix",
+        "San Francisco"
+    ]
+    LOREM = "Lorem {ipsum} dolor {sit} amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore {et} dolore magna aliqua. "
+
+    def __init__(self):
+        super().__init__()
+        self.count = 0
+        self.text = ""
+        self.rendered = ""
+        self.checksum_val = 0
+        self.vars = {}
+
+    def _prepare_template(self):
+        self.vars.clear()
+        lines = []
+        lines.append("<html><body>")
+        lines.append("<h1>{{TITLE}}</h1>")
+        self.vars["TITLE"] = "Template title"
+        lines.append("<p>")
+        lines.append(self.LOREM)
+        lines.append("</p>")
+        lines.append("<table>")
+
+        for i in range(self.count):
+            if i % 3 == 0:
+                lines.append("<!-- {comment} -->")
+            lines.append("<tr>")
+            lines.append(f"<td>{{{{ FIRST_NAME{i} }}}}</td>")
+            lines.append(f"<td>{{{{LAST_NAME{i}}}}}</td>")
+            lines.append(f"<td>{{{{  CITY{i}  }}}}</td>")
+
+            self.vars[f"FIRST_NAME{i}"] = self.FIRST_NAMES[i % len(
+                self.FIRST_NAMES)]
+            self.vars[f"LAST_NAME{i}"] = self.LAST_NAMES[i %
+                                                         len(self.LAST_NAMES)]
+            self.vars[f"CITY{i}"] = self.CITIES[i % len(self.CITIES)]
+
+            lines.append(f"<td>{{balance: {i % 100}}}</td>")
+            lines.append("</tr>\n")
+
+        lines.append("</table>")
+        lines.append("</body></html>")
+
+        self.text = ''.join(lines)
+
+    def checksum(self) -> int:
+        return (self.checksum_val +
+                Helper.checksum_string(self.rendered)) & 0xFFFFFFFF
+
+
+class TemplateRegex(TemplateBase):
+    PATTERN = re.compile(r'{{\s*(.*?)\s*}}')
+
+    def __init__(self):
+        super().__init__()
+
+    def prepare(self):
+        self.count = Helper.config_i64(self.name(), "count")
+        self._prepare_template()
+
+    def run_benchmark(self, iteration_id: int):
+        result = []
+        last_pos = 0
+
+        for match in self.PATTERN.finditer(self.text):
+            start, end = match.span()
+
+            if start > last_pos:
+                result.append(self.text[last_pos:start])
+
+            key = match.group(1).strip()
+            if key in self.vars:
+                result.append(self.vars[key])
+
+            last_pos = end
+
+        if last_pos < len(self.text):
+            result.append(self.text[last_pos:])
+
+        self.rendered = ''.join(result)
+        self.checksum_val += len(self.rendered)
+        self.checksum_val &= 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Template::Regex"
+
+
+class TemplateParse(TemplateBase):
+
+    def __init__(self):
+        super().__init__()
+
+    def prepare(self):
+        self.count = Helper.config_i64(self.name(), "count")
+        self._prepare_template()
+
+    def run_benchmark(self, iteration_id: int):
+        text_len = len(self.text)
+        result = []
+
+        result_size = int(text_len * 1.5)
+
+        i = 0
+        while i < text_len:
+            if i + 1 < text_len and self.text[i] == '{' and self.text[i +
+                                                                      1] == '{':
+                j = i + 2
+                while j + 1 < text_len:
+                    if self.text[j] == '}' and self.text[j + 1] == '}':
+                        break
+                    j += 1
+
+                if j + 1 < text_len:
+                    key = self.text[i + 2:j].strip()
+                    if key in self.vars:
+                        result.append(self.vars[key])
+                    i = j + 2
+                    continue
+
+            result.append(self.text[i])
+            i += 1
+
+        self.rendered = ''.join(result)
+        self.checksum_val += len(self.rendered)
+        self.checksum_val &= 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Template::Parse"
+
+
 def register_benchmarks():
     Benchmark.register_benchmark('CLBG::Pidigits', Pidigits)
     Benchmark.register_benchmark('Binarytrees::Obj', BinarytreesObj)
@@ -4284,6 +4424,8 @@ def register_benchmarks():
     Benchmark.register_benchmark('Distance::NGram', NGram)
     Benchmark.register_benchmark('Etc::Words', Words)
     Benchmark.register_benchmark('Etc::LogParser', LogParser)
+    Benchmark.register_benchmark('Template::Regex', TemplateRegex)
+    Benchmark.register_benchmark('Template::Parse', TemplateParse)
 
 
 def main():

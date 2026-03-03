@@ -322,6 +322,14 @@ fn run_benchmarks(single_bench: Option<&str>) {
         "Etc::LogParser".to_string(),
         Box::new(|| Box::new(benchmarks::log_parser::LogParser::new())),
     );
+    benchmark_map.insert(
+        "Template::Regex".to_string(),
+        Box::new(|| Box::new(benchmarks::template::TemplateRegex::new())),
+    );
+    benchmark_map.insert(
+        "Template::Parse".to_string(),
+        Box::new(|| Box::new(benchmarks::template::TemplateParse::new())),
+    );
 
     let mut summary_time = 0.0;
     let mut ok = 0;

@@ -5402,6 +5402,188 @@ export class LogParser extends Benchmark {
   }
 }
 
+abstract class TemplateBase extends Benchmark {
+  protected count: number = 0;
+  protected text: string = "";
+  protected rendered: string = "";
+  protected checksumVal: number = 0;
+  protected vars: Record<string, string> = {};
+
+  protected static readonly FIRST_NAMES: string[] = [
+    "John",
+    "Jane",
+    "Bob",
+    "Alice",
+    "Charlie",
+    "Diana",
+    "Sarah",
+    "Mike",
+  ];
+  protected static readonly LAST_NAMES: string[] = [
+    "Smith",
+    "Johnson",
+    "Brown",
+    "Taylor",
+    "Wilson",
+    "Davis",
+    "Miller",
+    "Jones",
+  ];
+  protected static readonly CITIES: string[] = [
+    "New York",
+    "Los Angeles",
+    "Chicago",
+    "Houston",
+    "Phoenix",
+    "San Francisco",
+  ];
+  protected static readonly LOREM: string =
+    "Lorem {ipsum} dolor {sit} amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore {et} dolore magna aliqua. ";
+
+  protected prepareTemplate(): void {
+    this.vars = {};
+    let textBuilder = "";
+
+    textBuilder += "<html><body>";
+    textBuilder += "<h1>{{TITLE}}</h1>";
+    this.vars["TITLE"] = "Template title";
+    textBuilder += "<p>";
+    textBuilder += TemplateBase.LOREM;
+    textBuilder += "</p>";
+    textBuilder += "<table>";
+
+    for (let i = 0; i < this.count; i++) {
+      if (i % 3 === 0) {
+        textBuilder += "<!-- {comment} -->";
+      }
+      textBuilder += "<tr>";
+      textBuilder += `<td>{{ FIRST_NAME${i} }}</td>`;
+      textBuilder += `<td>{{LAST_NAME${i}}}</td>`;
+      textBuilder += `<td>{{  CITY${i}  }}</td>`;
+
+      this.vars[`FIRST_NAME${i}`] =
+        TemplateBase.FIRST_NAMES[i % TemplateBase.FIRST_NAMES.length];
+      this.vars[`LAST_NAME${i}`] =
+        TemplateBase.LAST_NAMES[i % TemplateBase.LAST_NAMES.length];
+      this.vars[`CITY${i}`] =
+        TemplateBase.CITIES[i % TemplateBase.CITIES.length];
+
+      textBuilder += `<td>{balance: ${i % 100}}</td>`;
+      textBuilder += "</tr>\n";
+    }
+
+    textBuilder += "</table>";
+    textBuilder += "</body></html>";
+
+    this.text = textBuilder;
+  }
+
+  checksum(): number {
+    return (this.checksumVal + Helper.checksumString(this.rendered)) >>> 0;
+  }
+}
+
+export class TemplateRegex extends TemplateBase {
+  private static readonly PATTERN: RegExp = /{{\s*(.*?)\s*}}/g;
+
+  constructor() {
+    super();
+    this.count = Number(Helper.configI64(this.name, "count"));
+  }
+
+  prepare(): void {
+    this.prepareTemplate();
+  }
+
+  run(_iteration_id: number): void {
+    let result = "";
+    let lastPos = 0;
+    let match: RegExpExecArray | null;
+
+    TemplateRegex.PATTERN.lastIndex = 0;
+
+    while ((match = TemplateRegex.PATTERN.exec(this.text)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+
+      if (start > lastPos) {
+        result += this.text.substring(lastPos, start);
+      }
+
+      const key = match[1].trim();
+      if (this.vars[key]) {
+        result += this.vars[key];
+      }
+
+      lastPos = end;
+    }
+
+    if (lastPos < this.text.length) {
+      result += this.text.substring(lastPos);
+    }
+
+    this.rendered = result;
+    this.checksumVal = (this.checksumVal + this.rendered.length) >>> 0;
+  }
+
+  override get name(): string {
+    return "Template::Regex";
+  }
+}
+
+export class TemplateParse extends TemplateBase {
+  constructor() {
+    super();
+    this.count = Number(Helper.configI64(this.name, "count"));
+  }
+
+  prepare(): void {
+    this.prepareTemplate();
+  }
+
+  run(_iteration_id: number): void {
+    const len = this.text.length;
+    let result = "";
+
+    const resultParts: string[] = [];
+    let estimatedSize = 0;
+
+    let i = 0;
+    while (i < len) {
+      if (i + 1 < len && this.text[i] === "{" && this.text[i + 1] === "{") {
+        let j = i + 2;
+        while (j + 1 < len) {
+          if (this.text[j] === "}" && this.text[j + 1] === "}") {
+            break;
+          }
+          j++;
+        }
+
+        if (j + 1 < len) {
+          const key = this.text.substring(i + 2, j).trim();
+          if (this.vars[key]) {
+            resultParts.push(this.vars[key]);
+            estimatedSize += this.vars[key].length;
+          }
+          i = j + 2;
+          continue;
+        }
+      }
+
+      resultParts.push(this.text[i]);
+      estimatedSize += 1;
+      i++;
+    }
+
+    this.rendered = resultParts.join("");
+    this.checksumVal = (this.checksumVal + this.rendered.length) >>> 0;
+  }
+
+  override get name(): string {
+    return "Template::Parse";
+  }
+}
+
 Benchmark.registerBenchmark("CLBG::Pidigits", Pidigits);
 Benchmark.registerBenchmark("Binarytrees::Obj", BinarytreesObj);
 Benchmark.registerBenchmark("Binarytrees::Arena", BinarytreesArena);
@@ -5450,6 +5632,8 @@ Benchmark.registerBenchmark("Distance::Jaro", Jaro);
 Benchmark.registerBenchmark("Distance::NGram", NGram);
 Benchmark.registerBenchmark("Etc::Words", Words);
 Benchmark.registerBenchmark("Etc::LogParser", LogParser);
+Benchmark.registerBenchmark("Template::Regex", TemplateRegex);
+Benchmark.registerBenchmark("Template::Parse", TemplateParse);
 
 try {
   main().catch(console.error);

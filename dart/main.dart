@@ -4903,6 +4903,190 @@ class LogParser extends Benchmark {
   String get benchmarkName => 'Etc::LogParser';
 }
 
+const List<String> FIRST_NAMES = [
+  'John',
+  'Jane',
+  'Bob',
+  'Alice',
+  'Charlie',
+  'Diana',
+  'Sarah',
+  'Mike',
+];
+const List<String> LAST_NAMES = [
+  'Smith',
+  'Johnson',
+  'Brown',
+  'Taylor',
+  'Wilson',
+  'Davis',
+  'Miller',
+  'Jones',
+];
+const List<String> CITIES = [
+  'New York',
+  'Los Angeles',
+  'Chicago',
+  'Houston',
+  'Phoenix',
+  'San Francisco',
+];
+const String LOREM =
+    'Lorem {ipsum} dolor {sit} amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore {et} dolore magna aliqua. ';
+
+void prepareTemplate(int count, Map<String, String> vars, StringBuffer buffer) {
+  vars.clear();
+
+  buffer.write('<html><body>');
+  buffer.write('<h1>{{TITLE}}</h1>');
+  vars['TITLE'] = 'Template title';
+  buffer.write('<p>');
+  buffer.write(LOREM);
+  buffer.write('</p>');
+  buffer.write('<table>');
+
+  for (int i = 0; i < count; i++) {
+    if (i % 3 == 0) {
+      buffer.write('<!-- {comment} -->');
+    }
+    buffer.write('<tr>');
+    buffer.write('<td>{{ FIRST_NAME$i }}</td>');
+    buffer.write('<td>{{LAST_NAME$i}}</td>');
+    buffer.write('<td>{{  CITY$i  }}</td>');
+
+    vars['FIRST_NAME$i'] = FIRST_NAMES[i % FIRST_NAMES.length];
+    vars['LAST_NAME$i'] = LAST_NAMES[i % LAST_NAMES.length];
+    vars['CITY$i'] = CITIES[i % CITIES.length];
+
+    buffer.write('<td>{balance: ${i % 100}}</td>');
+    buffer.write('</tr>\n');
+  }
+
+  buffer.write('</table>');
+  buffer.write('</body></html>');
+}
+
+class TemplateRegex extends Benchmark {
+  late int count;
+  late String text;
+  late String rendered;
+  int checksumVal = 0;
+  late final Map<String, String> vars;
+  late final RegExp regex;
+
+  TemplateRegex() {
+    count = Helper.configI64(benchmarkName, 'count').toInt();
+    vars = {};
+    regex = RegExp(r'\{\{\s*(.*?)\s*\}\}');
+    text = '';
+    rendered = '';
+  }
+
+  @override
+  void prepare() {
+    final buffer = StringBuffer();
+    prepareTemplate(count, vars, buffer);
+    text = buffer.toString();
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    final buffer = StringBuffer();
+    int lastPos = 0;
+
+    final matches = regex.allMatches(text);
+    for (final match in matches) {
+      buffer.write(text.substring(lastPos, match.start));
+
+      final key = match.group(1)!.trim();
+      if (vars.containsKey(key)) {
+        buffer.write(vars[key]);
+      }
+
+      lastPos = match.end;
+    }
+
+    if (lastPos < text.length) {
+      buffer.write(text.substring(lastPos));
+    }
+
+    rendered = buffer.toString();
+    checksumVal += rendered.length;
+  }
+
+  @override
+  int checksum() {
+    return (checksumVal & 0xFFFFFFFF) + Helper.checksumString(rendered);
+  }
+
+  @override
+  String get benchmarkName => 'Template::Regex';
+}
+
+class TemplateParse extends Benchmark {
+  late int count;
+  late String text;
+  late String rendered;
+  int checksumVal = 0;
+  late final Map<String, String> vars;
+
+  TemplateParse() {
+    count = Helper.configI64(benchmarkName, 'count').toInt();
+    vars = {};
+    text = '';
+    rendered = '';
+  }
+
+  @override
+  void prepare() {
+    final buffer = StringBuffer();
+    prepareTemplate(count, vars, buffer);
+    text = buffer.toString();
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    final len = text.length;
+    final buffer = StringBuffer();
+
+    int i = 0;
+    while (i < len) {
+      if (i + 1 < len && text[i] == '{' && text[i + 1] == '{') {
+        int j = i + 2;
+        while (j + 1 < len) {
+          if (text[j] == '}' && text[j + 1] == '}') {
+            break;
+          }
+          j++;
+        }
+
+        if (j + 1 < len) {
+          final key = text.substring(i + 2, j).trim();
+          if (vars.containsKey(key)) {
+            buffer.write(vars[key]);
+          }
+          i = j + 2;
+          continue;
+        }
+      }
+
+      buffer.write(text[i]);
+      i++;
+    }
+
+    rendered = buffer.toString();
+    checksumVal += rendered.length;
+  }
+
+  @override
+  int checksum() {
+    return (checksumVal & 0xFFFFFFFF) + Helper.checksumString(rendered);
+  }
+
+  @override
+  String get benchmarkName => 'Template::Parse';
+}
+
 bool listEquals(List? a, List? b) {
   if (a == null) return b == null;
   if (b == null || a.length != b.length) return false;
@@ -4967,6 +5151,8 @@ void registerBenchmarks() {
   Benchmark.registerBenchmark('Distance::NGram', () => NGram());
   Benchmark.registerBenchmark('Etc::Words', () => Words());
   Benchmark.registerBenchmark('Etc::LogParser', () => LogParser());
+  Benchmark.registerBenchmark('Template::Regex', () => TemplateRegex());
+  Benchmark.registerBenchmark('Template::Parse', () => TemplateParse());
 }
 
 Future<void> main(List<String> args) async {

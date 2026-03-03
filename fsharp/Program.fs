@@ -77,6 +77,9 @@ module BenchmarkRunner =
           createBenchmarkInfo<Jaro> "Distance::Jaro"
           createBenchmarkInfo<NGram> "Distance::NGram"
 
+          createBenchmarkInfo<TemplateRegex> "Template::Regex"
+          createBenchmarkInfo<TemplateParse> "Template::Parse"
+
           createBenchmarkInfo<Words> "Etc::Words"
           createBenchmarkInfo<LogParser> "Etc::LogParser" ]
 

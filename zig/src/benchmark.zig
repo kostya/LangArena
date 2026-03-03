@@ -193,6 +193,8 @@ pub const all_benchmarks_list = blk: {
         createBenchInfo("Distance::NGram", @import("distance.zig").NGram),
         createBenchInfo("Etc::Words", @import("words.zig").Words),
         createBenchInfo("Etc::LogParser", @import("logparser.zig").LogParser),
+        createBenchInfo("Template::Regex", @import("template.zig").TemplateRegex),
+        createBenchInfo("Template::Parse", @import("template.zig").TemplateParse),
     };
     break :blk list;
 };

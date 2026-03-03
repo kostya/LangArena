@@ -53,6 +53,8 @@ public class Main {
         Benchmark.registerBenchmark("Distance::NGram", () -> new Distance.NGram());
         Benchmark.registerBenchmark("Etc::Words", () -> new Words());
         Benchmark.registerBenchmark("Etc::LogParser", () -> new LogParser());
+        Benchmark.registerBenchmark("Template::Regex", () -> new Template.Regex());
+        Benchmark.registerBenchmark("Template::Parse", () -> new Template.Parse());
 
         long now = Instant.now().toEpochMilli();
         System.out.println("start: " + now);

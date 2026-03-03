@@ -64,6 +64,8 @@ main :: proc() {
 	benchmark.register_benchmark_factory("Distance::NGram", benchmark.create_ngram)
 	benchmark.register_benchmark_factory("Etc::Words", benchmark.create_words)
 	benchmark.register_benchmark_factory("Etc::LogParser", benchmark.create_logparser)
+	benchmark.register_benchmark_factory("Template::Regex", benchmark.create_template_regex)
+	benchmark.register_benchmark_factory("Template::Parse", benchmark.create_template_parse)
 
 	config_file := "../test.json"
 	if len(os.args) > 1 {
