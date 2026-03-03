@@ -4820,7 +4820,6 @@ class LogParser extends Benchmark {
   static const List<String> PATHS = [
     '/index.html',
     '/api/users',
-    '/login',
     '/admin',
     '/images/logo.png',
     '/etc/passwd',
@@ -4845,17 +4844,57 @@ class LogParser extends Benchmark {
     'curl/7.68.0',
     'scanner/2.0',
   ];
-
-  static final List<MapEntry<String, String>> PATTERNS = [
-    const MapEntry('errors', r' [5][0-9]{2} '),
-    const MapEntry('bots', r'bot|crawler|scanner'),
-    const MapEntry('suspicious', r'etc/passwd|wp-admin|\.\./'),
-    const MapEntry('ips', r'\d{1,3}\.\d{1,3}\.\d{1,3}\.35'),
-    const MapEntry('api_calls', r'/api/[^ "]+'),
-    const MapEntry('post_requests', r'POST [^ ]* HTTP'),
-    const MapEntry('auth_attempts', r'/login|/signin'),
-    const MapEntry('methods', r'get|post'),
+  static const List<String> USERS = [
+    'john',
+    'jane',
+    'alex',
+    'sarah',
+    'mike',
+    'anna',
+    'david',
+    'elena',
   ];
+  static const List<String> DOMAINS = [
+    'example.com',
+    'gmail.com',
+    'yahoo.com',
+    'hotmail.com',
+    'company.org',
+    'mail.ru',
+  ];
+
+  static final List<MapEntry<String, RegExp>> PATTERNS =
+      [
+        const MapEntry('errors', ' [5][0-9]{2} | [4][0-9]{2} '),
+        const MapEntry(
+          'bots',
+          'bot|crawler|scanner|spider|indexing|crawl|robot|spider',
+        ),
+        const MapEntry('suspicious', 'etc/passwd|wp-admin|\\.\\./'),
+        const MapEntry('ips', r'\d+\.\d+\.\d+\.35'),
+        const MapEntry('api_calls', r'/api/[^ " ]+'),
+        const MapEntry('post_requests', 'POST [^ ]* HTTP'),
+        const MapEntry('auth_attempts', '/login|/signin'),
+        const MapEntry('methods', 'get|post|put'),
+        const MapEntry(
+          'emails',
+          r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
+        ),
+        const MapEntry('passwords', r'password=[^&\s"]+'),
+        const MapEntry('tokens', r'token=[^&\s"]+|api[_-]?key=[^&\s"]+'),
+        const MapEntry('sessions', r'session[_-]?id=[^&\s"]+'),
+        const MapEntry(
+          'peak_hours',
+          r'\[\d+/\w+/\d+:1[3-7]:\d+:\d+ [+\-]\d+\]',
+        ),
+      ].map((e) {
+        bool caseSensitive =
+            !(e.key == 'bots' ||
+                e.key == 'suspicious' ||
+                e.key == 'auth_attempts' ||
+                e.key == 'methods');
+        return MapEntry(e.key, RegExp(e.value, caseSensitive: caseSensitive));
+      }).toList();
 
   LogParser() {
     linesCount = Helper.configI64(benchmarkName, 'lines_count').toInt();
@@ -4871,7 +4910,35 @@ class LogParser extends Benchmark {
   }
 
   String generateLogLine(int i) {
-    return '${IPS[i % IPS.length]} - - [${i % 31}/Oct/2023:13:55:36 +0000] "${METHODS[i % METHODS.length]} ${PATHS[i % PATHS.length]} HTTP/1.0" ${STATUSES[i % STATUSES.length]} 2326 "-" "${AGENTS[i % AGENTS.length]}"\n';
+    final buffer = StringBuffer();
+
+    buffer.write(
+      '${IPS[i % IPS.length]} - - [${i % 31}/Oct/2023:${i % 60}:55:36 +0000] "',
+    );
+    buffer.write('${METHODS[i % METHODS.length]} ');
+
+    if (i % 3 == 0) {
+      buffer.write(
+        '/login?email=${USERS[i % USERS.length]}${i % 100}@${DOMAINS[i % DOMAINS.length]}&password=secret${i % 10000}',
+      );
+    } else if (i % 5 == 0) {
+      buffer.write('/api/data?token=');
+      for (int j = 0; j < (i % 3) + 1; j++) {
+        buffer.write('abcdef123456');
+      }
+    } else if (i % 7 == 0) {
+      buffer.write(
+        '/user/profile?session_id=sess_${(i * 12345).toRadixString(16)}',
+      );
+    } else {
+      buffer.write(PATHS[i % PATHS.length]);
+    }
+
+    buffer.write(
+      ' HTTP/1.1" ${STATUSES[i % STATUSES.length]} 2326 "http://${DOMAINS[i % DOMAINS.length]}" "${AGENTS[i % AGENTS.length]}"\n',
+    );
+
+    return buffer.toString();
   }
 
   @override
@@ -4879,12 +4946,7 @@ class LogParser extends Benchmark {
     final matches = HashMap<String, int>();
 
     for (final pattern in PATTERNS) {
-      matches[pattern.key] = 0;
-    }
-
-    for (final pattern in PATTERNS) {
-      final regex = RegExp(pattern.value, caseSensitive: false);
-      matches[pattern.key] = regex.allMatches(log).length;
+      matches[pattern.key] = pattern.value.allMatches(log).length;
     }
 
     int total = 0;

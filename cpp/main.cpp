@@ -4555,86 +4555,95 @@ public:
 class LogParser : public Benchmark {
 private:
   std::string log;
-  uint32_t checksum_val;
+  uint32_t checksum_val{0};
+  int lines_count{0};
 
   std::vector<std::unique_ptr<re2::RE2>> compiled_patterns;
   std::vector<std::string> pattern_names;
 
   const std::vector<std::string> IPS = [] {
     std::vector<std::string> ips;
-    for (int i = 1; i <= 255; i++) {
+    for (int i = 1; i <= 255; i++)
       ips.push_back("192.168.1." + std::to_string(i));
-    }
     return ips;
   }();
 
   const std::vector<std::string> METHODS = {"GET", "POST", "PUT", "DELETE"};
-  const std::vector<std::string> PATHS = {"/index.html",
-                                          "/api/users",
-                                          "/login",
-                                          "/admin",
-                                          "/images/logo.png",
-                                          "/etc/passwd",
-                                          "/wp-admin/setup.php"};
+  const std::vector<std::string> PATHS = {"/index.html", "/api/users",
+                                          "/admin",      "/images/logo.png",
+                                          "/etc/passwd", "/wp-admin/setup.php"};
   const std::vector<int> STATUSES = {200, 201, 301, 302, 400, 401,
                                      403, 404, 500, 502, 503};
   const std::vector<std::string> AGENTS = {"Mozilla/5.0", "Googlebot/2.1",
                                            "curl/7.68.0", "scanner/2.0"};
+  const std::vector<std::string> USERS = {"john", "jane", "alex",  "sarah",
+                                          "mike", "anna", "david", "elena"};
+  const std::vector<std::string> DOMAINS = {"example.com", "gmail.com",
+                                            "yahoo.com",   "hotmail.com",
+                                            "company.org", "mail.ru"};
 
-  static constexpr std::array<const char *, 8> PATTERNS = {
-      " [5][0-9]{2} ",
-      "(?i)bot|crawler|scanner",
+  static constexpr std::array<const char *, 13> PATTERNS = {
+      " [5][0-9]{2} | [4][0-9]{2} ",
+      "(?i)bot|crawler|scanner|spider|indexing|crawl|robot|spider",
       "(?i)etc/passwd|wp-admin|\\.\\./",
-      "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.35",
-      "/api/[^ \"]+",
+      "\\d+\\.\\d+\\.\\d+\\.35",
+      "/api/[^ \" ]+",
       "POST [^ ]* HTTP",
       "(?i)/login|/signin",
-      "(?i)get|post",
-  };
+      "(?i)get|post|put",
+      "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}",
+      "password=[^&\\s\"]+",
+      "token=[^&\\s\"]+|api[_-]?key=[^&\\s\"]+",
+      "session[_-]?id=[^&\\s\"]+",
+      "\\[\\d+/\\w+/\\d+:1[3-7]:\\d+:\\d+ [+\\-]\\d+\\]"};
 
-  static constexpr std::array<const char *, 8> NAMES = {
-      "errors",    "bots",          "suspicious",    "ips",
-      "api_calls", "post_requests", "auth_attempts", "methods"};
+  static constexpr std::array<const char *, 13> NAMES = {
+      "errors",        "bots",          "suspicious", "ips",    "api_calls",
+      "post_requests", "auth_attempts", "methods",    "emails", "passwords",
+      "tokens",        "sessions",      "peak_hours"};
 
   void generate_log_line(std::string &str, int i) {
-    str += IPS[i % IPS.size()];
-    str += " - - [" + std::to_string(i % 31) + "/Oct/2023:13:55:36 +0000] \"";
-    str += METHODS[i % METHODS.size()] + " " + PATHS[i % PATHS.size()] +
-           " HTTP/1.0\" ";
-    str += std::to_string(STATUSES[i % STATUSES.size()]) + " 2326 \"-\" \"";
-    str += AGENTS[i % AGENTS.size()] + "\"\n";
+    str += IPS[i % IPS.size()] + " - - [" + std::to_string(i % 31) +
+           "/Oct/2023:" + std::to_string(i % 60) + ":55:36 +0000] \"" +
+           METHODS[i % METHODS.size()] + " ";
+
+    if (i % 3 == 0)
+      str += "/login?email=" + USERS[i % USERS.size()] +
+             std::to_string(i % 100) + "@" + DOMAINS[i % DOMAINS.size()] +
+             "&password=secret" + std::to_string(i % 10000);
+    else if (i % 5 == 0) {
+      str += "/api/data?token=";
+      for (int j = 0; j < (i % 3) + 1; j++)
+        str += "abcdef123456";
+    } else if (i % 7 == 0) {
+      char hex[16];
+      snprintf(hex, sizeof(hex), "%x", i * 12345);
+      str += std::string("/user/profile?session_id=sess_") + hex;
+    } else
+      str += PATHS[i % PATHS.size()];
+
+    str += " HTTP/1.1\" " + std::to_string(STATUSES[i % STATUSES.size()]) +
+           " 2326 \"http://" + DOMAINS[i % DOMAINS.size()] + "\" \"" +
+           AGENTS[i % AGENTS.size()] + "\"\n";
   }
 
 public:
-  LogParser() : checksum_val(0) { log.reserve(1000000 * 150); }
-
   std::string name() const override { return "Etc::LogParser"; }
 
   void prepare() override {
-    int lines_count = config_val("lines_count");
-
+    lines_count = config_val("lines_count");
     std::string log_builder;
-    log_builder.reserve(lines_count * 150);
-
-    for (int i = 0; i < lines_count; i++) {
+    for (int i = 0; i < lines_count; i++)
       generate_log_line(log_builder, i);
-    }
-
     log = std::move(log_builder);
 
     for (size_t i = 0; i < PATTERNS.size(); i++) {
-      auto re = std::make_unique<re2::RE2>(PATTERNS[i]);
-      if (!re->ok()) {
-        std::cerr << "RE2 error for " << PATTERNS[i] << ": " << re->error()
-                  << std::endl;
-      }
-      compiled_patterns.push_back(std::move(re));
+      compiled_patterns.push_back(std::make_unique<re2::RE2>(PATTERNS[i]));
       pattern_names.push_back(NAMES[i]);
     }
   }
 
-  void run(int iteration_id) override {
-
+  void run(int) override {
     std::unordered_map<std::string, int> matches;
 
     for (size_t i = 0; i < compiled_patterns.size(); i++) {
@@ -4643,22 +4652,20 @@ public:
         continue;
 
       re2::StringPiece input(log);
-      size_t count = 0;
-
+      int count = 0;
       re2::StringPiece match;
+
       while (
           re->Match(input, 0, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
         count++;
         input.remove_prefix(match.data() - input.data() + match.size());
       }
-
       matches[pattern_names[i]] = count;
     }
 
     uint32_t total = 0;
-    for (const auto &[_, count] : matches) {
-      total += count;
-    }
+    for (const auto &[_, c] : matches)
+      total += c;
     checksum_val += total;
   }
 

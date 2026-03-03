@@ -122,7 +122,7 @@
   },
   {
     "name": "Etc::LogParser",
-    "checksum": 66,
+    "checksum": 117,
     "iterations": 2,
     "lines_count": 10
   },

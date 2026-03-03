@@ -28,7 +28,7 @@ private:
 
     static immutable string[] METHODS = ["GET", "POST", "PUT", "DELETE"];
     static immutable string[] PATHS = [
-        "/index.html", "/api/users", "/login", "/admin", "/images/logo.png",
+        "/index.html", "/api/users", "/admin", "/images/logo.png",
         "/etc/passwd", "/wp-admin/setup.php"
     ];
     static immutable int[] STATUSES = [
@@ -37,20 +37,32 @@ private:
     static immutable string[] AGENTS = [
         "Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0"
     ];
+    static immutable string[] USERS = [
+        "john", "jane", "alex", "sarah", "mike", "anna", "david", "elena"
+    ];
+    static immutable string[] DOMAINS = [
+        "example.com", "gmail.com", "yahoo.com", "hotmail.com", "company.org",
+        "mail.ru"
+    ];
+
+    static immutable Regex!char[] PATTERNS = [
+        regex(" [5][0-9]{2} | [4][0-9]{2} "),
+        regex("bot|crawler|scanner|spider|indexing|crawl|robot|spider", "i"),
+        regex("etc/passwd|wp-admin|\\.\\./", "i"),
+        regex("\\d+\\.\\d+\\.\\d+\\.35"), regex("/api/[^ \" ]+"),
+        regex("POST [^ ]* HTTP"), regex("/login|/signin", "i"),
+        regex("get|post|put", "i"),
+        regex("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"),
+        regex("password=[^&\\s\"]+"),
+        regex("token=[^&\\s\"]+|api[_-]?key=[^&\\s\"]+"),
+        regex("session[_-]?id=[^&\\s\"]+"),
+        regex("\\[\\d+/\\w+/\\d+:1[3-7]:\\d+:\\d+ [+\\-]\\d+\\]")
+    ];
 
     static immutable string[] PATTERN_NAMES = [
         "errors", "bots", "suspicious", "ips", "api_calls", "post_requests",
-        "auth_attempts", "methods"
-    ];
-
-    static immutable string[] PATTERN_STRS = [
-        " [5][0-9]{2} ", "bot|crawler|scanner", "etc/passwd|wp-admin|\\.\\./",
-        "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.35", "/api/[^ \"]+",
-        "POST [^ ]* HTTP", "/login|/signin", "get|post",
-    ];
-
-    static immutable string[] PATTERN_FLAGS = [
-        "", "i", "i", "", "", "", "i", "i"
+        "auth_attempts", "methods", "emails", "passwords", "tokens", "sessions",
+        "peak_hours"
     ];
 
     int linesCount;
@@ -65,9 +77,39 @@ protected:
 
     string generateLogLine(int i)
     {
-        return format("%s - - [%d/Oct/2023:13:55:36 +0000] \"%s %s HTTP/1.0\" %d 2326 \"-\" \"%s\"\n",
-                IPS[i % IPS.length], i % 31, METHODS[i % METHODS.length],
-                PATHS[i % PATHS.length], STATUSES[i % STATUSES.length], AGENTS[i % AGENTS.length]);
+        string result;
+
+        result ~= IPS[i % IPS.length];
+        result ~= format(" - - [%d/Oct/2023:%d:55:36 +0000] \"%s ", i % 31,
+                i % 60, METHODS[i % METHODS.length]);
+
+        if (i % 3 == 0)
+        {
+            result ~= format("/login?email=%s%d@%s&password=secret%d",
+                    USERS[i % USERS.length], i % 100, DOMAINS[i % DOMAINS.length], i % 10000);
+        }
+        else if (i % 5 == 0)
+        {
+            result ~= "/api/data?token=";
+            for (int j = 0; j < (i % 3) + 1; j++)
+            {
+                result ~= "abcdef123456";
+            }
+        }
+        else if (i % 7 == 0)
+        {
+            result ~= format("/user/profile?session_id=sess_%x", i * 12345);
+        }
+        else
+        {
+            result ~= PATHS[i % PATHS.length];
+        }
+
+        result ~= format(" HTTP/1.1\" %d 2326 \"http://%s\" \"%s\"\n",
+                STATUSES[i % STATUSES.length], DOMAINS[i % DOMAINS.length],
+                AGENTS[i % AGENTS.length]);
+
+        return result;
     }
 
 public:
@@ -81,7 +123,7 @@ public:
     override void prepare()
     {
         auto sb = appender!string();
-        sb.reserve(linesCount * 150);
+        sb.reserve(linesCount * 200);
 
         for (int i = 0; i < linesCount; i++)
         {
@@ -95,24 +137,14 @@ public:
     {
         int[string] matches;
 
-        foreach (name; PATTERN_NAMES)
+        for (int i = 0; i < PATTERNS.length; i++)
         {
-            matches[name] = 0;
-        }
-
-        for (int i = 0; i < PATTERN_NAMES.length; i++)
-        {
-            string name = PATTERN_NAMES[i];
-            string patternStr = PATTERN_STRS[i];
-            string flags = PATTERN_FLAGS[i];
-
-            auto re = regex(patternStr, flags ~ "g");
-            auto m = matchAll(log, re);
-            matches[name] += cast(int) m.walkLength;
+            auto m = matchAll(log, PATTERNS[i]);
+            matches[PATTERN_NAMES[i]] = cast(int) m.walkLength;
         }
 
         uint total = 0;
-        foreach (count; matches)
+        foreach (count; matches.byValue())
         {
             total += cast(uint) count;
         }

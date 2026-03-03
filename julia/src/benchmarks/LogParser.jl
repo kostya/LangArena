@@ -20,17 +20,27 @@ const PATTERN_NAMES = [
     "post_requests",
     "auth_attempts",
     "methods",
+    "emails",
+    "passwords",
+    "tokens",
+    "sessions",
+    "peak_hours",
 ]
 
 const PATTERNS = [
-    r" [5][0-9]{2} ",
-    Regex("bot|crawler|scanner", "i"),
+    r" [5][0-9]{2} | [4][0-9]{2} ",
+    Regex("bot|crawler|scanner|spider|indexing|crawl|robot|spider", "i"),
     Regex("etc/passwd|wp-admin|\\.\\./", "i"),
-    r"\d{1,3}\.\d{1,3}\.\d{1,3}\.35",
-    r"/api/[^ \"]+",
-    r"POST /[^ ]* HTTP",
+    r"\d+\.\d+\.\d+\.35",
+    r"/api/[^ \" ]+",
+    r"POST [^ ]* HTTP",
     Regex("/login|/signin", "i"),
-    Regex("get|post", "i"),
+    Regex("get|post|put", "i"),
+    r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
+    r"password=[^&\s\"]+",
+    r"token=[^&\s\"]+|api[_-]?key=[^&\s\"]+",
+    r"session[_-]?id=[^&\s\"]+",
+    r"\[\d+/\w+/\d+:1[3-7]:\d+:\d+ [+\-]\d+\]",
 ]
 
 const IPS = ["192.168.1.$i" for i = 1:255]
@@ -38,7 +48,6 @@ const METHODS = ["GET", "POST", "PUT", "DELETE"]
 const PATHS = [
     "/index.html",
     "/api/users",
-    "/login",
     "/admin",
     "/images/logo.png",
     "/etc/passwd",
@@ -46,10 +55,59 @@ const PATHS = [
 ]
 const STATUSES = [200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503]
 const AGENTS = ["Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0"]
+const USERS = ["john", "jane", "alex", "sarah", "mike", "anna", "david", "elena"]
+const DOMAINS =
+    ["example.com", "gmail.com", "yahoo.com", "hotmail.com", "company.org", "mail.ru"]
 
 function generate_log_line(i::Int)::String
     idx = i - 1
-    return "$(IPS[idx % length(IPS) + 1]) - - [$(idx % 31 + 1)/Oct/2023:13:55:36 +0000] \"$(METHODS[idx % length(METHODS) + 1]) $(PATHS[idx % length(PATHS) + 1]) HTTP/1.0\" $(STATUSES[idx % length(STATUSES) + 1]) 2326 \"-\" \"$(AGENTS[idx % length(AGENTS) + 1])\"\n"
+    result = IOBuffer()
+
+    write(result, IPS[idx%length(IPS)+1])
+    write(
+        result,
+        " - - [",
+        string(idx % 31 + 1),
+        "/Oct/2023:",
+        string(idx % 60),
+        ":55:36 +0000] \"",
+    )
+    write(result, METHODS[idx%length(METHODS)+1], " ")
+
+    if idx % 3 == 0
+        write(
+            result,
+            "/login?email=",
+            USERS[idx%length(USERS)+1],
+            string(idx % 100),
+            "@",
+            DOMAINS[idx%length(DOMAINS)+1],
+            "&password=secret",
+            string(idx % 10000),
+        )
+    elseif idx % 5 == 0
+        write(result, "/api/data?token=")
+        for _ = 1:((idx%3)+1)
+            write(result, "abcdef123456")
+        end
+    elseif idx % 7 == 0
+        write(result, "/user/profile?session_id=sess_", string(idx * 12345, base = 16))
+    else
+        write(result, PATHS[idx%length(PATHS)+1])
+    end
+
+    write(
+        result,
+        " HTTP/1.1\" ",
+        string(STATUSES[idx%length(STATUSES)+1]),
+        " 2326 \"http://",
+        DOMAINS[idx%length(DOMAINS)+1],
+        "\" \"",
+        AGENTS[idx%length(AGENTS)+1],
+        "\"\n",
+    )
+
+    return String(take!(result))
 end
 
 function prepare(b::LogParser)

@@ -4175,24 +4175,37 @@ class Words(Benchmark):
 
 class LogParser(Benchmark):
     PATTERNS = [
-        ("errors", re.compile(r' [5][0-9]{2} ')),
-        ("bots", re.compile(r'bot|crawler|scanner', re.IGNORECASE)),
+        ("errors", re.compile(r' [5][0-9]{2} | [4][0-9]{2} ')),
+        ("bots",
+         re.compile(r'bot|crawler|scanner|spider|indexing|crawl|robot|spider',
+                    re.IGNORECASE)),
         ("suspicious", re.compile(r'etc/passwd|wp-admin|\.\./', re.IGNORECASE)),
-        ("ips", re.compile(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.35')),
-        ("api_calls", re.compile(r'/api/[^ "]+')),
+        ("ips", re.compile(r'\d+\.\d+\.\d+\.35')),
+        ("api_calls", re.compile(r'/api/[^ " ]+')),
         ("post_requests", re.compile(r'POST [^ ]* HTTP')),
         ("auth_attempts", re.compile(r'/login|/signin', re.IGNORECASE)),
-        ("methods", re.compile(r'get|post', re.IGNORECASE)),
+        ("methods", re.compile(r'get|post|put', re.IGNORECASE)),
+        ("emails",
+         re.compile(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}')),
+        ("passwords", re.compile(r'password=[^&\s"]+')),
+        ("tokens", re.compile(r'token=[^&\s"]+|api[_-]?key=[^&\s"]+')),
+        ("sessions", re.compile(r'session[_-]?id=[^&\s"]+')),
+        ("peak_hours", re.compile(r'\[\d+/\w+/\d+:1[3-7]:\d+:\d+ [+\-]\d+\]')),
     ]
 
     IPS = [f"192.168.1.{i}" for i in range(1, 256)]
     METHODS = ["GET", "POST", "PUT", "DELETE"]
     PATHS = [
-        "/index.html", "/api/users", "/login", "/admin", "/images/logo.png",
+        "/index.html", "/api/users", "/admin", "/images/logo.png",
         "/etc/passwd", "/wp-admin/setup.php"
     ]
     STATUSES = [200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503]
     AGENTS = ["Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0"]
+    USERS = ["john", "jane", "alex", "sarah", "mike", "anna", "david", "elena"]
+    DOMAINS = [
+        "example.com", "gmail.com", "yahoo.com", "hotmail.com", "company.org",
+        "mail.ru"
+    ]
 
     def __init__(self):
         super().__init__()
@@ -4211,11 +4224,22 @@ class LogParser(Benchmark):
         self.checksum_val = 0
 
     def _generate_log_line(self, i):
+        if i % 3 == 0:
+            path = f"/login?email={self.USERS[i % len(self.USERS)]}{i % 100}@{self.DOMAINS[i % len(self.DOMAINS)]}&password=secret{i % 10000}"
+        elif i % 5 == 0:
+            token = "abcdef123456" * ((i % 3) + 1)
+            path = f"/api/data?token={token}"
+        elif i % 7 == 0:
+            path = f"/user/profile?session_id=sess_{i * 12345:x}"
+        else:
+            path = self.PATHS[i % len(self.PATHS)]
+
         return (
-            f"{self.IPS[i % len(self.IPS)]} - - [{i % 31}/Oct/2023:13:55:36 +0000] "
-            f"\"{self.METHODS[i % len(self.METHODS)]} {self.PATHS[i % len(self.PATHS)]} HTTP/1.0\" "
-            f"{self.STATUSES[i % len(self.STATUSES)]} 2326 \"-\" \"{self.AGENTS[i % len(self.AGENTS)]}\"\n"
-        )
+            f"{self.IPS[i % len(self.IPS)]} - - [{i % 31}/Oct/2023:{i % 60}:55:36 +0000] "
+            f"\"{self.METHODS[i % len(self.METHODS)]} {path} HTTP/1.1\" "
+            f"{self.STATUSES[i % len(self.STATUSES)]} 2326 "
+            f"\"http://{self.DOMAINS[i % len(self.DOMAINS)]}\" "
+            f"\"{self.AGENTS[i % len(self.AGENTS)]}\"\n")
 
     def run_benchmark(self, iteration_id: int):
         matches = {}

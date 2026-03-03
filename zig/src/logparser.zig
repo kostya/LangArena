@@ -9,33 +9,45 @@ pub const LogParser = struct {
     log: []u8,
     checksum_val: u32,
 
-    compiled_patterns: [8]?*anyopaque,
-    match_data: [8]?*anyopaque,
+    compiled_patterns: [13]?*anyopaque,
+    match_data: [13]?*anyopaque,
 
     const PATTERN_NAMES = [_][]const u8{
-        "errors",    "bots",          "suspicious",    "ips",
-        "api_calls", "post_requests", "auth_attempts", "methods",
+        "errors",        "bots",    "suspicious", "ips",       "api_calls", "post_requests",
+        "auth_attempts", "methods", "emails",     "passwords", "tokens",    "sessions",
+        "peak_hours",
     };
 
     const PATTERNS = [_][]const u8{
-        " [5][0-9]{2} ",
-        "(?i)bot|crawler|scanner",
+        " [5][0-9]{2} | [4][0-9]{2} ",
+        "(?i)bot|crawler|scanner|spider|indexing|crawl|robot|spider",
         "(?i)etc/passwd|wp-admin|\\.\\./",
-        "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.35",
-        "/api/[^ \"]+",
+        "\\d+\\.\\d+\\.\\d+\\.35",
+        "/api/[^ \" ]+",
         "POST [^ ]* HTTP",
         "(?i)/login|/signin",
-        "(?i)get|post",
+        "(?i)get|post|put",
+        "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}",
+        "password=[^&\\s\"]+",
+        "token=[^&\\s\"]+|api[_-]?key=[^&\\s\"]+",
+        "session[_-]?id=[^&\\s\"]+",
+        "\\[\\d+/\\w+/\\d+:1[3-7]:\\d+:\\d+ [+\\-]\\d+\\]",
     };
 
     const METHODS = [_][]const u8{ "GET", "POST", "PUT", "DELETE" };
     const PATHS = [_][]const u8{
-        "/index.html",      "/api/users",  "/login",              "/admin",
+        "/index.html",      "/api/users",  "/admin",
         "/images/logo.png", "/etc/passwd", "/wp-admin/setup.php",
     };
     const STATUSES = [_]i32{ 200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503 };
     const AGENTS = [_][]const u8{
         "Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0",
+    };
+    const USERS = [_][]const u8{
+        "john", "jane", "alex", "sarah", "mike", "anna", "david", "elena",
+    };
+    const DOMAINS = [_][]const u8{
+        "example.com", "gmail.com", "yahoo.com", "hotmail.com", "company.org", "mail.ru",
     };
 
     const vtable = Benchmark.VTable{
@@ -51,8 +63,8 @@ pub const LogParser = struct {
         const self = try allocator.create(LogParser);
         errdefer allocator.destroy(self);
 
-        var compiled_patterns: [8]?*anyopaque = undefined;
-        var match_data: [8]?*anyopaque = undefined;
+        var compiled_patterns: [13]?*anyopaque = undefined;
+        var match_data: [13]?*anyopaque = undefined;
         @memset(&compiled_patterns, null);
         @memset(&match_data, null);
 
@@ -70,7 +82,7 @@ pub const LogParser = struct {
     }
 
     pub fn deinit(self: *LogParser) void {
-        for (0..8) |i| {
+        for (0..13) |i| {
             if (self.match_data[i]) |md| {
                 pcre2_match_data_free_8(@ptrCast(md));
             }
@@ -89,36 +101,52 @@ pub const LogParser = struct {
         return Benchmark.init(self, &vtable, self.helper, "Etc::LogParser");
     }
 
-    fn init_ips(allocator: std.mem.Allocator) ![]u8 {
-        var result: std.ArrayList(u8) = .empty;
-        defer result.deinit(allocator);
+    fn generate_log_line(self: *LogParser, i: usize) ![]u8 {
+        const method = METHODS[i % METHODS.len];
+        const status = STATUSES[i % STATUSES.len];
+        const agent = AGENTS[i % AGENTS.len];
+        const ip_index = i % 255;
+        const ip = try std.fmt.allocPrint(self.allocator, "192.168.1.{d}", .{ip_index + 1});
+        defer self.allocator.free(ip);
 
-        for (1..256) |i| {
-            try result.writer(allocator).print("192.168.1.{d}\n", .{i});
-        }
-
-        return result.toOwnedSlice(allocator);
-    }
-
-    fn generate_log_line(ips: []const u8, i: usize, allocator: std.mem.Allocator) ![]u8 {
-        var lines = std.mem.splitScalar(u8, ips, '\n');
-        var ip_index: usize = 0;
-        while (lines.next()) |line| {
-            if (ip_index == i % 255) {
-                const method = METHODS[i % METHODS.len];
-                const path = PATHS[i % PATHS.len];
-                const status = STATUSES[i % STATUSES.len];
-                const agent = AGENTS[i % AGENTS.len];
-
-                return try std.fmt.allocPrint(
-                    allocator,
-                    "{s} - - [{d}/Oct/2023:13:55:36 +0000] \"{s} {s} HTTP/1.0\" {d} 2326 \"-\" \"{s}\"\n",
-                    .{ line, i % 31, method, path, status, agent },
-                );
+        if (i % 3 == 0) {
+            return try std.fmt.allocPrint(
+                self.allocator,
+                "{s} - - [{d}/Oct/2023:{d}:55:36 +0000] \"{s} /login?email={s}{d}@{s}&password=secret{d} HTTP/1.1\" {d} 2326 \"http://{s}\" \"{s}\"\n",
+                .{ ip, i % 31, i % 60, method, USERS[i % USERS.len], i % 100, DOMAINS[i % DOMAINS.len], i % 10000, status, DOMAINS[i % DOMAINS.len], agent },
+            );
+        } else if (i % 5 == 0) {
+            var token_buf: [1024]u8 = undefined;
+            var token_len: usize = 0;
+            for (0..@as(usize, @intCast((i % 3) + 1))) |_| {
+                @memcpy(token_buf[token_len .. token_len + 12], "abcdef123456");
+                token_len += 12;
             }
-            ip_index += 1;
+            const token = token_buf[0..token_len];
+
+            return try std.fmt.allocPrint(
+                self.allocator,
+                "{s} - - [{d}/Oct/2023:{d}:55:36 +0000] \"{s} /api/data?token={s} HTTP/1.1\" {d} 2326 \"http://{s}\" \"{s}\"\n",
+                .{ ip, i % 31, i % 60, method, token, status, DOMAINS[i % DOMAINS.len], agent },
+            );
+        } else if (i % 7 == 0) {
+            const session_id = try std.fmt.allocPrint(self.allocator, "{x}", .{i * 12345});
+            defer self.allocator.free(session_id);
+
+            return try std.fmt.allocPrint(
+                self.allocator,
+                "{s} - - [{d}/Oct/2023:{d}:55:36 +0000] \"{s} /user/profile?session_id=sess_{s} HTTP/1.1\" {d} 2326 \"http://{s}\" \"{s}\"\n",
+                .{ ip, i % 31, i % 60, method, session_id, status, DOMAINS[i % DOMAINS.len], agent },
+            );
+        } else {
+            const path = PATHS[i % PATHS.len];
+
+            return try std.fmt.allocPrint(
+                self.allocator,
+                "{s} - - [{d}/Oct/2023:{d}:55:36 +0000] \"{s} {s} HTTP/1.1\" {d} 2326 \"http://{s}\" \"{s}\"\n",
+                .{ ip, i % 31, i % 60, method, path, status, DOMAINS[i % DOMAINS.len], agent },
+            );
         }
-        return "";
     }
 
     fn prepareImpl(ptr: *anyopaque) void {
@@ -129,14 +157,11 @@ pub const LogParser = struct {
             allocator.free(self.log);
         }
 
-        const ips = init_ips(allocator) catch return;
-        defer allocator.free(ips);
-
         var log_buf: std.ArrayList(u8) = .empty;
         defer log_buf.deinit(allocator);
 
         for (0..self.lines_count) |i| {
-            const line = generate_log_line(ips, i, allocator) catch continue;
+            const line = self.generate_log_line(i) catch continue;
             defer allocator.free(line);
             log_buf.appendSlice(allocator, line) catch continue;
         }
@@ -267,23 +292,10 @@ extern "c" fn pcre2_compile_8(
 ) ?*PCRE2_CODE;
 
 extern "c" fn pcre2_code_free_8(code: ?*PCRE2_CODE) void;
-
-extern "c" fn pcre2_jit_compile_8(
-    code: ?*PCRE2_CODE,
-    options: u32,
-) c_int;
-
-extern "c" fn pcre2_match_data_create_from_pattern_8(
-    code: ?*const PCRE2_CODE,
-    gcontext: ?*anyopaque,
-) ?*PCRE2_MATCH_DATA;
-
+extern "c" fn pcre2_jit_compile_8(code: ?*PCRE2_CODE, options: u32) c_int;
+extern "c" fn pcre2_match_data_create_from_pattern_8(code: ?*const PCRE2_CODE, gcontext: ?*anyopaque) ?*PCRE2_MATCH_DATA;
 extern "c" fn pcre2_match_data_free_8(match_data: ?*PCRE2_MATCH_DATA) void;
-
-extern "c" fn pcre2_get_ovector_pointer_8(
-    match_data: ?*PCRE2_MATCH_DATA,
-) [*c]usize;
-
+extern "c" fn pcre2_get_ovector_pointer_8(match_data: ?*PCRE2_MATCH_DATA) [*c]usize;
 extern "c" fn pcre2_jit_match_8(
     code: *const PCRE2_CODE,
     subject: [*c]const u8,

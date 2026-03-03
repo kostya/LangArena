@@ -5329,14 +5329,19 @@ export class LogParser extends Benchmark {
   private checksumVal: number = 0;
 
   private readonly PATTERNS: [string, RegExp][] = [
-    ["errors", / [5][0-9]{2} /g],
-    ["bots", /bot|crawler|scanner/gi],
+    ["errors", / [5][0-9]{2} | [4][0-9]{2} /g],
+    ["bots", /bot|crawler|scanner|spider|indexing|crawl|robot|spider/gi],
     ["suspicious", /etc\/passwd|wp-admin|\.\.\//gi],
-    ["ips", /\d{1,3}\.\d{1,3}\.\d{1,3}\.35/g],
-    ["api_calls", /\/api\/[^ "]+/g],
+    ["ips", /\d+\.\d+\.\d+\.35/g],
+    ["api_calls", /\/api\/[^ " ]+/g],
     ["post_requests", /POST [^ ]* HTTP/g],
     ["auth_attempts", /\/login|\/signin/gi],
-    ["methods", /get|post/gi],
+    ["methods", /get|post|put/gi],
+    ["emails", /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g],
+    ["passwords", /password=[^&\s"]+/g],
+    ["tokens", /token=[^&\s"]+|api[_-]?key=[^&\s"]+/g],
+    ["sessions", /session[_-]?id=[^&\s"]+/g],
+    ["peak_hours", /\[\d+\/\w+\/\d+:1[3-7]:\d+:\d+ [+\-]\d+\]/g],
   ];
 
   private readonly IPS: string[] = Array.from(
@@ -5347,7 +5352,6 @@ export class LogParser extends Benchmark {
   private readonly PATHS: string[] = [
     "/index.html",
     "/api/users",
-    "/login",
     "/admin",
     "/images/logo.png",
     "/etc/passwd",
@@ -5362,6 +5366,24 @@ export class LogParser extends Benchmark {
     "curl/7.68.0",
     "scanner/2.0",
   ];
+  private readonly USERS: string[] = [
+    "john",
+    "jane",
+    "alex",
+    "sarah",
+    "mike",
+    "anna",
+    "david",
+    "elena",
+  ];
+  private readonly DOMAINS: string[] = [
+    "example.com",
+    "gmail.com",
+    "yahoo.com",
+    "hotmail.com",
+    "company.org",
+    "mail.ru",
+  ];
 
   constructor() {
     super();
@@ -5369,7 +5391,29 @@ export class LogParser extends Benchmark {
   }
 
   private generateLogLine(i: number): string {
-    return `${this.IPS[i % this.IPS.length]} - - [${i % 31}/Oct/2023:13:55:36 +0000] "${this.METHODS[i % this.METHODS.length]} ${this.PATHS[i % this.PATHS.length]} HTTP/1.0" ${this.STATUSES[i % this.STATUSES.length]} 2326 "-" "${this.AGENTS[i % this.AGENTS.length]}"\n`;
+    let line = "";
+
+    line += this.IPS[i % this.IPS.length];
+    line += ` - - [${i % 31}/Oct/2023:${i % 60}:55:36 +0000] "`;
+    line += this.METHODS[i % this.METHODS.length];
+    line += " ";
+
+    if (i % 3 === 0) {
+      line += `/login?email=${this.USERS[i % this.USERS.length]}${i % 100}@${this.DOMAINS[i % this.DOMAINS.length]}&password=secret${i % 10000}`;
+    } else if (i % 5 === 0) {
+      line += "/api/data?token=";
+      for (let j = 0; j < (i % 3) + 1; j++) {
+        line += "abcdef123456";
+      }
+    } else if (i % 7 === 0) {
+      line += `/user/profile?session_id=sess_${(i * 12345).toString(16)}`;
+    } else {
+      line += this.PATHS[i % this.PATHS.length];
+    }
+
+    line += ` HTTP/1.1" ${this.STATUSES[i % this.STATUSES.length]} 2326 "http://${this.DOMAINS[i % this.DOMAINS.length]}" "${this.AGENTS[i % this.AGENTS.length]}"\n`;
+
+    return line;
   }
 
   prepare(): void {

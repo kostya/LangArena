@@ -122,9 +122,9 @@
   },
   {
     "name": "Etc::LogParser",
-    "checksum": 2265912,
-    "iterations": 20,
-    "lines_count": 45000
+    "checksum": 2439432,
+    "iterations": 10,
+    "lines_count": 52000
   },
   {
     "name": "Template::Regex",

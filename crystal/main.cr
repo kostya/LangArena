@@ -1462,14 +1462,19 @@ module Etc
 
   class LogParser < Benchmark
     PATTERNS = {
-      "errors"        => / [5][0-9]{2} /,
-      "bots"          => /bot|crawler|scanner/i,
+      "errors"        => / [5][0-9]{2} | [4][0-9]{2} /,
+      "bots"          => /bot|crawler|scanner|spider|indexing|crawl|robot|spider/i,
       "suspicious"    => /etc\/passwd|wp-admin|\.\.\//i,
-      "ips"           => /\d{1,3}\.\d{1,3}\.\d{1,3}\.35/,
+      "ips"           => /\d+\.\d+\.\d+\.35/,
       "api_calls"     => /\/api\/[^ "]+/,
       "post_requests" => /POST [^ ]* HTTP/,
       "auth_attempts" => /\/login|\/signin/i,
-      "methods"       => /get|post/i,
+      "methods"       => /get|post|put/i,
+      "emails"        => /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
+      "passwords"     => /password=[^&\s"]+/,
+      "tokens"        => /token=[^&\s"]+|api[_-]?key=[^&\s"]+/,
+      "sessions"      => /session[_-]?id=[^&\s"]+/,
+      "peak_hours"    => /\[\d+\/\w+\/\d+:1[3-7]:\d+:\d+ [+\-]\d+\]/,
     }
 
     def initialize(@lines_count : Int32 = config_val("lines_count").to_i32)
@@ -1479,16 +1484,26 @@ module Etc
 
     IPS     = (1..255).map { |i| "192.168.1.#{i}" }
     METHODS = ["GET", "POST", "PUT", "DELETE"]
-    PATHS   = ["/index.html", "/api/users", "/login", "/admin",
+    PATHS   = ["/index.html", "/api/users", "/admin",
                "/images/logo.png", "/etc/passwd", "/wp-admin/setup.php"]
     STATUSES = [200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503]
     AGENTS   = ["Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0"]
+    USERS    = ["john", "jane", "alex", "sarah", "mike", "anna", "david", "elena"]
+    DOMAINS  = ["example.com", "gmail.com", "yahoo.com", "hotmail.com", "company.org", "mail.ru"]
 
     private def generate_log_line(str, i)
-      str << IPS[i % IPS.size] << " - - [#{i % 31}/Oct/2023:13:55:36 +0000] \""
-      str << METHODS[i % METHODS.size] << " " << PATHS[i % PATHS.size] << " HTTP/1.0\" "
-      str << STATUSES[i % STATUSES.size] << " 2326 \"-\" \"" << AGENTS[i % AGENTS.size] << "\""
-      str << "\n"
+      str << IPS[i % IPS.size] << " - - [" << (i % 31) << "/Oct/2023:" << i % 60 << ":55:36 +0000] \"" << METHODS[i % METHODS.size] << ' '
+      if i % 3 == 0
+        str << "/login?email=" << USERS[i % USERS.size] << (i % 100) << '@' << DOMAINS[i % DOMAINS.size]
+        str << "&password=secret" << (i % 10000)
+      elsif i % 5 == 0
+        str << "/api/data?token=" << ("abcdef123456" * ((i % 3) + 1))
+      elsif i % 7 == 0
+        str << "/user/profile?session_id=" << ("sess_" + (i * 12345).to_s(16))
+      else
+        str << PATHS[i % PATHS.size]
+      end
+      str << " HTTP/1.1\" " << STATUSES[i % STATUSES.size] << " 2326 \"http://" << DOMAINS[i % DOMAINS.size] << "\" \"" << AGENTS[i % AGENTS.size] << "\"\n"
     end
 
     def prepare
@@ -1501,11 +1516,7 @@ module Etc
 
     def run(iteration_id)
       matches = Hash(String, Int32).new(0)
-
-      PATTERNS.each do |name, regex|
-        @log.scan(regex) { matches.update(name, &.+(1)) }
-      end
-
+      PATTERNS.each { |name, regex| @log.scan(regex) { matches.update(name, &.+(1)) } }
       @checksum &+= matches.each_value.sum
     end
 
