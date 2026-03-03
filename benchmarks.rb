@@ -522,6 +522,18 @@ RUNS = [
     deps_cmd: "mkdir -p target ; shards install",
   ),
 
+  Run.new(
+    name: "Crystal/O3", 
+    build_cmd: "crystal build main.cr -O3 -Dpreview_mt -o ./target/bin_crystal_o3", 
+    binary_name: "./target/bin_crystal_o3", 
+    run_cmd: "./target/bin_crystal_o3", 
+    version_cmd: "crystal --version | head -n 1",
+    dir: "/src/crystal",
+    container: "crystal",
+    group: :prod,
+    deps_cmd: "mkdir -p target ; shards install",
+  ),
+
   # ======================================= D ======================================================
 
   Run.new(
