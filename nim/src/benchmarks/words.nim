@@ -1,4 +1,4 @@
-import std/[math, strutils, tables]
+import std/[strutils, tables]
 import ../benchmark
 import ../helper
 
@@ -57,3 +57,4 @@ method checksum(self: Words): uint32 =
   return self.checksumVal
 
 registerBenchmark("Etc::Words", newWords)
+{.used.}

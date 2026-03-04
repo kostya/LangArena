@@ -1,4 +1,4 @@
-import std/[json, times, math, tables, strutils, os]
+import std/[json, times, math, tables, strutils]
 import config, helper
 
 type
@@ -70,22 +70,23 @@ proc toLower*(str: string): string =
 type
   BenchmarkFactory* = proc(): Benchmark
 
-var registeredBenchmarks*: seq[tuple[name: string, factory: BenchmarkFactory]]
+var registeredBenchmarks*: Table[string, BenchmarkFactory]
 
 proc registerBenchmark*(name: string, factory: BenchmarkFactory) =
-  registeredBenchmarks.add((name, factory))
+  registeredBenchmarks[name] = factory
 
 proc all*(singleBench = "") =
-  var results: Table[string, float]
   var summaryTime = 0.0
   var ok = 0
   var fails = 0
 
-  for benchInfo in registeredBenchmarks:
-    let name = benchInfo.name
-    let createBenchmark = benchInfo.factory
-
+  for name in ORDER:
     if singleBench.len > 0 and name.toLower.find(singleBench.toLower) == -1:
+      continue
+
+    let createBenchmark = registeredBenchmarks.getOrDefault(name)
+    if createBenchmark == nil:
+      echo "Warning: Benchmark '", name, "' defined in config but not found in code"
       continue
 
     stdout.write(name, ": ")
@@ -104,7 +105,6 @@ proc all*(singleBench = "") =
     let duration = epochTime() - start
 
     bench.set_time_delta(duration)
-    results[name] = duration
 
     if bench.checksum == bench.expected_checksum.uint32:
       stdout.write("OK ")
@@ -118,17 +118,6 @@ proc all*(singleBench = "") =
     summaryTime += duration
 
     GC_fullCollect()
-
-  let resultsFile = open("/tmp/results.js", fmWrite)
-  resultsFile.write("{")
-  var first = true
-  for name, time in results.pairs:
-    if not first:
-      resultsFile.write(",")
-    resultsFile.write("\"", name, "\":", formatFloat(time, ffDecimal))
-    first = false
-  resultsFile.write("}")
-  resultsFile.close()
 
   if ok + fails > 0:
     echo "Summary: ", formatFloat(summaryTime, ffDecimal, 4), "s, ", ok+fails,

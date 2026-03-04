@@ -1,4 +1,4 @@
-import std/[math, algorithm, deques, tables, heapqueue]
+import std/[math, algorithm, deques, heapqueue]
 import ../benchmark
 import ../helper
 
@@ -383,3 +383,4 @@ method checksum(self: MazeAStar): uint32 =
   self.resultVal + midCellChecksum(self.path)
 
 registerBenchmark("Maze::AStar", newMazeAStar)
+{.used.}

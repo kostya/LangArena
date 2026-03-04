@@ -1,6 +1,5 @@
 import std/[math]
 import ../benchmark
-import ../helper
 
 type
   Vector = object
@@ -16,8 +15,6 @@ type
     center: Vector
     radius: float
     color: Color
-
-  Light = object
 
   TextRaytracer* = ref object of Benchmark
     w, h: int32
@@ -154,3 +151,4 @@ method checksum(self: TextRaytracer): uint32 =
   self.resultVal
 
 registerBenchmark("Etc::TextRaytracer", newTextRaytracer)
+{.used.}

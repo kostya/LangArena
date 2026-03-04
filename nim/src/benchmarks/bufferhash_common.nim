@@ -1,4 +1,3 @@
-import std/[random]
 import ../benchmark
 import ../helper
 

@@ -1,3 +1,4 @@
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 import java.nio.file.Files
@@ -12,6 +13,9 @@ object Helper {
     private const val INIT = 42
 
     private var last = INIT
+
+    private var _order: List<String> = emptyList()
+    val order: List<String> get() = _order
 
     fun reset() {
         last = INIT
@@ -62,7 +66,20 @@ object Helper {
     fun loadConfig(filename: String? = null) {
         val file = filename ?: "../test.js"
         val content = String(Files.readAllBytes(Paths.get(file)))
-        CONFIG = JSONObject(content)
+
+        val jsonArray = JSONArray(content)
+        val dict = JSONObject()
+        val orderList = mutableListOf<String>()
+
+        for (i in 0 until jsonArray.length()) {
+            val item = jsonArray.getJSONObject(i)
+            val name = item.getString("name")
+            dict.put(name, item)
+            orderList.add(name)
+        }
+
+        CONFIG = dict
+        _order = orderList
     }
 
     fun configI64(

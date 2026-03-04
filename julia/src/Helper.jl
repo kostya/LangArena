@@ -9,19 +9,30 @@ const IA = 3877
 const IC = 29573
 
 const CONFIG = Ref{Dict{String,Any}}(Dict{String,Any}())
+const ORDER = Ref{Vector{String}}(String[])
 
 const THREAD_LAST = [42 for _ = 1:Threads.nthreads()]
 
 function load_config(filename = "../test.js")
     try
         content = read(filename, String)
+        json_array = JSON3.read(content)
 
-        json_obj = JSON3.read(content)
+        dict = Dict{String,Any}()
+        order_vec = String[]
 
-        CONFIG[] = convert_json3_to_dict(json_obj)
+        for item in json_array
+            name = item[:name]
+            dict[name] = convert_json3_to_dict(item)
+            push!(order_vec, name)
+        end
+
+        CONFIG[] = dict
+        ORDER[] = order_vec
     catch e
         @warn "Cannot open or parse config file: $filename - $e"
         CONFIG[] = Dict{String,Any}()
+        ORDER[] = String[]
     end
 end
 
@@ -29,7 +40,6 @@ function convert_json3_to_dict(obj)::Dict{String,Any}
     result = Dict{String,Any}()
 
     if typeof(obj) <: JSON3.Object
-
         for (key, value) in pairs(obj)
             key_str = string(key)
             if typeof(value) <: JSON3.Object
@@ -96,7 +106,6 @@ function next_float(max::Float64 = 1.0)::Float64
 end
 
 function to_u32(v::Int64)::UInt32
-
     return UInt32(v & 0xffffffff)
 end
 

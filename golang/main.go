@@ -39,6 +39,7 @@ func (n *CfgNumber) UnmarshalJSON(data []byte) error {
 
 var (
 	CONFIG = make(map[string]map[string]CfgNumber)
+	ORDER  = make([]string, 0)
 )
 
 const (
@@ -113,9 +114,37 @@ func LoadConfig(filename string) {
 		panic(err)
 	}
 
-	err = json.Unmarshal(data, &CONFIG)
+	var jsonArray []map[string]json.RawMessage
+	err = json.Unmarshal(data, &jsonArray)
 	if err != nil {
 		panic(err)
+	}
+
+	CONFIG = make(map[string]map[string]CfgNumber)
+	ORDER = make([]string, 0)
+
+	for _, item := range jsonArray {
+		var name string
+		if nameRaw, ok := item["name"]; ok {
+			json.Unmarshal(nameRaw, &name)
+		}
+
+		if name == "" {
+			continue
+		}
+
+		configMap := make(map[string]CfgNumber)
+		for key, valueRaw := range item {
+			if key == "name" {
+				continue
+			}
+			var num CfgNumber
+			json.Unmarshal(valueRaw, &num)
+			configMap[key] = num
+		}
+
+		CONFIG[name] = configMap
+		ORDER = append(ORDER, name)
 	}
 }
 
@@ -229,76 +258,73 @@ func (b *BaseBenchmark) ExpectedChecksum() int64 {
 func RunBenchmarks(singleBench string) {
 	fmt.Printf("start: %d\n", time.Now().UnixMilli())
 
-	results := make(map[string]float64)
 	summaryTime := 0.0
-	ok := 0
+	ok_count := 0
 	fails := 0
 
 	singleBench = strings.ToLower(singleBench)
 
-	allBenches := []Benchmark{
-		&Pidigits{BaseBenchmark: BaseBenchmark{className: "CLBG::Pidigits"}},
-		&BinarytreesObj{BaseBenchmark: BaseBenchmark{className: "Binarytrees::Obj"}},
-		&BinarytreesArena{BaseBenchmark: BaseBenchmark{className: "Binarytrees::Arena"}},
-		&BrainfuckArray{BaseBenchmark: BaseBenchmark{className: "Brainfuck::Array"}},
-		&BrainfuckRecursion{BaseBenchmark: BaseBenchmark{className: "Brainfuck::Recursion"}},
-		&Fannkuchredux{BaseBenchmark: BaseBenchmark{className: "CLBG::Fannkuchredux"}},
-		&Fasta{BaseBenchmark: BaseBenchmark{className: "CLBG::Fasta"}},
-		&Knuckeotide{BaseBenchmark: BaseBenchmark{className: "CLBG::Knuckeotide"}},
-		&Mandelbrot{BaseBenchmark: BaseBenchmark{className: "CLBG::Mandelbrot"}},
-		&Matmul1T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::Single"}}},
-		&Matmul4T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::T4"}}},
-		&Matmul8T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::T8"}}},
-		&Matmul16T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::T16"}}},
-		&Nbody{BaseBenchmark: BaseBenchmark{className: "CLBG::Nbody"}},
-		&RegexDna{BaseBenchmark: BaseBenchmark{className: "CLBG::RegexDna"}},
-		&Revcomp{BaseBenchmark: BaseBenchmark{className: "CLBG::Revcomp"}},
-		&Spectralnorm{BaseBenchmark: BaseBenchmark{className: "CLBG::Spectralnorm"}},
-		&Base64Encode{BaseBenchmark: BaseBenchmark{className: "Base64::Encode"}},
-		&Base64Decode{BaseBenchmark: BaseBenchmark{className: "Base64::Decode"}},
-		&JsonGenerate{BaseBenchmark: BaseBenchmark{className: "Json::Generate"}},
-		&JsonParseDom{BaseBenchmark: BaseBenchmark{className: "Json::ParseDom"}},
-		&JsonParseMapping{BaseBenchmark: BaseBenchmark{className: "Json::ParseMapping"}},
-		&Sieve{BaseBenchmark: BaseBenchmark{className: "Etc::Sieve"}},
-		&TextRaytracer{BaseBenchmark: BaseBenchmark{className: "Etc::TextRaytracer"}},
-		&NeuralNet{BaseBenchmark: BaseBenchmark{className: "Etc::NeuralNet"}},
-		&SortQuick{BaseBenchmark: BaseBenchmark{className: "Sort::Quick"}},
-		&SortMerge{BaseBenchmark: BaseBenchmark{className: "Sort::Merge"}},
-		&SortSelf{BaseBenchmark: BaseBenchmark{className: "Sort::Self"}},
-		&GraphPathBFS{BaseBenchmark: BaseBenchmark{className: "Graph::BFS"}},
-		&GraphPathDFS{BaseBenchmark: BaseBenchmark{className: "Graph::DFS"}},
-		&GraphPathAStar{BaseBenchmark: BaseBenchmark{className: "Graph::AStar"}},
-		&BufferHashSHA256{BaseBenchmark: BaseBenchmark{className: "Hash::SHA256"}},
-		&BufferHashCRC32{BaseBenchmark: BaseBenchmark{className: "Hash::CRC32"}},
-		&CacheSimulation{BaseBenchmark: BaseBenchmark{className: "Etc::CacheSimulation"}},
-		&CalculatorAst{BaseBenchmark: BaseBenchmark{className: "Calculator::Ast"}},
-		&CalculatorInterpreter{BaseBenchmark: BaseBenchmark{className: "Calculator::Interpreter"}},
-		&GameOfLife{BaseBenchmark: BaseBenchmark{className: "Etc::GameOfLife"}},
-		&MazeGenerator{BaseBenchmark: BaseBenchmark{className: "Maze::Generator"}},
-		&MazeBFS{BaseBenchmark: BaseBenchmark{className: "Maze::BFS"}},
-		&MazeAStar{BaseBenchmark: BaseBenchmark{className: "Maze::AStar"}},
-		&BWTEncode{BaseBenchmark: BaseBenchmark{className: "Compress::BWTEncode"}},
-		&BWTDecode{BaseBenchmark: BaseBenchmark{className: "Compress::BWTDecode"}},
-		&HuffEncode{BaseBenchmark: BaseBenchmark{className: "Compress::HuffEncode"}},
-		&HuffDecode{BaseBenchmark: BaseBenchmark{className: "Compress::HuffDecode"}},
-		&ArithEncode{BaseBenchmark: BaseBenchmark{className: "Compress::ArithEncode"}},
-		&ArithDecode{BaseBenchmark: BaseBenchmark{className: "Compress::ArithDecode"}},
-		&LZWEncode{BaseBenchmark: BaseBenchmark{className: "Compress::LZWEncode"}},
-		&LZWDecode{BaseBenchmark: BaseBenchmark{className: "Compress::LZWDecode"}},
-		&Jaro{BaseBenchmark: BaseBenchmark{className: "Distance::Jaro"}},
-		&NGram{BaseBenchmark: BaseBenchmark{className: "Distance::NGram"}},
-		&Words{BaseBenchmark: BaseBenchmark{className: "Etc::Words"}},
-		&LogParser{BaseBenchmark: BaseBenchmark{className: "Etc::LogParser"}},
+	benchMap := map[string]Benchmark{
+		"CLBG::Pidigits":          &Pidigits{BaseBenchmark: BaseBenchmark{className: "CLBG::Pidigits"}},
+		"Binarytrees::Obj":        &BinarytreesObj{BaseBenchmark: BaseBenchmark{className: "Binarytrees::Obj"}},
+		"Binarytrees::Arena":      &BinarytreesArena{BaseBenchmark: BaseBenchmark{className: "Binarytrees::Arena"}},
+		"Brainfuck::Array":        &BrainfuckArray{BaseBenchmark: BaseBenchmark{className: "Brainfuck::Array"}},
+		"Brainfuck::Recursion":    &BrainfuckRecursion{BaseBenchmark: BaseBenchmark{className: "Brainfuck::Recursion"}},
+		"CLBG::Fannkuchredux":     &Fannkuchredux{BaseBenchmark: BaseBenchmark{className: "CLBG::Fannkuchredux"}},
+		"CLBG::Mandelbrot":        &Mandelbrot{BaseBenchmark: BaseBenchmark{className: "CLBG::Mandelbrot"}},
+		"Matmul::Single":          &Matmul1T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::Single"}}},
+		"Matmul::T4":              &Matmul4T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::T4"}}},
+		"Matmul::T8":              &Matmul8T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::T8"}}},
+		"Matmul::T16":             &Matmul16T{BaseMatmul{BaseBenchmark: BaseBenchmark{className: "Matmul::T16"}}},
+		"CLBG::Nbody":             &Nbody{BaseBenchmark: BaseBenchmark{className: "CLBG::Nbody"}},
+		"CLBG::Spectralnorm":      &Spectralnorm{BaseBenchmark: BaseBenchmark{className: "CLBG::Spectralnorm"}},
+		"Base64::Encode":          &Base64Encode{BaseBenchmark: BaseBenchmark{className: "Base64::Encode"}},
+		"Base64::Decode":          &Base64Decode{BaseBenchmark: BaseBenchmark{className: "Base64::Decode"}},
+		"Json::Generate":          &JsonGenerate{BaseBenchmark: BaseBenchmark{className: "Json::Generate"}},
+		"Json::ParseDom":          &JsonParseDom{BaseBenchmark: BaseBenchmark{className: "Json::ParseDom"}},
+		"Json::ParseMapping":      &JsonParseMapping{BaseBenchmark: BaseBenchmark{className: "Json::ParseMapping"}},
+		"Etc::Sieve":              &Sieve{BaseBenchmark: BaseBenchmark{className: "Etc::Sieve"}},
+		"Etc::TextRaytracer":      &TextRaytracer{BaseBenchmark: BaseBenchmark{className: "Etc::TextRaytracer"}},
+		"Etc::NeuralNet":          &NeuralNet{BaseBenchmark: BaseBenchmark{className: "Etc::NeuralNet"}},
+		"Sort::Quick":             &SortQuick{BaseBenchmark: BaseBenchmark{className: "Sort::Quick"}},
+		"Sort::Merge":             &SortMerge{BaseBenchmark: BaseBenchmark{className: "Sort::Merge"}},
+		"Sort::Self":              &SortSelf{BaseBenchmark: BaseBenchmark{className: "Sort::Self"}},
+		"Graph::BFS":              &GraphPathBFS{BaseBenchmark: BaseBenchmark{className: "Graph::BFS"}},
+		"Graph::DFS":              &GraphPathDFS{BaseBenchmark: BaseBenchmark{className: "Graph::DFS"}},
+		"Graph::AStar":            &GraphPathAStar{BaseBenchmark: BaseBenchmark{className: "Graph::AStar"}},
+		"Hash::SHA256":            &BufferHashSHA256{BaseBenchmark: BaseBenchmark{className: "Hash::SHA256"}},
+		"Hash::CRC32":             &BufferHashCRC32{BaseBenchmark: BaseBenchmark{className: "Hash::CRC32"}},
+		"Etc::CacheSimulation":    &CacheSimulation{BaseBenchmark: BaseBenchmark{className: "Etc::CacheSimulation"}},
+		"Calculator::Ast":         &CalculatorAst{BaseBenchmark: BaseBenchmark{className: "Calculator::Ast"}},
+		"Calculator::Interpreter": &CalculatorInterpreter{BaseBenchmark: BaseBenchmark{className: "Calculator::Interpreter"}},
+		"Etc::GameOfLife":         &GameOfLife{BaseBenchmark: BaseBenchmark{className: "Etc::GameOfLife"}},
+		"Maze::Generator":         &MazeGenerator{BaseBenchmark: BaseBenchmark{className: "Maze::Generator"}},
+		"Maze::BFS":               &MazeBFS{BaseBenchmark: BaseBenchmark{className: "Maze::BFS"}},
+		"Maze::AStar":             &MazeAStar{BaseBenchmark: BaseBenchmark{className: "Maze::AStar"}},
+		"Compress::BWTEncode":     &BWTEncode{BaseBenchmark: BaseBenchmark{className: "Compress::BWTEncode"}},
+		"Compress::BWTDecode":     &BWTDecode{BaseBenchmark: BaseBenchmark{className: "Compress::BWTDecode"}},
+		"Compress::HuffEncode":    &HuffEncode{BaseBenchmark: BaseBenchmark{className: "Compress::HuffEncode"}},
+		"Compress::HuffDecode":    &HuffDecode{BaseBenchmark: BaseBenchmark{className: "Compress::HuffDecode"}},
+		"Compress::ArithEncode":   &ArithEncode{BaseBenchmark: BaseBenchmark{className: "Compress::ArithEncode"}},
+		"Compress::ArithDecode":   &ArithDecode{BaseBenchmark: BaseBenchmark{className: "Compress::ArithDecode"}},
+		"Compress::LZWEncode":     &LZWEncode{BaseBenchmark: BaseBenchmark{className: "Compress::LZWEncode"}},
+		"Compress::LZWDecode":     &LZWDecode{BaseBenchmark: BaseBenchmark{className: "Compress::LZWDecode"}},
+		"Distance::Jaro":          &Jaro{BaseBenchmark: BaseBenchmark{className: "Distance::Jaro"}},
+		"Distance::NGram":         &NGram{BaseBenchmark: BaseBenchmark{className: "Distance::NGram"}},
+		"Etc::Words":              &Words{BaseBenchmark: BaseBenchmark{className: "Etc::Words"}},
+		"Etc::LogParser":          &LogParser{BaseBenchmark: BaseBenchmark{className: "Etc::LogParser"}},
+		"Template::Regex":         &TemplateRegex{TemplateBase: TemplateBase{BaseBenchmark: BaseBenchmark{className: "Template::Regex"}}},
+		"Template::Parse":         &TemplateParse{TemplateBase: TemplateBase{BaseBenchmark: BaseBenchmark{className: "Template::Parse"}}},
 	}
 
-	for _, bench := range allBenches {
-		className := bench.Name()
-
-		if className == "SortBenchmark" || className == "BufferHashBenchmark" || className == "GraphPathBenchmark" {
+	for _, className := range ORDER {
+		if singleBench != "" && !strings.Contains(strings.ToLower(className), singleBench) {
 			continue
 		}
 
-		if singleBench != "" && !strings.Contains(strings.ToLower(className), singleBench) {
+		bench, ok := benchMap[className]
+		if !ok {
+			fmt.Printf("Warning: Benchmark '%s' defined in config but not found in code\n", className)
 			continue
 		}
 
@@ -314,14 +340,13 @@ func RunBenchmarks(singleBench string) {
 		start := time.Now()
 		RunAll(bench)
 		elapsed := time.Since(start).Seconds()
-		results[className] = elapsed
 
 		chks := bench.Checksum()
 		expected := uint32(bench.ExpectedChecksum())
 
 		if chks == expected {
 			fmt.Printf("OK ")
-			ok++
+			ok_count++
 		} else {
 			fmt.Printf("ERR[actual=%d, expected=%d] ", chks, expected)
 			fails++
@@ -333,10 +358,7 @@ func RunBenchmarks(singleBench string) {
 		summaryTime += elapsed
 	}
 
-	jsonData, _ := json.Marshal(results)
-	os.WriteFile("/tmp/results.js", jsonData, 0644)
-
-	fmt.Printf("Summary: %.4fs, %d, %d, %d\n", summaryTime, ok+fails, ok, fails)
+	fmt.Printf("Summary: %.4fs, %d, %d, %d\n", summaryTime, ok_count+fails, ok_count, fails)
 
 	os.WriteFile("/tmp/recompile_marker", []byte("RECOMPILE_MARKER_0"), 0644)
 	if fails > 0 {
@@ -899,200 +921,6 @@ func (f *Fannkuchredux) Checksum() uint32 {
 	return f.result
 }
 
-type Gene struct {
-	char byte
-	prob float64
-}
-
-type Fasta struct {
-	BaseBenchmark
-	n      int64
-	result strings.Builder
-}
-
-func (f *Fasta) Prepare() {
-	f.n = f.ConfigVal("n")
-}
-
-func (f *Fasta) selectRandom(genelist []Gene) byte {
-	r := NextFloat(1.0)
-	if r < genelist[0].prob {
-		return genelist[0].char
-	}
-
-	lo := 0
-	hi := len(genelist) - 1
-
-	for hi > lo+1 {
-		i := (hi + lo) / 2
-		if r < genelist[i].prob {
-			hi = i
-		} else {
-			lo = i
-		}
-	}
-	return genelist[hi].char
-}
-
-func (f *Fasta) makeRandomFasta(id, desc string, genelist []Gene, n int) {
-	const LINE_LENGTH = 60
-
-	f.result.WriteString(fmt.Sprintf(">%s %s\n", id, desc))
-	todo := n
-
-	for todo > 0 {
-		m := LINE_LENGTH
-		if todo < LINE_LENGTH {
-			m = todo
-		}
-
-		buffer := make([]byte, m)
-		for i := 0; i < m; i++ {
-			buffer[i] = f.selectRandom(genelist)
-		}
-		f.result.Write(buffer)
-		f.result.WriteByte('\n')
-		todo -= LINE_LENGTH
-	}
-}
-
-func (f *Fasta) makeRepeatFasta(id, desc, s string, n int) {
-	const LINE_LENGTH = 60
-
-	f.result.WriteString(fmt.Sprintf(">%s %s\n", id, desc))
-	todo := n
-	k := 0
-	kn := len(s)
-
-	for todo > 0 {
-		m := LINE_LENGTH
-		if todo < LINE_LENGTH {
-			m = todo
-		}
-
-		for m >= kn-k {
-			f.result.WriteString(s[k:])
-			m -= kn - k
-			k = 0
-		}
-
-		f.result.WriteString(s[k : k+m])
-		f.result.WriteByte('\n')
-		k += m
-		todo -= LINE_LENGTH
-	}
-}
-
-func (f *Fasta) Run(iteration_id int) {
-	iub := []Gene{
-		{'a', 0.27}, {'c', 0.39}, {'g', 0.51}, {'t', 0.78}, {'B', 0.8}, {'D', 0.8200000000000001},
-		{'H', 0.8400000000000001}, {'K', 0.8600000000000001}, {'M', 0.8800000000000001},
-		{'N', 0.9000000000000001}, {'R', 0.9200000000000002}, {'S', 0.9400000000000002},
-		{'V', 0.9600000000000002}, {'W', 0.9800000000000002}, {'Y', 1.0000000000000002},
-	}
-
-	homo := []Gene{
-		{'a', 0.302954942668}, {'c', 0.5009432431601}, {'g', 0.6984905497992}, {'t', 1.0},
-	}
-
-	alu := "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"
-
-	f.makeRepeatFasta("ONE", "Homo sapiens alu", alu, int(f.n)*2)
-	f.makeRandomFasta("TWO", "IUB ambiguity codes", iub, int(f.n)*3)
-	f.makeRandomFasta("THREE", "Homo sapiens frequency", homo, int(f.n)*5)
-}
-
-func (f *Fasta) Checksum() uint32 {
-	return Checksum(f.result.String())
-}
-
-type Knuckeotide struct {
-	BaseBenchmark
-	seq    string
-	result strings.Builder
-}
-
-func (k *Knuckeotide) Prepare() {
-	f := &Fasta{BaseBenchmark: BaseBenchmark{className: "CLBG::Knuckeotide"}}
-	f.n = k.ConfigVal("n")
-	f.Prepare()
-	f.Run(0)
-	res := f.result.String()
-
-	seq := strings.Builder{}
-	three := false
-
-	for _, line := range strings.Split(res, "\n") {
-		if strings.HasPrefix(line, ">THREE") {
-			three = true
-			continue
-		}
-		if three {
-			seq.WriteString(strings.TrimSpace(line))
-		}
-	}
-	k.seq = seq.String()
-}
-
-func (k *Knuckeotide) frequency(seq string, length int) (int, map[string]int) {
-	n := len(seq) - length + 1
-	table := make(map[string]int)
-
-	for i := 0; i < n; i++ {
-		sub := seq[i : i+length]
-		table[sub]++
-	}
-
-	return n, table
-}
-
-func (k *Knuckeotide) sortByFreq(seq string, length int) {
-	n, table := k.frequency(seq, length)
-
-	type kv struct {
-		key   string
-		value int
-	}
-
-	pairs := make([]kv, 0, len(table))
-	for k, v := range table {
-		pairs = append(pairs, kv{k, v})
-	}
-
-	sort.Slice(pairs, func(i, j int) bool {
-		if pairs[i].value == pairs[j].value {
-			return pairs[i].key < pairs[j].key
-		}
-		return pairs[i].value > pairs[j].value
-	})
-
-	for _, pair := range pairs {
-		percent := float64(pair.value*100) / float64(n)
-		k.result.WriteString(fmt.Sprintf("%s %.3f\n", strings.ToUpper(pair.key), percent))
-	}
-	k.result.WriteByte('\n')
-}
-
-func (k *Knuckeotide) findSeq(seq, s string) {
-	_, table := k.frequency(seq, len(s))
-	count := table[strings.ToLower(s)]
-	k.result.WriteString(fmt.Sprintf("%d\t%s\n", count, strings.ToUpper(s)))
-}
-
-func (k *Knuckeotide) Run(iteration_id int) {
-	for i := 1; i <= 2; i++ {
-		k.sortByFreq(k.seq, i)
-	}
-
-	for _, s := range []string{"ggt", "ggta", "ggtatt", "ggtattttaatt", "ggtattttaatttatagt"} {
-		k.findSeq(k.seq, s)
-	}
-}
-
-func (k *Knuckeotide) Checksum() uint32 {
-	return Checksum(k.result.String())
-}
-
 type Mandelbrot struct {
 	BaseBenchmark
 	w      int64
@@ -1465,154 +1293,6 @@ func (n *Nbody) Run(iteration_id int) {
 func (n *Nbody) Checksum() uint32 {
 	v2 := n.energy()
 	return (ChecksumFloat64(n.v1) << 5) & ChecksumFloat64(v2)
-}
-
-type RegexDna struct {
-	BaseBenchmark
-	seq    string
-	ilen   int
-	clen   int
-	result strings.Builder
-}
-
-func (r *RegexDna) Prepare() {
-	f := &Fasta{BaseBenchmark: BaseBenchmark{className: "CLBG::RegexDna"}}
-	f.n = r.ConfigVal("n")
-	f.Prepare()
-	f.Run(0)
-	res := f.result.String()
-
-	seq := strings.Builder{}
-	r.ilen = 0
-
-	for _, line := range strings.Split(res, "\n") {
-		if line == "" {
-			continue
-		}
-		r.ilen += len(line) + 1
-		if !strings.HasPrefix(line, ">") {
-			seq.WriteString(strings.TrimSpace(line))
-		}
-	}
-
-	r.seq = seq.String()
-	r.clen = len(r.seq)
-}
-
-func (r *RegexDna) Run(iteration_id int) {
-	patterns := []string{
-		"agggtaaa|tttaccct",
-		"[cgt]gggtaaa|tttaccc[acg]",
-		"a[act]ggtaaa|tttacc[agt]t",
-		"ag[act]gtaaa|tttac[agt]ct",
-		"agg[act]taaa|ttta[agt]cct",
-		"aggg[acg]aaa|ttt[cgt]ccct",
-		"agggt[cgt]aa|tt[acg]accct",
-		"agggta[cgt]a|t[acg]taccct",
-		"agggtaa[cgt]|[acg]ttaccct",
-	}
-
-	for _, pattern := range patterns {
-		count := 0
-		re := regexp.MustCompile(pattern)
-		matches := re.FindAllStringIndex(r.seq, -1)
-		count = len(matches)
-		r.result.WriteString(fmt.Sprintf("%s %d\n", pattern, count))
-	}
-
-	replacer := strings.NewReplacer(
-		"B", "(c|g|t)",
-		"D", "(a|g|t)",
-		"H", "(a|c|t)",
-		"K", "(g|t)",
-		"M", "(a|c)",
-		"N", "(a|c|g|t)",
-		"R", "(a|g)",
-		"S", "(c|t)",
-		"V", "(a|c|g)",
-		"W", "(a|t)",
-		"Y", "(c|t)",
-	)
-
-	seq2 := replacer.Replace(r.seq)
-	r.result.WriteString(fmt.Sprintf("\n%d\n%d\n%d\n", r.ilen, r.clen, len(seq2)))
-}
-
-func (r *RegexDna) Checksum() uint32 {
-	return Checksum(r.result.String())
-}
-
-type Revcomp struct {
-	BaseBenchmark
-	input  string
-	result uint32
-}
-
-func (r *Revcomp) Prepare() {
-	f := &Fasta{BaseBenchmark: BaseBenchmark{className: "CLBG::Revcomp"}}
-	f.n = r.ConfigVal("n")
-	f.Prepare()
-	f.Run(0)
-	input := f.result.String()
-
-	seq := strings.Builder{}
-
-	for _, line := range strings.Split(input, "\n") {
-		if strings.HasPrefix(line, ">") {
-			seq.WriteString("\n---\n")
-		} else {
-			seq.WriteString(strings.TrimSpace(line))
-		}
-	}
-	r.input = seq.String()
-	r.result = 0
-}
-
-func (r *Revcomp) revcomp(seq string) string {
-
-	bytes := []byte(seq)
-	n := len(bytes)
-
-	for i, j := 0, n-1; i < j; i, j = i+1, j-1 {
-		bytes[i], bytes[j] = bytes[j], bytes[i]
-	}
-
-	var lookup [256]byte
-	for i := range lookup {
-		lookup[i] = byte(i)
-	}
-
-	from := "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
-	to := "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
-	for i := 0; i < len(from); i++ {
-		lookup[from[i]] = to[i]
-	}
-
-	for i := range bytes {
-		bytes[i] = lookup[bytes[i]]
-	}
-
-	var result strings.Builder
-	result.Grow(n + (n / 60) + 1)
-
-	for i := 0; i < n; i += 60 {
-		end := i + 60
-		if end > n {
-			end = n
-		}
-		result.Write(bytes[i:end])
-		result.WriteByte('\n')
-	}
-
-	return result.String()
-}
-
-func (r *Revcomp) Run(iteration_id int) {
-	r.result += Checksum(r.revcomp(r.input))
-}
-
-func (r *Revcomp) Checksum() uint32 {
-	return r.result
 }
 
 type Spectralnorm struct {
@@ -5198,70 +4878,129 @@ type LogParser struct {
 	linesCount  int
 	log         string
 	checksumVal uint32
-}
-
-var (
-	ips     = generateIPs()
-	methods = []string{"GET", "POST", "PUT", "DELETE"}
-	paths   = []string{
-		"/index.html", "/api/users", "/login", "/admin",
-		"/images/logo.png", "/etc/passwd", "/wp-admin/setup.php",
-	}
-	statuses = []int{200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503}
-	agents   = []string{
-		"Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0",
-	}
-
-	patterns = []struct {
+	ips         []string
+	methods     []string
+	paths       []string
+	statuses    []int
+	agents      []string
+	users       []string
+	domains     []string
+	patterns    []struct {
 		name string
 		re   *regexp.Regexp
-	}{
-		{"errors", regexp.MustCompile(` [5][0-9]{2} `)},
-		{"bots", regexp.MustCompile(`(?i)bot|crawler|scanner`)},
-		{"suspicious", regexp.MustCompile(`(?i)etc/passwd|wp-admin|\.\./`)},
-		{"ips", regexp.MustCompile(`\d{1,3}\.\d{1,3}\.\d{1,3}\.35`)},
-		{"api_calls", regexp.MustCompile(`/api/[^ "]+`)},
-		{"post_requests", regexp.MustCompile(`POST [^ ]* HTTP`)},
-		{"auth_attempts", regexp.MustCompile(`(?i)/login|/signin`)},
-		{"methods", regexp.MustCompile(`(?i)get|post`)},
 	}
-)
+}
 
-func generateIPs() []string {
-	ips := make([]string, 255)
+func (p *LogParser) initData() {
+	p.ips = make([]string, 255)
 	for i := 0; i < 255; i++ {
-		ips[i] = fmt.Sprintf("192.168.1.%d", i+1)
+		p.ips[i] = fmt.Sprintf("192.168.1.%d", i+1)
 	}
-	return ips
+
+	p.methods = []string{"GET", "POST", "PUT", "DELETE"}
+	p.paths = []string{
+		"/index.html", "/api/users", "/admin",
+		"/images/logo.png", "/etc/passwd", "/wp-admin/setup.php",
+	}
+	p.statuses = []int{200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503}
+	p.agents = []string{
+		"Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0",
+	}
+	p.users = []string{
+		"john", "jane", "alex", "sarah", "mike", "anna", "david", "elena",
+	}
+	p.domains = []string{
+		"example.com", "gmail.com", "yahoo.com", "hotmail.com", "company.org", "mail.ru",
+	}
+}
+
+func (p *LogParser) compilePatterns() {
+	patterns := []struct {
+		name string
+		re   string
+	}{
+		{"errors", ` [5][0-9]{2} | [4][0-9]{2} `},
+		{"bots", `(?i)bot|crawler|scanner|spider|indexing|crawl|robot|spider`},
+		{"suspicious", `(?i)etc/passwd|wp-admin|\.\./`},
+		{"ips", `\d+\.\d+\.\d+\.35`},
+		{"api_calls", `/api/[^ " ]+`},
+		{"post_requests", `POST [^ ]* HTTP`},
+		{"auth_attempts", `(?i)/login|/signin`},
+		{"methods", `(?i)get|post|put`},
+		{"emails", `[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}`},
+		{"passwords", `password=[^&\s"]+`},
+		{"tokens", `token=[^&\s"]+|api[_-]?key=[^&\s"]+`},
+		{"sessions", `session[_-]?id=[^&\s"]+`},
+		{"peak_hours", `\[\d+/\w+/\d+:1[3-7]:\d+:\d+ [+\-]\d+\]`},
+	}
+
+	p.patterns = make([]struct {
+		name string
+		re   *regexp.Regexp
+	}, len(patterns))
+
+	for i, pat := range patterns {
+		p.patterns[i] = struct {
+			name string
+			re   *regexp.Regexp
+		}{
+			name: pat.name,
+			re:   regexp.MustCompile(pat.re),
+		}
+	}
 }
 
 func (p *LogParser) Prepare() {
 	p.linesCount = int(p.ConfigVal("lines_count"))
 
+	p.initData()
+	p.compilePatterns()
+
 	var builder strings.Builder
-	builder.Grow(p.linesCount * 150)
+	builder.Grow(p.linesCount * 200)
 
 	for i := 0; i < p.linesCount; i++ {
-		builder.WriteString(generateLogLine(i))
+		builder.WriteString(p.generateLogLine(i))
 	}
 
 	p.log = builder.String()
 }
 
-func generateLogLine(i int) string {
-	return fmt.Sprintf("%s - - [%d/Oct/2023:13:55:36 +0000] \"%s %s HTTP/1.0\" %d 2326 \"-\" \"%s\"\n",
-		ips[i%len(ips)],
-		i%31,
-		methods[i%len(methods)],
-		paths[i%len(paths)],
-		statuses[i%len(statuses)],
-		agents[i%len(agents)])
+func (p *LogParser) generateLogLine(i int) string {
+	var builder strings.Builder
+
+	builder.WriteString(p.ips[i%len(p.ips)])
+	builder.WriteString(fmt.Sprintf(" - - [%d/Oct/2023:%d:55:36 +0000] \"", i%31, i%60))
+	builder.WriteString(p.methods[i%len(p.methods)])
+	builder.WriteString(" ")
+
+	if i%3 == 0 {
+		builder.WriteString(fmt.Sprintf("/login?email=%s%d@%s&password=secret%d",
+			p.users[i%len(p.users)], i%100,
+			p.domains[i%len(p.domains)], i%10000))
+	} else if i%5 == 0 {
+		builder.WriteString("/api/data?token=")
+		for j := 0; j < (i%3)+1; j++ {
+			builder.WriteString("abcdef123456")
+		}
+	} else if i%7 == 0 {
+		builder.WriteString(fmt.Sprintf("/user/profile?session_id=sess_%x", i*12345))
+	} else {
+		builder.WriteString(p.paths[i%len(p.paths)])
+	}
+
+	builder.WriteString(fmt.Sprintf(" HTTP/1.1\" %d 2326 \"http://%s\" \"%s\"\n",
+		p.statuses[i%len(p.statuses)],
+		p.domains[i%len(p.domains)],
+		p.agents[i%len(p.agents)]))
+
+	return builder.String()
 }
 
 func (p *LogParser) Run(iteration_id int) {
 	matches := make(map[string]int)
 
-	for _, pattern := range patterns {
+	for _, pattern := range p.patterns {
 		matches[pattern.name] = len(pattern.re.FindAllStringIndex(p.log, -1))
 	}
 
@@ -5274,6 +5013,142 @@ func (p *LogParser) Run(iteration_id int) {
 
 func (p *LogParser) Checksum() uint32 {
 	return p.checksumVal
+}
+
+type TemplateBase struct {
+	BaseBenchmark
+	count    int64
+	checksum uint32
+	text     string
+	rendered string
+	vars     map[string]string
+}
+
+var (
+	firstNames = []string{"John", "Jane", "Bob", "Alice", "Charlie", "Diana", "Sarah", "Mike"}
+	lastNames  = []string{"Smith", "Johnson", "Brown", "Taylor", "Wilson", "Davis", "Miller", "Jones"}
+	cities     = []string{"New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "San Francisco"}
+	lorem      = "Lorem {ipsum} dolor {sit} amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore {et} dolore magna aliqua. "
+)
+
+func (t *TemplateBase) Prepare() {
+	t.count = t.ConfigVal("count")
+	t.vars = make(map[string]string)
+
+	var buf strings.Builder
+	buf.Grow(int(t.count) * 200)
+
+	buf.WriteString("<html><body>")
+	buf.WriteString("<h1>{{TITLE}}</h1>")
+	t.vars["TITLE"] = "Template title"
+	buf.WriteString("<p>")
+	buf.WriteString(lorem)
+	buf.WriteString("</p>")
+	buf.WriteString("<table>")
+
+	for i := 0; i < int(t.count); i++ {
+		if i%3 == 0 {
+			buf.WriteString("<!-- {comment} -->")
+		}
+		buf.WriteString("<tr>")
+		buf.WriteString(fmt.Sprintf("<td>{{ FIRST_NAME%d }}</td>", i))
+		buf.WriteString(fmt.Sprintf("<td>{{LAST_NAME%d}}</td>", i))
+		buf.WriteString(fmt.Sprintf("<td>{{  CITY%d  }}</td>", i))
+
+		t.vars[fmt.Sprintf("FIRST_NAME%d", i)] = firstNames[i%len(firstNames)]
+		t.vars[fmt.Sprintf("LAST_NAME%d", i)] = lastNames[i%len(lastNames)]
+		t.vars[fmt.Sprintf("CITY%d", i)] = cities[i%len(cities)]
+
+		buf.WriteString(fmt.Sprintf("<td>{balance: %d}</td>", i%100))
+		buf.WriteString("</tr>\n")
+	}
+
+	buf.WriteString("</table>")
+	buf.WriteString("</body></html>")
+
+	t.text = buf.String()
+}
+
+type TemplateRegex struct {
+	TemplateBase
+}
+
+func (t *TemplateRegex) Name() string {
+	return "Template::Regex"
+}
+
+func (t *TemplateRegex) Run(iteration_id int) {
+
+	re := regexp.MustCompile(`\{\{\s*(.*?)\s*\}\}`)
+
+	result := re.ReplaceAllStringFunc(t.text, func(match string) string {
+
+		key := match[2 : len(match)-2]
+		key = strings.TrimSpace(key)
+		if val, ok := t.vars[key]; ok {
+			return val
+		}
+		return ""
+	})
+
+	t.rendered = result
+	t.checksum += uint32(len(t.rendered))
+}
+
+func (t *TemplateRegex) Checksum() uint32 {
+	return t.checksum + ChecksumBytes([]byte(t.rendered))
+}
+
+type TemplateParse struct {
+	TemplateBase
+}
+
+func (t *TemplateParse) Name() string {
+	return "Template::Parse"
+}
+
+func (t *TemplateParse) Run(iteration_id int) {
+	text := t.text
+	textLen := len(text)
+	vars := t.vars
+
+	var buf strings.Builder
+	buf.Grow(int(float64(textLen) * 1.5))
+
+	i := 0
+	for i < textLen {
+		if i+1 < textLen && text[i] == '{' && text[i+1] == '{' {
+
+			j := i + 2
+			for j+1 < textLen {
+				if text[j] == '}' && text[j+1] == '}' {
+					break
+				}
+				j++
+			}
+
+			if j+1 < textLen {
+
+				key := text[i+2 : j]
+				key = strings.TrimSpace(key)
+				if val, ok := vars[key]; ok {
+					buf.WriteString(val)
+				}
+				i = j + 2
+				continue
+			}
+		}
+
+		buf.WriteByte(text[i])
+		i++
+	}
+
+	t.rendered = buf.String()
+	t.checksum += uint32(len(t.rendered))
+}
+
+func (t *TemplateParse) Checksum() uint32 {
+	return t.checksum + ChecksumBytes([]byte(t.rendered))
 }
 
 func main() {

@@ -5,7 +5,6 @@ pub struct Spectralnorm {
     size_val: i64,
     u: Vec<f64>,
     v: Vec<f64>,
-    result_val: u32,
 }
 
 impl Spectralnorm {
@@ -16,7 +15,6 @@ impl Spectralnorm {
             size_val,
             u: vec![1.0; size_val as usize],
             v: vec![1.0; size_val as usize],
-            result_val: 0,
         }
     }
 

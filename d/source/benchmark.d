@@ -8,22 +8,7 @@ import std.algorithm;
 import std.exception;
 import std.stdio;
 import std.string;
-
-__gshared JSONValue config;
-
-void loadConfig(string filename = "../test.js")
-{
-    try
-    {
-        string content = readText(filename);
-        config = parseJSON(content);
-    }
-    catch (Exception e)
-    {
-        stderr.writeln("Cannot open config file: ", filename);
-        config = JSONValue(null);
-    }
-}
+import helper;
 
 abstract class Benchmark
 {
@@ -94,35 +79,39 @@ protected:
 protected:
     int warmupIterations()
     {
-
         string benchName = name();
 
-        if (config.type == JSONType.object && config[benchName] != JSONValue(null)
-                && config[benchName].type == JSONType.object)
+        auto config = Helper.config;
+
+        if (config.type == JSONType.object)
         {
-
-            if (fieldExists(config[benchName], "warmup_iterations"))
+            if (benchName in config.object)
             {
+                auto benchObj = config[benchName];
+                if (benchObj.type == JSONType.object)
+                {
+                    if ("warmup_iterations" in benchObj.object)
+                    {
+                        auto warmupField = benchObj["warmup_iterations"];
 
-                auto warmupField = config[benchName]["warmup_iterations"];
-
-                if (warmupField.type == JSONType.integer)
-                {
-                    return warmupField.integer.to!int;
+                        if (warmupField.type == JSONType.integer)
+                        {
+                            return warmupField.integer.to!int;
+                        }
+                        else if (warmupField.type == JSONType.uinteger)
+                        {
+                            return warmupField.uinteger.to!int;
+                        }
+                        else if (warmupField.type == JSONType.string)
+                        {
+                            return warmupField.str.to!int;
+                        }
+                        else if (warmupField.type == JSONType.float_)
+                        {
+                            return cast(int) warmupField.floating;
+                        }
+                    }
                 }
-                else if (warmupField.type == JSONType.uinteger)
-                {
-                    return warmupField.uinteger.to!int;
-                }
-                else if (warmupField.type == JSONType.string)
-                {
-                    return warmupField.str.to!int;
-                }
-                else if (warmupField.type == JSONType.float_)
-                {
-                    return cast(int) warmupField.floating;
-                }
-
             }
         }
 
@@ -131,59 +120,54 @@ protected:
     }
 
 private:
-    bool fieldExists(JSONValue obj, string fieldName) const
-    {
-        if (obj.type != JSONType.object)
-            return false;
-        foreach (key, value; obj.object)
-        {
-            if (key == fieldName)
-                return true;
-        }
-        return false;
-    }
-
     T getConfigValue(T)(string className, string fieldName) const
     {
-        if (config.type == JSONType.object && fieldExists(config, className)
-                && config[className].type == JSONType.object
-                && fieldExists(config[className], fieldName))
+        auto config = Helper.config;
+
+        if (config.type == JSONType.object)
         {
-
-            auto value = config[className][fieldName];
-
-            static if (is(T == int) || is(T == long))
+            if (className in config.object)
             {
-                if (value.type == JSONType.integer)
+                auto classObj = config[className];
+                if (classObj.type == JSONType.object)
                 {
-                    return cast(T) value.integer;
-                }
-                else if (value.type == JSONType.uinteger)
-                {
-                    return cast(T) value.uinteger;
-                }
-                else if (value.type == JSONType.string)
-                {
-                    return value.str.to!T;
-                }
-                else if (value.type == JSONType.float_)
-                {
-                    return cast(T) value.floating;
+                    if (fieldName in classObj.object)
+                    {
+                        auto value = classObj[fieldName];
+
+                        static if (is(T == int) || is(T == long))
+                        {
+                            if (value.type == JSONType.integer)
+                            {
+                                return cast(T) value.integer;
+                            }
+                            else if (value.type == JSONType.uinteger)
+                            {
+                                return cast(T) value.uinteger;
+                            }
+                            else if (value.type == JSONType.string)
+                            {
+                                return value.str.to!T;
+                            }
+                            else if (value.type == JSONType.float_)
+                            {
+                                return cast(T) value.floating;
+                            }
+                        }
+                        else static if (is(T == string))
+                        {
+                            if (value.type == JSONType.string)
+                            {
+                                return value.str;
+                            }
+                            else
+                            {
+                                return value.to!string;
+                            }
+                        }
+                    }
                 }
             }
-            else static if (is(T == string))
-            {
-                if (value.type == JSONType.string)
-                {
-                    return value.str;
-                }
-                else
-                {
-                    return value.to!string;
-                }
-            }
-
-            throw new Exception("Cannot convert JSON value");
         }
         throw new Exception("Config not found for " ~ className ~ ", field: " ~ fieldName);
     }

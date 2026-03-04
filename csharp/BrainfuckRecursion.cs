@@ -71,7 +71,7 @@ public class BrainfuckRecursion : Benchmark
             {
                 char c = code[index++];
 
-                IOp op = c switch
+                IOp? op = c switch
                 {
                     '+' => new Inc(),
                     '-' => new Dec(),

@@ -1,4 +1,3 @@
-import std/[math, strutils, os, cpuinfo]
 import ../benchmark
 import ../helper
 
@@ -163,3 +162,4 @@ registerBenchmark("Matmul::Single", newMatmul1T)
 registerBenchmark("Matmul::T4", newMatmul4T)
 registerBenchmark("Matmul::T8", newMatmul8T)
 registerBenchmark("Matmul::T16", newMatmul16T)
+{.used.}

@@ -1,4 +1,3 @@
-import std/[algorithm, sequtils]
 import ../benchmark
 
 type
@@ -79,3 +78,4 @@ method checksum(self: Fannkuchredux): uint32 =
   self.resultVal
 
 registerBenchmark("CLBG::Fannkuchredux", newFannkuchredux)
+{.used.}

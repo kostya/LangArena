@@ -36,83 +36,64 @@ abstract class Benchmark:
 object Benchmark:
   type Supplier[T] = () => T
 
-  private case class NamedBenchmarkFactory(name: String, factory: Supplier[Benchmark])
-
-  private val benchmarkFactories = mutable.ArrayBuffer.empty[NamedBenchmarkFactory]
+  private val benchmarkMap = mutable.Map.empty[String, Supplier[Benchmark]]
 
   def registerBenchmark(name: String, factory: Supplier[Benchmark]): Unit =
-
-    if benchmarkFactories.exists(_.name == name) then println(s"Warning: Benchmark with name '$name' already registered. Skipping.")
-    else benchmarkFactories += NamedBenchmarkFactory(name, factory)
+    if benchmarkMap.contains(name) then println(s"Warning: Benchmark with name '$name' already registered. Skipping.")
+    else benchmarkMap(name) = factory
 
   def registerBenchmark(factory: Supplier[Benchmark]): Unit =
     val bench = factory()
-    benchmarkFactories += NamedBenchmarkFactory(bench.name(), factory)
+    benchmarkMap(bench.name()) = factory
 
   private def toLower(str: String): String = str.toLowerCase(Locale.US)
 
   def all(singleBench: String): Unit =
-    val results = mutable.Map.empty[String, Double]
     var summaryTime = 0.0
     var ok = 0
     var fails = 0
 
-    for factoryInfo <- benchmarkFactories do
-      val benchName = factoryInfo.name
-
+    for benchName <- Helper.ORDER do
       val shouldRun =
         if singleBench == null || singleBench.isEmpty then true
         else toLower(benchName).contains(toLower(singleBench))
 
-      val skipBenchmarks = Set("SortBenchmark", "BufferHashBenchmark", "GraphPathBenchmark")
+      if shouldRun then
+        benchmarkMap.get(benchName) match
+          case Some(factory) =>
+            val bench = factory()
 
-      if shouldRun && !skipBenchmarks.contains(benchName) then
+            Helper.reset()
+            bench.prepare()
+            bench.warmup()
+            System.gc()
 
-        if !Helper.CONFIG.has(benchName) then println(s"\n[$benchName]: SKIP - no config entry")
-        else
+            Helper.reset()
 
-          val bench = factoryInfo.factory()
+            val startTime = System.nanoTime()
+            bench.runAll()
+            val timeDelta = (System.nanoTime() - startTime) / 1_000_000_000.0
 
-          Helper.reset()
-          bench.prepare()
-          bench.warmup()
-          System.gc()
+            System.gc()
+            try Thread.sleep(0)
+            catch case _: InterruptedException => ()
+            System.gc()
 
-          Helper.reset()
+            val check = bench.checksum() & 0xffffffffL
+            val expected = bench.expectedChecksum()
+            print(s"$benchName: ")
+            if check == expected then
+              print("OK ")
+              ok += 1
+            else
+              print(s"ERR[actual=$check, expected=$expected] ")
+              fails += 1
 
-          val startTime = System.nanoTime()
-          bench.runAll()
-          val timeDelta = (System.nanoTime() - startTime) / 1_000_000_000.0
+            println(s"in ${Helper.formatTime(timeDelta)}s")
+            summaryTime += timeDelta
 
-          results(benchName) = timeDelta
-
-          System.gc()
-          try Thread.sleep(0)
-          catch case _: InterruptedException => ()
-          System.gc()
-
-          val check = bench.checksum() & 0xffffffffL
-          val expected = bench.expectedChecksum()
-          print(s"$benchName: ")
-          if check == expected then
-            print("OK ")
-            ok += 1
-          else
-            print(s"ERR[actual=$check, expected=$expected] ")
-            fails += 1
-
-          println(s"in ${Helper.formatTime(timeDelta)}s")
-          summaryTime += timeDelta
-      else if shouldRun then println(s"\n[$benchName]: SKIP - no config entry")
-
-    Using.resource(new FileWriter("/tmp/results.js")): writer =>
-      writer.write("{")
-      var first = true
-      for (key, value) <- results do
-        if !first then writer.write(", ")
-        writer.write(s"\"$key\": $value")
-        first = false
-      writer.write("}")
+          case None =>
+            println(s"Warning: Benchmark '$benchName' defined in config but not found in code")
 
     println(f"Summary: ${Helper.formatTime(summaryTime)}s, ${ok + fails}, $ok, $fails")
 

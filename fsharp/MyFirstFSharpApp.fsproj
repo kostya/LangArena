@@ -8,19 +8,14 @@
     <Compile Include="Helper.fs" />
     
     <Compile Include="Benchmark.fs" />
-    <Compile Include="FastaShared.fs" />
 
     <Compile Include="Pidigits.fs" />
     <Compile Include="Binarytrees.fs" />
     <Compile Include="BrainfuckBenchmarks.fs" />
     <Compile Include="Fannkuchredux.fs" />
-    <Compile Include="Fasta.fs" />
-    <Compile Include="Knuckeotide.fs" />
     <Compile Include="Mandelbrot.fs" />
     <Compile Include="Matmul.fs" />
     <Compile Include="Nbody.fs" />
-    <Compile Include="RegexDna.fs" />
-    <Compile Include="Revcomp.fs" />
     <Compile Include="Spectralnorm.fs" />
     <Compile Include="Base64Benchmarks.fs" />
     <Compile Include="JsonBenchmarks.fs" />
@@ -38,6 +33,7 @@
     <Compile Include="Distance.fs" />    
     <Compile Include="Words.fs" /> 
     <Compile Include="LogParser.fs" />    
+    <Compile Include="Template.fs" />    
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

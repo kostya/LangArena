@@ -27,6 +27,9 @@ class Helper {
   static final Map<String, String> inputMap = {};
   static final Map<String, BigInt> expectMap = {};
   static Map<String, dynamic>? _config;
+  static List<String> _order = [];
+
+  static List<String> get order => _order;
 
   static void reset() {
     lastValue = INIT;
@@ -87,18 +90,25 @@ class Helper {
       if (await file.exists()) {
         content = await file.readAsString();
       } else {
-        final cwd = Directory.current;
-        final absolutePath = '${cwd.path}/${configFile.replaceAll('../', '')}';
-        final absoluteFile = File(absolutePath);
-
-        if (await absoluteFile.exists()) {
-          content = await absoluteFile.readAsString();
-        } else {
-          throw Exception('Config file not found: $configFile');
-        }
+        throw Exception('Config file not found: $configFile');
       }
 
-      _config = jsonDecode(content) as Map<String, dynamic>;
+      final jsonData = jsonDecode(content);
+
+      if (jsonData is List) {
+        final dict = <String, dynamic>{};
+        _order.clear();
+
+        for (final item in jsonData) {
+          final name = item['name'] as String;
+          dict[name] = item;
+          _order.add(name);
+        }
+
+        _config = dict;
+      } else {
+        _config = jsonData as Map<String, dynamic>;
+      }
     } catch (error) {
       print('Error loading config file $configFile: $error');
       exit(1);
@@ -217,38 +227,31 @@ abstract class Benchmark {
   }
 
   static Future<void> run([String? singleBench]) async {
-    final results = <String, double>{};
     double summaryTime = 0;
     int ok = 0;
     int fails = 0;
 
-    final skipBenchmarks = {
-      'SortBenchmark',
-      'BufferHashBenchmark',
-      'GraphPathBenchmark',
+    final benchmarkFactories = {
+      for (var f in _benchmarkFactories) f.name: f.constructor,
     };
 
-    for (final factoryInfo in _benchmarkFactories) {
-      final benchName = factoryInfo.name;
-
+    for (final benchName in Helper.order) {
       if (singleBench != null &&
           !benchName.toLowerCase().contains(singleBench.toLowerCase())) {
         continue;
       }
 
-      if (skipBenchmarks.contains(benchName)) {
-        continue;
-      }
-
-      final config = Helper._config;
-      if (config == null || config[benchName] == null) {
-        print('\n[$benchName]: SKIP - no config entry');
+      final constructor = benchmarkFactories[benchName];
+      if (constructor == null) {
+        print(
+          'Warning: Benchmark "$benchName" defined in config but not found in code',
+        );
         continue;
       }
 
       stdout.write('$benchName: ');
 
-      final bench = factoryInfo.constructor();
+      final bench = constructor();
 
       Helper.reset();
       bench.prepare();
@@ -270,8 +273,6 @@ abstract class Benchmark {
       final endTime = DateTime.now().millisecondsSinceEpoch;
       final timeDelta = (endTime - startTime) / 1000.0;
 
-      results[benchName] = timeDelta;
-
       final actualResult = BigInt.from(bench.checksum());
       final expectedResult = bench.expectedChecksum;
 
@@ -287,11 +288,6 @@ abstract class Benchmark {
       print('in ${timeDelta.toStringAsFixed(3)}s');
       summaryTime += timeDelta;
     }
-
-    try {
-      final resultsFile = File('/tmp/results.dart.json');
-      resultsFile.writeAsStringSync(jsonEncode(results));
-    } catch (_) {}
 
     print(
       'Summary: ${summaryTime.toStringAsFixed(4)}s, ${ok + fails}, $ok, $fails',
@@ -913,244 +909,6 @@ class Fannkuchredux extends Benchmark {
   String get benchmarkName => 'CLBG::Fannkuchredux';
 }
 
-class Gene {
-  final String char;
-  final double prob;
-
-  Gene(this.char, this.prob);
-}
-
-class Fasta extends Benchmark {
-  static const int LINE_LENGTH = 60;
-
-  static final List<Gene> IUB = [
-    Gene('a', 0.27),
-    Gene('c', 0.39),
-    Gene('g', 0.51),
-    Gene('t', 0.78),
-    Gene('B', 0.8),
-    Gene('D', 0.8200000000000001),
-    Gene('H', 0.8400000000000001),
-    Gene('K', 0.8600000000000001),
-    Gene('M', 0.8800000000000001),
-    Gene('N', 0.9000000000000001),
-    Gene('R', 0.9200000000000002),
-    Gene('S', 0.9400000000000002),
-    Gene('V', 0.9600000000000002),
-    Gene('W', 0.9800000000000002),
-    Gene('Y', 1.0000000000000002),
-  ];
-
-  static final List<Gene> HOMO = [
-    Gene('a', 0.302954942668),
-    Gene('c', 0.5009432431601),
-    Gene('g', 0.6984905497992),
-    Gene('t', 1.0),
-  ];
-
-  static const String ALU =
-      "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
-
-  late int n;
-  late StringBuffer resultBuffer;
-
-  Fasta() {
-    n = Helper.configI64(benchmarkName, "n").toInt();
-  }
-
-  void setIterations(int count) {
-    n = count;
-  }
-
-  String _selectRandom(List<Gene> genelist) {
-    final r = Helper.nextFloat();
-
-    if (r < genelist[0].prob) {
-      return genelist[0].char;
-    }
-
-    var lo = 0;
-    var hi = genelist.length - 1;
-
-    while (hi > lo + 1) {
-      final i = (hi + lo) ~/ 2;
-      if (r < genelist[i].prob) {
-        hi = i;
-      } else {
-        lo = i;
-      }
-    }
-    return genelist[hi].char;
-  }
-
-  void _makeRandomFasta(String id, String desc, List<Gene> genelist, int n) {
-    resultBuffer.write('>$id $desc\n');
-
-    var todo = n;
-    final buffer = StringBuffer();
-
-    while (todo > 0) {
-      final m = todo < LINE_LENGTH ? todo : LINE_LENGTH;
-      buffer.clear();
-
-      for (int i = 0; i < m; i++) {
-        buffer.write(_selectRandom(genelist));
-      }
-
-      resultBuffer.write(buffer);
-      resultBuffer.write('\n');
-      todo -= LINE_LENGTH;
-    }
-  }
-
-  void _makeRepeatFasta(String id, String desc, String s, int n) {
-    resultBuffer.write('>$id $desc\n');
-
-    var todo = n;
-    var k = 0;
-    final kn = s.length;
-
-    while (todo > 0) {
-      final m = todo < LINE_LENGTH ? todo : LINE_LENGTH;
-      var remaining = m;
-
-      while (remaining >= kn - k) {
-        resultBuffer.write(s.substring(k));
-        remaining -= kn - k;
-        k = 0;
-      }
-
-      if (remaining > 0) {
-        resultBuffer.write(s.substring(k, k + remaining));
-        k += remaining;
-      }
-
-      resultBuffer.write('\n');
-      todo -= LINE_LENGTH;
-    }
-  }
-
-  @override
-  void prepare() {
-    resultBuffer = StringBuffer();
-  }
-
-  @override
-  void runBenchmark(int iterationId) {
-    _makeRepeatFasta("ONE", "Homo sapiens alu", ALU, n * 2);
-    _makeRandomFasta("TWO", "IUB ambiguity codes", IUB, n * 3);
-    _makeRandomFasta("THREE", "Homo sapiens frequency", HOMO, n * 5);
-  }
-
-  String getResult() {
-    return resultBuffer.toString();
-  }
-
-  @override
-  int checksum() {
-    return Helper.checksumString(resultBuffer.toString());
-  }
-
-  @override
-  String get benchmarkName => 'CLBG::Fasta';
-}
-
-class Knuckeotide extends Benchmark {
-  String _seq = '';
-  String _resultStr = '';
-
-  Map<String, int> _frequency(String seq, int length) {
-    final n = seq.length - length + 1;
-    final table = <String, int>{};
-
-    for (int i = 0; i < n; i++) {
-      final key = seq.substring(i, i + length);
-      table[key] = (table[key] ?? 0) + 1;
-    }
-
-    return table;
-  }
-
-  void _sortByFreq(String seq, int length) {
-    final table = _frequency(seq, length);
-    final n = seq.length - length + 1;
-
-    final sorted = table.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    for (final entry in sorted) {
-      final freq = (entry.value * 100) / n;
-      _resultStr += '${entry.key.toUpperCase()} ${freq.toStringAsFixed(3)}\n';
-    }
-
-    _resultStr += '\n';
-  }
-
-  void _findSeq(String seq, String s) {
-    final table = _frequency(seq, s.length);
-    final count = table[s.toLowerCase()] ?? 0;
-    _resultStr += '$count\t${s.toUpperCase()}\n';
-  }
-
-  @override
-  void prepare() {
-    final n = Helper.configI64(benchmarkName, "n").toInt();
-
-    final fasta = Fasta();
-    fasta.setIterations(n);
-    fasta.prepare();
-    fasta.runBenchmark(0);
-
-    final fastaOutput = fasta.getResult();
-
-    var seq = '';
-    var afterThree = false;
-
-    final lines = fastaOutput.split('\n');
-    for (final line in lines) {
-      if (line.startsWith('>THREE')) {
-        afterThree = true;
-        continue;
-      }
-
-      if (afterThree) {
-        if (line.startsWith('>')) {
-          break;
-        }
-        seq += line.trim();
-      }
-    }
-
-    _seq = seq;
-  }
-
-  @override
-  void runBenchmark(int iterationId) {
-    for (int i = 1; i <= 2; i++) {
-      _sortByFreq(_seq, i);
-    }
-
-    final sequences = [
-      'ggt',
-      'ggta',
-      'ggtatt',
-      'ggtattttaatt',
-      'ggtattttaatttatagt',
-    ];
-    for (final s in sequences) {
-      _findSeq(_seq, s);
-    }
-  }
-
-  @override
-  int checksum() {
-    return Helper.checksumString(_resultStr);
-  }
-
-  @override
-  String get benchmarkName => 'CLBG::Knuckeotide';
-}
-
 class Mandelbrot extends Benchmark {
   static const int ITER = 50;
   static const double LIMIT = 2.0;
@@ -1581,189 +1339,6 @@ class Nbody extends Benchmark {
 
   @override
   String get benchmarkName => 'CLBG::Nbody';
-}
-
-class RegexDna extends Benchmark {
-  String seq = '';
-  int ilen = 0;
-  int clen = 0;
-  String resultStr = '';
-  late int n;
-
-  RegexDna() {
-    n = Helper.configI64(benchmarkName, "n").toInt();
-  }
-
-  @override
-  void prepare() {
-    final fasta = Fasta();
-
-    fasta.setIterations(n);
-
-    fasta.prepare();
-    fasta.runBenchmark(0);
-
-    final fastaOutput = fasta.getResult();
-
-    final buffer = StringBuffer();
-    final lines = fastaOutput.split('\n');
-
-    for (final line in lines) {
-      if (line.isNotEmpty && !line.startsWith('>')) {
-        buffer.write(line.trim());
-      }
-    }
-
-    seq = buffer.toString();
-
-    ilen = utf8.encode(fastaOutput).length;
-
-    clen = utf8.encode(seq).length;
-  }
-
-  @override
-  void runBenchmark(int iterationId) {
-    final patterns = [
-      RegExp(r'agggtaaa|tttaccct', caseSensitive: false),
-      RegExp(r'[cgt]gggtaaa|tttaccc[acg]', caseSensitive: false),
-      RegExp(r'a[act]ggtaaa|tttacc[agt]t', caseSensitive: false),
-      RegExp(r'ag[act]gtaaa|tttac[agt]ct', caseSensitive: false),
-      RegExp(r'agg[act]taaa|ttta[agt]cct', caseSensitive: false),
-      RegExp(r'aggg[acg]aaa|ttt[cgt]ccct', caseSensitive: false),
-      RegExp(r'agggt[cgt]aa|tt[acg]accct', caseSensitive: false),
-      RegExp(r'agggta[cgt]a|t[acg]taccct', caseSensitive: false),
-      RegExp(r'agggtaa[cgt]|[acg]ttaccct', caseSensitive: false),
-    ];
-
-    for (final pattern in patterns) {
-      final matches = pattern.allMatches(seq).length;
-      resultStr += '${pattern.pattern} $matches\n';
-    }
-
-    final replacements = {
-      'B': '(c|g|t)',
-      'D': '(a|g|t)',
-      'H': '(a|c|t)',
-      'K': '(g|t)',
-      'M': '(a|c)',
-      'N': '(a|c|g|t)',
-      'R': '(a|g)',
-      'S': '(c|t)',
-      'V': '(a|c|g)',
-      'W': '(a|t)',
-      'Y': '(c|t)',
-    };
-
-    String modifiedSeq = seq;
-    for (final entry in replacements.entries) {
-      modifiedSeq = modifiedSeq.replaceAll(
-        RegExp(entry.key, caseSensitive: false),
-        entry.value,
-      );
-    }
-
-    resultStr += '\n$ilen\n$clen\n${utf8.encode(modifiedSeq).length}\n';
-  }
-
-  @override
-  int checksum() {
-    return Helper.checksumString(resultStr);
-  }
-
-  @override
-  String get benchmarkName => 'CLBG::RegexDna';
-}
-
-class Revcomp extends Benchmark {
-  String input = '';
-  int resultValue = 0;
-
-  static Uint8List? _lookupTable;
-
-  static const FROM = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
-  static const TO = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
-
-  @override
-  void prepare() {
-    final n = Helper.configI64(benchmarkName, "n").toInt();
-
-    final fasta = Fasta();
-    fasta.n = n;
-    fasta.prepare();
-    fasta.runBenchmark(0);
-
-    final fastaOutput = fasta.getResult();
-
-    final lines = fastaOutput.split('\n');
-    final seqParts = <String>[];
-    var partCount = 0;
-
-    for (final line in lines) {
-      if (line.startsWith('>')) {
-        seqParts.add("\n---\n");
-      } else if (line.trim().isNotEmpty) {
-        seqParts.add(line.trim());
-      }
-    }
-
-    input = seqParts.join('');
-  }
-
-  static Uint8List _initLookupTable() {
-    if (_lookupTable != null) return _lookupTable!;
-
-    final lookup = Uint8List(256);
-    for (int i = 0; i < 256; i++) lookup[i] = i;
-
-    for (int i = 0; i < FROM.length; i++) {
-      final fromChar = FROM.codeUnitAt(i);
-      final toChar = TO.codeUnitAt(i);
-      lookup[fromChar] = toChar;
-    }
-
-    _lookupTable = lookup;
-    return lookup;
-  }
-
-  String _revcompGoStyle(String seq) {
-    final len = seq.length;
-    final lookup = _initLookupTable();
-
-    const lineLength = 60;
-    final numLines = (len + lineLength - 1) ~/ lineLength;
-
-    final resultBytes = Uint8List(len + numLines);
-
-    int writePos = 0;
-    int readPos = len - 1;
-
-    for (int line = 0; line < numLines; line++) {
-      final charsInLine = min(lineLength, readPos + 1);
-
-      for (int i = 0; i < charsInLine; i++) {
-        final charCode = seq.codeUnitAt(readPos--);
-        resultBytes[writePos++] = lookup[charCode];
-      }
-
-      resultBytes[writePos++] = 10;
-    }
-
-    return String.fromCharCodes(resultBytes.sublist(0, writePos));
-  }
-
-  @override
-  void runBenchmark(int iterationId) {
-    final v = Helper.checksumString(_revcompGoStyle(input));
-    resultValue = (resultValue + v) & 0xFFFFFFFF;
-  }
-
-  @override
-  int checksum() {
-    return resultValue & 0xFFFFFFFF;
-  }
-
-  @override
-  String get benchmarkName => 'CLBG::Revcomp';
 }
 
 class Spectralnorm extends Benchmark {
@@ -5245,7 +4820,6 @@ class LogParser extends Benchmark {
   static const List<String> PATHS = [
     '/index.html',
     '/api/users',
-    '/login',
     '/admin',
     '/images/logo.png',
     '/etc/passwd',
@@ -5270,17 +4844,57 @@ class LogParser extends Benchmark {
     'curl/7.68.0',
     'scanner/2.0',
   ];
-
-  static final List<MapEntry<String, String>> PATTERNS = [
-    const MapEntry('errors', r' [5][0-9]{2} '),
-    const MapEntry('bots', r'bot|crawler|scanner'),
-    const MapEntry('suspicious', r'etc/passwd|wp-admin|\.\./'),
-    const MapEntry('ips', r'\d{1,3}\.\d{1,3}\.\d{1,3}\.35'),
-    const MapEntry('api_calls', r'/api/[^ "]+'),
-    const MapEntry('post_requests', r'POST [^ ]* HTTP'),
-    const MapEntry('auth_attempts', r'/login|/signin'),
-    const MapEntry('methods', r'get|post'),
+  static const List<String> USERS = [
+    'john',
+    'jane',
+    'alex',
+    'sarah',
+    'mike',
+    'anna',
+    'david',
+    'elena',
   ];
+  static const List<String> DOMAINS = [
+    'example.com',
+    'gmail.com',
+    'yahoo.com',
+    'hotmail.com',
+    'company.org',
+    'mail.ru',
+  ];
+
+  static final List<MapEntry<String, RegExp>> PATTERNS =
+      [
+        const MapEntry('errors', ' [5][0-9]{2} | [4][0-9]{2} '),
+        const MapEntry(
+          'bots',
+          'bot|crawler|scanner|spider|indexing|crawl|robot|spider',
+        ),
+        const MapEntry('suspicious', 'etc/passwd|wp-admin|\\.\\./'),
+        const MapEntry('ips', r'\d+\.\d+\.\d+\.35'),
+        const MapEntry('api_calls', r'/api/[^ " ]+'),
+        const MapEntry('post_requests', 'POST [^ ]* HTTP'),
+        const MapEntry('auth_attempts', '/login|/signin'),
+        const MapEntry('methods', 'get|post|put'),
+        const MapEntry(
+          'emails',
+          r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
+        ),
+        const MapEntry('passwords', r'password=[^&\s"]+'),
+        const MapEntry('tokens', r'token=[^&\s"]+|api[_-]?key=[^&\s"]+'),
+        const MapEntry('sessions', r'session[_-]?id=[^&\s"]+'),
+        const MapEntry(
+          'peak_hours',
+          r'\[\d+/\w+/\d+:1[3-7]:\d+:\d+ [+\-]\d+\]',
+        ),
+      ].map((e) {
+        bool caseSensitive =
+            !(e.key == 'bots' ||
+                e.key == 'suspicious' ||
+                e.key == 'auth_attempts' ||
+                e.key == 'methods');
+        return MapEntry(e.key, RegExp(e.value, caseSensitive: caseSensitive));
+      }).toList();
 
   LogParser() {
     linesCount = Helper.configI64(benchmarkName, 'lines_count').toInt();
@@ -5296,7 +4910,35 @@ class LogParser extends Benchmark {
   }
 
   String generateLogLine(int i) {
-    return '${IPS[i % IPS.length]} - - [${i % 31}/Oct/2023:13:55:36 +0000] "${METHODS[i % METHODS.length]} ${PATHS[i % PATHS.length]} HTTP/1.0" ${STATUSES[i % STATUSES.length]} 2326 "-" "${AGENTS[i % AGENTS.length]}"\n';
+    final buffer = StringBuffer();
+
+    buffer.write(
+      '${IPS[i % IPS.length]} - - [${i % 31}/Oct/2023:${i % 60}:55:36 +0000] "',
+    );
+    buffer.write('${METHODS[i % METHODS.length]} ');
+
+    if (i % 3 == 0) {
+      buffer.write(
+        '/login?email=${USERS[i % USERS.length]}${i % 100}@${DOMAINS[i % DOMAINS.length]}&password=secret${i % 10000}',
+      );
+    } else if (i % 5 == 0) {
+      buffer.write('/api/data?token=');
+      for (int j = 0; j < (i % 3) + 1; j++) {
+        buffer.write('abcdef123456');
+      }
+    } else if (i % 7 == 0) {
+      buffer.write(
+        '/user/profile?session_id=sess_${(i * 12345).toRadixString(16)}',
+      );
+    } else {
+      buffer.write(PATHS[i % PATHS.length]);
+    }
+
+    buffer.write(
+      ' HTTP/1.1" ${STATUSES[i % STATUSES.length]} 2326 "http://${DOMAINS[i % DOMAINS.length]}" "${AGENTS[i % AGENTS.length]}"\n',
+    );
+
+    return buffer.toString();
   }
 
   @override
@@ -5304,12 +4946,7 @@ class LogParser extends Benchmark {
     final matches = HashMap<String, int>();
 
     for (final pattern in PATTERNS) {
-      matches[pattern.key] = 0;
-    }
-
-    for (final pattern in PATTERNS) {
-      final regex = RegExp(pattern.value, caseSensitive: false);
-      matches[pattern.key] = regex.allMatches(log).length;
+      matches[pattern.key] = pattern.value.allMatches(log).length;
     }
 
     int total = 0;
@@ -5326,6 +4963,190 @@ class LogParser extends Benchmark {
 
   @override
   String get benchmarkName => 'Etc::LogParser';
+}
+
+const List<String> FIRST_NAMES = [
+  'John',
+  'Jane',
+  'Bob',
+  'Alice',
+  'Charlie',
+  'Diana',
+  'Sarah',
+  'Mike',
+];
+const List<String> LAST_NAMES = [
+  'Smith',
+  'Johnson',
+  'Brown',
+  'Taylor',
+  'Wilson',
+  'Davis',
+  'Miller',
+  'Jones',
+];
+const List<String> CITIES = [
+  'New York',
+  'Los Angeles',
+  'Chicago',
+  'Houston',
+  'Phoenix',
+  'San Francisco',
+];
+const String LOREM =
+    'Lorem {ipsum} dolor {sit} amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore {et} dolore magna aliqua. ';
+
+void prepareTemplate(int count, Map<String, String> vars, StringBuffer buffer) {
+  vars.clear();
+
+  buffer.write('<html><body>');
+  buffer.write('<h1>{{TITLE}}</h1>');
+  vars['TITLE'] = 'Template title';
+  buffer.write('<p>');
+  buffer.write(LOREM);
+  buffer.write('</p>');
+  buffer.write('<table>');
+
+  for (int i = 0; i < count; i++) {
+    if (i % 3 == 0) {
+      buffer.write('<!-- {comment} -->');
+    }
+    buffer.write('<tr>');
+    buffer.write('<td>{{ FIRST_NAME$i }}</td>');
+    buffer.write('<td>{{LAST_NAME$i}}</td>');
+    buffer.write('<td>{{  CITY$i  }}</td>');
+
+    vars['FIRST_NAME$i'] = FIRST_NAMES[i % FIRST_NAMES.length];
+    vars['LAST_NAME$i'] = LAST_NAMES[i % LAST_NAMES.length];
+    vars['CITY$i'] = CITIES[i % CITIES.length];
+
+    buffer.write('<td>{balance: ${i % 100}}</td>');
+    buffer.write('</tr>\n');
+  }
+
+  buffer.write('</table>');
+  buffer.write('</body></html>');
+}
+
+class TemplateRegex extends Benchmark {
+  late int count;
+  late String text;
+  late String rendered;
+  int checksumVal = 0;
+  late final Map<String, String> vars;
+  late final RegExp regex;
+
+  TemplateRegex() {
+    count = Helper.configI64(benchmarkName, 'count').toInt();
+    vars = {};
+    regex = RegExp(r'\{\{\s*(.*?)\s*\}\}');
+    text = '';
+    rendered = '';
+  }
+
+  @override
+  void prepare() {
+    final buffer = StringBuffer();
+    prepareTemplate(count, vars, buffer);
+    text = buffer.toString();
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    final buffer = StringBuffer();
+    int lastPos = 0;
+
+    final matches = regex.allMatches(text);
+    for (final match in matches) {
+      buffer.write(text.substring(lastPos, match.start));
+
+      final key = match.group(1)!.trim();
+      if (vars.containsKey(key)) {
+        buffer.write(vars[key]);
+      }
+
+      lastPos = match.end;
+    }
+
+    if (lastPos < text.length) {
+      buffer.write(text.substring(lastPos));
+    }
+
+    rendered = buffer.toString();
+    checksumVal += rendered.length;
+  }
+
+  @override
+  int checksum() {
+    return (checksumVal & 0xFFFFFFFF) + Helper.checksumString(rendered);
+  }
+
+  @override
+  String get benchmarkName => 'Template::Regex';
+}
+
+class TemplateParse extends Benchmark {
+  late int count;
+  late String text;
+  late String rendered;
+  int checksumVal = 0;
+  late final Map<String, String> vars;
+
+  TemplateParse() {
+    count = Helper.configI64(benchmarkName, 'count').toInt();
+    vars = {};
+    text = '';
+    rendered = '';
+  }
+
+  @override
+  void prepare() {
+    final buffer = StringBuffer();
+    prepareTemplate(count, vars, buffer);
+    text = buffer.toString();
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    final len = text.length;
+    final buffer = StringBuffer();
+
+    int i = 0;
+    while (i < len) {
+      if (i + 1 < len && text[i] == '{' && text[i + 1] == '{') {
+        int j = i + 2;
+        while (j + 1 < len) {
+          if (text[j] == '}' && text[j + 1] == '}') {
+            break;
+          }
+          j++;
+        }
+
+        if (j + 1 < len) {
+          final key = text.substring(i + 2, j).trim();
+          if (vars.containsKey(key)) {
+            buffer.write(vars[key]);
+          }
+          i = j + 2;
+          continue;
+        }
+      }
+
+      buffer.write(text[i]);
+      i++;
+    }
+
+    rendered = buffer.toString();
+    checksumVal += rendered.length;
+  }
+
+  @override
+  int checksum() {
+    return (checksumVal & 0xFFFFFFFF) + Helper.checksumString(rendered);
+  }
+
+  @override
+  String get benchmarkName => 'Template::Parse';
 }
 
 bool listEquals(List? a, List? b) {
@@ -5347,16 +5168,12 @@ void registerBenchmarks() {
     () => BrainfuckRecursion(),
   );
   Benchmark.registerBenchmark('CLBG::Fannkuchredux', () => Fannkuchredux());
-  Benchmark.registerBenchmark('CLBG::Fasta', () => Fasta());
-  Benchmark.registerBenchmark('CLBG::Knuckeotide', () => Knuckeotide());
   Benchmark.registerBenchmark('CLBG::Mandelbrot', () => Mandelbrot());
   Benchmark.registerBenchmark('Matmul::Single', () => Matmul1T());
   Benchmark.registerBenchmark('Matmul::T4', () => Matmul4T());
   Benchmark.registerBenchmark('Matmul::T8', () => Matmul8T());
   Benchmark.registerBenchmark('Matmul::T16', () => Matmul16T());
   Benchmark.registerBenchmark('CLBG::Nbody', () => Nbody());
-  Benchmark.registerBenchmark('CLBG::RegexDna', () => RegexDna());
-  Benchmark.registerBenchmark('CLBG::Revcomp', () => Revcomp());
   Benchmark.registerBenchmark('CLBG::Spectralnorm', () => Spectralnorm());
   Benchmark.registerBenchmark('Base64::Encode', () => Base64Encode());
   Benchmark.registerBenchmark('Base64::Decode', () => Base64Decode());
@@ -5396,6 +5213,8 @@ void registerBenchmarks() {
   Benchmark.registerBenchmark('Distance::NGram', () => NGram());
   Benchmark.registerBenchmark('Etc::Words', () => Words());
   Benchmark.registerBenchmark('Etc::LogParser', () => LogParser());
+  Benchmark.registerBenchmark('Template::Regex', () => TemplateRegex());
+  Benchmark.registerBenchmark('Template::Parse', () => TemplateParse());
 }
 
 Future<void> main(List<String> args) async {

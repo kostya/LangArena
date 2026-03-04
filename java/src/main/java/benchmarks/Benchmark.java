@@ -18,8 +18,8 @@ public abstract class Benchmark {
     }
 
     public long warmupIterations() {
-        if (Helper.CONFIG.has(name()) && Helper.CONFIG.getJSONObject(name()).has("warmup_iterations")) {
-            return Helper.CONFIG.getJSONObject(name()).getLong("warmup_iterations");
+        if (Helper.getConfig().has(name()) && Helper.getConfig().getJSONObject(name()).has("warmup_iterations")) {
+            return Helper.getConfig().getJSONObject(name()).getLong("warmup_iterations");
         } else {
             long iters = iterations();
             return Math.max((long)(iters * 0.2), 1L);
@@ -52,25 +52,15 @@ public abstract class Benchmark {
         return configVal("checksum");
     }
 
-    private static final List<NamedBenchmarkFactory> benchmarkFactories = new ArrayList<>();
-
-    private static class NamedBenchmarkFactory {
-        final String name;
-        final Supplier<Benchmark> factory;
-
-        NamedBenchmarkFactory(String name, Supplier<Benchmark> factory) {
-            this.name = name;
-            this.factory = factory;
-        }
-    }
+    private static final Map<String, Supplier<Benchmark>> benchmarkMap = new HashMap<>();
 
     public static void registerBenchmark(String name, Supplier<Benchmark> factory) {
-        benchmarkFactories.add(new NamedBenchmarkFactory(name, factory));
+        benchmarkMap.put(name, factory);
     }
 
     public static void registerBenchmark(Supplier<Benchmark> factory) {
         Benchmark bench = factory.get();
-        benchmarkFactories.add(new NamedBenchmarkFactory(bench.name(), factory));
+        benchmarkMap.put(bench.name(), factory);
     }
 
     private static String toLower(String str) {
@@ -78,19 +68,22 @@ public abstract class Benchmark {
     }
 
     public static void all(String singleBench) {
-        Map<String, Double> results = new HashMap<>();
         double summaryTime = 0.0;
         int ok = 0, fails = 0;
 
-        for (NamedBenchmarkFactory factoryInfo : benchmarkFactories) {
-            String benchName = factoryInfo.name;
-
+        for (String benchName : Helper.getOrder()) {
             if (singleBench != null && !singleBench.isEmpty() &&
                     !toLower(benchName).contains(toLower(singleBench))) {
                 continue;
             }
 
-            Benchmark bench = factoryInfo.factory.get();
+            Supplier<Benchmark> factory = benchmarkMap.get(benchName);
+            if (factory == null) {
+                System.out.println("Warning: Benchmark '" + benchName + "' defined in config but not found in code");
+                continue;
+            }
+
+            Benchmark bench = factory.get();
 
             Helper.reset();
 
@@ -104,13 +97,10 @@ public abstract class Benchmark {
             bench.runAll();
             double timeDelta = (System.nanoTime() - startTime) / 1_000_000_000.0;
 
-            results.put(benchName, timeDelta);
-
             System.gc();
             try {
                 Thread.sleep(0);
-            }
-            catch (InterruptedException e) {}
+            } catch (InterruptedException e) {}
             System.gc();
 
             long check = bench.checksum() & 0xFFFFFFFFL;
@@ -127,19 +117,6 @@ public abstract class Benchmark {
 
             System.out.printf(Locale.US, "in %.3fs%n", timeDelta);
             summaryTime += timeDelta;
-        }
-
-        try (FileWriter writer = new FileWriter("/tmp/results.js")) {
-            writer.write("{");
-            boolean first = true;
-            for (Map.Entry<String, Double> entry : results.entrySet()) {
-                if (!first) writer.write(", ");
-                writer.write("\"" + entry.getKey() + "\": " + entry.getValue());
-                first = false;
-            }
-            writer.write("}");
-        } catch (Exception e) {
-            System.err.println("Failed to write results: " + e.getMessage());
         }
 
         System.out.printf(Locale.US, "Summary: %.4fs, %d, %d, %d%n", summaryTime, ok + fails, ok, fails);

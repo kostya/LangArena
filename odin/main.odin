@@ -19,16 +19,12 @@ main :: proc() {
 		benchmark.create_brainfuckrecursion,
 	)
 	benchmark.register_benchmark_factory("CLBG::Fannkuchredux", benchmark.create_fannkuchredux)
-	benchmark.register_benchmark_factory("CLBG::Fasta", benchmark.create_fasta)
-	benchmark.register_benchmark_factory("CLBG::Knuckeotide", benchmark.create_knuckeotide)
 	benchmark.register_benchmark_factory("CLBG::Mandelbrot", benchmark.create_mandelbrot)
 	benchmark.register_benchmark_factory("Matmul::Single", benchmark.create_matmul1t)
 	benchmark.register_benchmark_factory("Matmul::T4", benchmark.create_matmul4t)
 	benchmark.register_benchmark_factory("Matmul::T8", benchmark.create_matmul8t)
 	benchmark.register_benchmark_factory("Matmul::T16", benchmark.create_matmul16t)
 	benchmark.register_benchmark_factory("CLBG::Nbody", benchmark.create_nbody)
-	benchmark.register_benchmark_factory("CLBG::RegexDna", benchmark.create_regexdna)
-	benchmark.register_benchmark_factory("CLBG::Revcomp", benchmark.create_revcomp)
 	benchmark.register_benchmark_factory("CLBG::Spectralnorm", benchmark.create_spectralnorm)
 	benchmark.register_benchmark_factory("Base64::Encode", benchmark.create_base64encode)
 	benchmark.register_benchmark_factory("Base64::Decode", benchmark.create_base64decode)
@@ -68,6 +64,8 @@ main :: proc() {
 	benchmark.register_benchmark_factory("Distance::NGram", benchmark.create_ngram)
 	benchmark.register_benchmark_factory("Etc::Words", benchmark.create_words)
 	benchmark.register_benchmark_factory("Etc::LogParser", benchmark.create_logparser)
+	benchmark.register_benchmark_factory("Template::Regex", benchmark.create_template_regex)
+	benchmark.register_benchmark_factory("Template::Parse", benchmark.create_template_parse)
 
 	config_file := "../test.json"
 	if len(os.args) > 1 {

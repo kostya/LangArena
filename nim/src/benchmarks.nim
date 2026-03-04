@@ -6,13 +6,9 @@ import benchmarks/binarytrees
 import benchmarks/brainfuckarray
 import benchmarks/brainfuckrecursion
 import benchmarks/fannkuchredux
-import benchmarks/fasta
-import benchmarks/knuckeotide
 import benchmarks/mandelbrot
 import benchmarks/matmul
 import benchmarks/nbody
-import benchmarks/regexdna
-import benchmarks/revcomp
 import benchmarks/spectralnorm
 import benchmarks/base64encode
 import benchmarks/base64decode
@@ -37,6 +33,7 @@ import benchmarks/compress
 import benchmarks/distance
 import benchmarks/words
 import benchmarks/logparser
+import benchmarks/templates
 
 proc main() =
   let now = (epochTime() * 1000).int64

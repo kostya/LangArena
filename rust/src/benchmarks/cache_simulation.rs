@@ -195,7 +195,6 @@ where
 }
 
 pub struct CacheSimulation {
-    operations: i32,
     result_val: u32,
     values_size: i32,
     cache_size: i32,
@@ -210,7 +209,6 @@ impl CacheSimulation {
         let cache_size = config_i64("Etc::CacheSimulation", "size") as i32;
 
         Self {
-            operations: 0,
             result_val: 5432,
             values_size,
             cache_size,

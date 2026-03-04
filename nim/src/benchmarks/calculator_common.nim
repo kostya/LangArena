@@ -1,5 +1,4 @@
-import std/[strutils, strformat, parseutils, hashes, tables]
-import ../benchmark
+import std/[strformat]
 import ../helper
 
 type

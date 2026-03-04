@@ -51,7 +51,14 @@ void load_config(const std::string &filename = "../test.js") {
   }
 
   try {
-    file >> CONFIG;
+    auto json_array = json::array();
+    file >> json_array;
+
+    CONFIG = json::object();
+    for (const auto &item : json_array) {
+      std::string name = item["name"];
+      CONFIG[name] = item;
+    }
   } catch (const std::exception &e) {
     std::cerr << "Error parsing JSON config: " << e.what() << std::endl;
     CONFIG = json::object();
@@ -181,7 +188,8 @@ public:
 
   int64_t expected_checksum() const { return config_val("checksum"); }
 
-  static void all(const std::string &single_bench = "");
+  static void all(const std::string &single_bench = "",
+                  const std::string &config_file = "../test.js");
 };
 
 double custom_round(double value, int32_t precision) {
@@ -709,211 +717,6 @@ public:
   uint32_t checksum() override { return result_val; }
 };
 
-class Fasta : public Benchmark {
-private:
-  struct Gene {
-    char c;
-    double prob;
-  };
-
-  static constexpr int LINE_LENGTH = 60;
-  std::string result_str;
-
-  char select_random(const std::vector<Gene> &genelist) {
-    double r = Helper::next_float();
-    if (r < genelist[0].prob)
-      return genelist[0].c;
-
-    int lo = 0, hi = genelist.size() - 1;
-    while (hi > lo + 1) {
-      int i = (hi + lo) / 2;
-      if (r < genelist[i].prob)
-        hi = i;
-      else
-        lo = i;
-    }
-    return genelist[hi].c;
-  }
-
-  void make_random_fasta(const std::string &id, const std::string &desc,
-                         const std::vector<Gene> &genelist, int n_iter) {
-    result_str += ">" + id + " " + desc + "\n";
-    int todo = n_iter;
-
-    while (todo > 0) {
-      int m = (todo < LINE_LENGTH) ? todo : LINE_LENGTH;
-      std::string buffer(m, ' ');
-      for (int i = 0; i < m; i++) {
-        buffer[i] = select_random(genelist);
-      }
-      result_str += buffer + "\n";
-      todo -= LINE_LENGTH;
-    }
-  }
-
-  void make_repeat_fasta(const std::string &id, const std::string &desc,
-                         const std::string &s, int n_iter) {
-    result_str += ">" + id + " " + desc + "\n";
-    int todo = n_iter;
-    size_t k = 0;
-    size_t kn = s.size();
-
-    while (todo > 0) {
-      int m = (todo < LINE_LENGTH) ? todo : LINE_LENGTH;
-
-      while (m >= static_cast<int>(kn - k)) {
-        result_str += s.substr(k);
-        m -= (kn - k);
-        k = 0;
-      }
-
-      result_str += s.substr(k, m) + "\n";
-      k += m;
-      todo -= LINE_LENGTH;
-    }
-  }
-
-public:
-  int64_t n;
-
-  Fasta() : n(config_val("n")) {}
-
-  std::string name() const override { return "CLBG::Fasta"; }
-
-  void run(int iteration_id) override {
-    std::vector<Gene> IUB = {{'a', 0.27},
-                             {'c', 0.39},
-                             {'g', 0.51},
-                             {'t', 0.78},
-                             {'B', 0.8},
-                             {'D', 0.8200000000000001},
-                             {'H', 0.8400000000000001},
-                             {'K', 0.8600000000000001},
-                             {'M', 0.8800000000000001},
-                             {'N', 0.9000000000000001},
-                             {'R', 0.9200000000000002},
-                             {'S', 0.9400000000000002},
-                             {'V', 0.9600000000000002},
-                             {'W', 0.9800000000000002},
-                             {'Y', 1.0000000000000002}};
-
-    std::vector<Gene> HOMO = {{'a', 0.302954942668},
-                              {'c', 0.5009432431601},
-                              {'g', 0.6984905497992},
-                              {'t', 1.0}};
-
-    std::string ALU =
-        "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGG"
-        "TCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCG"
-        "GGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG"
-        "AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTC"
-        "TCAAAAA";
-
-    make_repeat_fasta("ONE", "Homo sapiens alu", ALU, static_cast<int>(n * 2));
-    make_random_fasta("TWO", "IUB ambiguity codes", IUB,
-                      static_cast<int>(n * 3));
-    make_random_fasta("THREE", "Homo sapiens frequency", HOMO,
-                      static_cast<int>(n * 5));
-  }
-
-  uint32_t checksum() override { return Helper::checksum(result_str); }
-
-  const std::string &get_result() const { return result_str; }
-};
-
-class Knuckeotide : public Benchmark {
-private:
-  std::string seq;
-  std::string result_str;
-
-  std::pair<int, std::unordered_map<std::string, int>>
-  frequency(const std::string &seq, int length) {
-    int n = seq.size() - length + 1;
-    std::unordered_map<std::string, int> table;
-
-    for (int i = 0; i < n; i++) {
-      std::string sub = seq.substr(i, length);
-      table[sub]++;
-    }
-    return {n, table};
-  }
-
-  void sort_by_freq(const std::string &seq, int length) {
-    auto [n, table] = frequency(seq, length);
-
-    std::vector<std::pair<std::string, int>> pairs(table.begin(), table.end());
-    std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) {
-      if (a.second == b.second)
-        return a.first < b.first;
-      return a.second > b.second;
-    });
-
-    for (const auto &[key, value] : pairs) {
-      double percent = (value * 100.0) / n;
-      std::ostringstream ss;
-      std::string key_upper = key;
-      std::transform(key_upper.begin(), key_upper.end(), key_upper.begin(),
-                     ::toupper);
-      ss << key_upper << " " << std::fixed << std::setprecision(3) << percent
-         << "\n";
-      result_str += ss.str();
-    }
-    result_str += "\n";
-  }
-
-  void find_seq(const std::string &seq, const std::string &s) {
-    auto [n, table] = frequency(seq, static_cast<int>(s.size()));
-    std::string s_lower = s;
-    std::transform(s_lower.begin(), s_lower.end(), s_lower.begin(), ::tolower);
-    int count = table[s_lower];
-
-    std::string s_upper = s;
-    std::transform(s_upper.begin(), s_upper.end(), s_upper.begin(), ::toupper);
-    result_str += std::to_string(count) + "\t" + s_upper + "\n";
-  }
-
-public:
-  Knuckeotide() {}
-
-  std::string name() const override { return "CLBG::Knuckeotide"; }
-
-  void prepare() override {
-    Fasta fasta;
-    fasta.n = config_val("n");
-    fasta.run(0);
-    std::string res = fasta.get_result();
-
-    std::istringstream iss(res);
-    std::string line;
-    bool three = false;
-    seq.clear();
-
-    while (std::getline(iss, line)) {
-      if (line.starts_with(">THREE")) {
-        three = true;
-        continue;
-      }
-      if (three) {
-        seq += line;
-      }
-    }
-  }
-
-  void run(int iteration_id) override {
-    for (int i = 1; i <= 2; i++) {
-      sort_by_freq(seq, i);
-    }
-
-    std::vector<std::string> searches = {"ggt", "ggta", "ggtatt",
-                                         "ggtattttaatt", "ggtattttaatttatagt"};
-    for (const auto &s : searches) {
-      find_seq(seq, s);
-    }
-  }
-
-  uint32_t checksum() override { return Helper::checksum(result_str); }
-};
-
 class Mandelbrot : public Benchmark {
 private:
   static constexpr int ITER = 50;
@@ -1251,212 +1054,6 @@ public:
     double v2 = energy();
     return (Helper::checksum_f64(v1) << 5) & Helper::checksum_f64(v2);
   }
-};
-
-class RegexDna : public Benchmark {
-private:
-  std::string seq;
-  int ilen, clen;
-  std::string result_str;
-
-  std::vector<std::unique_ptr<re2::RE2>> compiled_patterns;
-
-  static constexpr std::array<const char *, 9> PATTERNS = {
-      "agggtaaa|tttaccct",         "[cgt]gggtaaa|tttaccc[acg]",
-      "a[act]ggtaaa|tttacc[agt]t", "ag[act]gtaaa|tttac[agt]ct",
-      "agg[act]taaa|ttta[agt]cct", "aggg[acg]aaa|ttt[cgt]ccct",
-      "agggt[cgt]aa|tt[acg]accct", "agggta[cgt]a|t[acg]taccct",
-      "agggtaa[cgt]|[acg]ttaccct"};
-
-  struct Replacement {
-    char from;
-    const char *to;
-    size_t len;
-  };
-
-  static constexpr std::array<Replacement, 11> REPLACEMENTS = {
-      {{'B', "(c|g|t)", 7},
-       {'D', "(a|g|t)", 7},
-       {'H', "(a|c|t)", 7},
-       {'K', "(g|t)", 5},
-       {'M', "(a|c)", 5},
-       {'N', "(a|c|g|t)", 9},
-       {'R', "(a|g)", 5},
-       {'S', "(c|t)", 5},
-       {'V', "(a|c|g)", 7},
-       {'W', "(a|t)", 5},
-       {'Y', "(c|t)", 5}}};
-
-  size_t count_pattern(size_t pattern_idx) {
-    if (!compiled_patterns[pattern_idx])
-      return 0;
-
-    re2::StringPiece input(seq);
-    size_t count = 0;
-
-    re2::StringPiece match;
-    const re2::RE2 &pattern = *compiled_patterns[pattern_idx];
-
-    while (pattern.Match(input, 0, input.size(), re2::RE2::UNANCHORED, &match,
-                         1)) {
-      count++;
-      input.remove_prefix(match.data() - input.data() + match.size());
-    }
-
-    return count;
-  }
-
-public:
-  RegexDna() : ilen(0), clen(0) { result_str.reserve(4096); }
-
-  std::string name() const override { return "CLBG::RegexDna"; }
-
-  void prepare() override {
-    Fasta fasta;
-    fasta.n = config_val("n");
-    fasta.run(0);
-    std::string res = fasta.get_result();
-
-    std::istringstream iss(res);
-    std::string line;
-    seq.clear();
-    ilen = 0;
-
-    while (std::getline(iss, line)) {
-      ilen += static_cast<int>(line.size()) + 1;
-      if (!line.empty() && line[0] != '>') {
-        seq += line;
-      }
-    }
-    clen = static_cast<int>(seq.size());
-
-    compiled_patterns.clear();
-    compiled_patterns.reserve(PATTERNS.size());
-
-    for (const char *pattern : PATTERNS) {
-      auto re = std::make_unique<re2::RE2>(pattern);
-      if (!re->ok()) {
-        std::cerr << "RE2 error for " << pattern << ": " << re->error()
-                  << std::endl;
-      }
-      compiled_patterns.push_back(std::move(re));
-    }
-  }
-
-  void run(int iteration_id) override {
-
-    for (size_t i = 0; i < PATTERNS.size(); ++i) {
-      size_t count = count_pattern(i);
-
-      result_str += PATTERNS[i];
-      result_str += ' ';
-      result_str += std::to_string(count);
-      result_str += '\n';
-    }
-
-    std::string seq2;
-    seq2.reserve(seq.size() * 9);
-
-    for (char c : seq) {
-      bool replaced = false;
-      for (const auto &repl : REPLACEMENTS) {
-        if (c == repl.from) {
-          seq2.append(repl.to, repl.len);
-          replaced = true;
-          break;
-        }
-      }
-      if (!replaced) {
-        seq2.push_back(c);
-      }
-    }
-
-    result_str += '\n';
-    result_str += std::to_string(ilen);
-    result_str += '\n';
-    result_str += std::to_string(clen);
-    result_str += '\n';
-    result_str += std::to_string(seq2.size());
-    result_str += '\n';
-  }
-
-  uint32_t checksum() override { return Helper::checksum(result_str); }
-};
-
-class Revcomp : public Benchmark {
-private:
-  std::string input;
-  uint32_t _checksum;
-
-  std::string revcomp(const std::string &seq) {
-
-    std::string reversed = seq;
-
-    std::reverse(reversed.begin(), reversed.end());
-
-    static std::array<char, 256> lookup;
-    static std::once_flag flag;
-
-    std::call_once(flag, []() {
-      for (int i = 0; i < 256; i++) {
-        lookup[i] = static_cast<char>(i);
-      }
-
-      static constexpr std::string_view from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
-      static constexpr std::string_view to = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
-
-      for (size_t i = 0; i < from.size(); i++) {
-        lookup[static_cast<unsigned char>(from[i])] = to[i];
-      }
-    });
-
-    for (char &c : reversed) {
-      c = lookup[static_cast<unsigned char>(c)];
-    }
-
-    std::string result;
-    result.reserve(reversed.size() + (reversed.size() / 60) + 1);
-
-    for (size_t i = 0; i < reversed.size(); i += 60) {
-      size_t end = std::min(i + 60, reversed.size());
-      result.append(reversed, i, end - i);
-      result += '\n';
-    }
-
-    return result;
-  }
-
-public:
-  Revcomp() : _checksum(0) {}
-
-  std::string name() const override { return "CLBG::Revcomp"; }
-
-  void prepare() override {
-    Fasta fasta;
-    fasta.n = config_val("n");
-    fasta.run(0);
-    std::string fasta_result = fasta.get_result();
-
-    std::istringstream iss(fasta_result);
-    std::string line;
-    std::string seq;
-
-    while (std::getline(iss, line)) {
-      if (line.starts_with('>')) {
-        seq += "\n---\n";
-      } else {
-        seq += line;
-      }
-    }
-    input = seq;
-  }
-
-  void run(int iteration_id) override {
-    auto result_str = revcomp(input);
-    _checksum += Helper::checksum(result_str);
-  }
-
-  uint32_t checksum() override { return _checksum; }
 };
 
 class Spectralnorm : public Benchmark {
@@ -2888,7 +2485,7 @@ public:
 
   std::string name() const override { return "Etc::CacheSimulation"; }
 
-  void run(int iteration_id) {
+  void run(int iteration_id) override {
     for (int i = 0; i < 1000; i++) {
 
       char key_buf[32];
@@ -2913,7 +2510,7 @@ public:
     }
   }
 
-  uint32_t checksum() {
+  uint32_t checksum() override {
     uint32_t result = result_val;
     result = (result << 5) + hits;
     result = (result << 5) + misses;
@@ -4958,86 +4555,95 @@ public:
 class LogParser : public Benchmark {
 private:
   std::string log;
-  uint32_t checksum_val;
+  uint32_t checksum_val{0};
+  int lines_count{0};
 
   std::vector<std::unique_ptr<re2::RE2>> compiled_patterns;
   std::vector<std::string> pattern_names;
 
   const std::vector<std::string> IPS = [] {
     std::vector<std::string> ips;
-    for (int i = 1; i <= 255; i++) {
+    for (int i = 1; i <= 255; i++)
       ips.push_back("192.168.1." + std::to_string(i));
-    }
     return ips;
   }();
 
   const std::vector<std::string> METHODS = {"GET", "POST", "PUT", "DELETE"};
-  const std::vector<std::string> PATHS = {"/index.html",
-                                          "/api/users",
-                                          "/login",
-                                          "/admin",
-                                          "/images/logo.png",
-                                          "/etc/passwd",
-                                          "/wp-admin/setup.php"};
+  const std::vector<std::string> PATHS = {"/index.html", "/api/users",
+                                          "/admin",      "/images/logo.png",
+                                          "/etc/passwd", "/wp-admin/setup.php"};
   const std::vector<int> STATUSES = {200, 201, 301, 302, 400, 401,
                                      403, 404, 500, 502, 503};
   const std::vector<std::string> AGENTS = {"Mozilla/5.0", "Googlebot/2.1",
                                            "curl/7.68.0", "scanner/2.0"};
+  const std::vector<std::string> USERS = {"john", "jane", "alex",  "sarah",
+                                          "mike", "anna", "david", "elena"};
+  const std::vector<std::string> DOMAINS = {"example.com", "gmail.com",
+                                            "yahoo.com",   "hotmail.com",
+                                            "company.org", "mail.ru"};
 
-  static constexpr std::array<const char *, 8> PATTERNS = {
-      " [5][0-9]{2} ",
-      "(?i)bot|crawler|scanner",
+  static constexpr std::array<const char *, 13> PATTERNS = {
+      " [5][0-9]{2} | [4][0-9]{2} ",
+      "(?i)bot|crawler|scanner|spider|indexing|crawl|robot|spider",
       "(?i)etc/passwd|wp-admin|\\.\\./",
-      "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.35",
-      "/api/[^ \"]+",
+      "\\d+\\.\\d+\\.\\d+\\.35",
+      "/api/[^ \" ]+",
       "POST [^ ]* HTTP",
       "(?i)/login|/signin",
-      "(?i)get|post",
-  };
+      "(?i)get|post|put",
+      "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}",
+      "password=[^&\\s\"]+",
+      "token=[^&\\s\"]+|api[_-]?key=[^&\\s\"]+",
+      "session[_-]?id=[^&\\s\"]+",
+      "\\[\\d+/\\w+/\\d+:1[3-7]:\\d+:\\d+ [+\\-]\\d+\\]"};
 
-  static constexpr std::array<const char *, 8> NAMES = {
-      "errors",    "bots",          "suspicious",    "ips",
-      "api_calls", "post_requests", "auth_attempts", "methods"};
+  static constexpr std::array<const char *, 13> NAMES = {
+      "errors",        "bots",          "suspicious", "ips",    "api_calls",
+      "post_requests", "auth_attempts", "methods",    "emails", "passwords",
+      "tokens",        "sessions",      "peak_hours"};
 
   void generate_log_line(std::string &str, int i) {
-    str += IPS[i % IPS.size()];
-    str += " - - [" + std::to_string(i % 31) + "/Oct/2023:13:55:36 +0000] \"";
-    str += METHODS[i % METHODS.size()] + " " + PATHS[i % PATHS.size()] +
-           " HTTP/1.0\" ";
-    str += std::to_string(STATUSES[i % STATUSES.size()]) + " 2326 \"-\" \"";
-    str += AGENTS[i % AGENTS.size()] + "\"\n";
+    str += IPS[i % IPS.size()] + " - - [" + std::to_string(i % 31) +
+           "/Oct/2023:" + std::to_string(i % 60) + ":55:36 +0000] \"" +
+           METHODS[i % METHODS.size()] + " ";
+
+    if (i % 3 == 0)
+      str += "/login?email=" + USERS[i % USERS.size()] +
+             std::to_string(i % 100) + "@" + DOMAINS[i % DOMAINS.size()] +
+             "&password=secret" + std::to_string(i % 10000);
+    else if (i % 5 == 0) {
+      str += "/api/data?token=";
+      for (int j = 0; j < (i % 3) + 1; j++)
+        str += "abcdef123456";
+    } else if (i % 7 == 0) {
+      char hex[16];
+      snprintf(hex, sizeof(hex), "%x", i * 12345);
+      str += std::string("/user/profile?session_id=sess_") + hex;
+    } else
+      str += PATHS[i % PATHS.size()];
+
+    str += " HTTP/1.1\" " + std::to_string(STATUSES[i % STATUSES.size()]) +
+           " 2326 \"http://" + DOMAINS[i % DOMAINS.size()] + "\" \"" +
+           AGENTS[i % AGENTS.size()] + "\"\n";
   }
 
 public:
-  LogParser() : checksum_val(0) { log.reserve(1000000 * 150); }
-
   std::string name() const override { return "Etc::LogParser"; }
 
   void prepare() override {
-    int lines_count = config_val("lines_count");
-
+    lines_count = config_val("lines_count");
     std::string log_builder;
-    log_builder.reserve(lines_count * 150);
-
-    for (int i = 0; i < lines_count; i++) {
+    for (int i = 0; i < lines_count; i++)
       generate_log_line(log_builder, i);
-    }
-
     log = std::move(log_builder);
 
     for (size_t i = 0; i < PATTERNS.size(); i++) {
-      auto re = std::make_unique<re2::RE2>(PATTERNS[i]);
-      if (!re->ok()) {
-        std::cerr << "RE2 error for " << PATTERNS[i] << ": " << re->error()
-                  << std::endl;
-      }
-      compiled_patterns.push_back(std::move(re));
+      compiled_patterns.push_back(std::make_unique<re2::RE2>(PATTERNS[i]));
       pattern_names.push_back(NAMES[i]);
     }
   }
 
-  void run(int iteration_id) override {
-
+  void run(int) override {
     std::unordered_map<std::string, int> matches;
 
     for (size_t i = 0; i < compiled_patterns.size(); i++) {
@@ -5046,28 +4652,218 @@ public:
         continue;
 
       re2::StringPiece input(log);
-      size_t count = 0;
-
+      int count = 0;
       re2::StringPiece match;
+
       while (
           re->Match(input, 0, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
         count++;
         input.remove_prefix(match.data() - input.data() + match.size());
       }
-
       matches[pattern_names[i]] = count;
     }
 
     uint32_t total = 0;
-    for (const auto &[_, count] : matches) {
-      total += count;
-    }
+    for (const auto &[_, c] : matches)
+      total += c;
     checksum_val += total;
   }
 
   uint32_t checksum() override { return checksum_val; }
 };
 
+static const std::vector<std::string> FIRST_NAMES = {
+    "John", "Jane", "Bob", "Alice", "Charlie", "Diana", "Sarah", "Mike"};
+static const std::vector<std::string> LAST_NAMES = {
+    "Smith",  "Johnson", "Brown",  "Taylor",
+    "Wilson", "Davis",   "Miller", "Jones"};
+static const std::vector<std::string> CITIES = {"New York", "Los Angeles",
+                                                "Chicago",  "Houston",
+                                                "Phoenix",  "San Francisco"};
+static const std::string LOREM =
+    "Lorem {ipsum} dolor {sit} amet, consectetur adipiscing elit. Sed do "
+    "eiusmod tempor incididunt ut labore {et} dolore magna aliqua. ";
+
+static void
+generate_template(std::string &text,
+                  std::unordered_map<std::string, std::string> &vars,
+                  int count) {
+  vars.clear();
+  std::string builder;
+  builder.reserve(count * 200);
+
+  builder += "<html><body>";
+  builder += "<h1>{{TITLE}}</h1>";
+  vars["TITLE"] = "Template title";
+  builder += "<p>";
+  builder += LOREM;
+  builder += "</p>";
+  builder += "<table>";
+
+  for (int i = 0; i < count; i++) {
+    if (i % 3 == 0) {
+      builder += "<!-- {comment} -->";
+    }
+    builder += "<tr>";
+    builder += "<td>{{ FIRST_NAME" + std::to_string(i) + " }}</td>";
+    builder += "<td>{{LAST_NAME" + std::to_string(i) + "}}</td>";
+    builder += "<td>{{  CITY" + std::to_string(i) + "  }}</td>";
+
+    vars["FIRST_NAME" + std::to_string(i)] =
+        FIRST_NAMES[i % FIRST_NAMES.size()];
+    vars["LAST_NAME" + std::to_string(i)] = LAST_NAMES[i % LAST_NAMES.size()];
+    vars["CITY" + std::to_string(i)] = CITIES[i % CITIES.size()];
+
+    builder += "<td>{balance: " + std::to_string(i % 100) + "}</td>";
+    builder += "</tr>\n";
+  }
+
+  builder += "</table>";
+  builder += "</body></html>";
+  text = std::move(builder);
+}
+
+class TemplateRegex : public Benchmark {
+private:
+  std::string text;
+  std::string rendered;
+  uint32_t checksum_val;
+  int count;
+  std::unordered_map<std::string, std::string> vars;
+  std::unique_ptr<re2::RE2> regex;
+
+  static constexpr const char *PATTERN = R"(\{\{\s*(.*?)\s*\}\})";
+
+  std::string trim(const std::string &str) {
+    size_t start = str.find_first_not_of(" \t");
+    size_t end = str.find_last_not_of(" \t");
+    if (start == std::string::npos)
+      return "";
+    return str.substr(start, end - start + 1);
+  }
+
+public:
+  TemplateRegex() : checksum_val(0), count(0) {
+    count = config_val("count");
+    regex = std::make_unique<re2::RE2>(PATTERN);
+  }
+
+  std::string name() const override { return "Template::Regex"; }
+
+  void prepare() override { generate_template(text, vars, count); }
+
+  void run(int iteration_id) override {
+    size_t len = text.size();
+    std::string result;
+    result.reserve(static_cast<size_t>(len * 1.5));
+
+    re2::StringPiece input(text);
+    size_t lastPos = 0;
+
+    re2::StringPiece matches[2];
+
+    while (true) {
+
+      if (!regex->Match(input, 0, input.size(), re2::RE2::UNANCHORED, matches,
+                        2)) {
+        break;
+      }
+
+      size_t match_start = matches[0].data() - text.data();
+
+      if (match_start > lastPos) {
+        result.append(text.data() + lastPos, match_start - lastPos);
+      }
+
+      std::string key(matches[1].data(), matches[1].size());
+      key = trim(key);
+
+      auto it = vars.find(key);
+      if (it != vars.end()) {
+        result += it->second;
+      }
+
+      lastPos = match_start + matches[0].size();
+      input.remove_prefix(matches[0].data() - input.data() + matches[0].size());
+    }
+
+    if (lastPos < text.size()) {
+      result.append(text.data() + lastPos, text.size() - lastPos);
+    }
+
+    rendered = std::move(result);
+    checksum_val += static_cast<uint32_t>(rendered.size());
+  }
+
+  uint32_t checksum() override {
+    return checksum_val + Helper::checksum(rendered);
+  }
+};
+
+class TemplateParse : public Benchmark {
+private:
+  std::string text;
+  std::string rendered;
+  uint32_t checksum_val;
+  int count;
+  std::unordered_map<std::string, std::string> vars;
+
+  std::string trim(const std::string &str) {
+    size_t start = str.find_first_not_of(" \t");
+    size_t end = str.find_last_not_of(" \t");
+    if (start == std::string::npos)
+      return "";
+    return str.substr(start, end - start + 1);
+  }
+
+public:
+  TemplateParse() : checksum_val(0), count(0) { count = config_val("count"); }
+
+  std::string name() const override { return "Template::Parse"; }
+
+  void prepare() override { generate_template(text, vars, count); }
+
+  void run(int iteration_id) override {
+    size_t len = text.size();
+    std::string result;
+    result.reserve(static_cast<size_t>(len * 1.5));
+
+    size_t i = 0;
+    while (i < len) {
+      if (i + 1 < len && text[i] == '{' && text[i + 1] == '{') {
+        size_t j = i + 2;
+        while (j + 1 < len) {
+          if (text[j] == '}' && text[j + 1] == '}') {
+            break;
+          }
+          j++;
+        }
+
+        if (j + 1 < len) {
+          std::string key = text.substr(i + 2, j - i - 2);
+          key = trim(key);
+
+          auto it = vars.find(key);
+          if (it != vars.end()) {
+            result += it->second;
+          }
+          i = j + 2;
+          continue;
+        }
+      }
+
+      result += text[i];
+      i++;
+    }
+
+    rendered = std::move(result);
+    checksum_val += static_cast<uint32_t>(rendered.size());
+  }
+
+  uint32_t checksum() override {
+    return checksum_val + Helper::checksum(rendered);
+  }
+};
 std::string to_lower(const std::string &str) {
   std::string result = str;
   std::transform(result.begin(), result.end(), result.begin(),
@@ -5075,15 +4871,14 @@ std::string to_lower(const std::string &str) {
   return result;
 }
 
-void Benchmark::all(const std::string &single_bench) {
-  std::unordered_map<std::string, double> results;
+void Benchmark::all(const std::string &single_bench,
+                    const std::string &config_file) {
   double summary_time = 0.0;
   int ok = 0;
   int fails = 0;
 
-  std::vector<
-      std::pair<std::string, std::function<std::unique_ptr<Benchmark>()>>>
-      benchmarks = {
+  std::unordered_map<std::string, std::function<std::unique_ptr<Benchmark>()>>
+      available_benches = {
           {"CLBG::Pidigits", []() { return std::make_unique<Pidigits>(); }},
           {"Binarytrees::Obj",
            []() { return std::make_unique<BinarytreesObj>(); }},
@@ -5095,17 +4890,12 @@ void Benchmark::all(const std::string &single_bench) {
            []() { return std::make_unique<BrainfuckRecursion>(); }},
           {"CLBG::Fannkuchredux",
            []() { return std::make_unique<Fannkuchredux>(); }},
-          {"CLBG::Fasta", []() { return std::make_unique<Fasta>(); }},
-          {"CLBG::Knuckeotide",
-           []() { return std::make_unique<Knuckeotide>(); }},
           {"CLBG::Mandelbrot", []() { return std::make_unique<Mandelbrot>(); }},
           {"Matmul::Single", []() { return std::make_unique<Matmul1T>(); }},
           {"Matmul::T4", []() { return std::make_unique<Matmul4T>(); }},
           {"Matmul::T8", []() { return std::make_unique<Matmul8T>(); }},
           {"Matmul::T16", []() { return std::make_unique<Matmul16T>(); }},
           {"CLBG::Nbody", []() { return std::make_unique<Nbody>(); }},
-          {"CLBG::RegexDna", []() { return std::make_unique<RegexDna>(); }},
-          {"CLBG::Revcomp", []() { return std::make_unique<Revcomp>(); }},
           {"CLBG::Spectralnorm",
            []() { return std::make_unique<Spectralnorm>(); }},
           {"Base64::Encode", []() { return std::make_unique<Base64Encode>(); }},
@@ -5160,62 +4950,74 @@ void Benchmark::all(const std::string &single_bench) {
           {"Distance::NGram",
            []() { return std::make_unique<Distance::NGram>(); }},
           {"Etc::LogParser", []() { return std::make_unique<LogParser>(); }},
-
+          {"Template::Regex",
+           []() { return std::make_unique<TemplateRegex>(); }},
+          {"Template::Parse",
+           []() { return std::make_unique<TemplateParse>(); }},
       };
 
-  for (auto &[name, create_benchmark] : benchmarks) {
+  std::ifstream file(config_file);
+  if (!file.is_open()) {
+    std::cerr << "Cannot open config file: " << config_file << std::endl;
+    return;
+  }
+
+  auto json_array = json::array();
+  try {
+    file >> json_array;
+  } catch (const std::exception &e) {
+    std::cerr << "Error parsing JSON config: " << e.what() << std::endl;
+    return;
+  }
+
+  for (const auto &item : json_array) {
+    std::string bench_name = item["name"].get<std::string>();
+
     if (!single_bench.empty() &&
-        to_lower(name).find(to_lower(single_bench)) == std::string::npos) {
+        to_lower(bench_name).find(to_lower(single_bench)) ==
+            std::string::npos) {
       continue;
     }
 
-    std::cout << name << ": ";
-    std::cout.flush();
+    auto it = available_benches.find(bench_name);
+    if (it != available_benches.end()) {
+      std::cout << bench_name << ": ";
+      std::cout.flush();
 
-    auto bench = create_benchmark();
-    Helper::reset();
-    bench->prepare();
+      auto bench = it->second();
+      Helper::reset();
+      bench->prepare();
+      bench->warmup();
+      Helper::reset();
 
-    bench->warmup();
+      auto start = std::chrono::steady_clock::now();
+      bench->run_all();
+      auto end = std::chrono::steady_clock::now();
 
-    Helper::reset();
+      std::chrono::duration<double> duration = end - start;
 
-    auto start = std::chrono::steady_clock::now();
-    bench->run_all();
-    auto end = std::chrono::steady_clock::now();
+      uint32_t check = bench->checksum();
+      uint32_t expect = static_cast<uint32_t>(bench->expected_checksum());
+      if (check == expect) {
+        std::cout << "OK ";
+        ok++;
+      } else {
+        std::cout << "ERR[actual=" << check << ", expected=" << expect << "] ";
+        fails++;
+      }
 
-    std::chrono::duration<double> duration = end - start;
-    results[name] = duration.count();
+      std::cout << "in " << std::fixed << std::setprecision(3)
+                << duration.count() << "s" << std::endl;
 
-    if (bench->checksum() == bench->expected_checksum()) {
-      std::cout << "OK ";
-      ok++;
+      summary_time += duration.count();
+
+      bench.reset();
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     } else {
-      std::cout << "ERR[actual=" << bench->checksum()
-                << ", expected=" << bench->expected_checksum() << "] ";
-      fails++;
+      std::cout << "Warning: Benchmark '" << bench_name
+                << "' defined in config but not found in code" << std::endl;
     }
-
-    std::cout << "in " << std::fixed << std::setprecision(3) << duration.count()
-              << "s" << std::endl;
-
-    summary_time += duration.count();
-
-    bench.reset();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
-
-  std::ofstream results_file("/tmp/results.js");
-  results_file << "{";
-  bool first = true;
-  for (const auto &[name, time] : results) {
-    if (!first)
-      results_file << ",";
-    results_file << "\"" << name << "\":" << time;
-    first = false;
-  }
-  results_file << "}";
-  results_file.close();
 
   if (ok + fails > 0) {
     std::cout << "Summary: " << std::fixed << std::setprecision(4)
@@ -5234,16 +5036,18 @@ int main(int argc, char *argv[]) {
                  .count();
   std::cout << "start: " << now << std::endl;
 
+  std::string config_file = "../test.js";
   if (argc > 1) {
+    config_file = argv[1];
     load_config(argv[1]);
   } else {
     load_config();
   }
 
   if (argc > 2) {
-    Benchmark::all(argv[2]);
+    Benchmark::all(argv[2], config_file);
   } else {
-    Benchmark::all();
+    Benchmark::all("", config_file);
   }
 
   std::ofstream file("/tmp/recompile_marker");

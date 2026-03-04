@@ -1,4 +1,3 @@
-import std/[random, algorithm]
 import ../benchmark
 import ../helper
 

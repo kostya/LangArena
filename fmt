@@ -28,8 +28,46 @@ def remove_comments(filepath, lang)
   
   case lang
   when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 'fsharp', 'dart', 'zig', 'odin', 'scala'
+    # Учитываем строки и символы
+    lines = content.lines.map do |line|
+      in_string = false
+      string_char = nil
+      in_char = false
+      comment_start = nil
+      
+      line.chars.each_with_index do |char, i|
+        if char == '"' || char == '\'' || char == '`'
+          if !in_string && !in_char
+            in_string = true
+            string_char = char
+          elsif string_char == char && (i == 0 || line[i-1] != '\\')
+            in_string = false
+            string_char = nil
+          end
+        elsif char == '\'' && !in_string
+          in_char = !in_char
+        end
+        
+        if !in_string && !in_char
+          if char == '/' && i+1 < line.length && line[i+1] == '/'
+            comment_start = i
+            break
+          elsif char == '/' && i+1 < line.length && line[i+1] == '*'
+            # Многострочные комментарии обрабатываются отдельно
+          end
+        end
+      end
+      
+      if comment_start
+        line[0...comment_start].rstrip
+      else
+        line.rstrip
+      end
+    end
+    
+    content = lines.join("\n")
+    # Удаляем многострочные комментарии
     content.gsub!(/\/\*[\s\S]*?\*\//m, '')
-    content.gsub!(/\/\/[^\n]*/, '')
     
   when 'typescript'
     content.gsub!(/\/\*[\s\S]*?\*\//m, '')
@@ -92,7 +130,6 @@ def remove_comments(filepath, lang)
   
   File.write(filepath, content, encoding: 'utf-8')
 end
-
 def get_files(lang)
   dir, exts, excludes, _ = LANG_MASKS[lang]
   

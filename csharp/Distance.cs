@@ -46,6 +46,7 @@ public class Jaro : Benchmark
         _count = ConfigVal("count");
         _size = ConfigVal("size");
         _result = 0;
+        _pairs = Array.Empty<(string, string)>();
     }
 
     public override void Prepare()
@@ -141,6 +142,7 @@ public class NGram : Benchmark
         _count = ConfigVal("count");
         _size = ConfigVal("size");
         _result = 0;
+        _pairs = Array.Empty<(string, string)>();
     }
 
     public override void Prepare()

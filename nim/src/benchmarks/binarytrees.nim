@@ -1,4 +1,3 @@
-import std/math
 import ../benchmark
 
 type
@@ -103,3 +102,4 @@ method checksum(self: BinarytreesArena): uint32 =
   self.resultVal
 
 registerBenchmark("Binarytrees::Arena", newBinarytreesArena)
+{.used.}

@@ -139,7 +139,6 @@ fn create_bodies() -> [Planet; 5] {
 pub struct Nbody {
     bodies: [Planet; 5],
     v1: f64,
-    result_val: u32,
 }
 
 impl Nbody {
@@ -147,7 +146,6 @@ impl Nbody {
         Self {
             bodies: create_bodies(),
             v1: 0.0,
-            result_val: 0,
         }
     }
 }

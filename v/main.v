@@ -9,10 +9,6 @@ import pidigits
 import brainfuck_array
 import brainfuck_recursion
 import fannkuchredux
-import fasta
-import knuckeotide
-import regexdna
-import revcomp
 import spectralnorm
 import base64encode
 import base64decode
@@ -34,6 +30,7 @@ import distance
 import json_benchmarks
 import words
 import logparser
+import template
 
 fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 	return [
@@ -78,18 +75,6 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		}},
 		benchmark.BenchmarkInfo{'Brainfuck::Recursion', fn () &benchmark.IBenchmark {
 			return brainfuck_recursion.new_brainfuck_recursion()
-		}},
-		benchmark.BenchmarkInfo{'CLBG::Fasta', fn () &benchmark.IBenchmark {
-			return fasta.new_fasta()
-		}},
-		benchmark.BenchmarkInfo{'CLBG::Knuckeotide', fn () &benchmark.IBenchmark {
-			return knuckeotide.new_knuckeotide()
-		}},
-		benchmark.BenchmarkInfo{'CLBG::RegexDna', fn () &benchmark.IBenchmark {
-			return regexdna.new_regexdna()
-		}},
-		benchmark.BenchmarkInfo{'CLBG::Revcomp', fn () &benchmark.IBenchmark {
-			return revcomp.new_revcomp()
 		}},
 		benchmark.BenchmarkInfo{'Base64::Encode', fn () &benchmark.IBenchmark {
 			return base64encode.new_base64encode()
@@ -192,6 +177,12 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		}},
 		benchmark.BenchmarkInfo{'Etc::LogParser', fn () &benchmark.IBenchmark {
 			return logparser.new_logparser()
+		}},
+		benchmark.BenchmarkInfo{'Template::Regex', fn () &benchmark.IBenchmark {
+			return template.new_template_regex()
+		}},
+		benchmark.BenchmarkInfo{'Template::Parse', fn () &benchmark.IBenchmark {
+			return template.new_template_parse()
 		}},
 	]
 }

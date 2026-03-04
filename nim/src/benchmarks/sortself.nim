@@ -1,6 +1,5 @@
 import std/[algorithm]
 import ../benchmark
-import ../helper
 import sort_common
 
 type
@@ -17,3 +16,4 @@ method test(self: SortSelf): seq[int32] =
   arr
 
 registerBenchmark("Sort::Self", newSortSelf)
+{.used.}

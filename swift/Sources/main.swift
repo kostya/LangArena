@@ -12,16 +12,12 @@ func main() {
   BenchmarkManager.register("Brainfuck::Array") { BrainfuckArray() }
   BenchmarkManager.register("Brainfuck::Recursion") { BrainfuckRecursion() }
   BenchmarkManager.register("CLBG::Fannkuchredux") { Fannkuchredux() }
-  BenchmarkManager.register("CLBG::Fasta") { Fasta() }
-  BenchmarkManager.register("CLBG::Knuckeotide") { Knuckeotide() }
   BenchmarkManager.register("CLBG::Mandelbrot") { Mandelbrot() }
   BenchmarkManager.register("Matmul::Single") { Matmul1T() }
   BenchmarkManager.register("Matmul::T4") { Matmul4T() }
   BenchmarkManager.register("Matmul::T8") { Matmul8T() }
   BenchmarkManager.register("Matmul::T16") { Matmul16T() }
   BenchmarkManager.register("CLBG::Nbody") { Nbody() }
-  BenchmarkManager.register("CLBG::RegexDna") { RegexDna() }
-  BenchmarkManager.register("CLBG::Revcomp") { Revcomp() }
   BenchmarkManager.register("CLBG::Spectralnorm") { Spectralnorm() }
   BenchmarkManager.register("Base64::Encode") { Base64Encode() }
   BenchmarkManager.register("Base64::Decode") { Base64Decode() }
@@ -58,6 +54,8 @@ func main() {
   BenchmarkManager.register("Distance::NGram") { NGram() }
   BenchmarkManager.register("Etc::Words") { Words() }
   BenchmarkManager.register("Etc::LogParser") { LogParser() }
+  BenchmarkManager.register("Template::Regex") { TemplateRegex() }
+  BenchmarkManager.register("Template::Parse") { TemplateParse() }
 
   let args = CommandLine.arguments.dropFirst()
   let configFile = args.first { $0.hasSuffix(".txt") || $0.hasSuffix(".js") }

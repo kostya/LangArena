@@ -1,5 +1,4 @@
 import ../benchmark
-import ../helper
 import sort_common
 
 type
@@ -40,3 +39,4 @@ method test(self: SortQuick): seq[int32] =
   arr
 
 registerBenchmark("Sort::Quick", newSortQuick)
+{.used.}

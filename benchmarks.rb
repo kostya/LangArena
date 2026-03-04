@@ -522,6 +522,18 @@ RUNS = [
     deps_cmd: "mkdir -p target ; shards install",
   ),
 
+  Run.new(
+    name: "Crystal/O3", 
+    build_cmd: "crystal build main.cr -O3 -Dpreview_mt -o ./target/bin_crystal_o3", 
+    binary_name: "./target/bin_crystal_o3", 
+    run_cmd: "./target/bin_crystal_o3", 
+    version_cmd: "crystal --version | head -n 1",
+    dir: "/src/crystal",
+    container: "crystal",
+    group: :hack,
+    deps_cmd: "mkdir -p target ; shards install",
+  ),
+
   # ======================================= D ======================================================
 
   Run.new(
@@ -1817,7 +1829,7 @@ LANGS = langs.keys
 puts "Unique languages: #{LANGS.size} #{LANGS.inspect}"
 
 test_txt = File.read("test.js")
-tests = JSON.parse(test_txt).keys
+tests = JSON.parse(test_txt).map { |h| h["name"] } 
 TESTS = case ARGV[1]
 when nil, ""
   tests

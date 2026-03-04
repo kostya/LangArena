@@ -8,22 +8,7 @@ use std::sync::OnceLock;
 use std::time::Instant;
 
 static CONFIG: OnceLock<Value> = OnceLock::new();
-
-struct BenchmarkInfo {
-    name: String,
-    creator: Box<dyn Fn() -> Box<dyn Benchmark> + Send + Sync>,
-}
-
-macro_rules! benchmark_list {
-    ($($name:ident: $path:ty),* $(,)?) => {
-        vec![
-            $(BenchmarkInfo {
-                name: stringify!($name).replace("_", "::"),
-                creator: Box::new(|| Box::new(<$path>::new())),
-            }),*
-        ]
-    };
-}
+static ORDER: OnceLock<Vec<String>> = OnceLock::new();
 
 fn load_config() {
     let filename = std::env::args()
@@ -33,7 +18,24 @@ fn load_config() {
 
     let config: Value = serde_json::from_str(&file_content).expect("Failed to parse JSON config");
 
-    CONFIG.set(config).expect("Failed to set CONFIG");
+    if let Some(array) = config.as_array() {
+        let mut config_map = serde_json::Map::new();
+        let mut order = Vec::new();
+
+        for item in array {
+            if let Some(name) = item.get("name").and_then(|n| n.as_str()) {
+                config_map.insert(name.to_string(), item.clone());
+                order.push(name.to_string());
+            }
+        }
+
+        CONFIG
+            .set(serde_json::Value::Object(config_map))
+            .expect("Failed to set CONFIG");
+        ORDER.set(order).expect("Failed to set ORDER");
+    } else {
+        CONFIG.set(config).expect("Failed to set CONFIG");
+    }
 }
 
 fn config_i64(class_name: &str, field_name: &str) -> i64 {
@@ -120,83 +122,217 @@ fn run_benchmarks(single_bench: Option<&str>) {
     load_config();
     helper::reset();
 
-    let benchmark_factories = benchmark_list![
+    let mut benchmark_map: HashMap<String, Box<dyn Fn() -> Box<dyn Benchmark> + Send + Sync>> =
+        HashMap::new();
 
-        CLBG_Pidigits: benchmarks::pidigits::Pidigits,
-        CLBG_Fannkuchredux: benchmarks::fannkuchredux::Fannkuchredux,
-        CLBG_Fasta: benchmarks::fasta::Fasta,
-        CLBG_Knuckeotide: benchmarks::knuckeotide::Knuckeotide,
-        CLBG_Mandelbrot: benchmarks::mandelbrot::Mandelbrot,
-        CLBG_Nbody: benchmarks::nbody::Nbody,
-        CLBG_RegexDna: benchmarks::regex_dna::RegexDna,
-        CLBG_Revcomp: benchmarks::revcomp::Revcomp,
-        CLBG_Spectralnorm: benchmarks::spectralnorm::Spectralnorm,
+    benchmark_map.insert(
+        "CLBG::Pidigits".to_string(),
+        Box::new(|| Box::new(benchmarks::pidigits::Pidigits::new())),
+    );
+    benchmark_map.insert(
+        "Binarytrees::Obj".to_string(),
+        Box::new(|| Box::new(benchmarks::binarytrees::BinarytreesObj::new())),
+    );
+    benchmark_map.insert(
+        "Binarytrees::Arena".to_string(),
+        Box::new(|| Box::new(benchmarks::binarytrees::BinarytreesArena::new())),
+    );
+    benchmark_map.insert(
+        "Brainfuck::Array".to_string(),
+        Box::new(|| Box::new(benchmarks::brainfuck_array::BrainfuckArray::new())),
+    );
+    benchmark_map.insert(
+        "Brainfuck::Recursion".to_string(),
+        Box::new(|| Box::new(benchmarks::brainfuck_recursion::BrainfuckRecursion::new())),
+    );
+    benchmark_map.insert(
+        "CLBG::Fannkuchredux".to_string(),
+        Box::new(|| Box::new(benchmarks::fannkuchredux::Fannkuchredux::new())),
+    );
+    benchmark_map.insert(
+        "CLBG::Mandelbrot".to_string(),
+        Box::new(|| Box::new(benchmarks::mandelbrot::Mandelbrot::new())),
+    );
+    benchmark_map.insert(
+        "Matmul::Single".to_string(),
+        Box::new(|| Box::new(benchmarks::matmul::Matmul1T::new())),
+    );
+    benchmark_map.insert(
+        "Matmul::T4".to_string(),
+        Box::new(|| Box::new(benchmarks::matmul::Matmul4T::new())),
+    );
+    benchmark_map.insert(
+        "Matmul::T8".to_string(),
+        Box::new(|| Box::new(benchmarks::matmul::Matmul8T::new())),
+    );
+    benchmark_map.insert(
+        "Matmul::T16".to_string(),
+        Box::new(|| Box::new(benchmarks::matmul::Matmul16T::new())),
+    );
+    benchmark_map.insert(
+        "CLBG::Nbody".to_string(),
+        Box::new(|| Box::new(benchmarks::nbody::Nbody::new())),
+    );
+    benchmark_map.insert(
+        "CLBG::Spectralnorm".to_string(),
+        Box::new(|| Box::new(benchmarks::spectralnorm::Spectralnorm::new())),
+    );
+    benchmark_map.insert(
+        "Base64::Encode".to_string(),
+        Box::new(|| Box::new(benchmarks::base64_encode::Base64Encode::new())),
+    );
+    benchmark_map.insert(
+        "Base64::Decode".to_string(),
+        Box::new(|| Box::new(benchmarks::base64_decode::Base64Decode::new())),
+    );
+    benchmark_map.insert(
+        "Json::Generate".to_string(),
+        Box::new(|| Box::new(benchmarks::json_generate::JsonGenerate::new())),
+    );
+    benchmark_map.insert(
+        "Json::ParseDom".to_string(),
+        Box::new(|| Box::new(benchmarks::json_parse_dom::JsonParseDom::new())),
+    );
+    benchmark_map.insert(
+        "Json::ParseMapping".to_string(),
+        Box::new(|| Box::new(benchmarks::json_parse_mapping::JsonParseMapping::new())),
+    );
+    benchmark_map.insert(
+        "Etc::Sieve".to_string(),
+        Box::new(|| Box::new(benchmarks::sieve::Sieve::new())),
+    );
+    benchmark_map.insert(
+        "Etc::TextRaytracer".to_string(),
+        Box::new(|| Box::new(benchmarks::text_raytracer::TextRaytracer::new())),
+    );
+    benchmark_map.insert(
+        "Etc::NeuralNet".to_string(),
+        Box::new(|| Box::new(benchmarks::neural_net::NeuralNet::new())),
+    );
+    benchmark_map.insert(
+        "Sort::Quick".to_string(),
+        Box::new(|| Box::new(benchmarks::sort_quick::SortQuick::new())),
+    );
+    benchmark_map.insert(
+        "Sort::Merge".to_string(),
+        Box::new(|| Box::new(benchmarks::sort_merge::SortMerge::new())),
+    );
+    benchmark_map.insert(
+        "Sort::Self".to_string(),
+        Box::new(|| Box::new(benchmarks::sort_self::SortSelf::new())),
+    );
+    benchmark_map.insert(
+        "Graph::BFS".to_string(),
+        Box::new(|| Box::new(benchmarks::graph_path::GraphPathBFS::new())),
+    );
+    benchmark_map.insert(
+        "Graph::DFS".to_string(),
+        Box::new(|| Box::new(benchmarks::graph_path::GraphPathDFS::new())),
+    );
+    benchmark_map.insert(
+        "Graph::AStar".to_string(),
+        Box::new(|| Box::new(benchmarks::graph_path::GraphPathAStar::new())),
+    );
+    benchmark_map.insert(
+        "Hash::SHA256".to_string(),
+        Box::new(|| Box::new(benchmarks::buffer_hash_sha256::BufferHashSHA256::new())),
+    );
+    benchmark_map.insert(
+        "Hash::CRC32".to_string(),
+        Box::new(|| Box::new(benchmarks::buffer_hash_crc32::BufferHashCRC32::new())),
+    );
+    benchmark_map.insert(
+        "Etc::CacheSimulation".to_string(),
+        Box::new(|| Box::new(benchmarks::cache_simulation::CacheSimulation::new())),
+    );
+    benchmark_map.insert(
+        "Calculator::Ast".to_string(),
+        Box::new(|| Box::new(benchmarks::calculator_ast::CalculatorAst::new())),
+    );
+    benchmark_map.insert(
+        "Calculator::Interpreter".to_string(),
+        Box::new(|| Box::new(benchmarks::calculator_interpreter::CalculatorInterpreter::new())),
+    );
+    benchmark_map.insert(
+        "Etc::GameOfLife".to_string(),
+        Box::new(|| Box::new(benchmarks::game_of_life::GameOfLife::new())),
+    );
+    benchmark_map.insert(
+        "Maze::Generator".to_string(),
+        Box::new(|| Box::new(benchmarks::maze::MazeGenerator::new())),
+    );
+    benchmark_map.insert(
+        "Maze::BFS".to_string(),
+        Box::new(|| Box::new(benchmarks::maze::MazeBFS::new())),
+    );
+    benchmark_map.insert(
+        "Maze::AStar".to_string(),
+        Box::new(|| Box::new(benchmarks::maze::MazeAStar::new())),
+    );
+    benchmark_map.insert(
+        "Compress::BWTEncode".to_string(),
+        Box::new(|| Box::new(benchmarks::compress::BWTEncode::new())),
+    );
+    benchmark_map.insert(
+        "Compress::BWTDecode".to_string(),
+        Box::new(|| Box::new(benchmarks::compress::BWTDecode::new())),
+    );
+    benchmark_map.insert(
+        "Compress::HuffEncode".to_string(),
+        Box::new(|| Box::new(benchmarks::compress::HuffEncode::new())),
+    );
+    benchmark_map.insert(
+        "Compress::HuffDecode".to_string(),
+        Box::new(|| Box::new(benchmarks::compress::HuffDecode::new())),
+    );
+    benchmark_map.insert(
+        "Compress::ArithEncode".to_string(),
+        Box::new(|| Box::new(benchmarks::compress::ArithEncode::new())),
+    );
+    benchmark_map.insert(
+        "Compress::ArithDecode".to_string(),
+        Box::new(|| Box::new(benchmarks::compress::ArithDecode::new())),
+    );
+    benchmark_map.insert(
+        "Compress::LZWEncode".to_string(),
+        Box::new(|| Box::new(benchmarks::compress::LZWEncode::new())),
+    );
+    benchmark_map.insert(
+        "Compress::LZWDecode".to_string(),
+        Box::new(|| Box::new(benchmarks::compress::LZWDecode::new())),
+    );
+    benchmark_map.insert(
+        "Distance::Jaro".to_string(),
+        Box::new(|| Box::new(benchmarks::distance::Jaro::new())),
+    );
+    benchmark_map.insert(
+        "Distance::NGram".to_string(),
+        Box::new(|| Box::new(benchmarks::distance::NGram::new())),
+    );
+    benchmark_map.insert(
+        "Etc::Words".to_string(),
+        Box::new(|| Box::new(benchmarks::words::Words::new())),
+    );
+    benchmark_map.insert(
+        "Etc::LogParser".to_string(),
+        Box::new(|| Box::new(benchmarks::log_parser::LogParser::new())),
+    );
+    benchmark_map.insert(
+        "Template::Regex".to_string(),
+        Box::new(|| Box::new(benchmarks::template::TemplateRegex::new())),
+    );
+    benchmark_map.insert(
+        "Template::Parse".to_string(),
+        Box::new(|| Box::new(benchmarks::template::TemplateParse::new())),
+    );
 
-        Binarytrees_Obj: benchmarks::binarytrees::BinarytreesObj,
-        Binarytrees_Arena: benchmarks::binarytrees::BinarytreesArena,
-
-        Brainfuck_Array: benchmarks::brainfuck_array::BrainfuckArray,
-        Brainfuck_Recursion: benchmarks::brainfuck_recursion::BrainfuckRecursion,
-
-        Matmul_Single: benchmarks::matmul::Matmul1T,
-        Matmul_T4: benchmarks::matmul::Matmul4T,
-        Matmul_T8: benchmarks::matmul::Matmul8T,
-        Matmul_T16: benchmarks::matmul::Matmul16T,
-
-        Base64_Encode: benchmarks::base64_encode::Base64Encode,
-        Base64_Decode: benchmarks::base64_decode::Base64Decode,
-
-        Json_Generate: benchmarks::json_generate::JsonGenerate,
-        Json_ParseDom: benchmarks::json_parse_dom::JsonParseDom,
-        Json_ParseMapping: benchmarks::json_parse_mapping::JsonParseMapping,
-
-        Etc_Sieve: benchmarks::sieve::Sieve,
-        Etc_TextRaytracer: benchmarks::text_raytracer::TextRaytracer,
-        Etc_NeuralNet: benchmarks::neural_net::NeuralNet,
-        Etc_CacheSimulation: benchmarks::cache_simulation::CacheSimulation,
-        Etc_GameOfLife: benchmarks::game_of_life::GameOfLife,
-        Etc_Words: benchmarks::words::Words,
-        Etc_LogParser: benchmarks::log_parser::LogParser,
-
-        Sort_Quick: benchmarks::sort_quick::SortQuick,
-        Sort_Merge: benchmarks::sort_merge::SortMerge,
-        Sort_Self: benchmarks::sort_self::SortSelf,
-
-        Graph_BFS: benchmarks::graph_path::GraphPathBFS,
-        Graph_DFS: benchmarks::graph_path::GraphPathDFS,
-        Graph_AStar: benchmarks::graph_path::GraphPathAStar,
-
-        Hash_SHA256: benchmarks::buffer_hash_sha256::BufferHashSHA256,
-        Hash_CRC32: benchmarks::buffer_hash_crc32::BufferHashCRC32,
-
-        Calculator_Ast: benchmarks::calculator_ast::CalculatorAst,
-        Calculator_Interpreter: benchmarks::calculator_interpreter::CalculatorInterpreter,
-
-        Maze_Generator: benchmarks::maze::MazeGenerator,
-        Maze_BFS: benchmarks::maze::MazeBFS,
-        Maze_AStar: benchmarks::maze::MazeAStar,
-
-        Compress_BWTEncode: benchmarks::compress::BWTEncode,
-        Compress_BWTDecode: benchmarks::compress::BWTDecode,
-        Compress_HuffEncode: benchmarks::compress::HuffEncode,
-        Compress_HuffDecode: benchmarks::compress::HuffDecode,
-        Compress_ArithEncode: benchmarks::compress::ArithEncode,
-        Compress_ArithDecode: benchmarks::compress::ArithDecode,
-        Compress_LZWEncode: benchmarks::compress::LZWEncode,
-        Compress_LZWDecode: benchmarks::compress::LZWDecode,
-
-        Distance_Jaro: benchmarks::distance::Jaro,
-        Distance_NGram: benchmarks::distance::NGram,
-    ];
-
-    let mut results = HashMap::new();
     let mut summary_time = 0.0;
     let mut ok = 0;
     let mut fails = 0;
 
-    for factory in benchmark_factories {
-        let name = &factory.name;
+    let order = ORDER.get().expect("Order not loaded");
 
+    for name in order {
         if let Some(single) = single_bench {
             let bench_lower = to_lower(name);
             let search_lower = to_lower(single);
@@ -205,14 +341,18 @@ fn run_benchmarks(single_bench: Option<&str>) {
             }
         }
 
-        if name == "SortBenchmark" || name == "BufferHashBenchmark" || name == "GraphPathBenchmark"
-        {
+        let creator = benchmark_map.get(name);
+        if creator.is_none() {
+            println!(
+                "Warning: Benchmark '{}' defined in config but not found in code",
+                name
+            );
             continue;
         }
 
         print!("{}: ", name);
 
-        let mut bench = (factory.creator)();
+        let mut bench = (creator.unwrap())();
 
         helper::reset();
         bench.prepare();
@@ -224,8 +364,6 @@ fn run_benchmarks(single_bench: Option<&str>) {
         let start = Instant::now();
         bench.run_all();
         let time_delta = start.elapsed().as_secs_f64();
-
-        results.insert(name.clone(), time_delta);
 
         std::thread::yield_now();
 
@@ -245,10 +383,6 @@ fn run_benchmarks(single_bench: Option<&str>) {
 
         println!("in {:.3}s", time_delta);
         summary_time += time_delta;
-    }
-
-    if let Ok(json) = serde_json::to_string(&results) {
-        let _ = std::fs::write("/tmp/results.js", json);
     }
 
     println!(

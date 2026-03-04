@@ -14,24 +14,33 @@ LOG_PATTERN_NAMES := [?]string {
 	"post_requests",
 	"auth_attempts",
 	"methods",
+	"emails",
+	"passwords",
+	"tokens",
+	"sessions",
+	"peak_hours",
 }
 
 LOG_PATTERNS := [?]string {
-	" [5][0-9]{2} ",
-	"(?i)bot|crawler|scanner",
+	" [5][0-9]{2} | [4][0-9]{2} ",
+	"(?i)bot|crawler|scanner|spider|indexing|crawl|robot|spider",
 	"(?i)etc/passwd|wp-admin|\\.\\./",
-	"\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.35",
-	"/api/[^ \"]+",
-	"POST /[^ ]* HTTP",
+	"\\d+\\.\\d+\\.\\d+\\.35",
+	"/api/[^ \" ]+",
+	"POST [^ ]* HTTP",
 	"(?i)/login|/signin",
-	"(?i)get|post",
+	"(?i)get|post|put",
+	"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}",
+	"password=[^&\\s\"]+",
+	"token=[^&\\s\"]+|api[_-]?key=[^&\\s\"]+",
+	"session[_-]?id=[^&\\s\"]+",
+	"\\[\\d+/\\w+/\\d+:1[3-7]:\\d+:\\d+ [+\\-]\\d+\\]",
 }
 
 METHODS := [?]string{"GET", "POST", "PUT", "DELETE"}
 PATHS := [?]string {
 	"/index.html",
 	"/api/users",
-	"/login",
 	"/admin",
 	"/images/logo.png",
 	"/etc/passwd",
@@ -39,6 +48,15 @@ PATHS := [?]string {
 }
 STATUSES := [?]int{200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503}
 AGENTS := [?]string{"Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0"}
+USERS := [?]string{"john", "jane", "alex", "sarah", "mike", "anna", "david", "elena"}
+DOMAINS := [?]string {
+	"example.com",
+	"gmail.com",
+	"yahoo.com",
+	"hotmail.com",
+	"company.org",
+	"mail.ru",
+}
 
 PCRE2_UTF :: 0x00080000
 PCRE2_NO_UTF_CHECK :: 0x40000000
@@ -53,17 +71,11 @@ foreign import pcre2 "system:pcre2-8"
 @(default_calling_convention = "c")
 foreign pcre2 {
 	pcre2_compile_8 :: proc(pattern: cstring, length: c.size_t, options: u32, errorcode: ^c.int, erroroffset: ^c.size_t, ccontext: rawptr) -> ^PCRE2_CODE ---
-
 	pcre2_code_free_8 :: proc(code: ^PCRE2_CODE) ---
-
 	pcre2_jit_compile_8 :: proc(code: ^PCRE2_CODE, options: u32) -> c.int ---
-
 	pcre2_match_data_create_from_pattern_8 :: proc(code: ^PCRE2_CODE, gcontext: rawptr) -> ^PCRE2_MATCH_DATA ---
-
 	pcre2_match_data_free_8 :: proc(match_data: ^PCRE2_MATCH_DATA) ---
-
 	pcre2_get_ovector_pointer_8 :: proc(match_data: ^PCRE2_MATCH_DATA) -> [^]c.size_t ---
-
 	pcre2_jit_match_8 :: proc(code: ^PCRE2_CODE, subject: cstring, length: c.size_t, startoffset: c.size_t, options: u32, match_data: ^PCRE2_MATCH_DATA, mcontext: rawptr) -> c.int ---
 }
 
@@ -98,14 +110,17 @@ write_ip :: proc(sb: ^strings.Builder, i: int) {
 	}
 }
 
-write_day :: proc(sb: ^strings.Builder, i: int) {
-	day := i % 31 + 1
-	if day < 10 {
-		strings.write_byte(sb, '0')
-		strings.write_byte(sb, byte('0' + day))
-	} else {
-		strings.write_byte(sb, byte('0' + day / 10))
-		strings.write_byte(sb, byte('0' + day % 10))
+write_number :: proc(sb: ^strings.Builder, num: int, digits: int) {
+	if digits == 2 {
+		if num < 10 {
+			strings.write_byte(sb, '0')
+			strings.write_byte(sb, byte('0' + num))
+		} else {
+			strings.write_byte(sb, byte('0' + num / 10))
+			strings.write_byte(sb, byte('0' + num % 10))
+		}
+	} else if digits == 1 {
+		strings.write_byte(sb, byte('0' + num))
 	}
 }
 
@@ -211,20 +226,44 @@ logparser_prepare :: proc(bench: ^Benchmark) {
 
 	parser.compiled_patterns = compile_patterns()
 
-	sb := strings.builder_make(0, parser.lines_count * 150)
+	sb := strings.builder_make(0, parser.lines_count * 200)
 	defer strings.builder_destroy(&sb)
 
 	for i in 0 ..< parser.lines_count {
 		write_ip(&sb, i)
 		strings.write_string(&sb, " - - [")
-		write_day(&sb, i)
-		strings.write_string(&sb, "/Oct/2023:13:55:36 +0000] \"")
+		write_number(&sb, i % 31 + 1, 2)
+		strings.write_string(&sb, "/Oct/2023:")
+		write_number(&sb, i % 60, 2)
+		strings.write_string(&sb, ":55:36 +0000] \"")
 		strings.write_string(&sb, METHODS[i % len(METHODS)])
 		strings.write_byte(&sb, ' ')
-		strings.write_string(&sb, PATHS[i % len(PATHS)])
-		strings.write_string(&sb, " HTTP/1.0\" ")
+
+		if i % 3 == 0 {
+			strings.write_string(&sb, "/login?email=")
+			strings.write_string(&sb, USERS[i % len(USERS)])
+			write_number(&sb, i % 100, 2)
+			strings.write_byte(&sb, '@')
+			strings.write_string(&sb, DOMAINS[i % len(DOMAINS)])
+			strings.write_string(&sb, "&password=secret")
+			write_number(&sb, i % 10000, 4)
+		} else if i % 5 == 0 {
+			strings.write_string(&sb, "/api/data?token=")
+			for _ in 0 ..< (i % 3) + 1 {
+				strings.write_string(&sb, "abcdef123456")
+			}
+		} else if i % 7 == 0 {
+			strings.write_string(&sb, "/user/profile?session_id=sess_")
+			fmt.sbprintf(&sb, "%x", i * 12345)
+		} else {
+			strings.write_string(&sb, PATHS[i % len(PATHS)])
+		}
+
+		strings.write_string(&sb, " HTTP/1.1\" ")
 		write_status(&sb, STATUSES[i % len(STATUSES)])
-		strings.write_string(&sb, " 2326 \"-\" \"")
+		strings.write_string(&sb, " 2326 \"http://")
+		strings.write_string(&sb, DOMAINS[i % len(DOMAINS)])
+		strings.write_string(&sb, "\" \"")
 		strings.write_string(&sb, AGENTS[i % len(AGENTS)])
 		strings.write_string(&sb, "\"\n")
 	}

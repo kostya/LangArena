@@ -133,6 +133,7 @@ public class NeuralNet : Benchmark
 
     public NeuralNet()
     {
+        _xorNet = new NeuralNetwork(0, 0, 0);
     }
 
     public override void Prepare()

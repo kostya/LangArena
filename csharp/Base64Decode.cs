@@ -4,7 +4,7 @@ public class Base64Decode : Benchmark
 {
     private int _n;
     private string _str2 = "";
-    private byte[] _str3bytes;
+    private byte[] _str3bytes = Array.Empty<byte>();
     private uint _result;
 
     public Base64Decode()

@@ -64,6 +64,12 @@ export class Helper {
   private static lastValue: number = Helper.INIT;
   private static inputMap: Record<string, string> = {};
   private static expectMap: Record<string, bigint> = {};
+  private static _config: any = null;
+  private static _order: string[] = [];
+
+  static get order(): string[] {
+    return this._order;
+  }
 
   static reset(): void {
     Helper.lastValue = Helper.INIT;
@@ -191,9 +197,26 @@ export class Helper {
         return;
       }
 
-      const config = JSON.parse(content);
+      const data = JSON.parse(content);
 
-      (Helper as any).CONFIG = config;
+      if (Array.isArray(data)) {
+        const configDict: Record<string, any> = {};
+        const orderList: string[] = [];
+
+        for (const item of data) {
+          const name = item.name;
+          if (name) {
+            configDict[name] = item;
+            orderList.push(name);
+          }
+        }
+
+        Helper._config = configDict;
+        Helper._order = orderList;
+      } else {
+        Helper._config = data;
+        Helper._order = [];
+      }
     } catch (error: any) {
       console.error(
         `Error loading config file ${configFile}:`,
@@ -220,7 +243,7 @@ export class Helper {
   }
 
   static configI64(className: string, fieldName: string): bigint {
-    const config = (Helper as any).CONFIG;
+    const config = Helper._config;
     if (!config || !config[className]) {
       throw new Error(`Config not found class ${className}`);
     }
@@ -238,7 +261,7 @@ export class Helper {
   }
 
   static configS(className: string, fieldName: string): string {
-    const config = (Helper as any).CONFIG;
+    const config = Helper._config;
     if (!config || !config[className]) {
       throw new Error(`Config not found class ${className}`);
     }
@@ -301,14 +324,18 @@ export abstract class Benchmark {
   prepare(): void {}
 
   get config(): Record<string, any> {
-    const config = (Helper as any).CONFIG;
+    const config = (Helper as any)._config;
     return config && config[this.name] ? config[this.name] : {};
   }
 
   get warmupIterations(): number {
-    const config = (Helper as any).CONFIG;
-    if (config && config.warmup_iterations !== undefined) {
-      return Number(config.warmup_iterations);
+    const config = (Helper as any)._config;
+    if (
+      config &&
+      config[this.name] &&
+      config[this.name].warmup_iterations !== undefined
+    ) {
+      return Number(config[this.name].warmup_iterations);
     }
     return Math.max(Math.floor(this.iterations * 0.2), 1);
   }
@@ -341,36 +368,24 @@ export abstract class Benchmark {
     }
   }
 
-  private static NamedFactory = class {
-    constructor(
-      public name: string,
-      public cls: new () => Benchmark,
-    ) {}
-  };
-
-  private static benchmarkFactories: InstanceType<
-    typeof Benchmark.NamedFactory
-  >[] = [];
+  private static benchmarkMap: Map<string, new () => Benchmark> = new Map();
 
   static registerBenchmark(name: string, cls: new () => Benchmark): void {
-    if (this.benchmarkFactories.some((f) => f.name === name)) {
+    if (this.benchmarkMap.has(name)) {
       console.warn(
         `Warning: Benchmark with name "${name}" already registered. Skipping.`,
       );
       return;
     }
-    this.benchmarkFactories.push(new this.NamedFactory(name, cls));
+    this.benchmarkMap.set(name, cls);
   }
 
   static run(singleBench?: string): void {
-    const results: Record<string, number> = {};
     let summaryTime = 0;
     let ok = 0;
     let fails = 0;
 
-    for (const factoryInfo of this.benchmarkFactories) {
-      const benchName = factoryInfo.name;
-
+    for (const benchName of Helper.order) {
       if (
         singleBench &&
         !benchName.toLowerCase().includes(singleBench.toLowerCase())
@@ -378,9 +393,11 @@ export abstract class Benchmark {
         continue;
       }
 
-      const config = (Helper as any).CONFIG;
-      if (!config || !config[benchName]) {
-        console.log(`\n[${benchName}]: SKIP - no config entry`);
+      const cls = this.benchmarkMap.get(benchName);
+      if (!cls) {
+        console.log(
+          `Warning: Benchmark '${benchName}' defined in config but not found in code`,
+        );
         continue;
       }
 
@@ -398,7 +415,7 @@ export abstract class Benchmark {
         console.log(`${benchName}: `);
       }
 
-      const bench = new factoryInfo.cls();
+      const bench = new cls();
 
       Helper.reset();
       bench.prepare();
@@ -410,8 +427,6 @@ export abstract class Benchmark {
       bench.runAll();
       const endTime = performance.now();
       const timeDelta = (endTime - startTime) / 1000;
-
-      results[benchName] = timeDelta;
 
       try {
         // @ts-ignore
@@ -460,26 +475,6 @@ export abstract class Benchmark {
       console.log(`in ${timeDelta.toFixed(3)}s`);
       summaryTime += timeDelta;
     }
-
-    try {
-      if (isNode) {
-        // @ts-ignore
-        const fs = require("fs");
-        // @ts-ignore
-        const path = require("path");
-        fs.writeFileSync(
-          "/tmp/results.js",
-          `window.results = ${JSON.stringify(results)};`,
-        );
-      } else if (isBun) {
-        // @ts-ignore
-        const fs = require("fs");
-        fs.writeFileSync(
-          "/tmp/results.js",
-          `window.results = ${JSON.stringify(results)};`,
-        );
-      }
-    } catch {}
 
     console.log(
       `Summary: ${summaryTime.toFixed(4)}s, ${ok + fails}, ${ok}, ${fails}`,
@@ -1106,245 +1101,6 @@ export class Fannkuchredux extends Benchmark {
   }
 }
 
-interface Gene {
-  char: string;
-  prob: number;
-}
-
-export class Fasta extends Benchmark {
-  private static readonly LINE_LENGTH = 60;
-
-  private static readonly IUB: Gene[] = [
-    { char: "a", prob: 0.27 },
-    { char: "c", prob: 0.39 },
-    { char: "g", prob: 0.51 },
-    { char: "t", prob: 0.78 },
-    { char: "B", prob: 0.8 },
-    { char: "D", prob: 0.8200000000000001 },
-    { char: "H", prob: 0.8400000000000001 },
-    { char: "K", prob: 0.8600000000000001 },
-    { char: "M", prob: 0.8800000000000001 },
-    { char: "N", prob: 0.9000000000000001 },
-    { char: "R", prob: 0.9200000000000002 },
-    { char: "S", prob: 0.9400000000000002 },
-    { char: "V", prob: 0.9600000000000002 },
-    { char: "W", prob: 0.9800000000000002 },
-    { char: "Y", prob: 1.0000000000000002 },
-  ];
-
-  private static readonly HOMO: Gene[] = [
-    { char: "a", prob: 0.302954942668 },
-    { char: "c", prob: 0.5009432431601 },
-    { char: "g", prob: 0.6984905497992 },
-    { char: "t", prob: 1.0 },
-  ];
-
-  private static readonly ALU =
-    "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
-
-  public n: number;
-  public resultStr: string = "";
-
-  constructor() {
-    super();
-    this.n = Number(Helper.configI64(this.name, "n"));
-  }
-
-  setIterations(count: number): void {
-    this.n = count;
-  }
-
-  private selectRandom(genelist: Gene[]): string {
-    const r = Helper.nextFloat();
-    if (r < genelist[0].prob) {
-      return genelist[0].char;
-    }
-
-    let lo = 0;
-    let hi = genelist.length - 1;
-
-    while (hi > lo + 1) {
-      const i = Math.floor((hi + lo) / 2);
-      if (r < genelist[i].prob) {
-        hi = i;
-      } else {
-        lo = i;
-      }
-    }
-    return genelist[hi].char;
-  }
-
-  private makeRandomFasta(
-    id: string,
-    desc: string,
-    genelist: Gene[],
-    n: number,
-  ): void {
-    const lines: string[] = [];
-    lines.push(`>${id} ${desc}`);
-
-    let todo = n;
-
-    while (todo > 0) {
-      const m = todo < Fasta.LINE_LENGTH ? todo : Fasta.LINE_LENGTH;
-      const lineChars: string[] = new Array(m);
-
-      for (let i = 0; i < m; i++) {
-        lineChars[i] = this.selectRandom(genelist);
-      }
-
-      lines.push(lineChars.join(""));
-      todo -= Fasta.LINE_LENGTH;
-    }
-
-    this.resultStr += lines.join("\n") + "\n";
-  }
-
-  private makeRepeatFasta(
-    id: string,
-    desc: string,
-    s: string,
-    n: number,
-  ): void {
-    let todo = n;
-    let k = 0;
-    const kn = s.length;
-
-    this.resultStr += `>${id} ${desc}\n`;
-
-    while (todo > 0) {
-      const m = todo < Fasta.LINE_LENGTH ? todo : Fasta.LINE_LENGTH;
-      let remaining = m;
-
-      while (remaining >= kn - k) {
-        this.resultStr += s.slice(k);
-        remaining -= kn - k;
-        k = 0;
-      }
-
-      if (remaining > 0) {
-        this.resultStr += s.slice(k, k + remaining);
-        k += remaining;
-      }
-
-      this.resultStr += "\n";
-      todo -= Fasta.LINE_LENGTH;
-    }
-  }
-
-  run(_iteration_id: number): void {
-    this.makeRepeatFasta("ONE", "Homo sapiens alu", Fasta.ALU, this.n * 2);
-    this.makeRandomFasta("TWO", "IUB ambiguity codes", Fasta.IUB, this.n * 3);
-    this.makeRandomFasta(
-      "THREE",
-      "Homo sapiens frequency",
-      Fasta.HOMO,
-      this.n * 5,
-    );
-  }
-
-  checksum(): number {
-    return Helper.checksumString(this.resultStr);
-  }
-  override get name(): string {
-    return "CLBG::Fasta";
-  }
-}
-
-export class Knuckeotide extends Benchmark {
-  private seq: string = "";
-  private resultStr: string = "";
-
-  private frequency(
-    seq: string,
-    length: number,
-  ): { n: number; table: Map<string, number> } {
-    const n = seq.length - length + 1;
-    const table = new Map<string, number>();
-
-    for (let i = 0; i < n; i++) {
-      const key = seq.slice(i, i + length);
-      table.set(key, (table.get(key) || 0) + 1);
-    }
-
-    return { n, table };
-  }
-
-  private sortByFreq(seq: string, length: number): void {
-    const { n, table } = this.frequency(seq, length);
-
-    const sorted = Array.from(table.entries()).sort((a, b) => b[1] - a[1]);
-
-    for (const [key, count] of sorted) {
-      const freq = (count * 100) / n;
-      this.resultStr += `${key.toUpperCase()} ${freq.toFixed(3)}\n`;
-    }
-
-    this.resultStr += "\n";
-  }
-
-  private findSeq(seq: string, s: string): void {
-    const { n, table } = this.frequency(seq, s.length);
-    const count = table.get(s.toLowerCase()) || 0;
-    this.resultStr += `${count}\t${s.toUpperCase()}\n`;
-  }
-
-  prepare(): void {
-    const n = Number(Helper.configI64(this.name, "n"));
-
-    const fasta = new Fasta();
-    fasta.n = n;
-    fasta.prepare();
-    fasta.run(0);
-
-    const fastaOutput = fasta.resultStr;
-
-    let seq = "";
-    let afterThree = false;
-
-    const lines = fastaOutput.split("\n");
-    for (const line of lines) {
-      if (line.startsWith(">THREE")) {
-        afterThree = true;
-        continue;
-      }
-
-      if (afterThree) {
-        if (line.startsWith(">")) {
-          break;
-        }
-        seq += line.trim();
-      }
-    }
-
-    this.seq = seq;
-  }
-
-  run(_iteration_id: number): void {
-    for (let i = 1; i <= 2; i++) {
-      this.sortByFreq(this.seq, i);
-    }
-
-    const sequences = [
-      "ggt",
-      "ggta",
-      "ggtatt",
-      "ggtattttaatt",
-      "ggtattttaatttatagt",
-    ];
-    for (const s of sequences) {
-      this.findSeq(this.seq, s);
-    }
-  }
-
-  checksum(): number {
-    return Helper.checksumString(this.resultStr);
-  }
-  override get name(): string {
-    return "CLBG::Knuckeotide";
-  }
-}
-
 export class Mandelbrot extends Benchmark {
   private static readonly ITER = 50;
   private static readonly LIMIT = 2.0;
@@ -1793,191 +1549,6 @@ export class Nbody extends Benchmark {
   }
   override get name(): string {
     return "CLBG::Nbody";
-  }
-}
-
-export class RegexDna extends Benchmark {
-  private seq: string = "";
-  private ilen: number = 0;
-  private clen: number = 0;
-  private resultStr: string = "";
-
-  prepare(): void {
-    const n = Number(Helper.configI64(this.name, "n"));
-
-    const fasta = new Fasta();
-    fasta.n = n;
-    fasta.prepare();
-    fasta.run(0);
-
-    const fastaOutput = fasta.resultStr;
-
-    let seq = "";
-    let totalBytes = 0;
-
-    const lines = fastaOutput.split("\n");
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      const lineBytes = new TextEncoder().encode(line).length;
-
-      if (i < lines.length - 1) {
-        totalBytes += lineBytes + 1;
-      } else if (line.length > 0) {
-        totalBytes += lineBytes;
-      } else {
-      }
-
-      if (!line.startsWith(">")) {
-        seq += line.trim();
-      }
-    }
-
-    totalBytes = new TextEncoder().encode(fastaOutput).length;
-
-    this.seq = seq;
-    this.ilen = totalBytes;
-    this.clen = new TextEncoder().encode(seq).length;
-  }
-
-  run(_iteration_id: number): void {
-    const patterns = [
-      /agggtaaa|tttaccct/gi,
-      /[cgt]gggtaaa|tttaccc[acg]/gi,
-      /a[act]ggtaaa|tttacc[agt]t/gi,
-      /ag[act]gtaaa|tttac[agt]ct/gi,
-      /agg[act]taaa|ttta[agt]cct/gi,
-      /aggg[acg]aaa|ttt[cgt]ccct/gi,
-      /agggt[cgt]aa|tt[acg]accct/gi,
-      /agggta[cgt]a|t[acg]taccct/gi,
-      /agggtaa[cgt]|[acg]ttaccct/gi,
-    ];
-
-    for (const pattern of patterns) {
-      const matches = this.seq.match(pattern) || [];
-      this.resultStr += `${pattern.source} ${matches.length}\n`;
-    }
-
-    const replacements: Record<string, string> = {
-      B: "(c|g|t)",
-      D: "(a|g|t)",
-      H: "(a|c|t)",
-      K: "(g|t)",
-      M: "(a|c)",
-      N: "(a|c|g|t)",
-      R: "(a|g)",
-      S: "(c|t)",
-      V: "(a|c|g)",
-      W: "(a|t)",
-      Y: "(c|t)",
-    };
-
-    let modifiedSeq = this.seq;
-    for (const [key, value] of Object.entries(replacements)) {
-      const regex = new RegExp(key, "gi");
-      const before = modifiedSeq.length;
-      modifiedSeq = modifiedSeq.replace(regex, value);
-    }
-
-    this.resultStr += `\n${this.ilen}\n${this.clen}\n${modifiedSeq.length}\n`;
-  }
-
-  checksum(): number {
-    return Helper.checksumString(this.resultStr);
-  }
-  override get name(): string {
-    return "CLBG::RegexDna";
-  }
-}
-
-export class Revcomp extends Benchmark {
-  private input: string = "";
-  private resultValue: number = 0;
-
-  private static lookupTable: Uint8Array | null = null;
-
-  private static readonly FROM = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
-  private static readonly TO = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
-
-  prepare(): void {
-    const n = Number(Helper.configI64(this.name, "n"));
-
-    const fasta = new Fasta();
-    fasta.n = n;
-    fasta.prepare();
-    fasta.run(0);
-
-    const fastaOutput = fasta.resultStr;
-
-    const lines = fastaOutput.split("\n");
-    const seqParts: string[] = [];
-    let partCount = 0;
-
-    for (const line of lines) {
-      if (line.startsWith(">")) {
-        seqParts[partCount++] = "\n---\n";
-      } else if (line.trim()) {
-        seqParts[partCount++] = line.trim();
-      }
-    }
-
-    this.input = seqParts.join("");
-  }
-
-  private static initLookupTable(): Uint8Array {
-    if (Revcomp.lookupTable) {
-      return Revcomp.lookupTable;
-    }
-
-    const lookup = new Uint8Array(256);
-    for (let i = 0; i < 256; i++) lookup[i] = i;
-
-    for (let i = 0; i < Revcomp.FROM.length; i++) {
-      const fromChar = Revcomp.FROM.charCodeAt(i);
-      const toChar = Revcomp.TO.charCodeAt(i);
-      lookup[fromChar] = toChar;
-    }
-
-    Revcomp.lookupTable = lookup;
-    return lookup;
-  }
-
-  private revcompGoStyle(seq: string): string {
-    const len = seq.length;
-    const lookup = Revcomp.initLookupTable();
-
-    const lineLength = 60;
-    const numLines = Math.ceil(len / lineLength);
-    const resultBytes = new Uint8Array(len + numLines);
-
-    let writePos = 0;
-    let readPos = len - 1;
-
-    for (let line = 0; line < numLines; line++) {
-      const charsInLine = Math.min(lineLength, readPos + 1);
-
-      for (let i = 0; i < charsInLine; i++) {
-        const charCode = seq.charCodeAt(readPos--);
-        resultBytes[writePos++] = lookup[charCode];
-      }
-
-      resultBytes[writePos++] = 10;
-    }
-
-    const decoder = new TextDecoder("ascii");
-    return decoder.decode(resultBytes);
-  }
-
-  run(_iteration_id: number): void {
-    const v = Helper.checksumString(this.revcompGoStyle(this.input));
-    this.resultValue = (this.resultValue + v) >>> 0;
-  }
-
-  checksum(): number {
-    return this.resultValue;
-  }
-  override get name(): string {
-    return "CLBG::Revcomp";
   }
 }
 
@@ -5758,14 +5329,19 @@ export class LogParser extends Benchmark {
   private checksumVal: number = 0;
 
   private readonly PATTERNS: [string, RegExp][] = [
-    ["errors", / [5][0-9]{2} /g],
-    ["bots", /bot|crawler|scanner/gi],
+    ["errors", / [5][0-9]{2} | [4][0-9]{2} /g],
+    ["bots", /bot|crawler|scanner|spider|indexing|crawl|robot|spider/gi],
     ["suspicious", /etc\/passwd|wp-admin|\.\.\//gi],
-    ["ips", /\d{1,3}\.\d{1,3}\.\d{1,3}\.35/g],
-    ["api_calls", /\/api\/[^ "]+/g],
+    ["ips", /\d+\.\d+\.\d+\.35/g],
+    ["api_calls", /\/api\/[^ " ]+/g],
     ["post_requests", /POST [^ ]* HTTP/g],
     ["auth_attempts", /\/login|\/signin/gi],
-    ["methods", /get|post/gi],
+    ["methods", /get|post|put/gi],
+    ["emails", /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g],
+    ["passwords", /password=[^&\s"]+/g],
+    ["tokens", /token=[^&\s"]+|api[_-]?key=[^&\s"]+/g],
+    ["sessions", /session[_-]?id=[^&\s"]+/g],
+    ["peak_hours", /\[\d+\/\w+\/\d+:1[3-7]:\d+:\d+ [+\-]\d+\]/g],
   ];
 
   private readonly IPS: string[] = Array.from(
@@ -5776,7 +5352,6 @@ export class LogParser extends Benchmark {
   private readonly PATHS: string[] = [
     "/index.html",
     "/api/users",
-    "/login",
     "/admin",
     "/images/logo.png",
     "/etc/passwd",
@@ -5791,6 +5366,24 @@ export class LogParser extends Benchmark {
     "curl/7.68.0",
     "scanner/2.0",
   ];
+  private readonly USERS: string[] = [
+    "john",
+    "jane",
+    "alex",
+    "sarah",
+    "mike",
+    "anna",
+    "david",
+    "elena",
+  ];
+  private readonly DOMAINS: string[] = [
+    "example.com",
+    "gmail.com",
+    "yahoo.com",
+    "hotmail.com",
+    "company.org",
+    "mail.ru",
+  ];
 
   constructor() {
     super();
@@ -5798,7 +5391,29 @@ export class LogParser extends Benchmark {
   }
 
   private generateLogLine(i: number): string {
-    return `${this.IPS[i % this.IPS.length]} - - [${i % 31}/Oct/2023:13:55:36 +0000] "${this.METHODS[i % this.METHODS.length]} ${this.PATHS[i % this.PATHS.length]} HTTP/1.0" ${this.STATUSES[i % this.STATUSES.length]} 2326 "-" "${this.AGENTS[i % this.AGENTS.length]}"\n`;
+    let line = "";
+
+    line += this.IPS[i % this.IPS.length];
+    line += ` - - [${i % 31}/Oct/2023:${i % 60}:55:36 +0000] "`;
+    line += this.METHODS[i % this.METHODS.length];
+    line += " ";
+
+    if (i % 3 === 0) {
+      line += `/login?email=${this.USERS[i % this.USERS.length]}${i % 100}@${this.DOMAINS[i % this.DOMAINS.length]}&password=secret${i % 10000}`;
+    } else if (i % 5 === 0) {
+      line += "/api/data?token=";
+      for (let j = 0; j < (i % 3) + 1; j++) {
+        line += "abcdef123456";
+      }
+    } else if (i % 7 === 0) {
+      line += `/user/profile?session_id=sess_${(i * 12345).toString(16)}`;
+    } else {
+      line += this.PATHS[i % this.PATHS.length];
+    }
+
+    line += ` HTTP/1.1" ${this.STATUSES[i % this.STATUSES.length]} 2326 "http://${this.DOMAINS[i % this.DOMAINS.length]}" "${this.AGENTS[i % this.AGENTS.length]}"\n`;
+
+    return line;
   }
 
   prepare(): void {
@@ -5831,22 +5446,200 @@ export class LogParser extends Benchmark {
   }
 }
 
+abstract class TemplateBase extends Benchmark {
+  protected count: number = 0;
+  protected text: string = "";
+  protected rendered: string = "";
+  protected checksumVal: number = 0;
+  protected vars: Record<string, string> = {};
+
+  protected static readonly FIRST_NAMES: string[] = [
+    "John",
+    "Jane",
+    "Bob",
+    "Alice",
+    "Charlie",
+    "Diana",
+    "Sarah",
+    "Mike",
+  ];
+  protected static readonly LAST_NAMES: string[] = [
+    "Smith",
+    "Johnson",
+    "Brown",
+    "Taylor",
+    "Wilson",
+    "Davis",
+    "Miller",
+    "Jones",
+  ];
+  protected static readonly CITIES: string[] = [
+    "New York",
+    "Los Angeles",
+    "Chicago",
+    "Houston",
+    "Phoenix",
+    "San Francisco",
+  ];
+  protected static readonly LOREM: string =
+    "Lorem {ipsum} dolor {sit} amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore {et} dolore magna aliqua. ";
+
+  protected prepareTemplate(): void {
+    this.vars = {};
+    let textBuilder = "";
+
+    textBuilder += "<html><body>";
+    textBuilder += "<h1>{{TITLE}}</h1>";
+    this.vars["TITLE"] = "Template title";
+    textBuilder += "<p>";
+    textBuilder += TemplateBase.LOREM;
+    textBuilder += "</p>";
+    textBuilder += "<table>";
+
+    for (let i = 0; i < this.count; i++) {
+      if (i % 3 === 0) {
+        textBuilder += "<!-- {comment} -->";
+      }
+      textBuilder += "<tr>";
+      textBuilder += `<td>{{ FIRST_NAME${i} }}</td>`;
+      textBuilder += `<td>{{LAST_NAME${i}}}</td>`;
+      textBuilder += `<td>{{  CITY${i}  }}</td>`;
+
+      this.vars[`FIRST_NAME${i}`] =
+        TemplateBase.FIRST_NAMES[i % TemplateBase.FIRST_NAMES.length];
+      this.vars[`LAST_NAME${i}`] =
+        TemplateBase.LAST_NAMES[i % TemplateBase.LAST_NAMES.length];
+      this.vars[`CITY${i}`] =
+        TemplateBase.CITIES[i % TemplateBase.CITIES.length];
+
+      textBuilder += `<td>{balance: ${i % 100}}</td>`;
+      textBuilder += "</tr>\n";
+    }
+
+    textBuilder += "</table>";
+    textBuilder += "</body></html>";
+
+    this.text = textBuilder;
+  }
+
+  checksum(): number {
+    return (this.checksumVal + Helper.checksumString(this.rendered)) >>> 0;
+  }
+}
+
+export class TemplateRegex extends TemplateBase {
+  private static readonly PATTERN: RegExp = /{{\s*(.*?)\s*}}/g;
+
+  constructor() {
+    super();
+    this.count = Number(Helper.configI64(this.name, "count"));
+  }
+
+  prepare(): void {
+    this.prepareTemplate();
+  }
+
+  run(_iteration_id: number): void {
+    let result = "";
+    let lastPos = 0;
+    let match: RegExpExecArray | null;
+
+    TemplateRegex.PATTERN.lastIndex = 0;
+
+    while ((match = TemplateRegex.PATTERN.exec(this.text)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+
+      if (start > lastPos) {
+        result += this.text.substring(lastPos, start);
+      }
+
+      const key = match[1].trim();
+      if (this.vars[key]) {
+        result += this.vars[key];
+      }
+
+      lastPos = end;
+    }
+
+    if (lastPos < this.text.length) {
+      result += this.text.substring(lastPos);
+    }
+
+    this.rendered = result;
+    this.checksumVal = (this.checksumVal + this.rendered.length) >>> 0;
+  }
+
+  override get name(): string {
+    return "Template::Regex";
+  }
+}
+
+export class TemplateParse extends TemplateBase {
+  constructor() {
+    super();
+    this.count = Number(Helper.configI64(this.name, "count"));
+  }
+
+  prepare(): void {
+    this.prepareTemplate();
+  }
+
+  run(_iteration_id: number): void {
+    const len = this.text.length;
+    let result = "";
+
+    const resultParts: string[] = [];
+    let estimatedSize = 0;
+
+    let i = 0;
+    while (i < len) {
+      if (i + 1 < len && this.text[i] === "{" && this.text[i + 1] === "{") {
+        let j = i + 2;
+        while (j + 1 < len) {
+          if (this.text[j] === "}" && this.text[j + 1] === "}") {
+            break;
+          }
+          j++;
+        }
+
+        if (j + 1 < len) {
+          const key = this.text.substring(i + 2, j).trim();
+          if (this.vars[key]) {
+            resultParts.push(this.vars[key]);
+            estimatedSize += this.vars[key].length;
+          }
+          i = j + 2;
+          continue;
+        }
+      }
+
+      resultParts.push(this.text[i]);
+      estimatedSize += 1;
+      i++;
+    }
+
+    this.rendered = resultParts.join("");
+    this.checksumVal = (this.checksumVal + this.rendered.length) >>> 0;
+  }
+
+  override get name(): string {
+    return "Template::Parse";
+  }
+}
+
 Benchmark.registerBenchmark("CLBG::Pidigits", Pidigits);
 Benchmark.registerBenchmark("Binarytrees::Obj", BinarytreesObj);
 Benchmark.registerBenchmark("Binarytrees::Arena", BinarytreesArena);
 Benchmark.registerBenchmark("Brainfuck::Array", BrainfuckArray);
 Benchmark.registerBenchmark("Brainfuck::Recursion", BrainfuckRecursion);
 Benchmark.registerBenchmark("CLBG::Fannkuchredux", Fannkuchredux);
-Benchmark.registerBenchmark("CLBG::Fasta", Fasta);
-Benchmark.registerBenchmark("CLBG::Knuckeotide", Knuckeotide);
 Benchmark.registerBenchmark("CLBG::Mandelbrot", Mandelbrot);
 Benchmark.registerBenchmark("Matmul::Single", Matmul1T);
 Benchmark.registerBenchmark("Matmul::T4", Matmul4T);
 Benchmark.registerBenchmark("Matmul::T8", Matmul8T);
 Benchmark.registerBenchmark("Matmul::T16", Matmul16T);
 Benchmark.registerBenchmark("CLBG::Nbody", Nbody);
-Benchmark.registerBenchmark("CLBG::RegexDna", RegexDna);
-Benchmark.registerBenchmark("CLBG::Revcomp", Revcomp);
 Benchmark.registerBenchmark("CLBG::Spectralnorm", Spectralnorm);
 Benchmark.registerBenchmark("Base64::Encode", Base64Encode);
 Benchmark.registerBenchmark("Base64::Decode", Base64Decode);
@@ -5883,8 +5676,8 @@ Benchmark.registerBenchmark("Distance::Jaro", Jaro);
 Benchmark.registerBenchmark("Distance::NGram", NGram);
 Benchmark.registerBenchmark("Etc::Words", Words);
 Benchmark.registerBenchmark("Etc::LogParser", LogParser);
-
-const RECOMPILE_MARKER = "RECOMPILE_MARKER_0";
+Benchmark.registerBenchmark("Template::Regex", TemplateRegex);
+Benchmark.registerBenchmark("Template::Parse", TemplateParse);
 
 try {
   main().catch(console.error);

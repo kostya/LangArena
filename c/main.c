@@ -24,6 +24,8 @@
 static uint32_t Helper_last = INIT;
 
 static cJSON *global_config = NULL;
+static char **global_order = NULL;
+static size_t global_order_count = 0;
 
 void Helper_reset(void) { Helper_last = INIT; }
 
@@ -66,7 +68,6 @@ uint32_t Helper_checksum_f64(double v) {
 }
 
 void Helper_load_config(const char *filename) {
-
   FILE *file = fopen(filename, "rb");
   if (!file) {
     fprintf(stderr, "Cannot open config file: %s\n", filename);
@@ -88,12 +89,35 @@ void Helper_load_config(const char *filename) {
   json_data[read_size] = '\0';
   fclose(file);
 
-  global_config = cJSON_Parse(json_data);
+  cJSON *parsed = cJSON_Parse(json_data);
   free(json_data);
 
-  if (!global_config) {
+  if (!parsed) {
     fprintf(stderr, "Error parsing JSON config: %s\n", cJSON_GetErrorPtr());
     exit(1);
+  }
+
+  if (cJSON_IsArray(parsed)) {
+    cJSON *config_map = cJSON_CreateObject();
+    int array_size = cJSON_GetArraySize(parsed);
+    global_order = malloc(sizeof(char *) * array_size);
+    global_order_count = 0;
+
+    cJSON *item;
+    cJSON_ArrayForEach(item, parsed) {
+      cJSON *name_item = cJSON_GetObjectItem(item, "name");
+      if (name_item && cJSON_IsString(name_item)) {
+        const char *name = name_item->valuestring;
+        cJSON_AddItemToObject(config_map, name, cJSON_Duplicate(item, 1));
+        global_order[global_order_count] = strdup(name);
+        global_order_count++;
+      }
+    }
+
+    global_config = config_map;
+    cJSON_Delete(parsed);
+  } else {
+    global_config = parsed;
   }
 }
 
@@ -101,6 +125,14 @@ void Helper_free_config(void) {
   if (global_config) {
     cJSON_Delete(global_config);
     global_config = NULL;
+  }
+  if (global_order) {
+    for (size_t i = 0; i < global_order_count; i++) {
+      free(global_order[i]);
+    }
+    free(global_order);
+    global_order = NULL;
+    global_order_count = 0;
   }
 }
 
@@ -113,24 +145,19 @@ int64_t Helper_config_i64(const char *class_name, const char *field_name) {
   cJSON *class_obj =
       cJSON_GetObjectItemCaseSensitive(global_config, class_name);
   if (!class_obj) {
-
     return 0;
   }
 
   cJSON *field = cJSON_GetObjectItemCaseSensitive(class_obj, field_name);
   if (!field) {
-
     return 0;
   }
 
   if (cJSON_IsNumber(field)) {
-
     return (int64_t)field->valuedouble;
   } else if (cJSON_IsString(field)) {
-
     return atoll(field->valuestring);
   } else {
-
     return 0;
   }
 }
@@ -150,7 +177,6 @@ const char *Helper_config_s(const char *class_name, const char *field_name) {
 
   cJSON *field = cJSON_GetObjectItemCaseSensitive(class_obj, field_name);
   if (!field || !cJSON_IsString(field)) {
-
     return "";
   }
 
@@ -257,6 +283,9 @@ void Benchmark_register(const char *name, Benchmark *(*factory)(void)) {
 
   strncpy(benchmark_factories[benchmark_factories_count].name, name,
           sizeof(benchmark_factories[benchmark_factories_count].name) - 1);
+  benchmark_factories[benchmark_factories_count]
+      .name[sizeof(benchmark_factories[benchmark_factories_count].name) - 1] =
+      '\0';
   benchmark_factories[benchmark_factories_count].create = factory;
   benchmark_factories_count++;
 }
@@ -279,18 +308,10 @@ void Benchmark_all(const char *single_bench) {
   int ok = 0;
   int fails = 0;
 
-  FILE *results_file = fopen("/tmp/results.js", "w");
-  if (results_file) {
-    fprintf(results_file, "{");
-  }
-
-  int first_result = 1;
-
-  for (size_t i = 0; i < benchmark_factories_count; i++) {
-    const char *bench_name = benchmark_factories[i].name;
+  for (size_t i = 0; i < global_order_count; i++) {
+    const char *bench_name = global_order[i];
 
     if (single_bench && strlen(single_bench) > 0) {
-
       const char *haystack = bench_name;
       const char *needle = single_bench;
 
@@ -311,10 +332,25 @@ void Benchmark_all(const char *single_bench) {
       }
     }
 
+    BenchmarkFactory *factory = NULL;
+    for (size_t j = 0; j < benchmark_factories_count; j++) {
+      if (strcmp(benchmark_factories[j].name, bench_name) == 0) {
+        factory = &benchmark_factories[j];
+        break;
+      }
+    }
+
+    if (!factory) {
+      printf(
+          "Warning: Benchmark '%s' defined in config but not found in code\n",
+          bench_name);
+      continue;
+    }
+
     printf("%s: ", bench_name);
     fflush(stdout);
 
-    Benchmark *bench = benchmark_factories[i].create();
+    Benchmark *bench = factory->create();
 
     Helper_reset();
 
@@ -342,30 +378,17 @@ void Benchmark_all(const char *single_bench) {
       ok++;
     } else {
       printf("ERR[actual=%u, expected=%u] ", actual_checksum,
-             (long long)expected_checksum);
+             (unsigned int)expected_checksum);
       fails++;
     }
 
     printf("in %.3fs\n", duration);
-
-    if (results_file) {
-      if (!first_result) {
-        fprintf(results_file, ",");
-      }
-      fprintf(results_file, "\"%s\":%.6f", bench_name, duration);
-      first_result = 0;
-    }
 
     bench->cleanup(bench);
     free(bench->data);
     free(bench);
 
     usleep(1000);
-  }
-
-  if (results_file) {
-    fprintf(results_file, "}");
-    fclose(results_file);
   }
 
   if (ok + fails > 0) {
@@ -1416,214 +1439,6 @@ Benchmark *BrainfuckRecursion_create(void) {
 }
 
 typedef struct {
-  char c;
-  double prob;
-} Fasta_Gene;
-
-typedef struct {
-  int64_t n;
-  char *result_str;
-  size_t result_capacity;
-  size_t result_length;
-  uint32_t result_val;
-} FastaData;
-
-static void Fasta_grow_result(FastaData *self, size_t needed) {
-  size_t min_capacity = self->result_length + needed + 1;
-  if (min_capacity <= self->result_capacity)
-    return;
-
-  size_t new_capacity =
-      self->result_capacity ? self->result_capacity * 2 : 1024;
-  while (new_capacity < min_capacity)
-    new_capacity *= 2;
-
-  self->result_str = realloc(self->result_str, new_capacity);
-  self->result_capacity = new_capacity;
-}
-
-static void Fasta_append(FastaData *self, const char *str) {
-  size_t len = strlen(str);
-  Fasta_grow_result(self, len + 1);
-  memcpy(self->result_str + self->result_length, str, len);
-  self->result_length += len;
-  self->result_str[self->result_length] = '\0';
-}
-
-static void Fasta_append_char(FastaData *self, char c) {
-  Fasta_grow_result(self, 2);
-  self->result_str[self->result_length++] = c;
-  self->result_str[self->result_length] = '\0';
-}
-
-static void Fasta_append_substring(FastaData *self, const char *str,
-                                   size_t len) {
-  Fasta_grow_result(self, len + 1);
-  memcpy(self->result_str + self->result_length, str, len);
-  self->result_length += len;
-  self->result_str[self->result_length] = '\0';
-}
-
-static char Fasta_select_random(Fasta_Gene *genelist, size_t size) {
-  double r = Helper_next_float(1.0);
-  if (r < genelist[0].prob)
-    return genelist[0].c;
-
-  int lo = 0, hi = size - 1;
-  while (hi > lo + 1) {
-    int i = (hi + lo) / 2;
-    if (r < genelist[i].prob)
-      hi = i;
-    else
-      lo = i;
-  }
-  return genelist[hi].c;
-}
-
-static void Fasta_make_random_fasta(FastaData *self, const char *id,
-                                    const char *desc, Fasta_Gene *genelist,
-                                    size_t genelist_size, int n_iter) {
-  char header[256];
-  snprintf(header, sizeof(header), ">%s %s\n", id, desc);
-  Fasta_append(self, header);
-
-  const int LINE_LENGTH = 60;
-  int todo = n_iter;
-
-  while (todo > 0) {
-    int m = (todo < LINE_LENGTH) ? todo : LINE_LENGTH;
-
-    for (int i = 0; i < m; i++) {
-      char c = Fasta_select_random(genelist, genelist_size);
-      Fasta_append_char(self, c);
-    }
-    Fasta_append_char(self, '\n');
-    todo -= LINE_LENGTH;
-  }
-}
-
-static void Fasta_make_repeat_fasta(FastaData *self, const char *id,
-                                    const char *desc, const char *s,
-                                    int n_iter) {
-  char header[256];
-  snprintf(header, sizeof(header), ">%s %s\n", id, desc);
-  Fasta_append(self, header);
-
-  const int LINE_LENGTH = 60;
-  int todo = n_iter;
-  size_t pos = 0;
-  size_t s_len = strlen(s);
-
-  while (todo > 0) {
-    int m = (todo < LINE_LENGTH) ? todo : LINE_LENGTH;
-    int remaining = m;
-
-    while (remaining > 0) {
-      int chunk = (remaining < (int)(s_len - pos)) ? remaining : (s_len - pos);
-      Fasta_append_substring(self, s + pos, chunk);
-      pos = (pos + chunk) % s_len;
-      remaining -= chunk;
-    }
-
-    Fasta_append_char(self, '\n');
-    todo -= LINE_LENGTH;
-  }
-}
-
-void Fasta_prepare(Benchmark *self) {
-  FastaData *data = (FastaData *)self->data;
-
-  data->result_length = 0;
-  if (data->result_str) {
-    free(data->result_str);
-    data->result_str = NULL;
-  }
-  data->result_capacity = 0;
-}
-
-void Fasta_run(Benchmark *self, int iteration_id) {
-  FastaData *data = (FastaData *)self->data;
-
-  if (iteration_id == 0 && data->result_str == NULL) {
-    data->result_str = malloc(1024);
-    data->result_capacity = 1024;
-    data->result_str[0] = '\0';
-    data->result_length = 0;
-  }
-
-  Fasta_Gene IUB[] = {{'a', 0.27},
-                      {'c', 0.39},
-                      {'g', 0.51},
-                      {'t', 0.78},
-                      {'B', 0.8},
-                      {'D', 0.8200000000000001},
-                      {'H', 0.8400000000000001},
-                      {'K', 0.8600000000000001},
-                      {'M', 0.8800000000000001},
-                      {'N', 0.9000000000000001},
-                      {'R', 0.9200000000000002},
-                      {'S', 0.9400000000000002},
-                      {'V', 0.9600000000000002},
-                      {'W', 0.9800000000000002},
-                      {'Y', 1.0000000000000002}};
-
-  Fasta_Gene HOMO[] = {{'a', 0.302954942668},
-                       {'c', 0.5009432431601},
-                       {'g', 0.6984905497992},
-                       {'t', 1.0}};
-
-  const char *ALU =
-      "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTC"
-      "AGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCG"
-      "TGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGG"
-      "AGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
-
-  Fasta_make_repeat_fasta(data, "ONE", "Homo sapiens alu", ALU,
-                          (int)data->n * 2);
-  Fasta_make_random_fasta(data, "TWO", "IUB ambiguity codes", IUB,
-                          sizeof(IUB) / sizeof(IUB[0]), (int)data->n * 3);
-  Fasta_make_random_fasta(data, "THREE", "Homo sapiens frequency", HOMO,
-                          sizeof(HOMO) / sizeof(HOMO[0]), (int)data->n * 5);
-}
-
-uint32_t Fasta_checksum(Benchmark *self) {
-  FastaData *data = (FastaData *)self->data;
-
-  return Helper_checksum_string(data->result_str);
-}
-
-void Fasta_cleanup(Benchmark *self) {
-  FastaData *data = (FastaData *)self->data;
-  if (data->result_str) {
-    free(data->result_str);
-    data->result_str = NULL;
-  }
-}
-
-Benchmark *Fasta_create(void) {
-  Benchmark *bench = Benchmark_create("CLBG::Fasta");
-
-  FastaData *data = malloc(sizeof(FastaData));
-  data->n = Helper_config_i64("CLBG::Fasta", "n");
-  if (data->n == 0) {
-    data->n = 1000;
-  }
-
-  data->result_str = NULL;
-  data->result_capacity = 0;
-  data->result_length = 0;
-  data->result_val = 0;
-
-  bench->data = data;
-  bench->prepare = Fasta_prepare;
-  bench->run = Fasta_run;
-  bench->checksum = Fasta_checksum;
-  bench->cleanup = Fasta_cleanup;
-
-  return bench;
-}
-
-typedef struct {
   int64_t n;
   uint32_t result_val;
 } FannkuchreduxData;
@@ -1735,820 +1550,6 @@ Benchmark *Fannkuchredux_create(void) {
   bench->run = Fannkuchredux_run;
   bench->checksum = Fannkuchredux_checksum;
   bench->cleanup = Fannkuchredux_cleanup;
-
-  return bench;
-}
-
-typedef struct {
-  int64_t n;
-  char *seq;
-  size_t seq_length;
-  char *result_str;
-  size_t result_capacity;
-  size_t result_length;
-} KnuckeotideData;
-
-typedef struct {
-  char *key;
-  int count;
-} FrequencyEntry;
-
-static int compare_entries(const void *a, const void *b) {
-  const FrequencyEntry *ea = (const FrequencyEntry *)a;
-  const FrequencyEntry *eb = (const FrequencyEntry *)b;
-
-  if (ea->count != eb->count) {
-    return eb->count - ea->count;
-  }
-
-  return strcmp(ea->key, eb->key);
-}
-
-static void Knuckeotide_grow_result(KnuckeotideData *self, size_t needed) {
-  size_t new_capacity = self->result_capacity;
-  while (self->result_length + needed >= new_capacity) {
-    new_capacity = new_capacity ? new_capacity * 2 : 1024;
-  }
-  if (new_capacity > self->result_capacity) {
-    self->result_str = realloc(self->result_str, new_capacity);
-    self->result_capacity = new_capacity;
-  }
-}
-
-static void Knuckeotide_append(KnuckeotideData *self, const char *str) {
-  size_t len = strlen(str);
-  Knuckeotide_grow_result(self, len + 1);
-  memcpy(self->result_str + self->result_length, str, len);
-  self->result_length += len;
-  self->result_str[self->result_length] = '\0';
-}
-
-static void Knuckeotide_sort_by_freq(KnuckeotideData *self, int length) {
-#define TABLE_SIZE 8192
-  FrequencyEntry *table = calloc(TABLE_SIZE, sizeof(FrequencyEntry));
-
-  int n = (int)(self->seq_length - length + 1);
-
-  for (int i = 0; i < n; i++) {
-    char key[length + 1];
-    strncpy(key, self->seq + i, length);
-    key[length] = '\0';
-
-    unsigned int hash = 0;
-    for (int j = 0; j < length; j++) {
-      hash = hash * 31 + key[j];
-    }
-    hash %= TABLE_SIZE;
-
-    if (table[hash].key == NULL) {
-      table[hash].key = strdup(key);
-      table[hash].count = 1;
-    } else if (strcmp(table[hash].key, key) == 0) {
-      table[hash].count++;
-    } else {
-
-      int j = (hash + 1) % TABLE_SIZE;
-      while (j != hash && table[j].key != NULL &&
-             strcmp(table[j].key, key) != 0) {
-        j = (j + 1) % TABLE_SIZE;
-      }
-      if (table[j].key == NULL) {
-        table[j].key = strdup(key);
-        table[j].count = 1;
-      } else {
-        table[j].count++;
-      }
-    }
-  }
-
-  FrequencyEntry *entries = malloc(TABLE_SIZE * sizeof(FrequencyEntry));
-  int entry_count = 0;
-  for (int i = 0; i < TABLE_SIZE; i++) {
-    if (table[i].key != NULL) {
-      entries[entry_count++] = table[i];
-    }
-  }
-
-  qsort(entries, entry_count, sizeof(FrequencyEntry), compare_entries);
-
-  for (int i = 0; i < entry_count; i++) {
-    double percent = (entries[i].count * 100.0) / n;
-
-    for (char *p = entries[i].key; *p; p++) {
-      if (*p >= 'a' && *p <= 'z')
-        *p = *p - 'a' + 'A';
-    }
-
-    char line[256];
-    snprintf(line, sizeof(line), "%s %.3f\n", entries[i].key, percent);
-    Knuckeotide_append(self, line);
-    free(entries[i].key);
-  }
-  Knuckeotide_append(self, "\n");
-
-  free(table);
-  free(entries);
-}
-
-static void Knuckeotide_find_seq(KnuckeotideData *self, const char *s) {
-  size_t s_len = strlen(s);
-  int count = 0;
-
-  for (size_t i = 0; i <= self->seq_length - s_len; i++) {
-    if (strncasecmp(self->seq + i, s, s_len) == 0) {
-      count++;
-    }
-  }
-
-  char upper_s[32];
-  strcpy(upper_s, s);
-  for (char *p = upper_s; *p; p++) {
-    if (*p >= 'a' && *p <= 'z')
-      *p = *p - 'a' + 'A';
-  }
-
-  char line[256];
-  snprintf(line, sizeof(line), "%d\t%s\n", count, upper_s);
-  Knuckeotide_append(self, line);
-}
-
-void Knuckeotide_prepare(Benchmark *self) {
-  KnuckeotideData *data = (KnuckeotideData *)self->data;
-
-  data->result_length = 0;
-  if (data->result_str) {
-    free(data->result_str);
-    data->result_str = NULL;
-  }
-  data->result_capacity = 0;
-
-  FastaData fasta_instance;
-  memset(&fasta_instance, 0, sizeof(FastaData));
-  fasta_instance.n = data->n;
-  fasta_instance.result_str = NULL;
-  fasta_instance.result_capacity = 0;
-  fasta_instance.result_length = 0;
-
-  Benchmark temp_bench;
-  memset(&temp_bench, 0, sizeof(Benchmark));
-  temp_bench.data = &fasta_instance;
-  temp_bench.name = "CLBG::Fasta";
-
-  Fasta_run(&temp_bench, 0);
-
-  if (!fasta_instance.result_str) {
-    printf("  ERROR: Fasta returned NULL result\n");
-    data->seq = strdup("");
-    data->seq_length = 0;
-    return;
-  }
-
-  const char *result = fasta_instance.result_str;
-  bool in_three = false;
-  data->seq_length = 0;
-
-  if (data->seq)
-    free(data->seq);
-  data->seq = malloc(strlen(result) + 1);
-
-  const char *ptr = result;
-  while (*ptr) {
-    if (strncmp(ptr, ">THREE", 6) == 0) {
-      in_three = true;
-      while (*ptr && *ptr != '\n')
-        ptr++;
-      if (*ptr == '\n')
-        ptr++;
-      continue;
-    }
-
-    if (in_three) {
-      if (*ptr == '>')
-        break;
-
-      if (*ptr != '\n') {
-        data->seq[data->seq_length++] = *ptr;
-      }
-    }
-
-    ptr++;
-  }
-  data->seq[data->seq_length] = '\0';
-
-  free(fasta_instance.result_str);
-}
-
-void Knuckeotide_run(Benchmark *self, int iteration_id) {
-  KnuckeotideData *data = (KnuckeotideData *)self->data;
-
-  if (iteration_id == 0 && data->result_str == NULL) {
-    data->result_str = malloc(1024);
-    data->result_capacity = 1024;
-    data->result_str[0] = '\0';
-    data->result_length = 0;
-  }
-
-  for (int i = 1; i <= 2; i++) {
-    Knuckeotide_sort_by_freq(data, i);
-  }
-
-  const char *searches[] = {"ggt", "ggta", "ggtatt", "ggtattttaatt",
-                            "ggtattttaatttatagt"};
-  for (int i = 0; i < 5; i++) {
-    Knuckeotide_find_seq(data, searches[i]);
-  }
-}
-
-uint32_t Knuckeotide_checksum(Benchmark *self) {
-  KnuckeotideData *data = (KnuckeotideData *)self->data;
-
-  if (!data->result_str) {
-    return 0;
-  }
-
-  uint32_t checksum = Helper_checksum_string(data->result_str);
-  return checksum;
-}
-
-void Knuckeotide_cleanup(Benchmark *self) {
-  KnuckeotideData *data = (KnuckeotideData *)self->data;
-
-  if (data->seq) {
-    free(data->seq);
-    data->seq = NULL;
-  }
-
-  if (data->result_str) {
-    free(data->result_str);
-    data->result_str = NULL;
-  }
-
-  data->result_capacity = 0;
-  data->result_length = 0;
-  data->seq_length = 0;
-}
-
-Benchmark *Knuckeotide_create(void) {
-  Benchmark *bench = Benchmark_create("CLBG::Knuckeotide");
-
-  KnuckeotideData *data = malloc(sizeof(KnuckeotideData));
-
-  data->n = Helper_config_i64("CLBG::Knuckeotide", "n");
-  if (data->n == 0) {
-    data->n = 1000;
-  }
-
-  data->seq = NULL;
-  data->seq_length = 0;
-  data->result_str = NULL;
-  data->result_capacity = 0;
-  data->result_length = 0;
-
-  bench->data = data;
-  bench->prepare = Knuckeotide_prepare;
-  bench->run = Knuckeotide_run;
-  bench->checksum = Knuckeotide_checksum;
-  bench->cleanup = Knuckeotide_cleanup;
-
-  return bench;
-}
-
-static const char *REGEXDNA_PATTERNS[] = {
-    "agggtaaa|tttaccct",         "[cgt]gggtaaa|tttaccc[acg]",
-    "a[act]ggtaaa|tttacc[agt]t", "ag[act]gtaaa|tttac[agt]ct",
-    "agg[act]taaa|ttta[agt]cct", "aggg[acg]aaa|ttt[cgt]ccct",
-    "agggt[cgt]aa|tt[acg]accct", "agggta[cgt]a|t[acg]taccct",
-    "agggtaa[cgt]|[acg]ttaccct"};
-static const int REGEXDNA_PATTERNS_COUNT = 9;
-
-static const struct {
-  char from;
-  const char *to;
-  int len;
-} REGEXDNA_REPLACEMENTS[] = {
-    {'B', "(c|g|t)", 7}, {'D', "(a|g|t)", 7}, {'H', "(a|c|t)", 7},
-    {'K', "(g|t)", 5},   {'M', "(a|c)", 5},   {'N', "(a|c|g|t)", 9},
-    {'R', "(a|g)", 5},   {'S', "(c|t)", 5},   {'V', "(a|c|g)", 7},
-    {'W', "(a|t)", 5},   {'Y', "(c|t)", 5},
-};
-static const int REGEXDNA_REPLACEMENTS_COUNT =
-    sizeof(REGEXDNA_REPLACEMENTS) / sizeof(REGEXDNA_REPLACEMENTS[0]);
-
-typedef struct {
-  char *seq;
-  int seq_len;
-  int ilen;
-  int clen;
-  char *result_str;
-  size_t result_capacity;
-  size_t result_length;
-
-  pcre2_code *compiled_patterns[9];
-  pcre2_match_data *match_data[9];
-} RegexDnaData;
-
-static void RegexDna_grow_result(RegexDnaData *self, size_t needed) {
-  size_t min_capacity = self->result_length + needed + 1;
-  if (min_capacity <= self->result_capacity)
-    return;
-
-  size_t new_capacity =
-      self->result_capacity ? self->result_capacity * 2 : 1024;
-  while (new_capacity < min_capacity)
-    new_capacity *= 2;
-
-  char *new_buffer = realloc(self->result_str, new_capacity);
-  if (!new_buffer) {
-    fprintf(stderr, "RegexDna_grow_result: Failed to reallocate memory\n");
-    return;
-  }
-
-  self->result_str = new_buffer;
-  self->result_capacity = new_capacity;
-}
-
-static void RegexDna_append(RegexDnaData *self, const char *str) {
-  size_t len = strlen(str);
-  RegexDna_grow_result(self, len + 1);
-  memcpy(self->result_str + self->result_length, str, len);
-  self->result_length += len;
-  self->result_str[self->result_length] = '\0';
-}
-
-static size_t RegexDna_count_pattern_optimized(RegexDnaData *self,
-                                               int pattern_idx) {
-  pcre2_code *re = self->compiled_patterns[pattern_idx];
-  pcre2_match_data *match_data = self->match_data[pattern_idx];
-
-  if (re == NULL || match_data == NULL) {
-    return 0;
-  }
-
-  size_t count = 0;
-  PCRE2_SIZE start_offset = 0;
-  PCRE2_SPTR subject = (PCRE2_SPTR)self->seq;
-  PCRE2_SIZE subject_length = self->seq_len;
-
-  while (1) {
-    int rc = pcre2_jit_match(re, subject, subject_length, start_offset, 0,
-                             match_data, NULL);
-
-    if (rc < 0) {
-      if (rc == PCRE2_ERROR_NOMATCH)
-        break;
-      break;
-    }
-
-    count++;
-
-    PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(match_data);
-    start_offset = ovector[1];
-
-    if (ovector[0] == ovector[1]) {
-      start_offset++;
-    }
-
-    if (start_offset > subject_length)
-      break;
-  }
-
-  return count;
-}
-
-void RegexDna_prepare(Benchmark *self) {
-  RegexDnaData *data = (RegexDnaData *)self->data;
-
-  int64_t n = Helper_config_i64(self->name, "n");
-  if (n == 0) {
-    n = 1000;
-  }
-
-  if (data->result_str) {
-    free(data->result_str);
-  }
-  data->result_str = NULL;
-  data->result_capacity = 0;
-  data->result_length = 0;
-
-  FastaData fasta_instance;
-  memset(&fasta_instance, 0, sizeof(FastaData));
-  fasta_instance.n = n;
-  fasta_instance.result_str = NULL;
-  fasta_instance.result_capacity = 0;
-  fasta_instance.result_length = 0;
-
-  Benchmark temp_bench;
-  memset(&temp_bench, 0, sizeof(Benchmark));
-  temp_bench.data = &fasta_instance;
-  temp_bench.name = "CLBG::Fasta";
-
-  Fasta_run(&temp_bench, 0);
-
-  if (!fasta_instance.result_str || fasta_instance.result_length == 0) {
-    fprintf(stderr, "Fasta returned empty result\n");
-    data->seq = strdup("");
-    data->seq_len = 0;
-    data->ilen = 0;
-    data->clen = 0;
-    if (fasta_instance.result_str)
-      free(fasta_instance.result_str);
-    return;
-  }
-
-  data->ilen = 0;
-  data->clen = 0;
-
-  data->seq = malloc(fasta_instance.result_length + 1);
-  if (!data->seq) {
-    fprintf(stderr, "Failed to allocate memory for seq\n");
-    free(fasta_instance.result_str);
-    return;
-  }
-
-  size_t seq_pos = 0;
-  char *current = fasta_instance.result_str;
-
-  while (*current) {
-    char *line_start = current;
-
-    while (*current && *current != '\n') {
-      current++;
-    }
-
-    int line_length = current - line_start;
-    data->ilen += line_length + 1;
-
-    if (line_length > 0 && line_start[0] != '>') {
-      memcpy(data->seq + seq_pos, line_start, line_length);
-      seq_pos += line_length;
-    }
-
-    if (*current == '\n') {
-      current++;
-    }
-  }
-
-  data->seq[seq_pos] = '\0';
-  data->seq_len = seq_pos;
-  data->clen = seq_pos;
-
-  free(fasta_instance.result_str);
-
-  for (int i = 0; i < REGEXDNA_PATTERNS_COUNT; i++) {
-    if (data->compiled_patterns[i]) {
-      pcre2_code_free(data->compiled_patterns[i]);
-      data->compiled_patterns[i] = NULL;
-    }
-    if (data->match_data[i]) {
-      pcre2_match_data_free(data->match_data[i]);
-      data->match_data[i] = NULL;
-    }
-  }
-
-  for (int i = 0; i < REGEXDNA_PATTERNS_COUNT; i++) {
-    int errornumber;
-    PCRE2_SIZE erroroffset;
-
-    data->compiled_patterns[i] = pcre2_compile(
-        (PCRE2_SPTR)REGEXDNA_PATTERNS[i], PCRE2_ZERO_TERMINATED,
-        PCRE2_UTF | PCRE2_NO_UTF_CHECK, &errornumber, &erroroffset, NULL);
-
-    if (data->compiled_patterns[i]) {
-      pcre2_jit_compile(data->compiled_patterns[i], PCRE2_JIT_COMPLETE);
-      data->match_data[i] = pcre2_match_data_create_from_pattern(
-          data->compiled_patterns[i], NULL);
-    } else {
-      PCRE2_UCHAR buffer[256];
-      pcre2_get_error_message(errornumber, buffer, sizeof(buffer));
-      fprintf(stderr, "PCRE2 compilation failed for pattern %d: %s\n", i,
-              buffer);
-      data->match_data[i] = NULL;
-    }
-  }
-}
-
-void RegexDna_run(Benchmark *self, int iteration_id) {
-  RegexDnaData *data = (RegexDnaData *)self->data;
-
-  char buffer[256];
-  for (int i = 0; i < REGEXDNA_PATTERNS_COUNT; i++) {
-    size_t count = RegexDna_count_pattern_optimized(data, i);
-    snprintf(buffer, sizeof(buffer), "%s %zu\n", REGEXDNA_PATTERNS[i], count);
-    RegexDna_append(data, buffer);
-  }
-
-  char *seq2 = malloc(data->seq_len * 9 + 1);
-  if (!seq2) {
-    fprintf(stderr, "Failed to allocate memory for seq2\n");
-    return;
-  }
-
-  int seq2_len = 0;
-  for (int i = 0; i < data->seq_len; i++) {
-    char c = data->seq[i];
-    int found = 0;
-
-    for (int j = 0; j < REGEXDNA_REPLACEMENTS_COUNT; j++) {
-      if (c == REGEXDNA_REPLACEMENTS[j].from) {
-        memcpy(seq2 + seq2_len, REGEXDNA_REPLACEMENTS[j].to,
-               REGEXDNA_REPLACEMENTS[j].len);
-        seq2_len += REGEXDNA_REPLACEMENTS[j].len;
-        found = 1;
-        break;
-      }
-    }
-
-    if (!found) {
-      seq2[seq2_len++] = c;
-    }
-  }
-  seq2[seq2_len] = '\0';
-
-  snprintf(buffer, sizeof(buffer), "\n%d\n%d\n%d\n", data->ilen, data->clen,
-           seq2_len);
-  RegexDna_append(data, buffer);
-
-  free(seq2);
-}
-
-uint32_t RegexDna_checksum(Benchmark *self) {
-  RegexDnaData *data = (RegexDnaData *)self->data;
-
-  if (!data->result_str) {
-    return 0;
-  }
-
-  uint32_t checksum = Helper_checksum_string(data->result_str);
-  return checksum;
-}
-
-void RegexDna_cleanup(Benchmark *self) {
-  RegexDnaData *data = (RegexDnaData *)self->data;
-
-  if (!data)
-    return;
-
-  for (int i = 0; i < REGEXDNA_PATTERNS_COUNT; i++) {
-    if (data->compiled_patterns[i]) {
-      pcre2_code_free(data->compiled_patterns[i]);
-      data->compiled_patterns[i] = NULL;
-    }
-    if (data->match_data[i]) {
-      pcre2_match_data_free(data->match_data[i]);
-      data->match_data[i] = NULL;
-    }
-  }
-
-  if (data->seq) {
-    free(data->seq);
-    data->seq = NULL;
-  }
-
-  if (data->result_str) {
-    free(data->result_str);
-    data->result_str = NULL;
-  }
-
-  data->result_capacity = 0;
-  data->result_length = 0;
-  data->seq_len = 0;
-  data->ilen = 0;
-  data->clen = 0;
-}
-
-Benchmark *RegexDna_create(void) {
-  Benchmark *bench = Benchmark_create("CLBG::RegexDna");
-
-  RegexDnaData *data = calloc(1, sizeof(RegexDnaData));
-
-  data->seq = NULL;
-  data->result_str = NULL;
-  data->result_capacity = 0;
-  data->result_length = 0;
-
-  for (int i = 0; i < REGEXDNA_PATTERNS_COUNT; i++) {
-    data->compiled_patterns[i] = NULL;
-    data->match_data[i] = NULL;
-  }
-
-  bench->data = data;
-  bench->prepare = RegexDna_prepare;
-  bench->run = RegexDna_run;
-  bench->checksum = RegexDna_checksum;
-  bench->cleanup = RegexDna_cleanup;
-
-  return bench;
-}
-
-typedef struct {
-  char *input;
-  uint32_t checksum_val;
-} RevcompData;
-
-static char Revcomp_complement(char c) {
-  static const char *from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
-  static const char *to = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
-  static char lookup[256];
-  static int initialized = 0;
-
-  if (!initialized) {
-    for (int i = 0; i < 256; i++)
-      lookup[i] = (char)i;
-    for (size_t i = 0; from[i] && to[i]; i++) {
-      lookup[(unsigned char)from[i]] = to[i];
-    }
-    initialized = 1;
-  }
-
-  return lookup[(unsigned char)c];
-}
-
-static char *Revcomp_process(const char *input) {
-  size_t len = strlen(input);
-
-  static char lookup[256];
-  static int initialized = 0;
-
-  if (!initialized) {
-    for (int i = 0; i < 256; i++)
-      lookup[i] = (char)i;
-
-    const char *from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN";
-    const char *to = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN";
-
-    for (size_t i = 0; from[i] && to[i]; i++) {
-      lookup[(unsigned char)from[i]] = to[i];
-    }
-    initialized = 1;
-  }
-
-  size_t result_len = len + (len / 60) + 1;
-  if (len % 60 == 0 && len > 0)
-    result_len--;
-
-  char *result = malloc(result_len + 1);
-  if (!result)
-    return NULL;
-
-  char *out = result;
-  size_t processed = 0;
-
-  while (processed < len) {
-
-    size_t block_size = 60;
-    if (len - processed < 60) {
-      block_size = len - processed;
-    }
-
-    for (size_t i = 0; i < block_size; i++) {
-      char c = input[len - 1 - processed - i];
-      *out++ = lookup[(unsigned char)c];
-    }
-
-    *out++ = '\n';
-    processed += block_size;
-  }
-
-  if (len > 0 && len % 60 == 0) {
-    out--;
-  }
-
-  *out = '\0';
-  return result;
-}
-
-void Revcomp_prepare(Benchmark *self) {
-  RevcompData *data = (RevcompData *)self->data;
-
-  if (data->input)
-    free(data->input);
-  data->input = NULL;
-  data->checksum_val = 0;
-
-  int64_t n = Helper_config_i64(self->name, "n");
-  if (n == 0)
-    n = 1000;
-
-  FastaData fasta_instance;
-  memset(&fasta_instance, 0, sizeof(FastaData));
-  fasta_instance.n = n;
-  fasta_instance.result_str = NULL;
-  fasta_instance.result_capacity = 0;
-  fasta_instance.result_length = 0;
-
-  Benchmark temp_bench;
-  memset(&temp_bench, 0, sizeof(Benchmark));
-  temp_bench.data = &fasta_instance;
-  temp_bench.name = "CLBG::Fasta";
-
-  Fasta_run(&temp_bench, 0);
-
-  if (!fasta_instance.result_str) {
-    data->input = strdup("");
-    if (fasta_instance.result_str)
-      free(fasta_instance.result_str);
-    return;
-  }
-
-  char *ptr = fasta_instance.result_str;
-  size_t buffer_size = 0;
-  size_t buffer_capacity = 0;
-  char *buffer = NULL;
-
-  while (*ptr) {
-    char *line_start = ptr;
-    while (*ptr && *ptr != '\n')
-      ptr++;
-    size_t line_len = ptr - line_start;
-
-    if (line_len > 0) {
-      if (line_start[0] == '>') {
-
-        const char *sep = "\n---\n";
-        size_t sep_len = 5;
-
-        if (buffer_size + sep_len + 1 > buffer_capacity) {
-          buffer_capacity = (buffer_size + sep_len + 1) * 2;
-          char *new_buf = realloc(buffer, buffer_capacity);
-          if (!new_buf) {
-            free(buffer);
-            free(fasta_instance.result_str);
-            data->input = strdup("");
-            return;
-          }
-          buffer = new_buf;
-        }
-        memcpy(buffer + buffer_size, sep, sep_len);
-        buffer_size += sep_len;
-      } else {
-
-        if (buffer_size + line_len + 1 > buffer_capacity) {
-          buffer_capacity = (buffer_size + line_len + 1) * 2;
-          char *new_buf = realloc(buffer, buffer_capacity);
-          if (!new_buf) {
-            free(buffer);
-            free(fasta_instance.result_str);
-            data->input = strdup("");
-            return;
-          }
-          buffer = new_buf;
-        }
-        memcpy(buffer + buffer_size, line_start, line_len);
-        buffer_size += line_len;
-      }
-    }
-
-    if (*ptr == '\n')
-      ptr++;
-  }
-
-  if (buffer) {
-    buffer[buffer_size] = '\0';
-    data->input = buffer;
-  } else {
-    data->input = strdup("");
-  }
-
-  free(fasta_instance.result_str);
-}
-
-void Revcomp_run(Benchmark *self, int iteration_id) {
-  RevcompData *data = (RevcompData *)self->data;
-
-  if (!data->input)
-    return;
-
-  char *processed = Revcomp_process(data->input);
-  if (!processed)
-    return;
-
-  data->checksum_val += Helper_checksum_string(processed);
-
-  free(processed);
-}
-
-uint32_t Revcomp_checksum(Benchmark *self) {
-  RevcompData *data = (RevcompData *)self->data;
-  return data->checksum_val;
-}
-
-void Revcomp_cleanup(Benchmark *self) {
-  RevcompData *data = (RevcompData *)self->data;
-
-  if (data->input)
-    free(data->input);
-}
-
-Benchmark *Revcomp_create(void) {
-  Benchmark *bench = Benchmark_create("CLBG::Revcomp");
-
-  RevcompData *data = calloc(1, sizeof(RevcompData));
-
-  bench->data = data;
-  bench->prepare = Revcomp_prepare;
-  bench->run = Revcomp_run;
-  bench->checksum = Revcomp_checksum;
-  bench->cleanup = Revcomp_cleanup;
 
   return bench;
 }
@@ -5882,7 +4883,7 @@ static char *calculator_ast_generate_random_program(int64_t operations) {
       len += snprintf(result + len, capacity - len,
                       "(v%d / 3) * 4 - %ld / (3 + (18 - v%d)) %% v%d + 2 * ((9 "
                       "- v%d) * (v%d + 7))",
-                      v - 1, i, v - 2, v - 3, v - 6, v - 5);
+                      v - 1, (long)i, v - 2, v - 3, v - 6, v - 5);
       break;
     case 1:
       len += snprintf(result + len, capacity - len,
@@ -5911,8 +4912,8 @@ static char *calculator_ast_generate_random_program(int64_t operations) {
                       "((((((((((v%d)))))))))) * 2", v - 6);
       break;
     case 8:
-      len +=
-          snprintf(result + len, capacity - len, "%ld * (v%d%%6)%%7", i, v - 1);
+      len += snprintf(result + len, capacity - len, "%lld * (v%d%%6)%%7", i,
+                      v - 1);
       break;
     case 9:
       len += snprintf(result + len, capacity - len, "(1)/(0-v%d) + (v%d)",
@@ -9237,35 +8238,44 @@ typedef struct {
   size_t log_size;
   uint32_t checksum_val;
 
-  pcre2_code *compiled_patterns[8];
-  pcre2_match_data *match_data[8];
+  pcre2_code *compiled_patterns[13];
+  pcre2_match_data *match_data[13];
 } LogParserData;
 
 static const char *PATTERN_NAMES[] = {
-    "errors",    "bots",          "suspicious",    "ips",
-    "api_calls", "post_requests", "auth_attempts", "methods"};
+    "errors",        "bots",          "suspicious", "ips",    "api_calls",
+    "post_requests", "auth_attempts", "methods",    "emails", "passwords",
+    "tokens",        "sessions",      "peak_hours"};
 
 static const char *PATTERNS[] = {
-    " [5][0-9]{2} ",
-    "(?i)bot|crawler|scanner",
+    " [5][0-9]{2} | [4][0-9]{2} ",
+    "(?i)bot|crawler|scanner|spider|indexing|crawl|robot|spider",
     "(?i)etc/passwd|wp-admin|\\.\\./",
-    "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.35",
-    "/api/[^ \"]+",
+    "\\d+\\.\\d+\\.\\d+\\.35",
+    "/api/[^ \" ]+",
     "POST [^ ]* HTTP",
     "(?i)/login|/signin",
-    "(?i)get|post",
-};
+    "(?i)get|post|put",
+    "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}",
+    "password=[^&\\s\"]+",
+    "token=[^&\\s\"]+|api[_-]?key=[^&\\s\"]+",
+    "session[_-]?id=[^&\\s\"]+",
+    "\\[\\d+/\\w+/\\d+:1[3-7]:\\d+:\\d+ [+\\-]\\d+\\]"};
 
-#define PATTERNS_COUNT 8
+#define PATTERNS_COUNT 13
 
 static const char *IPS[255];
 static const char *METHODS[] = {"GET", "POST", "PUT", "DELETE"};
-static const char *PATHS[] = {
-    "/index.html", "/api/users",         "/login", "/admin", "/images/logo.png",
-    "/etc/passwd", "/wp-admin/setup.php"};
+static const char *PATHS[] = {"/index.html", "/api/users",
+                              "/admin",      "/images/logo.png",
+                              "/etc/passwd", "/wp-admin/setup.php"};
 static int STATUSES[] = {200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503};
 static const char *AGENTS[] = {"Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0",
                                "scanner/2.0"};
+static const char *USERS[] = {"john", "jane", "alex",  "sarah",
+                              "mike", "anna", "david", "elena"};
+static const char *DOMAINS[] = {"example.com", "gmail.com",   "yahoo.com",
+                                "hotmail.com", "company.org", "mail.ru"};
 
 static void init_ips(void) {
   static int initialized = 0;
@@ -9281,11 +8291,39 @@ static void init_ips(void) {
 }
 
 static void generate_log_line(char *buffer, size_t *pos, int i) {
-  *pos += sprintf(buffer + *pos,
-                  "%s - - [%d/Oct/2023:13:55:36 +0000] \"%s %s HTTP/1.0\" %d "
-                  "2326 \"-\" \"%s\"\n",
-                  IPS[i % 255], i % 31, METHODS[i % 4], PATHS[i % 7],
-                  STATUSES[i % 11], AGENTS[i % 4]);
+  if (i % 3 == 0) {
+    *pos += sprintf(buffer + *pos,
+                    "%s - - [%d/Oct/2023:%d:55:36 +0000] \"%s "
+                    "/login?email=%s%d@%s&password=secret%d HTTP/1.1\" %d 2326 "
+                    "\"http://%s\" \"%s\"\n",
+                    IPS[i % 255], i % 31, i % 60, METHODS[i % 4], USERS[i % 8],
+                    i % 100, DOMAINS[i % 6], i % 10000, STATUSES[i % 11],
+                    DOMAINS[i % 6], AGENTS[i % 4]);
+  } else if (i % 5 == 0) {
+    char token[200] = "";
+    for (int j = 0; j < (i % 3) + 1; j++) {
+      strcat(token, "abcdef123456");
+    }
+    *pos +=
+        sprintf(buffer + *pos,
+                "%s - - [%d/Oct/2023:%d:55:36 +0000] \"%s /api/data?token=%s "
+                "HTTP/1.1\" %d 2326 \"http://%s\" \"%s\"\n",
+                IPS[i % 255], i % 31, i % 60, METHODS[i % 4], token,
+                STATUSES[i % 11], DOMAINS[i % 6], AGENTS[i % 4]);
+  } else if (i % 7 == 0) {
+    *pos += sprintf(buffer + *pos,
+                    "%s - - [%d/Oct/2023:%d:55:36 +0000] \"%s "
+                    "/user/profile?session_id=sess_%x HTTP/1.1\" %d 2326 "
+                    "\"http://%s\" \"%s\"\n",
+                    IPS[i % 255], i % 31, i % 60, METHODS[i % 4], i * 12345,
+                    STATUSES[i % 11], DOMAINS[i % 6], AGENTS[i % 4]);
+  } else {
+    *pos += sprintf(buffer + *pos,
+                    "%s - - [%d/Oct/2023:%d:55:36 +0000] \"%s %s HTTP/1.1\" %d "
+                    "2326 \"http://%s\" \"%s\"\n",
+                    IPS[i % 255], i % 31, i % 60, METHODS[i % 4], PATHS[i % 6],
+                    STATUSES[i % 11], DOMAINS[i % 6], AGENTS[i % 4]);
+  }
 }
 
 void LogParser_prepare(Benchmark *self) {
@@ -9300,7 +8338,7 @@ void LogParser_prepare(Benchmark *self) {
 
   data->lines_count = (int)Helper_config_i64(self->name, "lines_count");
 
-  size_t estimated_size = data->lines_count * 150 + 1;
+  size_t estimated_size = data->lines_count * 200 + 1;
   char *log_buf = malloc(estimated_size);
   if (!log_buf)
     return;
@@ -9414,6 +8452,401 @@ Benchmark *LogParser_create(void) {
   return bench;
 }
 
+static const char *FIRST_NAMES[] = {"John",    "Jane",  "Bob",   "Alice",
+                                    "Charlie", "Diana", "Sarah", "Mike"};
+static const char *LAST_NAMES[] = {"Smith",  "Johnson", "Brown",  "Taylor",
+                                   "Wilson", "Davis",   "Miller", "Jones"};
+static const char *CITIES[] = {"New York", "Los Angeles", "Chicago",
+                               "Houston",  "Phoenix",     "San Francisco"};
+static const char *LOREM =
+    "Lorem {ipsum} dolor {sit} amet, consectetur adipiscing elit. Sed do "
+    "eiusmod tempor incididunt ut labore {et} dolore magna aliqua. ";
+
+#define FIRST_NAMES_COUNT 8
+#define LAST_NAMES_COUNT 8
+#define CITIES_COUNT 6
+
+typedef struct VarEntry {
+  char *key;
+  char *value;
+  UT_hash_handle hh;
+} VarEntry;
+
+typedef struct {
+  int count;
+  uint32_t checksum_val;
+  char *text;
+  size_t text_size;
+  char *rendered;
+  size_t rendered_size;
+  VarEntry *vars;
+} TemplateBaseData;
+
+typedef struct {
+  TemplateBaseData base;
+  pcre2_code *re;
+  pcre2_match_data *match_data;
+} TemplateRegexData;
+
+typedef struct {
+  TemplateBaseData base;
+} TemplateParseData;
+
+static const char *TEMPLATE_REGEX_PATTERN = "\\{\\{\\s*(.*?)\\s*\\}\\}";
+
+static void add_var(TemplateBaseData *data, const char *key,
+                    const char *value) {
+  VarEntry *entry = malloc(sizeof(VarEntry));
+  entry->key = strdup(key);
+  entry->value = strdup(value);
+  HASH_ADD_KEYPTR(hh, data->vars, entry->key, strlen(entry->key), entry);
+}
+
+static const char *get_var(TemplateBaseData *data, const char *key) {
+  VarEntry *entry = NULL;
+  HASH_FIND_STR(data->vars, key, entry);
+  return entry ? entry->value : NULL;
+}
+
+static void clear_vars(TemplateBaseData *data) {
+  VarEntry *current, *tmp;
+  HASH_ITER(hh, data->vars, current, tmp) {
+    HASH_DEL(data->vars, current);
+    free(current->key);
+    free(current->value);
+    free(current);
+  }
+}
+
+static int prepare_template(TemplateBaseData *data) {
+  if (data->text) {
+    free(data->text);
+    data->text = NULL;
+  }
+
+  clear_vars(data);
+
+  size_t estimated_size = data->count * 200 + 1;
+  char *text_buf = malloc(estimated_size);
+  if (!text_buf)
+    return -1;
+
+  size_t pos = 0;
+
+  pos += sprintf(text_buf + pos, "<html><body>");
+  pos += sprintf(text_buf + pos, "<h1>{{TITLE}}</h1>");
+  add_var(data, "TITLE", "Template title");
+  pos += sprintf(text_buf + pos, "<p>");
+  pos += sprintf(text_buf + pos, "%s", LOREM);
+  pos += sprintf(text_buf + pos, "</p>");
+  pos += sprintf(text_buf + pos, "<table>");
+
+  for (int i = 0; i < data->count; i++) {
+    if (i % 3 == 0) {
+      pos += sprintf(text_buf + pos, "<!-- {comment} -->");
+    }
+    pos += sprintf(text_buf + pos, "<tr>");
+
+    char key_buf[32];
+
+    pos += sprintf(text_buf + pos, "<td>{{ FIRST_NAME%d }}</td>", i);
+    sprintf(key_buf, "FIRST_NAME%d", i);
+    add_var(data, key_buf, FIRST_NAMES[i % FIRST_NAMES_COUNT]);
+
+    pos += sprintf(text_buf + pos, "<td>{{LAST_NAME%d}}</td>", i);
+    sprintf(key_buf, "LAST_NAME%d", i);
+    add_var(data, key_buf, LAST_NAMES[i % LAST_NAMES_COUNT]);
+
+    pos += sprintf(text_buf + pos, "<td>{{  CITY%d  }}</td>", i);
+    sprintf(key_buf, "CITY%d", i);
+    add_var(data, key_buf, CITIES[i % CITIES_COUNT]);
+
+    pos += sprintf(text_buf + pos, "<td>{balance: %d}</td>", i % 100);
+    pos += sprintf(text_buf + pos, "</tr>\n");
+  }
+
+  pos += sprintf(text_buf + pos, "</table>");
+  pos += sprintf(text_buf + pos, "</body></html>");
+
+  data->text = text_buf;
+  data->text_size = pos;
+
+  return 0;
+}
+
+void TemplateRegex_prepare(Benchmark *self) {
+  TemplateRegexData *data = (TemplateRegexData *)self->data;
+
+  data->base.count = (int)Helper_config_i64(self->name, "count");
+  prepare_template(&data->base);
+
+  if (!data->re) {
+    int errornumber;
+    PCRE2_SIZE erroroffset;
+
+    data->re = pcre2_compile(
+        (PCRE2_SPTR)TEMPLATE_REGEX_PATTERN, PCRE2_ZERO_TERMINATED,
+        PCRE2_UTF | PCRE2_NO_UTF_CHECK, &errornumber, &erroroffset, NULL);
+
+    if (data->re) {
+      pcre2_jit_compile(data->re, PCRE2_JIT_COMPLETE);
+      data->match_data = pcre2_match_data_create_from_pattern(data->re, NULL);
+    }
+  }
+}
+
+void TemplateRegex_run(Benchmark *self, int iteration_id) {
+  TemplateRegexData *data = (TemplateRegexData *)self->data;
+  TemplateBaseData *base = &data->base;
+
+  if (!data->re || !data->match_data || !base->text)
+    return;
+
+  size_t estimated_size = base->text_size * 2;
+  char *result_buf = malloc(estimated_size);
+  if (!result_buf)
+    return;
+
+  size_t result_pos = 0;
+  PCRE2_SIZE start_offset = 0;
+  PCRE2_SPTR subject = (PCRE2_SPTR)base->text;
+  PCRE2_SIZE subject_len = base->text_size;
+
+  size_t last_pos = 0;
+
+  while (1) {
+    int rc = pcre2_jit_match(data->re, subject, subject_len, start_offset, 0,
+                             data->match_data, NULL);
+
+    if (rc < 0)
+      break;
+
+    PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(data->match_data);
+    PCRE2_SIZE match_start = ovector[0];
+    PCRE2_SIZE match_end = ovector[1];
+
+    if (match_start > last_pos) {
+      size_t len = match_start - last_pos;
+      memcpy(result_buf + result_pos, base->text + last_pos, len);
+      result_pos += len;
+    }
+
+    PCRE2_SIZE key_start = ovector[2];
+    PCRE2_SIZE key_end = ovector[3];
+
+    if (key_end > key_start) {
+      size_t key_len = key_end - key_start;
+      char *key = malloc(key_len + 1);
+      memcpy(key, base->text + key_start, key_len);
+      key[key_len] = '\0';
+
+      char *start = key;
+      while (*start == ' ' || *start == '\t')
+        start++;
+      char *end = key + key_len - 1;
+      while (end > start && (*end == ' ' || *end == '\t'))
+        end--;
+      *(end + 1) = '\0';
+
+      const char *value = get_var(base, start);
+      if (value) {
+        size_t value_len = strlen(value);
+        memcpy(result_buf + result_pos, value, value_len);
+        result_pos += value_len;
+      }
+
+      free(key);
+    }
+
+    last_pos = match_end;
+    start_offset = match_end;
+
+    if (start_offset >= subject_len)
+      break;
+  }
+
+  if (last_pos < base->text_size) {
+    size_t len = base->text_size - last_pos;
+    memcpy(result_buf + result_pos, base->text + last_pos, len);
+    result_pos += len;
+  }
+
+  result_buf[result_pos] = '\0';
+
+  if (base->rendered) {
+    free(base->rendered);
+  }
+  base->rendered = result_buf;
+  base->rendered_size = result_pos;
+  base->checksum_val += (uint32_t)result_pos;
+}
+
+uint32_t TemplateRegex_checksum(Benchmark *self) {
+  TemplateRegexData *data = (TemplateRegexData *)self->data;
+  TemplateBaseData *base = &data->base;
+  return base->checksum_val + Helper_checksum_string(base->rendered);
+}
+
+void TemplateRegex_cleanup(Benchmark *self) {
+  TemplateRegexData *data = (TemplateRegexData *)self->data;
+  TemplateBaseData *base = &data->base;
+
+  if (base->text) {
+    free(base->text);
+    base->text = NULL;
+  }
+
+  if (base->rendered) {
+    free(base->rendered);
+    base->rendered = NULL;
+  }
+
+  clear_vars(base);
+
+  if (data->match_data) {
+    pcre2_match_data_free(data->match_data);
+    data->match_data = NULL;
+  }
+
+  if (data->re) {
+    pcre2_code_free(data->re);
+    data->re = NULL;
+  }
+
+  base->text_size = 0;
+  base->rendered_size = 0;
+  base->checksum_val = 0;
+}
+
+Benchmark *TemplateRegex_create(void) {
+  Benchmark *bench = Benchmark_create("Template::Regex");
+
+  TemplateRegexData *data = calloc(1, sizeof(TemplateRegexData));
+
+  bench->data = data;
+  bench->prepare = TemplateRegex_prepare;
+  bench->run = TemplateRegex_run;
+  bench->checksum = TemplateRegex_checksum;
+  bench->cleanup = TemplateRegex_cleanup;
+
+  return bench;
+}
+
+void TemplateParse_prepare(Benchmark *self) {
+  TemplateParseData *data = (TemplateParseData *)self->data;
+
+  data->base.count = (int)Helper_config_i64(self->name, "count");
+  prepare_template(&data->base);
+}
+
+void TemplateParse_run(Benchmark *self, int iteration_id) {
+  TemplateParseData *data = (TemplateParseData *)self->data;
+  TemplateBaseData *base = &data->base;
+
+  if (!base->text)
+    return;
+
+  size_t estimated_size = (size_t)(base->text_size * 1.5) + 1;
+  char *result_buf = malloc(estimated_size);
+  if (!result_buf)
+    return;
+
+  size_t result_pos = 0;
+  size_t i = 0;
+  size_t len = base->text_size;
+
+  while (i < len) {
+    if (i + 1 < len && base->text[i] == '{' && base->text[i + 1] == '{') {
+      size_t j = i + 2;
+      while (j + 1 < len) {
+        if (base->text[j] == '}' && base->text[j + 1] == '}') {
+          break;
+        }
+        j++;
+      }
+
+      if (j + 1 < len) {
+        size_t key_len = j - i - 2;
+        char *key = malloc(key_len + 1);
+        memcpy(key, base->text + i + 2, key_len);
+        key[key_len] = '\0';
+
+        char *start = key;
+        while (*start == ' ' || *start == '\t')
+          start++;
+        char *end = key + key_len - 1;
+        while (end > start && (*end == ' ' || *end == '\t'))
+          end--;
+        *(end + 1) = '\0';
+
+        const char *value = get_var(base, start);
+        if (value) {
+          size_t value_len = strlen(value);
+          memcpy(result_buf + result_pos, value, value_len);
+          result_pos += value_len;
+        }
+
+        free(key);
+        i = j + 2;
+        continue;
+      }
+    }
+
+    result_buf[result_pos++] = base->text[i];
+    i++;
+  }
+
+  result_buf[result_pos] = '\0';
+
+  if (base->rendered) {
+    free(base->rendered);
+  }
+  base->rendered = result_buf;
+  base->rendered_size = result_pos;
+  base->checksum_val += (uint32_t)result_pos;
+}
+
+uint32_t TemplateParse_checksum(Benchmark *self) {
+  TemplateParseData *data = (TemplateParseData *)self->data;
+  TemplateBaseData *base = &data->base;
+  return base->checksum_val + Helper_checksum_string(base->rendered);
+}
+
+void TemplateParse_cleanup(Benchmark *self) {
+  TemplateParseData *data = (TemplateParseData *)self->data;
+  TemplateBaseData *base = &data->base;
+
+  if (base->text) {
+    free(base->text);
+    base->text = NULL;
+  }
+
+  if (base->rendered) {
+    free(base->rendered);
+    base->rendered = NULL;
+  }
+
+  clear_vars(base);
+
+  base->text_size = 0;
+  base->rendered_size = 0;
+  base->checksum_val = 0;
+}
+
+Benchmark *TemplateParse_create(void) {
+  Benchmark *bench = Benchmark_create("Template::Parse");
+
+  TemplateParseData *data = calloc(1, sizeof(TemplateParseData));
+
+  bench->data = data;
+  bench->prepare = TemplateParse_prepare;
+  bench->run = TemplateParse_run;
+  bench->checksum = TemplateParse_checksum;
+  bench->cleanup = TemplateParse_cleanup;
+
+  return bench;
+}
+
 void register_all_benchmarks(void) {
   Benchmark_register("CLBG::Pidigits", Pidigits_create);
   Benchmark_register("Binarytrees::Obj", BinarytreesObj_create);
@@ -9421,16 +8854,12 @@ void register_all_benchmarks(void) {
   Benchmark_register("Brainfuck::Array", BrainfuckArray_create);
   Benchmark_register("Brainfuck::Recursion", BrainfuckRecursion_create);
   Benchmark_register("CLBG::Fannkuchredux", Fannkuchredux_create);
-  Benchmark_register("CLBG::Fasta", Fasta_create);
-  Benchmark_register("CLBG::Knuckeotide", Knuckeotide_create);
   Benchmark_register("CLBG::Mandelbrot", Mandelbrot_create);
   Benchmark_register("Matmul::Single", Matmul_create);
   Benchmark_register("Matmul::T4", Matmul4T_create);
   Benchmark_register("Matmul::T8", Matmul8T_create);
   Benchmark_register("Matmul::T16", Matmul16T_create);
   Benchmark_register("CLBG::Nbody", Nbody_create);
-  Benchmark_register("CLBG::RegexDna", RegexDna_create);
-  Benchmark_register("CLBG::Revcomp", Revcomp_create);
   Benchmark_register("CLBG::Spectralnorm", Spectralnorm_create);
   Benchmark_register("Base64::Encode", Base64Encode_create);
   Benchmark_register("Base64::Decode", Base64Decode_create);
@@ -9467,6 +8896,8 @@ void register_all_benchmarks(void) {
   Benchmark_register("Distance::NGram", NGram_create);
   Benchmark_register("Etc::Words", Words_create);
   Benchmark_register("Etc::LogParser", LogParser_create);
+  Benchmark_register("Template::Regex", TemplateRegex_create);
+  Benchmark_register("Template::Parse", TemplateParse_create);
 }
 
 int main(int argc, char *argv[]) {

@@ -13,6 +13,7 @@ struct Globals {
 mut:
 	last   int = 42
 	config map[string]map[string]ConfigValue
+	order  []string
 }
 
 __global (
@@ -62,12 +63,41 @@ pub fn load_config(filename string) {
 	content := os.read_file(filename) or {
 		println('Cannot open config file: ${filename}')
 		g.config = map[string]map[string]ConfigValue{}
+		g.order = []
 		return
 	}
 
-	g.config = json.decode(map[string]map[string]ConfigValue, content) or {
-		map[string]map[string]ConfigValue{}
+	data := json.decode([]map[string]ConfigValue, content) or {
+		g.config = map[string]map[string]ConfigValue{}
+		g.order = []
+		return
 	}
+
+	mut config_map := map[string]map[string]ConfigValue{}
+	mut order_list := []string{}
+
+	for item in data {
+		name_val := item['name'] or { continue }
+		name := if name_val is string { name_val } else { continue
+		 }
+
+		mut inner_map := map[string]ConfigValue{}
+		for k, v in item {
+			if k != 'name' {
+				inner_map[k] = v
+			}
+		}
+
+		config_map[name] = inner_map.clone()
+		order_list << name
+	}
+
+	g.config = config_map.clone()
+	g.order = order_list.clone()
+}
+
+pub fn get_order() []string {
+	return g.order
 }
 
 pub fn config_i64(class_name string, field_name string) i64 {

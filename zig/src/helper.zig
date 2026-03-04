@@ -16,6 +16,8 @@ pub const Helper = struct {
     last: i32,
     config: json.Value,
     config_parsed: ?json.Parsed(json.Value) = null,
+    order: [][]const u8,
+    order_arena: std.heap.ArenaAllocator,
     allocator: Allocator,
 
     pub fn init(allocator: Allocator) !Helper {
@@ -23,6 +25,8 @@ pub const Helper = struct {
             .last = INIT,
             .config = json.Value{ .null = {} },
             .config_parsed = null,
+            .order = &[_][]const u8{},
+            .order_arena = std.heap.ArenaAllocator.init(allocator),
             .allocator = allocator,
         };
     }
@@ -31,6 +35,7 @@ pub const Helper = struct {
         if (self.config_parsed) |*parsed| {
             parsed.deinit();
         }
+        self.order_arena.deinit();
     }
 
     pub fn reset(self: *Helper) void {
@@ -97,6 +102,27 @@ pub const Helper = struct {
 
         self.config_parsed = parsed;
         self.config = parsed.value;
+
+        if (self.config == .array) {
+            const arena_allocator = self.order_arena.allocator();
+
+            var config_map = std.json.ObjectMap.init(arena_allocator);
+            var order_list: std.ArrayList([]const u8) = .empty;
+
+            for (self.config.array.items) |item| {
+                if (item == .object) {
+                    const name = item.object.get("name") orelse continue;
+                    if (name == .string) {
+                        const name_str = try arena_allocator.dupe(u8, name.string);
+                        try config_map.put(name_str, item);
+                        try order_list.append(arena_allocator, name_str);
+                    }
+                }
+            }
+
+            self.config = .{ .object = config_map };
+            self.order = order_list.items;
+        }
     }
 
     pub fn config_i64(self: *Helper, class_name: []const u8, field_name: []const u8) i64 {

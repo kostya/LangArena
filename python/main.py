@@ -63,6 +63,7 @@ class Helper:
 
     _last_value = INIT
     _config: Optional[Dict[str, Any]] = None
+    _order: List[str] = []
 
     @staticmethod
     def reset() -> None:
@@ -124,11 +125,27 @@ class Helper:
         try:
             config_path = Path(config_file)
             if not config_path.exists():
-
                 config_path = Path(config_file.replace('../', ''))
 
             with open(config_path, 'r') as f:
-                Helper._config = json.load(f)
+                data = json.load(f)
+
+                if isinstance(data, list):
+                    config_dict = {}
+                    order_list = []
+
+                    for item in data:
+                        name = item.get('name')
+                        if name:
+                            config_dict[name] = item
+                            order_list.append(name)
+
+                    Helper._config = config_dict
+                    Helper._order = order_list
+                else:
+                    Helper._config = data
+                    Helper._order = []
+
         except Exception as e:
             print(f'Error loading config file {config_file}: {e}')
             sys.exit(1)
@@ -221,49 +238,38 @@ class Benchmark(ABC):
             self.name = name
             self.constructor = constructor
 
-    _benchmark_factories: List[_NamedBenchmarkFactory] = []
+    _benchmark_factories: Dict[str, Callable[[], 'Benchmark']] = {}
 
     @staticmethod
     def register_benchmark(name: str,
                            constructor: Callable[[], 'Benchmark']) -> None:
-
-        if any(factory.name == name
-               for factory in Benchmark._benchmark_factories):
+        if name in Benchmark._benchmark_factories:
             print(
                 f'Warning: Benchmark with name "{name}" already registered. Skipping.'
             )
             return
-        Benchmark._benchmark_factories.append(
-            Benchmark._NamedBenchmarkFactory(name, constructor))
+        Benchmark._benchmark_factories[name] = constructor
 
     @staticmethod
     def run(single_bench: Optional[str] = None) -> None:
-        results = {}
         summary_time = 0.0
         ok = 0
         fails = 0
 
-        skip_benchmarks = {
-            'SortBenchmark', 'BufferHashBenchmark', 'GraphPathBenchmark'
-        }
-
-        for factory_info in Benchmark._benchmark_factories:
-            bench_name = factory_info.name
-
+        for bench_name in Helper._order:
             if single_bench and single_bench.lower() not in bench_name.lower():
                 continue
 
-            if bench_name in skip_benchmarks:
-                continue
-
-            config = Helper._config
-            if not config or bench_name not in config:
-                print(f'\n[{bench_name}]: SKIP - no config entry')
+            constructor = Benchmark._benchmark_factories.get(bench_name)
+            if constructor is None:
+                print(
+                    f'Warning: Benchmark "{bench_name}" defined in config but not found in code'
+                )
                 continue
 
             print(f'{bench_name}: ', end='', flush=True)
 
-            bench = factory_info.constructor()
+            bench = constructor()
 
             Helper.reset()
             bench.prepare()
@@ -281,12 +287,10 @@ class Benchmark(ABC):
                 bench.run_all()
                 end_time = Performance.now()
                 time_delta = (end_time - start_time) / 1000.0
-                results[bench_name] = time_delta
                 actual_result = bench.checksum()
             except TimeoutError:
                 end_time = Performance.now()
                 time_delta = (end_time - start_time) / 1000.0
-                results[bench_name] = time_delta
                 actual_result = "Timeout"
 
             expected_result = bench.expected_checksum
@@ -303,13 +307,6 @@ class Benchmark(ABC):
             gc.collect()
             print(f'in {time_delta:.3f}s')
             summary_time += time_delta
-
-        try:
-            results_path = Path('/tmp/results.python.json')
-            with open(results_path, 'w') as f:
-                json.dump(results, f)
-        except:
-            pass
 
         print(f'Summary: {summary_time:.4f}s, {ok + fails}, {ok}, {fails}')
 
@@ -818,208 +815,6 @@ class Fannkuchredux(Benchmark):
         return "CLBG::Fannkuchredux"
 
 
-@dataclass
-class Gene:
-    char: str
-    prob: float
-
-
-class Fasta(Benchmark):
-    LINE_LENGTH = 60
-
-    IUB = [
-        Gene('a', 0.27),
-        Gene('c', 0.39),
-        Gene('g', 0.51),
-        Gene('t', 0.78),
-        Gene('B', 0.8),
-        Gene('D', 0.8200000000000001),
-        Gene('H', 0.8400000000000001),
-        Gene('K', 0.8600000000000001),
-        Gene('M', 0.8800000000000001),
-        Gene('N', 0.9000000000000001),
-        Gene('R', 0.9200000000000002),
-        Gene('S', 0.9400000000000002),
-        Gene('V', 0.9600000000000002),
-        Gene('W', 0.9800000000000002),
-        Gene('Y', 1.0000000000000002),
-    ]
-
-    HOMO = [
-        Gene('a', 0.302954942668),
-        Gene('c', 0.5009432431601),
-        Gene('g', 0.6984905497992),
-        Gene('t', 1.0),
-    ]
-
-    ALU = ("GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGG"
-           "ATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTA"
-           "CTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGG"
-           "GAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGAT"
-           "CGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA")
-
-    def __init__(self):
-        super().__init__()
-        self.n = Helper.config_i64(self.name(), "n")
-        self.result_buffer = StringIO()
-
-    def set_iterations(self, count: int):
-        self.n = count
-
-    def _select_random(self, genelist: List[Gene]) -> str:
-        r = Helper.next_float()
-
-        if r < genelist[0].prob:
-            return genelist[0].char
-
-        lo = 0
-        hi = len(genelist) - 1
-
-        while hi > lo + 1:
-            i = (hi + lo) // 2
-            if r < genelist[i].prob:
-                hi = i
-            else:
-                lo = i
-
-        return genelist[hi].char
-
-    def _make_random_fasta(self, id_str: str, desc: str, genelist: List[Gene],
-                           n: int):
-        self.result_buffer.write(f'>{id_str} {desc}\n')
-
-        todo = n
-
-        while todo > 0:
-            m = min(todo, self.LINE_LENGTH)
-            line = []
-
-            for _ in range(m):
-                line.append(self._select_random(genelist))
-
-            self.result_buffer.write(''.join(line))
-            self.result_buffer.write('\n')
-            todo -= self.LINE_LENGTH
-
-    def _make_repeat_fasta(self, id_str: str, desc: str, s: str, n: int):
-        self.result_buffer.write(f'>{id_str} {desc}\n')
-
-        todo = n
-        k = 0
-        kn = len(s)
-
-        while todo > 0:
-            m = min(todo, self.LINE_LENGTH)
-            remaining = m
-
-            while remaining >= kn - k:
-                self.result_buffer.write(s[k:])
-                remaining -= kn - k
-                k = 0
-
-            if remaining > 0:
-                self.result_buffer.write(s[k:k + remaining])
-                k += remaining
-
-            self.result_buffer.write('\n')
-            todo -= self.LINE_LENGTH
-
-    def prepare(self):
-        self.result_buffer = StringIO()
-
-    def run_benchmark(self, iteration_id: int):
-        self._make_repeat_fasta("ONE", "Homo sapiens alu", self.ALU, self.n * 2)
-        self._make_random_fasta("TWO", "IUB ambiguity codes", self.IUB,
-                                self.n * 3)
-        self._make_random_fasta("THREE", "Homo sapiens frequency", self.HOMO,
-                                self.n * 5)
-
-    def get_result(self) -> str:
-        return self.result_buffer.getvalue()
-
-    def checksum(self) -> int:
-        return Helper.checksum_string(self.result_buffer.getvalue())
-
-    def name(self) -> str:
-        return "CLBG::Fasta"
-
-
-class Knuckeotide(Benchmark):
-
-    def __init__(self):
-        super().__init__()
-        self._seq = ""
-        self._result_str = ""
-
-    def _frequency(self, seq: str, length: int) -> Dict[str, int]:
-        n = len(seq) - length + 1
-        table = {}
-
-        for i in range(n):
-            key = seq[i:i + length]
-            table[key] = table.get(key, 0) + 1
-
-        return table
-
-    def _sort_by_freq(self, seq: str, length: int):
-        table = self._frequency(seq, length)
-        n = len(seq) - length + 1
-
-        sorted_items = sorted(table.items(), key=lambda x: x[1], reverse=True)
-
-        for key, value in sorted_items:
-            freq = (value * 100) / n
-            self._result_str += f"{key.upper()} {freq:.3f}\n"
-
-        self._result_str += '\n'
-
-    def _find_seq(self, seq: str, s: str):
-        table = self._frequency(seq, len(s))
-        count = table.get(s.lower(), 0)
-        self._result_str += f"{count}\t{s.upper()}\n"
-
-    def prepare(self):
-        n = Helper.config_i64(self.name(), "n")
-
-        fasta = Fasta()
-        fasta.set_iterations(n)
-        fasta.prepare()
-        fasta.run_benchmark(0)
-
-        fasta_output = fasta.get_result()
-
-        seq = ""
-        after_three = False
-
-        for line in fasta_output.split('\n'):
-            if line.startswith('>THREE'):
-                after_three = True
-                continue
-
-            if after_three:
-                if line.startswith('>'):
-                    break
-                seq += line.strip()
-
-        self._seq = seq
-
-    def run_benchmark(self, iteration_id: int):
-        for i in range(1, 3):
-            self._sort_by_freq(self._seq, i)
-
-        sequences = [
-            'ggt', 'ggta', 'ggtatt', 'ggtattttaatt', 'ggtattttaatttatagt'
-        ]
-        for s in sequences:
-            self._find_seq(self._seq, s)
-
-    def checksum(self) -> int:
-        return Helper.checksum_string(self._result_str)
-
-    def name(self) -> str:
-        return "CLBG::Knuckeotide"
-
-
 class Mandelbrot(Benchmark):
     ITER = 50
     LIMIT = 2.0
@@ -1385,162 +1180,6 @@ class Nbody(Benchmark):
 
     def name(self) -> str:
         return "CLBG::Nbody"
-
-
-class RegexDna(Benchmark):
-
-    def __init__(self):
-        super().__init__()
-        self.seq = ""
-        self.ilen = 0
-        self.clen = 0
-        self.result_str = ""
-        self.n = 0
-
-    def prepare(self):
-        self.n = Helper.config_i64(self.name(), "n")
-
-        fasta = Fasta()
-        fasta.set_iterations(self.n)
-        fasta.prepare()
-        fasta.run_benchmark(0)
-
-        fasta_output = fasta.get_result()
-
-        buffer = []
-        lines = fasta_output.split('\n')
-        for line in lines:
-            if line and not line.startswith('>'):
-                buffer.append(line.strip())
-
-        self.seq = ''.join(buffer)
-        self.ilen = len(fasta_output.encode('utf-8'))
-        self.clen = len(self.seq.encode('utf-8'))
-
-    def run_benchmark(self, iteration_id: int):
-
-        patterns = [
-            r'agggtaaa|tttaccct',
-            r'[cgt]gggtaaa|tttaccc[acg]',
-            r'a[act]ggtaaa|tttacc[agt]t',
-            r'ag[act]gtaaa|tttac[agt]ct',
-            r'agg[act]taaa|ttta[agt]cct',
-            r'aggg[acg]aaa|ttt[cgt]ccct',
-            r'agggt[cgt]aa|tt[acg]accct',
-            r'agggta[cgt]a|t[acg]taccct',
-            r'agggtaa[cgt]|[acg]ttaccct',
-        ]
-
-        for pattern in patterns:
-            matches = len(re.findall(pattern, self.seq, re.IGNORECASE))
-            self.result_str += f"{pattern} {matches}\n"
-
-        replacements = {
-            'B': '(c|g|t)',
-            'D': '(a|g|t)',
-            'H': '(a|c|t)',
-            'K': '(g|t)',
-            'M': '(a|c)',
-            'N': '(a|c|g|t)',
-            'R': '(a|g)',
-            'S': '(c|t)',
-            'V': '(a|c|g)',
-            'W': '(a|t)',
-            'Y': '(c|t)',
-        }
-
-        modified_seq = self.seq
-        for key, value in replacements.items():
-            modified_seq = re.sub(key, value, modified_seq, flags=re.IGNORECASE)
-
-        modified_len = len(modified_seq.encode('utf-8'))
-        self.result_str += f"\n{self.ilen}\n{self.clen}\n{modified_len}\n"
-
-    def checksum(self) -> int:
-        return Helper.checksum_string(self.result_str)
-
-    def name(self) -> str:
-        return "CLBG::RegexDna"
-
-
-class Revcomp(Benchmark):
-    FROM = "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
-    TO = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
-
-    def __init__(self):
-        super().__init__()
-        self.input = ""
-        self.result_value = 0
-        self._lookup_table = None
-
-    def _init_lookup_table(self):
-
-        if self._lookup_table:
-            return self._lookup_table
-
-        lookup = [i for i in range(256)]
-
-        for i in range(len(self.FROM)):
-            from_char = ord(self.FROM[i])
-            to_char = ord(self.TO[i])
-            lookup[from_char] = to_char
-
-        self._lookup_table = lookup
-        return lookup
-
-    def prepare(self):
-        n = Helper.config_i64(self.name(), "n")
-
-        fasta = Fasta()
-        fasta.n = n
-        fasta.prepare()
-        fasta.run_benchmark(0)
-
-        fasta_output = fasta.get_result()
-
-        lines = fasta_output.split('\n')
-        seq_parts = []
-
-        for line in lines:
-            if line.startswith('>'):
-                seq_parts.append("\n---\n")
-            elif line.strip():
-                seq_parts.append(line.strip())
-
-        self.input = ''.join(seq_parts)
-
-    def _revcomp_go_style(self, seq: str) -> str:
-
-        length = len(seq)
-        lookup = self._init_lookup_table()
-
-        line_length = 60
-        num_lines = (length + line_length - 1) // line_length
-
-        result_chars = []
-        read_pos = length - 1
-
-        for line in range(num_lines):
-            chars_in_line = min(line_length, read_pos + 1)
-
-            for i in range(chars_in_line):
-                char_code = ord(seq[read_pos])
-                read_pos -= 1
-                result_chars.append(chr(lookup[char_code]))
-
-            result_chars.append('\n')
-
-        return ''.join(result_chars)
-
-    def run_benchmark(self, iteration_id: int):
-        v = Helper.checksum_string(self._revcomp_go_style(self.input))
-        self.result_value = (self.result_value + v) & 0xFFFFFFFF
-
-    def checksum(self) -> int:
-        return self.result_value & 0xFFFFFFFF
-
-    def name(self) -> str:
-        return "CLBG::Revcomp"
 
 
 class Spectralnorm(Benchmark):
@@ -4536,24 +4175,37 @@ class Words(Benchmark):
 
 class LogParser(Benchmark):
     PATTERNS = [
-        ("errors", re.compile(r' [5][0-9]{2} ')),
-        ("bots", re.compile(r'bot|crawler|scanner', re.IGNORECASE)),
+        ("errors", re.compile(r' [5][0-9]{2} | [4][0-9]{2} ')),
+        ("bots",
+         re.compile(r'bot|crawler|scanner|spider|indexing|crawl|robot|spider',
+                    re.IGNORECASE)),
         ("suspicious", re.compile(r'etc/passwd|wp-admin|\.\./', re.IGNORECASE)),
-        ("ips", re.compile(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.35')),
-        ("api_calls", re.compile(r'/api/[^ "]+')),
+        ("ips", re.compile(r'\d+\.\d+\.\d+\.35')),
+        ("api_calls", re.compile(r'/api/[^ " ]+')),
         ("post_requests", re.compile(r'POST [^ ]* HTTP')),
         ("auth_attempts", re.compile(r'/login|/signin', re.IGNORECASE)),
-        ("methods", re.compile(r'get|post', re.IGNORECASE)),
+        ("methods", re.compile(r'get|post|put', re.IGNORECASE)),
+        ("emails",
+         re.compile(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}')),
+        ("passwords", re.compile(r'password=[^&\s"]+')),
+        ("tokens", re.compile(r'token=[^&\s"]+|api[_-]?key=[^&\s"]+')),
+        ("sessions", re.compile(r'session[_-]?id=[^&\s"]+')),
+        ("peak_hours", re.compile(r'\[\d+/\w+/\d+:1[3-7]:\d+:\d+ [+\-]\d+\]')),
     ]
 
     IPS = [f"192.168.1.{i}" for i in range(1, 256)]
     METHODS = ["GET", "POST", "PUT", "DELETE"]
     PATHS = [
-        "/index.html", "/api/users", "/login", "/admin", "/images/logo.png",
+        "/index.html", "/api/users", "/admin", "/images/logo.png",
         "/etc/passwd", "/wp-admin/setup.php"
     ]
     STATUSES = [200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503]
     AGENTS = ["Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0"]
+    USERS = ["john", "jane", "alex", "sarah", "mike", "anna", "david", "elena"]
+    DOMAINS = [
+        "example.com", "gmail.com", "yahoo.com", "hotmail.com", "company.org",
+        "mail.ru"
+    ]
 
     def __init__(self):
         super().__init__()
@@ -4572,11 +4224,22 @@ class LogParser(Benchmark):
         self.checksum_val = 0
 
     def _generate_log_line(self, i):
+        if i % 3 == 0:
+            path = f"/login?email={self.USERS[i % len(self.USERS)]}{i % 100}@{self.DOMAINS[i % len(self.DOMAINS)]}&password=secret{i % 10000}"
+        elif i % 5 == 0:
+            token = "abcdef123456" * ((i % 3) + 1)
+            path = f"/api/data?token={token}"
+        elif i % 7 == 0:
+            path = f"/user/profile?session_id=sess_{i * 12345:x}"
+        else:
+            path = self.PATHS[i % len(self.PATHS)]
+
         return (
-            f"{self.IPS[i % len(self.IPS)]} - - [{i % 31}/Oct/2023:13:55:36 +0000] "
-            f"\"{self.METHODS[i % len(self.METHODS)]} {self.PATHS[i % len(self.PATHS)]} HTTP/1.0\" "
-            f"{self.STATUSES[i % len(self.STATUSES)]} 2326 \"-\" \"{self.AGENTS[i % len(self.AGENTS)]}\"\n"
-        )
+            f"{self.IPS[i % len(self.IPS)]} - - [{i % 31}/Oct/2023:{i % 60}:55:36 +0000] "
+            f"\"{self.METHODS[i % len(self.METHODS)]} {path} HTTP/1.1\" "
+            f"{self.STATUSES[i % len(self.STATUSES)]} 2326 "
+            f"\"http://{self.DOMAINS[i % len(self.DOMAINS)]}\" "
+            f"\"{self.AGENTS[i % len(self.AGENTS)]}\"\n")
 
     def run_benchmark(self, iteration_id: int):
         matches = {}
@@ -4595,6 +4258,146 @@ class LogParser(Benchmark):
         return "Etc::LogParser"
 
 
+class TemplateBase(Benchmark):
+    FIRST_NAMES = [
+        "John", "Jane", "Bob", "Alice", "Charlie", "Diana", "Sarah", "Mike"
+    ]
+    LAST_NAMES = [
+        "Smith", "Johnson", "Brown", "Taylor", "Wilson", "Davis", "Miller",
+        "Jones"
+    ]
+    CITIES = [
+        "New York", "Los Angeles", "Chicago", "Houston", "Phoenix",
+        "San Francisco"
+    ]
+    LOREM = "Lorem {ipsum} dolor {sit} amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore {et} dolore magna aliqua. "
+
+    def __init__(self):
+        super().__init__()
+        self.count = 0
+        self.text = ""
+        self.rendered = ""
+        self.checksum_val = 0
+        self.vars = {}
+
+    def _prepare_template(self):
+        self.vars.clear()
+        lines = []
+        lines.append("<html><body>")
+        lines.append("<h1>{{TITLE}}</h1>")
+        self.vars["TITLE"] = "Template title"
+        lines.append("<p>")
+        lines.append(self.LOREM)
+        lines.append("</p>")
+        lines.append("<table>")
+
+        for i in range(self.count):
+            if i % 3 == 0:
+                lines.append("<!-- {comment} -->")
+            lines.append("<tr>")
+            lines.append(f"<td>{{{{ FIRST_NAME{i} }}}}</td>")
+            lines.append(f"<td>{{{{LAST_NAME{i}}}}}</td>")
+            lines.append(f"<td>{{{{  CITY{i}  }}}}</td>")
+
+            self.vars[f"FIRST_NAME{i}"] = self.FIRST_NAMES[i % len(
+                self.FIRST_NAMES)]
+            self.vars[f"LAST_NAME{i}"] = self.LAST_NAMES[i %
+                                                         len(self.LAST_NAMES)]
+            self.vars[f"CITY{i}"] = self.CITIES[i % len(self.CITIES)]
+
+            lines.append(f"<td>{{balance: {i % 100}}}</td>")
+            lines.append("</tr>\n")
+
+        lines.append("</table>")
+        lines.append("</body></html>")
+
+        self.text = ''.join(lines)
+
+    def checksum(self) -> int:
+        return (self.checksum_val +
+                Helper.checksum_string(self.rendered)) & 0xFFFFFFFF
+
+
+class TemplateRegex(TemplateBase):
+    PATTERN = re.compile(r'{{\s*(.*?)\s*}}')
+
+    def __init__(self):
+        super().__init__()
+
+    def prepare(self):
+        self.count = Helper.config_i64(self.name(), "count")
+        self._prepare_template()
+
+    def run_benchmark(self, iteration_id: int):
+        result = []
+        last_pos = 0
+
+        for match in self.PATTERN.finditer(self.text):
+            start, end = match.span()
+
+            if start > last_pos:
+                result.append(self.text[last_pos:start])
+
+            key = match.group(1).strip()
+            if key in self.vars:
+                result.append(self.vars[key])
+
+            last_pos = end
+
+        if last_pos < len(self.text):
+            result.append(self.text[last_pos:])
+
+        self.rendered = ''.join(result)
+        self.checksum_val += len(self.rendered)
+        self.checksum_val &= 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Template::Regex"
+
+
+class TemplateParse(TemplateBase):
+
+    def __init__(self):
+        super().__init__()
+
+    def prepare(self):
+        self.count = Helper.config_i64(self.name(), "count")
+        self._prepare_template()
+
+    def run_benchmark(self, iteration_id: int):
+        text_len = len(self.text)
+        result = []
+
+        result_size = int(text_len * 1.5)
+
+        i = 0
+        while i < text_len:
+            if i + 1 < text_len and self.text[i] == '{' and self.text[i +
+                                                                      1] == '{':
+                j = i + 2
+                while j + 1 < text_len:
+                    if self.text[j] == '}' and self.text[j + 1] == '}':
+                        break
+                    j += 1
+
+                if j + 1 < text_len:
+                    key = self.text[i + 2:j].strip()
+                    if key in self.vars:
+                        result.append(self.vars[key])
+                    i = j + 2
+                    continue
+
+            result.append(self.text[i])
+            i += 1
+
+        self.rendered = ''.join(result)
+        self.checksum_val += len(self.rendered)
+        self.checksum_val &= 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "Template::Parse"
+
+
 def register_benchmarks():
     Benchmark.register_benchmark('CLBG::Pidigits', Pidigits)
     Benchmark.register_benchmark('Binarytrees::Obj', BinarytreesObj)
@@ -4602,16 +4405,12 @@ def register_benchmarks():
     Benchmark.register_benchmark('Brainfuck::Array', BrainfuckArray)
     Benchmark.register_benchmark('Brainfuck::Recursion', BrainfuckRecursion)
     Benchmark.register_benchmark('CLBG::Fannkuchredux', Fannkuchredux)
-    Benchmark.register_benchmark('CLBG::Fasta', Fasta)
-    Benchmark.register_benchmark('CLBG::Knuckeotide', Knuckeotide)
     Benchmark.register_benchmark('CLBG::Mandelbrot', Mandelbrot)
     Benchmark.register_benchmark('Matmul::Single', Matmul1T)
     Benchmark.register_benchmark('Matmul::T4', Matmul4T)
     Benchmark.register_benchmark('Matmul::T8', Matmul8T)
     Benchmark.register_benchmark('Matmul::T16', Matmul16T)
     Benchmark.register_benchmark('CLBG::Nbody', Nbody)
-    Benchmark.register_benchmark('CLBG::RegexDna', RegexDna)
-    Benchmark.register_benchmark('CLBG::Revcomp', Revcomp)
     Benchmark.register_benchmark('CLBG::Spectralnorm', Spectralnorm)
     Benchmark.register_benchmark('Base64::Encode', Base64Encode)
     Benchmark.register_benchmark('Base64::Decode', Base64Decode)
@@ -4649,6 +4448,8 @@ def register_benchmarks():
     Benchmark.register_benchmark('Distance::NGram', NGram)
     Benchmark.register_benchmark('Etc::Words', Words)
     Benchmark.register_benchmark('Etc::LogParser', LogParser)
+    Benchmark.register_benchmark('Template::Regex', TemplateRegex)
+    Benchmark.register_benchmark('Template::Parse', TemplateParse)
 
 
 def main():

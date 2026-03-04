@@ -11,16 +11,12 @@ public class Main {
         Benchmark.registerBenchmark("Brainfuck::Array", () -> new BrainfuckArray());
         Benchmark.registerBenchmark("Brainfuck::Recursion", () -> new BrainfuckRecursion());
         Benchmark.registerBenchmark("CLBG::Fannkuchredux", () -> new Fannkuchredux());
-        Benchmark.registerBenchmark("CLBG::Fasta", () -> new Fasta());
-        Benchmark.registerBenchmark("CLBG::Knuckeotide", () -> new Knuckeotide());
         Benchmark.registerBenchmark("CLBG::Mandelbrot", () -> new Mandelbrot());
         Benchmark.registerBenchmark("Matmul::Single", () -> new Matmul1T());
         Benchmark.registerBenchmark("Matmul::T4", () -> new Matmul4T());
         Benchmark.registerBenchmark("Matmul::T8", () -> new Matmul8T());
         Benchmark.registerBenchmark("Matmul::T16", () -> new Matmul16T());
         Benchmark.registerBenchmark("CLBG::Nbody", () -> new Nbody());
-        Benchmark.registerBenchmark("CLBG::RegexDna", () -> new RegexDna());
-        Benchmark.registerBenchmark("CLBG::Revcomp", () -> new Revcomp());
         Benchmark.registerBenchmark("CLBG::Spectralnorm", () -> new Spectralnorm());
         Benchmark.registerBenchmark("Base64::Encode", () -> new Base64Encode());
         Benchmark.registerBenchmark("Base64::Decode", () -> new Base64Decode());
@@ -57,6 +53,8 @@ public class Main {
         Benchmark.registerBenchmark("Distance::NGram", () -> new Distance.NGram());
         Benchmark.registerBenchmark("Etc::Words", () -> new Words());
         Benchmark.registerBenchmark("Etc::LogParser", () -> new LogParser());
+        Benchmark.registerBenchmark("Template::Regex", () -> new Template.Regex());
+        Benchmark.registerBenchmark("Template::Parse", () -> new Template.Parse());
 
         long now = Instant.now().toEpochMilli();
         System.out.println("start: " + now);
@@ -75,7 +73,7 @@ public class Main {
         try {
             Helper.loadConfig(configFile);
 
-            if (Helper.CONFIG.length() == 0) {
+            if (Helper.getConfig().length() == 0) {
                 System.err.println("Warning: No test cases loaded from config file");
                 System.err.println("Usage: mvn exec:java -Dexec.args=\"test.js BrainfuckRecursion\"");
                 System.err.println("Or: mvn exec:java -Dexec.args=\"../run.js\"");

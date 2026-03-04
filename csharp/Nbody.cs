@@ -5,7 +5,6 @@ public class Nbody : Benchmark
     private const double SOLAR_MASS = 4 * Math.PI * Math.PI;
     private const double DAYS_PER_YEAR = 365.24;
 
-    private uint _result;
     private double _v1;
     private Planet[] _bodies;
 

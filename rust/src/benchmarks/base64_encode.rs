@@ -3,7 +3,6 @@ use crate::config_i64;
 use base64::{engine::general_purpose, Engine as _};
 
 pub struct Base64Encode {
-    n: i64,
     str_data: String,
     str2_encoded: String,
     result_val: u32,
@@ -15,7 +14,6 @@ impl Base64Encode {
         let str_data = "a".repeat(n as usize);
         let str2_encoded = general_purpose::STANDARD.encode(&str_data);
         Self {
-            n,
             str_data,
             str2_encoded,
             result_val: 0,

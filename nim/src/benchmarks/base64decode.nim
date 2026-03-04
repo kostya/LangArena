@@ -51,3 +51,4 @@ method checksum(self: Base64Decode): uint32 =
   checksum(ss)
 
 registerBenchmark("Base64::Decode", newBase64Decode)
+{.used.}

@@ -67,15 +67,24 @@ module Helper
     Helper.checksum("%.7f" % {v})
   end
 
+  RAW_CONFIG = begin
+    Array(Hash(String, JSON::Any)).from_json(File.read(ARGV[0]? || "../test.js"))
+  end
+
   CONFIG = begin
-    Hash(String, Hash(String, String | Int64)).from_json(File.read(ARGV[0]? || "../test.js"))
+    hash = {} of String => Hash(String, JSON::Any)
+    RAW_CONFIG.each do |cfg|
+      name = cfg["name"].as_s
+      hash[name] = cfg
+    end
+    hash
   end
 
   def self.config_i64(class_name, field_name) : Int64
     if cfg = CONFIG[class_name]?
-      case i = cfg[field_name]?
-      when Int64
-        i
+      case value = cfg[field_name]?
+      when JSON::Any
+        value.as_i64
       else
         raise "Config for #{class_name}, not found i64 field: #{field_name} in #{cfg.inspect}"
       end
@@ -86,9 +95,9 @@ module Helper
 
   def self.config_s(class_name, field_name) : String
     if cfg = CONFIG[class_name]?
-      case s = cfg[field_name]?
-      when String
-        s
+      case value = cfg[field_name]?
+      when JSON::Any
+        value.as_s
       else
         raise "Config for #{class_name}, not found string field: #{field_name} in #{cfg.inspect}"
       end
@@ -106,12 +115,13 @@ abstract class Benchmark
   end
 
   def warmup_iterations
-    case wi = Helper::CONFIG["warmup_iterations"]?
-    when Int64
-      wi.to_i32
-    else
-      {(iterations * 0.2).to_i, 1}.max
+    if cfg = Helper::CONFIG[self.class.name.to_s]?
+      if wi = cfg["warmup_iterations"]?
+        return wi.as_i64.to_i32
+      end
     end
+
+    {(iterations * 0.2).to_i, 1}.max
   end
 
   def warmup
@@ -127,26 +137,34 @@ abstract class Benchmark
   end
 
   def iterations
-    config_val("iterations")
+    Helper.config_i64(self.class.name.to_s, "iterations").to_i32
   end
 
   def expected_checksum
-    config_val("checksum")
+    Helper.config_i64(self.class.name.to_s, "checksum")
   end
 
   def self.run(single_bench : String? = nil)
-    results = {} of String => Float64
-
     summary_time = 0.0
     ok = 0
     fails = 0
     single_bench = single_bench.downcase if single_bench
+    available_benches = {} of String => Benchmark.class
 
     {% for kl in @type.all_subclasses %}
-      if (!single_bench || ({{kl.stringify}}.downcase.includes?(single_bench))) && ({{kl.stringify}} != "Sort::SortBenchmark") && ({{kl.stringify}} != "Hash::BufferHashBenchmark") && ({{kl.stringify}} != "Graph::GraphPathBenchmark")
-        print "{{kl}}: "
+      available_benches[{{kl.stringify}}] = {{kl.id}}
+    {% end %}
 
-        bench = {{kl.id}}.new
+    order = Helper::RAW_CONFIG.map { |cfg| cfg["name"].as_s }
+    order.each do |bench_name|
+      if single_bench && !bench_name.downcase.includes?(single_bench)
+        next
+      end
+
+      if bench_class = available_benches[bench_name]?
+        print "#{bench_name}: "
+
+        bench = bench_class.new
 
         Helper.reset
         bench.prepare
@@ -159,27 +177,25 @@ abstract class Benchmark
         bench.run_all
         time_delta = (Time.instant - t).to_f
 
-        results["{{kl.id}}"] = time_delta
-
         GC.collect
         sleep 0.seconds
         GC.collect
 
-        chks = bench.checksum
-        if chks.to_i64 == bench.expected_checksum.to_i64
+        check = bench.checksum.to_u32
+        expect = bench.expected_checksum.to_u32
+        if check == expect
           print "OK "
           ok += 1
         else
-          print "ERR[actual=#{chks.inspect}, expected=#{bench.expected_checksum.inspect}] "
+          print "ERR[actual=#{check.inspect}, expected=#{expect.inspect}] "
           fails += 1
         end
 
         print "in %.3fs\n" % {time_delta}
         summary_time += time_delta
       end
-    {% end %}
+    end
 
-    File.open("/tmp/results.js", "w") { |f| results.to_json(f) }
     puts "Summary: %.4fs, %d, %d, %d" % {summary_time, ok + fails, ok, fails}
     exit 1 if fails > 0
   end
@@ -1446,14 +1462,19 @@ module Etc
 
   class LogParser < Benchmark
     PATTERNS = {
-      "errors"        => / [5][0-9]{2} /,
-      "bots"          => /bot|crawler|scanner/i,
+      "errors"        => / [5][0-9]{2} | [4][0-9]{2} /,
+      "bots"          => /bot|crawler|scanner|spider|indexing|crawl|robot|spider/i,
       "suspicious"    => /etc\/passwd|wp-admin|\.\.\//i,
-      "ips"           => /\d{1,3}\.\d{1,3}\.\d{1,3}\.35/,
+      "ips"           => /\d+\.\d+\.\d+\.35/,
       "api_calls"     => /\/api\/[^ "]+/,
       "post_requests" => /POST [^ ]* HTTP/,
       "auth_attempts" => /\/login|\/signin/i,
-      "methods"       => /get|post/i,
+      "methods"       => /get|post|put/i,
+      "emails"        => /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
+      "passwords"     => /password=[^&\s"]+/,
+      "tokens"        => /token=[^&\s"]+|api[_-]?key=[^&\s"]+/,
+      "sessions"      => /session[_-]?id=[^&\s"]+/,
+      "peak_hours"    => /\[\d+\/\w+\/\d+:1[3-7]:\d+:\d+ [+\-]\d+\]/,
     }
 
     def initialize(@lines_count : Int32 = config_val("lines_count").to_i32)
@@ -1463,16 +1484,26 @@ module Etc
 
     IPS     = (1..255).map { |i| "192.168.1.#{i}" }
     METHODS = ["GET", "POST", "PUT", "DELETE"]
-    PATHS   = ["/index.html", "/api/users", "/login", "/admin",
+    PATHS   = ["/index.html", "/api/users", "/admin",
                "/images/logo.png", "/etc/passwd", "/wp-admin/setup.php"]
     STATUSES = [200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503]
     AGENTS   = ["Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0"]
+    USERS    = ["john", "jane", "alex", "sarah", "mike", "anna", "david", "elena"]
+    DOMAINS  = ["example.com", "gmail.com", "yahoo.com", "hotmail.com", "company.org", "mail.ru"]
 
     private def generate_log_line(str, i)
-      str << IPS[i % IPS.size] << " - - [#{i % 31}/Oct/2023:13:55:36 +0000] \""
-      str << METHODS[i % METHODS.size] << " " << PATHS[i % PATHS.size] << " HTTP/1.0\" "
-      str << STATUSES[i % STATUSES.size] << " 2326 \"-\" \"" << AGENTS[i % AGENTS.size] << "\""
-      str << "\n"
+      str << IPS[i % IPS.size] << " - - [" << (i % 31) << "/Oct/2023:" << i % 60 << ":55:36 +0000] \"" << METHODS[i % METHODS.size] << ' '
+      if i % 3 == 0
+        str << "/login?email=" << USERS[i % USERS.size] << (i % 100) << '@' << DOMAINS[i % DOMAINS.size]
+        str << "&password=secret" << (i % 10000)
+      elsif i % 5 == 0
+        str << "/api/data?token=" << ("abcdef123456" * ((i % 3) + 1))
+      elsif i % 7 == 0
+        str << "/user/profile?session_id=" << ("sess_" + (i * 12345).to_s(16))
+      else
+        str << PATHS[i % PATHS.size]
+      end
+      str << " HTTP/1.1\" " << STATUSES[i % STATUSES.size] << " 2326 \"http://" << DOMAINS[i % DOMAINS.size] << "\" \"" << AGENTS[i % AGENTS.size] << "\"\n"
     end
 
     def prepare
@@ -1485,16 +1516,100 @@ module Etc
 
     def run(iteration_id)
       matches = Hash(String, Int32).new(0)
-
-      PATTERNS.each do |name, regex|
-        @log.scan(regex) { matches.update(name, &.+(1)) }
-      end
-
+      PATTERNS.each { |name, regex| @log.scan(regex) { matches.update(name, &.+(1)) } }
       @checksum &+= matches.each_value.sum
     end
 
     def checksum : UInt32
       @checksum
+    end
+  end
+end
+
+module Template
+  class Regex < Benchmark
+    def initialize(@count : Int32 = config_val("count").to_i32)
+      @checksum = 0_u32
+      @text = ""
+      @rendered = ""
+      @vars = Hash(String, String).new
+    end
+
+    FIRST_NAMES = ["John", "Jane", "Bob", "Alice", "Charlie", "Diana", "Sarah", "Mike"]
+    LAST_NAMES  = ["Smith", "Johnson", "Brown", "Taylor", "Wilson", "Davis", "Miller", "Jones"]
+    CITIES      = ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "San Francisco"]
+
+    LOREM = "Lorem {ipsum} dolor {sit} amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore {et} dolore magna aliqua. "
+
+    def prepare
+      @text = String.build do |s|
+        s << "<html><body>"
+        s << "<h1>{{TITLE}}</h1>"
+        @vars["TITLE"] = "Template title"
+        s << "<p>"
+        s << LOREM
+        s << "</p>"
+        s << "<table>"
+
+        @count.times do |i|
+          s << "<!-- {comment} -->" if i % 3 == 0
+          s << "<tr>"
+          s << "<td>{{ FIRST_NAME#{i} }}</td>"
+          s << "<td>{{LAST_NAME#{i}}}</td>"
+          s << "<td>{{  CITY#{i}  }}</td>"
+          @vars["FIRST_NAME#{i}"] = FIRST_NAMES[i % FIRST_NAMES.size]
+          @vars["LAST_NAME#{i}"] = LAST_NAMES[i % LAST_NAMES.size]
+          @vars["CITY#{i}"] = CITIES[i % CITIES.size]
+          s << "<td>{balance: #{i % 100}}</td>"
+          s << "</tr>\n"
+        end
+
+        s << "</table>"
+        s << "</body></html>"
+      end
+    end
+
+    def run(iteration_id)
+      @rendered = @text.gsub(/{{\s*(.*?)\s*}}/) { @vars.fetch($1, "") }
+      @checksum &+= @rendered.bytesize
+    end
+
+    def checksum : UInt32
+      @checksum &+ Helper.checksum(@rendered)
+    end
+  end
+
+  class Parse < Regex
+    def run(iteration_id)
+      @rendered = String.build((@text.bytesize * 1.5).to_i) do |s|
+        i = 0
+        text = @text
+        text_size = text.bytesize
+
+        while i < text_size
+          if i + 1 < text_size && text[i] == '{' && text[i + 1] == '{'
+            j = i + 2
+            while j + 1 < text_size
+              if text[j] == '}' && text[j + 1] == '}'
+                break
+              end
+              j += 1
+            end
+
+            if j + 1 < text_size
+              key = text[(i + 2)...j].strip
+              s << @vars.fetch(key, "")
+              i = j + 2
+              next
+            end
+          end
+
+          s << text[i]
+          i += 1
+        end
+      end
+
+      @checksum &+= @rendered.bytesize
     end
   end
 end
@@ -2788,280 +2903,6 @@ module CLBG
 
     def checksum : UInt32
       @result
-    end
-  end
-
-  class Fasta < Benchmark
-    def select_random(genelist)
-      r = Helper.next_float
-      return genelist[0][0] if r < genelist[0][1]
-
-      lo = 0
-      hi = genelist.size - 1
-
-      while hi > lo + 1
-        i = (hi + lo) // 2
-        if r < genelist[i][1]
-          hi = i
-        else
-          lo = i
-        end
-      end
-      genelist[hi][0]
-    end
-
-    LINE_LENGTH = 60
-
-    def make_random_fasta(id, desc, genelist, n)
-      todo = n
-      @result << ">#{id} #{desc}"
-      @result << "\n"
-
-      while todo > 0
-        m = (todo < LINE_LENGTH) ? todo : LINE_LENGTH
-        pick = String.new(m) do |buffer|
-          m.times { |i| buffer[i] = select_random(genelist).ord.to_u8 }
-          {m, m}
-        end
-        @result << pick
-        @result << "\n"
-        todo -= LINE_LENGTH
-      end
-    end
-
-    def make_repeat_fasta(id, desc, s, n)
-      todo = n
-      k = 0
-      kn = s.size
-
-      @result << ">#{id} #{desc}"
-      @result << "\n"
-      while todo > 0
-        m = (todo < LINE_LENGTH) ? todo : LINE_LENGTH
-
-        while m >= kn - k
-          @result << s[k..-1]
-          m -= kn - k
-          k = 0
-        end
-
-        @result << s[k...k + m]
-        @result << "\n"
-        k += m
-
-        todo -= LINE_LENGTH
-      end
-    end
-
-    IUB = [{'a', 0.27}, {'c', 0.39}, {'g', 0.51}, {'t', 0.78}, {'B', 0.8}, {'D', 0.8200000000000001},
-           {'H', 0.8400000000000001}, {'K', 0.8600000000000001}, {'M', 0.8800000000000001},
-           {'N', 0.9000000000000001}, {'R', 0.9200000000000002}, {'S', 0.9400000000000002},
-           {'V', 0.9600000000000002}, {'W', 0.9800000000000002}, {'Y', 1.0000000000000002}]
-    HOMO = [{'a', 0.302954942668}, {'c', 0.5009432431601}, {'g', 0.6984905497992}, {'t', 1.0}]
-    ALU  = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"
-
-    def initialize(@n : Int64 = config_val("n"))
-      @result = IO::Memory.new
-    end
-
-    def run(iteration_id)
-      make_repeat_fasta("ONE", "Homo sapiens alu", ALU, @n * 2)
-      make_random_fasta("TWO", "IUB ambiguity codes", IUB, @n * 3)
-      make_random_fasta("THREE", "Homo sapiens frequency", HOMO, @n * 5)
-    end
-
-    def checksum : UInt32
-      Helper.checksum(@result.to_s)
-    end
-  end
-
-  class Knuckeotide < Benchmark
-    def frecuency(seq, length)
-      n = seq.size - length + 1
-      table = Hash(String, Int32).new { 0 }
-      (0...n).each do |f|
-        table[seq.byte_slice(f, length)] += 1
-      end
-      {n, table}
-    end
-
-    def sort_by_freq(seq, length)
-      n, table = frecuency(seq, length)
-      table.to_a.sort { |a, b| b[1] <=> a[1] }.each do |v|
-        @result << "%s %.3f\n" % {v[0].upcase, ((v[1] * 100).to_f / n)}
-      end
-      @result << "\n"
-    end
-
-    def find_seq(seq, s)
-      n, table = frecuency(seq, s.size)
-      @result << "#{table[s].to_s}\t#{s.upcase}\n"
-    end
-
-    def initialize
-      @seq = ""
-      @result = IO::Memory.new
-    end
-
-    def prepare
-      f = Fasta.new(config_val("n"))
-      f.run(0)
-      res = f.@result.to_s
-
-      three = false
-      seqio = IO::Memory.new
-
-      res.each_line do |line|
-        if line.starts_with?(">THREE")
-          three = true
-          next
-        end
-        seqio << line.chomp if three
-      end
-      @seq = seqio.to_s
-    end
-
-    def run(iteration_id)
-      (1..2).each { |i| sort_by_freq(@seq, i) }
-      %w(ggt ggta ggtatt ggtattttaatt ggtattttaatttatagt).each { |s| find_seq(@seq, s) }
-    end
-
-    def checksum : UInt32
-      Helper.checksum(@result.to_s)
-    end
-  end
-
-  class RegexDna < Benchmark
-    @seq : String
-    @ilen : Int32
-    @clen : Int32
-
-    def initialize
-      @result = IO::Memory.new
-      @ilen = 0
-      @clen = 0
-      @seq = ""
-    end
-
-    def prepare
-      f = Fasta.new(config_val("n"))
-      f.run(0)
-      res = f.@result.to_s
-
-      seq = IO::Memory.new
-
-      @ilen = 0
-      res.each_line do |line|
-        @ilen += line.bytesize + 1
-        seq << line.chomp unless line.starts_with? '>'
-      end
-
-      @seq = seq.to_s
-      @clen = seq.bytesize
-    end
-
-    def run(iteration_id)
-      [
-        /agggtaaa|tttaccct/,
-        /[cgt]gggtaaa|tttaccc[acg]/,
-        /a[act]ggtaaa|tttacc[agt]t/,
-        /ag[act]gtaaa|tttac[agt]ct/,
-        /agg[act]taaa|ttta[agt]cct/,
-        /aggg[acg]aaa|ttt[cgt]ccct/,
-        /agggt[cgt]aa|tt[acg]accct/,
-        /agggta[cgt]a|t[acg]taccct/,
-        /agggtaa[cgt]|[acg]ttaccct/,
-      ].each { |f| @result << "#{f.source} #{@seq.scan(f).size}\n" }
-
-      hash = {
-        "B" => "(c|g|t)",
-        "D" => "(a|g|t)",
-        "H" => "(a|c|t)",
-        "K" => "(g|t)",
-        "M" => "(a|c)",
-        "N" => "(a|c|g|t)",
-        "R" => "(a|g)",
-        "S" => "(c|t)",
-        "V" => "(a|c|g)",
-        "W" => "(a|t)",
-        "Y" => "(c|t)",
-      }
-
-      @seq = @seq.gsub(/B|D|H|K|M|N|R|S|V|W|Y/, hash)
-
-      @result << "\n"
-      @result << "#{@ilen}\n"
-      @result << "#{@clen}\n"
-      @result << "#{@seq.size}\n"
-    end
-
-    def checksum : UInt32
-      Helper.checksum(@result.to_s)
-    end
-  end
-
-  class Revcomp < Benchmark
-    @input : String
-
-    COMPLEMENT_LOOKUP = begin
-      table = StaticArray(UInt8, 256).new(0_u8)
-      256.times { |i| table[i] = i.to_u8 }
-
-      from = "wsatugcyrkmbdhvnATUGCYRKMBDHVN"
-      to = "WSTAACGRYMKVHDBNTAACGRYMKVHDBN"
-      from.to_slice.each_with_index do |byte, i|
-        table[byte] = to.unsafe_byte_at(i)
-      end
-      table
-    end
-
-    def revcomp(seq)
-      bytesize = seq.bytesize
-      chunk_count = (bytesize + 59) // 60
-
-      @result.clear
-
-      bytesize.step(to: 1, by: -60) do |end_pos|
-        start_pos = Math.max(end_pos - 60, 0)
-
-        (end_pos - 1).downto(start_pos) do |i|
-          @result.write_byte(COMPLEMENT_LOOKUP[seq.unsafe_byte_at(i)])
-        end
-
-        @result << "\n"
-      end
-    end
-
-    def initialize
-      @result = IO::Memory.new
-      @input = ""
-      @checksum = 0_u32
-    end
-
-    def prepare
-      f = Fasta.new(config_val("n"))
-      f.run(0)
-      input = f.@result.to_s
-      seq = IO::Memory.new
-
-      input.each_line do |line|
-        if line.starts_with? '>'
-          seq << "\n---\n"
-        else
-          seq << line.chomp
-        end
-      end
-      @input = seq.to_s
-    end
-
-    def run(iteration_id)
-      @result.clear
-      revcomp(@input)
-      @checksum &+= Helper.checksum(@result.to_s)
-    end
-
-    def checksum : UInt32
-      @checksum
     end
   end
 

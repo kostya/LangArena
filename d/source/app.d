@@ -20,10 +20,6 @@ import benchmarks.binarytrees;
 import benchmarks.brainfuckarray;
 import benchmarks.brainfuckrecursion;
 import benchmarks.fannkuchredux;
-import benchmarks.fasta;
-import benchmarks.knuckeotide;
-import benchmarks.regexdna;
-import benchmarks.revcomp;
 import benchmarks.mandelbrot;
 import benchmarks.matmul;
 import benchmarks.nbody;
@@ -46,40 +42,38 @@ import benchmarks.jsonbench;
 import benchmarks.distance;
 import benchmarks.words;
 import benchmarks.logparser;
+import benchmarks.templates;
 
 mixin(registerAllBenchmarks!("CLBG::Pidigits", Pidigits, "Binarytrees::Obj",
         BinarytreesObj, "Binarytrees::Arena", BinarytreesArena, "Brainfuck::Array",
         BrainfuckArray, "Brainfuck::Recursion", BrainfuckRecursion,
-        "CLBG::Fannkuchredux", Fannkuchredux, "CLBG::Fasta", Fasta,
-        "CLBG::Knuckeotide", Knuckeotide, "CLBG::Mandelbrot", Mandelbrot,
-        "Matmul::Single", Matmul1T, "Matmul::T4", Matmul4T,
-        "Matmul::T8", Matmul8T, "Matmul::T16", Matmul16T, "CLBG::Nbody", Nbody,
-        "CLBG::RegexDna", RegexDna, "CLBG::Revcomp", Revcomp,
-        "CLBG::Spectralnorm", Spectralnorm, "Base64::Encode",
-        Base64Encode, "Base64::Decode", Base64Decode, "Json::Generate", JsonGenerate,
+        "CLBG::Fannkuchredux", Fannkuchredux, "CLBG::Mandelbrot", Mandelbrot,
+        "Matmul::Single", Matmul1T, "Matmul::T4", Matmul4T, "Matmul::T8",
+        Matmul8T, "Matmul::T16", Matmul16T, "CLBG::Nbody",
+        Nbody, "CLBG::Spectralnorm", Spectralnorm, "Base64::Encode", Base64Encode,
+        "Base64::Decode", Base64Decode, "Json::Generate", JsonGenerate,
         "Json::ParseDom", JsonParseDom, "Json::ParseMapping", JsonParseMapping,
-        "Etc::Sieve", Sieve, "Etc::TextRaytracer",
-        TextRaytracer, "Etc::NeuralNet", NeuralNet, "Sort::Quick", SortQuick,
-        "Sort::Merge", SortMerge, "Sort::Self", SortSelf, "Graph::BFS",
-        GraphPathBFS, "Graph::DFS", GraphPathDFS, "Graph::AStar",
-        GraphPathAStar, "Hash::SHA256", BufferHashSHA256, "Hash::CRC32",
-        BufferHashCRC32, "Etc::CacheSimulation",
-        CacheSimulation, "Calculator::Ast", CalculatorAst, "Calculator::Interpreter",
-        CalculatorInterpreter, "Etc::GameOfLife", GameOfLife, "Maze::Generator",
-        MazeGenerator, "Maze::BFS", MazeBFS, "Maze::AStar", MazeAStar,
-        "Compress::BWTEncode",
-        BWTEncode, "Compress::BWTDecode", BWTDecode, "Compress::HuffEncode",
-        HuffEncode, "Compress::HuffDecode", HuffDecode, "Compress::ArithEncode",
-        ArithEncode, "Compress::ArithDecode", ArithDecode, "Compress::LZWEncode",
-        LZWEncode, "Compress::LZWDecode", LZWDecode, "Distance::Jaro",
-        Jaro, "Distance::NGram", NGram, "Etc::Words", Words, "Etc::LogParser", LogParser));
+        "Etc::Sieve", Sieve, "Etc::TextRaytracer", TextRaytracer,
+        "Etc::NeuralNet", NeuralNet, "Sort::Quick", SortQuick, "Sort::Merge",
+        SortMerge, "Sort::Self", SortSelf, "Graph::BFS", GraphPathBFS, "Graph::DFS",
+        GraphPathDFS, "Graph::AStar", GraphPathAStar, "Hash::SHA256",
+        BufferHashSHA256, "Hash::CRC32", BufferHashCRC32,
+        "Etc::CacheSimulation", CacheSimulation, "Calculator::Ast",
+        CalculatorAst, "Calculator::Interpreter", CalculatorInterpreter,
+        "Etc::GameOfLife", GameOfLife, "Maze::Generator",
+        MazeGenerator, "Maze::BFS", MazeBFS, "Maze::AStar",
+        MazeAStar, "Compress::BWTEncode", BWTEncode, "Compress::BWTDecode", BWTDecode,
+        "Compress::HuffEncode", HuffEncode, "Compress::HuffDecode", HuffDecode,
+        "Compress::ArithEncode",
+        ArithEncode, "Compress::ArithDecode", ArithDecode,
+        "Compress::LZWEncode", LZWEncode, "Compress::LZWDecode", LZWDecode,
+        "Distance::Jaro", Jaro, "Distance::NGram", NGram, "Etc::Words",
+        Words, "Etc::LogParser", LogParser, "Template::Regex", TemplateRegex,
+        "Template::Parse", TemplateParse));
 
 void benchmarkAll(string singleBench = "")
 {
-
     auto benchmarks = getAllBenchmarkNames();
-
-    double[string] results;
     double summaryTime = 0.0;
     int ok = 0;
     int fails = 0;
@@ -91,7 +85,18 @@ void benchmarkAll(string singleBench = "")
             continue;
         }
 
-        Benchmark bench = createBenchmark(benchName);
+        Benchmark bench;
+        try
+        {
+            bench = createBenchmark(benchName);
+        }
+        catch (Exception e)
+        {
+            writeln("Warning: Benchmark '", benchName,
+                    "' defined in config but not found in code");
+            continue;
+        }
+
         std.stdio.write(bench.name(), ": ");
         stdout.flush();
 
@@ -108,7 +113,6 @@ void benchmarkAll(string singleBench = "")
         auto duration = (end - start).total!"msecs" / 1000.0;
 
         bench.setTimeDelta(duration);
-        results[bench.name()] = duration;
 
         if (bench.checksum == bench.expectedChecksum)
         {
@@ -128,19 +132,6 @@ void benchmarkAll(string singleBench = "")
         bench = null;
     }
 
-    auto resultsFile = File("/tmp/results.js", "w");
-    resultsFile.write("{");
-    bool first = true;
-    foreach (name, time; results)
-    {
-        if (!first)
-            resultsFile.write(",");
-        resultsFile.writef(`"%s":%s`, name, time);
-        first = false;
-    }
-    resultsFile.write("}");
-    resultsFile.close();
-
     if (ok + fails > 0)
     {
         std.stdio.writefln("Summary: %.4fs, %s, %s, %s", summaryTime, ok + fails, ok, fails);
@@ -158,21 +149,12 @@ void main(string[] args)
     import std.datetime.systime : SysTime;
 
     auto now = Clock.currTime();
-
     auto unixSeconds = now.toUnixTime();
-
     long unixMs = unixSeconds * 1000L;
-
     writeln("start: ", unixMs);
 
-    if (args.length > 1)
-    {
-        loadConfig(args[1]);
-    }
-    else
-    {
-        loadConfig();
-    }
+    string configFile = args.length > 1 ? args[1] : "../test.js";
+    Helper.loadConfig(configFile);
 
     if (args.length > 2)
     {

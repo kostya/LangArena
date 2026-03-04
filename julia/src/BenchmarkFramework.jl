@@ -16,13 +16,9 @@ include("benchmarks/Binarytrees.jl")
 include("benchmarks/BrainfuckArray.jl")
 include("benchmarks/BrainfuckRecursion.jl")
 include("benchmarks/Fannkuchredux.jl")
-include("benchmarks/Fasta.jl")
-include("benchmarks/Knuckeotide.jl")
 include("benchmarks/Mandelbrot.jl")
 include("benchmarks/Matmul.jl")
 include("benchmarks/Nbody.jl")
-include("benchmarks/RegexDna.jl")
-include("benchmarks/Revcomp.jl")
 include("benchmarks/Spectralnorm.jl")
 include("benchmarks/Base64Encode.jl")
 include("benchmarks/Base64Decode.jl")
@@ -41,61 +37,60 @@ include("benchmarks/Compress.jl")
 include("benchmarks/Distance.jl")
 include("benchmarks/Words.jl")
 include("benchmarks/LogParser.jl")
+include("benchmarks/Template.jl")
 
-const ALL_BENCHMARKS = [
-    ("CLBG::Pidigits", Pidigits),
-    ("Binarytrees::Obj", BinarytreesObj),
-    ("Binarytrees::Arena", BinarytreesArena),
-    ("Brainfuck::Array", BrainfuckArray),
-    ("Brainfuck::Recursion", BrainfuckRecursion),
-    ("CLBG::Fannkuchredux", Fannkuchredux),
-    ("CLBG::Fasta", Fasta),
-    ("CLBG::Knuckeotide", Knuckeotide),
-    ("CLBG::Mandelbrot", Mandelbrot),
-    ("Matmul::Single", Matmul1T),
-    ("Matmul::T4", Matmul4T),
-    ("Matmul::T8", Matmul8T),
-    ("Matmul::T16", Matmul16T),
-    ("CLBG::Nbody", Nbody),
-    ("CLBG::RegexDna", RegexDna),
-    ("CLBG::Revcomp", Revcomp),
-    ("CLBG::Spectralnorm", Spectralnorm),
-    ("Base64::Encode", Base64Encode),
-    ("Base64::Decode", Base64Decode),
-    ("Json::Generate", JsonGenerate),
-    ("Json::ParseDom", JsonParseDom),
-    ("Json::ParseMapping", JsonParseMapping),
-    ("Etc::Sieve", Sieve),
-    ("Etc::TextRaytracer", TextRaytracer),
-    ("Etc::NeuralNet", NeuralNet),
-    ("Sort::Quick", SortQuick),
-    ("Sort::Merge", SortMerge),
-    ("Sort::Self", SortSelf),
-    ("Graph::BFS", GraphPathBFS),
-    ("Graph::DFS", GraphPathDFS),
-    ("Graph::AStar", GraphPathAStar),
-    ("Hash::SHA256", BufferHashSHA256),
-    ("Hash::CRC32", BufferHashCRC32),
-    ("Etc::CacheSimulation", CacheSimulation),
-    ("Calculator::Ast", CalculatorAst),
-    ("Calculator::Interpreter", CalculatorInterpreter),
-    ("Etc::GameOfLife", GameOfLife),
-    ("Maze::Generator", MazeGenerator),
-    ("Maze::BFS", MazeBFS),
-    ("Maze::AStar", MazeAStar),
-    ("Compress::BWTEncode", BWTEncode),
-    ("Compress::BWTDecode", BWTDecode),
-    ("Compress::HuffEncode", HuffEncode),
-    ("Compress::HuffDecode", HuffDecode),
-    ("Compress::ArithEncode", ArithEncode),
-    ("Compress::ArithDecode", ArithDecode),
-    ("Compress::LZWEncode", LZWEncode),
-    ("Compress::LZWDecode", LZWDecode),
-    ("Distance::Jaro", Jaro),
-    ("Distance::NGram", NGram),
-    ("Etc::Words", Words),
-    ("Etc::LogParser", LogParser),
-]
+const BENCHMARK_MAP = Dict{String,Type}(
+    "CLBG::Pidigits" => Pidigits,
+    "Binarytrees::Obj" => BinarytreesObj,
+    "Binarytrees::Arena" => BinarytreesArena,
+    "Brainfuck::Array" => BrainfuckArray,
+    "Brainfuck::Recursion" => BrainfuckRecursion,
+    "CLBG::Fannkuchredux" => Fannkuchredux,
+    "CLBG::Mandelbrot" => Mandelbrot,
+    "Matmul::Single" => Matmul1T,
+    "Matmul::T4" => Matmul4T,
+    "Matmul::T8" => Matmul8T,
+    "Matmul::T16" => Matmul16T,
+    "CLBG::Nbody" => Nbody,
+    "CLBG::Spectralnorm" => Spectralnorm,
+    "Base64::Encode" => Base64Encode,
+    "Base64::Decode" => Base64Decode,
+    "Json::Generate" => JsonGenerate,
+    "Json::ParseDom" => JsonParseDom,
+    "Json::ParseMapping" => JsonParseMapping,
+    "Etc::Sieve" => Sieve,
+    "Etc::TextRaytracer" => TextRaytracer,
+    "Etc::NeuralNet" => NeuralNet,
+    "Sort::Quick" => SortQuick,
+    "Sort::Merge" => SortMerge,
+    "Sort::Self" => SortSelf,
+    "Graph::BFS" => GraphPathBFS,
+    "Graph::DFS" => GraphPathDFS,
+    "Graph::AStar" => GraphPathAStar,
+    "Hash::SHA256" => BufferHashSHA256,
+    "Hash::CRC32" => BufferHashCRC32,
+    "Etc::CacheSimulation" => CacheSimulation,
+    "Calculator::Ast" => CalculatorAst,
+    "Calculator::Interpreter" => CalculatorInterpreter,
+    "Etc::GameOfLife" => GameOfLife,
+    "Maze::Generator" => MazeGenerator,
+    "Maze::BFS" => MazeBFS,
+    "Maze::AStar" => MazeAStar,
+    "Compress::BWTEncode" => BWTEncode,
+    "Compress::BWTDecode" => BWTDecode,
+    "Compress::HuffEncode" => HuffEncode,
+    "Compress::HuffDecode" => HuffDecode,
+    "Compress::ArithEncode" => ArithEncode,
+    "Compress::ArithDecode" => ArithDecode,
+    "Compress::LZWEncode" => LZWEncode,
+    "Compress::LZWDecode" => LZWDecode,
+    "Distance::Jaro" => Jaro,
+    "Distance::NGram" => NGram,
+    "Etc::Words" => Words,
+    "Etc::LogParser" => LogParser,
+    "Template::Regex" => TemplateRegex,
+    "Template::Parse" => TemplateParse,
+)
 
 function run_all_benchmarks(single_bench::String = "")
     results = Dict{String,Float64}()
@@ -103,8 +98,14 @@ function run_all_benchmarks(single_bench::String = "")
     ok = 0
     fails = 0
 
-    for (name, BenchmarkType) in ALL_BENCHMARKS
+    for name in Helper.ORDER[]
         if !isempty(single_bench) && !occursin(lowercase(single_bench), lowercase(name))
+            continue
+        end
+
+        BenchmarkType = Base.get(BENCHMARK_MAP, name, nothing)
+        if BenchmarkType === nothing
+            println("Warning: Benchmark '$name' defined in config but not found in code")
             continue
         end
 
@@ -140,24 +141,6 @@ function run_all_benchmarks(single_bench::String = "")
         GC.gc()
         sleep(0.001)
         GC.gc()
-    end
-
-    if !isempty(results)
-        open("/tmp/results.js", "w") do f
-            write(f, "{")
-            first = true
-
-            for (name, BenchmarkType) in ALL_BENCHMARKS
-                if haskey(results, name)
-                    if !first
-                        write(f, ",")
-                    end
-                    write(f, "\"$name\":$(results[name])")
-                    first = false
-                end
-            end
-            write(f, "}")
-        end
     end
 
     if ok + fails > 0

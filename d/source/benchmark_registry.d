@@ -2,6 +2,7 @@ module benchmark_registry;
 
 import std.functional;
 import benchmark;
+import helper;
 
 template registerAllBenchmarks(pairs...)
 {
@@ -21,26 +22,9 @@ template registerAllBenchmarks(pairs...)
         return result;
     }
 
-    static string generateNameList()
-    {
-        string result = "static immutable string[] benchmarkNames = [\n";
-        static foreach (idx; 0 .. pairs.length)
-        {
-            static if (idx % 2 == 0)
-            {
-                result ~= "    \"" ~ pairs[idx] ~ "\",\n";
-            }
-        }
-        result ~= "];\n";
-        return result;
-    }
-
     enum registerAllBenchmarks = "alias BenchmarkFunc = Benchmark function();\n"
-        ~ "static immutable BenchmarkFunc[string] benchmarkMap = [\n"
-        ~ generateMapEntries() ~ "];\n" ~ "\n" ~ generateNameList() ~ "\n"
-        ~ "string[] getAllBenchmarkNames() {\n" ~ "    return benchmarkNames.dup;\n" ~ "}\n" ~ "\n"
+        ~ "static immutable BenchmarkFunc[string] benchmarkMap = [\n" ~ generateMapEntries() ~ "];\n" ~ "\n" ~ "string[] getAllBenchmarkNames() {\n" ~ "    return Helper.order.dup;\n" ~ "}\n" ~ "\n"
         ~ "Benchmark createBenchmark(string name) {\n"
-        ~ "    auto p = name in benchmarkMap;\n"
-        ~ "    if (p !is null) return (*p)();\n"
+        ~ "    auto p = name in benchmarkMap;\n" ~ "    if (p !is null) return (*p)();\n"
         ~ "    throw new Exception(\"Unknown benchmark: \" ~ name);\n" ~ "}\n";
 }

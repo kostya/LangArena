@@ -1,4 +1,4 @@
-import std/[math, random, sequtils]
+import std/[sequtils]
 import ../benchmark
 import ../helper
 
@@ -114,3 +114,4 @@ method checksum(self: GameOfLife): uint32 =
   result = self.grid.computeHash() + alive
 
 registerBenchmark("Etc::GameOfLife", newGameOfLife)
+{.used.}

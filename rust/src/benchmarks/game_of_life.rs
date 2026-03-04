@@ -128,8 +128,6 @@ impl<'a> Grid<'a> {
 }
 
 pub struct GameOfLife {
-    width: i32,
-    height: i32,
     grid: Grid<'static>,
 }
 
@@ -139,11 +137,7 @@ impl GameOfLife {
         let height = config_i64("Etc::GameOfLife", "h") as i32;
         let grid = Grid::new(width as usize, height as usize);
 
-        Self {
-            width,
-            height,
-            grid,
-        }
+        Self { grid }
     }
 }
 

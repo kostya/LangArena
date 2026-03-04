@@ -12,7 +12,6 @@ protocol BenchmarkProtocol: AnyObject {
 
 extension BenchmarkProtocol {
   var iterations: Int {
-
     if let config = Helper.config[name()] as? [String: Any],
       let iterations = config["iterations"] as? Int
     {
@@ -70,20 +69,19 @@ extension BenchmarkProtocol {
 
 class BenchmarkManager {
 
-  private static var benchmarks: [(name: String, factory: () -> BenchmarkProtocol)] = []
+  private static var benchmarkMap: [String: () -> BenchmarkProtocol] = [:]
 
   static func register(_ name: String, factory: @escaping () -> BenchmarkProtocol) {
-    benchmarks.append((name: name, factory: factory))
+    benchmarkMap[name] = factory
   }
 
   static func register(_ factory: @escaping () -> BenchmarkProtocol) {
     let bench = factory()
     let name = bench.name()
-    benchmarks.append((name: name, factory: factory))
+    benchmarkMap[name] = factory
   }
 
   static func run(singleBench: String? = nil) {
-    var results: [String: Double] = [:]
     var summaryTime: Double = 0
     var ok = 0
     var fails = 0
@@ -91,9 +89,7 @@ class BenchmarkManager {
     let now = Date().timeIntervalSince1970 * 1000
     print("start: \(Int64(now))")
 
-    for benchInfo in benchmarks {
-      let benchName = benchInfo.name
-
+    for benchName in Helper.order {
       let shouldRun: Bool
       if let singleBench = singleBench {
         shouldRun = benchName.lowercased().contains(singleBench.lowercased())
@@ -101,62 +97,48 @@ class BenchmarkManager {
         shouldRun = true
       }
 
-      if benchName == "SortBenchmark" || benchName == "BufferHashBenchmark"
-        || benchName == "GraphPathBenchmark"
-      {
+      if !shouldRun {
         continue
       }
 
-      let hasConfig = Helper.config[benchName] != nil
-
-      if shouldRun && hasConfig {
-        print("\(benchName): ", terminator: "")
-
-        let bench = benchInfo.factory()
-
-        Helper.reset()
-
-        bench.prepare()
-        bench.warmup()
-
-        Helper.reset()
-
-        let startTime = DispatchTime.now()
-        bench.runAll()
-        let endTime = DispatchTime.now()
-
-        let nanoTime = endTime.uptimeNanoseconds - startTime.uptimeNanoseconds
-        let timeDelta = Double(nanoTime) / 1_000_000_000.0
-
-        results[benchName] = timeDelta
-
-        let expected = UInt32(truncatingIfNeeded: Int64(bench.expectedChecksum))
-        let actual = bench.checksum
-
-        if actual == expected {
-          print("OK ", terminator: "")
-          ok += 1
-        } else {
-          print("ERR[actual=\(actual), expected=\(expected)] ", terminator: "")
-          fails += 1
-        }
-
-        print(String(format: "in %.3fs", timeDelta))
-        summaryTime += timeDelta
-
-        usleep(1000)
-      } else if shouldRun {
-        print("\n[\(benchName)]: SKIP - no config entry", terminator: "")
+      guard let factory = benchmarkMap[benchName] else {
+        print("Warning: Benchmark '\(benchName)' defined in config but not found in code")
+        continue
       }
-    }
 
-    let jsonResults = results.map { "\"\($0.key)\": \($0.value)" }.joined(separator: ", ")
-    let jsonString = "{\(jsonResults)}"
+      print("\(benchName): ", terminator: "")
 
-    do {
-      try jsonString.write(toFile: "/tmp/results.js", atomically: true, encoding: .utf8)
-    } catch {
-      fputs("Failed to write results: \(error)\n", stderr)
+      let bench = factory()
+
+      Helper.reset()
+
+      bench.prepare()
+      bench.warmup()
+
+      Helper.reset()
+
+      let startTime = DispatchTime.now()
+      bench.runAll()
+      let endTime = DispatchTime.now()
+
+      let nanoTime = endTime.uptimeNanoseconds - startTime.uptimeNanoseconds
+      let timeDelta = Double(nanoTime) / 1_000_000_000.0
+
+      let expected = UInt32(truncatingIfNeeded: Int64(bench.expectedChecksum))
+      let actual = bench.checksum
+
+      if actual == expected {
+        print("OK ", terminator: "")
+        ok += 1
+      } else {
+        print("ERR[actual=\(actual), expected=\(expected)] ", terminator: "")
+        fails += 1
+      }
+
+      print(String(format: "in %.3fs", timeDelta))
+      summaryTime += timeDelta
+
+      usleep(1000)
     }
 
     print(String(format: "Summary: %.4fs, %d, %d, %d", summaryTime, ok + fails, ok, fails))

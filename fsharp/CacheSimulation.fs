@@ -121,21 +121,21 @@ type CacheSimulation() =
     let sb = System.Text.StringBuilder(32)
 
     let buildKey (index: int) =
-        sb.Clear()
-        sb.Append("item_")
-        sb.Append(index)
+        sb.Clear() |> ignore
+        sb.Append("item_") |> ignore
+        sb.Append(index) |> ignore
         sb.ToString()
 
     let buildUpdatedValue (iterations: int64) =
-        sb.Clear()
-        sb.Append("updated_")
-        sb.Append(iterations)
+        sb.Clear() |> ignore
+        sb.Append("updated_") |> ignore
+        sb.Append(iterations) |> ignore
         sb.ToString()
 
     let buildNewValue (iterations: int64) =
-        sb.Clear()
-        sb.Append("new_")
-        sb.Append(iterations)
+        sb.Clear() |> ignore
+        sb.Append("new_") |> ignore
+        sb.Append(iterations) |> ignore
         sb.ToString()
 
     override this.Checksum =

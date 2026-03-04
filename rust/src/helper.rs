@@ -50,12 +50,3 @@ pub fn checksum_bytes(v: &Vec<u8>) -> u32 {
 pub fn checksum_f64(v: f64) -> u32 {
     checksum_str(&format!("{:.7}", v))
 }
-
-pub fn debug_print(msg: &str) {
-    #[cfg(debug_assertions)]
-    {
-        if std::env::var("DEBUG") == Ok("1".to_string()) {
-            println!("{}", msg);
-        }
-    }
-}

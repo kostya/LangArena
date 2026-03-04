@@ -1,4 +1,4 @@
-import std/[math, random]
+import std/[math]
 import ../benchmark
 import ../helper
 
@@ -153,11 +153,6 @@ proc train(net: NeuralNetwork, inputs, targets: openArray[float]) =
   for neuron in net.hiddenLayer:
     neuron.hiddenTrain(TRAIN_RATE)
 
-proc currentOutputs(net: NeuralNetwork): seq[float] =
-  result = newSeq[float](net.outputLayer.len)
-  for i, neuron in net.outputLayer:
-    result[i] = neuron.output
-
 method prepare(self: NeuralNet) =
   reset()
   self.xorNet = newNeuralNetwork(2, 10, 1)
@@ -194,3 +189,4 @@ method checksum(self: NeuralNet): uint32 =
   result = checksumF64(sum)
 
 registerBenchmark("Etc::NeuralNet", newNeuralNet)
+{.used.}

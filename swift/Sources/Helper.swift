@@ -7,6 +7,11 @@ struct Helper {
   private static let INIT: Int = 42
 
   private static var last = INIT
+  private static var _order: [String] = []
+
+  static var order: [String] {
+    return _order
+  }
 
   static func reset() {
     last = INIT
@@ -60,15 +65,12 @@ struct Helper {
     let fileManager = FileManager.default
     var filePath = file
 
-    if fileManager.fileExists(atPath: filePath) {
-
-    } else {
-
+    if !fileManager.fileExists(atPath: filePath) {
       let parentFile = "../test.js"
       if fileManager.fileExists(atPath: parentFile) {
         filePath = parentFile
       } else {
-        print("No config file found: test.js or test.txt")
+        print("No config file found: test.js")
         config = [:]
         return
       }
@@ -77,46 +79,29 @@ struct Helper {
     do {
       let contents = try Data(contentsOf: URL(fileURLWithPath: filePath))
 
-      if let json = try? JSONSerialization.jsonObject(with: contents, options: []) as? [String: Any]
+      if let jsonArray = try? JSONSerialization.jsonObject(with: contents, options: [])
+        as? [[String: Any]]
       {
-        config = json
-      } else {
+        var configDict: [String: Any] = [:]
+        var orderList: [String] = []
 
-        let oldContents = try String(contentsOfFile: filePath, encoding: .utf8)
-        config = convertOldFormat(oldContents)
+        for item in jsonArray {
+          if let name = item["name"] as? String {
+            configDict[name] = item
+            orderList.append(name)
+          }
+        }
+
+        config = configDict
+        _order = orderList
+      } else {
+        config = [:]
+        _order = []
       }
     } catch {
       print("Error loading config file '\(filePath)': \(error)")
       config = [:]
+      _order = []
     }
-  }
-
-  private static func convertOldFormat(_ contents: String) -> [String: Any] {
-    var jsonConfig: [String: Any] = [:]
-    let lines = contents.split(separator: "\n").map { String($0) }
-
-    for line in lines where !line.isEmpty {
-      let parts = line.split(separator: "|", omittingEmptySubsequences: false)
-      if parts.count == 3 {
-        let name = String(parts[0])
-        let value = String(parts[1])
-        let checksum = Int64(parts[2]) ?? 0
-
-        if let iterations = Int(value) {
-          jsonConfig[name] = [
-            "iterations": iterations,
-            "checksum": checksum,
-          ]
-        } else {
-
-          jsonConfig[name] = [
-            "input": value,
-            "checksum": checksum,
-          ]
-        }
-      }
-    }
-
-    return jsonConfig
   }
 }
