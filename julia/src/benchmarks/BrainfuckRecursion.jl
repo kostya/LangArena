@@ -89,34 +89,40 @@ function parse_program(code::String)::Vector{AbstractOp}
     return current_ops
 end
 
-function run_ops(ops::Vector{AbstractOp}, tape::RTape)::Int64
-    result = Int64(0)
+mutable struct RVisitor
+    tape::RTape
+    result::Int64
 
-    execute(op::OpInc) = inc!(tape)
-    execute(op::OpDec) = dec!(tape)
-    execute(op::OpNext) = next!(tape)
-    execute(op::OpPrev) = prev!(tape)
-    execute(op::OpPrint) = result = (result << 2) + Int64(get(tape))
+    function RVisitor()
+        new(RTape(), 0)
+    end
+end
 
-    function execute(op::OpLoop)
-        while get(tape) != 0x00
-            for inner_op in op.ops
-                execute(inner_op)
-            end
+execute(op::OpInc, v::RVisitor) = inc!(v.tape)
+execute(op::OpDec, v::RVisitor) = dec!(v.tape)
+execute(op::OpNext, v::RVisitor) = next!(v.tape)
+execute(op::OpPrev, v::RVisitor) = prev!(v.tape)
+execute(op::OpPrint, v::RVisitor) = v.result = (v.result << 2) + Int64(get(v.tape))
+
+function execute(op::OpLoop, v::RVisitor)
+    while get(v.tape) != 0x00
+        for inner_op in op.ops
+            execute(inner_op, v)
         end
     end
+end
 
+function run_ops(ops::Vector{AbstractOp}, visitor::RVisitor)::Int64
     for op in ops
-        execute(op)
+        execute(op, visitor)
     end
-
-    return result
+    return visitor.result
 end
 
 function _run2(text::String)::Int64
     ops = parse_program(text)
-    tape = RTape()
-    return run_ops(ops, tape)
+    visitor = RVisitor()
+    return run_ops(ops, visitor)
 end
 
 function warmup(b::BrainfuckRecursion)
