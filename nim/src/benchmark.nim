@@ -1,4 +1,4 @@
-import std/[json, times, math, tables, strutils, os]
+import std/[json, times, math, tables, strutils]
 import config, helper
 
 type

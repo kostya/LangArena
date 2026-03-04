@@ -1,4 +1,3 @@
-import std/[strutils, strformat, parseutils, hashes, tables]
 import ../benchmark
 import ../helper
 import calculator_common
@@ -174,3 +173,4 @@ method checksum(self: CalculatorAst): uint32 =
   self.resultVal
 
 registerBenchmark("Calculator::Ast", newCalculatorAst)
+{.used.}

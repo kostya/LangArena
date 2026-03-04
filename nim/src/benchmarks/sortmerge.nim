@@ -1,5 +1,4 @@
 import ../benchmark
-import ../helper
 import sort_common
 
 type
@@ -55,3 +54,4 @@ method test(self: SortMerge): seq[int32] =
   arr
 
 registerBenchmark("Sort::Merge", newSortMerge)
+{.used.}

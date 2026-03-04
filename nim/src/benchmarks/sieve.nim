@@ -1,6 +1,5 @@
-import std/[math, strutils]
+import std/[math]
 import ../benchmark
-import ../helper
 
 type
   Sieve* = ref object of Benchmark
@@ -49,3 +48,4 @@ method checksum(self: Sieve): uint32 =
   self.checksumVal
 
 registerBenchmark("Etc::Sieve", newSieve)
+{.used.}

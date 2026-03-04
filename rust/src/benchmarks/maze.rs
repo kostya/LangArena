@@ -11,6 +11,7 @@ pub enum CellKind {
     Start,
     Finish,
     Border,
+    #[allow(dead_code)]
     Path,
 }
 
@@ -204,6 +205,7 @@ impl Maze {
         hasher
     }
 
+    #[allow(dead_code)]
     pub fn print_to_console(&self) {
         for row in &self.cells {
             for cell in row {
@@ -233,10 +235,6 @@ impl Maze {
         &self.cells[y][x]
     }
 
-    pub fn get_cell_mut(&mut self, y: usize, x: usize) -> &mut Cell {
-        &mut self.cells[y][x]
-    }
-
     pub fn width(&self) -> usize {
         self.width
     }
@@ -246,8 +244,6 @@ impl Maze {
 }
 
 pub struct MazeGenerator {
-    width: i32,
-    height: i32,
     maze: Maze,
     result_val: u32,
 }
@@ -259,8 +255,6 @@ impl MazeGenerator {
         let maze = Maze::new(width as usize, height as usize);
 
         Self {
-            width,
-            height,
             maze,
             result_val: 0,
         }
@@ -288,8 +282,6 @@ impl Benchmark for MazeGenerator {
 }
 
 pub struct MazeBFS {
-    width: i32,
-    height: i32,
     maze: Maze,
     path: Vec<(usize, usize)>,
     result_val: u32,
@@ -302,8 +294,6 @@ impl MazeBFS {
         let maze = Maze::new(width as usize, height as usize);
 
         Self {
-            width,
-            height,
             maze,
             path: Vec::new(),
             result_val: 0,
@@ -382,8 +372,6 @@ impl Benchmark for MazeBFS {
 }
 
 pub struct MazeAStar {
-    width: i32,
-    height: i32,
     maze: Maze,
     path: Vec<(usize, usize)>,
     result_val: u32,
@@ -396,8 +384,6 @@ impl MazeAStar {
         let maze = Maze::new(width as usize, height as usize);
 
         Self {
-            width,
-            height,
             maze,
             path: Vec::new(),
             result_val: 0,

@@ -1,4 +1,3 @@
-import std/[strutils, sequtils, strformat, algorithm]
 import ../benchmark
 import ../helper
 
@@ -147,3 +146,4 @@ method checksum(self: BrainfuckRecursion): uint32 =
   self.resultVal
 
 registerBenchmark("Brainfuck::Recursion", newBrainfuckRecursion)
+{.used.}

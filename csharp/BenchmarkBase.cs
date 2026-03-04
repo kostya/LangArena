@@ -75,8 +75,8 @@ public abstract class Benchmark
 
     private class BenchmarkInfo
     {
-        public string Name { get; set; }
-        public Func<Benchmark> Creator { get; set; }
+        public string Name { get; set; } = "";
+        public Func<Benchmark> Creator { get; set; } = null!;
     }
 
     private static BenchmarkInfo CreateBenchmarkInfo<T>(string name) where T : Benchmark, new()

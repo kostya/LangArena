@@ -13,6 +13,7 @@ public class Words : Benchmark
     {
         _words = (int)ConfigVal("words");
         _wordLen = (int)ConfigVal("word_len");
+        _text = "";
         _checksumVal = 0;
     }
 

@@ -2485,7 +2485,7 @@ public:
 
   std::string name() const override { return "Etc::CacheSimulation"; }
 
-  void run(int iteration_id) {
+  void run(int iteration_id) override {
     for (int i = 0; i < 1000; i++) {
 
       char key_buf[32];
@@ -2510,7 +2510,7 @@ public:
     }
   }
 
-  uint32_t checksum() {
+  uint32_t checksum() override {
     uint32_t result = result_val;
     result = (result << 5) + hits;
     result = (result << 5) + misses;

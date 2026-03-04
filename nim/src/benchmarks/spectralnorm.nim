@@ -57,3 +57,4 @@ method checksum(self: Spectralnorm): uint32 =
   checksumF64(sqrt(vBv / vv))
 
 registerBenchmark("CLBG::Spectralnorm", newSpectralnorm)
+{.used.}

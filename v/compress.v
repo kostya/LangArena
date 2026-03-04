@@ -576,14 +576,14 @@ fn new_arith_freq_table(frequencies []int) ArithFreqTable {
 
 struct BitOutputStream {
 mut:
-	buffer       int
+	buffer       u32
 	bit_pos      int
 	bytes        []u8
 	bits_written int
 }
 
 fn (mut out BitOutputStream) write_bit(bit int) {
-	out.buffer = (out.buffer << 1) | (bit & 1)
+	out.buffer = (out.buffer << 1) | u32(bit & 1)
 	out.bit_pos++
 	out.bits_written++
 
@@ -596,7 +596,7 @@ fn (mut out BitOutputStream) write_bit(bit int) {
 
 fn (mut out BitOutputStream) flush() []u8 {
 	if out.bit_pos > 0 {
-		out.buffer <<= (8 - out.bit_pos)
+		out.buffer <<= u32(8 - out.bit_pos)
 		out.bytes << u8(out.buffer)
 	}
 	return out.bytes.clone()
@@ -992,7 +992,7 @@ fn lzw_decode(encoded LZWResult) []u8 {
 	data := encoded.data
 	mut pos := 0
 
-	old_code := (int(data[pos]) << 8) | int(data[pos + 1])
+	old_code := (u32(data[pos]) << 8) | u32(data[pos + 1])
 	pos += 2
 
 	mut old_str := dict[old_code]
@@ -1001,7 +1001,7 @@ fn lzw_decode(encoded LZWResult) []u8 {
 	mut next_code := 256
 
 	for pos < data.len {
-		new_code := (int(data[pos]) << 8) | int(data[pos + 1])
+		new_code := (u32(data[pos]) << 8) | u32(data[pos + 1])
 		pos += 2
 
 		mut new_str := ''

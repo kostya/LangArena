@@ -3,7 +3,6 @@ use crate::config_i64;
 use base64::{engine::general_purpose, Engine as _};
 
 pub struct Base64Decode {
-    n: i64,
     str2_encoded: String,
     str3_decoded: Vec<u8>,
     result_val: u32,
@@ -17,7 +16,6 @@ impl Base64Decode {
         let str3_decoded = general_purpose::STANDARD.decode(&str2_encoded).unwrap();
 
         Self {
-            n,
             str2_encoded,
             str3_decoded,
             result_val: 0,

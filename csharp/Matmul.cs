@@ -4,8 +4,8 @@ public abstract class MatmulBase : Benchmark
 {
     protected int _n;
     protected uint _result;
-    protected double[][] _a;
-    protected double[][] _b;
+    protected double[][] _a = null!;
+    protected double[][] _b = null!;
 
     protected MatmulBase(string typeName)
     {

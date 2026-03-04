@@ -3,7 +3,6 @@ module benchmark
 import os
 import time
 import helper
-import json
 
 pub interface IBenchmark {
 mut:

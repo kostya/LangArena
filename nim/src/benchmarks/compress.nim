@@ -1,4 +1,4 @@
-import std/[algorithm, heapqueue, sequtils, strutils, tables, math]
+import std/[algorithm, heapqueue, tables]
 import ../benchmark
 import ../helper
 
@@ -158,13 +158,13 @@ proc bwtInverse*(bwtResult: BWTResult): seq[byte] =
     next[pos] = i
     inc tempCounts[byteVal]
 
-  var result = newSeq[byte](n)
+  var result1 = newSeq[byte](n)
   var idx = bwtResult.originalIdx
 
   for i in 0..<n:
     idx = next[idx]
-    result[i] = bwt[idx]
-  result
+    result1[i] = bwt[idx]
+  result1
 
 method run(self: BWTDecode, iteration_id: int) =
   self.inverted = bwtInverse(self.bwtResult)
@@ -581,7 +581,7 @@ proc arithDecode*(encoded: ArithEncodedResult): seq[byte] =
     cum += frequencies[i]
     highTable[i] = cum
 
-  var result = newSeq[byte](dataSize)
+  var result1 = newSeq[byte](dataSize)
   var input = initBitInputStream(encoded.data)
 
   var value = 0'u64
@@ -599,7 +599,7 @@ proc arithDecode*(encoded: ArithEncodedResult): seq[byte] =
     while symbol < 255 and highTable[symbol].uint64 <= scaled:
       symbol += 1
 
-    result[j] = symbol.byte
+    result1[j] = symbol.byte
 
     high = low + (range * highTable[symbol].uint64 div total.uint64) - 1
     low = low + (range * lowTable[symbol].uint64 div total.uint64)
@@ -622,7 +622,7 @@ proc arithDecode*(encoded: ArithEncodedResult): seq[byte] =
       high = (high shl 1) or 1
       value = (value shl 1) or input.readBit().uint64
 
-  result
+  result1
 
 method run(self: ArithDecode, iteration_id: int) =
   self.decoded = arithDecode(self.encoded)
@@ -789,3 +789,4 @@ method checksum(self: LZWDecode): uint32 =
   res
 
 registerBenchmark("Compress::LZWDecode", newLZWDecode)
+{.used.}

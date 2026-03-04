@@ -1,4 +1,4 @@
-import std/[strutils, strformat, sequtils, algorithm, math, tables, re]
+import std/[strutils, strformat, tables, re]
 import ../benchmark
 import ../helper
 
@@ -19,9 +19,6 @@ const
       "Miller", "Jones"]
   CITIES = ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "San Francisco"]
   LOREM = "Lorem {ipsum} dolor {sit} amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore {et} dolore magna aliqua. "
-
-proc newTemplateBase(): TemplateBase =
-  TemplateBase()
 
 method prepare(self: TemplateBase) =
   self.count = self.config_val("count").int
@@ -137,3 +134,4 @@ method checksum(self: TemplateParse): uint32 =
 
 registerBenchmark("Template::Regex", newTemplateRegex)
 registerBenchmark("Template::Parse", newTemplateParse)
+{.used.}

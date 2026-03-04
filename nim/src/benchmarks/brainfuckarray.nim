@@ -1,4 +1,3 @@
-import std/[strutils, sequtils]
 import ../benchmark
 import ../helper
 
@@ -106,3 +105,4 @@ method checksum(self: BrainfuckArray): uint32 =
   self.resultVal
 
 registerBenchmark("Brainfuck::Array", newBrainfuckArray)
+{.used.}

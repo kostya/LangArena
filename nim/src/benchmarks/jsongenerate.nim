@@ -1,7 +1,6 @@
 import std/[strutils]
 import jsony
 import ../benchmark
-import ../helper
 import jsonbench_common
 
 type
@@ -33,3 +32,4 @@ proc getGeneratedJson*(self: JsonGenerate): string =
   self.resultJson
 
 registerBenchmark("Json::Generate", newJsonGenerate)
+{.used.}

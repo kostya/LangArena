@@ -1,4 +1,4 @@
-import std/[math, json]
+import std/[json]
 import ../benchmark
 import ../helper
 import jsonbench_common
@@ -44,3 +44,4 @@ method checksum(self: JsonParseDom): uint32 =
   self.resultVal
 
 registerBenchmark("Json::ParseDom", newJsonParseDom)
+{.used.}

@@ -1,6 +1,5 @@
 import std/[math]
 import ../benchmark
-import ../helper
 
 type
   Vector = object
@@ -154,3 +153,4 @@ method checksum(self: TextRaytracer): uint32 =
   self.resultVal
 
 registerBenchmark("Etc::TextRaytracer", newTextRaytracer)
+{.used.}

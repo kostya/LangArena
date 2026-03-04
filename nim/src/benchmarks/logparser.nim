@@ -1,6 +1,5 @@
-import std/[strutils, strformat, sequtils, algorithm, math, tables, re]
+import std/[strutils, strformat, tables, re]
 import ../benchmark
-import ../helper
 
 type
   LogParser* = ref object of Benchmark
@@ -111,3 +110,4 @@ method checksum(self: LogParser): uint32 =
   return self.checksumVal
 
 registerBenchmark("Etc::LogParser", newLogParser)
+{.used.}

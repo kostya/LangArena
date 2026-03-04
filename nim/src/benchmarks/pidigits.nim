@@ -1,9 +1,8 @@
-import std/[strutils, strformat, streams, math]
+import std/[strutils, streams]
 import integers
 import ../benchmark
 import ../helper
 
-{.passL: "-lgmp".}
 {.passC: "-I/opt/homebrew/include".}
 {.passL: "-L/opt/homebrew/lib".}
 
@@ -67,3 +66,4 @@ method checksum(self: Pidigits): uint32 =
   checksum(self.buffer.data)
 
 registerBenchmark("CLBG::Pidigits", newPidigits)
+{.used.}

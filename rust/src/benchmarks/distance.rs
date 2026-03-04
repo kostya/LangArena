@@ -54,11 +54,10 @@ impl Jaro {
             return 0.0;
         }
 
-        let match_dist = len1.max(len2) / 2 - 1;
-        let match_dist = if match_dist < 0 {
+        let match_dist = if len1 == 0 || len2 == 0 {
             0
         } else {
-            match_dist as usize
+            (len1.max(len2) / 2).saturating_sub(1)
         };
 
         let mut s1_matches = vec![false; len1];
@@ -190,7 +189,7 @@ impl NGram {
                 | ((s1_bytes[i + 2] as u32) << 8)
                 | (s1_bytes[i + 3] as u32);
 
-            *grams1.entry(gram).and_modify(|e| *e += 1).or_insert(1);
+            let _ = *grams1.entry(gram).and_modify(|e| *e += 1).or_insert(1);
         }
 
         let mut grams2 = HashMap::with_capacity(len2);
@@ -202,7 +201,7 @@ impl NGram {
                 | ((s2_bytes[i + 2] as u32) << 8)
                 | (s2_bytes[i + 3] as u32);
 
-            *grams2.entry(gram).and_modify(|e| *e += 1).or_insert(1);
+            let _ = *grams2.entry(gram).and_modify(|e| *e += 1).or_insert(1);
 
             if let Some(&count1) = grams1.get(&gram) {
                 if grams2[&gram] <= count1 {

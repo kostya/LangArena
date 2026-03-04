@@ -100,7 +100,7 @@ final class BinarytreesArena: BenchmarkProtocol {
   }
 
   func run(iterationId: Int) {
-    var arena = TreeArena()
+    let arena = TreeArena()
     let rootIdx = arena.build(item: 0, depth: Int(n))
     resultVal &+= arena.sum(idx: rootIdx)
   }

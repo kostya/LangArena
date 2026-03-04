@@ -1,4 +1,3 @@
-import std/[math, strutils]
 import ../benchmark
 import ../helper
 
@@ -71,3 +70,4 @@ method checksum(self: Mandelbrot): uint32 =
   checksum(self.resultBin)
 
 registerBenchmark("CLBG::Mandelbrot", newMandelbrot)
+{.used.}

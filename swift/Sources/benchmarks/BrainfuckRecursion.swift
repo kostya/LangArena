@@ -127,7 +127,7 @@ final class BrainfuckRecursion: BenchmarkProtocol {
 
   func warmup() {
     let prepareIters = warmupIterations
-    for i in 0..<prepareIters {
+    for _ in 0..<prepareIters {
       _ = runProgram(warmupProgram)
     }
   }

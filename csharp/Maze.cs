@@ -210,9 +210,10 @@ public class MazeGenerator : Benchmark
 
         public Cell GetCell(int x, int y)
         {
-            if (x >= 0 && x < _width && y >= 0 && y < _height)
-                return _cells[y, x];
-            return null;
+            if (x < 0 || x >= _width || y < 0 || y >= _height)
+                throw new ArgumentOutOfRangeException($"Coordinates ({x}, {y}) are out of bounds");
+
+            return _cells[y, x];
         }
     }
 

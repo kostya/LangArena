@@ -3,7 +3,7 @@ using System.Text;
 public class Base64Encode : Benchmark
 {
     private int _n;
-    private byte[] str1bytes;
+    private byte[] str1bytes = Array.Empty<byte>();
     private string _str2 = "";
     private uint _result;
 

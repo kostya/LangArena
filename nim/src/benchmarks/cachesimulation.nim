@@ -140,3 +140,4 @@ method checksum(self: CacheSimulation): uint32 =
   finalResult
 
 registerBenchmark("Etc::CacheSimulation", newCacheSimulation)
+{.used.}

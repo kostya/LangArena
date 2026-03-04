@@ -539,7 +539,6 @@ pub struct ArithEncode {
 #[derive(Default)]
 pub struct ArithEncodedResult {
     data: Vec<u8>,
-    bit_count: i32,
     frequencies: Vec<i32>,
 }
 
@@ -547,7 +546,6 @@ impl ArithEncodedResult {
     fn new() -> Self {
         Self {
             data: Vec::new(),
-            bit_count: 0,
             frequencies: Vec::new(),
         }
     }
@@ -611,10 +609,6 @@ impl BitOutputStream {
             self.bytes.push(self.buffer);
         }
         std::mem::take(&mut self.bytes)
-    }
-
-    fn bits_written(&self) -> i32 {
-        self.bits_written
     }
 }
 
@@ -694,7 +688,6 @@ fn arith_encode(data: &[u8]) -> ArithEncodedResult {
 
     ArithEncodedResult {
         data: output.flush(),
-        bit_count: output.bits_written(),
         frequencies,
     }
 }
@@ -880,15 +873,11 @@ pub struct LZWEncode {
 #[derive(Default)]
 pub struct LZWResult {
     data: Vec<u8>,
-    dict_size: i32,
 }
 
 impl LZWResult {
     fn new() -> Self {
-        Self {
-            data: Vec::new(),
-            dict_size: 256,
-        }
+        Self { data: Vec::new() }
     }
 }
 
@@ -942,10 +931,7 @@ impl LZWEncode {
         result.push(((code >> 8) & 0xFF) as u8);
         result.push((code & 0xFF) as u8);
 
-        LZWResult {
-            data: result,
-            dict_size: next_code,
-        }
+        LZWResult { data: result }
     }
 }
 

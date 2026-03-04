@@ -1,4 +1,3 @@
-import std/[math]
 import jsony
 import ../benchmark
 import ../helper
@@ -43,3 +42,4 @@ method checksum(self: JsonParseMapping): uint32 =
   self.resultVal
 
 registerBenchmark("Json::ParseMapping", newJsonParseMapping)
+{.used.}

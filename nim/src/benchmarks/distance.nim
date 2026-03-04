@@ -1,4 +1,4 @@
-import std/[strformat, tables, math]
+import std/[tables]
 import ../benchmark
 import ../helper
 
@@ -169,3 +169,4 @@ method checksum(self: NGram): uint32 =
 
 registerBenchmark("Distance::Jaro", newJaro)
 registerBenchmark("Distance::NGram", newNGram)
+{.used.}

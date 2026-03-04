@@ -1,5 +1,4 @@
 import ../benchmark
-import ../helper
 import bufferhash_common
 
 type
@@ -40,3 +39,4 @@ method test(self: BufferHashSHA256): uint32 =
   simpleSHA256(self.data)
 
 registerBenchmark("Hash::SHA256", newBufferHashSHA256)
+{.used.}

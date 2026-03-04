@@ -3,7 +3,6 @@ public class Spectralnorm : Benchmark
     private long _size;
     private double[] _u;
     private double[] _v;
-    private uint _result;
 
     public Spectralnorm()
     {

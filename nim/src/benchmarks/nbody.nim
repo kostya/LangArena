@@ -128,3 +128,4 @@ method checksum(self: Nbody): uint32 =
   (checksum1 shl 5) and checksum2
 
 registerBenchmark("CLBG::Nbody", newNbody)
+{.used.}

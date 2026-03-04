@@ -1,5 +1,4 @@
 import ../benchmark
-import ../helper
 import bufferhash_common
 
 type
@@ -27,3 +26,4 @@ method test(self: BufferHashCRC32): uint32 =
   crc32(self.data)
 
 registerBenchmark("Hash::CRC32", newBufferHashCRC32)
+{.used.}

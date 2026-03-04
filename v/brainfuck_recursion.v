@@ -67,7 +67,7 @@ fn parse_program(pos int, runes []rune) ParseResult {
 struct Program {
 mut:
 	ops    []Op
-	result i64
+	result u64
 }
 
 fn new_program(code string) Program {
@@ -126,7 +126,7 @@ fn (mut p Program) run_ops(ops []Op, mut tape Tape) {
 				tape.prev()
 			}
 			PrintOp {
-				p.result = (p.result << 2) + i64(tape.get())
+				p.result = (p.result << 2) + u64(tape.get())
 			}
 			LoopOp {
 				for tape.get() != 0 {

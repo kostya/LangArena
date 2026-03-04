@@ -253,8 +253,8 @@ public class HuffEncode : CompressBenchmark
         public int Frequency { get; set; }
         public byte ByteVal { get; set; }
         public bool IsLeaf { get; set; }
-        public HuffmanNode Left { get; set; }
-        public HuffmanNode Right { get; set; }
+        public HuffmanNode? Left { get; set; }
+        public HuffmanNode? Right { get; set; }
 
         public HuffmanNode(int freq, byte byteVal = 0, bool leaf = true)
         {
@@ -265,8 +265,9 @@ public class HuffEncode : CompressBenchmark
             Right = null;
         }
 
-        public int CompareTo(HuffmanNode other)
+        public int CompareTo(HuffmanNode? other)
         {
+            if (other == null) return 1;
             return Frequency.CompareTo(other.Frequency);
         }
     }
@@ -403,6 +404,8 @@ public class HuffEncode : CompressBenchmark
     {
         sizeVal = ConfigVal("size");
         resultVal = 0;
+        testData = new byte[0];
+        encoded = new EncodedResult(new byte[0], 0, new int[0]);
     }
 
     public override void Prepare()
@@ -448,10 +451,16 @@ public class HuffDecode : CompressBenchmark
             for (int bitPos = 7; bitPos >= 0 && bitsProcessed < bitCount; bitPos--)
             {
                 bool bit = ((byteVal >> bitPos) & 1) == 1;
-                currentNode = bit ? currentNode.Right : currentNode.Left;
+                if (currentNode != null)
+                {
+                    if (bit)
+                        currentNode = currentNode.Right;
+                    else
+                        currentNode = currentNode.Left;
+                }
                 bitsProcessed++;
 
-                if (currentNode.IsLeaf)
+                if (currentNode != null && currentNode.IsLeaf)
                 {
                     result[resultSize++] = currentNode.ByteVal;
                     currentNode = root;
@@ -477,6 +486,9 @@ public class HuffDecode : CompressBenchmark
     {
         sizeVal = ConfigVal("size");
         resultVal = 0;
+        testData = new byte[0];
+        decoded = new byte[0];
+        encoded = new HuffEncode.EncodedResult(new byte[0], 0, new int[0]);
     }
 
     public override void Prepare()
@@ -732,7 +744,7 @@ public class ArithDecode : CompressBenchmark
 
         ulong value = 0;
         for (int i = 0; i < 32; i++)
-            value = (value << 1) | (ulong)input.ReadBit();
+            value = (value << 1) | (ulong)((uint)input.ReadBit());
 
         ulong low = 0;
         ulong high = 0xFFFFFFFF;
@@ -776,7 +788,7 @@ public class ArithDecode : CompressBenchmark
 
                 low <<= 1;
                 high = (high << 1) | 1;
-                value = (value << 1) | (ulong)input.ReadBit();
+                value = (value << 1) | (ulong)((uint)input.ReadBit());
             }
         }
 
@@ -870,8 +882,9 @@ public class LZWEncode : CompressBenchmark
             else
             {
                 int code = dict[current];
-                result.WriteByte((byte)((code >> 8) & 0xFF));
-                result.WriteByte((byte)(code & 0xFF));
+
+                result.WriteByte((byte)(code >> 8));
+                result.WriteByte((byte)code);
 
                 dict[newStr] = nextCode++;
                 current = nextChar;
@@ -879,8 +892,9 @@ public class LZWEncode : CompressBenchmark
         }
 
         int lastCode = dict[current];
-        result.WriteByte((byte)((lastCode >> 8) & 0xFF));
-        result.WriteByte((byte)(lastCode & 0xFF));
+
+        result.WriteByte((byte)(lastCode >> 8));
+        result.WriteByte((byte)lastCode);
 
         return new LZWResult(result.ToArray(), nextCode);
     }

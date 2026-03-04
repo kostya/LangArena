@@ -1,4 +1,4 @@
-import std/[random, deques, heapqueue]
+import std/[deques, heapqueue]
 import ../benchmark
 import ../helper
 
@@ -197,3 +197,4 @@ method test(self: GraphPathAStar): int64 =
   int64(aStarShortestPath(self.graph, 0, self.graph.vertices - 1))
 
 registerBenchmark("Graph::AStar", newGraphPathAStar)
+{.used.}

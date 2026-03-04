@@ -10,11 +10,6 @@ use std::time::Instant;
 static CONFIG: OnceLock<Value> = OnceLock::new();
 static ORDER: OnceLock<Vec<String>> = OnceLock::new();
 
-struct BenchmarkInfo {
-    name: String,
-    creator: Box<dyn Fn() -> Box<dyn Benchmark> + Send + Sync>,
-}
-
 fn load_config() {
     let filename = std::env::args()
         .nth(1)

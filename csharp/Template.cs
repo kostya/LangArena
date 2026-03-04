@@ -84,7 +84,7 @@ public class TemplateRegex : Template
             result.Append(_text, lastPos, match.Index - lastPos);
 
             string key = match.Groups[1].Value;
-            if (_vars.TryGetValue(key, out string value))
+            if (_vars.TryGetValue(key, out string? value))
             {
                 result.Append(value);
             }
@@ -129,7 +129,7 @@ public class TemplateParse : Template
                 if (j + 1 < len)
                 {
                     string key = _text.Substring(i + 2, j - (i + 2)).Trim();
-                    if (_vars.TryGetValue(key, out string value))
+                    if (_vars.TryGetValue(key, out string? value))
                     {
                         result.Append(value);
                     }

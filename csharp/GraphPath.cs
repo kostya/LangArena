@@ -52,6 +52,7 @@ public abstract class GraphPathBenchmark : Benchmark
     protected GraphPathBenchmark()
     {
         _result = 0;
+        _graph = new Graph(0);
     }
 
     public override void Prepare()

@@ -1,4 +1,4 @@
-import std/[tables, math, strutils]
+import std/[tables]
 import ../benchmark
 import ../helper
 import calculator_common
@@ -81,3 +81,4 @@ method checksum(self: CalculatorInterpreter): uint32 =
   self.resultVal
 
 registerBenchmark("Calculator::Interpreter", newCalculatorInterpreter)
+{.used.}
