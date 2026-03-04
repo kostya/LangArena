@@ -80,6 +80,8 @@ module BenchmarkRunner =
           createBenchmarkInfo<TemplateRegex> "Template::Regex"
           createBenchmarkInfo<TemplateParse> "Template::Parse"
 
+          createBenchmarkInfo<CsvParse> "CSV::Parse"
+
           createBenchmarkInfo<Words> "Etc::Words"
           createBenchmarkInfo<LogParser> "Etc::LogParser" ]
 

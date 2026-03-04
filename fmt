@@ -28,7 +28,6 @@ def remove_comments(filepath, lang)
   
   case lang
   when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 'fsharp', 'dart', 'zig', 'odin', 'scala'
-    # Учитываем строки и символы
     lines = content.lines.map do |line|
       in_string = false
       string_char = nil
@@ -53,7 +52,6 @@ def remove_comments(filepath, lang)
             comment_start = i
             break
           elsif char == '/' && i+1 < line.length && line[i+1] == '*'
-            # Многострочные комментарии обрабатываются отдельно
           end
         end
       end
@@ -66,7 +64,6 @@ def remove_comments(filepath, lang)
     end
     
     content = lines.join("\n")
-    # Удаляем многострочные комментарии
     content.gsub!(/\/\*[\s\S]*?\*\//m, '')
     
   when 'typescript'
@@ -171,12 +168,10 @@ LANG_MASKS.each do |lang, (dir, _, _, format_cmd)|
     if format_cmd.include?("$@")
       files.each do |filename|
         cmd = "#{format_cmd.gsub("$@", "'" + filename.gsub("#{dir}/", "") + "'")}"
-        # puts cmd
         `#{cmd}`
       end
     else
       cmd = "#{format_cmd}"
-      # puts cmd
       `#{cmd}`
     end
   end

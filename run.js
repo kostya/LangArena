@@ -82,6 +82,12 @@
     "iterations": 100
   },
   {
+    "name": "CSV::Parse",
+    "checksum": 194814688,
+    "rows": 100000,
+    "iterations": 70
+  },
+  {
     "name": "Etc::Sieve",
     "checksum": 1042248060,
     "limit": 3000000,

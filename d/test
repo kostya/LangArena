@@ -2,4 +2,3 @@
 rm -f ./target/debug/d_benchmarks
 dub build -c debug
 ./target/debug/d_benchmarks ../test.js $@
-#dub run -- ../test.js $@

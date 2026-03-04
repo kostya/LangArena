@@ -43,6 +43,7 @@ import benchmarks.distance;
 import benchmarks.words;
 import benchmarks.logparser;
 import benchmarks.templates;
+import benchmarks.csv_parse;
 
 mixin(registerAllBenchmarks!("CLBG::Pidigits", Pidigits, "Binarytrees::Obj",
         BinarytreesObj, "Binarytrees::Arena", BinarytreesArena, "Brainfuck::Array",
@@ -67,9 +68,9 @@ mixin(registerAllBenchmarks!("CLBG::Pidigits", Pidigits, "Binarytrees::Obj",
         "Compress::ArithEncode",
         ArithEncode, "Compress::ArithDecode", ArithDecode,
         "Compress::LZWEncode", LZWEncode, "Compress::LZWDecode", LZWDecode,
-        "Distance::Jaro", Jaro, "Distance::NGram", NGram, "Etc::Words",
-        Words, "Etc::LogParser", LogParser, "Template::Regex", TemplateRegex,
-        "Template::Parse", TemplateParse));
+        "Distance::Jaro", Jaro, "Distance::NGram", NGram, "Etc::Words", Words,
+        "Etc::LogParser", LogParser, "Template::Regex",
+        TemplateRegex, "Template::Parse", TemplateParse, "CSV::Parse", CsvParse));
 
 void benchmarkAll(string singleBench = "")
 {

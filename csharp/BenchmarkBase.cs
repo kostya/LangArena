@@ -158,6 +158,8 @@ public abstract class Benchmark
 
             CreateBenchmarkInfo<TemplateRegex>("Template::Regex"),
             CreateBenchmarkInfo<TemplateParse>("Template::Parse"),
+
+            CreateBenchmarkInfo<CsvParse>("CSV::Parse"),
         };
     }
 

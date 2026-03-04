@@ -56,6 +56,7 @@ func main() {
   BenchmarkManager.register("Etc::LogParser") { LogParser() }
   BenchmarkManager.register("Template::Regex") { TemplateRegex() }
   BenchmarkManager.register("Template::Parse") { TemplateParse() }
+  BenchmarkManager.register("CSV::Parse") { CsvParse() }
 
   let args = CommandLine.arguments.dropFirst()
   let configFile = args.first { $0.hasSuffix(".txt") || $0.hasSuffix(".js") }

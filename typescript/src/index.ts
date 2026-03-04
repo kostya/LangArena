@@ -5628,6 +5628,109 @@ export class TemplateParse extends TemplateBase {
   }
 }
 
+export class CsvParse extends Benchmark {
+  private rows: number = 0;
+  private data: string = "";
+  private resultValue: number = 0;
+
+  constructor() {
+    super();
+    this.rows = Number(Helper.configI64(this.name, "rows"));
+  }
+
+  prepare(): void {
+    const lines: string[] = [];
+
+    for (let i = 0; i < this.rows; i++) {
+      const c = String.fromCharCode("A".charCodeAt(0) + (i % 26));
+      const x = Helper.nextFloat(1.0);
+      const z = Helper.nextFloat(1.0);
+      const y = Helper.nextFloat(1.0);
+      let line = `"point ${c}\\n, ""${i % 100}""",`;
+      line += x.toFixed(10) + ",";
+      line += ",";
+      line += z.toFixed(10) + ",";
+      line += `"[${i % 2 === 0 ? "true" : "false"}\\n, ${i % 100}]",`;
+      line += y.toFixed(10);
+      lines.push(line);
+    }
+
+    this.data = lines.join("\n");
+  }
+
+  private parsePoints(
+    csvData: string,
+  ): Array<{ x: number; y: number; z: number }> {
+    const lines = csvData.split("\n").filter((line) => line.trim().length > 0);
+    const points: Array<{ x: number; y: number; z: number }> = [];
+
+    for (const line of lines) {
+      const fields = this.parseCsvLine(line);
+      const x = parseFloat(fields[1]); // индекс 1
+      const z = parseFloat(fields[3]); // индекс 3
+      const y = parseFloat(fields[5]); // индекс 5
+      points.push({ x, y, z });
+    }
+
+    return points;
+  }
+
+  private parseCsvLine(line: string): string[] {
+    const fields: string[] = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === "," && !inQuotes) {
+        fields.push(current);
+        current = "";
+      } else {
+        current += ch;
+      }
+    }
+
+    fields.push(current);
+    return fields;
+  }
+
+  run(_iteration_id: number): void {
+    const points = this.parsePoints(this.data);
+
+    if (points.length === 0) return;
+
+    let xSum = 0,
+      ySum = 0,
+      zSum = 0;
+
+    for (const p of points) {
+      xSum += p.x;
+      ySum += p.y;
+      zSum += p.z;
+    }
+
+    const len = points.length;
+    const xAvg = xSum / len;
+    const yAvg = ySum / len;
+    const zAvg = zSum / len;
+
+    this.resultValue = (this.resultValue + Helper.checksumFloat(xAvg)) >>> 0;
+    this.resultValue = (this.resultValue + Helper.checksumFloat(yAvg)) >>> 0;
+    this.resultValue = (this.resultValue + Helper.checksumFloat(zAvg)) >>> 0;
+  }
+
+  checksum(): number {
+    return this.resultValue >>> 0;
+  }
+
+  override get name(): string {
+    return "CSV::Parse";
+  }
+}
+
 Benchmark.registerBenchmark("CLBG::Pidigits", Pidigits);
 Benchmark.registerBenchmark("Binarytrees::Obj", BinarytreesObj);
 Benchmark.registerBenchmark("Binarytrees::Arena", BinarytreesArena);
@@ -5678,6 +5781,7 @@ Benchmark.registerBenchmark("Etc::Words", Words);
 Benchmark.registerBenchmark("Etc::LogParser", LogParser);
 Benchmark.registerBenchmark("Template::Regex", TemplateRegex);
 Benchmark.registerBenchmark("Template::Parse", TemplateParse);
+Benchmark.registerBenchmark("CSV::Parse", CsvParse);
 
 const RECOMPILE_MARKER = "RECOMPILE_MARKER_0";
 

@@ -325,6 +325,10 @@ fn run_benchmarks(single_bench: Option<&str>) {
         "Template::Parse".to_string(),
         Box::new(|| Box::new(benchmarks::template::TemplateParse::new())),
     );
+    benchmark_map.insert(
+        "CSV::Parse".to_string(),
+        Box::new(|| Box::new(benchmarks::csv_parse::CsvParse::new())),
+    );
 
     let mut summary_time = 0.0;
     let mut ok = 0;

@@ -195,6 +195,7 @@ pub const all_benchmarks_list = blk: {
         createBenchInfo("Etc::LogParser", @import("logparser.zig").LogParser),
         createBenchInfo("Template::Regex", @import("template.zig").TemplateRegex),
         createBenchInfo("Template::Parse", @import("template.zig").TemplateParse),
+        createBenchInfo("CSV::Parse", @import("csv_parse.zig").CsvParse),
     };
     break :blk list;
 };
