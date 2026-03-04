@@ -16,8 +16,6 @@ type
     radius: float
     color: Color
 
-  Light = object
-
   TextRaytracer* = ref object of Benchmark
     w, h: int32
     resultVal: uint32
