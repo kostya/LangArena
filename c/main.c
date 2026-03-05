@@ -187,7 +187,6 @@ typedef struct Benchmark Benchmark;
 
 struct Benchmark {
   const char *name;
-  double time_delta;
   uint32_t checksum_val;
   int64_t iterations_val;
 
@@ -247,7 +246,6 @@ void Benchmark_default_cleanup(Benchmark *self) {}
 Benchmark *Benchmark_create(const char *name) {
   Benchmark *bench = malloc(sizeof(Benchmark));
   bench->name = name;
-  bench->time_delta = 0.0;
   bench->checksum_val = 0;
   bench->iterations_val = 0;
   bench->data = NULL;
@@ -367,7 +365,6 @@ void Benchmark_all(const char *single_bench) {
     double duration =
         (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) * 1e-9;
 
-    bench->time_delta = duration;
     summary_time += duration;
 
     uint32_t actual_checksum = bench->checksum(bench);

@@ -13,8 +13,6 @@ import helper;
 abstract class Benchmark
 {
 protected:
-    double timeDelta = 0.0;
-
     protected abstract string className() const;
 
 public:
@@ -47,11 +45,6 @@ public:
         {
             this.run(i);
         }
-    }
-
-    void setTimeDelta(double delta)
-    {
-        timeDelta = delta;
     }
 
     int iterations() const

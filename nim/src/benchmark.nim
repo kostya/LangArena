@@ -3,7 +3,6 @@ import config, helper
 
 type
   Benchmark* = ref object of RootObj
-    timeDelta*: float
 
 method name*(self: Benchmark): string {.base.} =
   raise newException(ValueError, "Not implemented")
@@ -42,9 +41,6 @@ proc run_all*(self: Benchmark) =
   let iters = self.iterations
   for i in 0..<iters:
     self.run(i)
-
-proc set_time_delta*(self: Benchmark, delta: float) =
-  self.timeDelta = delta
 
 proc customRound*(value: float, precision: int32): float =
   if classify(value) in {fcNan, fcInf, fcNegInf}:
@@ -103,8 +99,6 @@ proc all*(singleBench = "") =
     let start = epochTime()
     bench.run_all
     let duration = epochTime() - start
-
-    bench.set_time_delta(duration)
 
     if bench.checksum == bench.expected_checksum.uint32:
       stdout.write("OK ")

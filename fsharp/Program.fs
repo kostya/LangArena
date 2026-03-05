@@ -109,7 +109,6 @@ module BenchmarkRunner =
                 stopwatch.Stop()
 
                 let timeDelta = stopwatch.Elapsed.TotalSeconds
-                benchmark.TimeDelta <- timeDelta
 
                 GC.Collect()
                 Thread.Sleep(0)

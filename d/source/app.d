@@ -112,8 +112,6 @@ void benchmarkAll(string singleBench = "")
         auto end = MonoTime.currTime;
         auto duration = (end - start).total!"msecs" / 1000.0;
 
-        bench.setTimeDelta(duration);
-
         if (bench.checksum == bench.expectedChecksum)
         {
             std.stdio.write("OK ");

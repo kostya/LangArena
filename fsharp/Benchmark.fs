@@ -27,8 +27,6 @@ type Benchmark() =
         for i in 0L .. prepareIters - 1L do
             this.Run(i)
 
-    member val TimeDelta = 0.0 with get, set
-
     member this.WarmupIterations: int64 =
         let className = this.Name
         let mutable benchObj = JsonElement()
