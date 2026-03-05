@@ -134,33 +134,33 @@
   },
   {
     "name": "Template::Regex",
-    "checksum": 3462120285,
-    "iterations": 32,
+    "checksum": 3554506535,
+    "iterations": 50,
     "count": 50000
   },
   {
     "name": "Template::Parse",
-    "checksum": 3462120285,
-    "iterations": 32,
+    "checksum": 3554506535,
+    "iterations": 50,
     "count": 50000
   },
   {
     "name": "Sort::Quick",
-    "checksum": 118065786,
-    "size": 150000,
-    "iterations": 100
+    "checksum": 61757772,
+    "size": 400000,
+    "iterations": 50
   },
   {
     "name": "Sort::Merge",
-    "checksum": 118065786,
-    "size": 150000,
-    "iterations": 100
+    "checksum": 61757772,
+    "size": 400000,
+    "iterations": 50
   },
   {
     "name": "Sort::Self",
-    "checksum": 118065786,
-    "size": 150000,
-    "iterations": 100
+    "checksum": 61757772,
+    "size": 400000,
+    "iterations": 50
   },
   {
     "name": "Graph::BFS",
