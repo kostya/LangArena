@@ -3,6 +3,7 @@ package benchmarks
 import java.util.{ArrayDeque, Deque, PriorityQueue}
 import scala.collection.mutable
 import scala.math
+import scala.util.boundary, boundary.break
 
 object MazeTypes {
   object CellKind {
@@ -86,9 +87,7 @@ object MazeTypes {
     }
 
     def dig(startCell: Cell): Unit = {
-      import scala.collection.mutable.ArrayStack
-
-      val stack = new ArrayStack[Cell](w * h)
+      val stack = mutable.Stack[Cell]()
       stack.push(startCell)
 
       while (stack.nonEmpty) {
@@ -219,29 +218,31 @@ class MazeBFS extends Benchmark {
     pathNodes += PathNode(start, -1)
     queue.enqueue(0)
 
-    while (queue.nonEmpty) {
-      val pathId = queue.dequeue()
-      val node = pathNodes(pathId)
+    boundary {
+      while (queue.nonEmpty) {
+        val pathId = queue.dequeue()
+        val node = pathNodes(pathId)
 
-      node.cell.neighbors.foreach { neighbor =>
-        if (neighbor == target) {
-          var cur = pathId
-          var result = List(target)
-          while (cur >= 0) {
-            result = pathNodes(cur).cell :: result
-            cur = pathNodes(cur).parent
+        node.cell.neighbors.foreach { neighbor =>
+          if (neighbor == target) {
+            var cur = pathId
+            var result = List(target)
+            while (cur >= 0) {
+              result = pathNodes(cur).cell :: result
+              cur = pathNodes(cur).parent
+            }
+            break(result.reverse)
           }
-          return result.reverse
-        }
 
-        if (neighbor.isWalkable && !visited(neighbor.y)(neighbor.x)) {
-          visited(neighbor.y)(neighbor.x) = true
-          pathNodes += PathNode(neighbor, pathId)
-          queue.enqueue(pathNodes.size - 1)
+          if (neighbor.isWalkable && !visited(neighbor.y)(neighbor.x)) {
+            visited(neighbor.y)(neighbor.x) = true
+            pathNodes += PathNode(neighbor, pathId)
+            queue.enqueue(pathNodes.size - 1)
+          }
         }
       }
+      Nil
     }
-    Nil
   }
 
   def midCellChecksum(path: List[Cell]): Long = {
