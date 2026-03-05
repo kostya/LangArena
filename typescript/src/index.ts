@@ -5679,6 +5679,8 @@ Benchmark.registerBenchmark("Etc::LogParser", LogParser);
 Benchmark.registerBenchmark("Template::Regex", TemplateRegex);
 Benchmark.registerBenchmark("Template::Parse", TemplateParse);
 
+const RECOMPILE_MARKER = "RECOMPILE_MARKER_0";
+
 try {
   main().catch(console.error);
 } catch (error) {
