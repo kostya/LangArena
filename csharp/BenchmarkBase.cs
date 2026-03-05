@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 public abstract class Benchmark
 {
@@ -16,13 +17,20 @@ public abstract class Benchmark
     {
         get
         {
-            if (Helper.Config.RootElement.TryGetProperty(TypeName, out var benchObj))
+            if (Helper.Config != null)
             {
-                if (benchObj.TryGetProperty("warmup_iterations", out var warmupProp))
+                var benchObj = Helper.Config[TypeName] as JsonObject;
+                if (benchObj != null)
                 {
-                    return warmupProp.GetInt64();
+                    if (benchObj.TryGetPropertyValue("warmup_iterations", out var warmupProp) &&
+                        warmupProp is JsonValue jsonValue)
+                    {
+                        if (jsonValue.TryGetValue<long>(out var warmup))
+                            return warmup;
+                    }
                 }
             }
+
             long iters = Iterations;
             return Math.Max((long)(iters * 0.2), 1);
         }
