@@ -18,3 +18,6 @@ if [ ! -f "deps/json.hpp" ]; then
   wget https://github.com/nlohmann/json/releases/download/v3.12.0/json.hpp -O deps/json.hpp
 fi
 
+if [ ! -f "deps/lazycsv.hpp" ]; then
+  wget https://raw.githubusercontent.com/ashtum/lazycsv/refs/heads/master/include/lazycsv.hpp -O deps/lazycsv.hpp
+fi

@@ -31,6 +31,7 @@ import json_benchmarks
 import words
 import logparser
 import template
+import csv_parse
 
 fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 	return [
@@ -183,6 +184,9 @@ fn get_benchmark_factories() []benchmark.BenchmarkInfo {
 		}},
 		benchmark.BenchmarkInfo{'Template::Parse', fn () &benchmark.IBenchmark {
 			return template.new_template_parse()
+		}},
+		benchmark.BenchmarkInfo{'CSV::Parse', fn () &benchmark.IBenchmark {
+			return csv_parse.new_csvparse()
 		}},
 	]
 }

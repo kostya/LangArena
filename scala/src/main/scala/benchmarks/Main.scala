@@ -57,6 +57,7 @@ object Main:
     Benchmark.registerBenchmark("Etc::LogParser", () => new LogParser())
     Benchmark.registerBenchmark("Template::Regex", () => new TemplateRegex())
     Benchmark.registerBenchmark("Template::Parse", () => new TemplateParse())
+    Benchmark.registerBenchmark("CSV::Parse", () => new CsvParse())
 
     val now = Instant.now().toEpochMilli
     println(s"start: $now")

@@ -15,6 +15,7 @@ import re
 import sys
 import time
 import gc
+import csv
 
 from abc import ABC, abstractmethod
 from collections import OrderedDict, deque
@@ -4398,6 +4399,77 @@ class TemplateParse(TemplateBase):
         return "Template::Parse"
 
 
+class CsvParse(Benchmark):
+
+    def __init__(self):
+        super().__init__()
+        self.rows = 0
+        self.data = ''
+        self.result_value = 0
+
+    def prepare(self):
+        self.rows = int(Helper.config_i64(self.name(), "rows"))
+        lines = []
+
+        for i in range(self.rows):
+            c = chr(ord('A') + (i % 26))
+            x = Helper.next_float(1.0)
+            z = Helper.next_float(1.0)
+            y = Helper.next_float(1.0)
+            line = f'"point {c}\\n, ""{i % 100}""",'
+            line += f'{x:.10f},'
+            line += ','
+            line += f'{z:.10f},'
+            flag = "true" if i % 2 == 0 else "false"
+            line += f'"[{flag}\\n, {i % 100}]",'
+            line += f'{y:.10f}'
+            lines.append(line)
+        self.data = '\n'.join(lines)
+
+    def _parse_points(self, data: str):
+        points = []
+        reader = csv.reader(StringIO(data), delimiter=',', quotechar='"')
+
+        for row in reader:
+            x = float(row[1])
+            z = float(row[3])
+            y = float(row[5])
+            points.append((x, y, z))
+
+        return points
+
+    def run_benchmark(self, iteration_id: int):
+        points = self._parse_points(self.data)
+
+        if not points:
+            return
+
+        x_sum = y_sum = z_sum = 0.0
+
+        for x, y, z in points:
+            x_sum += x
+            y_sum += y
+            z_sum += z
+
+        count = len(points)
+        x_avg = x_sum / count
+        y_avg = y_sum / count
+        z_avg = z_sum / count
+
+        self.result_value = (self.result_value +
+                             Helper.checksum_float(x_avg)) & 0xFFFFFFFF
+        self.result_value = (self.result_value +
+                             Helper.checksum_float(y_avg)) & 0xFFFFFFFF
+        self.result_value = (self.result_value +
+                             Helper.checksum_float(z_avg)) & 0xFFFFFFFF
+
+    def checksum(self) -> int:
+        return self.result_value & 0xFFFFFFFF
+
+    def name(self) -> str:
+        return "CSV::Parse"
+
+
 def register_benchmarks():
     Benchmark.register_benchmark('CLBG::Pidigits', Pidigits)
     Benchmark.register_benchmark('Binarytrees::Obj', BinarytreesObj)
@@ -4450,6 +4522,7 @@ def register_benchmarks():
     Benchmark.register_benchmark('Etc::LogParser', LogParser)
     Benchmark.register_benchmark('Template::Regex', TemplateRegex)
     Benchmark.register_benchmark('Template::Parse', TemplateParse)
+    Benchmark.register_benchmark('CSV::Parse', CsvParse)
 
 
 def main():

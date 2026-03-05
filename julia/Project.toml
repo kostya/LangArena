@@ -6,6 +6,7 @@ authors = ["Your Name <you@example.com>"]
 [deps]
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 PackageCompiler = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
@@ -26,3 +27,4 @@ Random = "1.11.0"
 StaticArrays = "1.9.16"
 Statistics = "1.11.1"
 StructTypes = "1.11.0"
+CSV = "0.10"

@@ -1,8 +1,8 @@
 require "base64"
 require "cryyjson"
 require "json"
-require "complex"
 require "mut_gmp"
+require "csv"
 
 puts "start: #{Time.local.to_unix_ms}"
 Benchmark.run(ARGV[1]?)
@@ -4176,6 +4176,70 @@ module Distance
 
     def checksum : UInt32
       @result
+    end
+  end
+end
+
+class CSV
+  class Parse < Benchmark
+    def initialize(@rows : Int32 = config_val("rows").to_i32)
+      @checksum = 0_u32
+      @data = ""
+    end
+
+    def prepare
+      @data = String.build do |str|
+        @rows.times do |i|
+          c = ('A'.ord + i % 26).chr
+          x = Helper.next_float
+          z = Helper.next_float
+          y = Helper.next_float
+
+          str << '"' << "point " << c << "\\n, \"\"" << (i % 100) << "\"\"\"" << ','
+          str << ("%.10f" % x) << ',' << ','
+          str << ("%.10f" % z) << ','
+          str << '"' << '[' << (i.even? ? "true" : "false") << "\\n, " << (i % 100) << ']' << '"' << ','
+          str << ("%.10f" % y) << '\n'
+        end
+      end
+    end
+
+    record Point, x : Float64, y : Float64, z : Float64
+
+    def parse_points(csv_data : String) : Array(Point)
+      points = [] of Point
+
+      CSV.each_row(csv_data, quote_char: '"', separator: ',') do |row|
+        x = row[1].to_f
+        z = row[3].to_f
+        y = row[5].to_f
+        points << Point.new(x: x, y: y, z: z)
+      end
+
+      points
+    end
+
+    def run(iteration_id)
+      points = parse_points(@data)
+
+      return if points.empty?
+
+      x_sum = y_sum = z_sum = 0.0
+      points.each do |point|
+        x_sum += point.x
+        y_sum += point.y
+        z_sum += point.z
+      end
+
+      x_avg = x_sum / points.size
+      y_avg = y_sum / points.size
+      z_avg = z_sum / points.size
+
+      @checksum &+= Helper.checksum_f64(x_avg) &+ Helper.checksum_f64(y_avg) &+ Helper.checksum_f64(z_avg)
+    end
+
+    def checksum : UInt32
+      @checksum
     end
   end
 end

@@ -1,4 +1,7 @@
+#define _LIBCPP_NO_EXCEPTIONS
 #include "json.hpp"
+#include "lazycsv.hpp"
+#include "simdjson.h"
 #include <algorithm>
 #include <array>
 #include <barrier>
@@ -14,6 +17,7 @@
 #include <fstream>
 #include <functional>
 #include <future>
+#include <gmpxx.h>
 #include <iomanip>
 #include <iostream>
 #include <latch>
@@ -24,19 +28,21 @@
 #include <queue>
 #include <random>
 #include <ranges>
+#include <re2/re2.h>
 #include <regex>
 #include <semaphore>
 #include <sstream>
 #include <stack>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <variant>
 #include <vector>
-
-#include "simdjson.h"
-#include <re2/re2.h>
+extern "C" {
+#include "libbase64.h"
+}
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
@@ -211,8 +217,6 @@ double custom_round(double value, int32_t precision) {
     return (std::round(scaled / 2.0) * 2.0) / factor;
   }
 }
-
-#include <gmpxx.h>
 
 class Pidigits : public Benchmark {
 private:
@@ -1117,10 +1121,6 @@ public:
     return Helper::checksum_f64(sqrt(vBv / vv));
   }
 };
-
-extern "C" {
-#include "libbase64.h"
-}
 
 class Base64Encode : public Benchmark {
 private:
@@ -4864,6 +4864,82 @@ public:
     return checksum_val + Helper::checksum(rendered);
   }
 };
+
+class CsvParse : public Benchmark {
+private:
+  struct Point {
+    double x, y, z;
+    Point(double x_, double y_, double z_) : x(x_), y(y_), z(z_) {}
+  };
+
+  int64_t rows;
+  std::string data;
+  uint32_t result_val;
+
+public:
+  CsvParse() : rows(config_val("rows")), result_val(0) {}
+
+  std::string name() const override { return "CSV::Parse"; }
+
+  void prepare() override {
+    std::ostringstream ss;
+    ss << std::fixed << std::setprecision(10);
+
+    for (int i = 0; i < rows; i++) {
+      char c = 'A' + (i % 26);
+      double x = Helper::next_float();
+      double z = Helper::next_float();
+      double y = Helper::next_float();
+      ss << '"' << "point " << c << "\\n, \"\"" << (i % 100) << "\"\"\"" << ','
+         << x << ',' << ',' << z << ',' << '"' << '['
+         << (i % 2 == 0 ? "true" : "false") << "\\n, " << (i % 100) << ']'
+         << '"' << ',' << y << '\n';
+    }
+
+    data = ss.str();
+  }
+
+  void run(int iteration_id) override {
+    (void)iteration_id;
+
+    lazycsv::parser<std::string_view, lazycsv::has_header<false>,
+                    lazycsv::delimiter<','>, lazycsv::quote_char<'"'>>
+        parser(data);
+
+    std::vector<Point> points;
+
+    for (const auto &row : parser) {
+      auto cells = row.cells(1, 3, 5);
+
+      double x = std::stod(std::string(cells[0].trimmed()));
+      double z = std::stod(std::string(cells[2].trimmed()));
+      double y = std::stod(std::string(cells[1].trimmed()));
+
+      points.emplace_back(x, y, z);
+    }
+
+    if (points.empty())
+      return;
+
+    double x_sum = 0.0, y_sum = 0.0, z_sum = 0.0;
+    for (const auto &p : points) {
+      x_sum += p.x;
+      y_sum += p.y;
+      z_sum += p.z;
+    }
+
+    double len = static_cast<double>(points.size());
+    double x_avg = x_sum / len;
+    double y_avg = y_sum / len;
+    double z_avg = z_sum / len;
+
+    result_val += Helper::checksum_f64(x_avg) + Helper::checksum_f64(y_avg) +
+                  Helper::checksum_f64(z_avg);
+  }
+
+  uint32_t checksum() override { return result_val; }
+};
+
 std::string to_lower(const std::string &str) {
   std::string result = str;
   std::transform(result.begin(), result.end(), result.begin(),
@@ -4954,6 +5030,7 @@ void Benchmark::all(const std::string &single_bench,
            []() { return std::make_unique<TemplateRegex>(); }},
           {"Template::Parse",
            []() { return std::make_unique<TemplateParse>(); }},
+          {"CSV::Parse", []() { return std::make_unique<CsvParse>(); }},
       };
 
   std::ifstream file(config_file);

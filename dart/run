@@ -1,5 +1,6 @@
 #!/bin/bash
 mkdir -p target
 rm -f target/dart_run
+dart pub get
 dart compile exe main.dart -o target/dart_run
 ../xtime.rb target/dart_run ../run.js $@

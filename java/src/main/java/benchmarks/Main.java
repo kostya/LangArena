@@ -55,6 +55,7 @@ public class Main {
         Benchmark.registerBenchmark("Etc::LogParser", () -> new LogParser());
         Benchmark.registerBenchmark("Template::Regex", () -> new Template.Regex());
         Benchmark.registerBenchmark("Template::Parse", () -> new Template.Parse());
+        Benchmark.registerBenchmark("CSV::Parse", () -> new CsvParse());
 
         long now = Instant.now().toEpochMilli();
         System.out.println("start: " + now);

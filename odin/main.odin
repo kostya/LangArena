@@ -66,6 +66,7 @@ main :: proc() {
 	benchmark.register_benchmark_factory("Etc::LogParser", benchmark.create_logparser)
 	benchmark.register_benchmark_factory("Template::Regex", benchmark.create_template_regex)
 	benchmark.register_benchmark_factory("Template::Parse", benchmark.create_template_parse)
+	benchmark.register_benchmark_factory("CSV::Parse", benchmark.create_csvparse)
 
 	config_file := "../test.json"
 	if len(os.args) > 1 {

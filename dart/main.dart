@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'dart:isolate';
 import 'dart:async';
 import 'dart:collection';
+import 'package:csv/csv.dart';
 
 bool get isDartVM => true;
 
@@ -474,8 +475,8 @@ class BrainfuckProgram {
   final List<int> _jumps;
 
   BrainfuckProgram(String text)
-    : _commands = _filterCommands(text),
-      _jumps = List.filled(_filterCommands(text).length, 0) {
+      : _commands = _filterCommands(text),
+        _jumps = List.filled(_filterCommands(text).length, 0) {
     _buildJumps();
   }
 
@@ -1171,13 +1172,13 @@ class Planet {
     double vy,
     double vz,
     double mass,
-  ) : x = x,
-      y = y,
-      z = z,
-      vx = vx * DAYS_PER_YEAR,
-      vy = vy * DAYS_PER_YEAR,
-      vz = vz * DAYS_PER_YEAR,
-      mass = mass * SOLAR_MASS;
+  )   : x = x,
+        y = y,
+        z = z,
+        vx = vx * DAYS_PER_YEAR,
+        vy = vy * DAYS_PER_YEAR,
+        vz = vz * DAYS_PER_YEAR,
+        mass = mass * SOLAR_MASS;
 
   void moveFromI(List<Planet> bodies, double dt, int i) {
     while (i < bodies.length) {
@@ -1212,7 +1213,6 @@ class Nbody extends Benchmark {
 
   static final _initialBodies = [
     Planet(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0),
-
     Planet(
       4.84143144246472090e+00,
       -1.16032004402742839e+00,
@@ -1222,7 +1222,6 @@ class Nbody extends Benchmark {
       -6.90460016972063023e-05,
       9.54791938424326609e-04,
     ),
-
     Planet(
       8.34336671824457987e+00,
       4.12479856412430479e+00,
@@ -1232,7 +1231,6 @@ class Nbody extends Benchmark {
       2.30417297573763929e-05,
       2.85885980666130812e-04,
     ),
-
     Planet(
       1.28943695621391310e+01,
       -1.51111514016986312e+01,
@@ -1242,7 +1240,6 @@ class Nbody extends Benchmark {
       -2.96589568540237556e-05,
       4.36624404335156298e-05,
     ),
-
     Planet(
       1.53796971148509165e+01,
       -2.59193146099879641e+01,
@@ -1443,8 +1440,7 @@ class Base64Encode extends Benchmark {
   @override
   int checksum() {
     final _str = 'a' * n;
-    final output =
-        'encode ${_str.substring(0, min(4, _str.length))}... '
+    final output = 'encode ${_str.substring(0, min(4, _str.length))}... '
         'to ${_str2.substring(0, min(4, _str2.length))}...: $_resultValue';
     return Helper.checksumString(output);
   }
@@ -1479,8 +1475,7 @@ class Base64Decode extends Benchmark {
   @override
   int checksum() {
     final str3 = String.fromCharCodes(_bytes);
-    final output =
-        'decode ${_str2.substring(0, min(4, _str2.length))}... '
+    final output = 'decode ${_str2.substring(0, min(4, _str2.length))}... '
         'to ${str3.substring(0, min(4, str3.length))}...: $_resultValue';
     return Helper.checksumString(output);
   }
@@ -1555,8 +1550,8 @@ class JsonParseDom extends Benchmark {
 
   (double, double, double) _calc(String text) {
     final json = jsonDecode(text) as Map<String, dynamic>;
-    final coordinates = (json['coordinates'] as List)
-        .cast<Map<String, dynamic>>();
+    final coordinates =
+        (json['coordinates'] as List).cast<Map<String, dynamic>>();
     final len = coordinates.length.toDouble();
 
     double x = 0, y = 0, z = 0;
@@ -1603,8 +1598,8 @@ class JsonParseMapping extends Benchmark {
 
   ({double x, double y, double z}) _calc(String text) {
     final json = jsonDecode(text) as Map<String, dynamic>;
-    final coordinates = (json['coordinates'] as List)
-        .cast<Map<String, dynamic>>();
+    final coordinates =
+        (json['coordinates'] as List).cast<Map<String, dynamic>>();
     final len = coordinates.length.toDouble();
 
     double x = 0, y = 0, z = 0;
@@ -1925,13 +1920,12 @@ class NeuralNetNeuron {
       final tempWeight = synapse.weight;
       synapse.weight +=
           (rate * learningRate * error * synapse.sourceNeuron.output) +
-          (momentum * (synapse.weight - synapse.prevWeight));
+              (momentum * (synapse.weight - synapse.prevWeight));
       synapse.prevWeight = tempWeight;
     }
 
     final tempThreshold = threshold;
-    threshold +=
-        (rate * learningRate * error * -1) +
+    threshold += (rate * learningRate * error * -1) +
         (momentum * (threshold - prevThreshold));
     prevThreshold = tempThreshold;
   }
@@ -1943,9 +1937,9 @@ class NeuralNetNetwork {
   final List<NeuralNetNeuron> outputLayer;
 
   NeuralNetNetwork(int inputs, int hidden, int outputs)
-    : inputLayer = List.generate(inputs, (_) => NeuralNetNeuron()),
-      hiddenLayer = List.generate(hidden, (_) => NeuralNetNeuron()),
-      outputLayer = List.generate(outputs, (_) => NeuralNetNeuron()) {
+      : inputLayer = List.generate(inputs, (_) => NeuralNetNeuron()),
+        hiddenLayer = List.generate(hidden, (_) => NeuralNetNeuron()),
+        outputLayer = List.generate(outputs, (_) => NeuralNetNeuron()) {
     for (final source in inputLayer) {
       for (final dest in hiddenLayer) {
         final synapse = NeuralNetSynapse(source, dest);
@@ -2187,7 +2181,7 @@ class GraphPathGraph {
   final List<List<int>> adj;
 
   GraphPathGraph(this.vertices, {this.jumps = 3, this.jumpLen = 100})
-    : adj = List.generate(vertices, (_) => []);
+      : adj = List.generate(vertices, (_) => []);
 
   void addEdge(int u, int v) {
     adj[u].add(v);
@@ -2926,7 +2920,7 @@ class CalculatorAst extends Benchmark {
       if (lastExpr is AssignmentNode) {
         _resultValue =
             (_resultValue + Helper.checksumString(lastExpr.varName)) &
-            0xFFFFFFFF;
+                0xFFFFFFFF;
       }
     }
   }
@@ -3198,7 +3192,9 @@ class Cell {
   int x;
   int y;
 
-  Cell(this.x, this.y) : kind = CellKind.wall, neighbors = [];
+  Cell(this.x, this.y)
+      : kind = CellKind.wall,
+        neighbors = [];
 
   bool isWalkable() {
     return kind == CellKind.space ||
@@ -3267,7 +3263,9 @@ class MazeCell {
   final List<MazeCell> neighbors;
   final int x, y;
 
-  MazeCell(this.x, this.y) : kind = MazeCellKind.wall, neighbors = [];
+  MazeCell(this.x, this.y)
+      : kind = MazeCellKind.wall,
+        neighbors = [];
 
   void addNeighbor(MazeCell cell) => neighbors.add(cell);
 
@@ -3286,12 +3284,12 @@ class Maze {
   late final MazeCell finish;
 
   Maze(int w, int h)
-    : width = max(w, 5),
-      height = max(h, 5),
-      cells = List.generate(
-        max(h, 5),
-        (y) => List.generate(max(w, 5), (x) => MazeCell(x, y)),
-      ) {
+      : width = max(w, 5),
+        height = max(h, 5),
+        cells = List.generate(
+          max(h, 5),
+          (y) => List.generate(max(w, 5), (x) => MazeCell(x, y)),
+        ) {
     start = cells[1][1];
     finish = cells[height - 2][width - 2];
     start.kind = MazeCellKind.start;
@@ -3763,8 +3761,7 @@ class BWTEncode extends Benchmark {
         for (int i = 1; i < n; i++) {
           int prevIdx = sa[i - 1];
           int currIdx = sa[i];
-          newRank[currIdx] =
-              newRank[prevIdx] +
+          newRank[currIdx] = newRank[prevIdx] +
               ((rank[prevIdx] != rank[currIdx] ||
                       rank[(prevIdx + k) % n] != rank[(currIdx + k) % n])
                   ? 1
@@ -3903,8 +3900,8 @@ class HuffmanNode {
   HuffmanNode? right;
 
   HuffmanNode(this.frequency, [this.byteVal = 0, this.isLeaf = true])
-    : left = null,
-      right = null;
+      : left = null,
+        right = null;
 }
 
 class HuffmanCodes {
@@ -4701,8 +4698,7 @@ class NGram extends Benchmark {
     var grams1 = <int, int>{};
 
     for (int i = 0; i <= bytes1.length - N; i++) {
-      int gram =
-          (bytes1[i] << 24) |
+      int gram = (bytes1[i] << 24) |
           (bytes1[i + 1] << 16) |
           (bytes1[i + 2] << 8) |
           bytes1[i + 3];
@@ -4714,8 +4710,7 @@ class NGram extends Benchmark {
     int intersection = 0;
 
     for (int i = 0; i <= bytes2.length - N; i++) {
-      int gram =
-          (bytes2[i] << 24) |
+      int gram = (bytes2[i] << 24) |
           (bytes2[i + 1] << 16) |
           (bytes2[i + 2] << 8) |
           bytes2[i + 3];
@@ -4863,38 +4858,36 @@ class LogParser extends Benchmark {
     'mail.ru',
   ];
 
-  static final List<MapEntry<String, RegExp>> PATTERNS =
-      [
-        const MapEntry('errors', ' [5][0-9]{2} | [4][0-9]{2} '),
-        const MapEntry(
-          'bots',
-          'bot|crawler|scanner|spider|indexing|crawl|robot|spider',
-        ),
-        const MapEntry('suspicious', 'etc/passwd|wp-admin|\\.\\./'),
-        const MapEntry('ips', r'\d+\.\d+\.\d+\.35'),
-        const MapEntry('api_calls', r'/api/[^ " ]+'),
-        const MapEntry('post_requests', 'POST [^ ]* HTTP'),
-        const MapEntry('auth_attempts', '/login|/signin'),
-        const MapEntry('methods', 'get|post|put'),
-        const MapEntry(
-          'emails',
-          r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
-        ),
-        const MapEntry('passwords', r'password=[^&\s"]+'),
-        const MapEntry('tokens', r'token=[^&\s"]+|api[_-]?key=[^&\s"]+'),
-        const MapEntry('sessions', r'session[_-]?id=[^&\s"]+'),
-        const MapEntry(
-          'peak_hours',
-          r'\[\d+/\w+/\d+:1[3-7]:\d+:\d+ [+\-]\d+\]',
-        ),
-      ].map((e) {
-        bool caseSensitive =
-            !(e.key == 'bots' ||
-                e.key == 'suspicious' ||
-                e.key == 'auth_attempts' ||
-                e.key == 'methods');
-        return MapEntry(e.key, RegExp(e.value, caseSensitive: caseSensitive));
-      }).toList();
+  static final List<MapEntry<String, RegExp>> PATTERNS = [
+    const MapEntry('errors', ' [5][0-9]{2} | [4][0-9]{2} '),
+    const MapEntry(
+      'bots',
+      'bot|crawler|scanner|spider|indexing|crawl|robot|spider',
+    ),
+    const MapEntry('suspicious', 'etc/passwd|wp-admin|\\.\\./'),
+    const MapEntry('ips', r'\d+\.\d+\.\d+\.35'),
+    const MapEntry('api_calls', r'/api/[^ " ]+'),
+    const MapEntry('post_requests', 'POST [^ ]* HTTP'),
+    const MapEntry('auth_attempts', '/login|/signin'),
+    const MapEntry('methods', 'get|post|put'),
+    const MapEntry(
+      'emails',
+      r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
+    ),
+    const MapEntry('passwords', r'password=[^&\s"]+'),
+    const MapEntry('tokens', r'token=[^&\s"]+|api[_-]?key=[^&\s"]+'),
+    const MapEntry('sessions', r'session[_-]?id=[^&\s"]+'),
+    const MapEntry(
+      'peak_hours',
+      r'\[\d+/\w+/\d+:1[3-7]:\d+:\d+ [+\-]\d+\]',
+    ),
+  ].map((e) {
+    bool caseSensitive = !(e.key == 'bots' ||
+        e.key == 'suspicious' ||
+        e.key == 'auth_attempts' ||
+        e.key == 'methods');
+    return MapEntry(e.key, RegExp(e.value, caseSensitive: caseSensitive));
+  }).toList();
 
   LogParser() {
     linesCount = Helper.configI64(benchmarkName, 'lines_count').toInt();
@@ -5149,6 +5142,88 @@ class TemplateParse extends Benchmark {
   String get benchmarkName => 'Template::Parse';
 }
 
+class CsvParse extends Benchmark {
+  int rows = 0;
+  String data = '';
+  int resultValue = 0;
+
+  @override
+  String get benchmarkName => 'CSV::Parse';
+
+  @override
+  void prepare() {
+    rows = Helper.configI64(benchmarkName, "rows").toInt();
+    data = '';
+    resultValue = 0;
+
+    final sb = StringBuffer();
+
+    for (int i = 0; i < rows; i++) {
+      final c = String.fromCharCode('A'.codeUnitAt(0) + (i % 26));
+      final x = Helper.nextFloat();
+      final z = Helper.nextFloat();
+      final y = Helper.nextFloat();
+      sb.write('"point $c\\n, ""${i % 100}""",');
+      sb.write('${x.toStringAsFixed(10)},');
+      sb.write(',');
+      sb.write('${z.toStringAsFixed(10)},');
+      sb.write('"[${i % 2 == 0 ? "true" : "false"}\\n, ${i % 100}]",');
+      sb.write('${y.toStringAsFixed(10)}\n');
+    }
+
+    data = sb.toString();
+  }
+
+  List<(double, double, double)> _parsePoints(String csvData) {
+    final points = <(double, double, double)>[];
+
+    final decoder = CsvDecoder(
+      fieldDelimiter: ',',
+      quoteCharacter: '"',
+      dynamicTyping: true,
+    );
+
+    final rows = decoder.convert(csvData) as List<List<dynamic>>;
+
+    for (final row in rows) {
+      final x = (row[1] as num).toDouble();
+      final z = (row[3] as num).toDouble();
+      final y = (row[5] as num).toDouble();
+      points.add((x, y, z));
+    }
+
+    return points;
+  }
+
+  @override
+  void runBenchmark(int iterationId) {
+    final points = _parsePoints(data);
+
+    if (points.isEmpty) return;
+
+    double xSum = 0, ySum = 0, zSum = 0;
+    for (final (x, y, z) in points) {
+      xSum += x;
+      ySum += y;
+      zSum += z;
+    }
+
+    final len = points.length.toDouble();
+    final xAvg = xSum / len;
+    final yAvg = ySum / len;
+    final zAvg = zSum / len;
+
+    resultValue = (resultValue + Helper.checksumFloat(xAvg)) & 0xFFFFFFFF;
+    resultValue = (resultValue + Helper.checksumFloat(yAvg)) & 0xFFFFFFFF;
+    resultValue = (resultValue + Helper.checksumFloat(zAvg)) & 0xFFFFFFFF;
+  }
+
+  @override
+  int checksum() {
+    return resultValue & 0xFFFFFFFF;
+  }
+}
+
 bool listEquals(List? a, List? b) {
   if (a == null) return b == null;
   if (b == null || a.length != b.length) return false;
@@ -5215,6 +5290,7 @@ void registerBenchmarks() {
   Benchmark.registerBenchmark('Etc::LogParser', () => LogParser());
   Benchmark.registerBenchmark('Template::Regex', () => TemplateRegex());
   Benchmark.registerBenchmark('Template::Parse', () => TemplateParse());
+  Benchmark.registerBenchmark('CSV::Parse', () => CsvParse());
 }
 
 Future<void> main(List<String> args) async {

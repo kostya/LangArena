@@ -28,6 +28,11 @@
             <artifactId>fastjson2</artifactId>
             <version>2.0.60</version>
         </dependency>
+        <dependency>
+            <groupId>com.opencsv</groupId>
+            <artifactId>opencsv</artifactId>
+            <version>5.12.0</version>
+        </dependency>
     </dependencies>
 
     <profiles>

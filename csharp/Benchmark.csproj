@@ -17,4 +17,8 @@
     <Optimize>true</Optimize>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CsvHelper" Version="33.1.0" />
+  </ItemGroup>
 </Project>

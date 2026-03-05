@@ -1,11 +1,10 @@
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 public abstract class Benchmark
 {
-    private double _timeDelta = 0.0;
-
     public abstract void Run(long IterationId);
     public abstract uint Checksum { get; }
     public abstract string TypeName { get; }
@@ -16,13 +15,20 @@ public abstract class Benchmark
     {
         get
         {
-            if (Helper.Config.RootElement.TryGetProperty(TypeName, out var benchObj))
+            if (Helper.Config != null)
             {
-                if (benchObj.TryGetProperty("warmup_iterations", out var warmupProp))
+                var benchObj = Helper.Config[TypeName] as JsonObject;
+                if (benchObj != null)
                 {
-                    return warmupProp.GetInt64();
+                    if (benchObj.TryGetPropertyValue("warmup_iterations", out var warmupProp) &&
+                        warmupProp is JsonValue jsonValue)
+                    {
+                        if (jsonValue.TryGetValue<long>(out var warmup))
+                            return warmup;
+                    }
                 }
             }
+
             long iters = Iterations;
             return Math.Max((long)(iters * 0.2), 1);
         }
@@ -65,12 +71,6 @@ public abstract class Benchmark
         {
             return Helper.Config_i64(TypeName, "checksum");
         }
-    }
-
-    public double TimeDelta
-    {
-        get => _timeDelta;
-        set => _timeDelta = value;
     }
 
     private class BenchmarkInfo
@@ -158,6 +158,8 @@ public abstract class Benchmark
 
             CreateBenchmarkInfo<TemplateRegex>("Template::Regex"),
             CreateBenchmarkInfo<TemplateParse>("Template::Parse"),
+
+            CreateBenchmarkInfo<CsvParse>("CSV::Parse"),
         };
     }
 
@@ -226,7 +228,6 @@ public abstract class Benchmark
                 stopwatch.Stop();
 
                 var timeDelta = stopwatch.Elapsed.TotalSeconds;
-                benchmark.TimeDelta = timeDelta;
 
                 GC.Collect();
                 Thread.Sleep(0);

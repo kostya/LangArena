@@ -1,6 +1,4 @@
 abstract class Benchmark {
-    protected var _timeDelta = 0.0
-
     abstract fun run(iterationId: Int)
 
     abstract fun checksum(): UInt
@@ -33,10 +31,6 @@ abstract class Benchmark {
     open fun iterations(): Long = configVal("iterations")
 
     open fun expectedChecksum(): Long = configVal("checksum")
-
-    fun setTimeDelta(delta: Double) {
-        _timeDelta = delta
-    }
 
     companion object {
         private data class NamedBenchmarkFactory(
@@ -98,8 +92,6 @@ abstract class Benchmark {
                 val startTime = System.nanoTime()
                 bench.runAll()
                 val timeDelta2 = (System.nanoTime() - startTime) / 1_000_000_000.0
-
-                bench.setTimeDelta(timeDelta2)
 
                 System.gc()
                 Thread.sleep(1)

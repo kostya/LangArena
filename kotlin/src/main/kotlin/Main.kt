@@ -57,6 +57,7 @@ fun main(args: Array<String>) {
     Benchmark.registerBenchmark("Etc::LogParser") { LogParser() }
     Benchmark.registerBenchmark("Template::Regex") { TemplateRegex() }
     Benchmark.registerBenchmark("Template::Parse") { TemplateParse() }
+    Benchmark.registerBenchmark("CSV::Parse") { CsvParse() }
 
     val now = Instant.now().toEpochMilli()
     println("start: $now")

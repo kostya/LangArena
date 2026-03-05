@@ -1,15 +1,15 @@
 [
   {
     "name": "Binarytrees::Obj",
-    "checksum": 100663248,
+    "checksum": 75497436,
     "depth": 20,
-    "iterations": 40
+    "iterations": 30
   },
   {
     "name": "Binarytrees::Arena",
-    "checksum": 100663248,
+    "checksum": 75497436,
     "depth": 20,
-    "iterations": 40
+    "iterations": 30
   },
   {
     "name": "Brainfuck::Array",
@@ -82,6 +82,12 @@
     "iterations": 100
   },
   {
+    "name": "CSV::Parse",
+    "checksum": 194814688,
+    "rows": 100000,
+    "iterations": 70
+  },
+  {
     "name": "Etc::Sieve",
     "checksum": 1042248060,
     "limit": 3000000,
@@ -96,8 +102,8 @@
   },
   {
     "name": "Etc::NeuralNet",
-    "checksum": 144809143,
-    "iterations": 2200
+    "checksum": 144809112,
+    "iterations": 1700
   },
   {
     "name": "Etc::CacheSimulation",
@@ -128,33 +134,33 @@
   },
   {
     "name": "Template::Regex",
-    "checksum": 3462120285,
-    "iterations": 32,
+    "checksum": 3554506535,
+    "iterations": 50,
     "count": 50000
   },
   {
     "name": "Template::Parse",
-    "checksum": 3462120285,
-    "iterations": 32,
+    "checksum": 3554506535,
+    "iterations": 50,
     "count": 50000
   },
   {
     "name": "Sort::Quick",
-    "checksum": 118065786,
-    "size": 150000,
-    "iterations": 100
+    "checksum": 61757772,
+    "size": 400000,
+    "iterations": 50
   },
   {
     "name": "Sort::Merge",
-    "checksum": 118065786,
-    "size": 150000,
-    "iterations": 100
+    "checksum": 61757772,
+    "size": 400000,
+    "iterations": 50
   },
   {
     "name": "Sort::Self",
-    "checksum": 118065786,
-    "size": 150000,
-    "iterations": 100
+    "checksum": 61757772,
+    "size": 400000,
+    "iterations": 50
   },
   {
     "name": "Graph::BFS",
@@ -293,9 +299,9 @@
   },
   {
     "name": "Compress::LZWEncode",
-    "checksum": 500880,
+    "checksum": 425748,
     "size": 200006,
-    "iterations": 100
+    "iterations": 85
   },
   {
     "name": "Compress::LZWDecode",

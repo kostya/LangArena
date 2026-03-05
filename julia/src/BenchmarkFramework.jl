@@ -38,6 +38,7 @@ include("benchmarks/Distance.jl")
 include("benchmarks/Words.jl")
 include("benchmarks/LogParser.jl")
 include("benchmarks/Template.jl")
+include("benchmarks/CsvParse.jl")
 
 const BENCHMARK_MAP = Dict{String,Type}(
     "CLBG::Pidigits" => Pidigits,
@@ -90,6 +91,7 @@ const BENCHMARK_MAP = Dict{String,Type}(
     "Etc::LogParser" => LogParser,
     "Template::Regex" => TemplateRegex,
     "Template::Parse" => TemplateParse,
+    "CSV::Parse" => CsvParse,
 )
 
 function run_all_benchmarks(single_bench::String = "")

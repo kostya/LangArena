@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 public static class Helper
 {
@@ -10,14 +11,10 @@ public static class Helper
 
     private static long s_last = INIT;
 
-    private static JsonDocument? s_config = null;
+    private static JsonNode? s_config = null;
     private static List<string> s_order = new List<string>();
 
-    public static JsonDocument Config
-    {
-        get => s_config ?? JsonDocument.Parse("{}");
-    }
-
+    public static JsonNode? Config => s_config;
     public static List<string> Order => s_order;
 
     public static long Last
@@ -77,18 +74,36 @@ public static class Helper
     {
         try
         {
-            if (Config.RootElement.TryGetProperty(className, out var benchObj))
+            if (s_config == null)
             {
-                if (benchObj.TryGetProperty(fieldName, out var value))
+                Console.WriteLine($"Config not loaded for {className}, field: {fieldName}");
+                return 0;
+            }
+
+            var benchObj = s_config[className] as JsonObject;
+            if (benchObj != null)
+            {
+
+                if (benchObj.TryGetPropertyValue(fieldName, out var value) && value != null)
                 {
-                    return value.GetInt64();
+
+                    if (value is JsonValue jsonValue)
+                    {
+                        if (jsonValue.TryGetValue<long>(out var longValue))
+                            return longValue;
+
+                        if (jsonValue.TryGetValue<int>(out var intValue))
+                            return intValue;
+                    }
                 }
             }
-            throw new InvalidOperationException($"Config not found for {className}, field: {fieldName}");
+
+            Console.WriteLine($"Config not found for {className}, field: {fieldName}");
+            return 0;
         }
         catch (Exception e)
         {
-            Console.WriteLine(e.Message);
+            Console.WriteLine($"Error accessing config for {className}.{fieldName}: {e.Message}");
             return 0;
         }
     }
@@ -97,18 +112,35 @@ public static class Helper
     {
         try
         {
-            if (Config.RootElement.TryGetProperty(className, out var benchObj))
+            if (s_config == null)
             {
-                if (benchObj.TryGetProperty(fieldName, out var value))
+                Console.WriteLine($"Config not loaded for {className}, field: {fieldName}");
+                return "";
+            }
+
+            var benchObj = s_config[className] as JsonObject;
+            if (benchObj != null)
+            {
+
+                if (benchObj.TryGetPropertyValue(fieldName, out var value) && value != null)
                 {
-                    return value.GetString() ?? "";
+
+                    if (value is JsonValue jsonValue)
+                    {
+                        if (jsonValue.TryGetValue<string>(out var stringValue))
+                            return stringValue ?? "";
+                    }
+
+                    return value.ToString() ?? "";
                 }
             }
-            throw new InvalidOperationException($"Config not found for {className}, field: {fieldName}");
+
+            Console.WriteLine($"Config not found for {className}, field: {fieldName}");
+            return "";
         }
         catch (Exception e)
         {
-            Console.WriteLine(e.Message);
+            Console.WriteLine($"Error accessing config for {className}.{fieldName}: {e.Message}");
             return "";
         }
     }
@@ -118,34 +150,48 @@ public static class Helper
         if (!File.Exists(filename))
         {
             Console.WriteLine($"Error: Config file not found: {filename}");
-            s_config = JsonDocument.Parse("{}");
+            s_config = new JsonObject();
             return;
         }
 
         try
         {
             var jsonText = File.ReadAllText(filename);
-            var jsonArray = JsonDocument.Parse(jsonText).RootElement;
+            var jsonArray = JsonNode.Parse(jsonText) as JsonArray;
 
-            var dict = new Dictionary<string, JsonElement>();
+            if (jsonArray == null)
+            {
+                Console.WriteLine("Error: Config is not an array");
+                s_config = new JsonObject();
+                return;
+            }
+
+            var dict = new JsonObject();
             s_order.Clear();
 
-            foreach (var item in jsonArray.EnumerateArray())
+            foreach (var item in jsonArray)
             {
-                var name = item.GetProperty("name").GetString();
+                if (item == null) continue;
+
+                var itemObj = item as JsonObject;
+                if (itemObj == null) continue;
+
+                var nameNode = itemObj["name"];
+                var name = nameNode?.GetValue<string>();
+
                 if (!string.IsNullOrEmpty(name))
                 {
-                    dict[name] = item;
+                    dict[name] = itemObj.DeepClone();
                     s_order.Add(name);
                 }
             }
 
-            s_config = JsonDocument.Parse(JsonSerializer.Serialize(dict));
+            s_config = dict;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error parsing JSON config: {ex.Message}");
-            s_config = JsonDocument.Parse("{}");
+            s_config = new JsonObject();
         }
     }
 }
