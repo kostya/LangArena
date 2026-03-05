@@ -5,8 +5,6 @@ using System.Text.Json.Nodes;
 
 public abstract class Benchmark
 {
-    private double _timeDelta = 0.0;
-
     public abstract void Run(long IterationId);
     public abstract uint Checksum { get; }
     public abstract string TypeName { get; }
@@ -73,12 +71,6 @@ public abstract class Benchmark
         {
             return Helper.Config_i64(TypeName, "checksum");
         }
-    }
-
-    public double TimeDelta
-    {
-        get => _timeDelta;
-        set => _timeDelta = value;
     }
 
     private class BenchmarkInfo
@@ -234,7 +226,6 @@ public abstract class Benchmark
                 stopwatch.Stop();
 
                 var timeDelta = stopwatch.Elapsed.TotalSeconds;
-                benchmark.TimeDelta = timeDelta;
 
                 GC.Collect();
                 Thread.Sleep(0);

@@ -187,7 +187,6 @@ public static class Helper
             }
 
             s_config = dict;
-            Console.WriteLine($"Loaded {s_order.Count} benchmarks from config");
         }
         catch (Exception ex)
         {
