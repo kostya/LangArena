@@ -1,15 +1,15 @@
 [
   {
     "name": "Binarytrees::Obj",
-    "checksum": 100663248,
+    "checksum": 75497436,
     "depth": 20,
-    "iterations": 40
+    "iterations": 30
   },
   {
     "name": "Binarytrees::Arena",
-    "checksum": 100663248,
+    "checksum": 75497436,
     "depth": 20,
-    "iterations": 40
+    "iterations": 30
   },
   {
     "name": "Brainfuck::Array",
@@ -96,8 +96,8 @@
   },
   {
     "name": "Etc::NeuralNet",
-    "checksum": 144809143,
-    "iterations": 2200
+    "checksum": 144809112,
+    "iterations": 1700
   },
   {
     "name": "Etc::CacheSimulation",
@@ -293,9 +293,9 @@
   },
   {
     "name": "Compress::LZWEncode",
-    "checksum": 500880,
+    "checksum": 425748,
     "size": 200006,
-    "iterations": 100
+    "iterations": 85
   },
   {
     "name": "Compress::LZWDecode",
