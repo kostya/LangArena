@@ -54,7 +54,7 @@ csvparse_prepare :: proc(bench: ^Benchmark) {
 		fmt.sbprintf(&b, "%.10f\n", y)
 	}
 
-	cp.data = strings.to_string(b)
+	cp.data = strings.clone(strings.to_string(b))
 }
 
 Point :: struct {
@@ -91,6 +91,8 @@ parse_points :: proc(data: string) -> []Point {
 	points := make([dynamic]Point)
 
 	r: csv.Reader
+	r.reuse_record = true
+	r.reuse_record_buffer = true
 	csv.reader_init_with_string(&r, data)
 	defer csv.reader_destroy(&r)
 
@@ -114,6 +116,11 @@ csvparse_checksum :: proc(bench: ^Benchmark) -> u32 {
 	return cp.result_val
 }
 
+csvparse_cleanup :: proc(bench: ^Benchmark) {
+	cp := cast(^CsvParse)bench
+	delete(cp.data)
+}
+
 create_csvparse :: proc() -> ^Benchmark {
 	cp := new(CsvParse)
 	cp.name = "CSV::Parse"
@@ -121,6 +128,7 @@ create_csvparse :: proc() -> ^Benchmark {
 
 	cp.vtable.prepare = csvparse_prepare
 	cp.vtable.run = csvparse_run
+	cp.vtable.cleanup = csvparse_cleanup
 	cp.vtable.checksum = csvparse_checksum
 
 	cp.rows = int(config_i64("CSV::Parse", "rows"))
