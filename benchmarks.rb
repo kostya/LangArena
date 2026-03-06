@@ -1041,30 +1041,6 @@ RUNS = [
   ),
 
   Run.new(
-    name: "Nim++/GCC/Max", 
-    build_cmd: "nim cpp --threads:on -d:danger --cc:gcc --opt:speed --boundChecks:off --passC:'-Ofast -march=native' --passL:'-flto' --out:target/bin_benchmarks_gcc_cpp_max src/benchmarks.nim",
-    binary_name: "./target/bin_benchmarks_gcc_cpp_max",
-    run_cmd: "./target/bin_benchmarks_gcc_cpp_max", 
-    version_cmd: "nim --version | head -n 1",
-    dir: "/src/nim",
-    container: "nim_gcc",
-    group: :hack,
-    deps_cmd: "sh deps.sh",
-  ),
-
-  Run.new(
-    name: "Nim++/GCC/ARC", 
-    build_cmd: "nim cpp --threads:on -d:release --cc:gcc --gc:arc --out:target/bin_benchmarks_gcc_cpp_arc src/benchmarks.nim",
-    binary_name: "./target/bin_benchmarks_gcc_cpp_arc",
-    run_cmd: "./target/bin_benchmarks_gcc_cpp_arc", 
-    version_cmd: "nim --version | head -n 1",
-    dir: "/src/nim",
-    container: "nim_gcc",
-    group: :hack,
-    deps_cmd: "sh deps.sh",
-  ),
-
-  Run.new(
     name: "Nim++/Clang", 
     build_cmd: "nim cpp --threads:on -d:release --cc:clang --out:target/bin_benchmarks_clang_cpp src/benchmarks.nim",
     binary_name: "./target/bin_benchmarks_clang_cpp",
@@ -1081,30 +1057,6 @@ RUNS = [
     build_cmd: "nim cpp --threads:on -d:danger --cc:clang --out:target/bin_benchmarks_clang_cpp_danger src/benchmarks.nim",
     binary_name: "./target/bin_benchmarks_clang_cpp_danger",
     run_cmd: "./target/bin_benchmarks_clang_cpp_danger", 
-    version_cmd: "nim --version | head -n 1",
-    dir: "/src/nim",
-    container: "nim_clang",
-    group: :hack,
-    deps_cmd: "sh deps.sh",
-  ),
-
-  Run.new(
-    name: "Nim++/Clang/Max", 
-    build_cmd: "nim cpp --threads:on -d:danger --cc:clang --opt:speed --boundChecks:off --passC:'-Ofast -march=native' --passL:'-flto=full' --out:target/bin_benchmarks_clang_cpp_max src/benchmarks.nim",
-    binary_name: "./target/bin_benchmarks_clang_cpp_max",
-    run_cmd: "./target/bin_benchmarks_clang_cpp_max", 
-    version_cmd: "nim --version | head -n 1",
-    dir: "/src/nim",
-    container: "nim_clang",
-    group: :hack,
-    deps_cmd: "sh deps.sh",
-  ),
-
-  Run.new(
-    name: "Nim++/Clang/ARC", 
-    build_cmd: "nim cpp --threads:on -d:release --cc:clang --gc:arc --out:target/bin_benchmarks_clang_cpp_arc src/benchmarks.nim",
-    binary_name: "./target/bin_benchmarks_clang_cpp_arc",
-    run_cmd: "./target/bin_benchmarks_clang_cpp_arc", 
     version_cmd: "nim --version | head -n 1",
     dir: "/src/nim",
     container: "nim_clang",
