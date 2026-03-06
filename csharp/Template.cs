@@ -67,13 +67,14 @@ public abstract class Template : Benchmark
 public class TemplateRegex : Template
 {
     private static readonly System.Text.RegularExpressions.Regex _regex =
-        new System.Text.RegularExpressions.Regex(@"\{\{\s*(.*?)\s*\}\}",
+        new System.Text.RegularExpressions.Regex(@"\{\{(.*?)\}\}",
             System.Text.RegularExpressions.RegexOptions.Compiled);
 
     public override string TypeName => "Template::Regex";
 
     public override void Run(long iterationId)
     {
+
         var result = new StringBuilder(_text.Length);
         int lastPos = 0;
 
@@ -81,9 +82,13 @@ public class TemplateRegex : Template
         foreach (System.Text.RegularExpressions.Match match in matches)
         {
 
-            result.Append(_text, lastPos, match.Index - lastPos);
+            if (match.Index > lastPos)
+            {
+                result.Append(_text, lastPos, match.Index - lastPos);
+            }
 
-            string key = match.Groups[1].Value;
+            string key = match.Groups[1].Value.Trim();
+
             if (_vars.TryGetValue(key, out string? value))
             {
                 result.Append(value);

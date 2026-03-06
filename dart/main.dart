@@ -5032,7 +5032,7 @@ class TemplateRegex extends Benchmark {
   TemplateRegex() {
     count = Helper.configI64(benchmarkName, 'count').toInt();
     vars = {};
-    regex = RegExp(r'\{\{\s*(.*?)\s*\}\}');
+    regex = RegExp(r'{{(.*?)}}');
     text = '';
     rendered = '';
   }

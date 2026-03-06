@@ -5073,17 +5073,20 @@ func (t *TemplateBase) Prepare() {
 
 type TemplateRegex struct {
 	TemplateBase
+	re *regexp.Regexp
 }
 
 func (t *TemplateRegex) Name() string {
 	return "Template::Regex"
 }
 
+func (t *TemplateRegex) Prepare() {
+	t.TemplateBase.Prepare()
+	t.re = regexp.MustCompile(`{{(.*?)}}`)
+}
+
 func (t *TemplateRegex) Run(iteration_id int) {
-
-	re := regexp.MustCompile(`\{\{\s*(.*?)\s*\}\}`)
-
-	result := re.ReplaceAllStringFunc(t.text, func(match string) string {
+	result := t.re.ReplaceAllStringFunc(t.text, func(match string) string {
 
 		key := match[2 : len(match)-2]
 		key = strings.TrimSpace(key)

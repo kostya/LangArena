@@ -5528,7 +5528,7 @@ abstract class TemplateBase extends Benchmark {
 }
 
 export class TemplateRegex extends TemplateBase {
-  private static readonly PATTERN: RegExp = /{{\s*(.*?)\s*}}/g;
+  private static readonly PATTERN: RegExp = /{{(.*?)}}/g;
 
   constructor() {
     super();

@@ -57,7 +57,7 @@ final class TemplateRegex: BenchmarkProtocol {
     self.text = ""
     self.rendered = ""
     self.vars = [:]
-    self.regex = try! NSRegularExpression(pattern: "\\{\\{\\s*(.*?)\\s*\\}\\}")
+    self.regex = try! NSRegularExpression(pattern: "\\{\\{(.*?)\\}\\}")
 
     self.count = Int(configValue("count") ?? 0)
   }

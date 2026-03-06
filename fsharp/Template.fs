@@ -102,7 +102,7 @@ type TemplateBase() =
 type TemplateRegex() =
     inherit TemplateBase()
 
-    let regex = Regex(@"\{\{\s*(.*?)\s*\}\}", RegexOptions.Compiled)
+    let regex = Regex(@"{{(.*?)}}", RegexOptions.Compiled)
 
     override this.Prepare() =
         this.Count <- Helper.Config_i64(this.Name, "count")

@@ -86,7 +86,7 @@ template_regex_prepare :: proc(bench: ^Benchmark) {
 
 	error_number: c.int
 	error_offset: c.size_t
-	pattern := "\\{\\{\\s*(.*?)\\s*\\}\\}"
+	pattern := "{{(.*?)}}"
 	c_pattern := strings.clone_to_cstring(pattern)
 	defer delete(c_pattern)
 

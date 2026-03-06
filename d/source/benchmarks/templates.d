@@ -86,7 +86,7 @@ public:
         text = "";
         rendered = "";
         vars = null;
-        re = regex(r"\{\{\s*(.*?)\s*\}\}", "g");
+        re = regex(r"\{\{(.*?)\}\}", "g");
     }
 
     override void prepare()

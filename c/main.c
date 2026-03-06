@@ -8486,7 +8486,7 @@ typedef struct {
   TemplateBaseData base;
 } TemplateParseData;
 
-static const char *TEMPLATE_REGEX_PATTERN = "\\{\\{\\s*(.*?)\\s*\\}\\}";
+static const char *TEMPLATE_REGEX_PATTERN = "{{(.*?)}}";
 
 static void add_var(TemplateBaseData *data, const char *key,
                     const char *value) {

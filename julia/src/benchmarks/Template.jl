@@ -69,13 +69,13 @@ function run(b::TemplateRegex, iteration_id::Int64)
     text = base.text
     vars = base.vars
 
-    pattern = r"\{\{\s*(.*?)\s*\}\}"
+    pattern = r"{{(.*?)}}"
     result = IOBuffer()
     last_pos = 1
 
     for m in eachmatch(pattern, text, overlap = false)
         write(result, SubString(text, last_pos, first(m.offset)-1))
-        key = m.captures[1]
+        key = strip(m.captures[1])
         write(result, Base.get(vars, key, ""))
         last_pos = m.offset + length(m.match)
     end

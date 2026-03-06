@@ -1570,7 +1570,7 @@ module Template
     end
 
     def run(iteration_id)
-      @rendered = @text.gsub(/{{\s*(.*?)\s*}}/) { @vars.fetch($1, "") }
+      @rendered = @text.gsub(/{{(.*?)}}/) { @vars.fetch($1.strip, "") }
       @checksum &+= @rendered.bytesize
     end
 

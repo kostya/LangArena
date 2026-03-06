@@ -62,7 +62,7 @@ mut:
 }
 
 pub fn new_template_regex() &benchmark.IBenchmark {
-	re := pcre2.compile(r'\{\{\s*(.*?)\s*\}\}') or {
+	re := pcre2.compile(r'{{(.*?)}}') or {
 		println('Failed to compile regex: ${err}')
 		return unsafe { nil }
 	}

@@ -70,7 +70,7 @@ public abstract class Template extends Benchmark {
     }
 
     public static class Regex extends Template {
-        private static final Pattern TEMPLATE_PATTERN = Pattern.compile("\\{\\{\\s*(.*?)\\s*\\}\\}");
+        private static final Pattern TEMPLATE_PATTERN = Pattern.compile("\\{\\{(.*?)\\}\\}");
 
         public Regex() {
             super();
@@ -89,7 +89,7 @@ public abstract class Template extends Benchmark {
 
             while (m.find()) {
                 sb.append(text, lastEnd, m.start());
-                String key = m.group(1);
+                String key = m.group(1).trim();
                 sb.append(vars.getOrDefault(key, ""));
                 lastEnd = m.end();
             }

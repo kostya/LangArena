@@ -4320,7 +4320,7 @@ class TemplateBase(Benchmark):
 
 
 class TemplateRegex(TemplateBase):
-    PATTERN = re.compile(r'{{\s*(.*?)\s*}}')
+    PATTERN = re.compile(r'{{(.*?)}}')
 
     def __init__(self):
         super().__init__()

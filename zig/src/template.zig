@@ -176,7 +176,7 @@ pub const TemplateRegex = struct {
 
         var error_number: c_int = 0;
         var error_offset: usize = 0;
-        const pattern = "\\{\\{\\s*(.*?)\\s*\\}\\}";
+        const pattern = "{{(.*?)}}";
 
         const re = pcre2_compile_8(
             @ptrCast(pattern.ptr),

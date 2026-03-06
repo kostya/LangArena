@@ -65,7 +65,7 @@ method prepare(self: TemplateRegex) =
   procCall self.TemplateBase.prepare()
 
 method run(self: TemplateRegex, iteration_id: int) =
-  let pattern = re(r"\{\{\s*(.*?)\s*\}\}")
+  let pattern = re(r"{{(.*?)}}")
 
   var result = newStringOfCap(self.text.len)
   var lastPos = 0

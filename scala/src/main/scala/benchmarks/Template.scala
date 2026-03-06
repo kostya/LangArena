@@ -59,7 +59,7 @@ abstract class TemplateBase extends Benchmark {
 }
 
 class TemplateRegex extends TemplateBase {
-  private val pattern = Pattern.compile("\\{\\{\\s*(.*?)\\s*\\}\\}")
+  private val pattern = Pattern.compile("\\{\\{(.*?)\\}\\}")
 
   override def name(): String = "Template::Regex"
 

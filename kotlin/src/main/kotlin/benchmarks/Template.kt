@@ -56,7 +56,7 @@ abstract class TemplateBase : Benchmark() {
 }
 
 class TemplateRegex : TemplateBase() {
-    private val regex = Regex("\\{\\{\\s*(.*?)\\s*\\}\\}")
+    private val regex = Regex("\\{\\{(.*?)\\}\\}")
 
     override fun name(): String = "Template::Regex"
 

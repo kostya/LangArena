@@ -110,7 +110,7 @@ pub struct TemplateRegex {
     base: TemplateBase,
 }
 
-static TEMPLATE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{\{\s*(.*?)\s*\}\}").unwrap());
+static TEMPLATE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{\{(.*?)\}\}").unwrap());
 
 impl TemplateRegex {
     pub fn new() -> Self {
@@ -132,7 +132,7 @@ impl Benchmark for TemplateRegex {
 
     fn run(&mut self, _iteration_id: i64) {
         let rendered = TEMPLATE_REGEX.replace_all(&self.base.text, |caps: &regex::Captures| {
-            let key = caps.get(1).unwrap().as_str();
+            let key = caps.get(1).unwrap().as_str().trim();
             self.base.vars.get(key).map(|s| s.as_str()).unwrap_or("")
         });
 

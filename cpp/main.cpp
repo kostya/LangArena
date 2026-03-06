@@ -4732,7 +4732,7 @@ private:
   std::unordered_map<std::string, std::string> vars;
   std::unique_ptr<re2::RE2> regex;
 
-  static constexpr const char *PATTERN = R"(\{\{\s*(.*?)\s*\}\})";
+  static constexpr const char *PATTERN = R"(\{\{(.*?)\}\})";
 
   std::string trim(const std::string &str) {
     size_t start = str.find_first_not_of(" \t");
@@ -4759,16 +4759,10 @@ public:
 
     re2::StringPiece input(text);
     size_t lastPos = 0;
-
     re2::StringPiece matches[2];
 
-    while (true) {
-
-      if (!regex->Match(input, 0, input.size(), re2::RE2::UNANCHORED, matches,
+    while (regex->Match(input, 0, input.size(), re2::RE2::UNANCHORED, matches,
                         2)) {
-        break;
-      }
-
       size_t match_start = matches[0].data() - text.data();
 
       if (match_start > lastPos) {
