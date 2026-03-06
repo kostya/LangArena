@@ -91,8 +91,6 @@ parse_points :: proc(data: string) -> []Point {
 	points := make([dynamic]Point)
 
 	r: csv.Reader
-	r.reuse_record = true
-	r.reuse_record_buffer = true
 	csv.reader_init_with_string(&r, data)
 	defer csv.reader_destroy(&r)
 
