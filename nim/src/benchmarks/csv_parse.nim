@@ -1,4 +1,4 @@
-import std/[strformat, streams, math, parsecsv, strutils, os]
+import std/[strformat, streams, parsecsv, strutils]
 import ../benchmark
 import ../helper
 

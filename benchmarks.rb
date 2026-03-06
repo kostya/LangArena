@@ -922,7 +922,7 @@ RUNS = [
 
   Run.new(
     name: "Nim/GCC", 
-    build_cmd: "nim c --threads:on -d:release --cc:gcc --opt:speed --out:target/bin_benchmarks_gcc src/benchmarks.nim",
+    build_cmd: "nim c --threads:on -d:release --cc:gcc --out:target/bin_benchmarks_gcc src/benchmarks.nim",
     binary_name: "./target/bin_benchmarks_gcc",
     run_cmd: "./target/bin_benchmarks_gcc", 
     version_cmd: "nim --version | head -n 1",
@@ -933,8 +933,8 @@ RUNS = [
   ),
 
   Run.new(
-    name: "Nim/GCC/Perf", 
-    build_cmd: "nim c --threads:on -d:release -d:danger --cc:gcc --opt:speed --passC:'-O3 -march=native' --passL:'-flto' --out:target/bin_benchmarks_gcc_perf src/benchmarks.nim",
+    name: "Nim/GCC/Danger", 
+    build_cmd: "nim c --threads:on -d:danger --cc:gcc --out:target/bin_benchmarks_gcc_perf src/benchmarks.nim",
     binary_name: "./target/bin_benchmarks_gcc_perf",
     run_cmd: "./target/bin_benchmarks_gcc_perf", 
     version_cmd: "nim --version | head -n 1",
@@ -945,8 +945,8 @@ RUNS = [
   ),
 
   Run.new(
-    name: "Nim/GCC/MaxPerf", 
-    build_cmd: "nim c --threads:on -d:release -d:danger --cc:gcc --opt:speed --boundChecks:off --passC:'-Ofast -march=native' --passL:'-flto -static' --out:target/bin_benchmarks_gcc_max src/benchmarks.nim",
+    name: "Nim/GCC/Max", 
+    build_cmd: "nim c --threads:on -d:danger --cc:gcc --opt:speed --boundChecks:off --passC:'-Ofast -march=native' --passL:'-flto' --out:target/bin_benchmarks_gcc_max src/benchmarks.nim",
     binary_name: "./target/bin_benchmarks_gcc_max",
     run_cmd: "./target/bin_benchmarks_gcc_max", 
     version_cmd: "nim --version | head -n 1",
@@ -958,7 +958,7 @@ RUNS = [
 
   Run.new(
     name: "Nim/GCC/ARC", 
-    build_cmd: "nim c --threads:on -d:release --cc:gcc --gc:arc --opt:speed --out:target/bin_benchmarks_gcc_arc src/benchmarks.nim",
+    build_cmd: "nim c --threads:on -d:release --cc:gcc --gc:arc --out:target/bin_benchmarks_gcc_arc src/benchmarks.nim",
     binary_name: "./target/bin_benchmarks_gcc_arc",
     run_cmd: "./target/bin_benchmarks_gcc_arc", 
     version_cmd: "nim --version | head -n 1",
@@ -968,22 +968,9 @@ RUNS = [
     deps_cmd: "sh deps.sh",
   ),
 
-  # Default is ORC?
-  # Run.new(
-  #   name: "Nim/GCC/ORC", 
-  #   build_cmd: "nim c --threads:on -d:release --cc:gcc --gc:orc --opt:speed --out:target/bin_benchmarks_gcc_orc src/benchmarks.nim",
-  #   binary_name: "./target/bin_benchmarks_gcc_orc",
-  #   run_cmd: "./target/bin_benchmarks_gcc_orc", 
-  #   version_cmd: "nim --version | head -n 1",
-  #   dir: "/src/nim",
-  #   container: "nim_gcc",
-  #   group: :hack,
-  #   deps_cmd: "sh deps.sh",
-  # ),
-
   Run.new(
     name: "Nim/Clang", 
-    build_cmd: "nim c --threads:on -d:release --cc:clang --opt:speed --out:target/bin_benchmarks_clang src/benchmarks.nim",
+    build_cmd: "nim c --threads:on -d:release --cc:clang --out:target/bin_benchmarks_clang src/benchmarks.nim",
     binary_name: "./target/bin_benchmarks_clang",
     run_cmd: "./target/bin_benchmarks_clang", 
     version_cmd: "nim --version | head -n 1",
@@ -994,8 +981,8 @@ RUNS = [
   ),
 
   Run.new(
-    name: "Nim/Clang/Perf", 
-    build_cmd: "nim c --threads:on -d:release -d:danger --cc:clang --opt:speed --passC:'-O3 -march=native' --passL:'-flto=thin' --out:target/bin_benchmarks_clang_perf src/benchmarks.nim",
+    name: "Nim/Clang/Danger", 
+    build_cmd: "nim c --threads:on -d:danger --cc:clang --out:target/bin_benchmarks_clang_perf src/benchmarks.nim",
     binary_name: "./target/bin_benchmarks_clang_perf",
     run_cmd: "./target/bin_benchmarks_clang_perf", 
     version_cmd: "nim --version | head -n 1",
@@ -1006,8 +993,8 @@ RUNS = [
   ),
 
   Run.new(
-    name: "Nim/Clang/MaxPerf", 
-    build_cmd: "nim c --threads:on -d:release -d:danger --cc:clang --opt:speed --boundChecks:off --passC:'-Ofast -march=native' --passL:'-flto=full -static' --out:target/bin_benchmarks_clang_max src/benchmarks.nim",
+    name: "Nim/Clang/Max", 
+    build_cmd: "nim c --threads:on -d:danger --cc:clang --opt:speed --boundChecks:off --passC:'-Ofast -march=native' --passL:'-flto=full' --out:target/bin_benchmarks_clang_max src/benchmarks.nim",
     binary_name: "./target/bin_benchmarks_clang_max",
     run_cmd: "./target/bin_benchmarks_clang_max", 
     version_cmd: "nim --version | head -n 1",
@@ -1019,7 +1006,7 @@ RUNS = [
 
   Run.new(
     name: "Nim/Clang/ARC", 
-    build_cmd: "nim c --threads:on -d:release --cc:clang --gc:arc --opt:speed --out:target/bin_benchmarks_clang_arc src/benchmarks.nim",
+    build_cmd: "nim c --threads:on -d:release --cc:clang --gc:arc --out:target/bin_benchmarks_clang_arc src/benchmarks.nim",
     binary_name: "./target/bin_benchmarks_clang_arc",
     run_cmd: "./target/bin_benchmarks_clang_arc", 
     version_cmd: "nim --version | head -n 1",
@@ -1028,19 +1015,6 @@ RUNS = [
     group: :hack,
     deps_cmd: "sh deps.sh",
   ),
-
-  # Default is ORC?
-  # Run.new(
-  #   name: "Nim/Clang/ORC", 
-  #   build_cmd: "nim c --threads:on -d:release --cc:clang --gc:orc --opt:speed --out:target/bin_benchmarks_clang_orc src/benchmarks.nim",
-  #   binary_name: "./target/bin_benchmarks_clang_orc",
-  #   run_cmd: "./target/bin_benchmarks_clang_orc", 
-  #   version_cmd: "nim --version | head -n 1",
-  #   dir: "/src/nim",
-  #   container: "nim_clang",
-  #   group: :hack,
-  #   deps_cmd: "sh deps.sh",
-  # ),
 
   # ======================================= Julia ======================================================
   
