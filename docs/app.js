@@ -61,13 +61,6 @@ function changeTab(tabId, group_lang_option_checked = false) {
         case 'awards_tab':
             create_table($results, "Summary language score", window.Data.awards);
             break;        
-        // case 'test_rank_rt_tab':
-        //     create_table($results, "Test winners by runtime, s", window.Data.test_rank_rt);
-        //     break;
-        // case 'test_rank_mem_tab':
-        //     create_table($results, "Test winners by memory, Mb", window.Data.test_rank_mem);
-        //     break;
-
     }
 }
 
@@ -78,12 +71,6 @@ function UpdateData(data) {
         langs_str += `<span class="language-badge lang_${run_name_to_lang_class_name(lang)}">${lang}</span>`;
     }
     document.getElementById('resutls-langs').innerHTML = '<strong>Languages:</strong> <span class=part_langs>' + langs_str + '</span>';
-    // document.getElementById('resutls-arch').innerHTML = '<strong>Architecture:</strong> ' + window.Data.arch;
-    // document.getElementById('resutls-pc').innerHTML = '<strong>Pc:</strong> ' + window.Data.pc;
-    // document.getElementById('results-tests-count').innerHTML = '<strong>Tests:</strong> ' + window.Data.tests_count;
-    // document.getElementById('results-runs-count').innerHTML = '<strong>Configurations:</strong> ' + window.Data.runs_prod_count;
-    // document.getElementById('results-langs-count').innerHTML = '<strong>Languages:</strong> ' + window.Data.langs_count;
-
     const medals = ["🥇", "🥈", "🥉"];
     
     var $u = $('ul#main_legend_total');
@@ -145,8 +132,6 @@ function UpdateData(data) {
 }
 
 function create_table($parent_div, title, data, use_color_compare = 0, group_lang_option = false, group_lang_option_checked = false) {
-    // use_color_compare = 0 - no colors, use_color_compare = 1 colors lower better, use_color_compare = 2 color higher better
-    // $parent_div.empty();
     $parent_div.append(`<h2>${title}</h2>`);
 
     if (group_lang_option) {
@@ -241,19 +226,11 @@ function create_table($parent_div, title, data, use_color_compare = 0, group_lan
     if (data.description) {
         $parent_div.append(`<div class="table-legend">${data.description}</div>`);        
     }
-
-    // $parent_div.append(`<div class="legend"><span style="padding: 13px">Legend: </span></div>`);
-    // const $legend = $parent_div.find('.legend');
-    // for (let i = 0; i < 10; i++) {
-    //     $legend.append(`<div class="legend-item">
-    //         <table><tbody><tr><td style="padding: 10px" class=speed_${i}>${legendWord(i)}</td></tr><tbody></table>            
-    //         </div>`);
-    // }
 }
 
-// "C#/JIT" => "csharp"
 function run_name_to_lang_class_name(run_name) {
     let s = run_name.split('/')[0].toLowerCase();
+    s = s.replace('nim++', 'nim');
     s = s.replace('++', 'pp');
     s = s.replace('#', 'sharp');
     return s;
@@ -271,20 +248,17 @@ function createSpeedRankFunction(values, invert = false) {
     const max = Math.max(...values);
     const range = max - min;
     
-    // Если все значения одинаковые
     if (range < 0.00001) {
         return function(value) {
             return invert ? 9 : 0;
         };
     }
     
-    // Сдвиг для отрицательных и нулевых значений
     const shift = min <= 0 ? -min + 0.001 : 0;
     const shiftedValues = values.map(v => v + shift);
     const shiftedMin = min + shift;
     const shiftedMax = max + shift;
     
-    // Фильтруем средние значения (без крайних)
     const middleValues = shiftedValues.filter(v => 
         Math.abs(v - shiftedMin) > 0.00001 && 
         Math.abs(v - shiftedMax) > 0.00001
@@ -300,7 +274,6 @@ function createSpeedRankFunction(values, invert = false) {
         };
     }
     
-    // Логарифмическая шкала только для средних значений
     const logValues = middleValues.map(v => Math.log10(v));
     const logMin = Math.min(...logValues);
     const logMax = Math.max(...logValues);
@@ -309,20 +282,15 @@ function createSpeedRankFunction(values, invert = false) {
     return function(value) {
         const shiftedValue = value + shift;
         
-        // Абсолютные экстремумы
         if (Math.abs(shiftedValue - shiftedMin) < 0.00001) {
             return invert ? 9 : 0;
         }
         if (Math.abs(shiftedValue - shiftedMax) < 0.00001) {
             return invert ? 0 : 9;
         }
-        
-        // Проверяем, что значение положительное для логарифма
         if (shiftedValue <= 0) {
             return invert ? 9 : 0;
         }
-        
-        // Логарифмическое преобразование
         const logVal = Math.log10(shiftedValue);
         
         if (logRange < 0.00001) {
@@ -369,7 +337,6 @@ function value_fixed(v) {
 
 function lang_color(lang) {
     const key = lang.toLowerCase();
-    // Маппинг языков на цвета
     const colorMap = {
         'c': '#3498db',
         'cpp': '#2ecc71',
@@ -408,7 +375,6 @@ function lang_rank_tab($results, lang_rank) {
     const data = lang_rank.map;
     const leftHeaders = lang_rank.left_header;
 
-    // Получаем цвета для каждого языка
     let colors = leftHeaders.map(lang => { return lang_color(lang); });
 
     new Chart(ctx, {
@@ -505,20 +471,15 @@ function history_tab(select_lang = 'c') {
 
     const historyData = window.Data['history'][select_lang];
 
-    // Подготовка данных для Chart.js
     function prepareChartData(selectedLang = null) {
       const allDates = new Set();
       const datasets = [];
       
-      // Собираем все уникальные даты
       Object.entries(historyData).forEach(([lang, data]) => {
         data.forEach(([date]) => allDates.add(date));
       });
       
-      // Сортируем даты
       const sortedDates = Array.from(allDates).sort();
-      
-      // Создаём палитру цветов
       const colorPalette = [
         '#4CAF50', '#2196F3', '#FF9800', '#9C27B0', '#F44336',
         '#00BCD4', '#8BC34A', '#FF5722', '#795548', '#607D8B',
@@ -526,21 +487,14 @@ function history_tab(select_lang = 'c') {
       ];
       
       let colorIndex = 0;
-      
-      // Формируем dataset для каждого языка
       Object.entries(historyData).forEach(([lang, data]) => {
-        // Создаём массив значений для всех дат
         const values = new Array(sortedDates.length).fill(null);
-        
-        // Заполняем значения
         data.forEach(([date, value]) => {
           const dateIndex = sortedDates.indexOf(date);
           if (dateIndex !== -1) {
             values[dateIndex] = value;
           }
         });
-        
-        // Готовим dataset
         datasets.push({
           label: lang,
           data: values,
@@ -548,7 +502,7 @@ function history_tab(select_lang = 'c') {
           backgroundColor: colorPalette[colorIndex % colorPalette.length] + '20',
           borderWidth: 2,
           fill: false,
-          tension: 0.1, // Сглаживание линий
+          tension: 0.1,
           pointRadius: 4,
           pointHoverRadius: 6
         });
@@ -561,8 +515,6 @@ function history_tab(select_lang = 'c') {
         datasets: datasets
       };
     }
-
-    // Инициализация графика
     let chart;
 
     function initChart() {

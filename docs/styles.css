@@ -6,13 +6,8 @@ body {
     color: #333;
 }
 
-/*.container {
-    max-width: 1800px;
-    margin: 0 auto;
-}*/
-
 .header {
-    background: #2c3e50; /*linear-gradient(135deg, #667eea 0%, #764ba2 100%);*/
+    background: #2c3e50;
     color: white;
     padding: 30px;
     border-radius: 12px;
@@ -38,48 +33,11 @@ body {
     border-bottom: 1px dashed rgba(255,255,255,0.5);
 }
 
-
-/*.test-name {
-    font-weight: 500;
-    text-align: left;
-    position: sticky;
-    left: 0;
-    background: white;
-    z-index: 5;
-}
-
-
-.benchmark-selector {
-    padding: 10px;
-    border-radius: 5px;
-    border: 1px solid #dee2e6;
-    margin-right: 10px;
-    min-width: 250px;
-}
-
-.analysis-section {
-    margin: 20px 0;
-    padding: 20px;
-    background: #f8f9fa;
-    border-radius: 8px;
-}
-
-.chart-container {
-    height: 400px;
-    margin: 20px 0;
-}*/
-
-/* ================================ Основной контейнер ==================================== */
-
 #results {
     background: white;
-    /*padding-top: 25px;*/
     border-radius: 0 8px 8px 8px;
-    /*box-shadow: 0 2px 4px rgba(0,0,0,0.05);*/
     position: relative;
 }
-
-/* ================================ Основной контейнер ==================================== */
 
 .results-container {
     overflow-x: auto;
@@ -88,7 +46,6 @@ body {
     border-radius: 25px;
 }
 
-/* ================================ Основная таблица ==================================== */
 .results-table {
     width: 100%;
     border-collapse: collapse;
@@ -98,10 +55,6 @@ body {
 .results-table th {
     background: #2c3e50;
     color: white;    
-/*    text-align: center;
-    position: sticky;
-    top: 0;
-    z-index: 10;*/
 }
 
 .results-table tfoot td.lang_all {
@@ -112,10 +65,8 @@ body {
 .results-table td {
     padding: 10px 8px;
     text-align: center;
-    /*border-bottom: 2px solid #dee2e6;*/
     border: 0px solid #dee2e6;
 }
-
 
 .results-table thead td,
 .results-table thead th {
@@ -126,33 +77,11 @@ body {
     border-top: 4px solid #2c3e50;    
 }
 
-/* ================================ Основная таблица Подсветка TR ==================================== */
-/*.results-table tr {
-    transition: background-color 0.2s ease, box-shadow 0.2s ease;
-}
-*/
-
 .results-table tr:hover {
-    background-color: #f8f9fa !important; /* Легкая подсветка фона */
-    box-shadow: 0 0 0 4px #2c3e50 inset; /* Слабая рамка */
+    background-color: #f8f9fa !important;
+    box-shadow: 0 0 0 4px #2c3e50 inset;
 }
 
-/*.results-table tr:hover td {
-    position: relative;
-}*/
-/*
-.results-table tr:hover td:first-child::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border: 2px solid rgba(33, 150, 243, 0.8);
-    pointer-events: none;
-}*/
-
-/* ================================ Свой цвет для каждого языка ====================================  */
 .lang_c { background: #3498db; color: white; }
 .lang_cpp { background: #2ecc71; color: white; }
 .lang_go { background: #9b59b6; color: white; }
@@ -198,8 +127,7 @@ body {
 .results-table .lang_scala { background: #ff0083; color: white; }
 
 
-/* ================================ Выделение цветом ячеек по результату (всего 10 градиентов) ====================================  */
-td.speed_0 { background: #1b5e20e3; font-weight: bold; color: white; } /* best */
+td.speed_0 { background: #1b5e20e3; font-weight: bold; color: white; }
 td.speed_1 { background: #4caf50aa; }
 td.speed_2 { background: #8bc34aaa; }
 td.speed_3 { background: #cddc39aa; }
@@ -208,31 +136,7 @@ td.speed_5 { background: #ffc107aa; }
 td.speed_6 { background: #ff9800aa; }
 td.speed_7 { background: #ff5722aa; }
 td.speed_8 { background: #f44336aa; }
-td.speed_9 { background: #b71c1ce0; font-weight: bold; color: white; } /* worst */
-
-
-/* ================================ Legend ====================================  */
-/*.legend {
-    display: flex;
-    gap: 15px;
-    flex-wrap: wrap;
-    margin: 20px 0;
-    padding: 15px;
-    border-radius: 8px;
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.legend-color {
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
-}
-*/
+td.speed_9 { background: #b71c1ce0; font-weight: bold; color: white; }
 
 .table-legend {
     font-size: 13px;
@@ -240,14 +144,12 @@ td.speed_9 { background: #b71c1ce0; font-weight: bold; color: white; } /* worst 
     margin-top: 30px;
     max-width: 800px;
     
-    /* Оформление */
-    padding: 12px 15px 12px 40px; /* Отступ слева под иконку */
+    padding: 12px 15px 12px 40px;
     background-color: #f8f9fa;
     border-radius: 25px;
     position: relative;
 }
 
-/* Псевдо-иконка */
 .table-legend::before {
     content: '💡';
     position: absolute;
@@ -256,7 +158,6 @@ td.speed_9 { background: #b71c1ce0; font-weight: bold; color: white; } /* worst 
     font-size: 16px;
 }
 
-/*================================ Tabs ===========================================*/
 .tabs {
     display: flex;
     gap: 5px;
@@ -283,19 +184,6 @@ td.speed_9 { background: #b71c1ce0; font-weight: bold; color: white; } /* worst 
     border-bottom: 3px solid var(--color-fast);
 }
 
-/*.tab-content {
-    display: none;
-    background: white;
-    padding: 25px;
-    border-radius: 0 8px 8px 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-.tab-content.active {
-    display: block;
-}
-*/
-/*================================ Кнопки фильтрации ===========================================*/
 .filters {
     display: flex;
     gap: 10px;
@@ -326,8 +214,6 @@ td.speed_9 { background: #b71c1ce0; font-weight: bold; color: white; } /* worst 
     color: white;
     border-color: #2ecc71;
 }
-
-/*================================ Checkbox ===========================================*/
 
 .ios-checkbox {
     display: inline-flex;
@@ -373,14 +259,11 @@ td.speed_9 { background: #b71c1ce0; font-weight: bold; color: white; } /* worst 
   transform: translateX(20px);
 }
 
-
-/*================================ History Chart ===========================================*/
 #historyChart {
   width: 100% !important;
   height: 500px !important;
 }
 
-/* Для мобильных */
 @media (max-width: 768px) {
   #historyChart {
     height: 400px !important;
@@ -392,8 +275,6 @@ td.speed_9 { background: #b71c1ce0; font-weight: bold; color: white; } /* worst 
     gap: 10px;
   }
 }
-
-/*================================ badge medals ===========================================*/
 
 .value_badge {
   display: inline-flex;
@@ -418,7 +299,6 @@ td.speed_9 { background: #b71c1ce0; font-weight: bold; color: white; } /* worst 
   color: #CD7F32;
 }
 
-/*================================ main legend stats ===========================================*/
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -440,7 +320,6 @@ td.speed_9 { background: #b71c1ce0; font-weight: bold; color: white; } /* worst 
     padding-bottom: 10px;
 }
 
-/*================================ language badge ===========================================*/
 .language-badge {
   display: inline-block;
   padding: 3px 8px;
@@ -449,16 +328,3 @@ td.speed_9 { background: #b71c1ce0; font-weight: bold; color: white; } /* worst 
   font-weight: 600;
   margin-right: 5px;
 }
-
-/*.part_langs {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px 12px;
-  background: #f5f7fa;
-  border-radius: 8px;
-  margin: 5px 0;
-  align-items: center;
-  min-height: 40px; /* Минимальная высота */
-}
-*/

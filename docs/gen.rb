@@ -2,9 +2,6 @@ require "json"
 require 'date'
 require 'fileutils'
 
-# To generate data for github pages just call this with results file
-# ruby gen.rb ../results/2026-01-16-x86_64-linux-gnu.js
-
 FILENAME = ARGV[0]
 J = JSON.parse(File.read(FILENAME))
 
@@ -52,7 +49,6 @@ class Gen
     end
 
     if @j["#{@tests[0]}-runtime"].size != @runs_all.size
-      # not full document
       puts "WARNING NOT FULL, Adjust"
       @runs_prod &= @j["#{@tests[0]}-runtime"].keys
       @runs_all &= @j["#{@tests[0]}-runtime"].keys
@@ -77,7 +73,6 @@ class Gen
     end
   end
 
-  # 1 table runtimes
   def runtime_table(runs = @runs_prod)
     t = main_table('runtime', runs)
     t[:description] = <<-DESC
@@ -94,14 +89,13 @@ class Gen
     t
   end
 
-  def runtime_table_rel(runs = @runs_prod) # relative to basis (c,c++,rust,zig,crystal)
+  def runtime_table_rel(runs = @runs_prod)
     fullt = main_table('runtime', @runs_all)
     t = main_table('runtime', runs)
     m = t[:map]
     new_m = []
     
     best_runs = %w{C/Gcc C++/G++ Rust Zig D/LDC Crystal}
-    # TODO by_lang not would work good here
     rel_indexes = best_runs.map { |name| fullt[:up_header].index(name) }
 
     avg1 = []
@@ -137,8 +131,6 @@ class Gen
       mins << min
       avg2 << sum / t[:up_header].size
       maxs << max
-
-      # new_m << line.map { |v| (v / avg).round(2) }
     end
 
     new_m = []
@@ -234,7 +226,6 @@ Heatmap: greener = faster, redder = slower.
           summaries[i] += v
           format_float v
         else
-          # puts "Warning missing value for #{test} #{field} #{run}"
           nil
         end        
       end
@@ -312,17 +303,6 @@ This table compares how concisely different programming languages express the sa
     {map: arr, left_header: left_header, up_header: ["Version"], lang: :left, first_row: "Run"}
   end
 
-  # def build_flags
-  #   left_header = []
-  #   arr = @j['build-cmd'].map do |run, ver|
-  #     if @runs_prod.include?(run)
-  #       left_header << run
-  #       [ver]
-  #     end
-  #   end.compact
-  #   {map: arr, left_header: left_header, up_header: ["Build Flags"], lang: :left}
-  # end
-
   def compile(runs = @runs_prod)
     m = []
     runs.each do |run|
@@ -390,7 +370,6 @@ This table compares how concisely different programming languages express the sa
   def main_legend
     legend_count = 3
 
-    # редкостный говнокод тут, пофиг главное работает
     a = awards
     totals = _vert(a[:map], a[:up_header].index("Total")).map { |s| s =~ /([0-9\.]*?) \/ 100/; $1.to_f }
     totals = a[:left_header].zip(totals).map { |a, v| [a, "#{v} pts"] }
@@ -421,7 +400,7 @@ This table compares how concisely different programming languages express the sa
     r, up_header = _lang_ranks
 
     m = []
-    r2 = r.sort_by { |k, v| v[1] } # sort by runtime
+    r2 = r.sort_by { |k, v| v[1] }
     left_header = []
 
     get_values = ->(index) { res = []; r2.each { |lang, data| res << [lang, data[index]] }; res }
@@ -446,7 +425,7 @@ This table compares how concisely different programming languages express the sa
           ((d / best.to_f) * 100).round(1)
         elsif up_header[index] == "Looses Count"
           best = values[-1][1]
-          d = (best - d) # 0 - 14, 14 - 0
+          d = (best - d)
           ((d / best.to_f) * 100).round(1)
         elsif up_header[index] == "Expressiveness"
           best = values[0][1] - values[-1][1]
@@ -479,14 +458,11 @@ This table compares how concisely different programming languages express the sa
     end
 
     up_header = ["Best Config", "Runtime", "Runtime Score", "Memory", "Wins", "Looses", "Compile Time", "Compile Memory", "Binary Size", "Expressiveness", "Total", "Award"]
-    # weights = [                  0.35,       0.3,      0.1,     0.03,    0.07,            0.02,              0.05,          0.08,         ]
-    # weights = [                  0.35,       0.3,      0.07,     0.03,    0.07,            0.02,              0.05,          0.11,         ]
     weights = [                  0.2,      0.3,             0.2,      0.1,     0.02,    0.1,            0.02,              0.01,          0.05,         ]
     unless weights.sum == 1.0
       raise "Bad weights #{weights.inspect} #{weights.sum}"
     end
 
-    # ну и говнокод
     totals = []
     m.each_with_index do |arr, index|
       sum = 0.0
@@ -548,7 +524,7 @@ DESC
     r, up_header = _lang_ranks
 
     m = []
-    r2 = r.sort_by { |k, v| v[1] } # sort by runtime
+    r2 = r.sort_by { |k, v| v[1] }
     left_header = []
 
 
@@ -640,7 +616,6 @@ DESC
       result[_lang_for run] << run
     end
 
-    # best runtime
     h = Hash.new(0.0)
     runs.each do |run|
       @tests.each do |test|
@@ -650,15 +625,12 @@ DESC
     min_runtime = h.min_by { |k, v| v }[1]
 
     up_header << "Runtime, s"
-    # up_header << "Runtime vs Fastest"
     h.each do |run, runtime|
       result[_lang_for run] << format_float(runtime)
-      # result[_lang_for run] << format_float(runtime / min_runtime)
     end
 
     up_header << "Runtime Score"
     rtrel = runtime_table_rel
-    # up_header << "Runtime vs Fastest"
     h.each do |run, runtime|
       i = rtrel[:up_header].index(run)
       s = 0.0
@@ -669,7 +641,6 @@ DESC
       result[_lang_for run] << format_float(s)
     end
 
-    # memory
     h = Hash.new(0.0)
     runs.each do |run|
       @tests.each do |test|
@@ -687,7 +658,6 @@ DESC
       result[_lang_for run] << format_float(mem)
     end
 
-    # wins/looses count
     wins = {}
     looses = {}
     @tests.each do |test|
@@ -716,7 +686,6 @@ DESC
       result[_lang_for run] << looses.count { |k, v| v == run }
     end
 
-    # compile time
     h = Hash.new(0.0)
     runs.each do |run|
       h[run] = @j['compile-time-incremental'][run]
@@ -732,7 +701,6 @@ DESC
       end
     end
 
-    # compile memory
     h = Hash.new(0.0)
     runs.each do |run|
       h[run] = @j['compile-memory-incremental'][run]
@@ -740,7 +708,6 @@ DESC
     min = h.min_by { |k, v| v }[1]
 
     up_header << "Compile Memory Inc, Mb"
-    # up_header << "Compile Memory vs Fastest"
     runs.each do |run|
       unless @j["build-cmd"][run] == "true"
         result[_lang_for run] << format_float(@j['compile-memory-incremental'][run])
@@ -749,7 +716,6 @@ DESC
       end
     end
 
-    # binary size
     h = Hash.new(0.0)
     runs.each do |run|
       h[run] = @j['binary-size-kb'][run] / 1024.0
@@ -757,13 +723,10 @@ DESC
     min = h.min_by { |k, v| v }[1]
 
     up_header << "Binary Size, Mb"
-    # up_header << "Binary Size vs Fastest"
     runs.each do |run|
       result[_lang_for run] << format_float(@j['binary-size-kb'][run] / 1024.0)
-      # result[_lang_for run] << format_float(@j['binary-size-kb'][run] / 1024.0 / min)
     end
 
-    # source
     up_header << "Expressiveness"
     s = source
     runs.each do |run|
@@ -920,7 +883,6 @@ DESC
 
           v.round(1)
         else
-          # puts "Warning missing value for #{test} #{field} #{run}"
           nil
         end
       end
@@ -939,7 +901,6 @@ DESC
     summary_data = summaries2.each_with_index.map do |s2, i| 
       s1 = summaries1[i]
       if s1 == 0
-        # new lang
         100
       else
         diff = s2 - s1
@@ -972,7 +933,6 @@ DESC
 
       'source': source,
       'versions': versions,
-      # 'build_flags': build_flags,
       'compile': compile,
       'compile_by_lang': compile_by_lang,
 
@@ -981,8 +941,6 @@ DESC
       'prev_diff': prev_diff,
 
       'lang_rank': lang_rank,
-      # 'test_rank_rt': test_rank('runtime'),
-      # 'test_rank_mem': test_rank('mem-mb'),
       'awards': awards,
       'main_legend': main_legend,
     }
@@ -990,7 +948,7 @@ DESC
 
   def _lang_for(run)
     v = run.downcase.split('/').first
-    v.gsub("++", "pp").gsub("#", "sharp").gsub("go", "golang")
+    v.gsub("nim++", "nim").gsub("++", "pp").gsub("#", "sharp").gsub("go", "golang")
   end
 
   def _to_lang(run)
@@ -999,7 +957,7 @@ DESC
     v.capitalize
   end
 
-  def _best_lang_run(runs = @runs_prod) # return {"lang" => "best run"}
+  def _best_lang_run(runs = @runs_prod)
     h = Hash.new(0.0)
     runs.each do |run|
       @tests.each do |test|
@@ -1007,7 +965,6 @@ DESC
       end
     end
 
-    # Find best result for each language
     h2 = {}
     _langs = h.keys.map { |k| _lang_for(k) }.uniq.sort
     _langs.each do |lang|
