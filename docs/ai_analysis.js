@@ -81,21 +81,16 @@ function ai_analys($results) {
 <p>Here are the languages that made porting genuinely pleasant:</p>
 
 <ul>
-<li><strong>Dart</strong> — A couple of hours, everything worked immediately. No surprises, just predictable behavior from a mature ecosystem.</li>
-
-<li><strong>TypeScript</strong> — Smooth sailing. The JavaScript runtime ecosystem has matured to the point where things just work across platforms.</li>
-
-<li><strong>Scala</strong> — Surprisingly painless despite its reputation for complexity. The JVM's stability shines through.</li>
-
-<li><strong>Python</strong> — No surprises, just works as expected. Decades of refinement show.</li>
-
-<li><strong>D</strong> — Mature tooling, straightforward porting. A veteran language that's earned its stability.</li>
-
-<li><strong>C#</strong> — Rock solid from day one. .NET's tooling and runtime predictability made porting frictionless. Microsoft's investment in developer experience really pays off.</li>
+<li><strong>Dart</strong> — A couple of hours, everything worked immediately.</li>
+<li><strong>TypeScript</strong> — Smooth sailing, predictable behavior.</li>
+<li><strong>Scala</strong> — Surprisingly painless despite its reputation.</li>
+<li><strong>Python</strong> — No surprises, just works as expected.</li>
+<li><strong>D</strong> — Mature tooling, straightforward porting.</li>
+<li><strong>C#</strong> — Rock solid from day one, frictionless experience.</li>
+<li><strong>Go</strong> — Simple, clean, compiled on first try without drama.</li>
 </ul>
 
 <p>These languages prove that <strong>maturity and tooling matter</strong>. You don't have to fight the compiler or debug memory corruption — you just write code and it runs. They may not win the speed crown, but they'll win your weekend back. And sometimes, that's worth more than a few milliseconds.</p>
-
 <hr>
 
 <h2>🧠 Memory: The Hidden Tax</h2>
