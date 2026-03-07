@@ -61,6 +61,9 @@ function changeTab(tabId, group_lang_option_checked = false) {
         case 'awards_tab':
             create_table($results, "Summary language score", window.Data.awards);
             break;        
+        case 'askai_tab':
+            $results.append(`<iframe src="https://langarena.hopto.org" style="width: 100%; height: 700px; border: none; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" title="AI Q&A System" loading="lazy"></iframe>`);
+            break;
     }
 }
 
