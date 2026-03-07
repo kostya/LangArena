@@ -73,6 +73,29 @@ function ai_analys($results) {
 
 <p><strong>The achievement:</strong> Go proves that you don't have to choose between fast compiles and reasonably fast code. Its design philosophy — optimize for developer iteration, accept reasonable runtime performance, use C bindings when you need raw speed — is validated by these numbers. At 78s for compute workloads with 0.76s compiles, Go is arguably the most productive language in the entire dataset for cloud infrastructure and microservices.</p>
 
+
+<h3>🔄 The "Just Works" Hall of Fame</h3>
+
+<p>Beyond raw performance numbers, there's another crucial metric that benchmarks never capture: <strong>how easily did the code port?</strong> Some languages required days of fighting segmentation faults, linker errors, and obscure runtime crashes. Others just <strong>worked</strong> — translate the code, compile, run, done.</p>
+
+<p>Here are the languages that made porting genuinely pleasant:</p>
+
+<ul>
+<li><strong>Dart</strong> — A couple of hours, everything worked immediately. No surprises, just predictable behavior from a mature ecosystem.</li>
+
+<li><strong>TypeScript</strong> — Smooth sailing. The JavaScript runtime ecosystem has matured to the point where things just work across platforms.</li>
+
+<li><strong>Scala</strong> — Surprisingly painless despite its reputation for complexity. The JVM's stability shines through.</li>
+
+<li><strong>Python</strong> — No surprises, just works as expected. Decades of refinement show.</li>
+
+<li><strong>D</strong> — Mature tooling, straightforward porting. A veteran language that's earned its stability.</li>
+
+<li><strong>C#</strong> — Rock solid from day one. .NET's tooling and runtime predictability made porting frictionless. Microsoft's investment in developer experience really pays off.</li>
+</ul>
+
+<p>These languages prove that <strong>maturity and tooling matter</strong>. You don't have to fight the compiler or debug memory corruption — you just write code and it runs. They may not win the speed crown, but they'll win your weekend back. And sometimes, that's worth more than a few milliseconds.</p>
+
 <hr>
 
 <h2>🧠 Memory: The Hidden Tax</h2>
@@ -239,7 +262,7 @@ function ai_analys($results) {
 <tr><td>Memory (MB)</td><td>~290</td><td>313</td><td>304</td><td>Java 🥇</td></tr>
 <tr><td>Compile Inc (s)</td><td>4.08</td><td>18.63</td><td>6.43</td><td>Java 🥇</td></tr>
 <tr><td>Expressiveness</td><td>0%</td><td>+22%</td><td>+42%</td><td>Scala 🥇</td></tr>
-<tr><td>Scaling (16T)</td><td>7.27×</td><td>11.65×</td><td>9.90×</td><td>Kotlin 🥇</td></tr>
+<tr><td>Scaling (16T)</td><td>11.7×</td><td>11.65×</td><td>9.90×</td><td>Kotlin 🥇</td></tr>
 </table>
 
 <p><strong>The Trade-off Triangle:</strong> Java = performance/efficiency, Scala = expressiveness, Kotlin = scaling champion with compilation tax. Choose your poison.</p>
