@@ -483,6 +483,56 @@ RUNS = [
     deps_cmd: "cargo fetch",
   ),
 
+  # ======================================= Rust WASM ======================================================
+  
+  Run.new(
+    name: "Rust/WASM/Node", 
+    build_cmd: "sh -c 'cargo build --target wasm32-wasip1 --release; wasm-opt -O3 target/wasm32-wasip1/release/benchmarks.wasm -o target/wasm32-wasip1/release/benchmarks-opt.wasm'", 
+    binary_name: "target/wasm32-wasip1/release/benchmarks-opt.wasm", 
+    run_cmd: "node node-wasi-runner.js", 
+    version_cmd: "/bin/bash -c 'echo \"Rust->WASM $(rustc --version  | head -n 1), Node $(node --version)\"'",
+    dir: "/src/rust",
+    container: "rust_wasm",
+    group: :prod,
+    deps_cmd: "cargo fetch",
+  ),
+
+  Run.new(
+    name: "Rust/WASM/Wasmtime", 
+    build_cmd: "sh -c 'cargo build --target wasm32-wasip1 --release; wasm-opt -O3 target/wasm32-wasip1/release/benchmarks.wasm -o target/wasm32-wasip1/release/benchmarks-opt.wasm'", 
+    binary_name: "target/wasm32-wasip1/release/benchmarks-opt.wasm", 
+    run_cmd: "wasmtime run target/wasm32-wasip1/release/benchmarks-opt.wasm", 
+    version_cmd: "/bin/bash -c 'echo \"Rust->WASM $(rustc --version  | head -n 1), $(wasmtime --version)\"'",
+    dir: "/src/rust",
+    container: "rust_wasm",
+    group: :hack,
+    deps_cmd: "cargo fetch",
+  ),
+
+  Run.new(
+    name: "Rust/WASM/Wasmer", 
+    build_cmd: "sh -c 'cargo build --target wasm32-wasip1 --release; wasm-opt -O3 target/wasm32-wasip1/release/benchmarks.wasm -o target/wasm32-wasip1/release/benchmarks-opt.wasm'", 
+    binary_name: "target/wasm32-wasip1/release/benchmarks-opt.wasm", 
+    run_cmd: "wasmer run target/wasm32-wasip1/release/benchmarks-opt.wasm", 
+    version_cmd: "/bin/bash -c 'echo \"Rust->WASM $(rustc --version  | head -n 1), $(wasmer --version)\"'",
+    dir: "/src/rust",
+    container: "rust_wasm",
+    group: :hack,
+    deps_cmd: "cargo fetch",
+  ),
+
+  Run.new(
+    name: "Rust/WASM/WasmEdge", 
+    build_cmd: "sh -c 'cargo build --target wasm32-wasip1 --release; wasm-opt -O3 target/wasm32-wasip1/release/benchmarks.wasm -o target/wasm32-wasip1/release/benchmarks-opt.wasm; wasmedge compile target/wasm32-wasip1/release/benchmarks-opt.wasm target/wasm32-wasip1/release/benchmarks-opt-aot.wasm'", 
+    binary_name: "target/wasm32-wasip1/release/benchmarks-opt-aot.wasm", 
+    run_cmd: "wasmedge --dir=. target/wasm32-wasip1/release/benchmarks-opt-aot.wasm", 
+    version_cmd: "/bin/bash -c 'echo \"Rust->WASM $(rustc --version  | head -n 1), $(wasmedge --version | head -n 1)\"'",
+    dir: "/src/rust",
+    container: "rust_wasm",
+    group: :hack,
+    deps_cmd: "cargo fetch",
+  ),
+
   # ======================================= Zig ======================================================
 
   Run.new(
@@ -1868,6 +1918,7 @@ if APPEND_RESULTS
   f = File.read(APPEND_RESULTS)
   puts "Use previous results: #{APPEND_RESULTS}"
   RESULTS = JSON.parse(f)
+  RUNS.each { |run| RESULTS["runs"][run.name] = run.group }
 else
   RESULTS = {}
   RESULTS["date"] = Time.now.strftime("%Y-%m-%d")
@@ -2018,13 +2069,11 @@ RUNS.each_with_index do |run, index|
   write_results
 end
 
-p RESULTS["start-duration"]
-
-RESULTS["start-duration"].each do |run, v|
-  RESULTS["start-duration"][run] = v / TESTS.size # averaging
+unless APPEND_RESULTS
+  RESULTS["start-duration"].each do |run, v|
+    RESULTS["start-duration"][run] = v / TESTS.size
+  end
 end
-
-p RESULTS["start-duration"]
 
 end_t = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
 puts "----------- FINISHED in #{((end_t - START_TIME).to_f / 1e9).round(2)}s-------------"

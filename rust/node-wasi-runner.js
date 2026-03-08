@@ -16,7 +16,7 @@ const wasi = new WASI({
   },
 });
 
-const wasmBuffer = await readFile('target/wasm32-wasip1/release/benchmarks.wasm');
+const wasmBuffer = await readFile('target/wasm32-wasip1/release/benchmarks-opt.wasm');
 const wasmModule = await WebAssembly.compile(wasmBuffer);
 
 const importObject = {
