@@ -1,0 +1,12 @@
+FROM benchmarks:rust
+
+ARG nodeversion
+RUN curl -fsSL https://deb.nodesource.com/setup_$nodeversion | bash - \
+    && apt install -y --no-install-recommends nodejs \
+    && apt clean
+
+RUN curl https://get.wasmer.io -sSfL | sh
+
+RUN curl https://wasmtime.dev/install.sh -sSf | bash
+
+RUN curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash

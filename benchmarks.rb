@@ -483,6 +483,44 @@ RUNS = [
     deps_cmd: "cargo fetch",
   ),
 
+  # ======================================= Rust WASM ======================================================
+  
+  Run.new(
+    name: "Rust/WASM/Node", 
+    build_cmd: "cargo build --target wasm32-wasip1 --release", 
+    binary_name: "target/wasm32-wasip1/release/benchmarks.wasm", 
+    run_cmd: "node node-wasi-runner.js", 
+    version_cmd: "/bin/bash -c 'echo \"Rust $(rustc --version  | head -n 1), Node $(node --version)\"'",
+    dir: "/src/rust",
+    container: "rust_wasm",
+    group: :prod,
+    deps_cmd: "cargo fetch",
+  ),
+
+  Run.new(
+    name: "Rust/WASM/Wasmtime", 
+    build_cmd: "cargo build --target wasm32-wasip1 --release", 
+    binary_name: "target/wasm32-wasip1/release/benchmarks.wasm", 
+    run_cmd: "wasmtime run target/wasm32-wasip1/release/benchmarks.wasm", 
+    version_cmd: "/bin/bash -c 'echo \"Rust $(rustc --version  | head -n 1), Wasmtime $(wasmtime --version)\"'",
+    dir: "/src/rust",
+    container: "rust_wasm",
+    group: :hack,
+    deps_cmd: "cargo fetch",
+  ),
+
+  Run.new(
+    name: "Rust/WASM/Wasmer", 
+    build_cmd: "cargo build --target wasm32-wasip1 --release", 
+    binary_name: "target/wasm32-wasip1/release/benchmarks.wasm", 
+    run_cmd: "wasmer run target/wasm32-wasip1/release/benchmarks.wasm", 
+    version_cmd: "/bin/bash -c 'echo \"Rust $(rustc --version  | head -n 1), Wasmer $(wasmer --version)\"'",
+    dir: "/src/rust",
+    container: "rust_wasm",
+    group: :hack,
+    deps_cmd: "cargo fetch",
+  ),
+
   # ======================================= Zig ======================================================
 
   Run.new(

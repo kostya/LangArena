@@ -60,6 +60,23 @@ services:
     depends_on:
       - base
 
+  rust_wasm:
+    <<: *shared
+    image: benchmarks:rust_wasm
+    build:
+      dockerfile: docker/rust_wasm
+      args:
+        nodeversion: "25.x"
+    volumes:
+      - .:/src
+
+      - ./cache/deps/rust-wasm/registry:/root/.cargo/registry
+      - ./cache/deps/rust-wasm/git:/root/.cargo/git
+
+      - ./cache/build/rust-wasm/target:/src/rust/target
+    depends_on:
+      - rust
+
   zig:
     <<: *shared
     image: benchmarks:zig
