@@ -487,8 +487,8 @@ RUNS = [
   
   Run.new(
     name: "Rust/WASM/Node", 
-    build_cmd: "cargo build --target wasm32-wasip1 --release", 
-    binary_name: "target/wasm32-wasip1/release/benchmarks.wasm", 
+    build_cmd: "sh -c 'cargo build --target wasm32-wasip1 --release; wasm-opt -O3 target/wasm32-wasip1/release/benchmarks.wasm -o target/wasm32-wasip1/release/benchmarks-opt.wasm'", 
+    binary_name: "target/wasm32-wasip1/release/benchmarks-opt.wasm", 
     run_cmd: "node node-wasi-runner.js", 
     version_cmd: "/bin/bash -c 'echo \"Rust $(rustc --version  | head -n 1), Node $(node --version)\"'",
     dir: "/src/rust",
@@ -499,9 +499,9 @@ RUNS = [
 
   Run.new(
     name: "Rust/WASM/Wasmtime", 
-    build_cmd: "cargo build --target wasm32-wasip1 --release", 
-    binary_name: "target/wasm32-wasip1/release/benchmarks.wasm", 
-    run_cmd: "wasmtime run target/wasm32-wasip1/release/benchmarks.wasm", 
+    build_cmd: "sh -c 'cargo build --target wasm32-wasip1 --release; wasm-opt -O3 target/wasm32-wasip1/release/benchmarks.wasm -o target/wasm32-wasip1/release/benchmarks-opt.wasm'", 
+    binary_name: "target/wasm32-wasip1/release/benchmarks-opt.wasm", 
+    run_cmd: "wasmtime run target/wasm32-wasip1/release/benchmarks-opt.wasm", 
     version_cmd: "/bin/bash -c 'echo \"Rust $(rustc --version  | head -n 1), Wasmtime $(wasmtime --version)\"'",
     dir: "/src/rust",
     container: "rust_wasm",
@@ -511,9 +511,9 @@ RUNS = [
 
   Run.new(
     name: "Rust/WASM/Wasmer", 
-    build_cmd: "cargo build --target wasm32-wasip1 --release", 
-    binary_name: "target/wasm32-wasip1/release/benchmarks.wasm", 
-    run_cmd: "wasmer run target/wasm32-wasip1/release/benchmarks.wasm", 
+    build_cmd: "sh -c 'cargo build --target wasm32-wasip1 --release; wasm-opt -O3 target/wasm32-wasip1/release/benchmarks.wasm -o target/wasm32-wasip1/release/benchmarks-opt.wasm'", 
+    binary_name: "target/wasm32-wasip1/release/benchmarks-opt.wasm", 
+    run_cmd: "wasmer run target/wasm32-wasip1/release/benchmarks-opt.wasm", 
     version_cmd: "/bin/bash -c 'echo \"Rust $(rustc --version  | head -n 1), Wasmer $(wasmer --version)\"'",
     dir: "/src/rust",
     container: "rust_wasm",
@@ -523,9 +523,9 @@ RUNS = [
 
   Run.new(
     name: "Rust/WASM/WasmEdge", 
-    build_cmd: "sh -c 'cargo build --target wasm32-wasip1 --release; wasmedge compile target/wasm32-wasip1/release/benchmarks.wasm target/wasm32-wasip1/release/benchmarks_aot.wasm'", 
-    binary_name: "target/wasm32-wasip1/release/benchmarks_aot.wasm", 
-    run_cmd: "wasmedge --dir=. target/wasm32-wasip1/release/benchmarks_aot.wasm", 
+    build_cmd: "sh -c 'cargo build --target wasm32-wasip1 --release; wasm-opt -O3 target/wasm32-wasip1/release/benchmarks.wasm -o target/wasm32-wasip1/release/benchmarks-opt.wasm; wasmedge compile target/wasm32-wasip1/release/benchmarks-opt.wasm target/wasm32-wasip1/release/benchmarks-opt-aot.wasm'", 
+    binary_name: "target/wasm32-wasip1/release/benchmarks-opt-aot.wasm", 
+    run_cmd: "wasmedge --dir=. target/wasm32-wasip1/release/benchmarks-opt-aot.wasm", 
     version_cmd: "/bin/bash -c 'echo \"Rust $(rustc --version  | head -n 1), WasmEdge $(wasmedge --version)\"'",
     dir: "/src/rust",
     container: "rust_wasm",

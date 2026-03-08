@@ -1,3 +1,4 @@
 #!/bin/sh
 cargo build --target wasm32-wasip1 --release
+cp target/wasm32-wasip1/release/benchmarks.wasm target/wasm32-wasip1/release/benchmarks-opt.wasm
 ../xtime.rb node node-wasi-runner.js ../run.js "$@"
