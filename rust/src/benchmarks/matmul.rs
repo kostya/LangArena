@@ -1,6 +1,9 @@
 use super::super::{helper, Benchmark};
 use crate::config_i64;
+
+#[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
+#[cfg(not(target_arch = "wasm32"))]
 use rayon::ThreadPoolBuilder;
 
 fn matgen(n: usize) -> Vec<Vec<f64>> {
@@ -54,6 +57,7 @@ fn matmul_sequential(a: &[Vec<f64>], b: &[Vec<f64>]) -> Vec<Vec<f64>> {
     c
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn matmul_parallel(a: &[Vec<f64>], b: &[Vec<f64>], num_threads: usize) -> Vec<Vec<f64>> {
     let pool = ThreadPoolBuilder::new()
         .num_threads(num_threads)
@@ -83,6 +87,11 @@ fn matmul_parallel(a: &[Vec<f64>], b: &[Vec<f64>], num_threads: usize) -> Vec<Ve
     });
 
     c
+}
+
+#[cfg(target_arch = "wasm32")]
+fn matmul_parallel(a: &[Vec<f64>], b: &[Vec<f64>], _num_threads: usize) -> Vec<Vec<f64>> {
+    matmul_sequential(a, b)
 }
 
 struct BaseMatmul {
