@@ -1,9 +1,9 @@
 {
-  "date": "2026-03-06",
+  "date": "2026-03-09",
   "arch": "x86_64-linux-gnu",
   "pc": "AMD Ryzen 7 3800X 8-Core Processor 78GB",
   "uname-name": "kostya-ms7c37",
-  "changes": "Added benchmarks: CSV::Parse, Template::Regex, Template::Parse.\nRemoved benchmarks: Fasta, Knuckeotide, RegexDna, Revcomp.\nNim optimizes Etc::LogParser by precompile regexp.",
+  "changes": "Added benchmarks: CSV::Parse, Template::Regex, Template::Parse.\nRemoved benchmarks: Fasta, Knuckeotide, RegexDna, Revcomp.\nNim optimizes Etc::LogParser by precompile regexp.\nAdded Rust/WASM configs (Node, Wasmer, WasmEdge, Wasmtime).",
   "langs": [
     "c",
     "cpp",
@@ -43,6 +43,10 @@
     "Rust/WMO": "hack",
     "Rust/WMO/Unchecked": "hack",
     "Rust/MaxPerf/Unsafe": "hack",
+    "Rust/WASM/Node": "prod",
+    "Rust/WASM/Wasmtime": "hack",
+    "Rust/WASM/Wasmer": "hack",
+    "Rust/WASM/WasmEdge": "hack",
     "Zig": "prod",
     "Zig/Unchecked": "hack",
     "Crystal": "prod",
@@ -243,7 +247,11 @@
     "TypeScript/Deno/Default": "true",
     "TypeScript/Deno/Compiled": "deno compile   --allow-all   --no-check   --output=target/dist-deno/index   src/index.ts",
     "TypeScript/Deno/Turbo": "true",
-    "Python/PYPY": "true"
+    "Python/PYPY": "true",
+    "Rust/WASM/Node": "sh -c 'cargo build --target wasm32-wasip1 --release; wasm-opt -O3 target/wasm32-wasip1/release/benchmarks.wasm -o target/wasm32-wasip1/release/benchmarks-opt.wasm'",
+    "Rust/WASM/Wasmtime": "sh -c 'cargo build --target wasm32-wasip1 --release; wasm-opt -O3 target/wasm32-wasip1/release/benchmarks.wasm -o target/wasm32-wasip1/release/benchmarks-opt.wasm'",
+    "Rust/WASM/Wasmer": "sh -c 'cargo build --target wasm32-wasip1 --release; wasm-opt -O3 target/wasm32-wasip1/release/benchmarks.wasm -o target/wasm32-wasip1/release/benchmarks-opt.wasm'",
+    "Rust/WASM/WasmEdge": "sh -c 'cargo build --target wasm32-wasip1 --release; wasm-opt -O3 target/wasm32-wasip1/release/benchmarks.wasm -o target/wasm32-wasip1/release/benchmarks-opt.wasm; wasmedge compile target/wasm32-wasip1/release/benchmarks-opt.wasm target/wasm32-wasip1/release/benchmarks-opt-aot.wasm'"
   },
   "run-cmd": {
     "C/Clang": "./target/bin_c_clang",
@@ -326,7 +334,11 @@
     "TypeScript/Deno/Default": "deno run   --allow-all   --v8-flags=--max-old-space-size=4096   /src/typescript/src/index.ts",
     "TypeScript/Deno/Compiled": "/src/typescript/target/dist-deno/index",
     "TypeScript/Deno/Turbo": "deno run   --allow-all   --v8-flags=\"--max-old-space-size=4096,--concurrent-recompilation\"   --no-check   /src/typescript/src/index.ts",
-    "Python/PYPY": "pypy3 main.py"
+    "Python/PYPY": "pypy3 main.py",
+    "Rust/WASM/Node": "node node-wasi-runner.js",
+    "Rust/WASM/Wasmtime": "wasmtime run target/wasm32-wasip1/release/benchmarks-opt.wasm",
+    "Rust/WASM/Wasmer": "wasmer run target/wasm32-wasip1/release/benchmarks-opt.wasm",
+    "Rust/WASM/WasmEdge": "wasmedge --dir=. target/wasm32-wasip1/release/benchmarks-opt-aot.wasm"
   },
   "binary-size-kb": {
     "C/Clang": 548,
@@ -409,7 +421,11 @@
     "TypeScript/Deno/Default": 140,
     "TypeScript/Deno/Compiled": 90396,
     "TypeScript/Deno/Turbo": 140,
-    "Python/PYPY": 128
+    "Python/PYPY": 128,
+    "Rust/WASM/Node": 1468,
+    "Rust/WASM/Wasmtime": 1468,
+    "Rust/WASM/Wasmer": 1468,
+    "Rust/WASM/WasmEdge": 3124
   },
   "compile-memory-cold": {
     "C/Clang": 146.0078125,
@@ -492,7 +508,11 @@
     "TypeScript/Deno/Default": 1.4375,
     "TypeScript/Deno/Compiled": 208.61328125,
     "TypeScript/Deno/Turbo": 1.2265625,
-    "Python/PYPY": 1.4375
+    "Python/PYPY": 1.4375,
+    "Rust/WASM/Node": 339.0078125,
+    "Rust/WASM/Wasmtime": 290.35546875,
+    "Rust/WASM/Wasmer": 289.90234375,
+    "Rust/WASM/WasmEdge": 307.7734375
   },
   "compile-memory-incremental": {
     "C/Clang": 113.04296875,
@@ -575,7 +595,11 @@
     "TypeScript/Deno/Default": 1.3828125,
     "TypeScript/Deno/Compiled": 209.08984375,
     "TypeScript/Deno/Turbo": 1.3046875,
-    "Python/PYPY": 1.3828125
+    "Python/PYPY": 1.3828125,
+    "Rust/WASM/Node": 287.5859375,
+    "Rust/WASM/Wasmtime": 283.640625,
+    "Rust/WASM/Wasmer": 286.98828125,
+    "Rust/WASM/WasmEdge": 306.953125
   },
   "compile-time-cold": {
     "C/Clang": 8.691593172,
@@ -658,7 +682,11 @@
     "TypeScript/Deno/Default": 0.402354442,
     "TypeScript/Deno/Compiled": 0.916391434,
     "TypeScript/Deno/Turbo": 0.40690564,
-    "Python/PYPY": 0.380477199
+    "Python/PYPY": 0.380477199,
+    "Rust/WASM/Node": 7.668672824,
+    "Rust/WASM/Wasmtime": 4.248544812,
+    "Rust/WASM/Wasmer": 4.163679893,
+    "Rust/WASM/WasmEdge": 25.836090033
   },
   "compile-time-incremental": {
     "C/Clang": 2.873560152,
@@ -741,7 +769,11 @@
     "TypeScript/Deno/Default": 0.360670939,
     "TypeScript/Deno/Compiled": 0.970429283,
     "TypeScript/Deno/Turbo": 0.392269153,
-    "Python/PYPY": 0.368467825
+    "Python/PYPY": 0.368467825,
+    "Rust/WASM/Node": 4.144283616,
+    "Rust/WASM/Wasmtime": 4.144035673,
+    "Rust/WASM/Wasmer": 4.148300855,
+    "Rust/WASM/WasmEdge": 26.2360719
   },
   "version": {
     "C/Clang": "Ubuntu clang version 21.1.2 (2ubuntu6)",
@@ -824,97 +856,105 @@
     "TypeScript/Deno/Default": "deno 2.6.10 (stable, release, x86_64-unknown-linux-gnu) | v8 14.5.201.2-rusty | typescript 5.9.2",
     "TypeScript/Deno/Compiled": "deno 2.6.10 (stable, release, x86_64-unknown-linux-gnu) | v8 14.5.201.2-rusty | typescript 5.9.2",
     "TypeScript/Deno/Turbo": "deno 2.6.10 (stable, release, x86_64-unknown-linux-gnu) | v8 14.5.201.2-rusty | typescript 5.9.2",
-    "Python/PYPY": "Python 3.11.13 (7.3.20+dfsg-3, Sep 09 2025, 11:48:10) | [PyPy 7.3.20 with GCC 15.2.0]"
+    "Python/PYPY": "Python 3.11.13 (7.3.20+dfsg-3, Sep 09 2025, 11:48:10) | [PyPy 7.3.20 with GCC 15.2.0]",
+    "Rust/WASM/Node": "Rust->WASM rustc 1.93.1 (01f6ddf75 2026-02-11), Node v25.8.0",
+    "Rust/WASM/Wasmtime": "Rust->WASM rustc 1.93.1 (01f6ddf75 2026-02-11), wasmtime 42.0.1 (6844a83b5 2026-02-25)",
+    "Rust/WASM/Wasmer": "Rust->WASM rustc 1.93.1 (01f6ddf75 2026-02-11), wasmer 7.0.1",
+    "Rust/WASM/WasmEdge": "Rust->WASM rustc 1.93.1 (01f6ddf75 2026-02-11), wasmedge version 0.16.1"
   },
   "start-duration": {
-    "C/Clang": 0.0018039404177198222,
-    "C/Gcc": 0.001745116476919137,
-    "C/Clang/ENH": 0.0018039263930975222,
-    "C/Gcc/ENH": 0.0017647322486428654,
-    "C/Clang/MaxPerf": 0.0017646854999018651,
-    "C/Gcc/MaxPerf": 0.0018431252124262792,
-    "C++/Clang++": 0.0041960688198314,
-    "C++/G++": 0.004176481097352271,
-    "C++/Clang++/ENH": 0.004294105604583142,
-    "C++/G++/ENH": 0.00431372605118097,
-    "C++/Clang++/MaxPerf": 0.004235314387901157,
-    "C++/G++/MaxPerf": 0.0040980180104573565,
-    "Rust": 0.0020392174814261644,
-    "Rust/WMO": 0.0019803888657513786,
-    "Rust/WMO/Unchecked": 0.00196078244377585,
-    "Rust/MaxPerf/Unsafe": 0.0019608198427686504,
-    "Zig": 0.0017646995245241652,
-    "Zig/Unchecked": 0.00156861660527248,
-    "Crystal": 0.0037843105839748007,
-    "Crystal/O3": 0.0039215695624258,
-    "D/DMD": -0.4369803783940334,
-    "D/DMD/Perf": -0.501215701009713,
-    "D/LDC": -0.4391764799753825,
-    "D/LDC/Perf": -0.46741175651550293,
-    "D/LDC/MaxPerf": -0.5036666673772475,
-    "V/GCC": 0.0021764530855066634,
-    "V/GCC/Perf": 0.0020784209756290212,
-    "V/Clang": 0.00209806479659735,
-    "V/Clang/Perf": 0.0021568700379016354,
-    "Go": 0.0027059012768315335,
-    "Go/Opt": 0.002568637623506434,
-    "Go/GccGo": 0.013627454346301509,
-    "Go/GccGo/Opt": 0.004823553795908012,
-    "C#/JIT": 0.039078441320681105,
-    "C#/AOT": 0.004039184719908471,
-    "C#/SC-JIT": 0.09499998653636259,
-    "C#/SC-AOT": 0.004019606347177543,
-    "C#/R2R": 0.027176464305204505,
-    "C#/AOT-EXTREME": 0.003980379478604186,
-    "F#/JIT": 0.07731370832405839,
-    "Nim/GCC": 0.0018235281401989506,
-    "Nim/GCC/Danger": 0.0018823614307478362,
-    "Nim/GCC/Max": 0.0018431345621744792,
-    "Nim/GCC/ARC": 0.0018235374899471506,
-    "Nim/Clang": 0.0018627316344018076,
-    "Nim/Clang/Danger": 0.001803912368475222,
-    "Nim/Clang/Max": 0.0017450884276745365,
-    "Nim/Clang/ARC": 0.0019411900464226218,
-    "Nim++/GCC": 0.002372536004758349,
-    "Nim++/GCC/Danger": 0.0022941196666044347,
-    "Nim++/Clang": 0.00235292958278282,
-    "Nim++/Clang/Danger": 0.002372526655010149,
-    "Julia/Default": 2.030196082358267,
-    "Julia/Opt": 2.0062352956510057,
-    "Julia/Max": 2.0128039145002177,
-    "Julia/AOT": 1.3321176510231167,
-    "Swift": 0.01088234490039302,
-    "Swift/Unchecked": 0.010921576443840475,
-    "Odin/Default": 0.0024902119356043197,
-    "Odin/Opt": 0.002470596163880591,
-    "Odin/MaxPerf": 0.002411776897954006,
-    "Java/OpenJDK": 0.05368626351450004,
-    "Java/OpenJDK/Opt": 0.08639213150622797,
-    "Java/GraalVM/JIT": 0.09288234336703431,
-    "Kotlin/JVM/Default": 0.05347059287276922,
-    "Kotlin/JVM/Opt": 0.22803923195483639,
-    "Kotlin/JVM/Max": 0.38033334414164227,
-    "Kotlin/GraalVM/JIT": 0.093764721178541,
-    "Scala/JVM/Default": 0.0982353126301485,
-    "Scala/JVM/Opt": 0.2729019744723451,
-    "Scala/JVM/Max": 0.42413724170011635,
-    "Scala/GraalVM/JIT": 0.15192158081952264,
-    "Dart/AOT": 0.0036078621359432444,
-    "TypeScript/Node/Default": 0.022352957258037494,
-    "TypeScript/Node/Opt": 0.024117647432813458,
-    "TypeScript/Bun/JIT": 0.013784310396979837,
-    "TypeScript/Bun/Compiled": 0.013470588945874981,
-    "TypeScript/Deno/Default": 0.027529412624882718,
-    "TypeScript/Deno/Compiled": 0.02580390724481321,
-    "TypeScript/Deno/Turbo": 0.027156867232977177,
-    "Python/PYPY": 0.13386275721531288
+    "C/Clang": 3.537138073960436e-05,
+    "C/Gcc": 3.421797013566935e-05,
+    "C/Clang/ENH": 3.537110574701024e-05,
+    "C/Gcc/ENH": 3.460259311064442e-05,
+    "C/Clang/MaxPerf": 3.460167646866402e-05,
+    "C/Gcc/MaxPerf": 3.61397100475741e-05,
+    "C++/Clang++": 8.227585921238038e-05,
+    "C++/G++": 8.189178622259356e-05,
+    "C++/Clang++/ENH": 8.419814910947337e-05,
+    "C++/G++/ENH": 8.458286374864648e-05,
+    "C++/Clang++/MaxPerf": 8.304538015492464e-05,
+    "C++/G++/MaxPerf": 8.035329432269326e-05,
+    "Rust": 3.9984656498552246e-05,
+    "Rust/WMO": 3.883115423041919e-05,
+    "Rust/WMO/Unchecked": 3.84467145838402e-05,
+    "Rust/MaxPerf/Unsafe": 3.844744789742452e-05,
+    "Zig": 3.460195146125814e-05,
+    "Zig/Unchecked": 3.075718833867608e-05,
+    "Crystal": 7.420216831323139e-05,
+    "Crystal/O3": 7.689352083187844e-05,
+    "D/DMD": -0.008568242713608499,
+    "D/DMD/Perf": -0.009827758843327707,
+    "D/LDC": -0.008611303528929068,
+    "D/LDC/Perf": -0.009164936402264763,
+    "D/LDC/MaxPerf": -0.00987581700739701,
+    "V/GCC": 4.267555069620909e-05,
+    "V/GCC/Perf": 4.0753352463314144e-05,
+    "V/Clang": 4.113852542347745e-05,
+    "V/Clang/Perf": 4.22915693706203e-05,
+    "Go": 5.3056887781010464e-05,
+    "Go/Opt": 5.036544359816537e-05,
+    "Go/GccGo": 0.00026720498718238255,
+    "Go/GccGo/Opt": 9.457948619427474e-05,
+    "C#/JIT": 0.0007662439474643354,
+    "C#/AOT": 7.919970039036217e-05,
+    "C#/SC-JIT": 0.0018627448340463252,
+    "C#/SC-AOT": 7.881581072897143e-05,
+    "C#/R2R": 0.000532871849121657,
+    "C#/AOT-EXTREME": 7.804665644321933e-05,
+    "F#/JIT": 0.0015159550651776155,
+    "Nim/GCC": 3.575545372939119e-05,
+    "Nim/GCC/Danger": 3.690904766172228e-05,
+    "Nim/GCC/Max": 3.613989337597018e-05,
+    "Nim/GCC/ARC": 3.5755637057787266e-05,
+    "Nim/Clang": 3.652414969415309e-05,
+    "Nim/Clang/Danger": 3.537083075441612e-05,
+    "Nim/Clang/Max": 3.4217420150481105e-05,
+    "Nim/Clang/ARC": 3.806254992985533e-05,
+    "Nim++/GCC": 4.652031381879115e-05,
+    "Nim++/GCC/Danger": 4.498273856087127e-05,
+    "Nim++/Clang": 4.6135874172212154e-05,
+    "Nim++/Clang/Danger": 4.6520130490395075e-05,
+    "Julia/Default": 0.03980776632075033,
+    "Julia/Opt": 0.03933794697354913,
+    "Julia/Max": 0.03946674342157289,
+    "Julia/AOT": 0.02611995394162974,
+    "Swift": 0.00021337931177241215,
+    "Swift/Unchecked": 0.00021414855772236227,
+    "Odin/Default": 4.882768501184941e-05,
+    "Odin/Opt": 4.844306203687434e-05,
+    "Odin/MaxPerf": 4.728974309713737e-05,
+    "Java/OpenJDK": 0.0010526718336176478,
+    "Java/OpenJDK/Opt": 0.0016939633628672152,
+    "Java/GraalVM/JIT": 0.001821222418961457,
+    "Kotlin/JVM/Default": 0.0010484429975052788,
+    "Kotlin/JVM/Opt": 0.004471357489310517,
+    "Kotlin/JVM/Max": 0.007457516551796908,
+    "Kotlin/GraalVM/JIT": 0.0018385239446772745,
+    "Scala/JVM/Default": 0.001926182600591147,
+    "Scala/JVM/Opt": 0.005351019107300885,
+    "Scala/JVM/Max": 0.00831641650392385,
+    "Scala/GraalVM/JIT": 0.002978854525872993,
+    "Dart/AOT": 7.074239482241656e-05,
+    "TypeScript/Node/Default": 0.00043829327956936264,
+    "TypeScript/Node/Opt": 0.00047289504770222464,
+    "TypeScript/Bun/JIT": 0.00027028059601921247,
+    "TypeScript/Bun/Compiled": 0.0002641291950171565,
+    "TypeScript/Deno/Default": 0.0005397924044094651,
+    "TypeScript/Deno/Compiled": 0.0005059589655845727,
+    "TypeScript/Deno/Turbo": 0.0005324875928034741,
+    "Python/PYPY": 0.0026247599453982917,
+    "Rust/WASM/Node": 0.030666655185175876,
+    "Rust/WASM/Wasmtime": 0.23523527968163585,
+    "Rust/WASM/Wasmer": 0.22513725710850135,
+    "Rust/WASM/WasmEdge": 0.01780393076877968
   },
   "source-size-kb": {
     "c": 227.99,
     "cpp": 129.96,
     "golang": 101.68,
     "crystal": 95.41,
-    "rust": 163.67,
+    "rust": 164.18,
     "csharp": 146.19,
     "swift": 122.13,
     "java": 150.84,
@@ -936,7 +976,7 @@
     "cpp": 28.27,
     "golang": 25.57,
     "crystal": 21.91,
-    "rust": 30.71,
+    "rust": 30.84,
     "csharp": 28.72,
     "swift": 27.38,
     "java": 28.48,
@@ -958,7 +998,7 @@
     "cpp": 5131,
     "golang": 5256,
     "crystal": 4247,
-    "rust": 6524,
+    "rust": 6541,
     "csharp": 5423,
     "swift": 5442,
     "java": 5537,
@@ -1056,7 +1096,11 @@
     "TypeScript/Deno/Default": 3.304,
     "TypeScript/Deno/Compiled": 3.318,
     "TypeScript/Deno/Turbo": 3.322,
-    "Python/PYPY": 8.499
+    "Python/PYPY": 8.499,
+    "Rust/WASM/Node": 1.664,
+    "Rust/WASM/Wasmtime": 1.753,
+    "Rust/WASM/Wasmer": 1.687,
+    "Rust/WASM/WasmEdge": 1.781
   },
   "Binarytrees::Obj-mem-mb": {
     "C/Clang": 66.63671875,
@@ -1139,7 +1183,11 @@
     "TypeScript/Deno/Default": 591.70703125,
     "TypeScript/Deno/Compiled": 580.7734375,
     "TypeScript/Deno/Turbo": 587.3828125,
-    "Python/PYPY": 324.8828125
+    "Python/PYPY": 324.8828125,
+    "Rust/WASM/Node": 87.484375,
+    "Rust/WASM/Wasmtime": 177.71484375,
+    "Rust/WASM/Wasmer": 207.34375,
+    "Rust/WASM/WasmEdge": 87.3203125
   },
   "Binarytrees::Arena-runtime": {
     "C/Clang": 0.321,
@@ -1222,7 +1270,11 @@
     "TypeScript/Deno/Default": 3.216,
     "TypeScript/Deno/Compiled": 3.125,
     "TypeScript/Deno/Turbo": 3.108,
-    "Python/PYPY": 10.549
+    "Python/PYPY": 10.549,
+    "Rust/WASM/Node": 0.44,
+    "Rust/WASM/Wasmtime": 0.409,
+    "Rust/WASM/Wasmer": 0.401,
+    "Rust/WASM/WasmEdge": 0.434
   },
   "Binarytrees::Arena-mem-mb": {
     "C/Clang": 26.51171875,
@@ -1305,7 +1357,11 @@
     "TypeScript/Deno/Default": 747.04296875,
     "TypeScript/Deno/Compiled": 749.54296875,
     "TypeScript/Deno/Turbo": 693.96484375,
-    "Python/PYPY": 537.09765625
+    "Python/PYPY": 537.09765625,
+    "Rust/WASM/Node": 102.4765625,
+    "Rust/WASM/Wasmtime": 193.63671875,
+    "Rust/WASM/Wasmer": 225.26953125,
+    "Rust/WASM/WasmEdge": 102.984375
   },
   "Brainfuck::Array-runtime": {
     "C/Clang": 1.048,
@@ -1388,7 +1444,11 @@
     "TypeScript/Deno/Default": 2.461,
     "TypeScript/Deno/Compiled": 2.459,
     "TypeScript/Deno/Turbo": 2.462,
-    "Python/PYPY": 8.965
+    "Python/PYPY": 8.965,
+    "Rust/WASM/Node": 1.803,
+    "Rust/WASM/Wasmtime": 1.838,
+    "Rust/WASM/Wasmer": 2.298,
+    "Rust/WASM/WasmEdge": 1.388
   },
   "Brainfuck::Array-mem-mb": {
     "C/Clang": 7.23046875,
@@ -1471,7 +1531,11 @@
     "TypeScript/Deno/Default": 72.74609375,
     "TypeScript/Deno/Compiled": 65.35546875,
     "TypeScript/Deno/Turbo": 72.65625,
-    "Python/PYPY": 87.84375
+    "Python/PYPY": 87.84375,
+    "Rust/WASM/Node": 55.92578125,
+    "Rust/WASM/Wasmtime": 150.0859375,
+    "Rust/WASM/Wasmer": 174.41015625,
+    "Rust/WASM/WasmEdge": 55.125
   },
   "Brainfuck::Recursion-runtime": {
     "C/Clang": 1.535,
@@ -1554,7 +1618,11 @@
     "TypeScript/Deno/Default": 3.343,
     "TypeScript/Deno/Compiled": 3.345,
     "TypeScript/Deno/Turbo": 3.356,
-    "Python/PYPY": 10.158
+    "Python/PYPY": 10.158,
+    "Rust/WASM/Node": 1.9,
+    "Rust/WASM/Wasmtime": 2.21,
+    "Rust/WASM/Wasmer": 2.408,
+    "Rust/WASM/WasmEdge": 1.826
   },
   "Brainfuck::Recursion-mem-mb": {
     "C/Clang": 7.19140625,
@@ -1637,7 +1705,11 @@
     "TypeScript/Deno/Default": 70.4296875,
     "TypeScript/Deno/Compiled": 62.3984375,
     "TypeScript/Deno/Turbo": 69.58984375,
-    "Python/PYPY": 102.21484375
+    "Python/PYPY": 102.21484375,
+    "Rust/WASM/Node": 56.38671875,
+    "Rust/WASM/Wasmtime": 147.80859375,
+    "Rust/WASM/Wasmer": 174.390625,
+    "Rust/WASM/WasmEdge": 55.55859375
   },
   "Matmul::Single-runtime": {
     "C/Clang": 8.275,
@@ -1720,7 +1792,11 @@
     "TypeScript/Deno/Default": 5.079,
     "TypeScript/Deno/Compiled": 5.079,
     "TypeScript/Deno/Turbo": 5.077,
-    "Python/PYPY": 13.547
+    "Python/PYPY": 13.547,
+    "Rust/WASM/Node": 5.053,
+    "Rust/WASM/Wasmtime": 10.401,
+    "Rust/WASM/Wasmer": 9.659,
+    "Rust/WASM/WasmEdge": 5.048
   },
   "Matmul::Single-mem-mb": {
     "C/Clang": 27.2578125,
@@ -1803,7 +1879,11 @@
     "TypeScript/Deno/Default": 157.2734375,
     "TypeScript/Deno/Compiled": 150.33984375,
     "TypeScript/Deno/Turbo": 156.984375,
-    "Python/PYPY": 149.875
+    "Python/PYPY": 149.875,
+    "Rust/WASM/Node": 80.265625,
+    "Rust/WASM/Wasmtime": 174.69140625,
+    "Rust/WASM/Wasmer": 201.33203125,
+    "Rust/WASM/WasmEdge": 79.89453125
   },
   "Matmul::T4-runtime": {
     "C/Clang": 2.123,
@@ -1886,7 +1966,11 @@
     "TypeScript/Deno/Default": 7.849,
     "TypeScript/Deno/Compiled": 7.848,
     "TypeScript/Deno/Turbo": 7.847,
-    "Python/PYPY": 13.756
+    "Python/PYPY": 13.756,
+    "Rust/WASM/Node": 5.065,
+    "Rust/WASM/Wasmtime": 5.773,
+    "Rust/WASM/Wasmer": 8.103,
+    "Rust/WASM/WasmEdge": 5.046
   },
   "Matmul::T4-mem-mb": {
     "C/Clang": 27.3203125,
@@ -1969,7 +2053,11 @@
     "TypeScript/Deno/Default": 158.921875,
     "TypeScript/Deno/Compiled": 152.73046875,
     "TypeScript/Deno/Turbo": 159.0625,
-    "Python/PYPY": 170.078125
+    "Python/PYPY": 170.078125,
+    "Rust/WASM/Node": 80.69140625,
+    "Rust/WASM/Wasmtime": 173.6640625,
+    "Rust/WASM/Wasmer": 201.0625,
+    "Rust/WASM/WasmEdge": 80.2734375
   },
   "Matmul::T8-runtime": {
     "C/Clang": 1.108,
@@ -2052,7 +2140,11 @@
     "TypeScript/Deno/Default": 7.852,
     "TypeScript/Deno/Compiled": 7.842,
     "TypeScript/Deno/Turbo": 7.845,
-    "Python/PYPY": 13.819
+    "Python/PYPY": 13.819,
+    "Rust/WASM/Node": 5.059,
+    "Rust/WASM/Wasmtime": 10.489,
+    "Rust/WASM/Wasmer": 8.311,
+    "Rust/WASM/WasmEdge": 5.063
   },
   "Matmul::T8-mem-mb": {
     "C/Clang": 27.3203125,
@@ -2135,7 +2227,11 @@
     "TypeScript/Deno/Default": 159.40625,
     "TypeScript/Deno/Compiled": 151.8671875,
     "TypeScript/Deno/Turbo": 159.203125,
-    "Python/PYPY": 176.61328125
+    "Python/PYPY": 176.61328125,
+    "Rust/WASM/Node": 80.6796875,
+    "Rust/WASM/Wasmtime": 167.9609375,
+    "Rust/WASM/Wasmer": 202.10546875,
+    "Rust/WASM/WasmEdge": 80.28125
   },
   "Matmul::T16-runtime": {
     "C/Clang": 0.61,
@@ -2218,7 +2314,11 @@
     "TypeScript/Deno/Default": 7.842,
     "TypeScript/Deno/Compiled": 7.84,
     "TypeScript/Deno/Turbo": 7.837,
-    "Python/PYPY": 13.864
+    "Python/PYPY": 13.864,
+    "Rust/WASM/Node": 5.054,
+    "Rust/WASM/Wasmtime": 10.189,
+    "Rust/WASM/Wasmer": 9.857,
+    "Rust/WASM/WasmEdge": 5.049
   },
   "Matmul::T16-mem-mb": {
     "C/Clang": 27.3671875,
@@ -2301,7 +2401,11 @@
     "TypeScript/Deno/Default": 159.6875,
     "TypeScript/Deno/Compiled": 152.44921875,
     "TypeScript/Deno/Turbo": 159.12890625,
-    "Python/PYPY": 184.53515625
+    "Python/PYPY": 184.53515625,
+    "Rust/WASM/Node": 80.00390625,
+    "Rust/WASM/Wasmtime": 166.23046875,
+    "Rust/WASM/Wasmer": 200.7734375,
+    "Rust/WASM/WasmEdge": 80.171875
   },
   "Base64::Encode-runtime": {
     "C/Clang": 0.101,
@@ -2384,7 +2488,11 @@
     "TypeScript/Deno/Default": 0.793,
     "TypeScript/Deno/Compiled": 0.823,
     "TypeScript/Deno/Turbo": 0.794,
-    "Python/PYPY": 6.842
+    "Python/PYPY": 6.842,
+    "Rust/WASM/Node": 2.069,
+    "Rust/WASM/Wasmtime": 2.49,
+    "Rust/WASM/Wasmer": 2.488,
+    "Rust/WASM/WasmEdge": 1.969
   },
   "Base64::Encode-mem-mb": {
     "C/Clang": 7.30078125,
@@ -2467,7 +2575,11 @@
     "TypeScript/Deno/Default": 156.19921875,
     "TypeScript/Deno/Compiled": 151.359375,
     "TypeScript/Deno/Turbo": 159.50390625,
-    "Python/PYPY": 113.3671875
+    "Python/PYPY": 113.3671875,
+    "Rust/WASM/Node": 58.0078125,
+    "Rust/WASM/Wasmtime": 153.80859375,
+    "Rust/WASM/Wasmer": 176.6796875,
+    "Rust/WASM/WasmEdge": 57.18359375
   },
   "Base64::Decode-runtime": {
     "C/Clang": 0.13,
@@ -2550,7 +2662,11 @@
     "TypeScript/Deno/Default": 0.598,
     "TypeScript/Deno/Compiled": 0.597,
     "TypeScript/Deno/Turbo": 0.594,
-    "Python/PYPY": 4.035
+    "Python/PYPY": 4.035,
+    "Rust/WASM/Node": 1.563,
+    "Rust/WASM/Wasmtime": 1.657,
+    "Rust/WASM/Wasmer": 1.66,
+    "Rust/WASM/WasmEdge": 1.59
   },
   "Base64::Decode-mem-mb": {
     "C/Clang": 7.2890625,
@@ -2633,7 +2749,11 @@
     "TypeScript/Deno/Default": 143.21875,
     "TypeScript/Deno/Compiled": 136.12890625,
     "TypeScript/Deno/Turbo": 142.58203125,
-    "Python/PYPY": 111.84375
+    "Python/PYPY": 111.84375,
+    "Rust/WASM/Node": 57.64453125,
+    "Rust/WASM/Wasmtime": 145.6328125,
+    "Rust/WASM/Wasmer": 176.84375,
+    "Rust/WASM/WasmEdge": 56.6640625
   },
   "Json::Generate-runtime": {
     "C/Clang": 1.046,
@@ -2716,7 +2836,11 @@
     "TypeScript/Deno/Default": 1.218,
     "TypeScript/Deno/Compiled": 1.219,
     "TypeScript/Deno/Turbo": 1.26,
-    "Python/PYPY": 13.168
+    "Python/PYPY": 13.168,
+    "Rust/WASM/Node": 0.539,
+    "Rust/WASM/Wasmtime": 0.894,
+    "Rust/WASM/Wasmer": 0.545,
+    "Rust/WASM/WasmEdge": 0.709
   },
   "Json::Generate-mem-mb": {
     "C/Clang": 11.69140625,
@@ -2799,7 +2923,11 @@
     "TypeScript/Deno/Default": 174.4140625,
     "TypeScript/Deno/Compiled": 169.13671875,
     "TypeScript/Deno/Turbo": 177.47265625,
-    "Python/PYPY": 154.7421875
+    "Python/PYPY": 154.7421875,
+    "Rust/WASM/Node": 67.4296875,
+    "Rust/WASM/Wasmtime": 161.07421875,
+    "Rust/WASM/Wasmer": 185.21875,
+    "Rust/WASM/WasmEdge": 65.71875
   },
   "Json::ParseDom-runtime": {
     "C/Clang": 0.077,
@@ -2882,7 +3010,11 @@
     "TypeScript/Deno/Default": 0.504,
     "TypeScript/Deno/Compiled": 0.508,
     "TypeScript/Deno/Turbo": 0.496,
-    "Python/PYPY": 0.775
+    "Python/PYPY": 0.775,
+    "Rust/WASM/Node": 0.873,
+    "Rust/WASM/Wasmtime": 1.144,
+    "Rust/WASM/Wasmer": 0.99,
+    "Rust/WASM/WasmEdge": 0.912
   },
   "Json::ParseDom-mem-mb": {
     "C/Clang": 7.14453125,
@@ -2965,7 +3097,11 @@
     "TypeScript/Deno/Default": 135.51953125,
     "TypeScript/Deno/Compiled": 128.20703125,
     "TypeScript/Deno/Turbo": 134.82421875,
-    "Python/PYPY": 140.1953125
+    "Python/PYPY": 140.1953125,
+    "Rust/WASM/Node": 69.8046875,
+    "Rust/WASM/Wasmtime": 154.33984375,
+    "Rust/WASM/Wasmer": 185.76171875,
+    "Rust/WASM/WasmEdge": 66.3125
   },
   "Json::ParseMapping-runtime": {
     "C/Clang": 0.192,
@@ -3048,7 +3184,11 @@
     "TypeScript/Deno/Default": 1.165,
     "TypeScript/Deno/Compiled": 1.174,
     "TypeScript/Deno/Turbo": 1.158,
-    "Python/PYPY": 1.923
+    "Python/PYPY": 1.923,
+    "Rust/WASM/Node": 0.66,
+    "Rust/WASM/Wasmtime": 0.688,
+    "Rust/WASM/Wasmer": 0.779,
+    "Rust/WASM/WasmEdge": 0.691
   },
   "Json::ParseMapping-mem-mb": {
     "C/Clang": 13.53515625,
@@ -3131,7 +3271,11 @@
     "TypeScript/Deno/Default": 161.19921875,
     "TypeScript/Deno/Compiled": 154.75,
     "TypeScript/Deno/Turbo": 160.71875,
-    "Python/PYPY": 154.6484375
+    "Python/PYPY": 154.6484375,
+    "Rust/WASM/Node": 69.78125,
+    "Rust/WASM/Wasmtime": 156.640625,
+    "Rust/WASM/Wasmer": 188.3203125,
+    "Rust/WASM/WasmEdge": 66.890625
   },
   "CSV::Parse-runtime": {
     "C/Clang": 2.298,
@@ -3214,7 +3358,11 @@
     "TypeScript/Deno/Default": 6.447,
     "TypeScript/Deno/Compiled": 6.846,
     "TypeScript/Deno/Turbo": 6.53,
-    "Python/PYPY": 6.415
+    "Python/PYPY": 6.415,
+    "Rust/WASM/Node": 1.215,
+    "Rust/WASM/Wasmtime": 1.662,
+    "Rust/WASM/Wasmer": 1.376,
+    "Rust/WASM/WasmEdge": 1.251
   },
   "CSV::Parse-mem-mb": {
     "C/Clang": 11.8203125,
@@ -3297,7 +3445,11 @@
     "TypeScript/Deno/Default": 262.6328125,
     "TypeScript/Deno/Compiled": 266.61328125,
     "TypeScript/Deno/Turbo": 263.609375,
-    "Python/PYPY": 130.7421875
+    "Python/PYPY": 130.7421875,
+    "Rust/WASM/Node": 74.57421875,
+    "Rust/WASM/Wasmtime": 165.0390625,
+    "Rust/WASM/Wasmer": 190.6953125,
+    "Rust/WASM/WasmEdge": 70.39453125
   },
   "Etc::Sieve-runtime": {
     "C/Clang": 0.808,
@@ -3380,7 +3532,11 @@
     "TypeScript/Deno/Default": 1.538,
     "TypeScript/Deno/Compiled": 1.536,
     "TypeScript/Deno/Turbo": 1.539,
-    "Python/PYPY": 11.24
+    "Python/PYPY": 11.24,
+    "Rust/WASM/Node": 1.199,
+    "Rust/WASM/Wasmtime": 1.603,
+    "Rust/WASM/Wasmer": 1.721,
+    "Rust/WASM/WasmEdge": 1.188
   },
   "Etc::Sieve-mem-mb": {
     "C/Clang": 7.1640625,
@@ -3463,7 +3619,11 @@
     "TypeScript/Deno/Default": 135.09765625,
     "TypeScript/Deno/Compiled": 128.08984375,
     "TypeScript/Deno/Turbo": 135.63671875,
-    "Python/PYPY": 132.71875
+    "Python/PYPY": 132.71875,
+    "Rust/WASM/Node": 58.4453125,
+    "Rust/WASM/Wasmtime": 142.5703125,
+    "Rust/WASM/Wasmer": 165.484375,
+    "Rust/WASM/WasmEdge": 58.2578125
   },
   "Etc::TextRaytracer-runtime": {
     "C/Clang": 1.218,
@@ -3546,7 +3706,11 @@
     "TypeScript/Deno/Default": 3.804,
     "TypeScript/Deno/Compiled": 3.803,
     "TypeScript/Deno/Turbo": 3.801,
-    "Python/PYPY": 3.893
+    "Python/PYPY": 3.893,
+    "Rust/WASM/Node": 1.085,
+    "Rust/WASM/Wasmtime": 1.082,
+    "Rust/WASM/Wasmer": 1.085,
+    "Rust/WASM/WasmEdge": 1.087
   },
   "Etc::TextRaytracer-mem-mb": {
     "C/Clang": 7.25,
@@ -3629,7 +3793,11 @@
     "TypeScript/Deno/Default": 71.16796875,
     "TypeScript/Deno/Compiled": 63.13671875,
     "TypeScript/Deno/Turbo": 72.1484375,
-    "Python/PYPY": 90.55859375
+    "Python/PYPY": 90.55859375,
+    "Rust/WASM/Node": 54.61328125,
+    "Rust/WASM/Wasmtime": 149.9296875,
+    "Rust/WASM/Wasmer": 175.99609375,
+    "Rust/WASM/WasmEdge": 55.6796875
   },
   "Etc::NeuralNet-runtime": {
     "C/Clang": 1.015,
@@ -3712,7 +3880,11 @@
     "TypeScript/Deno/Default": 5.637,
     "TypeScript/Deno/Compiled": 5.671,
     "TypeScript/Deno/Turbo": 5.631,
-    "Python/PYPY": 10.278
+    "Python/PYPY": 10.278,
+    "Rust/WASM/Node": 2.853,
+    "Rust/WASM/Wasmtime": 4.221,
+    "Rust/WASM/Wasmer": 3.117,
+    "Rust/WASM/WasmEdge": 3.493
   },
   "Etc::NeuralNet-mem-mb": {
     "C/Clang": 6.97265625,
@@ -3795,7 +3967,11 @@
     "TypeScript/Deno/Default": 72.4765625,
     "TypeScript/Deno/Compiled": 65.265625,
     "TypeScript/Deno/Turbo": 72.01953125,
-    "Python/PYPY": 103.36328125
+    "Python/PYPY": 103.36328125,
+    "Rust/WASM/Node": 56.0859375,
+    "Rust/WASM/Wasmtime": 144.515625,
+    "Rust/WASM/Wasmer": 175.27734375,
+    "Rust/WASM/WasmEdge": 55.6328125
   },
   "Etc::CacheSimulation-runtime": {
     "C/Clang": 0.802,
@@ -3878,7 +4054,11 @@
     "TypeScript/Deno/Default": 1.634,
     "TypeScript/Deno/Compiled": 1.616,
     "TypeScript/Deno/Turbo": 1.617,
-    "Python/PYPY": 1.491
+    "Python/PYPY": 1.491,
+    "Rust/WASM/Node": 1.255,
+    "Rust/WASM/Wasmtime": 1.883,
+    "Rust/WASM/Wasmer": 1.474,
+    "Rust/WASM/WasmEdge": 2.031
   },
   "Etc::CacheSimulation-mem-mb": {
     "C/Clang": 7.25,
@@ -3961,7 +4141,11 @@
     "TypeScript/Deno/Default": 189.53515625,
     "TypeScript/Deno/Compiled": 181.8828125,
     "TypeScript/Deno/Turbo": 189.36328125,
-    "Python/PYPY": 105.51171875
+    "Python/PYPY": 105.51171875,
+    "Rust/WASM/Node": 57.39453125,
+    "Rust/WASM/Wasmtime": 151.62109375,
+    "Rust/WASM/Wasmer": 173.94140625,
+    "Rust/WASM/WasmEdge": 55.72265625
   },
   "Etc::GameOfLife-runtime": {
     "C/Clang": 1.952,
@@ -4044,7 +4228,11 @@
     "TypeScript/Deno/Default": 2.803,
     "TypeScript/Deno/Compiled": 2.793,
     "TypeScript/Deno/Turbo": 2.789,
-    "Python/PYPY": 13.713
+    "Python/PYPY": 13.713,
+    "Rust/WASM/Node": 0.924,
+    "Rust/WASM/Wasmtime": 0.567,
+    "Rust/WASM/Wasmer": 0.559,
+    "Rust/WASM/WasmEdge": 0.609
   },
   "Etc::GameOfLife-mem-mb": {
     "C/Clang": 31.0234375,
@@ -4127,7 +4315,11 @@
     "TypeScript/Deno/Default": 117.5859375,
     "TypeScript/Deno/Compiled": 109.62890625,
     "TypeScript/Deno/Turbo": 117.87109375,
-    "Python/PYPY": 162.3671875
+    "Python/PYPY": 162.3671875,
+    "Rust/WASM/Node": 71.859375,
+    "Rust/WASM/Wasmtime": 161.69921875,
+    "Rust/WASM/Wasmer": 192.7265625,
+    "Rust/WASM/WasmEdge": 71.83984375
   },
   "Etc::Words-runtime": {
     "C/Clang": 1.678,
@@ -4210,7 +4402,11 @@
     "TypeScript/Deno/Default": 2.543,
     "TypeScript/Deno/Compiled": 2.457,
     "TypeScript/Deno/Turbo": 2.543,
-    "Python/PYPY": 2.381
+    "Python/PYPY": 2.381,
+    "Rust/WASM/Node": 1.477,
+    "Rust/WASM/Wasmtime": 1.71,
+    "Rust/WASM/Wasmer": 1.552,
+    "Rust/WASM/WasmEdge": 1.641
   },
   "Etc::Words-mem-mb": {
     "C/Clang": 7.0234375,
@@ -4293,7 +4489,11 @@
     "TypeScript/Deno/Default": 189.96484375,
     "TypeScript/Deno/Compiled": 182.15234375,
     "TypeScript/Deno/Turbo": 189.8125,
-    "Python/PYPY": 111.9921875
+    "Python/PYPY": 111.9921875,
+    "Rust/WASM/Node": 58.25,
+    "Rust/WASM/Wasmtime": 145.42578125,
+    "Rust/WASM/Wasmer": 179.32421875,
+    "Rust/WASM/WasmEdge": 57.51953125
   },
   "Etc::LogParser-runtime": {
     "C/Clang": 0.498,
@@ -4376,7 +4576,11 @@
     "TypeScript/Deno/Default": 1.032,
     "TypeScript/Deno/Compiled": 1.039,
     "TypeScript/Deno/Turbo": 1.015,
-    "Python/PYPY": 3.52
+    "Python/PYPY": 3.52,
+    "Rust/WASM/Node": 1.292,
+    "Rust/WASM/Wasmtime": 1.521,
+    "Rust/WASM/Wasmer": 1.519,
+    "Rust/WASM/WasmEdge": 1.52
   },
   "Etc::LogParser-mem-mb": {
     "C/Clang": 9.859375,
@@ -4459,7 +4663,11 @@
     "TypeScript/Deno/Default": 123.1953125,
     "TypeScript/Deno/Compiled": 116.25390625,
     "TypeScript/Deno/Turbo": 123.609375,
-    "Python/PYPY": 115.8046875
+    "Python/PYPY": 115.8046875,
+    "Rust/WASM/Node": 90.265625,
+    "Rust/WASM/Wasmtime": 153.5703125,
+    "Rust/WASM/Wasmer": 185.203125,
+    "Rust/WASM/WasmEdge": 62.9609375
   },
   "Template::Regex-runtime": {
     "C/Clang": 1.143,
@@ -4542,7 +4750,11 @@
     "TypeScript/Deno/Default": 2.987,
     "TypeScript/Deno/Compiled": 2.983,
     "TypeScript/Deno/Turbo": 2.997,
-    "Python/PYPY": 2.753
+    "Python/PYPY": 2.753,
+    "Rust/WASM/Node": 5.505,
+    "Rust/WASM/Wasmtime": 7.51,
+    "Rust/WASM/Wasmer": 7.764,
+    "Rust/WASM/WasmEdge": 6.044
   },
   "Template::Regex-mem-mb": {
     "C/Clang": 38.25390625,
@@ -4625,7 +4837,11 @@
     "TypeScript/Deno/Default": 369.08203125,
     "TypeScript/Deno/Compiled": 362.3046875,
     "TypeScript/Deno/Turbo": 369.61328125,
-    "Python/PYPY": 179.37109375
+    "Python/PYPY": 179.37109375,
+    "Rust/WASM/Node": 100.66015625,
+    "Rust/WASM/Wasmtime": 181.23828125,
+    "Rust/WASM/Wasmer": 210.06640625,
+    "Rust/WASM/WasmEdge": 91.88671875
   },
   "Template::Parse-runtime": {
     "C/Clang": 0.924,
@@ -4708,7 +4924,11 @@
     "TypeScript/Deno/Default": 8.881,
     "TypeScript/Deno/Compiled": 8.935,
     "TypeScript/Deno/Turbo": 8.862,
-    "Python/PYPY": 10.784
+    "Python/PYPY": 10.784,
+    "Rust/WASM/Node": 1.116,
+    "Rust/WASM/Wasmtime": 1.547,
+    "Rust/WASM/Wasmer": 1.512,
+    "Rust/WASM/WasmEdge": 1.027
   },
   "Template::Parse-mem-mb": {
     "C/Clang": 37.92578125,
@@ -4791,7 +5011,11 @@
     "TypeScript/Deno/Default": 660.75390625,
     "TypeScript/Deno/Compiled": 652.8125,
     "TypeScript/Deno/Turbo": 660.2890625,
-    "Python/PYPY": 577.14453125
+    "Python/PYPY": 577.14453125,
+    "Rust/WASM/Node": 88.8828125,
+    "Rust/WASM/Wasmtime": 181.05859375,
+    "Rust/WASM/Wasmer": 211.53125,
+    "Rust/WASM/WasmEdge": 87.69921875
   },
   "Sort::Quick-runtime": {
     "C/Clang": 1.161,
@@ -4874,7 +5098,11 @@
     "TypeScript/Deno/Default": 1.731,
     "TypeScript/Deno/Compiled": 1.735,
     "TypeScript/Deno/Turbo": 1.731,
-    "Python/PYPY": 2.757
+    "Python/PYPY": 2.757,
+    "Rust/WASM/Node": 1.245,
+    "Rust/WASM/Wasmtime": 1.279,
+    "Rust/WASM/Wasmer": 1.442,
+    "Rust/WASM/WasmEdge": 1.227
   },
   "Sort::Quick-mem-mb": {
     "C/Clang": 7.203125,
@@ -4957,7 +5185,11 @@
     "TypeScript/Deno/Default": 98.16796875,
     "TypeScript/Deno/Compiled": 86.05078125,
     "TypeScript/Deno/Turbo": 90.11328125,
-    "Python/PYPY": 115.6953125
+    "Python/PYPY": 115.6953125,
+    "Rust/WASM/Node": 58.1640625,
+    "Rust/WASM/Wasmtime": 155.12890625,
+    "Rust/WASM/Wasmer": 181.9921875,
+    "Rust/WASM/WasmEdge": 58.72265625
   },
   "Sort::Merge-runtime": {
     "C/Clang": 1.19,
@@ -5040,7 +5272,11 @@
     "TypeScript/Deno/Default": 2.551,
     "TypeScript/Deno/Compiled": 2.546,
     "TypeScript/Deno/Turbo": 2.549,
-    "Python/PYPY": 4.149
+    "Python/PYPY": 4.149,
+    "Rust/WASM/Node": 1.593,
+    "Rust/WASM/Wasmtime": 2.28,
+    "Rust/WASM/Wasmer": 1.931,
+    "Rust/WASM/WasmEdge": 1.886
   },
   "Sort::Merge-mem-mb": {
     "C/Clang": 7.25,
@@ -5123,7 +5359,11 @@
     "TypeScript/Deno/Default": 127.60546875,
     "TypeScript/Deno/Compiled": 120.13671875,
     "TypeScript/Deno/Turbo": 127.49609375,
-    "Python/PYPY": 122.53125
+    "Python/PYPY": 122.53125,
+    "Rust/WASM/Node": 59.546875,
+    "Rust/WASM/Wasmtime": 147.0546875,
+    "Rust/WASM/Wasmer": 178.81640625,
+    "Rust/WASM/WasmEdge": 59.74609375
   },
   "Sort::Self-runtime": {
     "C/Clang": 2.011,
@@ -5206,7 +5446,11 @@
     "TypeScript/Deno/Default": 4.274,
     "TypeScript/Deno/Compiled": 4.207,
     "TypeScript/Deno/Turbo": 4.284,
-    "Python/PYPY": 2.073
+    "Python/PYPY": 2.073,
+    "Rust/WASM/Node": 0.465,
+    "Rust/WASM/Wasmtime": 0.507,
+    "Rust/WASM/Wasmer": 0.531,
+    "Rust/WASM/WasmEdge": 0.475
   },
   "Sort::Self-mem-mb": {
     "C/Clang": 7.26171875,
@@ -5289,7 +5533,11 @@
     "TypeScript/Deno/Default": 149.94921875,
     "TypeScript/Deno/Compiled": 143.265625,
     "TypeScript/Deno/Turbo": 150.71484375,
-    "Python/PYPY": 129.16796875
+    "Python/PYPY": 129.16796875,
+    "Rust/WASM/Node": 60.26171875,
+    "Rust/WASM/Wasmtime": 155.17578125,
+    "Rust/WASM/Wasmer": 183.84375,
+    "Rust/WASM/WasmEdge": 60.14453125
   },
   "Graph::BFS-runtime": {
     "C/Clang": 1.14,
@@ -5372,7 +5620,11 @@
     "TypeScript/Deno/Default": 2.566,
     "TypeScript/Deno/Compiled": 2.581,
     "TypeScript/Deno/Turbo": 2.572,
-    "Python/PYPY": 2.384
+    "Python/PYPY": 2.384,
+    "Rust/WASM/Node": 1.518,
+    "Rust/WASM/Wasmtime": 1.454,
+    "Rust/WASM/Wasmer": 1.671,
+    "Rust/WASM/WasmEdge": 1.383
   },
   "Graph::BFS-mem-mb": {
     "C/Clang": 77.20703125,
@@ -5455,7 +5707,11 @@
     "TypeScript/Deno/Default": 919.90234375,
     "TypeScript/Deno/Compiled": 913.1640625,
     "TypeScript/Deno/Turbo": 920.23046875,
-    "Python/PYPY": 375.2265625
+    "Python/PYPY": 375.2265625,
+    "Rust/WASM/Node": 126.46875,
+    "Rust/WASM/Wasmtime": 214.31640625,
+    "Rust/WASM/Wasmer": 243.875,
+    "Rust/WASM/WasmEdge": 125.79296875
   },
   "Graph::DFS-runtime": {
     "C/Clang": 0.931,
@@ -5538,7 +5794,11 @@
     "TypeScript/Deno/Default": 2.325,
     "TypeScript/Deno/Compiled": 2.324,
     "TypeScript/Deno/Turbo": 2.313,
-    "Python/PYPY": 2.103
+    "Python/PYPY": 2.103,
+    "Rust/WASM/Node": 1.14,
+    "Rust/WASM/Wasmtime": 1.226,
+    "Rust/WASM/Wasmer": 1.385,
+    "Rust/WASM/WasmEdge": 1.106
   },
   "Graph::DFS-mem-mb": {
     "C/Clang": 73.65625,
@@ -5621,7 +5881,11 @@
     "TypeScript/Deno/Default": 368.09375,
     "TypeScript/Deno/Compiled": 360.48828125,
     "TypeScript/Deno/Turbo": 368.37109375,
-    "Python/PYPY": 338.36328125
+    "Python/PYPY": 338.36328125,
+    "Rust/WASM/Node": 126.98046875,
+    "Rust/WASM/Wasmtime": 215.22265625,
+    "Rust/WASM/Wasmer": 244.71484375,
+    "Rust/WASM/WasmEdge": 125.34765625
   },
   "Graph::AStar-runtime": {
     "C/Clang": 0.349,
@@ -5704,7 +5968,11 @@
     "TypeScript/Deno/Default": 4.678,
     "TypeScript/Deno/Compiled": 4.736,
     "TypeScript/Deno/Turbo": 4.641,
-    "Python/PYPY": 10.327
+    "Python/PYPY": 10.327,
+    "Rust/WASM/Node": 0.486,
+    "Rust/WASM/Wasmtime": 0.522,
+    "Rust/WASM/Wasmer": 0.675,
+    "Rust/WASM/WasmEdge": 0.535
   },
   "Graph::AStar-mem-mb": {
     "C/Clang": 75.99609375,
@@ -5787,7 +6055,11 @@
     "TypeScript/Deno/Default": 916.2890625,
     "TypeScript/Deno/Compiled": 911.76171875,
     "TypeScript/Deno/Turbo": 917.9140625,
-    "Python/PYPY": 472.79296875
+    "Python/PYPY": 472.79296875,
+    "Rust/WASM/Node": 128.88671875,
+    "Rust/WASM/Wasmtime": 222.13671875,
+    "Rust/WASM/Wasmer": 247.7109375,
+    "Rust/WASM/WasmEdge": 127.73046875
   },
   "Hash::SHA256-runtime": {
     "C/Clang": 0.909,
@@ -5870,7 +6142,11 @@
     "TypeScript/Deno/Default": 2.46,
     "TypeScript/Deno/Compiled": 2.459,
     "TypeScript/Deno/Turbo": 2.458,
-    "Python/PYPY": 3.429
+    "Python/PYPY": 3.429,
+    "Rust/WASM/Node": 1.79,
+    "Rust/WASM/Wasmtime": 1.01,
+    "Rust/WASM/Wasmer": 1.011,
+    "Rust/WASM/WasmEdge": 1.015
   },
   "Hash::SHA256-mem-mb": {
     "C/Clang": 6.8984375,
@@ -5953,7 +6229,11 @@
     "TypeScript/Deno/Default": 65.453125,
     "TypeScript/Deno/Compiled": 58.75,
     "TypeScript/Deno/Turbo": 65.94140625,
-    "Python/PYPY": 90.35546875
+    "Python/PYPY": 90.35546875,
+    "Rust/WASM/Node": 56.34765625,
+    "Rust/WASM/Wasmtime": 144.484375,
+    "Rust/WASM/Wasmer": 178.1796875,
+    "Rust/WASM/WasmEdge": 56.4609375
   },
   "Hash::CRC32-runtime": {
     "C/Clang": 0.874,
@@ -6036,7 +6316,11 @@
     "TypeScript/Deno/Default": 3.709,
     "TypeScript/Deno/Compiled": 3.714,
     "TypeScript/Deno/Turbo": 3.715,
-    "Python/PYPY": 8.879
+    "Python/PYPY": 8.879,
+    "Rust/WASM/Node": 0.964,
+    "Rust/WASM/Wasmtime": 0.872,
+    "Rust/WASM/Wasmer": 0.872,
+    "Rust/WASM/WasmEdge": 0.872
   },
   "Hash::CRC32-mem-mb": {
     "C/Clang": 7.13671875,
@@ -6119,7 +6403,11 @@
     "TypeScript/Deno/Default": 63.6015625,
     "TypeScript/Deno/Compiled": 56.8515625,
     "TypeScript/Deno/Turbo": 63.94140625,
-    "Python/PYPY": 90.0078125
+    "Python/PYPY": 90.0078125,
+    "Rust/WASM/Node": 56.06640625,
+    "Rust/WASM/Wasmtime": 149.625,
+    "Rust/WASM/Wasmer": 178.39453125,
+    "Rust/WASM/WasmEdge": 56.296875
   },
   "Calculator::Ast-runtime": {
     "C/Clang": 1.132,
@@ -6202,7 +6490,11 @@
     "TypeScript/Deno/Default": 1.168,
     "TypeScript/Deno/Compiled": 1.077,
     "TypeScript/Deno/Turbo": 1.216,
-    "Python/PYPY": 4.649
+    "Python/PYPY": 4.649,
+    "Rust/WASM/Node": 1.004,
+    "Rust/WASM/Wasmtime": 1.253,
+    "Rust/WASM/Wasmer": 1.22,
+    "Rust/WASM/WasmEdge": 1.075
   },
   "Calculator::Ast-mem-mb": {
     "C/Clang": 10.625,
@@ -6285,7 +6577,11 @@
     "TypeScript/Deno/Default": 245.96484375,
     "TypeScript/Deno/Compiled": 237.83203125,
     "TypeScript/Deno/Turbo": 245.03515625,
-    "Python/PYPY": 192.4296875
+    "Python/PYPY": 192.4296875,
+    "Rust/WASM/Node": 73.05859375,
+    "Rust/WASM/Wasmtime": 165.21875,
+    "Rust/WASM/Wasmer": 189.1484375,
+    "Rust/WASM/WasmEdge": 71.19140625
   },
   "Calculator::Interpreter-runtime": {
     "C/Clang": 0.968,
@@ -6368,7 +6664,11 @@
     "TypeScript/Deno/Default": 2.738,
     "TypeScript/Deno/Compiled": 2.618,
     "TypeScript/Deno/Turbo": 2.61,
-    "Python/PYPY": 10.676
+    "Python/PYPY": 10.676,
+    "Rust/WASM/Node": 0.902,
+    "Rust/WASM/Wasmtime": 1.055,
+    "Rust/WASM/Wasmer": 1.008,
+    "Rust/WASM/WasmEdge": 0.948
   },
   "Calculator::Interpreter-mem-mb": {
     "C/Clang": 31.84765625,
@@ -6451,7 +6751,11 @@
     "TypeScript/Deno/Default": 274.60546875,
     "TypeScript/Deno/Compiled": 267.87109375,
     "TypeScript/Deno/Turbo": 275.30078125,
-    "Python/PYPY": 258.8515625
+    "Python/PYPY": 258.8515625,
+    "Rust/WASM/Node": 93.8046875,
+    "Rust/WASM/Wasmtime": 184.30859375,
+    "Rust/WASM/Wasmer": 210.38671875,
+    "Rust/WASM/WasmEdge": 91.97265625
   },
   "Maze::Generator-runtime": {
     "C/Clang": 0.434,
@@ -6534,7 +6838,11 @@
     "TypeScript/Deno/Default": 2.284,
     "TypeScript/Deno/Compiled": 2.104,
     "TypeScript/Deno/Turbo": 2.127,
-    "Python/PYPY": 6.304
+    "Python/PYPY": 6.304,
+    "Rust/WASM/Node": 0.666,
+    "Rust/WASM/Wasmtime": 0.742,
+    "Rust/WASM/Wasmer": 0.881,
+    "Rust/WASM/WasmEdge": 0.74
   },
   "Maze::Generator-mem-mb": {
     "C/Clang": 228.50390625,
@@ -6617,7 +6925,11 @@
     "TypeScript/Deno/Default": 720.1015625,
     "TypeScript/Deno/Compiled": 706.68359375,
     "TypeScript/Deno/Turbo": 715.75,
-    "Python/PYPY": 747.78515625
+    "Python/PYPY": 747.78515625,
+    "Rust/WASM/Node": 141.671875,
+    "Rust/WASM/Wasmtime": 235.01171875,
+    "Rust/WASM/Wasmer": 261.68359375,
+    "Rust/WASM/WasmEdge": 141.47265625
   },
   "Maze::BFS-runtime": {
     "C/Clang": 0.445,
@@ -6700,7 +7012,11 @@
     "TypeScript/Deno/Default": 3.128,
     "TypeScript/Deno/Compiled": 3.133,
     "TypeScript/Deno/Turbo": 3.148,
-    "Python/PYPY": 6.937
+    "Python/PYPY": 6.937,
+    "Rust/WASM/Node": 0.627,
+    "Rust/WASM/Wasmtime": 0.663,
+    "Rust/WASM/Wasmer": 0.721,
+    "Rust/WASM/WasmEdge": 0.625
   },
   "Maze::BFS-mem-mb": {
     "C/Clang": 232.34375,
@@ -6783,7 +7099,11 @@
     "TypeScript/Deno/Default": 1313.53515625,
     "TypeScript/Deno/Compiled": 1303.58203125,
     "TypeScript/Deno/Turbo": 1338.7109375,
-    "Python/PYPY": 1150.36328125
+    "Python/PYPY": 1150.36328125,
+    "Rust/WASM/Node": 143.54296875,
+    "Rust/WASM/Wasmtime": 229.0859375,
+    "Rust/WASM/Wasmer": 260.7578125,
+    "Rust/WASM/WasmEdge": 143.30078125
   },
   "Maze::AStar-runtime": {
     "C/Clang": 1.454,
@@ -6866,7 +7186,11 @@
     "TypeScript/Deno/Default": 3.125,
     "TypeScript/Deno/Compiled": 3.106,
     "TypeScript/Deno/Turbo": 3.112,
-    "Python/PYPY": 9.937
+    "Python/PYPY": 9.937,
+    "Rust/WASM/Node": 1.097,
+    "Rust/WASM/Wasmtime": 1.124,
+    "Rust/WASM/Wasmer": 1.176,
+    "Rust/WASM/WasmEdge": 1.099
   },
   "Maze::AStar-mem-mb": {
     "C/Clang": 249.28515625,
@@ -6949,7 +7273,11 @@
     "TypeScript/Deno/Default": 782.90625,
     "TypeScript/Deno/Compiled": 771.77734375,
     "TypeScript/Deno/Turbo": 765.15234375,
-    "Python/PYPY": 920.22265625
+    "Python/PYPY": 920.22265625,
+    "Rust/WASM/Node": 163.78125,
+    "Rust/WASM/Wasmtime": 256.35546875,
+    "Rust/WASM/Wasmer": 281.1953125,
+    "Rust/WASM/WasmEdge": 162.796875
   },
   "CLBG::Pidigits-runtime": {
     "C/Clang": 0.628,
@@ -7032,7 +7360,11 @@
     "TypeScript/Deno/Default": 3.8,
     "TypeScript/Deno/Compiled": 3.742,
     "TypeScript/Deno/Turbo": 3.808,
-    "Python/PYPY": 2.074
+    "Python/PYPY": 2.074,
+    "Rust/WASM/Node": 2.676,
+    "Rust/WASM/Wasmtime": 2.842,
+    "Rust/WASM/Wasmer": 2.963,
+    "Rust/WASM/WasmEdge": 2.344
   },
   "CLBG::Pidigits-mem-mb": {
     "C/Clang": 7.0859375,
@@ -7115,7 +7447,11 @@
     "TypeScript/Deno/Default": 98.3828125,
     "TypeScript/Deno/Compiled": 90.63671875,
     "TypeScript/Deno/Turbo": 97.44921875,
-    "Python/PYPY": 108.78125
+    "Python/PYPY": 108.78125,
+    "Rust/WASM/Node": 58.71875,
+    "Rust/WASM/Wasmtime": 145.70703125,
+    "Rust/WASM/Wasmer": 175.15234375,
+    "Rust/WASM/WasmEdge": 55.828125
   },
   "CLBG::Fannkuchredux-runtime": {
     "C/Clang": 1.271,
@@ -7198,7 +7534,11 @@
     "TypeScript/Deno/Default": 1.352,
     "TypeScript/Deno/Compiled": 1.326,
     "TypeScript/Deno/Turbo": 1.353,
-    "Python/PYPY": 2.653
+    "Python/PYPY": 2.653,
+    "Rust/WASM/Node": 1.223,
+    "Rust/WASM/Wasmtime": 1.606,
+    "Rust/WASM/Wasmer": 1.499,
+    "Rust/WASM/WasmEdge": 1.433
   },
   "CLBG::Fannkuchredux-mem-mb": {
     "C/Clang": 7.2734375,
@@ -7281,7 +7621,11 @@
     "TypeScript/Deno/Default": 63.8046875,
     "TypeScript/Deno/Compiled": 57.3359375,
     "TypeScript/Deno/Turbo": 64.09375,
-    "Python/PYPY": 88.9921875
+    "Python/PYPY": 88.9921875,
+    "Rust/WASM/Node": 55.07421875,
+    "Rust/WASM/Wasmtime": 147.21484375,
+    "Rust/WASM/Wasmer": 176.375,
+    "Rust/WASM/WasmEdge": 55.46875
   },
   "CLBG::Mandelbrot-runtime": {
     "C/Clang": 0.91,
@@ -7364,7 +7708,11 @@
     "TypeScript/Deno/Default": 0.962,
     "TypeScript/Deno/Compiled": 0.96,
     "TypeScript/Deno/Turbo": 0.961,
-    "Python/PYPY": 1.152
+    "Python/PYPY": 1.152,
+    "Rust/WASM/Node": 0.931,
+    "Rust/WASM/Wasmtime": 0.957,
+    "Rust/WASM/Wasmer": 0.956,
+    "Rust/WASM/WasmEdge": 0.934
   },
   "CLBG::Mandelbrot-mem-mb": {
     "C/Clang": 7.51171875,
@@ -7447,7 +7795,11 @@
     "TypeScript/Deno/Default": 172.83984375,
     "TypeScript/Deno/Compiled": 165.109375,
     "TypeScript/Deno/Turbo": 172.91015625,
-    "Python/PYPY": 142.99609375
+    "Python/PYPY": 142.99609375,
+    "Rust/WASM/Node": 60.00390625,
+    "Rust/WASM/Wasmtime": 148.2734375,
+    "Rust/WASM/Wasmer": 180.7578125,
+    "Rust/WASM/WasmEdge": 60.3671875
   },
   "CLBG::Nbody-runtime": {
     "C/Clang": 1.233,
@@ -7530,7 +7882,11 @@
     "TypeScript/Deno/Default": 12.836,
     "TypeScript/Deno/Compiled": 12.874,
     "TypeScript/Deno/Turbo": 13.005,
-    "Python/PYPY": 6.066
+    "Python/PYPY": 6.066,
+    "Rust/WASM/Node": 1.577,
+    "Rust/WASM/Wasmtime": 1.573,
+    "Rust/WASM/Wasmer": 1.578,
+    "Rust/WASM/WasmEdge": 1.573
   },
   "CLBG::Nbody-mem-mb": {
     "C/Clang": 7.125,
@@ -7613,7 +7969,11 @@
     "TypeScript/Deno/Default": 72.48046875,
     "TypeScript/Deno/Compiled": 64.7421875,
     "TypeScript/Deno/Turbo": 73.51953125,
-    "Python/PYPY": 101.4765625
+    "Python/PYPY": 101.4765625,
+    "Rust/WASM/Node": 54.71875,
+    "Rust/WASM/Wasmtime": 145.1875,
+    "Rust/WASM/Wasmer": 175.6171875,
+    "Rust/WASM/WasmEdge": 56.19140625
   },
   "CLBG::Spectralnorm-runtime": {
     "C/Clang": 0.873,
@@ -7696,7 +8056,11 @@
     "TypeScript/Deno/Default": 0.887,
     "TypeScript/Deno/Compiled": 0.884,
     "TypeScript/Deno/Turbo": 0.895,
-    "Python/PYPY": 1.438
+    "Python/PYPY": 1.438,
+    "Rust/WASM/Node": 0.976,
+    "Rust/WASM/Wasmtime": 1.076,
+    "Rust/WASM/Wasmer": 1.114,
+    "Rust/WASM/WasmEdge": 0.922
   },
   "CLBG::Spectralnorm-mem-mb": {
     "C/Clang": 7.203125,
@@ -7779,7 +8143,11 @@
     "TypeScript/Deno/Default": 67.375,
     "TypeScript/Deno/Compiled": 59.73828125,
     "TypeScript/Deno/Turbo": 67.85546875,
-    "Python/PYPY": 88.02734375
+    "Python/PYPY": 88.02734375,
+    "Rust/WASM/Node": 55.46875,
+    "Rust/WASM/Wasmtime": 150.375,
+    "Rust/WASM/Wasmer": 179.984375,
+    "Rust/WASM/WasmEdge": 55.453125
   },
   "Compress::BWTEncode-runtime": {
     "C/Clang": 0.781,
@@ -7862,7 +8230,11 @@
     "TypeScript/Deno/Default": 2.715,
     "TypeScript/Deno/Compiled": 2.723,
     "TypeScript/Deno/Turbo": 2.729,
-    "Python/PYPY": 7.858
+    "Python/PYPY": 7.858,
+    "Rust/WASM/Node": 0.737,
+    "Rust/WASM/Wasmtime": 0.743,
+    "Rust/WASM/Wasmer": 0.792,
+    "Rust/WASM/WasmEdge": 0.732
   },
   "Compress::BWTEncode-mem-mb": {
     "C/Clang": 7.1484375,
@@ -7945,7 +8317,11 @@
     "TypeScript/Deno/Default": 213.8359375,
     "TypeScript/Deno/Compiled": 207.17578125,
     "TypeScript/Deno/Turbo": 213.3125,
-    "Python/PYPY": 128.703125
+    "Python/PYPY": 128.703125,
+    "Rust/WASM/Node": 57.16015625,
+    "Rust/WASM/Wasmtime": 144.8984375,
+    "Rust/WASM/Wasmer": 179.3046875,
+    "Rust/WASM/WasmEdge": 56.9921875
   },
   "Compress::BWTDecode-runtime": {
     "C/Clang": 0.893,
@@ -8028,7 +8404,11 @@
     "TypeScript/Deno/Default": 1.92,
     "TypeScript/Deno/Compiled": 1.921,
     "TypeScript/Deno/Turbo": 1.92,
-    "Python/PYPY": 1.763
+    "Python/PYPY": 1.763,
+    "Rust/WASM/Node": 0.936,
+    "Rust/WASM/Wasmtime": 0.912,
+    "Rust/WASM/Wasmer": 0.955,
+    "Rust/WASM/WasmEdge": 0.898
   },
   "Compress::BWTDecode-mem-mb": {
     "C/Clang": 37.8671875,
@@ -8111,7 +8491,11 @@
     "TypeScript/Deno/Default": 327.86328125,
     "TypeScript/Deno/Compiled": 320.609375,
     "TypeScript/Deno/Turbo": 328.0078125,
-    "Python/PYPY": 338.328125
+    "Python/PYPY": 338.328125,
+    "Rust/WASM/Node": 67.62109375,
+    "Rust/WASM/Wasmtime": 155.80859375,
+    "Rust/WASM/Wasmer": 184.8046875,
+    "Rust/WASM/WasmEdge": 67.6953125
   },
   "Compress::HuffEncode-runtime": {
     "C/Clang": 0.784,
@@ -8194,7 +8578,11 @@
     "TypeScript/Deno/Default": 1.903,
     "TypeScript/Deno/Compiled": 1.829,
     "TypeScript/Deno/Turbo": 1.834,
-    "Python/PYPY": 4.554
+    "Python/PYPY": 4.554,
+    "Rust/WASM/Node": 0.924,
+    "Rust/WASM/Wasmtime": 0.851,
+    "Rust/WASM/Wasmer": 0.917,
+    "Rust/WASM/WasmEdge": 0.648
   },
   "Compress::HuffEncode-mem-mb": {
     "C/Clang": 7.359375,
@@ -8277,7 +8665,11 @@
     "TypeScript/Deno/Default": 135.05078125,
     "TypeScript/Deno/Compiled": 130.9140625,
     "TypeScript/Deno/Turbo": 137.46875,
-    "Python/PYPY": 114.49609375
+    "Python/PYPY": 114.49609375,
+    "Rust/WASM/Node": 56.984375,
+    "Rust/WASM/Wasmtime": 150.08984375,
+    "Rust/WASM/Wasmer": 179.75390625,
+    "Rust/WASM/WasmEdge": 56.87109375
   },
   "Compress::HuffDecode-runtime": {
     "C/Clang": 0.759,
@@ -8360,7 +8752,11 @@
     "TypeScript/Deno/Default": 3.535,
     "TypeScript/Deno/Compiled": 3.524,
     "TypeScript/Deno/Turbo": 3.638,
-    "Python/PYPY": 7.672
+    "Python/PYPY": 7.672,
+    "Rust/WASM/Node": 0.803,
+    "Rust/WASM/Wasmtime": 1.314,
+    "Rust/WASM/Wasmer": 1.041,
+    "Rust/WASM/WasmEdge": 0.803
   },
   "Compress::HuffDecode-mem-mb": {
     "C/Clang": 7.17578125,
@@ -8443,7 +8839,11 @@
     "TypeScript/Deno/Default": 216.7109375,
     "TypeScript/Deno/Compiled": 208.578125,
     "TypeScript/Deno/Turbo": 217.4375,
-    "Python/PYPY": 124.453125
+    "Python/PYPY": 124.453125,
+    "Rust/WASM/Node": 61.7421875,
+    "Rust/WASM/Wasmtime": 153.33203125,
+    "Rust/WASM/Wasmer": 180.0078125,
+    "Rust/WASM/WasmEdge": 61.859375
   },
   "Compress::ArithEncode-runtime": {
     "C/Clang": 1.186,
@@ -8526,7 +8926,11 @@
     "TypeScript/Deno/Default": 1.455,
     "TypeScript/Deno/Compiled": 1.451,
     "TypeScript/Deno/Turbo": 1.439,
-    "Python/PYPY": 2.415
+    "Python/PYPY": 2.415,
+    "Rust/WASM/Node": 1.341,
+    "Rust/WASM/Wasmtime": 1.373,
+    "Rust/WASM/Wasmer": 1.379,
+    "Rust/WASM/WasmEdge": 1.206
   },
   "Compress::ArithEncode-mem-mb": {
     "C/Clang": 7.38671875,
@@ -8609,7 +9013,11 @@
     "TypeScript/Deno/Default": 91.03515625,
     "TypeScript/Deno/Compiled": 82.8515625,
     "TypeScript/Deno/Turbo": 90.453125,
-    "Python/PYPY": 108.48828125
+    "Python/PYPY": 108.48828125,
+    "Rust/WASM/Node": 55.34375,
+    "Rust/WASM/Wasmtime": 144.59765625,
+    "Rust/WASM/Wasmer": 175.9609375,
+    "Rust/WASM/WasmEdge": 56.046875
   },
   "Compress::ArithDecode-runtime": {
     "C/Clang": 0.913,
@@ -8692,7 +9100,11 @@
     "TypeScript/Deno/Default": 1.698,
     "TypeScript/Deno/Compiled": 1.702,
     "TypeScript/Deno/Turbo": 1.721,
-    "Python/PYPY": 3.475
+    "Python/PYPY": 3.475,
+    "Rust/WASM/Node": 0.948,
+    "Rust/WASM/Wasmtime": 0.949,
+    "Rust/WASM/Wasmer": 1.016,
+    "Rust/WASM/WasmEdge": 0.91
   },
   "Compress::ArithDecode-mem-mb": {
     "C/Clang": 7.19140625,
@@ -8775,7 +9187,11 @@
     "TypeScript/Deno/Default": 94.6953125,
     "TypeScript/Deno/Compiled": 86.3984375,
     "TypeScript/Deno/Turbo": 94.359375,
-    "Python/PYPY": 110.1015625
+    "Python/PYPY": 110.1015625,
+    "Rust/WASM/Node": 56.00390625,
+    "Rust/WASM/Wasmtime": 149.03515625,
+    "Rust/WASM/Wasmer": 176.71484375,
+    "Rust/WASM/WasmEdge": 55.6484375
   },
   "Compress::LZWEncode-runtime": {
     "C/Clang": 1.425,
@@ -8858,7 +9274,11 @@
     "TypeScript/Deno/Default": 2.225,
     "TypeScript/Deno/Compiled": 2.271,
     "TypeScript/Deno/Turbo": 2.228,
-    "Python/PYPY": 1.495
+    "Python/PYPY": 1.495,
+    "Rust/WASM/Node": 2.872,
+    "Rust/WASM/Wasmtime": 4.233,
+    "Rust/WASM/Wasmer": 3.298,
+    "Rust/WASM/WasmEdge": 3.256
   },
   "Compress::LZWEncode-mem-mb": {
     "C/Clang": 7.3125,
@@ -8941,7 +9361,11 @@
     "TypeScript/Deno/Default": 104.640625,
     "TypeScript/Deno/Compiled": 96.9609375,
     "TypeScript/Deno/Turbo": 104.97265625,
-    "Python/PYPY": 101.796875
+    "Python/PYPY": 101.796875,
+    "Rust/WASM/Node": 57.03125,
+    "Rust/WASM/Wasmtime": 149.80859375,
+    "Rust/WASM/Wasmer": 177.44140625,
+    "Rust/WASM/WasmEdge": 56.61328125
   },
   "Compress::LZWDecode-runtime": {
     "C/Clang": 0.625,
@@ -9024,7 +9448,11 @@
     "TypeScript/Deno/Default": 6.072,
     "TypeScript/Deno/Compiled": 6.002,
     "TypeScript/Deno/Turbo": 5.829,
-    "Python/PYPY": 3.582
+    "Python/PYPY": 3.582,
+    "Rust/WASM/Node": 0.974,
+    "Rust/WASM/Wasmtime": 1.355,
+    "Rust/WASM/Wasmer": 0.981,
+    "Rust/WASM/WasmEdge": 1.176
   },
   "Compress::LZWDecode-mem-mb": {
     "C/Clang": 7.21484375,
@@ -9107,7 +9535,11 @@
     "TypeScript/Deno/Default": 231.6640625,
     "TypeScript/Deno/Compiled": 217.2734375,
     "TypeScript/Deno/Turbo": 223.31640625,
-    "Python/PYPY": 127.28125
+    "Python/PYPY": 127.28125,
+    "Rust/WASM/Node": 61.640625,
+    "Rust/WASM/Wasmtime": 149.0078125,
+    "Rust/WASM/Wasmer": 186.66796875,
+    "Rust/WASM/WasmEdge": 61.12109375
   },
   "Distance::Jaro-runtime": {
     "C/Clang": 0.94,
@@ -9190,7 +9622,11 @@
     "TypeScript/Deno/Default": 1.918,
     "TypeScript/Deno/Compiled": 1.914,
     "TypeScript/Deno/Turbo": 1.923,
-    "Python/PYPY": 2.778
+    "Python/PYPY": 2.778,
+    "Rust/WASM/Node": 1.113,
+    "Rust/WASM/Wasmtime": 1.305,
+    "Rust/WASM/Wasmer": 1.413,
+    "Rust/WASM/WasmEdge": 0.965
   },
   "Distance::Jaro-mem-mb": {
     "C/Clang": 7.515625,
@@ -9273,7 +9709,11 @@
     "TypeScript/Deno/Default": 69.7578125,
     "TypeScript/Deno/Compiled": 62.19921875,
     "TypeScript/Deno/Turbo": 69.5,
-    "Python/PYPY": 90.96484375
+    "Python/PYPY": 90.96484375,
+    "Rust/WASM/Node": 56.0234375,
+    "Rust/WASM/Wasmtime": 149.703125,
+    "Rust/WASM/Wasmer": 175.63671875,
+    "Rust/WASM/WasmEdge": 55.5
   },
   "Distance::NGram-runtime": {
     "C/Clang": 1.345,
@@ -9356,7 +9796,11 @@
     "TypeScript/Deno/Default": 1.134,
     "TypeScript/Deno/Compiled": 1.131,
     "TypeScript/Deno/Turbo": 1.135,
-    "Python/PYPY": 1.443
+    "Python/PYPY": 1.443,
+    "Rust/WASM/Node": 0.913,
+    "Rust/WASM/Wasmtime": 0.866,
+    "Rust/WASM/Wasmer": 0.879,
+    "Rust/WASM/WasmEdge": 0.924
   },
   "Distance::NGram-mem-mb": {
     "C/Clang": 7.32421875,
@@ -9439,6 +9883,10 @@
     "TypeScript/Deno/Default": 132.3046875,
     "TypeScript/Deno/Compiled": 118.328125,
     "TypeScript/Deno/Turbo": 133.0078125,
-    "Python/PYPY": 104.29296875
+    "Python/PYPY": 104.29296875,
+    "Rust/WASM/Node": 56.7734375,
+    "Rust/WASM/Wasmtime": 147.39453125,
+    "Rust/WASM/Wasmer": 178.21875,
+    "Rust/WASM/WasmEdge": 55.6328125
   }
 }

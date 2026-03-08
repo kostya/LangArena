@@ -1918,6 +1918,7 @@ if APPEND_RESULTS
   f = File.read(APPEND_RESULTS)
   puts "Use previous results: #{APPEND_RESULTS}"
   RESULTS = JSON.parse(f)
+  RUNS.each { |run| RESULTS["runs"][run.name] = run.group }
 else
   RESULTS = {}
   RESULTS["date"] = Time.now.strftime("%Y-%m-%d")
@@ -2068,13 +2069,11 @@ RUNS.each_with_index do |run, index|
   write_results
 end
 
-p RESULTS["start-duration"]
-
-RESULTS["start-duration"].each do |run, v|
-  RESULTS["start-duration"][run] = v / TESTS.size # averaging
+unless APPEND_RESULTS
+  RESULTS["start-duration"].each do |run, v|
+    RESULTS["start-duration"][run] = v / TESTS.size
+  end
 end
-
-p RESULTS["start-duration"]
 
 end_t = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
 puts "----------- FINISHED in #{((end_t - START_TIME).to_f / 1e9).round(2)}s-------------"
