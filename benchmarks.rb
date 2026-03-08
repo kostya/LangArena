@@ -521,6 +521,18 @@ RUNS = [
     deps_cmd: "cargo fetch",
   ),
 
+  Run.new(
+    name: "Rust/WASM/WasmEdge", 
+    build_cmd: "sh -c 'cargo build --target wasm32-wasip1 --release; wasmedge compile target/wasm32-wasip1/release/benchmarks.wasm target/wasm32-wasip1/release/benchmarks_aot.wasm'", 
+    binary_name: "target/wasm32-wasip1/release/benchmarks_aot.wasm", 
+    run_cmd: "wasmedge --dir=. target/wasm32-wasip1/release/benchmarks_aot.wasm", 
+    version_cmd: "/bin/bash -c 'echo \"Rust $(rustc --version  | head -n 1), WasmEdge $(wasmedge --version)\"'",
+    dir: "/src/rust",
+    container: "rust_wasm",
+    group: :hack,
+    deps_cmd: "cargo fetch",
+  ),
+
   # ======================================= Zig ======================================================
 
   Run.new(

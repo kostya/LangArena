@@ -14,3 +14,5 @@ RUN curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/i
 ENV PATH=/root/.wasmer/bin:$PATH
 
 RUN rustup target add wasm32-wasip1
+
+RUN cargo install wasm-opt --locked
