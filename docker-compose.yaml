@@ -63,6 +63,7 @@ services:
   rust_wasm:
     <<: *shared
     image: benchmarks:rust_wasm
+    working_dir: /src/rust
     build:
       dockerfile: docker/rust_wasm
       args:
