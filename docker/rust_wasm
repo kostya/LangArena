@@ -16,3 +16,6 @@ ENV PATH=/root/.wasmer/bin:$PATH
 RUN rustup target add wasm32-wasip1
 
 RUN cargo install wasm-opt --locked
+
+ENV PATH=/root/.wasmedge/bin:$PATH
+ENV PATH=/root/.wasmtime/bin:$PATH
