@@ -1,0 +1,9 @@
+#!/bin/sh
+export GOOS=wasip1
+export GOARCH=wasm 
+go build -o target/bin_main.wasm main.go
+
+# wasmtime run --dir=. --dir=.. target/bin_main.wasm ../run.js $@
+# wasmer run --volume ..:/parent target/bin_main.wasm -- /parent/run.js $@
+
+
