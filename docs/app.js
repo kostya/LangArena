@@ -49,6 +49,9 @@ function changeTab(tabId, group_lang_option_checked = false) {
         case 'analys_tab':
             ai_analys($results);
             break;
+        case 'critic_tab':
+            ai_critic($results);
+            break;
         case 'history_tab':
             history_tab();
             break;
@@ -605,3 +608,7 @@ document.head.appendChild(s2);
 const s3 = document.createElement('script');
 s3.src = 'ai_analysis.js';
 document.head.appendChild(s3);
+
+const s4 = document.createElement('script');
+s4.src = 'ai_critic.js';
+document.head.appendChild(s4);
