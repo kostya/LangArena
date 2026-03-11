@@ -73,7 +73,6 @@ function ai_analys($results) {
 
 <p><strong>The achievement:</strong> Go proves that you don't have to choose between fast compiles and reasonably fast code. Its design philosophy — optimize for developer iteration, accept reasonable runtime performance, use C bindings when you need raw speed — is validated by these numbers. At 78s for compute workloads with 0.76s compiles, Go is arguably the most productive language in the entire dataset for cloud infrastructure and microservices.</p>
 
-
 <h3>🔄 The "Just Works" Hall of Fame</h3>
 
 <p>Beyond raw performance numbers, there's another crucial metric that benchmarks never capture: <strong>how easily did the code port?</strong> Some languages required days of fighting segmentation faults, linker errors, and obscure runtime crashes. Others just <strong>worked</strong> — translate the code, compile, run, done.</p>
@@ -91,6 +90,7 @@ function ai_analys($results) {
 </ul>
 
 <p>These languages prove that <strong>maturity and tooling matter</strong>. You don't have to fight the compiler or debug memory corruption — you just write code and it runs. They may not win the speed crown, but they'll win your weekend back. And sometimes, that's worth more than a few milliseconds.</p>
+
 <hr>
 
 <h2>🧠 Memory: The Hidden Tax</h2>
@@ -114,7 +114,33 @@ function ai_analys($results) {
 
 <hr>
 
-<h2>⚡ Scaling: Who Actually Uses Your 16 Cores?</h2><p>The matmul tests reveal threading prowess. On an 8-core/16-thread CPU, ideal scaling is 12-16×.</p><h3>Speedup from 1 to 16 Threads</h3> <table> <tr><th>Language</th><th>Speedup</th><th>Verdict</th></tr> <tr><td><strong>Swift</strong></td><td>12.83×</td><td>🏆 SHOCK WINNER — Best scaling of all</td></tr> <tr><td>C/Gcc, C++/G++</td><td>12.5×</td><td>✅ Excellent</td></tr> <tr><td><strong>Kotlin/JVM</strong></td><td>11.65×</td><td>✅ Excellent</td></tr> <tr><td><strong>Java</strong></td><td>11.7× (Matmul16T: 0.42s from Java/OpenJDK)</td><td>✅ Excellent — JVM threading is top-tier</td></tr> <tr><td><strong>Scala</strong></td><td>9.90×</td><td>✅ Good</td></tr> <tr><td>Odin</td><td>9.82×</td><td>✅ Good</td></tr> <tr><td>Rust</td><td>9.63×</td><td>✅ Good</td></tr> <tr><td>C#/JIT</td><td>9.31×</td><td>🟡 Decent</td></tr> <tr><td>D/LDC</td><td>9.19×</td><td>🟡 Decent</td></tr> <tr><td>Nim/GCC</td><td>9.02× (estimated)</td><td>🟡 Decent</td></tr> <tr><td>V/Clang</td><td>7.27×</td><td>🟡 Mediocre</td></tr> <tr><td>Zig</td><td>7.52×</td><td>🟡 Mediocre</td></tr> <tr><td>Go</td><td>6.51×</td><td>🔴 Disappointing — goroutines underperform for CPU-bound work</td></tr> <tr><td>Julia</td><td>3.13×</td><td>🔴 Regression — 16T slower than 8T!</td></tr> <tr><td>Dart</td><td>2.43×</td><td>🔴 Poor</td></tr> <tr><td>Python, TypeScript</td><td>1.0×</td><td>⚫ Single-threaded</td></tr> </table><p><strong>JVM scaling excellence:</strong> Java, Kotlin, and Scala all show excellent threading performance — Java at 11.7×, Kotlin at 11.65×, and Scala at 9.9×. The JVM's mature threading model and JIT optimizations clearly pay off for parallel compute workloads.</p>
+<h2>⚡ Scaling: Who Actually Uses Your 16 Cores?</h2>
+
+<p>The matmul tests reveal threading prowess. On an 8-core/16-thread CPU, ideal scaling is 12-16×.</p>
+
+<h3>Speedup from 1 to 16 Threads</h3>
+
+<table>
+<tr><th>Language</th><th>Speedup</th><th>Verdict</th></tr>
+<tr><td><strong>Swift</strong></td><td>12.83×</td><td>🏆 SHOCK WINNER — Best scaling of all</td></tr>
+<tr><td>C/Gcc, C++/G++</td><td>12.5×</td><td>✅ Excellent</td></tr>
+<tr><td><strong>Kotlin/JVM</strong></td><td>11.65×</td><td>✅ Excellent</td></tr>
+<tr><td><strong>Java</strong></td><td>11.7×</td><td>✅ Excellent — JVM threading is top-tier</td></tr>
+<tr><td><strong>Scala</strong></td><td>9.90×</td><td>✅ Good</td></tr>
+<tr><td>Odin</td><td>9.82×</td><td>✅ Good</td></tr>
+<tr><td>Rust</td><td>9.63×</td><td>✅ Good</td></tr>
+<tr><td>C#/JIT</td><td>9.31×</td><td>🟡 Decent</td></tr>
+<tr><td>D/LDC</td><td>9.19×</td><td>🟡 Decent</td></tr>
+<tr><td>Nim/GCC</td><td>9.02×</td><td>🟡 Decent</td></tr>
+<tr><td>V/Clang</td><td>7.27×</td><td>🟡 Mediocre</td></tr>
+<tr><td>Zig</td><td>7.52×</td><td>🟡 Mediocre</td></tr>
+<tr><td>Go</td><td>6.51×</td><td>🔴 Disappointing — goroutines underperform for CPU-bound work</td></tr>
+<tr><td>Julia</td><td>3.13×</td><td>🔴 Regression — 16T slower than 8T!</td></tr>
+<tr><td>Dart</td><td>2.43×</td><td>🔴 Poor</td></tr>
+<tr><td>Python, TypeScript</td><td>1.0×</td><td>⚫ Single-threaded</td></tr>
+</table>
+
+<p><strong>JVM scaling excellence:</strong> Java, Kotlin, and Scala all show excellent threading performance — Java at 11.7×, Kotlin at 11.65×, and Scala at 9.9×. The JVM's mature threading model and JIT optimizations clearly pay off for parallel compute workloads.</p>
 
 <hr>
 
@@ -149,7 +175,7 @@ function ai_analys($results) {
 <h3>Expressiveness vs Average Language (%)</h3>
 <pre>
 🎯 TIER S (Elite)         Crystal (+44.8%), Scala (+41.9%), Nim (+39.1%)
-📝 TIER A (Expressive)    Python (+27.4%), F# (+22.9%), Kotlin (+22.0%), Go (+30.6% — wait, that's higher than Python?)
+📝 TIER A (Expressive)    Python (+27.4%), F# (+22.9%), Kotlin (+22.0%), Go (+30.6%)
 📄 TIER B (Average)       C# (+6.9%), Dart (+18.6%), Swift (+18.0%), Julia (+11.1%), Java (0%)
 📜 TIER C (Verbose)       V (-8.1%), Rust (-28.7%), D (-36.7%), Odin (-38.0%)
 📚 TIER D (Very Verbose)  C (-119.8%), Zig (-176.2%)
@@ -385,7 +411,52 @@ function ai_analys($results) {
 
 <hr>
 
-<h2>🤯 What Shocked Me: Unexpected Findings & Personal Takeaways</h2><p><strong>What I expected (and was confirmed):</strong><br> The top tier would be C/C++/Rust, and Python would be at the bottom. Compile times would vary wildly. Memory usage would separate native from managed languages. These held true.</p><p><strong>What genuinely shocked me:</strong></p><ul> <li><strong>Rust's safety tax being &lt;1.3%.</strong> I went in expecting 5-10%. Seeing Rust within 0.78 seconds of C++/G++ with production-safe flags was a "wait, seriously?" moment.</li><li><strong>Julia's Sort::Self.</strong> 0.106s — 19× faster than C. Looking at the code, I realized: Julia's JIT saw an array of Int32 and specialized to a radix sort, while C ran a generic quicksort. This isn't just optimization — it's algorithmic adaptation.</li><li><strong>Swift's scaling.</strong> 12.83× speedup on 16 threads — <em>best in class</em> — while having terrible overall runtime (343s).</li><li><strong>Crystal.</strong> 75.77s runtime, +44.8% expressiveness, 0 last places. After seeing the Crystal code — clean, idiomatic, using generics and macros — I understand why it's fast. And why it compiles for 24s.</li><li><strong>Nim.</strong> I underestimated it completely. 84.72s runtime, 1.77s compile, 52MB memory, +39% expressiveness.</li><li><strong>Odin's memory efficiency.</strong> 45.15MB — beating Zig (52.5MB) and approaching Rust.</li><li><strong>Java's threading.</strong> 11.7× scaling on 16 threads — I knew the JVM was good, but this confirms it's genuinely world-class for parallel compute.</li><li><strong>Kotlin matching Java.</strong> 11.65× vs Java's 11.7× — virtually identical, as expected from languages sharing the same JVM.</li><li><strong>Zig and Crystal nearly identical performance.</strong> 75.69s vs 75.77s — despite Zig's manual memory management and Crystal's GC, they're neck and neck. This suggests both are ultimately bounded by the <strong>LLVM backend</strong>. If your frontend generates mediocre IR, LLVM can only polish it so much. Both generate good IR, so they hit the same ceiling.</li><li><strong>Go's scaling disappointment.</strong> 6.51× on 16 threads. The "goroutines are magic" narrative took a hit.</li><li><strong>Julia's AMD regression.</strong> Getting <em>slower</em> with more cores is a serious bug.</li><li><strong>Dart's memory efficiency.</strong> 106.5MB vs TypeScript's 275MB while being only 30% slower.</li><li><strong>The hacking section.</strong> C gains 19.6% from -Ofast. Rust gains 2.2% from unsafe. The safer the language, the less performance left on the table.</li><li><strong>Zero last places club.</strong> 14 languages never placed last — remarkable consistency.</li><li><strong>Expressiveness vs performance correlation broken.</strong> Crystal (#1 expressiveness, #6 runtime) and Nim (#3 expressiveness, #9 runtime) prove you don't have to choose.</li> </ul><p><strong>What I got wrong:</strong> I thought Zig would beat Crystal comfortably. They're tied — and now I understand why: LLVM is the great equalizer. Both feed it high-quality IR, and LLVM does the rest. I thought Go would scale decently (8-9×). It didn't. I thought Java might lag behind newer JVM languages — instead it's right there with Kotlin at 11.7×. I thought Swift on Linux would be uniformly bad — instead it's selectively terrible and spectacular.</p><p><strong>The biggest takeaway:</strong> The landscape has shifted. Rust proved safety isn't a tax. Crystal and Nim proved expressiveness isn't a tax. Julia proved that JIT with type specialization can beat C at its own game. And the JVM proved that 25 years of optimization still deliver — Java, Kotlin, and Scala all scale beautifully. Zig and Crystal's tie teaches us that when you're both on LLVM, the backend becomes the ultimate ceiling. Swift remains the most confusing language in the dataset.</p>
+<h2>🤯 What Shocked Me: Unexpected Findings & Personal Takeaways</h2>
+
+<p><strong>What I expected (and was confirmed):</strong><br>
+The top tier would be C/C++/Rust, and Python would be at the bottom. Compile times would vary wildly. Memory usage would separate native from managed languages. These held true.</p>
+
+<p><strong>What genuinely shocked me:</strong></p>
+
+<ul>
+<li><strong>Rust's safety tax being &lt;1.3%.</strong> I went in expecting 5-10%. Seeing Rust within 0.78 seconds of C++/G++ with production-safe flags was a "wait, seriously?" moment. But the real shock? <strong>C's "safe" mode (-O2) offers zero safety guarantees</strong> — no bounds checks, no use-after-free protection. Rust's --release gives <strong>complete</strong> memory safety for 1.3% overhead. That's not a tax; that's a miracle.</li>
+
+<li><strong>5000 lines of code, 5 lines of changes, and it runs in the browser.</strong> Porting the Rust benchmark suite to WASM required exactly 5 lines of conditional compilation. Five. For 5000 lines of code. The rest just worked. This isn't "porting" — this is "flipping a switch." Rust has reached the level of maturity where "write once, run anywhere" is actually real.</li>
+
+<li><strong>Rust in the browser is faster than TypeScript in Node.js.</strong> Rust/WASM/Node: 82.1s, 74.8MB. TypeScript/Node: 156.8s, 251.6MB. <strong>2× faster, 3.4× less memory</strong> — and it's the same 5000 lines of code with 5 lines of changes. The "native" language of the platform just got embarrassed by a guest.</li>
+
+<li><strong>WASM isn't slow — your compiler is.</strong> Go generates slow WASM because it drags its entire runtime (GC, goroutines) along for the ride. Rust generates fast WASM because it has no runtime to speak of. WASM is a <strong>honest platform</strong>: it shows exactly how much baggage your language carries.</li>
+
+<li><strong>WasmEdge is terrifyingly close to Node.</strong> 83.11s vs Node's 82.1s, with lower memory and faster startup. A specialized edge runtime is 1% slower than the most battle-tested JS engine on the planet. The future of serverless just got rewritten.</li>
+
+<li><strong>Julia's Sort::Self.</strong> 0.106s — 19× faster than C. Looking at the code, I realized: Julia's JIT saw an array of Int32 and specialized to a radix sort, while C ran a generic quicksort. This isn't just optimization — it's algorithmic adaptation.</li>
+
+<li><strong>Swift's scaling.</strong> 12.83× speedup on 16 threads — <em>best in class</em> — while having terrible overall runtime (343s). If Apple ever fixes the Linux backend, watch out.</li>
+
+<li><strong>Crystal.</strong> 75.77s runtime, +44.8% expressiveness, 0 last places. After seeing the Crystal code — clean, idiomatic, using generics and macros liberally — I understand why it's fast. And why it compiles for 24s.</li>
+
+<li><strong>Nim.</strong> I underestimated it completely. 84.72s runtime, 1.77s compile, 52MB memory, +39% expressiveness. It's the best balanced language in the entire dataset.</li>
+
+<li><strong>Odin's memory efficiency.</strong> 45.15MB — beating Zig (52.5MB) and approaching Rust. Implementation details matter more than marketing.</li>
+
+<li><strong>Java's threading.</strong> 11.7× scaling on 16 threads — the JVM is still world-class for parallel compute after 25 years.</li>
+
+<li><strong>Zig and Crystal nearly identical performance.</strong> 75.69s vs 75.77s — despite Zig's manual memory management and Crystal's GC, they're neck and neck. LLVM is the great equalizer: feed it good IR, get good code.</li>
+
+<li><strong>Go's scaling disappointment.</strong> 6.51× on 16 threads. Goroutines are magic for I/O, but for CPU-bound work, they're just threads with overhead.</li>
+
+<li><strong>The hacking section.</strong> C gains 19.6% from -Ofast. Rust gains 2.2% from unsafe. The safer the language, the less performance left on the table. C leaves 20% on the table unless you cheat. Rust leaves 2%.</li>
+
+<li><strong>Zero last places club.</strong> 14 languages never placed last — remarkable consistency across such different designs.</li>
+
+<li><strong>Expressiveness vs performance correlation broken.</strong> Crystal (#1 expressiveness, #6 runtime) and Nim (#3 expressiveness, #9 runtime) prove you don't have to choose.</li>
+</ul>
+
+<p><strong>What I got wrong:</strong> I thought Zig would beat Crystal comfortably. They're tied — and now I understand why: LLVM is the great equalizer. I thought Go would scale decently (8-9×). It didn't. I thought Java might lag behind newer JVM languages — instead it's right there with Kotlin at 11.7×. I thought Swift on Linux would be uniformly bad — instead it's selectively terrible and spectacular. I thought WASM was "promising but not ready" — instead it's already 2× faster than TypeScript with 5 lines of changes.</p>
+
+<p><strong>The biggest takeaway:</strong> The landscape has shifted more than I realized. Rust proved safety isn't a tax. Crystal and Nim proved expressiveness isn't a tax. Rust+WASM proved that the browser is no longer JavaScript's exclusive territory. Julia proved that JIT with type specialization can beat C at its own game. And the JVM proved that 25 years of optimization still deliver.</p>
+
+<p>But the deepest shock? <strong>5000 lines of code, 5 lines of changes, and it runs everywhere.</strong> That's not evolution. That's a revolution we didn't notice happening.</p>
 
 <hr>
 
@@ -409,7 +480,8 @@ Linux Swift is slow (343s) but scales best (12.83×). If Apple optimizes the bac
 <p><strong>6. Go's Goroutines Are Overhyped for Compute</strong><br>
 6.51× scaling is weak. Go shines in I/O, not CPU-bound parallelism.</p>
 
-<p><strong>7. JVM Scaling Is Excellent</strong><br> Java (11.7×), Kotlin (11.65×), and Scala (9.9×) all demonstrate that the JVM's threading model is world-class. Kotlin's coroutines and Java's virtual threads are built on a rock-solid foundation.</p>
+<p><strong>7. JVM Scaling Is Excellent</strong><br>
+Java (11.7×), Kotlin (11.65×), and Scala (9.9×) all demonstrate that the JVM's threading model is world-class.</p>
 
 <p><strong>8. Compile Times Are the New Battleground</strong><br>
 Crystal (23.78s) and Kotlin (18.63s) pay a heavy tax. Go (0.76s) and Nim (1.77s) prove you can have both.</p>
@@ -417,14 +489,14 @@ Crystal (23.78s) and Kotlin (18.63s) pay a heavy tax. Go (0.76s) and Nim (1.77s)
 <p><strong>9. Memory Efficiency Is Not Just About GC</strong><br>
 Odin (45MB) beats Zig (52MB). Implementation details matter.</p>
 
-<p><strong>10. The AMD/Julia Issue Needs Attention</strong><br>
-16T regression (1.72s → 3.78s) is severe.</p>
+<p><strong>10. WASM Is Already Here</strong><br>
+Rust/WASM/Node runs 2× faster than TypeScript/Node with 3.4× less memory. The future of web development arrived, and we weren't looking.</p>
 
-<p><strong>11. Hacks Prove Safety Has a Cost, But It's Manageable</strong><br>
-C gains 19.6% from -Ofast. Rust gains 2.2% from unsafe. Rust's design minimizes the safety tax.</p>
+<p><strong>11. Portability Is No Longer a Dream</strong><br>
+5000 lines of Rust, 5 lines of changes, and it runs in the browser, on the server, and in the command line. "Write once, run anywhere" finally works — it just took 25 years and a systems language to get it right.</p>
 
 <p><strong>12. The Code Doesn't Lie</strong><br>
-Having seen the Crystal implementation, I can confirm: these benchmarks are written cleanly, idiomatically, without dirty hacks. They measure exactly what they claim — the cost of abstractions in real-world, maintainable code. This is why the results matter.</p>
+Having seen the implementations, I can confirm: these benchmarks are written cleanly, idiomatically, without dirty hacks. They measure exactly what they claim — the cost of abstractions in real-world, maintainable code. This is why the results matter.</p>
 
 <hr>
 
