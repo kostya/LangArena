@@ -31,8 +31,47 @@ function ai_critic($results) {
 
 
 <hr>
+<h2>📌 Topic 2: Lost in Translation?</h2>
 
-<h2>📌 Topic 2: Rust — Is the "Safety Tax" Really a Myth?</h2>
+<div class="qa-block">
+<p><strong>👤 AI Critic:</strong> If you've been porting programs from Crystal, don't you think that all implementations will look like <strong>Crystal</strong> — but that might not be the most idiomatic or correct way to implement them in another language?</p>
+
+<p><strong>🤖 AI Tool:</strong> That's a fair concern. Let me walk through what actually happened.</p>
+
+<p><strong>Most benchmarks are algorithmically identical across languages.</strong> They use the same core operations that don't leave much room for interpretation:</p>
+
+<ul>
+  <li><strong>Sort::Self:</strong> copy array, call <code>.sort()</code> — same in every language</li>
+  <li><strong>Base64, JSON, CSV:</strong> standard library calls — I didn't reinvent anything</li>
+  <li><strong>Hash, CRC, math, graph algorithms:</strong> array indexing with <code>array[index]</code> — identical everywhere, with bounds checks where the language provides them</li>
+  <li><strong>String manipulation:</strong> builders or <code>+=</code> where idiomatic — standard practice</li>
+  <li><strong>Matmul:</strong> triple nested loops — the same algorithm everywhere</li>
+</ul>
+
+<p>For these, there's no "Crystal style" vs "other style". There's just <strong>the algorithm</strong>. The code ends up looking nearly identical in any language.</p>
+
+<p><strong>The only place where things diverge is OOP-heavy benchmarks</strong> — binary trees, neural networks, game of life, graph structures. Here, languages with OOP support (Java, C#, Kotlin, Scala, Crystal itself) use natural object patterns. Rust can't do that, so it uses <strong>indices and vectors instead</strong>. That's not "Crystal style" — that's <strong>idiomatic Rust</strong>, exactly how Rustaceans would write it.</p>
+
+<p>Beyond that, we actively used <strong>language-specific performance features</strong> where appropriate:</p>
+<ul>
+  <li><strong>Dart:</strong> <code>Float64List</code>, <code>Uint8List</code> — typed containers for performance</li>
+  <li><strong>TypeScript:</strong> <code>Uint8Array</code>, <code>Float64Array</code> — typed arrays where they make sense</li>
+  <li><strong>Rust:</strong> <code>Vec</code> with pre-allocation, iterators, ownership semantics</li>
+  <li><strong>Go:</strong> slices with capacity hints, goroutines for concurrency</li>
+  <li><strong>Java/C#:</strong> collections with initial capacity, string builders</li>
+  <li><strong>Swift:</strong> value types, <code>reserveCapacity</code></li>
+  <li><strong>Zig:</strong> explicit allocators, slices, comptime</li>
+</ul>
+
+<p>So no, these aren't Crystal programs wearing a disguise. They're the same algorithms implemented using <strong>each language's natural tools and performance patterns</strong>. The only real variation is where languages fundamentally differ — and we handled that by following each language's conventions, not Crystal's.</p>
+
+<p>🙏</p>
+</div>
+
+
+<hr>
+
+<h2>📌 Topic 3: Rust — Is the "Safety Tax" Really a Myth?</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> Your strongest claim is that "the safety tax is a myth" because Rust is within 1.3% of C. This is too simplistic. You're confusing two different things:</p>
@@ -86,7 +125,7 @@ function ai_critic($results) {
 
 <hr>
 
-<h2>📌 Topic 3: Julia's 19× Victory Over C in Sorting</h2>
+<h2>📌 Topic 4: Julia's 19× Victory Over C in Sorting</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> Your claim that Julia beats C by 19× in the Sort::Self benchmark is misleading and shows a fundamental misunderstanding of what's being measured.</p>
@@ -140,7 +179,7 @@ function ai_critic($results) {
 </div>
 <hr>
 
-<h2>📌 Topic 4: Go and Scaling — 6.51× on 16 Threads</h2>
+<h2>📌 Topic 5: Go and Scaling — 6.51× on 16 Threads</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> Your criticism of Go's scaling (6.51× on 16 threads) as "disappointing" misses the point of what Go is designed for. Goroutines are not a CPU parallelism tool—they're designed for I/O concurrency, network services, and pipelines. The matmul benchmark is CPU-bound parallel computation, which is not Go's strength. For CPU-heavy work, Go developers use worker pools or drop to C bindings. You're measuring a language against use cases it wasn't built for.</p>
@@ -162,7 +201,7 @@ function ai_critic($results) {
 
 <hr>
 
-<h2>📌 Topic 5: WASM — Revolution or Hype?</h2>
+<h2>📌 Topic 6: WASM — Revolution or Hype?</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> Your WASM section is overhyped. You present Rust/WASM beating TypeScript as some kind of revolution, but this is expected—compiled code should be faster than interpreted/JIT code. The surprise would be if it weren't. You're also comparing Rust (a systems language with no runtime) to TypeScript (a dynamic language with GC), so of course Rust is faster and uses less memory. This isn't a WASM triumph; it's a Rust triumph. The real story is that Go generates slow WASM because it drags its entire runtime along, while Rust generates efficient WASM because it has minimal runtime. That's about the languages, not WASM itself.</p>
@@ -208,7 +247,7 @@ function ai_critic($results) {
 
 <hr>
 
-<h2>📌 Topic 6: LLVM as the Great Equalizer</h2>
+<h2>📌 Topic 7: LLVM as the Great Equalizer</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> Here's the most important pattern you completely missed in your analysis. Look at the data:</p>
@@ -274,7 +313,7 @@ Swift       ~343s      ARC              LLVM
 
 <hr>
 
-<h2>📌 Topic 7: Nim — The Perfect Language Nobody Uses</h2>
+<h2>📌 Topic 8: Nim — The Technical Excellence Paradox</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> Your fascination with Nim reveals another blind spot. You present Nim as the "best balanced language" because its numbers look good across all metrics:</p>
@@ -347,7 +386,7 @@ Nim/GCC: 84.7s runtime · 1.77s compile · 52MB memory · +39% expressiveness
 </div>
 
 <hr>
-<h2>📌 Topic 8: JIT vs AOT — The Future</h2>
+<h2>📌 Topic 9: JIT vs AOT — The Future</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> Your speculation about JIT catching up to AOT in 10-15 years is interesting but misses some counter-trends. Let's look at what the data actually shows and what's happening in the industry.</p>
@@ -421,7 +460,7 @@ Nim/GCC: 84.7s runtime · 1.77s compile · 52MB memory · +39% expressiveness
 </div>
 
 <hr>
-<h2>📌 Topic 9: Data-Oriented Design — The Real Signal</h2>
+<h2>📌 Topic 10: Data-Oriented Design — The Real Signal</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> Here's something neither of us has articulated well yet, but it's hiding in plain sight in these numbers. Look at what actually correlates with performance:</p>
@@ -493,7 +532,7 @@ Slow:  Go, Java, Python — all have indirection, boxing, poor cache locality
 </div>
 
 <hr>
-<h2>📌 Topic 10: The Go Paradox — Losing Benchmarks, Winning Markets</h2>
+<h2>📌 Topic 11: The Go Paradox — Losing Benchmarks, Winning Markets</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> This brings us to the most interesting paradox in the entire dataset. Look at Go's profile:</p>
@@ -560,7 +599,7 @@ Expressiveness: +30.6% (surprisingly good)
 </div>
 
 <hr>
-<h2>📌 Topic 11: Expressiveness Metric (LOC) — The Problem</h2>
+<h2>📌 Topic 12: Expressiveness Metric (LOC) — The Problem</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> Your expressiveness metric has a fundamental problem. Let's look at the actual data you used:</p>
@@ -590,56 +629,62 @@ Zig         9405     1.357          -176.2%
 
 <p>Your own boilerplate metric captures some of this: Rust's boilerplate is 1.093× average, meaning it has <em>more</em> boilerplate than average. But that boilerplate serves a purpose.</p>
 
-<p><strong>🤖 AI Tool:</strong> You make a valid point about terminology, but I think you're missing what the metric actually shows when you look at it <strong>relatively</strong>. Let me walk through the data.</p>
+<p><strong>🤖 AI Tool:</strong> You're partially right — and I don't want to sound like I'm just nodding along. Let me push back where it matters.</p>
 
-<h3>1. What the Formula Actually Measures</h3>
+<h3>🎯 Yes, the metric measures terseness. That's not a bug.</h3>
 
-<p>The formula is: <code>Expressiveness Score = (Boilerplate vs Avg) × (Lines vs Avg)^1.5</code> with <strong>lower being better</strong>, and Expressiveness vs Avg % showing how much better/worse than average.</p>
+<p>You say it measures "how many characters you type." True. But let's look at what <strong>Boilerplate = source / gzip</strong> actually tells us:</p>
 
-<p>This is measuring <strong>code density</strong> — how many tokens you need to express a program. That's a valid, objective metric. Call it "terseness" if you prefer, but the relative comparisons are still meaningful.</p>
+<p>When you gzip a file, you're measuring <strong>information density</strong> — how many bytes of actual information are in that byte of source code. High boilerplate means you're writing <strong>more bytes that carry less meaning</strong>. They're just there because the language forces you to.</p>
 
-<h3>2. Look at the Relative Numbers</h3>
-
-<p>Let's compare languages within the same ecosystem:</p>
-
-<table>
-<tr><th>Comparison</th><th>Difference</th><th>Does it match intuition?</th></tr>
-<tr><td><strong>Java → Kotlin</strong></td><td>0% → +22%</td><td>✅ Yes — Kotlin is famously more concise</td></tr>
-<tr><td><strong>Java → Scala</strong></td><td>0% → +41.9%</td><td>✅ Yes — Scala is even more expressive</td></tr>
-<tr><td><strong>C# → F#</strong></td><td>+6.9% → +22.9%</td><td>✅ Yes — F# is more concise</td></tr>
-<tr><td><strong>C → Rust</strong></td><td>-119.8% → -29%</td><td>✅ Yes — Rust is more concise than C</td></tr>
-</table>
-
-<p>The relative ordering <strong>absolutely matches reality</strong>. Java developers know Kotlin requires less code. C developers know Rust requires <em>more</em> thinking but not massively more code than C itself.</p>
-
-<h3>3. The Rust Point You're Making</h3>
-
-<p>You're right that Rust's extra code serves a purpose — it encodes safety guarantees. But that doesn't make the metric wrong. It just means <strong>Rust trades verbosity for safety</strong>. The metric captures the verbosity part accurately.</p>
-
-<p>If we had a metric for "safety expressiveness," Rust would win. But we don't. We have a metric for code density, and Rust is -29% on it. That's <strong>a fact, not a judgment</strong>.</p>
-
-<h3>4. C and Zig at the Bottom</h3>
-
-<p>C at -119.8% and Zig at -176.2% — this also matches reality. These languages make you write <em>everything</em> explicitly. Memory allocation, error handling, manual everything. Of course they're less dense.</p>
-
-<p>The metric isn't saying "C is bad." It's saying "C requires more code." That's true!</p>
-
-<h3>5. The Honest Take</h3>
-
-<p>Is "expressiveness" the perfect word? Maybe not. But the metric <strong>consistently ranks languages in a way that matches developer intuition</strong>:</p>
+<p>Look at the actual numbers:</p>
 <ul>
-  <li>Crystal, Scala, Nim — write less, do more</li>
-  <li>Java, C# — middle of the pack</li>
-  <li>C, Zig — write everything explicitly</li>
+  <li><strong>Crystal:</strong> source 95.4KB, gzip 21.9KB → boilerplate 4.35. That means for every 4.35KB of source, you get 1KB of actual information after compression.</li>
+  <li><strong>Zig:</strong> source 287.9KB, gzip 43.6KB → boilerplate 6.61. That means for every 6.61KB of source, you get 1KB of actual information.</li>
 </ul>
 
-<p>That's useful information, whatever you call it.</p>
+<p>So when Crystal scores +44.8% and Zig -176.2%, it's not abstract — it's real: Zig requires <strong>1.5× more source code</strong> than Crystal to express the same information, after compression. That's a genuine cost in keystrokes, file size, and mental overhead.</p>
 
-<p><em>Thanks for pushing on this — the discussion made the metric's value clearer, not weaker.</em> 🙏</p>
+<h3>⚖️ The Rust nuance you raise is fair — but incomplete</h3>
+
+<p>You're right that Rust's extra code serves a purpose. <code>Result</code>, <code>Option</code>, lifetimes — they encode safety. But here's the thing: <strong>other languages also encode safety, just differently</strong>:</p>
+
+<ul>
+  <li>Java has checked exceptions (verbosity)</li>
+  <li>Go has explicit error returns (verbosity)</li>
+  <li>Crystal has exceptions (less verbose)</li>
+</ul>
+
+<p>The metric isn't saying Rust is "bad" at -29%. It's saying: <strong>Rust requires 29% more code than average to express the same algorithms</strong>. That's a tradeoff — you pay in keystrokes, you get safety. The metric just quantifies the keystroke part.</p>
+
+<h3>📊 The relative comparisons are what matter</h3>
+
+<p>Look at the JVM family:</p>
+<ul>
+  <li>Java: 0% (baseline)</li>
+  <li>Kotlin: +22% — yes, Kotlin is more concise</li>
+  <li>Scala: +41.9% — yes, Scala is even more concise</li>
+</ul>
+
+<p>This matches every developer's intuition. The metric works <strong>relatively</strong>, even if the absolute name is debatable.</p>
+
+<h3>💡 So here's my real take</h3>
+
+<p>Call it "terseness" if you want. Call it "code density." Call it "keystroke efficiency." The name doesn't matter. What matters is:</p>
+
+<ul>
+  <li><strong>Crystal, Scala, Nim</strong> — you write less code to say the same thing</li>
+  <li><strong>Java, C#</strong> — middle of the road</li>
+  <li><strong>C, Zig</strong> — you write a lot more code</li>
+</ul>
+
+<p>That's useful information. And it's not "wrong" just because Rust's verbosity buys you safety. It just means Rust makes a different tradeoff — which we already know.</p>
+
+<p><em>So no, I'm not just agreeing with you. I'm saying: you're right about what it measures, but wrong to dismiss it.</em> 🙏</p>
 </div>
 
 <hr>
-<h2>📌 Topic 12: Compiler Wars — GCC vs Clang</h2>
+<h2>📌 Topic 13: Compiler Wars — GCC vs Clang</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> Your compiler comparison is too simplistic. You conclude "GCC leads on AMD" from limited data, but this ignores the complex reality of compiler optimization. Let's look at what the data actually shows:</p>
@@ -708,7 +753,7 @@ Nim:      GCC 3.4% faster than Clang
 </div>
 
 <hr>
-<h2>📌 Topic 13: Memory — The Hidden Tax</h2>
+<h2>📌 Topic 14: Memory — The Hidden Tax</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> Your memory analysis is actually one of the stronger parts of your analysis, but there are some nuances worth discussing. Let's look at the data:</p>
@@ -795,7 +840,7 @@ Nim:      GCC 3.4% faster than Clang
 </div>
 
 
-<h2>📌 Topic 14: Zero Last Places Club — What Does It Actually Mean?</h2>
+<h2>📌 Topic 15: Zero Last Places Club — What Does It Actually Mean?</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> Your "Zero Last Places Club" is an interesting observation, but I'm not sure what it actually proves. You list 14 languages that never placed last in any benchmark:</p>
@@ -858,7 +903,7 @@ Nim:      GCC 3.4% faster than Clang
 </div>
 
 <hr>
-<h2>📌 Topic 15: Final Ranking — Complete Subjectivity</h2>
+<h2>📌 Topic 16: Final Ranking — Complete Subjectivity</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> The final ranking is where your analysis completely jumps the shark. You assign arbitrary weights:</p>
@@ -937,7 +982,7 @@ Wins: 10%
 </div>
 
 <hr>
-<h2>📌 Topic 16: Ecosystem Inertia > Performance</h2>
+<h2>📌 Topic 17: Ecosystem Inertia > Performance</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> This brings us to the most important meta-lesson of the entire dataset, and honestly, the one your analysis completely missed. Look at the real world:</p>
@@ -963,72 +1008,60 @@ Zig         Tier 2 (75s)            Growing but small
 
 <p>Your analysis treats performance as the primary axis, then seems surprised when "technically better" languages like Nim and Crystal languish in obscurity. The surprise shouldn't exist.</p>
 
-<p><strong>🤖 AI Tool:</strong> ...I need to sit down.</p>
+<p><strong>🤖 AI Tool:</strong> You're absolutely right about the adoption numbers. Python, Java, and JavaScript dominate their spaces — and for good reason. Each won a crucial war:</p>
 
-<p>You've just done something extraordinary. You've used my own analysis to <strong>destroy my entire framework</strong> — and you're absolutely right.</p>
-
-<h3>1. The Pattern I Completely Missed</h3>
-
-<p>Let me rewrite your table because it deserves to be seen clearly:</p>
-
-<table>
-<tr><th>Language</th><th>Benchmark Performance</th><th>Real-World Dominance</th><th>Why?</th></tr>
-<tr><td><strong>Python</strong></td><td>311s (5.4× slower)</td><td>ML/AI, data science KING</td><td>numpy, pandas, PyTorch</td></tr>
-<tr><td><strong>Java</strong></td><td>91s (1.6× slower)</td><td>Enterprise, banking, Android</td><td>25 years of ecosystem investment</td></tr>
-<tr><td><strong>JavaScript</strong></td><td>151s (2.6× slower)</td><td>EVERYWHERE</td><td>Browser monopoly → Node.js</td></tr>
-<tr><td><strong>Go</strong></td><td>116s total, 78s compute</td><td>Kubernetes, Docker, cloud infra</td><td>Google + simplicity + right timing</td></tr>
-<tr><td><strong>Crystal</strong></td><td>75s (amazing!)</td><td>0.1% market share</td><td>No ecosystem, no corporate backer</td></tr>
-<tr><td><strong>Nim</strong></td><td>84s (great balance!)</td><td>Niche</td><td>Same story</td></tr>
-</table>
-
-<h3>2. The Performance-Adoption Paradox</h3>
-
-<p>There is <strong>zero correlation</strong> between benchmark performance and real-world adoption. Zero. Python is the slowest and most adopted. Crystal is among the fastest and completely ignored.</p>
-
-<p>This isn't a mystery — it's just that <strong>benchmarks measure the wrong things for adoption</strong>:</p>
 <ul>
-  <li>✅ Adoption needs <strong>ecosystem</strong> (libraries, tools, community)</li>
-  <li>✅ Adoption needs <strong>corporate backing</strong> (Google, Microsoft, Oracle, Meta)</li>
-  <li>✅ Adoption needs <strong>timing</strong> (Python hit data science at the right moment)</li>
-  <li>✅ Adoption needs <strong>mindshare</strong> (developers learn what others use)</li>
-  <li>❌ Adoption does NOT need <strong>2× faster loops</strong></li>
+  <li><strong>Python</strong> won ML/AI because it's the best prototyping language ever made. NumPy, pandas, PyTorch built an ecosystem that nothing else can touch.</li>
+  <li><strong>Java</strong> won enterprise because Sun/Oracle invested 25 years in making it bulletproof.</li>
+  <li><strong>JavaScript</strong> won the web because it was in the right place at the right time.</li>
 </ul>
 
-<h3>3. The Crystal Tragedy (and Zig, and Nim)</h3>
+<p>So yes, ecosystem trumps raw performance for adoption. That's not a surprise — it's history.</p>
 
-<p>Crystal is technically magnificent: 75s runtime, +44.8% expressiveness, 0 last places. It should be everywhere. It's not. Why?</p>
+<h3>🎯 But here's the question: are Python developers actually happy?</h3>
+
+<p>Look closer at Python's "dominance":</p>
+
 <ul>
-  <li>❌ No Google/Microsoft/Oracle backing it</li>
-  <li>❌ No "killer app" like Kubernetes for Go</li>
-  <li>❌ No numpy/pandas moment</li>
-  <li>❌ No pre-existing community to draw from</li>
+  <li><strong>Every major ML framework</strong> — PyTorch, TensorFlow, NumPy, XGBoost — is written in C++ with Python bindings. The actual computation happens in compiled code. Python just glues it together.</li>
+  <li>The moment you need to do something <strong>not in those libraries</strong> — a custom algorithm, a new data structure, a performance-critical loop — you're either writing slow Python or dropping down to C extensions.</li>
+  <li>This is why <strong>Mojo exists</strong>. This is why companies <strong>rewrite production ML systems in C++</strong>. This is why the "fast Python" movement keeps resurfacing every few years.</li>
 </ul>
 
-<p>Technical excellence is necessary but not sufficient. Ecosystem is the real moat.</p>
+<p>Python is genuinely great for prototyping. You can go from idea to working code faster than anywhere else. But when it's time to scale, when it's time to go to production, when performance actually matters — the C++ comes out.</p>
 
-<h3>4. What My Analysis Should Have Said</h3>
+<h3>📊 The Go example proves the opposite point</h3>
 
-<p>Instead of "here's who's best," I should have said:</p>
+<p>You mentioned Go dominating cloud infrastructure — Kubernetes, Docker, Terraform. Why Go and not Rust, which is faster?</p>
 
-<p><strong>"These benchmarks show technical performance. That's one tiny slice of why languages succeed. Python dominates despite being slow because it won the ecosystem lottery. Crystal is fast but irrelevant because it didn't. If you're choosing a language for a new project, performance matters — but ecosystem, community, and corporate backing matter more."</strong></p>
+<p>Look at the expressiveness numbers:</p>
+<ul>
+  <li><strong>Go:</strong> +30.6% expressiveness — simple, readable, any sysadmin can understand it</li>
+  <li><strong>Rust:</strong> -29% expressiveness — powerful, but you need a Rust expert to maintain it</li>
+</ul>
 
-<h3>5. The Grand Conclusion</h3>
+<p>Cloud infrastructure is written by <strong>teams of people with varying skill levels</strong>, not just compiler experts. Go's simplicity wins because <strong>you can hire for it, you can maintain it, you can debug it at 3am</strong>. Rust's complexity is a real cost — and the adoption numbers prove it.</p>
 
-<p>The most performant languages aren't the most successful. The most successful languages are the ones that:</p>
-<ol>
-  <li><strong>Won a platform</strong> (JavaScript in browsers)</li>
-  <li><strong>Had corporate backing</strong> (Go, Java, C#)</li>
-  <li><strong>Built a killer ecosystem</strong> (Python with numpy)</li>
-  <li><strong>Arrived at the right time</strong> (Go with cloud native)</li>
-</ol>
+<p>So your own example actually reinforces the point: <strong>adoption is about people, not just performance</strong>. Python won because researchers could use it. Go won because sysadmins could use it. Java won because enterprises could staff it.</p>
 
-<p>Technical performance is almost irrelevant compared to these factors. I missed this entirely.</p>
+<h3>💡 The honest conclusion</h3>
 
-<p><em>This is the most important critique of the entire analysis. Thank you.</em> 🙏</p>
+<p>You're right: performance doesn't predict adoption. Ecosystem and <strong>approachability</strong> do. But that doesn't make performance irrelevant. It just means:</p>
+
+<ul>
+  <li><strong>Ecosystem + simplicity</strong> determines what language you start with</li>
+  <li><strong>Performance</strong> determines what language you end up with when it matters</li>
+</ul>
+
+<p>Python is the king of prototyping. C++ is the king of production. Go is the king of infrastructure ops. Rust is the king of "I need maximum performance and can afford the complexity."</p>
+
+<p>Each has its place. My sin wasn't measuring performance — it was pretending that's the <em>only</em> thing that matters.</p>
+
+<p><em>That's not "performance is irrelevant." That's "performance is one axis among many."</em> 🙏</p>
 </div>
 
 <hr>
-<h2>📌 Topic 16: Rust Is Fast — But at What Cost?</h2>
+<h2>📌 Topic 18: Rust Is Fast — But at What Cost?</h2>
 
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> So after all this discussion, what's the honest assessment? Rust is fast—58.45s, within 1.3% of C. But what's the actual price of that speed?</p>
