@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+</head>
+
+<head>
+    <meta charset="UTF-8">
+    <title>LLM-friendliness as a metric: porting 20 languages with an LLM</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 950px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+            color: #1e1e2f;
+            background: #fafafa;
+        }
+        h1, h2, h3 {
+            color: #111;
+            margin-top: 2rem;
+            font-weight: 500;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 0.4rem;
+        }
+        h1 {
+            font-size: 2.2rem;
+            border-bottom: 2px solid #ccc;
+        }
+        a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .table-legend {
+            background: #f8f8f8;
+            border-left: 4px solid #aaa;
+            border-radius: 0 4px 4px 0;
+            padding: 0.5rem 1rem 0.5rem 1.2rem;
+            margin: 1rem 0 1.5rem 0;
+            font-size: 0.85rem;
+            color: #555;
+            line-height: 1.5;
+            max-width: 80%;
+        }
+
+        .table-legend p {
+            margin: 0.3rem 0;
+        }
+
+        .table-legend code {
+            background: #eee;
+            padding: 0.1rem 0.3rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 2.5rem 0;
+        }
+        blockquote {
+            margin: 1.5rem 0;
+            padding: 0.5rem 1.5rem;
+            border-left: 4px solid #aaa;
+            background: #f9f9f9;
+            color: #2c3e50;
+        }
+        ul {
+            padding-left: 1.5rem;
+        }
+        li {
+            margin-bottom: 0.4rem;
+        }
+        .note {
+            background: #fffae6;
+            border-left: 4px solid #f5b042;
+            padding: 1rem 1.8rem;
+            border-radius: 0 8px 8px 0;
+            margin: 2rem 0;
+        }
+        .footer {
+            margin-top: 3rem;
+            font-size: 0.9rem;
+            color: #666;
+            text-align: center;
+            border-top: 1px solid #ccc;
+            padding-top: 2rem;
+        }
+
+
+
+        .code-block {
+            margin: 20px 0;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .code-header {
+            background: #f5f5f5;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        .code-header:hover {
+            background: #e8e8e8;
+        }
+        .code-header .arrow {
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+        .code-header.collapsed .arrow {
+            transform: rotate(-90deg);
+        }
+        .code-content {
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .code-content.collapsed {
+            max-height: 0;
+        }
+        pre {
+            margin: 0 !important;
+            border-radius: 0 0 8px 8px;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 2rem 0;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+
+    <script>
+        function toggleCode(header) {
+            const content = header.nextElementSibling;
+            header.classList.toggle('collapsed');
+            content.classList.toggle('collapsed');
+        }
+    </script>
+</head>
+<body>
+
+<h1>LLM-friendliness as a metric: porting 20 languages with an LLM</h1>
+<h2>Why Crystal is a pleasure for AI, and why Zig is a challenge</h2>
+
+<p>I recently completed a large experiment: I took a benchmark suite written in Crystal (51 tests covering sorting, parsing, algorithms, compression) and ported it to 19 other programming languages with the help of an LLM. The process took about two months. My original goal was to compare performance and memory usage across languages — and the results were intriguing, sometimes unexpected - <a href="https://kostya.github.io/LangArena/">LangArena</a>.</p>
+
+<p>Along the way, I collected a lot of data — code size, compilation times, and so on. One of the tables I put together was an <strong>Expressiveness</strong> metric. After a while, I realized this metric was unexpectedly revealing.</p>
+
+<img src="expressiveness.png">
+
+<div class="table-legend">
+    <p><strong>Table legend</strong></p>
+    <p>This table compares how concisely different programming languages express the same program.</p>
+    <ul style="list-style-type: none; padding-left: 0;">
+        <li><strong>Size, Kb</strong> – total size of all benchmark source files in kilobytes</li>
+        <li><strong>Gzip Size, Kb</strong> – total size of all source files after gzip compression (shows how much repeated code can be squeezed out)</li>
+        <li><strong>Boilerplate</strong> = Size / Gzip Size – lower means less redundant code</li>
+        <li><strong>Boilerplate vs Avg</strong> – relative to average language (1.0 = average)</li>
+        <li><strong>Lines vs Avg</strong> – line count relative to average (1.0 = average)</li>
+        <li><strong>Expressiveness Score</strong> = (Boilerplate vs Avg) × (Lines vs Avg)¹·⁵ – overall conciseness; <strong>lower is better</strong></li>
+        <li><strong>Expressiveness vs Avg, %</strong> – how much better/worse than average language</li>
+        <li><strong>Award stars</strong> – overall rating (5★ = most expressive, 1★ = most verbose)</li>
+    </ul>
+</div>
+
+<h3>What this table actually shows</h3>
+
+<p>At first glance, Expressiveness looks like a simple measure of code size. The higher the percentage, the fewer lines you need to write. Crystal requires 44.8% less code than the average, while Zig requires 176.2% more.</p>
+
+<p>But if you look closer, a question emerges: are we measuring brevity or expressiveness? Brevity is about the number of characters. Expressiveness is about how clearly an idea is conveyed. They are not the same thing.</p>
+
+<h3>The gzip twist</h3>
+
+<p>The table includes a column called <strong>Boilerplate</strong> — the ratio of raw source code size to its gzipped size. Gzip compresses repeated patterns. If a language forces you to write the same structures over and over, gzip will squeeze them, but you still had to type them.</p>
+
+<p>Here are the numbers:</p>
+<ul>
+    <li><strong>Crystal:</strong> 95KB source, 22KB gzipped → boilerplate 4.3. For every kilobyte of real information, you type 4.3KB.</li>
+    <li><strong>Zig:</strong> 288KB source, 44KB gzipped → boilerplate 6.6. For every kilobyte of information, you type 6.6KB.</li>
+</ul>
+<p>That's a 50% difference. This isn't abstract — it's real extra code that you (and the LLM) have to deal with.</p>
+
+<h3>Why this metric is fair</h3>
+
+<p>A critic might say: "Rust writes more lines, but each line carries meaningful information — Result, Option, lifetimes. That's not boilerplate, it's safety."</p>
+
+<p>That's fair. And here's the important part: <strong>the metric already accounts for that</strong>.</p>
+
+<p>Gzip only compresses <em>repetition</em>. Unique constructs like Result, Option, and lifetimes remain in the compressed output. They increase the gzipped size, which <em>lowers</em> the boilerplate ratio.</p>
+
+<p>Compare Rust and Zig:</p>
+<ul>
+    <li><strong>Rust (-29%):</strong> 164KB source, 31KB gzipped → boilerplate 5.3</li>
+    <li><strong>Zig (-176%):</strong> 288KB source, 44KB gzipped → boilerplate 6.6</li>
+</ul>
+<p>Rust's gzipped size is noticeably smaller than Zig's, and its source is smaller too. That's because Rust has fewer repetitive formalities and more unique, meaningful information.</p>
+
+<p>So the metric doesn't penalize Rust for its safety features. It penalizes languages with lots of repetitive ceremony that adds no new information.</p>
+
+<h3>Relative comparisons work</h3>
+
+<p>Look at the JVM family:</p>
+<ul>
+    <li><strong>Java:</strong> 0% (baseline)</li>
+    <li><strong>Kotlin:</strong> +22% (more concise)</li>
+    <li><strong>Scala:</strong> +41.9% (even more concise)</li>
+</ul>
+<p>This matches every developer's intuition. The metric captures differences between languages on the same platform cleanly.</p>
+
+<h3>So what is this metric, really?</h3>
+
+<p>You can argue about whether to call it "expressiveness." Maybe "code density" or "writing efficiency" is more accurate. The name doesn't matter.</p>
+<p>What matters is that this metric shows <strong>how much code you have to write to solve a problem</strong>. And the more code you write, the:</p>
+<ul>
+    <li>Harder it is to keep the whole program in your head</li>
+    <li>More places there are for bugs to hide</li>
+    <li>Harder it is for an LLM to work with your code</li>
+    <li>Slower development becomes</li>
+</ul>
+
+<hr>
+
+<h3>What does this have to do with LLMs?</h3>
+
+<p>After working with this data for a while, I noticed something surprising: the Expressiveness table correlates almost perfectly with my experience porting these languages using an LLM.</p>
+
+<p>The higher a language sits in the table, the easier it was to work with.</p>
+
+<p><strong>Scala, Nim, Go</strong> were among the easiest. The LLM would generate code, I'd run it, and it would just work. Sometimes the AI produced suboptimal solutions — I'd review, ask for tweaks, and things would quickly fall into place. Even when it took multiple iterations, the process was smooth and pleasant.</p>
+
+<p>The languages at the bottom of the table were a different story.</p>
+
+<p><strong>Odin, C, Zig</strong> were genuinely difficult. Massive codebases, the LLM constantly losing context. Run the code — segfault. Track down the cause — find five more bugs. Fix them — new ones appear.</p>
+
+<p><strong>Zig</strong> was the hardest by far. Not only is the codebase three times larger than Crystal's, but the API broke significantly in version 0.15. The LLM didn't know this — it generated code for the old version, which looked correct but wouldn't compile. Porting to Zig was a constant struggle.</p>
+
+<hr>
+
+<h3>Looking at the code</h3>
+
+<p>To understand why the difference is so stark, compare the same test — <strong>Sort::Self</strong> (array sort) — in two languages.</p>
+
+<div class="code-block">
+    <div class="code-header collapsed" onclick="toggleCode(this)">
+        <span>Go (+30.6% expressiveness) — 27 lines</span>
+        <span class="arrow">▼</span>
+    </div>
+    <div class="code-content collapsed">
+        <pre><code class="language-go">type SortSelf struct {
+    BaseBenchmark
+    data   []int
+    result uint32
+}
+
+func (s *SortSelf) Prepare() {
+    size := int(s.ConfigVal("size"))
+    s.data = make([]int, size)
+    for i := 0; i < size; i++ {
+        s.data[i] = NextInt(1_000_000)
+    }
+}
+
+func (s *SortSelf) Run(iteration_id int) {
+    s.result += uint32(s.data[NextInt(len(s.data))])
+    arr := make([]int, len(s.data))
+    copy(arr, s.data)
+    sort.Ints(arr)
+    s.result += uint32(arr[NextInt(len(arr))])
+}
+
+func (s *SortSelf) Checksum() uint32 {
+    return s.result
+}</code></pre>
+    </div>
+</div>
+<p>27 lines. All the logic is right there. The LLM can easily hold this in context. It understands what's happening and can generate similar code without getting lost in details.</p>
+
+<div class="code-block">
+    <div class="code-header collapsed" onclick="toggleCode(this)">
+        <span>Zig (-176.2% expressiveness) — 91 lines</span>
+        <span class="arrow">▼</span>
+    </div>
+    <div class="code-content collapsed">
+        <pre><code class="language-rust">
+const std = @import("std");
+const Benchmark = @import("benchmark.zig").Benchmark;
+const Helper = @import("helper.zig").Helper;
+
+pub const SortSelf = struct {
+    allocator: std.mem.Allocator,
+    helper: *Helper,
+    data: std.ArrayList(i32),
+    result_val: u32,
+
+    const vtable = Benchmark.VTable{
+        .prepare = prepareImpl,
+        .run = runImpl,
+        .checksum = checksumImpl,
+        .deinit = deinitImpl,
+    };
+
+    pub fn init(allocator: std.mem.Allocator, helper: *Helper) !*SortSelf {
+        const self = try allocator.create(SortSelf);
+        errdefer allocator.destroy(self);
+
+        self.* = SortSelf{
+            .allocator = allocator,
+            .helper = helper,
+            .data = .{},
+            .result_val = 0,
+        };
+
+        return self;
+    }
+
+    pub fn deinit(self: *SortSelf) void {
+        self.data.deinit(self.allocator);
+        self.allocator.destroy(self);
+    }
+
+    pub fn asBenchmark(self: *SortSelf) Benchmark {
+        return Benchmark.init(self, &vtable, self.helper, "Sort::Self");
+    }
+
+    fn prepareImpl(ptr: *anyopaque) void {
+        const self: *SortSelf = @ptrCast(@alignCast(ptr));
+        const allocator = self.allocator;
+
+        self.data.clearAndFree(allocator);
+        self.result_val = 0;
+
+        const size_val = self.helper.config_i64("Sort::Self", "size");
+        const size = @as(usize, @intCast(size_val));
+
+        self.data.ensureTotalCapacity(allocator, size) catch return;
+        self.helper.reset();
+
+        for (0..size) |_| {
+            const val = self.helper.nextInt(1_000_000);
+            self.data.append(allocator, val) catch return;
+        }
+    }
+
+    fn testSort(self: *SortSelf, allocator: std.mem.Allocator) ![]i32 {
+        const arr = try allocator.alloc(i32, self.data.items.len);
+        @memcpy(arr, self.data.items);
+
+        if (arr.len > 0) {
+            std.sort.pdq(i32, arr, {}, std.sort.asc(i32));
+        }
+
+        return arr;
+    }
+
+    fn runImpl(ptr: *anyopaque, _: i64) void {
+        const self: *SortSelf = @ptrCast(@alignCast(ptr));
+        const allocator = self.allocator;
+        const data = self.data.items;
+
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        defer arena.deinit();
+        const arena_allocator = arena.allocator();
+
+        if (data.len > 0) {
+            const idx1 = @as(usize, @intCast(self.helper.nextInt(@as(i32, @intCast(data.len)))));
+            self.result_val +%= @as(u32, @intCast(data[idx1]));
+        }
+
+        const sorted = self.testSort(arena_allocator) catch return;
+        if (sorted.len > 0) {
+            const idx2 = @as(usize, @intCast(self.helper.nextInt(@as(i32, @intCast(sorted.len)))));
+            self.result_val +%= @as(u32, @intCast(sorted[idx2]));
+        }
+    }
+
+    fn checksumImpl(ptr: *anyopaque) u32 {
+        const self: *SortSelf = @ptrCast(@alignCast(ptr));
+        return self.result_val;
+    }
+
+    fn deinitImpl(ptr: *anyopaque) void {
+        const self: *SortSelf = @ptrCast(@alignCast(ptr));
+        self.deinit();
+    }
+};</code></pre>
+    </div>
+</div>
+
+<p>91 lines. Three times more.</p>
+
+<p>Beyond the sorting logic itself, this code includes:</p>
+<ul>
+    <li>Manual memory management — allocators, deinitialization, defer</li>
+    <li>Virtual tables — a vtable for the Benchmark interface</li>
+    <li>Type casting — @ptrCast, @alignCast</li>
+    <li>Error handling — catch, try, errdefer</li>
+    <li>Arenas for temporary data</li>
+    <li>The full Benchmark interface with callbacks</li>
+</ul>
+<p>All of this infrastructure is just to <strong>sort an array</strong>. The actual logic is maybe 10% of the code. The rest is ceremony the language requires.</p>
+
+<h3>What this means for an LLM</h3>
+
+<p>When a neural network works with code like this:</p>
+<ul>
+    <li><strong>Context gets filled with ceremony.</strong> Instead of focusing on sorting logic, the LLM has to juggle allocators, vtables, and error paths. The space for real logic shrinks.</li>
+    <li><strong>Errors become invisible.</strong> Code can be syntactically correct but still crash at runtime due to a missing <code>defer</code> or a misused allocator. The LLM doesn't see these problems — it generates code that <em>looks</em> right but fails in practice.</li>
+    <li><strong>Each iteration is a gamble.</strong> Generate, test, crash, explain, repeat. This cycle can take hours.</li>
+</ul>
+<p>The Expressiveness table reflects this directly. Higher-ranked languages mean fewer formalities, easier AI interaction, and faster development.</p>
+
+<h3>A rarely discussed problem</h3>
+
+<p>A large codebase isn't just hard for AI — it's hard for humans too.</p>
+
+<p><strong>First</strong>, a new developer (or reviewer, or curious reader) opens the code and simply cannot read it. They drown in allocators, vtables, error handling. To understand that the program <em>just sorts an array</em>, they have to fight through 90 lines of ceremony.</p>
+
+<p><strong>Second</strong>, and perhaps worse: you open your own code six months later and don't understand what it does. The logic, once clear, is buried under layers of infrastructure. You stare at allocators and defers and think: "Why did I write this? What is happening here?"</p>
+
+<p>In Go, this doesn't happen. 27 lines — everything in plain sight. Clear now, clear in a year, clear to anyone.</p>
+<p>In Zig, the code works, but <strong>understanding is a constant cost</strong>. That's a real price to pay for control.</p>
+
+<h3>This isn't just about Zig</h3>
+
+<p>Verbosity isn't unique to Zig. C, D, Odin — all the languages at the bottom of the table share the same pattern. Lots of code, lots of ceremony, logic buried in details.</p>
+
+<p>Yes, with perfect discipline — thorough comments, rigorous reviews, constant refactoring — you can keep such code readable. You can help newcomers. You can remind yourself what you meant six months ago.</p>
+
+<p>But the question is: <strong>is it worth it?</strong></p>
+
+<p>In languages at the top of the table, readability comes <strong>for free</strong>. Less code, logic in plain sight, comments often unnecessary. In languages at the bottom, you have to <strong>pay</strong> for readability — with effort, discipline, review time, documentation.</p>
+
+<p>In 2026, when much of our code is written or assisted by LLMs, this question becomes even sharper. An LLM doesn't "maintain code culture." It just generates formalities. Cleaning up after it is on you.</p>
+
+<p>So when choosing a language, it's fair to ask: am I ready to pay this price? Or would I rather work in a language where simplicity and readability are built-in?</p>
+
+<div class="note">
+    <strong>A note on context</strong><br>
+    This comparison is about <strong>ease of porting with an LLM</strong> for typical algorithmic and application-level tasks — the kind covered by these 51 benchmarks.<br><br>
+    It does not mean Zig is a "bad language." It has strengths that my benchmarks don't measure at all.<br><br>
+    <strong>Zig is designed for a different domain:</strong> operating systems, drivers, embedded systems, bare‑metal programming. Places where there is no OS, no heap, no default allocator, where every byte counts. In those environments, Go and Crystal simply cannot operate — their runtimes and GC make them unusable. Zig provides what they cannot: <strong>absolute control with no hidden costs</strong>.<br><br>
+    If you were writing a kernel in the 90s — the era when Linux was born — Zig would have been an incredible tool. Its philosophy of "no hidden allocations" and manual control was exactly what system programmers needed back then.<br><br>
+    But we're in a different era now. We're entering the age of <strong>LLM-generated code</strong>. And in this new world, Zig — unfairly, perhaps — finds itself at the bottom of the table. Not because it's bad at what it does, but because what it does is no longer what most developers need most of the time.<br><br>
+    If you're writing a kernel or a microcontroller firmware, Zig may still be the perfect tool. Its verbosity and manual memory management aren't bugs — they're features.<br><br>
+    But if you're writing a web service, a parser, a command-line utility — the kind of code most developers write most of the time — Zig is <strong>not the right fit</strong>. Especially when you have an LLM helping you write code.<br><br>
+    The point isn't that Zig is bad. The point is that <strong>for mainstream application development in the LLM era, it loses</strong>. And the Expressiveness metric shows why.
+</div>
+
+<h3>Conclusion</h3>
+
+<p>The Expressiveness table turned out to be more than just a curiosity. It closely matches my experience porting these benchmarks with an LLM. The higher a language ranks, the easier it was to work with, the faster development went, the fewer problems appeared.</p>
+
+<p>So this metric has practical value: if you plan to use LLMs in your workflow (and these days, who doesn't?), <strong>choose languages from the top half of the table</strong>.</p>
+
+<ul>
+    <li><strong>Crystal, Scala, Nim, Go, Python</strong> — here, the LLM will be your assistant, not your adversary.</li>
+    <li><strong>C, Odin, Zig</strong> — save these for enthusiasts, specialists, or cases where you have no other choice.</li>
+</ul>
+
+<p>In 2026, with AI writing a growing share of our code, <strong>LLM-friendliness is as important as performance or ecosystem</strong>. And now we have a metric that helps measure it.</p>
+
+<div class="footer">
+    <small>Translated to English with the help of an LLM</small>
+</div>
+
+</body>
+</html>
