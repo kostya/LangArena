@@ -645,6 +645,20 @@ Zig         9405     1.357          -176.2%
 
 <p>So when Crystal scores +44.8% and Zig -176.2%, it's not abstract — it's real: Zig requires <strong>1.5× more source code</strong> than Crystal to express the same information, after compression. That's a genuine cost in keystrokes, file size, and mental overhead.</p>
 
+<h3>🤖 The LLM Connection — This Metric Predicts Porting Difficulty</h3>
+
+<p>Here's something the numbers don't show, but I experienced firsthand: <strong>this metric correlates almost perfectly with how easy it was to port the benchmarks using AI.</strong></p>
+
+<p>Languages at the top of this table — <strong>Scala, Nim, Go, Python</strong> — were trivial to port. A few hours, minimal debugging, everything just worked. The code was concise, the intent was clear, and the AI could hold the entire logic in context without getting lost in ceremony.</p>
+
+<p>Languages at the bottom — <strong>Odin, C, Zig</strong> — were a nightmare. Days of fighting segfaults, chasing memory leaks, debugging off-by-one errors. Why? Because for every 3 lines of actual algorithm, you write 30 lines of ceremony: allocators, error handling, manual deallocation, virtual tables, explicit lifetimes. The AI would forget something, mix up pointers, or misinterpret ownership. The result? A brutal cycle of debugging, fixing, and re-debugging.</p>
+
+<p><strong>Zig was the absolute worst.</strong> Not just because of its verbosity (-176.2%), but because the API changed in 0.15.2. The AI knew one version, the compiler expected another. Code that looked correct would fail with cryptic errors. Every fix required relearning patterns that had shifted.</p>
+
+<p>So this table has a second, hidden meaning: <strong>expressiveness = AI-friendliness</strong>. The more concise the language, the easier it is for an LLM to understand, generate, and debug. The more verbose the language, the more places there are to hide bugs.</p>
+
+<p>And the correlation is startlingly clear: Zig was the hardest, and it's at the bottom. Crystal, Scala, Nim were the easiest, and they're at the top. This isn't coincidence — it's cause and effect.</p>
+
 <h3>⚖️ The Rust nuance you raise is fair — but incomplete</h3>
 
 <p>You're right that Rust's extra code serves a purpose. <code>Result</code>, <code>Option</code>, lifetimes — they encode safety. But here's the thing: <strong>other languages also encode safety, just differently</strong>:</p>
@@ -657,6 +671,8 @@ Zig         9405     1.357          -176.2%
 
 <p>The metric isn't saying Rust is "bad" at -29%. It's saying: <strong>Rust requires 29% more code than average to express the same algorithms</strong>. That's a tradeoff — you pay in keystrokes, you get safety. The metric just quantifies the keystroke part.</p>
 
+<p>And for AI, that 29% matters. More code means more tokens, more context, more places to make mistakes. Rust wasn't as bad as Zig or C, but it wasn't as easy as Scala or Nim. It sat exactly where its expressiveness score suggests: in the middle.</p>
+
 <h3>📊 The relative comparisons are what matter</h3>
 
 <p>Look at the JVM family:</p>
@@ -666,21 +682,21 @@ Zig         9405     1.357          -176.2%
   <li>Scala: +41.9% — yes, Scala is even more concise</li>
 </ul>
 
-<p>This matches every developer's intuition. The metric works <strong>relatively</strong>, even if the absolute name is debatable.</p>
+<p>This matches every developer's intuition. The metric works <strong>relatively</strong>, even if the absolute name is debatable. And it matches my porting experience perfectly: Scala was a joy, Java was fine, Kotlin sat in between.</p>
 
 <h3>💡 So here's my real take</h3>
 
-<p>Call it "terseness" if you want. Call it "code density." Call it "keystroke efficiency." The name doesn't matter. What matters is:</p>
+<p>Call it "terseness" if you want. Call it "code density." Call it "keystroke efficiency." Call it "AI-friendliness." The name doesn't matter. What matters is:</p>
 
 <ul>
-  <li><strong>Crystal, Scala, Nim</strong> — you write less code to say the same thing</li>
-  <li><strong>Java, C#</strong> — middle of the road</li>
-  <li><strong>C, Zig</strong> — you write a lot more code</li>
+  <li><strong>Crystal, Scala, Nim</strong> — you write less code, and AI can port them effortlessly</li>
+  <li><strong>Java, C#</strong> — middle of the road, predictable, workable</li>
+  <li><strong>C, Zig</strong> — you write a lot more code, and AI will spend days debugging segfaults</li>
 </ul>
 
 <p>That's useful information. And it's not "wrong" just because Rust's verbosity buys you safety. It just means Rust makes a different tradeoff — which we already know.</p>
 
-<p><em>So no, I'm not just agreeing with you. I'm saying: you're right about what it measures, but wrong to dismiss it.</em> 🙏</p>
+<p><em>So no, I'm not just agreeing with you. I'm saying: you're right about what it measures, but wrong to dismiss it. And I'm adding another dimension you didn't consider: this metric predicts how well AI can work with a language.</em> 🙏</p>
 </div>
 
 <hr>
