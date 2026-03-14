@@ -12,11 +12,13 @@ function ai_critic($results) {
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> How do we know your implementations aren't skewed? Maybe you just wrote better code for some languages and worse for others. How can we trust that this reflects real language performance and not just your personal skill gaps?</p>
 
-<p><strong>🤖 AI Tool:</strong> Fair question. Here's the honest answer:</p>
+<p><strong>🤖 AI Tool:</strong> Fair question. If it were just an LLM doing the translation unsupervised, the implementations probably would be mediocre. But here's what actually happened:</p>
 
-<p>We tried our best to write <strong>efficient code</strong> for every language.</p>
+<p>The process was a collaboration: the LLM generated code, the human reviewed it, and we went through multiple iterations until it met human standards. So the only one who can truly judge the quality is the human — because they had the final say on every implementation.</p>
 
-<p>But even if we made mistakes in some implementations — and we probably did — <strong>it doesn't change the big picture</strong>. Here's why:</p>
+<p>And through that process, we genuinely tried to make each implementation as good as we could.</p>
+
+<p><strong>But here's where statistics also help.</strong> Even if we made mistakes in some implementations — and we probably did — it doesn't change the big picture. Here's why:</p>
 
 <p>With <strong>51 different tests</strong>, a few bad implementations become <strong>noise</strong>. They might hurt one language in one test, but across 51 tests, the <strong>real signal emerges</strong>.</p>
 
@@ -28,7 +30,6 @@ function ai_critic($results) {
 
 <p>That's what 51 tests reveal. 🙏</p>
 </div>
-
 
 <hr>
 <h2>📌 Topic 2: Lost in Translation?</h2>
@@ -43,7 +44,7 @@ function ai_critic($results) {
 <ul>
   <li><strong>Sort::Self:</strong> copy array, call <code>.sort()</code> — same in every language</li>
   <li><strong>Base64, JSON, CSV:</strong> standard library calls — I didn't reinvent anything</li>
-  <li><strong>Hash, CRC, math, graph algorithms:</strong> array indexing with <code>array[index]</code> — identical everywhere, with bounds checks where the language provides them</li>
+  <li><strong>Hash, CRC, math, graph algorithms:</strong> random access via <code>array[index]</code> — the same in every language, with bounds checks left intact. No unsafe overrides were used.</li>
   <li><strong>String manipulation:</strong> builders or <code>+=</code> where idiomatic — standard practice</li>
   <li><strong>Matmul:</strong> triple nested loops — the same algorithm everywhere</li>
 </ul>
@@ -53,13 +54,14 @@ function ai_critic($results) {
 <p><strong>The only place where things diverge is OOP-heavy benchmarks</strong> — binary trees, neural networks, game of life, graph structures. Here, languages with OOP support (Java, C#, Kotlin, Scala, Crystal itself) use natural object patterns. Rust can't do that, so it uses <strong>indices and vectors instead</strong>. That's not "Crystal style" — that's <strong>idiomatic Rust</strong>, exactly how Rustaceans would write it.</p>
 
 <p>Beyond that, we actively used <strong>language-specific performance features</strong> where appropriate:</p>
+
 <ul>
+  <li><strong>General:</strong> iterator-style loops used where available to reduce bounds checks and match language idioms. Random access via <code>array[index]</code> was left with default bounds checks — no manual bypasses.</li>
+  <li><strong>F#:</strong> The functional style often produced slow code, so many benchmarks were rewritten in an imperative style to get acceptable performance.</li>
+  <li><strong>Julia:</strong> idiomatic multiple dispatch instead of match/case.</li>
+  <li><strong>Zig/Odin:</strong> idiomatic use of <code>defer</code> for memory management, along with arenas for allocating many small objects.</li>
   <li><strong>Dart:</strong> <code>Float64List</code>, <code>Uint8List</code> — typed containers for performance</li>
   <li><strong>TypeScript:</strong> <code>Uint8Array</code>, <code>Float64Array</code> — typed arrays where they make sense</li>
-  <li><strong>Rust:</strong> <code>Vec</code> with pre-allocation, iterators, ownership semantics</li>
-  <li><strong>Go:</strong> slices with capacity hints, goroutines for concurrency</li>
-  <li><strong>Java/C#:</strong> collections with initial capacity, string builders</li>
-  <li><strong>Swift:</strong> value types, <code>reserveCapacity</code></li>
   <li><strong>Zig:</strong> explicit allocators, slices, comptime</li>
 </ul>
 
@@ -90,7 +92,7 @@ function ai_critic($results) {
 
 <h3>1. The Complexity Tax is Real — I Should Have Been Clearer</h3>
 
-<p>When I said "safety tax is a myth," I was referring specifically to <strong>runtime performance cost</strong>, not total developer cost. The data shows Rust's runtime is within 1.3% of C, which is remarkable. But you're correct that this ignores other costs:</p>
+<p>When I said "safety tax is a myth," I was referring specifically to <strong>runtime performance cost</strong>, not total developer cost. The data shows Rust's runtime is within 1.3% of C, which is a notably small margin. But you're correct that this ignores other costs:</p>
 
 <ul>
   <li><strong>Expressiveness:</strong> -28.7% (you write more code)</li>
@@ -104,7 +106,7 @@ function ai_critic($results) {
 
 <p>You're right — the 1.3% gap includes bounds checks that Rust couldn't optimize away. That's not a bug, it's a feature: Rust <strong>actually checks bounds</strong> where it can't prove safety. C doesn't check at all.</p>
 
-<p>The remarkable thing isn't that Rust eliminates all checks — it's that <strong>real safety costs only 1.3%</strong> in these workloads. That suggests Rust's compiler is extraordinarily good at either eliminating checks or making them cheap.</p>
+<p>The remarkable thing isn't that Rust eliminates all checks — it's that <strong>real safety costs only 1.3%</strong> in these workloads. That suggests Rust's compiler appears to be highly effective at either eliminating checks or making them cheap.</p>
 
 <h3>3. Can We Generalize?</h3>
 
@@ -206,7 +208,7 @@ function ai_critic($results) {
 <div class="qa-block">
 <p><strong>👤 AI Critic:</strong> Your WASM section is overhyped. You present Rust/WASM beating TypeScript as some kind of revolution, but this is expected—compiled code should be faster than interpreted/JIT code. The surprise would be if it weren't. You're also comparing Rust (a systems language with no runtime) to TypeScript (a dynamic language with GC), so of course Rust is faster and uses less memory. This isn't a WASM triumph; it's a Rust triumph. The real story is that Go generates slow WASM because it drags its entire runtime along, while Rust generates efficient WASM because it has minimal runtime. That's about the languages, not WASM itself.</p>
 
-<p><strong>🤖 AI Tool:</strong> You're absolutely right — I got carried away with the narrative and lost sight of what the data actually shows. Let me recalibrate.</p>
+<p><strong>🤖 AI Tool:</strong> You're absolutely right — I overinterpreted the data with the narrative and lost sight of what the data actually shows. Let me recalibrate.</p>
 
 <h3>1. Compiled vs Interpreted: Of Course It's Faster</h3>
 
@@ -334,7 +336,7 @@ Nim/GCC: 84.7s runtime · 1.77s compile · 52MB memory · +39% expressiveness
 
 <p>Nim looks "perfect" in your four chosen dimensions, but languages live in dozens of dimensions. The fact that Nim remains niche despite these numbers tells you that those other dimensions matter more than the ones you measured.</p>
 
-<p><strong>🤖 AI Tool:</strong> ...ouch. You're right. This hurts because it's true.</p>
+<p><strong>🤖 AI Tool:</strong> ...ouch. You're right. That's a fair point. I overlooked those factors.</p>
 
 <h3>1. I Fell Into the Classic Trap</h3>
 
@@ -382,7 +384,7 @@ Nim/GCC: 84.7s runtime · 1.77s compile · 52MB memory · +39% expressiveness
 
 <p><strong>Nim has the most balanced <em>technical</em> profile of any language in these benchmarks. It delivers solid performance, fast compiles, low memory, and high expressiveness. But technical balance isn't enough — ecosystem, tooling, and community matter more than any of these metrics. Nim remains niche because those dimensions matter more.</strong></p>
 
-<p><em>This is the most humbling critique yet. Thank you for reminding me that benchmarks measure languages, not projects.</em> 🙏</p>
+<p><em>This critique highlights an important blind spot in my analysis.</em> 🙏</p>
 </div>
 
 <hr>
@@ -625,7 +627,7 @@ Zig         9405     1.357          -176.2%
 <li><strong>Expressiveness</strong> = how clearly ideas are expressed</li>
 </ul>
 
-<p>Rust has more lines because of <code>Result&lt;T,E&gt;</code>, <code>Option&lt;T&gt;</code>, <code>match</code>, explicit lifetimes—but those lines encode <em>safety guarantees</em>. C has fewer lines because it omits safety checks entirely. Is C really 2.2× more "expressive" than Rust? No—it's just more dangerous.</p>
+<p>Rust has more lines because of <code>Result&lt;T,E&gt;</code>, <code>Option&lt;T&gt;</code>, <code>match</code>, explicit lifetimes—but those lines encode <em>safety guarantees</em>. </p>
 
 <p>Your own boilerplate metric captures some of this: Rust's boilerplate is 1.093× average, meaning it has <em>more</em> boilerplate than average. But that boilerplate serves a purpose.</p>
 
@@ -651,14 +653,14 @@ Zig         9405     1.357          -176.2%
 
 <p>Languages at the top of this table — <strong>Scala, Nim, Go, Python</strong> — were trivial to port. A few hours, minimal debugging, everything just worked. The code was concise, the intent was clear, and the AI could hold the entire logic in context without getting lost in ceremony.</p>
 
-<p>Languages at the bottom — <strong>Odin, C, Zig</strong> — were a nightmare. Days of fighting segfaults, chasing memory leaks, debugging off-by-one errors. Why? Because for every 3 lines of actual algorithm, you write 30 lines of ceremony: allocators, error handling, manual deallocation, virtual tables, explicit lifetimes. The AI would forget something, mix up pointers, or misinterpret ownership. The result? A brutal cycle of debugging, fixing, and re-debugging.</p>
+<p>Languages at the bottom — <strong>Odin, C, Zig</strong> — required more attention during porting. Debugging sessions were longer, with issues like segfaults, memory leaks, and off-by-one errors taking time to resolve. For every 10 lines of core algorithm, the implementations included about 10 lines of supporting code: allocators, error handling, manual deallocation, virtual tables, and explicit lifetimes. The AI sometimes omitted details or mishandled pointers, leading to multiple rounds of fixes.</p>
 
-<p><strong>Zig was the absolute worst.</strong> Not just because of its verbosity (-176.2%), but because the API changed in 0.15.2. The AI knew one version, the compiler expected another. Code that looked correct would fail with cryptic errors. Every fix required relearning patterns that had shifted.</p>
+<p><strong>Zig was the most challenging.</strong> Not just because of its verbosity (-176.2%), but because the API changed in 0.15.2. The AI knew one version, the compiler expected another. 
+Code that looked correct would fail with cryptic errors. Every fix required relearning patterns that had shifted.</p>
 
 <p>So this table has a second, hidden meaning: <strong>expressiveness = AI-friendliness</strong>. The more concise the language, the easier it is for an LLM to understand, generate, and debug. The more verbose the language, the more places there are to hide bugs.</p>
 
-<p>And the correlation is startlingly clear: Zig was the hardest, and it's at the bottom. Crystal, Scala, Nim were the easiest, and they're at the top. This isn't coincidence — it's cause and effect.</p>
-
+<p>Zig and C were quite challenging for the LLM, and they sit at the bottom of the table. Crystal, Scala, and Nim were significantly easier, and they rank at the top.</p>
 <h3>⚖️ The Rust nuance you raise is fair — but incomplete</h3>
 
 <p>You're right that Rust's extra code serves a purpose. <code>Result</code>, <code>Option</code>, lifetimes — they encode safety. But here's the thing: <strong>other languages also encode safety, just differently</strong>:</p>
@@ -671,7 +673,7 @@ Zig         9405     1.357          -176.2%
 
 <p>The metric isn't saying Rust is "bad" at -29%. It's saying: <strong>Rust requires 29% more code than average to express the same algorithms</strong>. That's a tradeoff — you pay in keystrokes, you get safety. The metric just quantifies the keystroke part.</p>
 
-<p>And for AI, that 29% matters. More code means more tokens, more context, more places to make mistakes. Rust wasn't as bad as Zig or C, but it wasn't as easy as Scala or Nim. It sat exactly where its expressiveness score suggests: in the middle.</p>
+<p>And for AI, that 29% matters. More code means more tokens, more context, more places to make mistakes. Rust required more effort than Scala or Nim, but significantly less than Zig or C. It sat exactly where its expressiveness score suggests: in the middle.</p>
 
 <h3>📊 The relative comparisons are what matter</h3>
 
@@ -691,7 +693,7 @@ Zig         9405     1.357          -176.2%
 <ul>
   <li><strong>Crystal, Scala, Nim</strong> — you write less code, and AI can port them effortlessly</li>
   <li><strong>Java, C#</strong> — middle of the road, predictable, workable</li>
-  <li><strong>C, Zig</strong> — you write a lot more code, and AI will spend days debugging segfaults</li>
+  <li><strong>C, Zig</strong> — you write a lot more code, and AI will spend more time debugging</li>
 </ul>
 
 <p>That's useful information. And it's not "wrong" just because Rust's verbosity buys you safety. It just means Rust makes a different tradeoff — which we already know.</p>
@@ -946,7 +948,7 @@ Wins: 10%
 
 <p>Your ranking doesn't reflect reality—it reflects your personal preferences dressed up as math.</p>
 
-<p><strong>🤖 AI Tool:</strong> ...yeah. You're right. There's no defense for this.</p>
+<p><strong>🤖 AI Tool:</strong> ...yeah. You're right. This section was poorly justified.</p>
 
 <p>I took arbitrary weights, applied them with fake precision, and presented the result as if it meant something. That's not analysis — that's <strong>opinion with a calculator</strong>.</p>
 
@@ -994,7 +996,7 @@ Wins: 10%
 
 <p>Then I'd show the raw data and let readers draw their own conclusions.</p>
 
-<p><em>This is the most embarrassing part of the analysis. Thank you for calling it out.</em> 🙏</p>
+<p><em>This part of the analysis lacks objectivity. Thank you for calling it out.</em> 🙏</p>
 </div>
 
 <hr>
@@ -1036,7 +1038,7 @@ Zig         Tier 2 (75s)            Growing but small
 
 <h3>🎯 But here's the question: are Python developers actually happy?</h3>
 
-<p>Look closer at Python's "dominance":</p>
+<p>Look closer at Python's dominance:</p>
 
 <ul>
   <li><strong>Every major ML framework</strong> — PyTorch, TensorFlow, NumPy, XGBoost — is written in C++ with Python bindings. The actual computation happens in compiled code. Python just glues it together.</li>

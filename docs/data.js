@@ -99,7 +99,7 @@ var Data = {
     "up_header": ["Time Cold, s","Memory Peak Cold, Mb","Time Incremental, s","Memory Peak Incremental, Mb","Binary size, Mb"],
     "lang": "left",
     "first_row": "Run",
-    "description": "    Shows project compilation/build times<br><br>\n\n    <strong>Time Cold</strong> - full compilation time with cleaned build cache (worst-case scenario)<br>\n    <strong>Time Incremental</strong> - compilation time with only 1 file changed (best-case scenario)<br>\n    <strong>Binary size</strong> - size of compiled output (JAR for Java, JS bundle for TypeScript, executable for native languages, etc.)<br><br>\n\n    All times are in seconds (lower = better)<br>\n    Binary size is in megabytes (lower = better)<br><br>\n"
+    "description": "    Shows project compilation/build times IN PRODUCTION MODE<br><br>\n\n    <strong>Time Cold</strong> - full compilation time with cleaned build cache (worst-case scenario)<br>\n    <strong>Time Incremental</strong> - compilation time with only 1 file changed (best-case scenario)<br>\n    <strong>Binary size</strong> - size of compiled output (JAR for Java, JS bundle for TypeScript, executable for native languages, etc.)<br><br>\n\n    All times are in seconds (lower = better)<br>\n    Binary size is in megabytes (lower = better)<br><br>\n"
   },
   "compile_by_lang": {
     "map": [[3.48,305.8,0.759,108.8,4.0],[8.26,483.5,1.72,314.5,3.56],[3.49,139.3,1.77,140.0,0.734],[11.74,306.2,2.02,76.47,0.527],[2.08,147.0,2.07,146.9,6.93],[4.07,612.0,4.08,568.1,5.08],[4.3,185.1,4.25,178.6,0.117],[6.39,368.0,6.43,378.6,0.172],[11.4,1185,6.43,933.9,12.38],[8.12,500.0,8.06,499.5,0.648],[13.17,864.2,8.39,864.6,0.738],[8.74,155.1,8.72,155.4,0.609],[15.66,365.6,10.95,312.9,2.86],[16.64,1352,12.01,1353,2.49],[18.29,876.2,18.63,941.4,12.31],[23.79,600.9,23.78,601.2,3.46],[80.75,421.4,36.57,401.5,4.36]],
@@ -107,7 +107,7 @@ var Data = {
     "up_header": ["Time Cold, s","Memory Peak Cold, Mb","Time Incremental, s","Memory Peak Incremental, Mb","Binary size, Mb"],
     "lang": "left",
     "first_row": "Run",
-    "description": "    Shows project compilation/build times<br><br>\n\n    <strong>Time Cold</strong> - full compilation time with cleaned build cache (worst-case scenario)<br>\n    <strong>Time Incremental</strong> - compilation time with only 1 file changed (best-case scenario)<br>\n    <strong>Binary size</strong> - size of compiled output (JAR for Java, JS bundle for TypeScript, executable for native languages, etc.)<br><br>\n\n    All times are in seconds (lower = better)<br>\n    Binary size is in megabytes (lower = better)<br><br>\n<br><strong>Only fastest configurations for each language are included.</strong>"
+    "description": "    Shows project compilation/build times IN PRODUCTION MODE<br><br>\n\n    <strong>Time Cold</strong> - full compilation time with cleaned build cache (worst-case scenario)<br>\n    <strong>Time Incremental</strong> - compilation time with only 1 file changed (best-case scenario)<br>\n    <strong>Binary size</strong> - size of compiled output (JAR for Java, JS bundle for TypeScript, executable for native languages, etc.)<br><br>\n\n    All times are in seconds (lower = better)<br>\n    Binary size is in megabytes (lower = better)<br><br>\n<br><strong>Only fastest configurations for each language are included.</strong>"
   },
   "hacking": {
     "c": {

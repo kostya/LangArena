@@ -1,10 +1,5 @@
 <!DOCTYPE html>
 <html>
-
-<head>
-
-</head>
-
 <head>
     <meta charset="UTF-8">
     <title>LLM-friendliness as a metric: porting 20 languages with an LLM</title>
@@ -45,7 +40,7 @@
             font-size: 0.85rem;
             color: #555;
             line-height: 1.5;
-            max-width: 80%;
+            max-width: 100%;
         }
 
         .table-legend p {
@@ -91,8 +86,6 @@
             border-top: 1px solid #ccc;
             padding-top: 2rem;
         }
-
-
 
         .code-block {
             margin: 20px 0;
@@ -155,13 +148,13 @@
 <body>
 
 <h1>LLM-friendliness as a metric: porting 20 languages with an LLM</h1>
-<h2>Why Crystal is a pleasure for AI, and why Zig is a challenge</h2>
+<h2>What code size reveals about working with AI</h2>
 
-<p>I recently completed a large experiment: I took a benchmark suite written in Crystal (51 tests covering sorting, parsing, algorithms, compression) and ported it to 19 other programming languages with the help of an LLM. The process took about two months. My original goal was to compare performance and memory usage across languages — and the results were intriguing, sometimes unexpected - <a href="https://kostya.github.io/LangArena/">LangArena</a>.</p>
+<p>I recently completed a large experiment: I took a benchmark suite written in Crystal (51 tests covering sorting, parsing, algorithms, compression) and ported it to 19 other programming languages with the help of an LLM. The process took about two months. My original goal was to compare performance and memory usage across languages — and the results are available at <a href="https://kostya.github.io/LangArena/">LangArena</a>.</p>
 
-<p>Along the way, I collected a lot of data — code size, compilation times, and so on. One of the tables I put together was an <strong>Expressiveness</strong> metric. After a while, I realized this metric was unexpectedly revealing.</p>
+<p>Along the way, I collected a lot of data — code size, compilation times, and so on. One of the tables I put together was an <strong>Expressiveness</strong> metric. After a while, I realized this metric was unexpectedly revealing about the experience of working with different languages.</p>
 
-<img src="expressiveness.png">
+<img src="expressiveness.png" alt="Expressiveness comparison table" style="max-width:100%; height:auto; border:1px solid #ddd; border-radius:4px;">
 
 <div class="table-legend">
     <p><strong>Table legend</strong></p>
@@ -178,13 +171,13 @@
     </ul>
 </div>
 
-<h3>What this table actually shows</h3>
+<h3>What this table shows</h3>
 
 <p>At first glance, Expressiveness looks like a simple measure of code size. The higher the percentage, the fewer lines you need to write. Crystal requires 44.8% less code than the average, while Zig requires 176.2% more.</p>
 
 <p>But if you look closer, a question emerges: are we measuring brevity or expressiveness? Brevity is about the number of characters. Expressiveness is about how clearly an idea is conveyed. They are not the same thing.</p>
 
-<h3>The gzip twist</h3>
+<h3>The gzip insight</h3>
 
 <p>The table includes a column called <strong>Boilerplate</strong> — the ratio of raw source code size to its gzipped size. Gzip compresses repeated patterns. If a language forces you to write the same structures over and over, gzip will squeeze them, but you still had to type them.</p>
 
@@ -193,9 +186,9 @@
     <li><strong>Crystal:</strong> 95KB source, 22KB gzipped → boilerplate 4.3. For every kilobyte of real information, you type 4.3KB.</li>
     <li><strong>Zig:</strong> 288KB source, 44KB gzipped → boilerplate 6.6. For every kilobyte of information, you type 6.6KB.</li>
 </ul>
-<p>That's a 50% difference. This isn't abstract — it's real extra code that you (and the LLM) have to deal with.</p>
+<p>That's a 50% difference. This isn't abstract — it's real extra code that you (and the LLM) have to process.</p>
 
-<h3>Why this metric is fair</h3>
+<h3>What this metric captures</h3>
 
 <p>A critic might say: "Rust writes more lines, but each line carries meaningful information — Result, Option, lifetimes. That's not boilerplate, it's safety."</p>
 
@@ -210,7 +203,7 @@
 </ul>
 <p>Rust's gzipped size is noticeably smaller than Zig's, and its source is smaller too. That's because Rust has fewer repetitive formalities and more unique, meaningful information.</p>
 
-<p>So the metric doesn't penalize Rust for its safety features. It penalizes languages with lots of repetitive ceremony that adds no new information.</p>
+<p>So the metric doesn't penalize Rust for its safety features. It highlights languages with lots of repetitive ceremony, regardless of whether that ceremony serves a purpose.</p>
 
 <h3>Relative comparisons work</h3>
 
@@ -241,13 +234,13 @@
 
 <p>The higher a language sits in the table, the easier it was to work with.</p>
 
-<p><strong>Scala, Nim, Go</strong> were among the easiest. The LLM would generate code, I'd run it, and it would just work. Sometimes the AI produced suboptimal solutions — I'd review, ask for tweaks, and things would quickly fall into place. Even when it took multiple iterations, the process was smooth and pleasant.</p>
+<p><strong>Scala, Nim, Go</strong> were among the easiest. The LLM would generate code, I'd run it, and it would just work. Sometimes the AI produced suboptimal solutions — I'd review, ask for tweaks, and things would quickly fall into place. Even when it took multiple iterations, the process was smooth.</p>
 
-<p>The languages at the bottom of the table were a different story.</p>
+<p>The languages at the bottom of the table required more effort.</p>
 
-<p><strong>Odin, C, Zig</strong> were genuinely difficult. Massive codebases, the LLM constantly losing context. Run the code — segfault. Track down the cause — find five more bugs. Fix them — new ones appear.</p>
+<p><strong>Odin, C, Zig</strong> were noticeably more difficult. The codebases are large, and the LLM frequently lost context. A typical cycle: run the code — get a segfault, track down the cause — find a few more issues, fix them — new ones appear.</p>
 
-<p><strong>Zig</strong> was the hardest by far. Not only is the codebase three times larger than Crystal's, but the API broke significantly in version 0.15. The LLM didn't know this — it generated code for the old version, which looked correct but wouldn't compile. Porting to Zig was a constant struggle.</p>
+<p><strong>Zig</strong> required more effort than others — partly due to its design philosophy, partly due to the API change. The LLM didn't know this — it generated code for the old version, which looked correct but wouldn't compile.</p>
 
 <hr>
 
@@ -288,7 +281,7 @@ func (s *SortSelf) Checksum() uint32 {
 }</code></pre>
     </div>
 </div>
-<p>27 lines. All the logic is right there. The LLM can easily hold this in context. It understands what's happening and can generate similar code without getting lost in details.</p>
+<p>27 lines. All the logic is right there. The LLM can easily hold this in context.</p>
 
 <div class="code-block">
     <div class="code-header collapsed" onclick="toggleCode(this)">
@@ -401,83 +394,61 @@ pub const SortSelf = struct {
     </div>
 </div>
 
-<p>91 lines. Three times more.</p>
-
-<p>Beyond the sorting logic itself, this code includes:</p>
-<ul>
-    <li>Manual memory management — allocators, deinitialization, defer</li>
-    <li>Virtual tables — a vtable for the Benchmark interface</li>
-    <li>Type casting — @ptrCast, @alignCast</li>
-    <li>Error handling — catch, try, errdefer</li>
-    <li>Arenas for temporary data</li>
-    <li>The full Benchmark interface with callbacks</li>
-</ul>
-<p>All of this infrastructure is just to <strong>sort an array</strong>. The actual logic is maybe 10% of the code. The rest is ceremony the language requires.</p>
+<p>91 lines. Three times more. The Zig implementation includes manual memory management, virtual tables, type casting, error handling, arenas, and a full interface with callbacks are all part of the implementation. The sorting logic itself is a relatively small part of the code.</p>
 
 <h3>What this means for an LLM</h3>
 
 <p>When a neural network works with code like this:</p>
 <ul>
     <li><strong>Context gets filled with ceremony.</strong> Instead of focusing on sorting logic, the LLM has to juggle allocators, vtables, and error paths. The space for real logic shrinks.</li>
-    <li><strong>Errors become invisible.</strong> Code can be syntactically correct but still crash at runtime due to a missing <code>defer</code> or a misused allocator. The LLM doesn't see these problems — it generates code that <em>looks</em> right but fails in practice.</li>
-    <li><strong>Each iteration is a gamble.</strong> Generate, test, crash, explain, repeat. This cycle can take hours.</li>
+    <li><strong>Errors become invisible.</strong> Code can be syntactically correct but still crash at runtime due to a missing <code>defer</code> or a misused allocator.</li>
+    <li><strong>Each iteration takes longer.</strong> Generate, test, crash, explain, repeat. This cycle can take hours.</li>
 </ul>
-<p>The Expressiveness table reflects this directly. Higher-ranked languages mean fewer formalities, easier AI interaction, and faster development.</p>
 
 <h3>A rarely discussed problem</h3>
 
-<p>A large codebase isn't just hard for AI — it's hard for humans too.</p>
-
-<p><strong>First</strong>, a new developer (or reviewer, or curious reader) opens the code and simply cannot read it. They drown in allocators, vtables, error handling. To understand that the program <em>just sorts an array</em>, they have to fight through 90 lines of ceremony.</p>
-
-<p><strong>Second</strong>, and perhaps worse: you open your own code six months later and don't understand what it does. The logic, once clear, is buried under layers of infrastructure. You stare at allocators and defers and think: "Why did I write this? What is happening here?"</p>
+<p>A large codebase isn't just hard for AI — it's presents challenges for humans as well. A new developer opens the code and drowns in details. You yourself open it six months later and struggle to remember what it does.</p>
 
 <p>In Go, this doesn't happen. 27 lines — everything in plain sight. Clear now, clear in a year, clear to anyone.</p>
-<p>In Zig, the code works, but <strong>understanding is a constant cost</strong>. That's a real price to pay for control.</p>
 
 <h3>This isn't just about Zig</h3>
 
-<p>Verbosity isn't unique to Zig. C, D, Odin — all the languages at the bottom of the table share the same pattern. Lots of code, lots of ceremony, logic buried in details.</p>
+<p>Verbosity isn't unique to Zig. C, Odin — all the languages at the bottom of the table share the same pattern. Lots of code, lots of ceremony, logic buried in details.</p>
 
-<p>Yes, with perfect discipline — thorough comments, rigorous reviews, constant refactoring — you can keep such code readable. You can help newcomers. You can remind yourself what you meant six months ago.</p>
-
-<p>But the question is: <strong>is it worth it?</strong></p>
-
-<p>In languages at the top of the table, readability comes <strong>for free</strong>. Less code, logic in plain sight, comments often unnecessary. In languages at the bottom, you have to <strong>pay</strong> for readability — with effort, discipline, review time, documentation.</p>
-
-<p>In 2026, when much of our code is written or assisted by LLMs, this question becomes even sharper. An LLM doesn't "maintain code culture." It just generates formalities. Cleaning up after it is on you.</p>
-
-<p>So when choosing a language, it's fair to ask: am I ready to pay this price? Or would I rather work in a language where simplicity and readability are built-in?</p>
+<p>Yes, with perfect discipline you can keep such code readable. But the question is: <strong>is it worth it?</strong> In languages at the top, readability comes <strong>for free</strong>. In languages at the bottom, you have to <strong>pay</strong> for it.</p>
 
 <div class="note">
-    <strong>A note on context</strong><br>
-    This comparison is about <strong>ease of porting with an LLM</strong> for typical algorithmic and application-level tasks — the kind covered by these 51 benchmarks.<br><br>
-    It does not mean Zig is a "bad language." It has strengths that my benchmarks don't measure at all.<br><br>
-    <strong>Zig is designed for a different domain:</strong> operating systems, drivers, embedded systems, bare‑metal programming. Places where there is no OS, no heap, no default allocator, where every byte counts. In those environments, Go and Crystal simply cannot operate — their runtimes and GC make them unusable. Zig provides what they cannot: <strong>absolute control with no hidden costs</strong>.<br><br>
-    If you were writing a kernel in the 90s — the era when Linux was born — Zig would have been an incredible tool. Its philosophy of "no hidden allocations" and manual control was exactly what system programmers needed back then.<br><br>
-    But we're in a different era now. We're entering the age of <strong>LLM-generated code</strong>. And in this new world, Zig — unfairly, perhaps — finds itself at the bottom of the table. Not because it's bad at what it does, but because what it does is no longer what most developers need most of the time.<br><br>
-    If you're writing a kernel or a microcontroller firmware, Zig may still be the perfect tool. Its verbosity and manual memory management aren't bugs — they're features.<br><br>
-    But if you're writing a web service, a parser, a command-line utility — the kind of code most developers write most of the time — Zig is <strong>not the right fit</strong>. Especially when you have an LLM helping you write code.<br><br>
-    The point isn't that Zig is bad. The point is that <strong>for mainstream application development in the LLM era, it loses</strong>. And the Expressiveness metric shows why.
+    <strong>A necessary clarification</strong><br>
+    Looking at the table, it's easy to see Zig at the bottom and think: "Zig is the worst." But the reality is more nuanced.<br><br>
+
+    <strong>Zig's verbosity comes with a critical benefit: when something goes wrong, it tells you exactly where.</strong> A segfault in C leaves you completely alone — was it a null pointer? An out-of-bounds access? A use-after-free? Good luck finding it. Crashes are silent, debugging is a nightmare.<br><br>
+
+    Zig, by contrast, provides clear stack traces, shows the exact file and line, and often explains the cause. Its compile-time checks catch many issues before they become runtime crashes. For porting with an LLM, this is a huge advantage. The AI will make mistakes — but when it does, Zig helps you find them quickly.<br><br>
+
+    In a strange way, if anyone deserves the last place in a "porting experience" ranking, it's C. It has nearly the same code volume as Zig (9107 vs 9405 lines) but offers none of the guardrails. No bounds checks, no defer, no compile-time safety. Just you, a segfault, and a long night ahead.<br><br>
+
+    <strong>But there's a deeper context.</strong> Zig isn't designed to compete with Go or Python in the "write code quickly and forget" domain. It's designed for systems programming — the kind of software where garbage collection is impossible, where memory is measured in kilobytes, where every CPU cycle matters. The very features that make Zig verbose (explicit allocators, manual memory management, no hidden control flow) are what make it possible to write operating system kernels, embedded software, or high-performance libraries. Go's 27 lines simply cannot solve these problems — they don't run where Zig runs.<br><br>
+
+    So while Zig required the most effort in this experiment, that effort partly reflects its investment in control and safety — something raw code size doesn't show. If you're building a web service, choose Go and be happy. But if you need to write code for a microcontroller or a OS kernel, Zig isn't "verbose" — it's precisely detailed enough for the job.
 </div>
 
 <h3>Conclusion</h3>
 
-<p>The Expressiveness table turned out to be more than just a curiosity. It closely matches my experience porting these benchmarks with an LLM. The higher a language ranks, the easier it was to work with, the faster development went, the fewer problems appeared.</p>
+<p>The Expressiveness table turned out to be more than just a curiosity. It closely matches my experience porting these benchmarks with an LLM. The higher a language ranks, the easier it was to work with.</p>
 
-<p>So this metric has practical value: if you plan to use LLMs in your workflow (and these days, who doesn't?), <strong>choose languages from the top half of the table</strong>.</p>
+<p>This metric has practical value: if you plan to use LLMs in your workflow, <strong>languages from the top half of the table will require less effort</strong>.</p>
 
 <ul>
-    <li><strong>Crystal, Scala, Nim, Go, Python</strong> — here, the LLM will be your assistant, not your adversary.</li>
-    <li><strong>C, Odin, Zig</strong> — save these for enthusiasts, specialists, or cases where you have no other choice.</li>
+    <li><strong>Crystal, Scala, Nim, Go, Python</strong> — the LLM works as an effective assistant.</li>
+    <li><strong>C, Odin, Zig</strong> — expect to spend more time debugging and refining.</li>
 </ul>
 
-<p>In 2026, with AI writing a growing share of our code, <strong>LLM-friendliness is as important as performance or ecosystem</strong>. And now we have a metric that helps measure it.</p>
+<p>In 2026, with AI writing a growing share of our code, <strong>LLM-friendliness is a useful consideration</strong> when choosing a language. The Expressiveness metric offers one way to measure it.</p>
 
 <div class="footer">
-    <small>Translated to English with the help of an LLM</small>
+    <small>13.03.2026. Translated to English with the help of an LLM</small>
 </div>
 
-    <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "120edbba80084bc797ced71d68b64c5d"}'></script><!-- End Cloudflare Web Analytics -->    
+<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "120edbba80084bc797ced71d68b64c5d"}'></script><!-- End Cloudflare Web Analytics -->    
 </body>
 </html>

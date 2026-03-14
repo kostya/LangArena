@@ -330,7 +330,7 @@ This table compares how concisely different programming languages express the sa
     end
 
     desc = <<-DESC
-    Shows project compilation/build times<br><br>
+    Shows project compilation/build times IN PRODUCTION MODE<br><br>
 
     <strong>Time Cold</strong> - full compilation time with cleaned build cache (worst-case scenario)<br>
     <strong>Time Incremental</strong> - compilation time with only 1 file changed (best-case scenario)<br>
