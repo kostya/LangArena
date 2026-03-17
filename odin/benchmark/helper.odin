@@ -172,7 +172,3 @@ helper_cleanup :: proc() {
 		delete(_state.order)
 	}
 }
-
-clear_map :: proc(m: ^map[string]json.Object) {
-	clear(m)
-}

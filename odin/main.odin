@@ -91,7 +91,5 @@ main :: proc() {
 	benchmark.run_all_benchmarks(single_bench)
 
 	data := "RECOMPILE_MARKER_0"
-
 	_ = os.write_entire_file("/tmp/recompile_marker", transmute([]u8)data)
-
 }
