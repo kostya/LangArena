@@ -63,18 +63,18 @@ checksum_f64 :: proc(v: f64) -> u32 {
 }
 
 load_config :: proc(config_file: string = "../test.json") -> bool {
-	data, ok := os.read_entire_file(config_file)
-	defer delete(data)
 
-	if !ok {
-		fmt.eprintf("Error loading config: %s\n", config_file)
+	data, err := os.read_entire_file(config_file, context.allocator)
+	if err != nil {
+		fmt.eprintf("Error loading config: %s - %v\n", config_file, err)
 		return false
 	}
+	defer delete(data, context.allocator)
 
 	result: json.Value
-	err := json.unmarshal(data, &result)
-	if err != nil {
-		fmt.eprintf("JSON parse error: %v\n", err)
+	unmarshal_err := json.unmarshal(data, &result)
+	if unmarshal_err != nil {
+		fmt.eprintf("JSON parse error: %v\n", unmarshal_err)
 		return false
 	}
 
@@ -171,4 +171,8 @@ helper_cleanup :: proc() {
 	if _state.order != nil {
 		delete(_state.order)
 	}
+}
+
+clear_map :: proc(m: ^map[string]json.Object) {
+	clear(m)
 }
