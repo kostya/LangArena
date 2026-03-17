@@ -131,7 +131,7 @@ pub fn (mut b JsonParseDom) run(iteration_id int) {
 
 	obj := any_json_value.as_map()
 	coordinates_any := obj['coordinates'] or { return }
-	coordinates := coordinates_any.arr()
+	coordinates := coordinates_any.as_array()
 
 	mut x_sum := f64(0)
 	mut y_sum := f64(0)
