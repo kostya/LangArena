@@ -6,5 +6,7 @@ github.com/coregx/coregex v0.12.7 h1:JbQsDazcWXAGIsgK8sfd64bbSMnev94kVpZlwoFN0oQ
 github.com/coregx/coregex v0.12.7/go.mod h1:K+BrFVuOaFseP4gc4/d/GveYFe4JB95FHW3kNNJaTXg=
 github.com/coregx/coregex v0.12.8 h1:RHpgDjGPqF/iOL78iEQo0vEzzCWaLz3uEySXOvxgAQg=
 github.com/coregx/coregex v0.12.8/go.mod h1:K+BrFVuOaFseP4gc4/d/GveYFe4JB95FHW3kNNJaTXg=
+github.com/coregx/coregex v0.12.9 h1:AJ6sS6ZVQfhKe4CrTHZ7mH1HHAPWHtGOC1vvK34muTg=
+github.com/coregx/coregex v0.12.9/go.mod h1:K+BrFVuOaFseP4gc4/d/GveYFe4JB95FHW3kNNJaTXg=
 golang.org/x/sys v0.40.0 h1:DBZZqJ2Rkml6QMQsZywtnjnnGvHza6BTfYFWY9kjEWQ=
 golang.org/x/sys v0.40.0/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=
