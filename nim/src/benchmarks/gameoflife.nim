@@ -15,7 +15,6 @@ type
     cells: seq[seq[Cell]]
 
   GameOfLife* = ref object of Benchmark
-    resultVal: uint32
     width, height: int32
     grid: Grid
 
@@ -99,7 +98,6 @@ method prepare(self: GameOfLife) =
   self.width = int32(self.config_val("w"))
   self.height = int32(self.config_val("h"))
   self.grid = newGrid(self.width.int, self.height.int)
-  self.resultVal = 0
 
   for row in self.grid.cells:
     for cell in row:
