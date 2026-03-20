@@ -6,8 +6,8 @@ mkdir -p deps
 
 if [ ! -d "deps/simdjson" ]; then
     mkdir -p deps/simdjson
-    wget https://github.com/simdjson/simdjson/releases/download/v4.2.4/simdjson.h -O deps/simdjson/simdjson.h
-    wget https://github.com/simdjson/simdjson/releases/download/v4.2.4/simdjson.cpp -O deps/simdjson/simdjson.cpp
+    wget https://github.com/simdjson/simdjson/releases/download/v4.4.1/simdjson.h -O deps/simdjson/simdjson.h
+    wget https://github.com/simdjson/simdjson/releases/download/v4.4.1/simdjson.cpp -O deps/simdjson/simdjson.cpp
 fi
 
 if [ ! -d "deps/base64" ]; then

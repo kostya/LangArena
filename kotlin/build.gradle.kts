@@ -7,7 +7,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.alibaba.fastjson2:fastjson2-kotlin:2.0.60")
+    implementation("com.alibaba.fastjson2:fastjson2-kotlin:2.0.61")
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
