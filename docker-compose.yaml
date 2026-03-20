@@ -480,7 +480,7 @@ services:
       dockerfile: docker/dmd
       args:
         # https://github.com/dlang/dmd/releases
-        version: "2.112.1"
+        version: "2.112.1-rc.1"
     volumes:
       - .:/src
 
