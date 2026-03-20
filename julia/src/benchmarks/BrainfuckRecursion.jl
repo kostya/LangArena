@@ -1,12 +1,12 @@
 mutable struct BrainfuckRecursion <: AbstractBenchmark
     text::String
     warmup_text::String
-    result::UInt32
+    result::Int64
 
     function BrainfuckRecursion()
         text = Helper.config_s("Brainfuck::Recursion", "program")
         warmup_text = Helper.config_s("Brainfuck::Recursion", "warmup_program")
-        new(text, warmup_text, UInt32(0))
+        new(text, warmup_text, Int64(0))
     end
 end
 
@@ -89,52 +89,55 @@ function parse_program(code::String)::Vector{AbstractOp}
     return current_ops
 end
 
-mutable struct RVisitor
-    tape::RTape
+mutable struct RProgram
     result::Int64
 
-    function RVisitor()
-        new(RTape(), 0)
+    function RProgram()
+        new(0)
     end
 end
 
-execute(op::OpInc, v::RVisitor) = inc!(v.tape)
-execute(op::OpDec, v::RVisitor) = dec!(v.tape)
-execute(op::OpNext, v::RVisitor) = next!(v.tape)
-execute(op::OpPrev, v::RVisitor) = prev!(v.tape)
-execute(op::OpPrint, v::RVisitor) = v.result = (v.result << 2) + Int64(get(v.tape))
-
-function execute(op::OpLoop, v::RVisitor)
-    while get(v.tape) != 0x00
-        for inner_op in op.ops
-            execute(inner_op, v)
+function run_ops(p::RProgram, ops::Vector{AbstractOp}, tape::Tape)
+    for op in ops
+        if op isa OpInc
+            inc!(tape)
+        elseif op isa OpDec
+            dec!(tape)
+        elseif op isa OpNext
+            advance!(tape)
+        elseif op isa OpPrev
+            devance!(tape)
+        elseif op isa OpPrint
+            p.result = (p.result << 2) + Int64(get(tape))
+        elseif op isa OpLoop
+            while get(tape) != 0
+                run_ops(p, op.ops, tape)
+            end
         end
     end
 end
 
-function run_ops(ops::Vector{AbstractOp}, visitor::RVisitor)::Int64
-    for op in ops
-        execute(op, visitor)
-    end
-    return visitor.result
+function prepare(b::BrainfuckRecursion)
+    b.result = 0
 end
 
-function _run2(text::String)::Int64
+function _run2(b::BrainfuckRecursion, text::String)::Int64
     ops = parse_program(text)
-    visitor = RVisitor()
-    return run_ops(ops, visitor)
+    tape = Tape()
+    p = RProgram()
+    run_ops(p, ops, tape)
+    return p.result
 end
 
 function warmup(b::BrainfuckRecursion)
     warmup_iters = warmup_iterations(b)
     for i = 1:warmup_iters
-        _run2(b.warmup_text)
+        _run2(b, b.warmup_text)
     end
 end
 
 function run(b::BrainfuckRecursion, iteration_id::Int64)
-    run_result = _run2(b.text)
-    b.result += Helper.to_u32(run_result)
+    b.result += _run2(b, b.text)
 end
 
-checksum(b::BrainfuckRecursion)::UInt32 = b.result
+checksum(b::BrainfuckRecursion)::UInt32 = Helper.to_u32(b.result)
