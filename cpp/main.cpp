@@ -4469,7 +4469,8 @@ public:
     transpositions /= 2;
 
     double m = static_cast<double>(matches);
-    volatile double jaro = (m / len1 + m / len2 + (m - transpositions) / m) / 3.0;
+    volatile double jaro =
+        (m / len1 + m / len2 + (m - transpositions) / m) / 3.0;
     return jaro;
   }
 

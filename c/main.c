@@ -4908,8 +4908,8 @@ static char *calculator_ast_generate_random_program(int64_t operations) {
                       "((((((((((v%d)))))))))) * 2", v - 6);
       break;
     case 8:
-      len += snprintf(result + len, capacity - len, "%lld * (v%d%%6)%%7", i,
-                      v - 1);
+      len += snprintf(result + len, capacity - len, "%ld * (v%d%%6)%%7",
+                      (long)i, v - 1);
       break;
     case 9:
       len += snprintf(result + len, capacity - len, "(1)/(0-v%d) + (v%d)",
