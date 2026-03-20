@@ -42,22 +42,6 @@ proc run_all*(self: Benchmark) =
   for i in 0..<iters:
     self.run(i)
 
-proc customRound*(value: float, precision: int32): float =
-  if classify(value) in {fcNan, fcInf, fcNegInf}:
-    return value
-
-  let factor = pow(10.0, float(precision))
-  let scaled = value * factor
-
-  let fraction = scaled - floor(scaled)
-
-  if abs(fraction) < 0.5:
-    result = floor(scaled) / factor
-  elif abs(fraction) > 0.5:
-    result = ceil(scaled) / factor
-  else:
-    result = (round(scaled / 2.0) * 2.0) / factor
-
 proc toLower*(str: string): string =
   result = newString(str.len)
   for i, c in str:
