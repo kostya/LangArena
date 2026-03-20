@@ -261,7 +261,7 @@ services:
       dockerfile: docker/golang
       args:
         # https://go.dev/dl/
-        version: "1.26.0"
+        version: "1.26.1"
     volumes:
       - .:/src
 
@@ -285,7 +285,7 @@ services:
       dockerfile: docker/swift
       args:
         # https://github.com/swiftlang/swift/releases
-        version: "6.2.3"
+        version: "6.2.4"
     volumes:
       - .:/src
 
@@ -340,7 +340,7 @@ services:
       dockerfile: docker/kotlin
       args:
         # https://kotlinlang.org/docs/releases.html
-        version: "2.3.10"
+        version: "2.3.20"
         # https://gradle.org/releases/
         gradleversion: 9.2.1
     volumes:
@@ -387,7 +387,7 @@ services:
       dockerfile: docker/kotlin-graalvm
       args:
         # https://kotlinlang.org/docs/releases.html
-        version: "2.3.10"
+        version: "2.3.20"
         # https://gradle.org/releases/
         gradleversion: 9.2.1
     volumes:
@@ -455,7 +455,7 @@ services:
       dockerfile: docker/typescript-bun
       args:
         # https://bun.com/
-        version: "1.3.9"
+        version: "1.3.11"
     volumes:
       - .:/src
 
@@ -499,7 +499,7 @@ services:
       dockerfile: docker/ldc
       args:
         # https://github.com/ldc-developers/ldc/releases
-        version: "1.41.0"
+        version: "1.42.0"
     volumes:
       - .:/src
 
@@ -658,7 +658,7 @@ services:
       dockerfile: docker/dart
       args:
         # https://dart.dev/get-dart/archive#stable-channel
-        version: "3.11.0"
+        version: "3.11.3"
     volumes:
       - .:/src
 
@@ -714,7 +714,7 @@ services:
       dockerfile: docker/scala
       args:
         # https://www.scala-lang.org/download/
-        version: "3.8.1"
+        version: "3.8.2"
         # https://github.com/sbt/sbt/releases
         sbtversion: "1.12.2"
     volumes:
@@ -738,7 +738,7 @@ services:
       dockerfile: docker/scala-graalvm
       args:
         # https://www.scala-lang.org/download/
-        version: "3.8.1"
+        version: "3.8.2"
         # https://github.com/sbt/sbt/releases
         sbtversion: "1.12.2"
     volumes:
