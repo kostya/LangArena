@@ -320,7 +320,7 @@ services:
       args:
         # https://www.java.com/releases/
         version: "25"
-        mavenversion: 3.9.12
+        mavenversion: 3.9.14
     volumes:
       - .:/src
 
@@ -367,7 +367,7 @@ services:
       args:
         # https://www.graalvm.org/release-notes/
         version: "25.0.2"
-        mavenversion: 3.9.12
+        mavenversion: 3.9.14
     volumes:
       - .:/src
 
@@ -434,6 +434,9 @@ services:
     working_dir: /src/typescript
     build:
       dockerfile: docker/typescript-deno
+      args:
+        # https://github.com/denoland/deno/releases
+        version: "2.7.7"      
     volumes:
       - .:/src
 

@@ -9,7 +9,6 @@ ENV JAVA_HOME="/usr/lib/jvm/java-$version-openjdk-amd64"
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 ARG mavenversion
-
 RUN wget https://dlcdn.apache.org/maven/maven-3/$mavenversion/binaries/apache-maven-$mavenversion-bin.tar.gz && \
     tar -xzf apache-maven-$mavenversion-bin.tar.gz -C /opt && \
     ln -s /opt/apache-maven-$mavenversion /opt/maven
