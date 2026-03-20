@@ -7878,7 +7878,7 @@ double Jaro_calc(const char *s1, const char *s2) {
     }
   }
 
-  double result = 0.0;
+  volatile double result = 0.0;
 
   if (matches > 0) {
     int transpositions = 0;
