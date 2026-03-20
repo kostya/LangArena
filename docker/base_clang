@@ -1,10 +1,11 @@
 FROM benchmarks:base
 
 ARG version
-RUN apt install -y --no-install-recommends \
-    clang-$version \
-    lld-$version \
-    && apt clean
+RUN wget https://apt.llvm.org/llvm.sh \
+  && chmod +x llvm.sh \
+  && ./llvm.sh $version \
+  && rm ./llvm.sh \
+  && apt clean
 
 RUN update-alternatives --install /usr/bin/cc cc /usr/bin/clang-$version 100 \
     && update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-$version 100 \

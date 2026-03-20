@@ -49,7 +49,7 @@ services:
       dockerfile: docker/rust
       args:
         # https://github.com/rust-lang/rust/releases/
-        version: 1.93.1
+        version: 1.94.0
     volumes:
       - .:/src
 
@@ -113,7 +113,7 @@ services:
       dockerfile: docker/base_clang
       args:
         # https://github.com/llvm/llvm-project/releases
-        version: 21
+        version: 22
     depends_on:
       - base
 
@@ -543,7 +543,7 @@ services:
       dockerfile: docker/v_gcc
       args:
         # https://github.com/vlang/v/releases
-        version: "weekly.2026.08"
+        version: "0.5.1"
     volumes:
       - .:/src
 
@@ -562,7 +562,7 @@ services:
       dockerfile: docker/v_clang
       args:
         # https://github.com/vlang/v/releases
-        version: "weekly.2026.08"
+        version: "0.5.1"
     volumes:
       - .:/src
 
@@ -607,7 +607,7 @@ services:
       dockerfile: docker/nim_gcc
       args:
         # https://nim-lang.org
-        version: "2.2.6"
+        version: "2.2.8"
     volumes:
       - .:/src
 
@@ -632,7 +632,7 @@ services:
       dockerfile: docker/nim_clang
       args:
         # https://nim-lang.org
-        version: "2.2.6"
+        version: "2.2.8"
     volumes:
       - .:/src
 
@@ -695,7 +695,7 @@ services:
       dockerfile: docker/odin
       args:
         # https://github.com/odin-lang/Odin/releases
-        version: "2026-02"
+        version: "2026-03"
     volumes:
       - .:/src
       
