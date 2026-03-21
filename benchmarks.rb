@@ -1643,7 +1643,7 @@ RUNS = [
     dir: "/src/dart",
     container: "dart",   
     group: :prod, 
-    deps_cmd: "true",
+    deps_cmd: "dart pub get",
   ),
 
   # ======================================= TypeScript ======================================================
@@ -1764,23 +1764,24 @@ RUNS = [
     deps_cmd: "deno cache --quiet src/index.ts",
   ),
 
-  Run.new(
-    name: "TypeScript/Deno/Compiled",
-    build_cmd: <<~CMD.chomp,
-      deno compile \
-        --allow-all \
-        --no-check \
-        --output=target/dist-deno/index \
-        src/index.ts
-    CMD
-    binary_name: "/src/typescript/target/dist-deno/index",
-    run_cmd: "/src/typescript/target/dist-deno/index",
-    version_cmd: "deno --version",
-    dir: "/src/typescript",
-    container: "typescript-deno",
-    group: :hack,
-    deps_cmd: "deno cache --quiet src/index.ts",
-  ),
+  # Not compiled
+  # Run.new(
+  #   name: "TypeScript/Deno/Compiled",
+  #   build_cmd: <<~CMD.chomp,
+  #     deno compile \
+  #       --allow-all \
+  #       --no-check \
+  #       --output=target/dist-deno/index \
+  #       src/index.ts
+  #   CMD
+  #   binary_name: "/src/typescript/target/dist-deno/index",
+  #   run_cmd: "/src/typescript/target/dist-deno/index",
+  #   version_cmd: "deno --version",
+  #   dir: "/src/typescript",
+  #   container: "typescript-deno",
+  #   group: :hack,
+  #   deps_cmd: "deno cache --quiet src/index.ts",
+  # ),
 
   # No effect
   # Run.new(
