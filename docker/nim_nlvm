@@ -1,0 +1,9 @@
+FROM benchmarks:base_clang
+
+RUN wget --progress=dot:giga -O - \
+    https://github.com/arnetheduck/nlvm/releases/download/continuous/nlvm-linux-da658c6.tar.xz \
+    | tar -xJ
+
+RUN ln -sf /usr/lib/x86_64-linux-gnu/libxml2.so.16 /usr/lib/x86_64-linux-gnu/libxml2.so.2
+
+ENV PATH="/opt/nlvm-linux-da658c6:$PATH"

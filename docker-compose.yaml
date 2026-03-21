@@ -653,6 +653,29 @@ services:
     depends_on:
       - base_clang
 
+  nim_nlvm:
+    <<: *shared
+    image: benchmarks:nim_nlvm
+    working_dir: /src/nim
+    build:
+      dockerfile: docker/nim_nlvm
+    volumes:
+      - .:/src
+
+      - ./cache/deps/nim_nlvm/nimble:/root/.nimble
+      - ./cache/deps/nim_nlvm/nimble-pkgs:/root/.nimble/pkgs
+
+      - ./cache/build/nim_nlvm/target:/src/nim/target
+      - ./cache/build/nim_nlvm/nimcache:/src/nim/nimcache
+      - ./cache/build/nim_nlvm/cache:/root/.cache/nim
+
+      - ./cache/build/nim_nlvm/clang_cache:/root/.cache/clang
+    environment:
+      - NIMBLE_DIR=/root/.nimble
+      - CC=clang
+    depends_on:
+      - base_clang
+
   dart:
     <<: *shared
     image: benchmarks:dart
