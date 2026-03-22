@@ -1,4 +1,4 @@
 #!/bin/sh
 rm -f ./target/benchmark.jar
 sbt 'assembly'
-../xtime.rb java -server -jar ./target/benchmark.jar ../run.js $@
+../xtime.rb java -jar ./target/benchmark.jar ../run.js $@
