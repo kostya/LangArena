@@ -1,5 +1,7 @@
 package benchmarks;
 
+import com.carrotsearch.hppc.IntIntHashMap;
+
 import java.util.*;
 import java.nio.charset.StandardCharsets;
 
@@ -158,7 +160,7 @@ public class Distance {
             byte[] bytes1 = s1.getBytes(StandardCharsets.US_ASCII);
             byte[] bytes2 = s2.getBytes(StandardCharsets.US_ASCII);
 
-            Map<Integer, Integer> grams1 = new HashMap<>(bytes1.length);
+            IntIntHashMap grams1 = new IntIntHashMap(bytes1.length);;
 
             for (int i = 0; i <= bytes1.length - N; i++) {
                 int gram = ((int) bytes1[i] & 0xFF) << 24 |
@@ -166,10 +168,10 @@ public class Distance {
                            ((int) bytes1[i + 2] & 0xFF) << 8 |
                            ((int) bytes1[i + 3] & 0xFF);
 
-                grams1.merge(gram, 1, Integer::sum);
+                grams1.addTo(gram, 1);
             }
 
-            Map<Integer, Integer> grams2 = new HashMap<>(bytes2.length);
+            IntIntHashMap grams2 = new IntIntHashMap(bytes2.length);
             int intersection = 0;
 
             for (int i = 0; i <= bytes2.length - N; i++) {
@@ -178,10 +180,10 @@ public class Distance {
                            ((int) bytes2[i + 2] & 0xFF) << 8 |
                            ((int) bytes2[i + 3] & 0xFF);
 
-                grams2.merge(gram, 1, Integer::sum);
+                grams2.addTo(gram, 1);
 
-                Integer cnt1 = grams1.get(gram);
-                if (cnt1 != null && grams2.get(gram) <= cnt1) {
+                int cnt1 = grams1.get(gram);
+                if (cnt1 != 0 && grams2.get(gram) <= cnt1) {
                     intersection++;
                 }
             }
