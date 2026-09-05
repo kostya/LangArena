@@ -8,7 +8,6 @@ use std::ptr::NonNull;
 struct LRUCache<K, V>
 where
     K: Eq + Hash + Clone,
-    V: Clone,
 {
     capacity: usize,
     cache: HashMap<K, NonNull<Node<K, V>>>,
@@ -41,21 +40,20 @@ impl<K, V> Node<K, V> {
 unsafe impl<K, V> Send for LRUCache<K, V>
 where
     K: Send + Eq + Hash + Clone,
-    V: Send + Clone,
+    V: Send,
 {
 }
 
 unsafe impl<K, V> Sync for LRUCache<K, V>
 where
     K: Sync + Eq + Hash + Clone,
-    V: Sync + Clone,
+    V: Sync,
 {
 }
 
 impl<K, V> LRUCache<K, V>
 where
     K: Eq + Hash + Clone,
-    V: Clone,
 {
     fn new(capacity: usize) -> Self {
         LRUCache {
@@ -69,12 +67,12 @@ where
         }
     }
 
-    fn get(&mut self, key: &K) -> Option<V> {
+    fn get(&mut self, key: &K) -> Option<&V> {
         let node_ptr = *self.cache.get(key)?;
 
         unsafe {
             self.move_to_front(node_ptr);
-            Some((*node_ptr.as_ptr()).value.clone())
+            Some(&(*node_ptr.as_ptr()).value)
         }
     }
 
@@ -182,7 +180,6 @@ where
 impl<K, V> Drop for LRUCache<K, V>
 where
     K: Eq + Hash + Clone,
-    V: Clone,
 {
     fn drop(&mut self) {
         while let Some(head_ptr) = self.head {
@@ -255,3 +252,4 @@ impl Benchmark for CacheSimulation {
         result
     }
 }
+
