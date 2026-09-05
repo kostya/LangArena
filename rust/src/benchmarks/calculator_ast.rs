@@ -112,9 +112,7 @@ impl Benchmark for CalculatorAst {
     }
 
     fn run(&mut self, _iteration_id: i64) {
-        let mut parser = Parser::new(&self.text);
-        parser.parse();
-        self.expressions = parser.expressions;
+        self.expressions = Parser::new(&self.text).parse();
         self.result_val = self.result_val.wrapping_add(self.expressions.len() as u32);
 
         if let Some(Node::Assignment(var, _)) = self.expressions.last() {
@@ -147,7 +145,7 @@ impl Parser {
         }
     }
 
-    fn parse(&mut self) -> Vec<Node> {
+    fn parse(mut self) -> Vec<Node> {
         while self.pos < self.chars.len() {
             self.skip_whitespace();
             if self.pos >= self.chars.len() {
@@ -167,7 +165,7 @@ impl Parser {
             }
         }
 
-        self.expressions.clone()
+        self.expressions
     }
 
     fn parse_expression(&mut self) -> Node {
