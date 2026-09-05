@@ -8,23 +8,17 @@ struct TreeNode {
 }
 
 impl TreeNode {
-    fn new(item: i32, depth: i32) -> Self {
+    fn new(item: i32, depth: i32) -> Box<Self> {
+        let mut node = Box::new(Self {
+            left: None,
+            right: None,
+            item,
+        });
         if depth > 0 {
-            let left = Box::new(TreeNode::new(item - (1 << (depth - 1)), depth - 1));
-            let right = Box::new(TreeNode::new(item + (1 << (depth - 1)), depth - 1));
-
-            Self {
-                left: Some(left),
-                right: Some(right),
-                item,
-            }
-        } else {
-            Self {
-                left: None,
-                right: None,
-                item,
-            }
+            node.left = Some(Self::new(item - (1 << (depth - 1)), depth - 1));
+            node.right = Some(Self::new(item + (1 << (depth - 1)), depth - 1));
         }
+        node
     }
 
     fn sum(&self) -> u32 {
@@ -59,7 +53,7 @@ impl Benchmark for BinarytreesObj {
     }
 
     fn run(&mut self, _iteration_id: i64) {
-        let root = Box::new(TreeNode::new(0, self.n as i32));
+        let root = TreeNode::new(0, self.n as i32);
         self.result_val = self.result_val.wrapping_add(root.sum());
     }
 
