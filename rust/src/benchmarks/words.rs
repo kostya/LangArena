@@ -51,19 +51,19 @@ impl Benchmark for Words {
         let mut frequencies = HashMap::new();
 
         for word in self.text.split_whitespace() {
-            *frequencies.entry(word.to_string()).or_insert(0) += 1;
+            *frequencies.entry(word).or_insert(0) += 1;
         }
 
         let (max_word, max_count) = frequencies
             .iter()
             .max_by_key(|(_, &count)| count)
-            .map(|(word, &count)| (word.clone(), count))
-            .unwrap_or((String::new(), 0));
+            .map(|(&word, &count)| (word, count))
+            .unwrap_or(("", 0));
 
         self.checksum_val = self
             .checksum_val
             .wrapping_add(max_count)
-            .wrapping_add(helper::checksum_str(&max_word))
+            .wrapping_add(helper::checksum_str(max_word))
             .wrapping_add(frequencies.len() as u32);
     }
 
