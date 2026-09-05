@@ -3,7 +3,6 @@ use super::super::{helper, Benchmark};
 const SOLAR_MASS: f64 = 4.0 * std::f64::consts::PI * std::f64::consts::PI;
 const DAYS_PER_YEAR: f64 = 365.24;
 
-#[derive(Clone)]
 struct Planet {
     x: f64,
     y: f64,
@@ -27,10 +26,8 @@ impl Planet {
         }
     }
 
-    fn move_from_i(&mut self, bodies: &mut [Planet], nbodies: usize, dt: f64, i: usize) {
-        let mut j = i;
-        while j < nbodies {
-            let b2 = &mut bodies[j];
+    fn advance(&mut self, following: &mut [Planet], dt: f64) {
+        for b2 in following {
             let dx = self.x - b2.x;
             let dy = self.y - b2.y;
             let dz = self.z - b2.z;
@@ -46,7 +43,6 @@ impl Planet {
             b2.vx += dx * b_mass_mag;
             b2.vy += dy * b_mass_mag;
             b2.vz += dz * b_mass_mag;
-            j += 1;
         }
 
         self.x += dt * self.vx;
@@ -167,9 +163,8 @@ impl Benchmark for Nbody {
         for _ in 0..1000 {
             let mut i = 0;
             while i < nbodies {
-                let mut b = self.bodies[i].clone();
-                b.move_from_i(&mut self.bodies, nbodies, dt, i + 1);
-                self.bodies[i] = b;
+                let (before, following) = self.bodies.split_at_mut(i + 1);
+                before[i].advance(following, dt);
                 i += 1;
             }
         }
