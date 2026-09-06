@@ -1,24 +1,20 @@
 package benchmarks
 
 import Benchmark
+import java.io.ByteArrayOutputStream
 
 class Mandelbrot : Benchmark() {
-    private var w: Int = 0
-    private var h: Int = 0
-    private lateinit var result: java.io.ByteArrayOutputStream
+    private val w = configInt("w")
+    private val h = configInt("h")
+    private lateinit var result: ByteArrayOutputStream
 
     companion object {
         private const val ITER = 50
         private const val LIMIT = 2.0
     }
 
-    init {
-        w = configVal("w").toInt()
-        h = configVal("h").toInt()
-    }
-
     override fun prepare() {
-        result = java.io.ByteArrayOutputStream()
+        result = ByteArrayOutputStream()
     }
 
     override fun run(iterationId: Int) {
@@ -67,11 +63,7 @@ class Mandelbrot : Benchmark() {
         }
     }
 
-    override fun checksum(): UInt {
-        val bytes = result.toByteArray()
-        val checksum = Helper.checksum(bytes)
-        return checksum
-    }
+    override fun checksum(): UInt = Helper.checksum(result.toByteArray())
 
     override fun name(): String = "CLBG::Mandelbrot"
 }

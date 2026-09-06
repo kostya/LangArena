@@ -3,14 +3,9 @@ package benchmarks
 import Benchmark
 
 class BrainfuckArray : Benchmark() {
-    private lateinit var programText: String
-    private lateinit var warmupText: String
+    private val programText = configStr("program")
+    private val warmupText = configStr("warmup_program")
     private var resultVal: UInt = 0u
-
-    init {
-        programText = Helper.configS(name(), "program")
-        warmupText = Helper.configS(name(), "warmup_program")
-    }
 
     class Tape {
         private var tape = ByteArray(30000)
@@ -43,27 +38,17 @@ class BrainfuckArray : Benchmark() {
     }
 
     class Program(
-        private val text: String,
+        text: String,
     ) {
-        private val commands: ByteArray
-        private val jumps: IntArray
+        private val commands = text.filter { it in "[]<>+-,." }.toCharArray()
+        private val jumps = IntArray(commands.size)
 
         init {
-
-            val cmdList = mutableListOf<Byte>()
-            for (c in text) {
-                if (c in "[]<>+-,.") {
-                    cmdList.add(c.code.toByte())
-                }
-            }
-            commands = cmdList.toByteArray()
-
-            jumps = IntArray(commands.size)
             val stack = IntArray(commands.size)
             var sp = 0
 
             for (i in commands.indices) {
-                when (commands[i].toInt().toChar()) {
+                when (commands[i]) {
                     '[' -> {
                         stack[sp++] = i
                     }
@@ -82,12 +67,12 @@ class BrainfuckArray : Benchmark() {
         fun run(): Long {
             var result = 0L
             val tape = Tape()
-            var pc = 0
             val cmds = commands
             val jmps = jumps
+            var pc = 0
 
             while (pc < cmds.size) {
-                when (val cmd = cmds[pc].toInt().toChar()) {
+                when (cmds[pc]) {
                     '+' -> tape.inc()
                     '-' -> tape.dec()
                     '>' -> tape.advance()

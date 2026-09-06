@@ -3,8 +3,8 @@ package benchmarks
 import Benchmark
 
 class Words : Benchmark() {
-    private var words: Int = 0
-    private var wordLen: Int = 0
+    private val words = configInt("words")
+    private val wordLen = configInt("word_len")
     private lateinit var text: String
     private var checksumVal: UInt = 0u
 
@@ -12,25 +12,12 @@ class Words : Benchmark() {
         private val CHARS = "abcdefghijklmnopqrstuvwxyz".toCharArray()
     }
 
-    init {
-        words = configVal("words").toInt()
-        wordLen = configVal("word_len").toInt()
-    }
-
     override fun prepare() {
-        val wordsList = mutableListOf<String>()
-
-        for (i in 0 until words) {
-            val len = Helper.nextInt(wordLen) + Helper.nextInt(3) + 3
-            val wordChars = CharArray(len)
-            for (j in 0 until len) {
-                val idx = Helper.nextInt(CHARS.size)
-                wordChars[j] = CHARS[idx]
-            }
-            wordsList.add(String(wordChars))
-        }
-
-        text = wordsList.joinToString(" ")
+        text =
+            List(words) {
+                val len = Helper.nextInt(wordLen) + Helper.nextInt(3) + 3
+                String(CharArray(len) { CHARS[Helper.nextInt(CHARS.size)] })
+            }.joinToString(" ")
     }
 
     override fun run(iterationId: Int) {
@@ -51,10 +38,7 @@ class Words : Benchmark() {
             }
         }
 
-        val freqSize = frequencies.size.toUInt()
-        val wordChecksum = Helper.checksum(maxWord)
-
-        checksumVal += maxCount.toUInt() + wordChecksum + freqSize
+        checksumVal += maxCount.toUInt() + Helper.checksum(maxWord) + frequencies.size.toUInt()
     }
 
     override fun checksum(): UInt = checksumVal

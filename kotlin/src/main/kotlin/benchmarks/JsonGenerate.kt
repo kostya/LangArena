@@ -6,23 +6,19 @@ import com.alibaba.fastjson2.JSONObject
 import java.util.Locale
 
 class JsonGenerate : Benchmark() {
-    var n: Long = 0
+    var n = configVal("coords")
     private lateinit var data: List<Map<String, Any>>
-    public lateinit var text: String
+    lateinit var text: String
     private var resultVal: Long = 0
-
-    init {
-        n = configVal("coords")
-    }
 
     override fun prepare() {
         data =
             List(n.toInt()) {
                 mapOf(
-                    "x" to String.format(Locale.US, "%.8f", Helper.nextFloat()).toDouble(),
-                    "y" to String.format(Locale.US, "%.8f", Helper.nextFloat()).toDouble(),
-                    "z" to String.format(Locale.US, "%.8f", Helper.nextFloat()).toDouble(),
-                    "name" to "${String.format(Locale.US, "%.7f", Helper.nextFloat())} ${Helper.nextInt(10000)}",
+                    "x" to "%.8f".format(Locale.US, Helper.nextFloat()).toDouble(),
+                    "y" to "%.8f".format(Locale.US, Helper.nextFloat()).toDouble(),
+                    "z" to "%.8f".format(Locale.US, Helper.nextFloat()).toDouble(),
+                    "name" to "${"%.7f".format(Locale.US, Helper.nextFloat())} ${Helper.nextInt(10000)}",
                     "opts" to mapOf("1" to listOf(1, true)),
                 )
             }

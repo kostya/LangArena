@@ -8,12 +8,12 @@ class NeuralNet : Benchmark() {
         private const val LEARNING_RATE = 1.0
         private const val MOMENTUM = 0.3
 
-        private val INPUT_00 = listOf(0, 0)
-        private val INPUT_01 = listOf(0, 1)
-        private val INPUT_10 = listOf(1, 0)
-        private val INPUT_11 = listOf(1, 1)
-        private val TARGET_0 = listOf(0)
-        private val TARGET_1 = listOf(1)
+        private val INPUT_00 = intArrayOf(0, 0)
+        private val INPUT_01 = intArrayOf(0, 1)
+        private val INPUT_10 = intArrayOf(1, 0)
+        private val INPUT_11 = intArrayOf(1, 1)
+        private val TARGET_0 = intArrayOf(0)
+        private val TARGET_1 = intArrayOf(1)
     }
 
     private class Synapse(
@@ -101,13 +101,13 @@ class NeuralNet : Benchmark() {
         }
 
         fun train(
-            inputs: List<Int>,
-            targets: List<Int>,
+            inputs: IntArray,
+            targets: IntArray,
         ) {
             feedForward(inputs)
 
-            for ((neuron, target) in outputLayer.zip(targets)) {
-                neuron.outputTrain(0.3, target.toDouble())
+            for (i in outputLayer.indices) {
+                outputLayer[i].outputTrain(0.3, targets[i].toDouble())
             }
 
             for (neuron in hiddenLayer) {
@@ -115,9 +115,9 @@ class NeuralNet : Benchmark() {
             }
         }
 
-        fun feedForward(inputs: List<Int>) {
-            for ((neuron, input) in inputLayer.zip(inputs)) {
-                neuron.output = input.toDouble()
+        fun feedForward(inputs: IntArray) {
+            for (i in inputLayer.indices) {
+                inputLayer[i].output = inputs[i].toDouble()
             }
 
             for (neuron in hiddenLayer) {
@@ -139,7 +139,7 @@ class NeuralNet : Benchmark() {
     }
 
     override fun run(iterationId: Int) {
-        for (i in 0 until 1000) {
+        repeat(1000) {
             xorNet.train(INPUT_00, TARGET_0)
             xorNet.train(INPUT_10, TARGET_1)
             xorNet.train(INPUT_01, TARGET_1)

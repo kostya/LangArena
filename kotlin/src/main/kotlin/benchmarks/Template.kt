@@ -1,7 +1,7 @@
 package benchmarks
 
 import Benchmark
-import kotlin.text.Regex
+import java.util.regex.Pattern
 
 private val FIRST_NAMES = arrayOf("John", "Jane", "Bob", "Alice", "Charlie", "Diana", "Sarah", "Mike")
 private val LAST_NAMES = arrayOf("Smith", "Johnson", "Brown", "Taylor", "Wilson", "Davis", "Miller", "Jones")
@@ -56,32 +56,24 @@ abstract class TemplateBase : Benchmark() {
 }
 
 class TemplateRegex : TemplateBase() {
-    private val regex = Regex("\\{\\{(.*?)\\}\\}")
+    private val pattern = Pattern.compile("\\{\\{(.*?)\\}\\}")
 
     override fun name(): String = "Template::Regex"
 
     override fun run(iterationId: Int) {
         val sb = StringBuilder(text.length)
-        var lastPos = 0
+        val matcher = pattern.matcher(text)
+        var lastEnd = 0
 
-        for (match in regex.findAll(text)) {
-            val start = match.range.first
-            if (start > lastPos) {
-                sb.append(text, lastPos, start)
-            }
-
-            val key = match.groupValues[1].trim()
-            val value = vars[key]
+        while (matcher.find()) {
+            sb.append(text, lastEnd, matcher.start())
+            val value = vars[matcher.group(1).trim()]
             if (value != null) {
                 sb.append(value)
             }
-
-            lastPos = match.range.last + 1
+            lastEnd = matcher.end()
         }
-
-        if (lastPos < text.length) {
-            sb.append(text, lastPos, text.length)
-        }
+        sb.append(text, lastEnd, text.length)
 
         rendered = sb.toString()
         checksumVal += rendered.length.toUInt()
@@ -95,18 +87,16 @@ class TemplateParse : TemplateBase() {
         val len = text.length
         val sb = StringBuilder((len * 1.5).toInt())
 
-        val chars = text.toCharArray()
-
         var i = 0
         while (i < len) {
-            if (i + 1 < len && chars[i] == '{' && chars[i + 1] == '{') {
+            if (i + 1 < len && text[i] == '{' && text[i + 1] == '{') {
                 var j = i + 2
-                while (j + 1 < len && !(chars[j] == '}' && chars[j + 1] == '}')) {
+                while (j + 1 < len && !(text[j] == '}' && text[j + 1] == '}')) {
                     j++
                 }
 
                 if (j + 1 < len) {
-                    val key = String(chars, i + 2, j - i - 2).trim()
+                    val key = text.substring(i + 2, j).trim()
                     val value = vars[key]
                     if (value != null) {
                         sb.append(value)
@@ -116,7 +106,7 @@ class TemplateParse : TemplateBase() {
                 }
             }
 
-            sb.append(chars[i])
+            sb.append(text[i])
             i++
         }
 

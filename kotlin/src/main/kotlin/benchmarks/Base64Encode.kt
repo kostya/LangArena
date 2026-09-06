@@ -4,17 +4,13 @@ import Benchmark
 import java.util.Base64
 
 class Base64Encode : Benchmark() {
-    private var n: Long = 0
+    private val n = configInt("size")
     private lateinit var bytes: ByteArray
     private lateinit var str2: String
     private var resultVal: UInt = 0u
 
-    init {
-        n = configVal("size")
-    }
-
     override fun prepare() {
-        val str = "a".repeat(n.toInt())
+        val str = "a".repeat(n)
         bytes = str.toByteArray()
         str2 = Base64.getEncoder().encodeToString(bytes)
     }

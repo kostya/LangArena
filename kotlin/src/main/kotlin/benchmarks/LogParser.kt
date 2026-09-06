@@ -1,7 +1,7 @@
 package benchmarks
 
 import Benchmark
-import kotlin.text.Regex
+import java.util.regex.Pattern
 
 class LogParser : Benchmark() {
     private var linesCount: Int = 0
@@ -51,19 +51,19 @@ class LogParser : Benchmark() {
 
         private val PATTERNS =
             arrayOf(
-                "errors" to Regex(" [5][0-9]{2} | [4][0-9]{2} "),
-                "bots" to Regex("bot|crawler|scanner|spider|indexing|crawl|robot|spider", RegexOption.IGNORE_CASE),
-                "suspicious" to Regex("etc/passwd|wp-admin|\\.\\./", RegexOption.IGNORE_CASE),
-                "ips" to Regex("\\d+\\.\\d+\\.\\d+\\.35"),
-                "api_calls" to Regex("/api/[^ \" ]+"),
-                "post_requests" to Regex("POST [^ ]* HTTP"),
-                "auth_attempts" to Regex("/login|/signin", RegexOption.IGNORE_CASE),
-                "methods" to Regex("get|post|put", RegexOption.IGNORE_CASE),
-                "emails" to Regex("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"),
-                "passwords" to Regex("password=[^&\\s\"]+"),
-                "tokens" to Regex("token=[^&\\s\"]+|api[_-]?key=[^&\\s\"]+"),
-                "sessions" to Regex("session[_-]?id=[^&\\s\"]+"),
-                "peak_hours" to Regex("\\[\\d+/\\w+/\\d+:1[3-7]:\\d+:\\d+ [+\\-]\\d+\\]"),
+                Pattern.compile(" [5][0-9]{2} | [4][0-9]{2} "),
+                Pattern.compile("bot|crawler|scanner|spider|indexing|crawl|robot|spider", Pattern.CASE_INSENSITIVE),
+                Pattern.compile("etc/passwd|wp-admin|\\.\\./", Pattern.CASE_INSENSITIVE),
+                Pattern.compile("\\d+\\.\\d+\\.\\d+\\.35"),
+                Pattern.compile("/api/[^ \" ]+"),
+                Pattern.compile("POST [^ ]* HTTP"),
+                Pattern.compile("/login|/signin", Pattern.CASE_INSENSITIVE),
+                Pattern.compile("get|post|put", Pattern.CASE_INSENSITIVE),
+                Pattern.compile("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"),
+                Pattern.compile("password=[^&\\s\"]+"),
+                Pattern.compile("token=[^&\\s\"]+|api[_-]?key=[^&\\s\"]+"),
+                Pattern.compile("session[_-]?id=[^&\\s\"]+"),
+                Pattern.compile("\\[\\d+/\\w+/\\d+:1[3-7]:\\d+:\\d+ [+\\-]\\d+\\]"),
             )
     }
 
@@ -115,13 +115,11 @@ class LogParser : Benchmark() {
     }
 
     override fun run(iterationId: Int) {
-        val matches = mutableMapOf<String, Int>()
-
-        for ((name, regex) in PATTERNS) {
-            matches[name] = regex.findAll(log).count()
+        var total = 0
+        for (pattern in PATTERNS) {
+            val matcher = pattern.matcher(log)
+            while (matcher.find()) total++
         }
-
-        val total = matches.values.sum()
         checksumVal += total.toUInt()
     }
 

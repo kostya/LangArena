@@ -1,29 +1,29 @@
 package benchmarks
 
 import Benchmark
-import java.util.*
+import java.util.ArrayDeque
+import kotlin.math.abs
+import java.util.PriorityQueue
+import java.util.Queue
 
 class MazeGenerator : Benchmark() {
-    enum class CellKind(
-        val value: Int,
-    ) {
-        WALL(0),
-        SPACE(1),
-        START(2),
-        FINISH(3),
-        BORDER(4),
-        PATH(5),
-        ;
-
-        fun isWalkable(): Boolean = this in listOf(SPACE, START, FINISH)
+    object CellKind {
+        const val WALL = 0
+        const val SPACE = 1
+        const val START = 2
+        const val FINISH = 3
+        const val BORDER = 4
+        const val PATH = 5
     }
 
     class Cell(
         val x: Int,
         val y: Int,
     ) {
-        var kind: CellKind = CellKind.WALL
-        val neighbors = mutableListOf<Cell>()
+        var kind = CellKind.WALL
+        var neighbors: Array<Cell> = emptyArray()
+
+        fun isWalkable(): Boolean = kind == CellKind.SPACE || kind == CellKind.START || kind == CellKind.FINISH
 
         fun reset() {
             if (kind == CellKind.SPACE) kind = CellKind.WALL
@@ -34,47 +34,40 @@ class MazeGenerator : Benchmark() {
         val width: Int,
         val height: Int,
     ) {
-        val cells: Array<Array<Cell>>
-        val start: Cell
-        val finish: Cell
+        val cells = Array(height.coerceAtLeast(5)) { y -> Array(width.coerceAtLeast(5)) { x -> Cell(x, y) } }
+        val start = cells[1][1]
+        val finish = cells[cells.size - 2][cells[0].size - 2]
 
         init {
-            val w = width.coerceAtLeast(5)
-            val h = height.coerceAtLeast(5)
-
-            cells =
-                Array(h) { y ->
-                    Array(w) { x ->
-                        Cell(x, y)
-                    }
-                }
-
-            start = cells[1][1]
-            finish = cells[h - 2][w - 2]
             start.kind = CellKind.START
             finish.kind = CellKind.FINISH
             updateNeighbors()
         }
 
-        fun updateNeighbors() {
+        private fun updateNeighbors() {
             for (y in cells.indices) {
                 for (x in cells[y].indices) {
                     val cell = cells[y][x]
-                    cell.neighbors.clear()
 
                     if (x > 0 && y > 0 && x < width - 1 && y < height - 1) {
-                        cell.neighbors.add(cells[y - 1][x])
-                        cell.neighbors.add(cells[y + 1][x])
-                        cell.neighbors.add(cells[y][x + 1])
-                        cell.neighbors.add(cells[y][x - 1])
+                        val neighbors =
+                            arrayOf(
+                                cells[y - 1][x],
+                                cells[y + 1][x],
+                                cells[y][x + 1],
+                                cells[y][x - 1],
+                            )
 
                         repeat(4) {
                             val i = Helper.nextInt(4)
                             val j = Helper.nextInt(4)
                             if (i != j) {
-                                Collections.swap(cell.neighbors, i, j)
+                                val tmp = neighbors[i]
+                                neighbors[i] = neighbors[j]
+                                neighbors[j] = tmp
                             }
                         }
+                        cell.neighbors = neighbors
                     } else {
                         cell.kind = CellKind.BORDER
                     }
@@ -99,16 +92,11 @@ class MazeGenerator : Benchmark() {
             while (stack.isNotEmpty()) {
                 val cell = stack.pop()
 
-                var walkable = 0
-                for (i in 0 until 4) {
-                    if (cell.neighbors[i].kind.isWalkable()) walkable++
-                }
-
+                val walkable = cell.neighbors.count { it.isWalkable() }
                 if (walkable == 1) {
                     cell.kind = CellKind.SPACE
 
-                    for (i in 0 until 4) {
-                        val n = cell.neighbors[i]
+                    for (n in cell.neighbors) {
                         if (n.kind == CellKind.WALL) {
                             stack.push(n)
                         }
@@ -126,7 +114,7 @@ class MazeGenerator : Benchmark() {
 
                 cell.kind = CellKind.SPACE
 
-                val walkable = cell.neighbors.count { it.kind.isWalkable() }
+                val walkable = cell.neighbors.count { it.isWalkable() }
                 if (walkable > 1) continue
 
                 for (n in cell.neighbors) {
@@ -165,15 +153,10 @@ class MazeGenerator : Benchmark() {
         }
     }
 
+    private val width = configInt("w")
+    private val height = configInt("h")
     private lateinit var maze: Maze
     private var resultVal = 0u
-    private val width: Int
-    private val height: Int
-
-    init {
-        width = configVal("w").toInt()
-        height = configVal("h").toInt()
-    }
 
     override fun name(): String = "Maze::Generator"
 
@@ -187,24 +170,25 @@ class MazeGenerator : Benchmark() {
         resultVal +=
             maze
                 .middleCell()
-                .kind.value
+                .kind
                 .toUInt()
     }
 
     override fun checksum(): UInt = resultVal + maze.checksum()
 }
 
+private fun midCellChecksum(path: List<MazeGenerator.Cell>): UInt {
+    if (path.isEmpty()) return 0u
+    val cell = path[path.size / 2]
+    return (cell.x * cell.y).toUInt()
+}
+
 class MazeBFS : Benchmark() {
     private var resultVal: UInt = 0u
-    private val width: Int
-    private val height: Int
+    private val width = configInt("w")
+    private val height = configInt("h")
     private lateinit var maze: MazeGenerator.Maze
     private var path: List<MazeGenerator.Cell> = emptyList()
-
-    init {
-        width = configVal("w").toInt()
-        height = configVal("h").toInt()
-    }
 
     override fun name(): String = "Maze::BFS"
 
@@ -215,7 +199,7 @@ class MazeBFS : Benchmark() {
         path = emptyList()
     }
 
-    private data class PathNode(
+    private class PathNode(
         val cell: MazeGenerator.Cell,
         val parent: Int,
     )
@@ -246,10 +230,11 @@ class MazeBFS : Benchmark() {
                         result.add(pathNodes[current].cell)
                         current = pathNodes[current].parent
                     }
-                    return result.reversed()
+                    result.reverse()
+                    return result
                 }
 
-                if (neighbor.kind.isWalkable() && !visited[neighbor.y][neighbor.x]) {
+                if (neighbor.isWalkable() && !visited[neighbor.y][neighbor.x]) {
                     visited[neighbor.y][neighbor.x] = true
                     pathNodes.add(PathNode(neighbor, pathId))
                     queue.add(pathNodes.size - 1)
@@ -257,12 +242,6 @@ class MazeBFS : Benchmark() {
             }
         }
         return emptyList()
-    }
-
-    private fun midCellChecksum(path: List<MazeGenerator.Cell>): UInt {
-        if (path.isEmpty()) return 0u
-        val cell = path[path.size / 2]
-        return (cell.x * cell.y).toUInt()
     }
 
     override fun run(iterationId: Int) {
@@ -274,7 +253,7 @@ class MazeBFS : Benchmark() {
 }
 
 class MazeAStar : Benchmark() {
-    private data class Item(
+    private class Item(
         val priority: Int,
         val vertex: Int,
     ) : Comparable<Item> {
@@ -287,15 +266,10 @@ class MazeAStar : Benchmark() {
     }
 
     private var resultVal: UInt = 0u
-    private val width: Int
-    private val height: Int
+    private val width = configInt("w")
+    private val height = configInt("h")
     private lateinit var maze: MazeGenerator.Maze
     private var path: List<MazeGenerator.Cell> = emptyList()
-
-    init {
-        width = configVal("w").toInt()
-        height = configVal("h").toInt()
-    }
 
     override fun name(): String = "Maze::AStar"
 
@@ -309,7 +283,7 @@ class MazeAStar : Benchmark() {
     private fun heuristic(
         a: MazeGenerator.Cell,
         b: MazeGenerator.Cell,
-    ): Int = Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
+    ): Int = abs(a.x - b.x) + abs(a.y - b.y)
 
     private fun idx(
         y: Int,
@@ -331,17 +305,17 @@ class MazeAStar : Benchmark() {
         val targetIdx = idx(target.y, target.x)
 
         val openSet = PriorityQueue<Item>()
-        val inOpen = BooleanArray(size)
 
         gScore[startIdx] = 0
         val fStart = heuristic(start, target)
         openSet.add(Item(fStart, startIdx))
         bestF[startIdx] = fStart
-        inOpen[startIdx] = true
 
         while (openSet.isNotEmpty()) {
-            val (_, currentIdx) = openSet.poll()
-            inOpen[currentIdx] = false
+            val item = openSet.poll()
+            val currentIdx = item.vertex
+
+            if (item.priority != bestF[currentIdx]) continue
 
             if (currentIdx == targetIdx) {
                 val result = mutableListOf<MazeGenerator.Cell>()
@@ -352,7 +326,8 @@ class MazeAStar : Benchmark() {
                     result.add(maze.cells[y][x])
                     cur = cameFrom[cur]
                 }
-                return result.reversed()
+                result.reverse()
+                return result
             }
 
             val currentY = currentIdx / width
@@ -361,7 +336,7 @@ class MazeAStar : Benchmark() {
             val currentG = gScore[currentIdx]
 
             for (neighbor in currentCell.neighbors) {
-                if (!neighbor.kind.isWalkable()) continue
+                if (!neighbor.isWalkable()) continue
 
                 val neighborIdx = idx(neighbor.y, neighbor.x)
                 val tentativeG = currentG + 1
@@ -374,18 +349,11 @@ class MazeAStar : Benchmark() {
                     if (fNew < bestF[neighborIdx]) {
                         bestF[neighborIdx] = fNew
                         openSet.add(Item(fNew, neighborIdx))
-                        inOpen[neighborIdx] = true
                     }
                 }
             }
         }
         return emptyList()
-    }
-
-    private fun midCellChecksum(path: List<MazeGenerator.Cell>): UInt {
-        if (path.isEmpty()) return 0u
-        val cell = path[path.size / 2]
-        return (cell.x * cell.y).toUInt()
     }
 
     override fun run(iterationId: Int) {

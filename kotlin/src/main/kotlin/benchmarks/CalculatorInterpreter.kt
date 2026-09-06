@@ -1,9 +1,11 @@
 package benchmarks
+
 import Benchmark
+import kotlin.math.abs
 
 class CalculatorInterpreter : Benchmark() {
     private class Interpreter {
-        private val variables = mutableMapOf<String, Long>()
+        private val variables = HashMap<String, Long>()
 
         private fun simpleDiv(
             a: Long,
@@ -13,7 +15,7 @@ class CalculatorInterpreter : Benchmark() {
             return if ((a >= 0 && b > 0) || (a < 0 && b < 0)) {
                 a / b
             } else {
-                -Math.abs(a) / Math.abs(b)
+                -abs(a) / abs(b)
             }
         }
 
@@ -54,10 +56,6 @@ class CalculatorInterpreter : Benchmark() {
                     variables[node.variable] = value
                     value
                 }
-
-                else -> {
-                    0L
-                }
             }
 
         fun run(expressions: List<CalculatorAst.Node>): Long {
@@ -69,17 +67,13 @@ class CalculatorInterpreter : Benchmark() {
         }
     }
 
-    private var n: Long = 0
+    private val n = configVal("operations")
     private var resultVal: UInt = 0u
     private lateinit var ast: List<CalculatorAst.Node>
 
-    init {
-        n = configVal("operations")
-    }
-
     override fun prepare() {
         val calculator = CalculatorAst()
-        calculator.n = n.toLong()
+        calculator.n = n
         calculator.prepare()
         calculator.run(0)
         ast = calculator.expressions
