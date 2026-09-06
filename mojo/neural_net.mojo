@@ -137,23 +137,25 @@ struct _NN(Movable):
         for syn_idx in neuron.synapses_in:
             var syn = self.synapses[syn_idx]
             var temp_weight = syn.weight
-            syn.weight += (
+            var weight_delta = (
                 NN_TRAIN_RATE
                 * NN_LEARNING_RATE
                 * neuron.error
                 * self.neurons[syn.source_idx].output
             )
-            syn.weight += NN_MOMENTUM * (syn.weight - syn.prev_weight)
+            var momentum_delta = NN_MOMENTUM * (syn.weight - syn.prev_weight)
+            syn.weight += weight_delta + momentum_delta
             syn.prev_weight = temp_weight
             self.synapses[syn_idx] = syn
 
         var temp_threshold = neuron.threshold
-        neuron.threshold += (
+        var threshold_delta = (
             NN_TRAIN_RATE * NN_LEARNING_RATE * neuron.error * (-1.0)
         )
-        neuron.threshold += NN_MOMENTUM * (
+        var threshold_momentum_delta = NN_MOMENTUM * (
             neuron.threshold - neuron.prev_threshold
         )
+        neuron.threshold += threshold_delta + threshold_momentum_delta
         neuron.prev_threshold = temp_threshold
 
 
