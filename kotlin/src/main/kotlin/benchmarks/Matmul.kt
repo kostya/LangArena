@@ -83,23 +83,12 @@ abstract class MatmulBase(
         }
     }
 
-    private suspend fun transposeParallel(b: Array<DoubleArray>): Array<DoubleArray> {
-        val n = b.size
-        val bT = Array(n) { DoubleArray(n) }
-        forEachRowInParallel(n) { i ->
-            for (j in 0 until n) {
-                bT[j][i] = b[i][j]
-            }
-        }
-        return bT
-    }
-
     protected suspend fun matmulParallel(
         a: Array<DoubleArray>,
         b: Array<DoubleArray>,
     ): Array<DoubleArray> {
         val n = a.size
-        val bT = transposeParallel(b)
+        val bT = transpose(b)
         val c = Array(n) { DoubleArray(n) }
         forEachRowInParallel(n) { i ->
             val ai = a[i]
