@@ -60,22 +60,8 @@ fn deinitMat(mat: [][]f64, allocator: std.mem.Allocator) void {
 fn matmulSequential(a: [][]f64, b: [][]f64, allocator: std.mem.Allocator) ![][]f64 {
     const n = a.len;
     const p = b[0].len;
-    var b2 = try allocator.alloc([]f64, p);
-    errdefer allocator.free(b2);
-
-    for (0..p) |j| {
-        b2[j] = try allocator.alloc(f64, n);
-        errdefer {
-            for (b2[0..j]) |row| allocator.free(row);
-            allocator.free(b2);
-        }
-    }
-
-    for (0..n) |i| {
-        for (0..p) |j| {
-            b2[j][i] = b[i][j];
-        }
-    }
+    const b2 = try transpose(b, allocator);
+    errdefer deinitMat(b2, allocator);
 
     var c = try allocator.alloc([]f64, n);
     errdefer allocator.free(c);

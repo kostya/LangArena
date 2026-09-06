@@ -43,19 +43,9 @@ abstract class MatmulBase extends Benchmark {
         int n = b.length;
         double[][] bT = new double[n][n];
 
-        if (pool != null) {
-            pool.submit(() -> {
-                IntStream.range(0, n).parallel().forEach(i -> {
-                    for (int j = 0; j < n; j++) {
-                        bT[j][i] = b[i][j];
-                    }
-                });
-            }).join();
-        } else {
-            for (int i = 0; i < n; i++) {
-                for (int j = 0; j < n; j++) {
-                    bT[j][i] = b[i][j];
-                }
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                bT[j][i] = b[i][j];
             }
         }
 

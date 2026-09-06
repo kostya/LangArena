@@ -43,51 +43,16 @@ abstract class MatmulBase(threads: Int) extends Benchmark:
     a
 
   protected def transpose(b: Array[Array[Double]]): Array[Array[Double]] =
-    val n = b.length
-    val bT = Array.ofDim[Double](n, n)
-
-    val task = RangeTask(
-      0,
-      n,
-      i =>
-        var j = 0
-        while j < n do
-          bT(j)(i) = b(i)(j)
-          j += 1
-    )
-    pool.invoke(task)
-    bT
-
-  protected def matmulSequential(a: Array[Array[Double]], b: Array[Array[Double]]): Array[Array[Double]] =
-    val n = a.length
-    val p = b(0).length
-    val b2 = Array.ofDim[Double](n, p)
+    val b2 = Array.ofDim[Double](n, n)
 
     var i = 0
     while i < n do
       var j = 0
-      while j < p do
+      while j < n do
         b2(j)(i) = b(i)(j)
         j += 1
       i += 1
-
-    val c = Array.ofDim[Double](n, p)
-    i = 0
-    while i < n do
-      val ci = c(i)
-      val ai = a(i)
-      var j = 0
-      while j < p do
-        var s = 0.0
-        val b2j = b2(j)
-        var k = 0
-        while k < n do
-          s += ai(k) * b2j(k)
-          k += 1
-        ci(j) = s
-        j += 1
-      i += 1
-    c
+    b2
 
   protected def matmulParallel(a: Array[Array[Double]], b: Array[Array[Double]]): Array[Array[Double]] =
     val n = a.length
@@ -153,8 +118,7 @@ class Matmul1T extends Benchmark:
       i += 1
     a
 
-  private def matmul(a: Array[Array[Double]], b: Array[Array[Double]]): Array[Array[Double]] =
-    val n = a.length
+  private def transpose(b: Array[Array[Double]]): Array[Array[Double]] =
     val b2 = Array.ofDim[Double](n, n)
 
     var i = 0
@@ -164,9 +128,13 @@ class Matmul1T extends Benchmark:
         b2(j)(i) = b(i)(j)
         j += 1
       i += 1
+    b2
 
+  private def matmul(a: Array[Array[Double]], b: Array[Array[Double]]): Array[Array[Double]] =
+    val n = a.length
+    val b2 = transpose(b)
     val c = Array.ofDim[Double](n, n)
-    i = 0
+    var i = 0
     while i < n do
       val ci = c(i)
       val ai = a(i)
