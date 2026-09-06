@@ -1,10 +1,7 @@
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.IOException
-import java.nio.file.Files
-import java.nio.file.Paths
-import java.util.*
-import java.util.function.Supplier
+import java.io.File
+import java.util.Locale
 
 object Helper {
     private const val IM = 139968
@@ -14,8 +11,11 @@ object Helper {
 
     private var last = INIT
 
-    private var _order: List<String> = emptyList()
-    val order: List<String> get() = _order
+    var order: List<String> = emptyList()
+        private set
+
+    var config = JSONObject()
+        private set
 
     fun reset() {
         last = INIT
@@ -36,38 +36,32 @@ object Helper {
         return max * last / IM.toDouble()
     }
 
-    fun debug(message: Supplier<String>) {
+    fun debug(message: () -> String) {
         if ("1" == System.getenv("DEBUG")) {
-            println(message.get())
+            println(message())
         }
     }
 
     fun checksum(v: String): UInt {
-        var hash: Long = 5381L
-        v.forEach { char ->
-            hash = ((hash shl 5) + hash) + char.code.toLong()
+        var hash = 5381L
+        for (c in v) {
+            hash = ((hash shl 5) + hash) + c.code
         }
-        return (hash and 0xFFFFFFFFL).toUInt()
+        return hash.toUInt()
     }
 
     fun checksum(v: ByteArray): UInt {
-        var hash: Long = 5381L
-        v.forEach { byte ->
-            hash = ((hash shl 5) + hash) + (byte.toInt() and 0xFF).toLong()
+        var hash = 5381L
+        for (b in v) {
+            hash = ((hash shl 5) + hash) + (b.toInt() and 0xFF)
         }
-        return (hash and 0xFFFFFFFFL).toUInt()
+        return hash.toUInt()
     }
 
-    fun checksumF64(v: Double): UInt = checksum(String.format(Locale.US, "%.7f", v)) and 0xFFFFFFFFu
+    fun checksumF64(v: Double): UInt = checksum("%.7f".format(Locale.US, v))
 
-    var CONFIG = JSONObject()
-
-    @Throws(IOException::class)
     fun loadConfig(filename: String? = null) {
-        val file = filename ?: "../run.js"
-        val content = String(Files.readAllBytes(Paths.get(file)))
-
-        val jsonArray = JSONArray(content)
+        val jsonArray = JSONArray(File(filename ?: "../run.js").readText())
         val dict = JSONObject()
         val orderList = mutableListOf<String>()
 
@@ -78,37 +72,41 @@ object Helper {
             orderList.add(name)
         }
 
-        CONFIG = dict
-        _order = orderList
+        config = dict
+        order = orderList
     }
+
+    private fun configSection(
+        className: String,
+        fieldName: String,
+    ): JSONObject? = config.optJSONObject(className)?.takeIf { it.has(fieldName) }
+
+    fun optConfigI64(
+        className: String,
+        fieldName: String,
+    ): Long? = configSection(className, fieldName)?.getLong(fieldName)
 
     fun configI64(
         className: String,
         fieldName: String,
-    ): Long =
-        try {
-            if (CONFIG.has(className) && CONFIG.getJSONObject(className).has(fieldName)) {
-                CONFIG.getJSONObject(className).getLong(fieldName)
-            } else {
-                throw RuntimeException("Config not found for $className, field: $fieldName")
-            }
-        } catch (e: Exception) {
-            System.err.println(e.message)
-            0
+    ): Long {
+        val section = configSection(className, fieldName)
+        if (section == null) {
+            System.err.println("Config not found for $className, field: $fieldName")
+            return 0
         }
+        return section.getLong(fieldName)
+    }
 
     fun configS(
         className: String,
         fieldName: String,
-    ): String =
-        try {
-            if (CONFIG.has(className) && CONFIG.getJSONObject(className).has(fieldName)) {
-                CONFIG.getJSONObject(className).getString(fieldName)
-            } else {
-                throw RuntimeException("Config not found for $className, field: $fieldName")
-            }
-        } catch (e: Exception) {
-            System.err.println(e.message)
-            ""
+    ): String {
+        val section = configSection(className, fieldName)
+        if (section == null) {
+            System.err.println("Config not found for $className, field: $fieldName")
+            return ""
         }
+        return section.getString(fieldName)
+    }
 }

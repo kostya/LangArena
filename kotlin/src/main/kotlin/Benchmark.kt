@@ -1,3 +1,5 @@
+import kotlin.system.exitProcess
+
 abstract class Benchmark {
     abstract fun run(iterationId: Int)
 
@@ -7,37 +9,29 @@ abstract class Benchmark {
 
     abstract fun name(): String
 
-    open fun warmupIterations(): Long {
-        val iters = iterations()
-        return kotlin.math.max((iters * 0.2).toLong(), 1L)
-    }
+    open fun warmupIterations(): Long =
+        Helper.optConfigI64(name(), "warmup_iterations")
+            ?: maxOf((iterations() * 0.2).toLong(), 1L)
 
     open fun warmup() {
-        val prepareIters = warmupIterations()
-        for (i in 0 until prepareIters) {
-            this.run(i.toInt())
-        }
+        repeat(warmupIterations().toInt()) { run(it) }
     }
 
     open fun runAll() {
-        val iters = iterations()
-        for (i in 0 until iters) {
-            this.run(i.toInt())
-        }
+        repeat(iterations().toInt()) { run(it) }
     }
 
     open fun configVal(fieldName: String): Long = Helper.configI64(name(), fieldName)
+
+    fun configInt(fieldName: String): Int = configVal(fieldName).toInt()
+
+    fun configStr(fieldName: String): String = Helper.configS(name(), fieldName)
 
     open fun iterations(): Long = configVal("iterations")
 
     open fun expectedChecksum(): Long = configVal("checksum")
 
     companion object {
-        private data class NamedBenchmarkFactory(
-            val name: String,
-            val factory: () -> Benchmark,
-        )
-
         private val benchmarkMap = mutableMapOf<String, () -> Benchmark>()
 
         fun registerBenchmark(
@@ -51,25 +45,13 @@ abstract class Benchmark {
             benchmarkMap[name] = factory
         }
 
-        fun registerBenchmark(factory: () -> Benchmark) {
-            val bench = factory()
-            benchmarkMap[bench.name()] = factory
-        }
-
         fun all(singleBench: String? = null) {
             var summaryTime = 0.0
             var ok = 0
             var fails = 0
 
             for (benchName in Helper.order) {
-                val shouldRun =
-                    when {
-                        singleBench == null -> true
-                        benchName.lowercase().contains(singleBench.lowercase()) -> true
-                        else -> false
-                    }
-
-                if (!shouldRun) {
+                if (singleBench != null && !benchName.contains(singleBench, ignoreCase = true)) {
                     continue
                 }
 
@@ -113,7 +95,7 @@ abstract class Benchmark {
             println("Summary: %.4fs, %d, %d, %d".format(summaryTime, ok + fails, ok, fails))
 
             if (fails > 0) {
-                kotlin.system.exitProcess(1)
+                exitProcess(1)
             }
         }
     }
