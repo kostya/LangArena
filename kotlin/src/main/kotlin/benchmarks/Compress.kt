@@ -25,7 +25,6 @@ class BWTEncode : Benchmark() {
     var sizeVal = configVal("size")
     lateinit var bwtResult: BWTResult
 
-
     override fun name(): String = "Compress::BWTEncode"
 
     override fun prepare() {
@@ -145,7 +144,6 @@ class BWTDecode : Benchmark() {
     private var resultVal: UInt = 0u
     private val sizeVal = configVal("size")
 
-
     override fun name(): String = "Compress::BWTDecode"
 
     override fun prepare() {
@@ -238,7 +236,6 @@ class HuffEncode : Benchmark() {
     lateinit var encoded: EncodedResult
     private var resultVal: UInt = 0u
     var sizeVal = configVal("size")
-
 
     override fun name(): String = "Compress::HuffEncode"
 
@@ -388,7 +385,6 @@ class HuffDecode : Benchmark() {
     private var resultVal: UInt = 0u
     private val sizeVal = configVal("size")
 
-
     override fun name(): String = "Compress::HuffDecode"
 
     override fun prepare() {
@@ -507,7 +503,6 @@ class ArithEncode : Benchmark() {
     private var resultVal: UInt = 0u
     var sizeVal = configVal("size")
 
-
     override fun name(): String = "Compress::ArithEncode"
 
     override fun prepare() {
@@ -564,7 +559,9 @@ class ArithEncode : Benchmark() {
                         high -= QUARTER
                     }
 
-                    else -> break
+                    else -> {
+                        break
+                    }
                 }
 
                 low = low shl 1
@@ -612,7 +609,6 @@ class ArithDecode : Benchmark() {
     private lateinit var encoded: ArithEncode.ArithEncodedResult
     private var resultVal: UInt = 0u
     private val sizeVal = configVal("size")
-
 
     override fun name(): String = "Compress::ArithDecode"
 
@@ -682,7 +678,9 @@ class ArithDecode : Benchmark() {
 
             while (true) {
                 when {
-                    high < HALF -> Unit
+                    high < HALF -> {
+                        Unit
+                    }
 
                     low >= HALF -> {
                         value -= HALF
@@ -696,7 +694,9 @@ class ArithDecode : Benchmark() {
                         high -= QUARTER
                     }
 
-                    else -> break
+                    else -> {
+                        break
+                    }
                 }
 
                 low = low shl 1
@@ -719,7 +719,6 @@ class LZWEncode : Benchmark() {
     lateinit var encoded: LZWResult
     private var resultVal: UInt = 0u
     var sizeVal = configVal("size")
-
 
     override fun name(): String = "Compress::LZWEncode"
 
@@ -781,7 +780,6 @@ class LZWDecode : Benchmark() {
     private lateinit var encoded: LZWEncode.LZWResult
     private var resultVal: UInt = 0u
     private val sizeVal = configVal("size")
-
 
     override fun name(): String = "Compress::LZWDecode"
 

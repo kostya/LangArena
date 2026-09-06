@@ -15,8 +15,8 @@ object Distance {
     fun generatePairStrings(
         n: Int,
         m: Int,
-    ): Array<StringPair> {
-        return Array(n) {
+    ): Array<StringPair> =
+        Array(n) {
             val len1 = Helper.nextInt(m) + 4
             val len2 = Helper.nextInt(m) + 4
 
@@ -35,7 +35,6 @@ object Distance {
 
             StringPair(str1, str2)
         }
-    }
 
     class Jaro : Benchmark() {
         private val count = configInt("count")

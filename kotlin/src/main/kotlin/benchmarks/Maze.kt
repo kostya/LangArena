@@ -2,9 +2,9 @@ package benchmarks
 
 import Benchmark
 import java.util.ArrayDeque
-import kotlin.math.abs
 import java.util.PriorityQueue
 import java.util.Queue
+import kotlin.math.abs
 
 class MazeGenerator : Benchmark() {
     object CellKind {
