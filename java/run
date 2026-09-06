@@ -1,4 +1,4 @@
 #!/bin/sh
 rm -f ./target/java-benchmarks-1.0-SNAPSHOT.jar
 mvn compile package -Pjava-plain -DskipTests -Dmaven.test.skip=true -q
-../xtime.rb java -server -jar ./target/java-benchmarks-1.0-SNAPSHOT.jar ../run.js $@
+../xtime.rb java -Xmx512m -server -jar ./target/java-benchmarks-1.0-SNAPSHOT.jar ../run.js $@
