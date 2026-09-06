@@ -39,14 +39,10 @@ abstract class GraphPathBenchmark : Benchmark() {
         }
     }
 
-    protected class Step(
+    protected data class Step(
         val vertex: Int,
         val dist: Int,
-    ) {
-        operator fun component1() = vertex
-
-        operator fun component2() = dist
-    }
+    )
 
     protected lateinit var graph: Graph
     private var resultVal: UInt = 0u
@@ -140,7 +136,7 @@ class GraphPathDFS : GraphPathBenchmark() {
 }
 
 class GraphPathAStar : GraphPathBenchmark() {
-    private class Node(
+    private data class Node(
         val vertex: Int,
         val priority: Int,
     ) : Comparable<Node> {
