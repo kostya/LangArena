@@ -1,13 +1,13 @@
 use super::super::{helper, Benchmark};
 use crate::config_i64;
 
-struct Cell<'a> {
+struct Cell {
     alive: bool,
     next_state: bool,
-    neighbors: Vec<&'a Cell<'a>>,
+    neighbors: Vec<(usize, usize)>,
 }
 
-impl<'a> Cell<'a> {
+impl Cell {
     fn new(alive: bool) -> Self {
         Self {
             alive,
@@ -16,17 +16,21 @@ impl<'a> Cell<'a> {
         }
     }
 
-    fn add_neighbor(&mut self, cell: &'a Cell<'a>) {
-        self.neighbors.push(cell);
+    fn add_neighbor(&mut self, x: usize, y: usize) {
+        self.neighbors.push((x, y));
     }
 
-    fn compute_next_state(&mut self) {
-        let alive_neighbors = self.neighbors.iter().filter(|n| n.alive).count();
+    fn compute_next_state(&self, cells: &[Vec<Cell>]) -> bool {
+        let alive_neighbors = self
+            .neighbors
+            .iter()
+            .filter(|&&(x, y)| cells[y][x].alive)
+            .count();
 
         if self.alive {
-            self.next_state = alive_neighbors == 2 || alive_neighbors == 3
+            alive_neighbors == 2 || alive_neighbors == 3
         } else {
-            self.next_state = alive_neighbors == 3
+            alive_neighbors == 3
         }
     }
 
@@ -35,47 +39,31 @@ impl<'a> Cell<'a> {
     }
 }
 
-struct Grid<'a> {
+struct Grid {
     width: usize,
     height: usize,
-    cells: Vec<Vec<Cell<'a>>>,
+    cells: Vec<Vec<Cell>>,
 }
 
-impl<'a> Grid<'a> {
+impl Grid {
     fn new(width: usize, height: usize) -> Self {
         let mut grid = Grid {
             width,
             height,
-            cells: Vec::with_capacity(height),
+            cells: (0..height)
+                .map(|_| (0..width).map(|_| Cell::new(false)).collect())
+                .collect(),
         };
-
-        for _ in 0..height {
-            let mut row = Vec::with_capacity(width);
-            for _ in 0..width {
-                row.push(Cell::new(false));
-            }
-            grid.cells.push(row);
-        }
 
         grid.link_neighbors();
         grid
     }
 
     fn link_neighbors(&mut self) {
-        let cells_ref: Vec<Vec<*const Cell<'a>>> = (0..self.height)
-            .map(|y| {
-                (0..self.width)
-                    .map(|x| &self.cells[y][x] as *const Cell)
-                    .collect()
-            })
-            .collect();
-
         for y in 0..self.height {
             for x in 0..self.width {
-                let cell = &mut self.cells[y][x];
-
-                for dy in -1..=1 {
-                    for dx in -1..=1 {
+                for dy in -1..=1_i32 {
+                    for dx in -1..=1_i32 {
                         if dx == 0 && dy == 0 {
                             continue;
                         }
@@ -84,8 +72,7 @@ impl<'a> Grid<'a> {
                             ((y as i32 + dy + self.height as i32) % self.height as i32) as usize;
                         let nx = ((x as i32 + dx + self.width as i32) % self.width as i32) as usize;
 
-                        let neighbor = unsafe { &*cells_ref[ny][nx] };
-                        cell.add_neighbor(neighbor);
+                        self.cells[y][x].add_neighbor(nx, ny);
                     }
                 }
             }
@@ -93,16 +80,18 @@ impl<'a> Grid<'a> {
     }
 
     fn next_generation(&mut self) {
-        self.cells.iter_mut().for_each(|row| {
-            row.iter_mut().for_each(|cell| {
-                cell.compute_next_state();
-            });
-        });
-        self.cells.iter_mut().for_each(|row| {
-            row.iter_mut().for_each(|cell| {
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let next_state = self.cells[y][x].compute_next_state(&self.cells);
+                self.cells[y][x].next_state = next_state;
+            }
+        }
+
+        for row in &mut self.cells {
+            for cell in row {
                 cell.update();
-            });
-        });
+            }
+        }
     }
 
     fn count_alive(&self) -> u32 {
@@ -128,7 +117,7 @@ impl<'a> Grid<'a> {
 }
 
 pub struct GameOfLife {
-    grid: Grid<'static>,
+    grid: Grid,
 }
 
 impl GameOfLife {
