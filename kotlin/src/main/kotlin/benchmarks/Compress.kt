@@ -84,7 +84,6 @@ class BWTEncode : Benchmark() {
             var k = 1
             while (k < n) {
                 val saArray = Array(n) { sa[it] }
-                val kFinal = k
 
                 saArray.sortWith { a, b ->
                     val ra = rank[a]
@@ -92,7 +91,7 @@ class BWTEncode : Benchmark() {
                     if (ra != rb) {
                         ra.compareTo(rb)
                     } else {
-                        rank[(a + kFinal) % n].compareTo(rank[(b + kFinal) % n])
+                        rank[(a + k) % n].compareTo(rank[(b + k) % n])
                     }
                 }
 
