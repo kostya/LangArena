@@ -1,7 +1,7 @@
 package benchmarks
 
 import Benchmark
-import java.util.regex.Pattern
+import kotlin.text.Regex
 
 class LogParser : Benchmark() {
     private var linesCount: Int = 0
@@ -51,19 +51,19 @@ class LogParser : Benchmark() {
 
         private val PATTERNS =
             arrayOf(
-                Pattern.compile(" [5][0-9]{2} | [4][0-9]{2} "),
-                Pattern.compile("bot|crawler|scanner|spider|indexing|crawl|robot|spider", Pattern.CASE_INSENSITIVE),
-                Pattern.compile("etc/passwd|wp-admin|\\.\\./", Pattern.CASE_INSENSITIVE),
-                Pattern.compile("\\d+\\.\\d+\\.\\d+\\.35"),
-                Pattern.compile("/api/[^ \" ]+"),
-                Pattern.compile("POST [^ ]* HTTP"),
-                Pattern.compile("/login|/signin", Pattern.CASE_INSENSITIVE),
-                Pattern.compile("get|post|put", Pattern.CASE_INSENSITIVE),
-                Pattern.compile("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"),
-                Pattern.compile("password=[^&\\s\"]+"),
-                Pattern.compile("token=[^&\\s\"]+|api[_-]?key=[^&\\s\"]+"),
-                Pattern.compile("session[_-]?id=[^&\\s\"]+"),
-                Pattern.compile("\\[\\d+/\\w+/\\d+:1[3-7]:\\d+:\\d+ [+\\-]\\d+\\]"),
+                Regex(" [5][0-9]{2} | [4][0-9]{2} "),
+                Regex("bot|crawler|scanner|spider|indexing|crawl|robot|spider", RegexOption.IGNORE_CASE),
+                Regex("etc/passwd|wp-admin|\\.\\./", RegexOption.IGNORE_CASE),
+                Regex("\\d+\\.\\d+\\.\\d+\\.35"),
+                Regex("/api/[^ \" ]+"),
+                Regex("POST [^ ]* HTTP"),
+                Regex("/login|/signin", RegexOption.IGNORE_CASE),
+                Regex("get|post|put", RegexOption.IGNORE_CASE),
+                Regex("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"),
+                Regex("password=[^&\\s\"]+"),
+                Regex("token=[^&\\s\"]+|api[_-]?key=[^&\\s\"]+"),
+                Regex("session[_-]?id=[^&\\s\"]+"),
+                Regex("\\[\\d+/\\w+/\\d+:1[3-7]:\\d+:\\d+ [+\\-]\\d+\\]"),
             )
     }
 
@@ -116,9 +116,8 @@ class LogParser : Benchmark() {
 
     override fun run(iterationId: Int) {
         var total = 0
-        for (pattern in PATTERNS) {
-            val matcher = pattern.matcher(log)
-            while (matcher.find()) total++
+        for (regex in PATTERNS) {
+            total += regex.findAll(log).count()
         }
         checksumVal += total.toUInt()
     }

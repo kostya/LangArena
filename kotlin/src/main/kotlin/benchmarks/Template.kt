@@ -1,7 +1,7 @@
 package benchmarks
 
 import Benchmark
-import java.util.regex.Pattern
+import kotlin.text.Regex
 
 private val FIRST_NAMES = arrayOf("John", "Jane", "Bob", "Alice", "Charlie", "Diana", "Sarah", "Mike")
 private val LAST_NAMES = arrayOf("Smith", "Johnson", "Brown", "Taylor", "Wilson", "Davis", "Miller", "Jones")
@@ -56,22 +56,22 @@ abstract class TemplateBase : Benchmark() {
 }
 
 class TemplateRegex : TemplateBase() {
-    private val pattern = Pattern.compile("\\{\\{(.*?)\\}\\}")
+    private val regex = Regex("\\{\\{(.*?)\\}\\}")
 
     override fun name(): String = "Template::Regex"
 
     override fun run(iterationId: Int) {
         val sb = StringBuilder(text.length)
-        val matcher = pattern.matcher(text)
         var lastEnd = 0
 
-        while (matcher.find()) {
-            sb.append(text, lastEnd, matcher.start())
-            val value = vars[matcher.group(1).trim()]
+        for (match in regex.findAll(text)) {
+            val range = match.range
+            sb.append(text, lastEnd, range.first)
+            val value = vars[match.groupValues[1].trim()]
             if (value != null) {
                 sb.append(value)
             }
-            lastEnd = matcher.end()
+            lastEnd = range.last + 1
         }
         sb.append(text, lastEnd, text.length)
 
