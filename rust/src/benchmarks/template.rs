@@ -136,7 +136,7 @@ impl Benchmark for TemplateRegex {
             self.base.vars.get(key).map(|s| s.as_str()).unwrap_or("")
         });
 
-        self.base.rendered = rendered.to_string();
+        self.base.rendered = rendered.into_owned();
         self.base.checksum = self
             .base
             .checksum

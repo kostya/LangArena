@@ -201,10 +201,10 @@ impl NGram {
                 | ((s2_bytes[i + 2] as u32) << 8)
                 | (s2_bytes[i + 3] as u32);
 
-            let _ = *grams2.entry(gram).and_modify(|e| *e += 1).or_insert(1);
+            let count2 = grams2.entry(gram).and_modify(|e| *e += 1).or_insert(1);
 
             if let Some(&count1) = grams1.get(&gram) {
-                if grams2[&gram] <= count1 {
+                if *count2 <= count1 {
                     intersection += 1;
                 }
             }
