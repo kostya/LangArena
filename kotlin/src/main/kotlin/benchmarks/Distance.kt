@@ -5,6 +5,8 @@ import Helper
 import java.nio.charset.StandardCharsets
 
 object Distance {
+    private const val ALPHABET = "abcdefghij"
+
     data class StringPair(
         val s1: String,
         val s2: String,
@@ -14,40 +16,32 @@ object Distance {
         n: Int,
         m: Int,
     ): Array<StringPair> {
-        val pairs =
-            Array(n) { i ->
-                val len1 = Helper.nextInt(m) + 4
-                val len2 = Helper.nextInt(m) + 4
-                val chars = "abcdefghij"
+        return Array(n) {
+            val len1 = Helper.nextInt(m) + 4
+            val len2 = Helper.nextInt(m) + 4
 
-                val str1 =
-                    buildString {
-                        repeat(len1) {
-                            append(chars[Helper.nextInt(10)])
-                        }
+            val str1 =
+                buildString {
+                    repeat(len1) {
+                        append(ALPHABET[Helper.nextInt(10)])
                     }
-                val str2 =
-                    buildString {
-                        repeat(len2) {
-                            append(chars[Helper.nextInt(10)])
-                        }
+                }
+            val str2 =
+                buildString {
+                    repeat(len2) {
+                        append(ALPHABET[Helper.nextInt(10)])
                     }
+                }
 
-                StringPair(str1, str2)
-            }
-        return pairs
+            StringPair(str1, str2)
+        }
     }
 
     class Jaro : Benchmark() {
-        private var count: Int = 0
-        private var size: Int = 0
+        private val count = configInt("count")
+        private val size = configInt("size")
         private lateinit var pairs: Array<StringPair>
         private var resultVal: UInt = 0u
-
-        init {
-            count = configVal("count").toInt()
-            size = configVal("size").toInt()
-        }
 
         override fun prepare() {
             pairs = generatePairStrings(count, size)
@@ -66,8 +60,7 @@ object Distance {
 
             if (len1 == 0 || len2 == 0) return 0.0
 
-            var matchDist = maxOf(len1, len2) / 2 - 1
-            if (matchDist < 0) matchDist = 0
+            val matchDist = (maxOf(len1, len2) / 2 - 1).coerceAtLeast(0)
 
             val s1Matches = BooleanArray(len1)
             val s2Matches = BooleanArray(len2)
@@ -122,18 +115,13 @@ object Distance {
     }
 
     class NGram : Benchmark() {
-        private var count: Int = 0
-        private var size: Int = 0
+        private val count = configInt("count")
+        private val size = configInt("size")
         private lateinit var pairs: Array<StringPair>
         private var resultVal: UInt = 0u
 
         private companion object {
             const val N = 4
-        }
-
-        init {
-            count = configVal("count").toInt()
-            size = configVal("size").toInt()
         }
 
         override fun prepare() {
@@ -150,32 +138,33 @@ object Distance {
 
             if (bytes1.size < N || bytes2.size < N) return 0.0
 
-            val grams1 = HashMap<UInt, Int>(bytes1.size)
+            val grams1 = HashMap<Int, Int>(bytes1.size)
 
             for (i in 0..bytes1.size - N) {
                 val gram =
-                    (bytes1[i].toUInt() shl 24) or
-                        (bytes1[i + 1].toUInt() shl 16) or
-                        (bytes1[i + 2].toUInt() shl 8) or
-                        bytes1[i + 3].toUInt()
+                    ((bytes1[i].toInt() and 0xFF) shl 24) or
+                        ((bytes1[i + 1].toInt() and 0xFF) shl 16) or
+                        ((bytes1[i + 2].toInt() and 0xFF) shl 8) or
+                        (bytes1[i + 3].toInt() and 0xFF)
 
                 grams1.merge(gram, 1) { old, _ -> old + 1 }
             }
 
-            val grams2 = HashMap<UInt, Int>(bytes2.size)
+            val grams2 = HashMap<Int, Int>(bytes2.size)
             var intersection = 0
 
             for (i in 0..bytes2.size - N) {
                 val gram =
-                    (bytes2[i].toUInt() shl 24) or
-                        (bytes2[i + 1].toUInt() shl 16) or
-                        (bytes2[i + 2].toUInt() shl 8) or
-                        bytes2[i + 3].toUInt()
+                    ((bytes2[i].toInt() and 0xFF) shl 24) or
+                        ((bytes2[i + 1].toInt() and 0xFF) shl 16) or
+                        ((bytes2[i + 2].toInt() and 0xFF) shl 8) or
+                        (bytes2[i + 3].toInt() and 0xFF)
 
-                grams2.merge(gram, 1) { old, _ -> old + 1 }
+                val count2 = (grams2[gram] ?: 0) + 1
+                grams2[gram] = count2
 
                 val count1 = grams1[gram]
-                if (count1 != null && grams2[gram]!! <= count1) {
+                if (count1 != null && count2 <= count1) {
                     intersection++
                 }
             }

@@ -7,21 +7,21 @@ class BufferHashSHA256 : BufferHashBenchmark() {
 
             val hashes =
                 intArrayOf(
-                    0x6a09e667.toInt(),
+                    0x6a09e667,
                     0xbb67ae85.toInt(),
-                    0x3c6ef372.toInt(),
+                    0x3c6ef372,
                     0xa54ff53a.toInt(),
-                    0x510e527f.toInt(),
+                    0x510e527f,
                     0x9b05688c.toInt(),
-                    0x1f83d9ab.toInt(),
-                    0x5be0cd19.toInt(),
+                    0x1f83d9ab,
+                    0x5be0cd19,
                 )
 
-            for ((i, byte) in data.withIndex()) {
+            for (i in data.indices) {
                 val hashIdx = i % 8
                 var hash = hashes[hashIdx]
 
-                hash = ((hash shl 5) + hash) + (byte.toInt() and 0xFF)
+                hash = ((hash shl 5) + hash) + (data[i].toInt() and 0xFF)
                 hash = (hash + (hash shl 10)) xor (hash ushr 6)
                 hashes[hashIdx] = hash
             }

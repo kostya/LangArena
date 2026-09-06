@@ -9,7 +9,7 @@ import java.util.Locale
 class CsvParse : Benchmark() {
     private lateinit var data: String
     private var resultVal: UInt = 0u
-    private val rows: Int by lazy { configVal("rows").toInt() }
+    private val rows = configInt("rows")
 
     override fun name(): String = "CSV::Parse"
 
@@ -17,7 +17,7 @@ class CsvParse : Benchmark() {
         val sb = StringBuilder(rows * 50)
 
         for (i in 0 until rows) {
-            val c = ('A' + (i % 26)).toChar()
+            val c = 'A' + i % 26
             val x = Helper.nextFloat()
             val z = Helper.nextFloat()
             val y = Helper.nextFloat()
@@ -31,11 +31,11 @@ class CsvParse : Benchmark() {
                 .append("\"\"\"")
                 .append(',')
 
-            sb.append(String.format(Locale.US, "%.10f", x)).append(',')
+            sb.append("%.10f".format(Locale.US, x)).append(',')
 
             sb.append(',')
 
-            sb.append(String.format(Locale.US, "%.10f", z)).append(',')
+            sb.append("%.10f".format(Locale.US, z)).append(',')
 
             sb
                 .append('"')
@@ -47,7 +47,7 @@ class CsvParse : Benchmark() {
                 .append('"')
                 .append(',')
 
-            sb.append(String.format(Locale.US, "%.10f", y)).append('\n')
+            sb.append("%.10f".format(Locale.US, y)).append('\n')
         }
 
         data = sb.toString()
@@ -96,9 +96,7 @@ class CsvParse : Benchmark() {
         val yAvg = ySum / count
         val zAvg = zSum / count
 
-        resultVal += Helper.checksum("%.7f".format(xAvg)) +
-            Helper.checksum("%.7f".format(yAvg)) +
-            Helper.checksum("%.7f".format(zAvg))
+        resultVal += Helper.checksumF64(xAvg) + Helper.checksumF64(yAvg) + Helper.checksumF64(zAvg)
     }
 
     override fun checksum(): UInt = resultVal

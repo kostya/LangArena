@@ -1,19 +1,23 @@
 package benchmarks
 
 import Benchmark
-import kotlinx.coroutines.*
-import java.util.concurrent.Executors
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import java.util.concurrent.ForkJoinPool
 
 abstract class MatmulBase(
     private val threadCount: Int,
 ) : Benchmark() {
+    protected val n = configInt("n")
     protected lateinit var a: Array<DoubleArray>
     protected lateinit var b: Array<DoubleArray>
-    protected var n: Long = 0
     protected var resultVal: UInt = 0u
+    private val dispatcher = ForkJoinPool(threadCount).asCoroutineDispatcher()
 
-    init {
-        n = configVal("n")
+    companion object {
+        private const val CHUNKS_PER_THREAD = 4
     }
 
     protected fun matgen(n: Int): Array<DoubleArray> {
@@ -64,6 +68,21 @@ abstract class MatmulBase(
         return c
     }
 
+    private suspend fun forEachRowInParallel(
+        n: Int,
+        body: (Int) -> Unit,
+    ) = coroutineScope {
+        val chunks = threadCount * CHUNKS_PER_THREAD
+        val rowsPerChunk = (n + chunks - 1) / chunks
+        repeat(chunks) { chunkId ->
+            launch(dispatcher) {
+                val startRow = chunkId * rowsPerChunk
+                val endRow = minOf(startRow + rowsPerChunk, n)
+                for (i in startRow until endRow) body(i)
+            }
+        }
+    }
+
     protected suspend fun matmulParallel(
         a: Array<DoubleArray>,
         b: Array<DoubleArray>,
@@ -71,43 +90,33 @@ abstract class MatmulBase(
         val n = a.size
         val bT = transpose(b)
         val c = Array(n) { DoubleArray(n) }
+        forEachRowInParallel(n) { i ->
+            val ai = a[i]
+            val ci = c[i]
 
-        val rowsPerThread = (n + threadCount - 1) / threadCount
+            for (j in 0 until n) {
+                var sum = 0.0
+                val bTj = bT[j]
 
-        coroutineScope {
-            val jobs =
-                List(threadCount) { threadId ->
-                    launch(Dispatchers.Default) {
-                        val startRow = threadId * rowsPerThread
-                        val endRow = minOf(startRow + rowsPerThread, n)
-
-                        for (i in startRow until endRow) {
-                            val ai = a[i]
-                            val ci = c[i]
-
-                            for (j in 0 until n) {
-                                var sum = 0.0
-                                val bTj = bT[j]
-
-                                for (k in 0 until n) {
-                                    sum += ai[k] * bTj[k]
-                                }
-
-                                ci[j] = sum
-                            }
-                        }
-                    }
+                for (k in 0 until n) {
+                    sum += ai[k] * bTj[k]
                 }
-            jobs.joinAll()
-        }
 
+                ci[j] = sum
+            }
+        }
         return c
     }
 
     override fun prepare() {
-        a = matgen(n.toInt())
-        b = matgen(n.toInt())
+        a = matgen(n)
+        b = matgen(n)
         resultVal = 0u
+    }
+
+    override fun run(iterationId: Int) {
+        val c = if (threadCount == 1) matmulSequential(a, b) else runBlocking { matmulParallel(a, b) }
+        resultVal += Helper.checksumF64(c[n / 2][n / 2])
     }
 
     override fun checksum(): UInt = resultVal
@@ -115,43 +124,16 @@ abstract class MatmulBase(
 
 class Matmul1T : MatmulBase(1) {
     override fun name(): String = "Matmul::Single"
-
-    override fun run(iterationId: Int) {
-        val c = matmulSequential(a, b)
-        val center = c[(n shr 1).toInt()][(n shr 1).toInt()]
-        resultVal += Helper.checksumF64(center)
-    }
 }
 
 class Matmul4T : MatmulBase(4) {
     override fun name(): String = "Matmul::T4"
-
-    override fun run(iterationId: Int) =
-        runBlocking {
-            val c = matmulParallel(a, b)
-            val center = c[(n shr 1).toInt()][(n shr 1).toInt()]
-            resultVal += Helper.checksumF64(center)
-        }
 }
 
 class Matmul8T : MatmulBase(8) {
     override fun name(): String = "Matmul::T8"
-
-    override fun run(iterationId: Int) =
-        runBlocking {
-            val c = matmulParallel(a, b)
-            val center = c[(n shr 1).toInt()][(n shr 1).toInt()]
-            resultVal += Helper.checksumF64(center)
-        }
 }
 
 class Matmul16T : MatmulBase(16) {
     override fun name(): String = "Matmul::T16"
-
-    override fun run(iterationId: Int) =
-        runBlocking {
-            val c = matmulParallel(a, b)
-            val center = c[(n shr 1).toInt()][(n shr 1).toInt()]
-            resultVal += Helper.checksumF64(center)
-        }
 }

@@ -73,7 +73,7 @@ fun main(args: Array<String>) {
     try {
         Helper.loadConfig(configFile)
 
-        if (Helper.CONFIG.isEmpty()) {
+        if (Helper.config.isEmpty()) {
             System.err.println("Warning: No test cases loaded from config file")
             System.err.println("Usage: ./gradlew run --args=\"test.js BrainfuckRecursion\"")
             System.err.println("Or: ./gradlew run --args=\"../run.js\"")

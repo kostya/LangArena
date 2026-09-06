@@ -1,37 +1,30 @@
 package benchmarks
 
 import Benchmark
-import java.util.*
+import java.io.ByteArrayOutputStream
 
-class Compress {
-    companion object {
-        fun generateTestData(dataSize: Long): ByteArray {
-            val pattern = "ABRACADABRA".toByteArray()
-            val data = ByteArray(dataSize.toInt())
+private const val HALF = 0x80000000uL
+private const val QUARTER = 0x40000000uL
+private const val THREE_QUARTERS = 0xC0000000uL
 
-            for (i in 0 until dataSize.toInt()) {
-                data[i] = pattern[i % pattern.size]
-            }
-
-            return data
-        }
+object Compress {
+    fun generateTestData(dataSize: Long): ByteArray {
+        val pattern = "ABRACADABRA".toByteArray()
+        return ByteArray(dataSize.toInt()) { pattern[it % pattern.size] }
     }
 }
 
 class BWTEncode : Benchmark() {
-    data class BWTResult(
+    class BWTResult(
         val transformed: ByteArray,
         val originalIdx: Int,
     )
 
-    public lateinit var testData: ByteArray
+    lateinit var testData: ByteArray
     private var resultVal: UInt = 0u
-    public var sizeVal: Long = 0
-    public lateinit var bwtResult: BWTResult
+    var sizeVal = configVal("size")
+    lateinit var bwtResult: BWTResult
 
-    init {
-        sizeVal = configVal("size")
-    }
 
     override fun name(): String = "Compress::BWTEncode"
 
@@ -92,6 +85,7 @@ class BWTEncode : Benchmark() {
             var k = 1
             while (k < n) {
                 val saArray = Array(n) { sa[it] }
+                val kFinal = k
 
                 saArray.sortWith { a, b ->
                     val ra = rank[a]
@@ -99,7 +93,7 @@ class BWTEncode : Benchmark() {
                     if (ra != rb) {
                         ra.compareTo(rb)
                     } else {
-                        rank[(a + k) % n].compareTo(rank[(b + k) % n])
+                        rank[(a + kFinal) % n].compareTo(rank[(b + kFinal) % n])
                     }
                 }
 
@@ -122,7 +116,7 @@ class BWTEncode : Benchmark() {
                         }
                 }
 
-                rank.indices.forEach { rank[it] = newRank[it] }
+                newRank.copyInto(rank)
                 k *= 2
             }
         }
@@ -149,11 +143,8 @@ class BWTDecode : Benchmark() {
     private lateinit var inverted: ByteArray
     private lateinit var bwtResult: BWTEncode.BWTResult
     private var resultVal: UInt = 0u
-    private var sizeVal: Long = 0
+    private val sizeVal = configVal("size")
 
-    init {
-        sizeVal = configVal("size")
-    }
 
     override fun name(): String = "Compress::BWTDecode"
 
@@ -188,22 +179,22 @@ class BWTDecode : Benchmark() {
         }
 
         val counts = IntArray(256)
-        bwt.forEach { byte ->
+        for (byte in bwt) {
             counts[byte.toInt() and 0xFF]++
         }
 
         val positions = IntArray(256)
         var total = 0
-        counts.forEachIndexed { i, count ->
+        for (i in 0 until 256) {
             positions[i] = total
-            total += count
+            total += counts[i]
         }
 
         val next = IntArray(n)
         val tempCounts = IntArray(256)
 
-        bwt.forEachIndexed { i, byte ->
-            val byteIdx = byte.toInt() and 0xFF
+        for (i in 0 until n) {
+            val byteIdx = bwt[i].toInt() and 0xFF
             val pos = positions[byteIdx] + tempCounts[byteIdx]
             next[pos] = i
             tempCounts[byteIdx]++
@@ -224,7 +215,7 @@ class BWTDecode : Benchmark() {
 class HuffEncode : Benchmark() {
     data class HuffmanNode(
         val frequency: Int,
-        val byteVal: Byte? = null,
+        val byteVal: Byte = 0,
         val isLeaf: Boolean = true,
         val left: HuffmanNode? = null,
         val right: HuffmanNode? = null,
@@ -232,25 +223,22 @@ class HuffEncode : Benchmark() {
         override fun compareTo(other: HuffmanNode): Int = frequency.compareTo(other.frequency)
     }
 
-    data class HuffmanCodes(
+    class HuffmanCodes(
         val codeLengths: IntArray = IntArray(256),
         val codes: IntArray = IntArray(256),
     )
 
-    data class EncodedResult(
+    class EncodedResult(
         val data: ByteArray,
         val bitCount: Int,
         val frequencies: IntArray,
     )
 
     private lateinit var testData: ByteArray
-    public lateinit var encoded: EncodedResult
+    lateinit var encoded: EncodedResult
     private var resultVal: UInt = 0u
-    public var sizeVal: Long = 0
+    var sizeVal = configVal("size")
 
-    init {
-        sizeVal = configVal("size")
-    }
 
     override fun name(): String = "Compress::HuffEncode"
 
@@ -291,13 +279,12 @@ class HuffEncode : Benchmark() {
                 }
             }
 
-            nodes.sortBy { it.frequency }
+            nodes.sort()
 
             if (nodes.size == 1) {
                 val node = nodes[0]
                 return HuffmanNode(
                     frequency = node.frequency,
-                    byteVal = null,
                     isLeaf = false,
                     left = node,
                     right = HuffmanNode(0, 0),
@@ -311,13 +298,12 @@ class HuffEncode : Benchmark() {
                 val parent =
                     HuffmanNode(
                         frequency = left.frequency + right.frequency,
-                        byteVal = null,
                         isLeaf = false,
                         left = left,
                         right = right,
                     )
 
-                val insertIndex = nodes.binarySearch { it.frequency.compareTo(parent.frequency) }
+                val insertIndex = nodes.binarySearch(parent)
                 val pos = if (insertIndex < 0) -insertIndex - 1 else insertIndex
 
                 nodes.add(pos, parent)
@@ -334,7 +320,7 @@ class HuffEncode : Benchmark() {
         ): HuffmanCodes {
             if (node.isLeaf) {
                 if (length > 0 || node.byteVal != 0.toByte()) {
-                    val idx = node.byteVal!!.toInt() and 0xFF
+                    val idx = node.byteVal.toInt() and 0xFF
                     huffmanCodes.codeLengths[idx] = length
                     huffmanCodes.codes[idx] = code
                 }
@@ -354,12 +340,13 @@ class HuffEncode : Benchmark() {
             huffmanCodes: HuffmanCodes,
             frequencies: IntArray,
         ): EncodedResult {
-            val result = ArrayList<Byte>(data.size * 2)
+            var result = ByteArray(data.size * 2)
             var currentByte = 0
             var bitPos = 0
+            var byteIndex = 0
             var totalBits = 0
 
-            data.forEach { byte ->
+            for (byte in data) {
                 val idx = byte.toInt() and 0xFF
                 val code = huffmanCodes.codes[idx]
                 val length = huffmanCodes.codeLengths[idx]
@@ -372,7 +359,10 @@ class HuffEncode : Benchmark() {
                     totalBits++
 
                     if (bitPos == 8) {
-                        result.add(currentByte.toByte())
+                        if (byteIndex >= result.size) {
+                            result = result.copyOf(result.size * 2)
+                        }
+                        result[byteIndex++] = currentByte.toByte()
                         currentByte = 0
                         bitPos = 0
                     }
@@ -380,10 +370,13 @@ class HuffEncode : Benchmark() {
             }
 
             if (bitPos > 0) {
-                result.add(currentByte.toByte())
+                if (byteIndex >= result.size) {
+                    result = result.copyOf(result.size * 2)
+                }
+                result[byteIndex++] = currentByte.toByte()
             }
 
-            return EncodedResult(result.toByteArray(), totalBits, frequencies)
+            return EncodedResult(result.copyOf(byteIndex), totalBits, frequencies)
         }
     }
 }
@@ -393,11 +386,8 @@ class HuffDecode : Benchmark() {
     private lateinit var decoded: ByteArray
     private lateinit var encoded: HuffEncode.EncodedResult
     private var resultVal: UInt = 0u
-    private var sizeVal: Long = 0
+    private val sizeVal = configVal("size")
 
-    init {
-        sizeVal = configVal("size")
-    }
 
     override fun name(): String = "Compress::HuffDecode"
 
@@ -450,7 +440,7 @@ class HuffDecode : Benchmark() {
                 currentNode = if (bit) currentNode.right!! else currentNode.left!!
 
                 if (currentNode.isLeaf) {
-                    result[resultSize++] = currentNode.byteVal!!
+                    result[resultSize++] = currentNode.byteVal
                     currentNode = root
                 }
             }
@@ -461,7 +451,7 @@ class HuffDecode : Benchmark() {
 }
 
 class ArithEncode : Benchmark() {
-    data class ArithEncodedResult(
+    class ArithEncodedResult(
         val data: ByteArray,
         val bitCount: Int,
         val frequencies: IntArray,
@@ -470,15 +460,11 @@ class ArithEncode : Benchmark() {
     class ArithFreqTable(
         frequencies: IntArray,
     ) {
-        val total: Int
-        val low: IntArray
-        val high: IntArray
+        val total = frequencies.sum()
+        val low = IntArray(256)
+        val high = IntArray(256)
 
         init {
-            total = frequencies.sum()
-            low = IntArray(256)
-            high = IntArray(256)
-
             var cum = 0
             for (i in 0 until 256) {
                 low[i] = cum
@@ -489,10 +475,11 @@ class ArithEncode : Benchmark() {
     }
 
     class BitOutputStream {
-        private var buffer: Int = 0
-        private var bitPos: Int = 0
-        private val bytes = java.io.ByteArrayOutputStream()
-        private var bitsWritten: Int = 0
+        private var buffer = 0
+        private var bitPos = 0
+        private val bytes = ByteArrayOutputStream()
+        var bitsWritten = 0
+            private set
 
         fun writeBit(bit: Int) {
             buffer = (buffer shl 1) or (bit and 1)
@@ -513,18 +500,13 @@ class ArithEncode : Benchmark() {
             }
             return bytes.toByteArray()
         }
-
-        fun getBitsWritten(): Int = bitsWritten
     }
 
     private lateinit var testData: ByteArray
-    public lateinit var encoded: ArithEncodedResult
+    lateinit var encoded: ArithEncodedResult
     private var resultVal: UInt = 0u
-    public var sizeVal: Long = 0
+    var sizeVal = configVal("size")
 
-    init {
-        sizeVal = configVal("size")
-    }
 
     override fun name(): String = "Compress::ArithEncode"
 
@@ -561,22 +543,28 @@ class ArithEncode : Benchmark() {
             low = low + (range * freqTable.low[idx].toULong() / freqTable.total.toULong())
 
             while (true) {
-                if (high < 0x80000000uL) {
-                    output.writeBit(0)
-                    repeat(pending) { output.writeBit(1) }
-                    pending = 0
-                } else if (low >= 0x80000000uL) {
-                    output.writeBit(1)
-                    repeat(pending) { output.writeBit(0) }
-                    pending = 0
-                    low -= 0x80000000uL
-                    high -= 0x80000000uL
-                } else if (low >= 0x40000000uL && high < 0xC0000000uL) {
-                    pending++
-                    low -= 0x40000000uL
-                    high -= 0x40000000uL
-                } else {
-                    break
+                when {
+                    high < HALF -> {
+                        output.writeBit(0)
+                        repeat(pending) { output.writeBit(1) }
+                        pending = 0
+                    }
+
+                    low >= HALF -> {
+                        output.writeBit(1)
+                        repeat(pending) { output.writeBit(0) }
+                        pending = 0
+                        low -= HALF
+                        high -= HALF
+                    }
+
+                    low >= QUARTER && high < THREE_QUARTERS -> {
+                        pending++
+                        low -= QUARTER
+                        high -= QUARTER
+                    }
+
+                    else -> break
                 }
 
                 low = low shl 1
@@ -586,7 +574,7 @@ class ArithEncode : Benchmark() {
         }
 
         pending++
-        if (low < 0x40000000uL) {
+        if (low < QUARTER) {
             output.writeBit(0)
             repeat(pending) { output.writeBit(1) }
         } else {
@@ -594,7 +582,7 @@ class ArithEncode : Benchmark() {
             repeat(pending) { output.writeBit(0) }
         }
 
-        return ArithEncodedResult(output.flush(), output.getBitsWritten(), frequencies)
+        return ArithEncodedResult(output.flush(), output.bitsWritten, frequencies)
     }
 }
 
@@ -602,13 +590,9 @@ class ArithDecode : Benchmark() {
     class BitInputStream(
         private val bytes: ByteArray,
     ) {
-        private var bytePos: Int = 0
-        private var bitPos: Int = 0
-        private var currentByte: Int
-
-        init {
-            currentByte = if (bytes.isNotEmpty()) bytes[0].toInt() and 0xFF else 0
-        }
+        private var bytePos = 0
+        private var bitPos = 0
+        private var currentByte = if (bytes.isNotEmpty()) bytes[0].toInt() and 0xFF else 0
 
         fun readBit(): Int {
             if (bitPos == 8) {
@@ -627,11 +611,8 @@ class ArithDecode : Benchmark() {
     private lateinit var decoded: ByteArray
     private lateinit var encoded: ArithEncode.ArithEncodedResult
     private var resultVal: UInt = 0u
-    private var sizeVal: Long = 0
+    private val sizeVal = configVal("size")
 
-    init {
-        sizeVal = configVal("size")
-    }
 
     override fun name(): String = "Compress::ArithDecode"
 
@@ -700,17 +681,22 @@ class ArithDecode : Benchmark() {
             low = low + (range * lowTable[symbol].toULong() / total.toULong())
 
             while (true) {
-                if (high < 0x80000000uL) {
-                } else if (low >= 0x80000000uL) {
-                    value -= 0x80000000uL
-                    low -= 0x80000000uL
-                    high -= 0x80000000uL
-                } else if (low >= 0x40000000uL && high < 0xC0000000uL) {
-                    value -= 0x40000000uL
-                    low -= 0x40000000uL
-                    high -= 0x40000000uL
-                } else {
-                    break
+                when {
+                    high < HALF -> Unit
+
+                    low >= HALF -> {
+                        value -= HALF
+                        low -= HALF
+                        high -= HALF
+                    }
+
+                    low >= QUARTER && high < THREE_QUARTERS -> {
+                        value -= QUARTER
+                        low -= QUARTER
+                        high -= QUARTER
+                    }
+
+                    else -> break
                 }
 
                 low = low shl 1
@@ -724,19 +710,16 @@ class ArithDecode : Benchmark() {
 }
 
 class LZWEncode : Benchmark() {
-    data class LZWResult(
+    class LZWResult(
         val data: ByteArray,
         val dictSize: Int,
     )
 
     private lateinit var testData: ByteArray
-    public lateinit var encoded: LZWResult
+    lateinit var encoded: LZWResult
     private var resultVal: UInt = 0u
-    public var sizeVal: Long = 0
+    var sizeVal = configVal("size")
 
-    init {
-        sizeVal = configVal("size")
-    }
 
     override fun name(): String = "Compress::LZWEncode"
 
@@ -764,20 +747,20 @@ class LZWEncode : Benchmark() {
 
         var nextCode = 256
 
-        val result = ArrayList<Byte>(input.size * 2)
+        val result = ByteArrayOutputStream(input.size * 2)
 
-        var current = input[0].toInt().toChar().toString()
+        var current = Char(input[0].toInt() and 0xFF).toString()
 
         for (i in 1 until input.size) {
-            val nextChar = input[i].toInt().toChar().toString()
+            val nextChar = Char(input[i].toInt() and 0xFF).toString()
             val newStr = current + nextChar
 
             if (dict.containsKey(newStr)) {
                 current = newStr
             } else {
                 val code = dict[current]!!
-                result.add(((code shr 8) and 0xFF).toByte())
-                result.add((code and 0xFF).toByte())
+                result.write((code shr 8) and 0xFF)
+                result.write(code and 0xFF)
 
                 dict[newStr] = nextCode++
                 current = nextChar
@@ -785,8 +768,8 @@ class LZWEncode : Benchmark() {
         }
 
         val code = dict[current]!!
-        result.add(((code shr 8) and 0xFF).toByte())
-        result.add((code and 0xFF).toByte())
+        result.write((code shr 8) and 0xFF)
+        result.write(code and 0xFF)
 
         return LZWResult(result.toByteArray(), nextCode)
     }
@@ -797,11 +780,8 @@ class LZWDecode : Benchmark() {
     private lateinit var decoded: ByteArray
     private lateinit var encoded: LZWEncode.LZWResult
     private var resultVal: UInt = 0u
-    private var sizeVal: Long = 0
+    private val sizeVal = configVal("size")
 
-    init {
-        sizeVal = configVal("size")
-    }
 
     override fun name(): String = "Compress::LZWDecode"
 
@@ -839,7 +819,7 @@ class LZWDecode : Benchmark() {
             dict.add(String(byteArrayOf(i.toByte()), Charsets.ISO_8859_1))
         }
 
-        val result = java.io.ByteArrayOutputStream(encoded.data.size * 2)
+        val result = ByteArrayOutputStream(encoded.data.size * 2)
         val data = encoded.data
         var pos = 0
 
@@ -850,8 +830,6 @@ class LZWDecode : Benchmark() {
 
         var oldStr = dict[oldCode]
         result.write(oldStr.toByteArray(Charsets.ISO_8859_1))
-
-        var nextCode = 256
 
         while (pos < data.size) {
             val high = data[pos].toInt() and 0xFF
@@ -869,7 +847,6 @@ class LZWDecode : Benchmark() {
             result.write(newStr.toByteArray(Charsets.ISO_8859_1))
 
             dict.add(oldStr + newStr.substring(0, 1))
-            nextCode++
             oldStr = newStr
         }
 

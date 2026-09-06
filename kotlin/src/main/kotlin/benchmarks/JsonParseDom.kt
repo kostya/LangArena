@@ -1,7 +1,6 @@
 package benchmarks
 
 import Benchmark
-import com.alibaba.fastjson2.JSONArray
 import com.alibaba.fastjson2.JSONObject
 
 class JsonParseDom : Benchmark() {
@@ -13,13 +12,10 @@ class JsonParseDom : Benchmark() {
         generator.n = configVal("coords")
         generator.prepare()
         generator.run(0)
-
-        val field = generator::class.java.getDeclaredField("text")
-        field.isAccessible = true
-        text = field.get(generator) as String
+        text = generator.text
     }
 
-    private fun calc(text: String): Triple<Double, Double, Double> {
+    private fun calc(text: String): Coord {
         val json = JSONObject.parseObject(text)
         val coordinates = json.getJSONArray("coordinates")
 
@@ -35,14 +31,12 @@ class JsonParseDom : Benchmark() {
         }
 
         val len = coordinates.size.toDouble()
-        return Triple(x / len, y / len, z / len)
+        return Coord(x / len, y / len, z / len)
     }
 
     override fun run(iterationId: Int) {
-        val (x, y, z) = calc(text)
-        resultVal += Helper.checksum("%.7f".format(x)) +
-            Helper.checksum("%.7f".format(y)) +
-            Helper.checksum("%.7f".format(z))
+        val coord = calc(text)
+        resultVal += Helper.checksumF64(coord.x) + Helper.checksumF64(coord.y) + Helper.checksumF64(coord.z)
     }
 
     override fun checksum(): UInt = resultVal

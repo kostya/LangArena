@@ -3,29 +3,24 @@ package benchmarks
 import Benchmark
 
 class BrainfuckRecursion : Benchmark() {
-    private lateinit var programText: String
-    private lateinit var warmupText: String
+    private val programText = configStr("program")
+    private val warmupText = configStr("warmup_program")
     private var resultVal: UInt = 0u
 
-    init {
-        programText = Helper.configS(name(), "program")
-        warmupText = Helper.configS(name(), "warmup_program")
-    }
+    sealed interface Op {
+        data object Inc : Op
 
-    sealed class Op {
-        object Inc : Op()
+        data object Dec : Op
 
-        object Dec : Op()
+        data object Next : Op
 
-        object Next : Op()
+        data object Prev : Op
 
-        object Prev : Op()
+        data object Print : Op
 
-        object Print : Op()
-
-        data class Loop(
+        class Loop(
             val ops: Array<Op>,
-        ) : Op()
+        ) : Op
     }
 
     class Tape {
@@ -57,12 +52,8 @@ class BrainfuckRecursion : Benchmark() {
     class Program(
         private val code: String,
     ) {
-        private val ops: Array<Op>
-        var result: Long = 0L
-
-        init {
-            ops = parse(code.iterator())
-        }
+        private val ops = parse(code.iterator())
+        var result = 0L
 
         private fun parse(iter: CharIterator): Array<Op> {
             val buf = mutableListOf<Op>()
@@ -134,14 +125,13 @@ class BrainfuckRecursion : Benchmark() {
     }
 
     override fun warmup() {
-        val prepareIters = warmupIterations()
-        for (i in 0 until prepareIters) {
+        repeat(warmupIterations().toInt()) {
             runProgram(warmupText)
         }
     }
 
     override fun run(iterationId: Int) {
-        resultVal = resultVal.plus(runProgram(programText).toUInt())
+        resultVal += runProgram(programText).toUInt()
     }
 
     override fun checksum(): UInt = resultVal

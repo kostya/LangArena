@@ -4,20 +4,12 @@ import Benchmark
 
 class GameOfLife : Benchmark() {
     private class Cell {
-        var alive: Boolean = false
-        var nextState: Boolean = false
-        val neighbors = arrayOfNulls<Cell>(8)
-        var neighborCount = 0
-
-        fun addNeighbor(cell: Cell) {
-            neighbors[neighborCount++] = cell
-        }
+        var alive = false
+        var nextState = false
+        lateinit var neighbors: Array<Cell>
 
         fun computeNextState() {
-            var aliveNeighbors = 0
-            for (neighbor in neighbors) {
-                if (neighbor!!.alive) aliveNeighbors++
-            }
+            val aliveNeighbors = neighbors.count { it.alive }
 
             nextState =
                 if (alive) {
@@ -36,34 +28,27 @@ class GameOfLife : Benchmark() {
         private val width: Int,
         private val height: Int,
     ) {
-        private val cells: List<List<Cell>>
+        val cells = Array(height) { Array(width) { Cell() } }
 
         init {
-
-            cells =
-                List(height) { y ->
-                    List(width) { x ->
-                        Cell()
-                    }
-                }
             linkNeighbors()
         }
 
         private fun linkNeighbors() {
             for (y in 0 until height) {
                 for (x in 0 until width) {
-                    val cell = cells[y][x]
+                    cells[y][x].neighbors =
+                        buildList {
+                            for (dy in -1..1) {
+                                for (dx in -1..1) {
+                                    if (dx == 0 && dy == 0) continue
 
-                    for (dy in -1..1) {
-                        for (dx in -1..1) {
-                            if (dx == 0 && dy == 0) continue
-
-                            val ny = (y + dy + height) % height
-                            val nx = (x + dx + width) % width
-
-                            cell.addNeighbor(cells[ny][nx])
-                        }
-                    }
+                                    val ny = (y + dy + height) % height
+                                    val nx = (x + dx + width) % width
+                                    add(cells[ny][nx])
+                                }
+                            }
+                        }.toTypedArray()
                 }
             }
         }
@@ -85,37 +70,28 @@ class GameOfLife : Benchmark() {
         fun countAlive(): Int = cells.sumOf { row -> row.count { it.alive } }
 
         fun computeHash(): UInt {
-            val FNV_OFFSET_BASIS: ULong = 2166136261UL
-            val FNV_PRIME: ULong = 16777619UL
-
-            var hasher = FNV_OFFSET_BASIS
+            var hasher = 2166136261uL
+            val prime = 16777619uL
 
             for (row in cells) {
                 for (cell in row) {
-                    val alive = if (cell.alive) 1UL else 0UL
-                    hasher = (hasher xor alive) * FNV_PRIME
+                    val alive = if (cell.alive) 1uL else 0uL
+                    hasher = (hasher xor alive) * prime
                 }
             }
 
             return hasher.toUInt()
         }
-
-        fun getCells(): List<List<Cell>> = cells
     }
 
-    private val width: Int
-    private val height: Int
+    private val width = configInt("w")
+    private val height = configInt("h")
     private lateinit var grid: Grid
-
-    init {
-        width = configVal("w").toInt()
-        height = configVal("h").toInt()
-    }
 
     override fun prepare() {
         grid = Grid(width, height)
 
-        for (row in grid.getCells()) {
+        for (row in grid.cells) {
             for (cell in row) {
                 if (Helper.nextFloat() < 0.1f) {
                     cell.alive = true

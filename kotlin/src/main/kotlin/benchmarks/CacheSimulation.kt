@@ -6,17 +6,18 @@ class CacheSimulation : Benchmark() {
     private class LRUCache<K, V>(
         private val capacity: Int,
     ) {
-        private data class Node<K, V>(
+        private class Node<K, V>(
             val key: K,
             var value: V,
             var prev: Node<K, V>? = null,
             var next: Node<K, V>? = null,
         )
 
-        private val cache = mutableMapOf<K, Node<K, V>>()
+        private val cache = HashMap<K, Node<K, V>>()
         private var head: Node<K, V>? = null
         private var tail: Node<K, V>? = null
-        private var size = 0
+        var size = 0
+            private set
 
         fun get(key: K): V? {
             val node = cache[key] ?: return null
@@ -49,15 +50,13 @@ class CacheSimulation : Benchmark() {
             size++
         }
 
-        fun getSize(): Int = size
-
         private fun moveToFront(node: Node<K, V>) {
-            if (node == head) return
+            if (node === head) return
 
             node.prev?.next = node.next
             node.next?.prev = node.prev
 
-            if (node == tail) {
+            if (node === tail) {
                 tail = node.prev
             }
 
@@ -88,7 +87,7 @@ class CacheSimulation : Benchmark() {
             oldest.prev?.next = null
             tail = oldest.prev
 
-            if (head == oldest) {
+            if (head === oldest) {
                 head = null
             }
 
@@ -97,16 +96,11 @@ class CacheSimulation : Benchmark() {
     }
 
     private var resultVal: UInt = 5432u
-    private val valuesSize: Int
-    private val cacheSize: Int
+    private val valuesSize = configInt("values")
+    private val cacheSize = configInt("size")
     private lateinit var cache: LRUCache<String, String>
     private var hits: UInt = 0u
     private var misses: UInt = 0u
-
-    init {
-        valuesSize = configVal("values").toInt()
-        cacheSize = configVal("size").toInt()
-    }
 
     override fun prepare() {
         cache = LRUCache(cacheSize)
@@ -129,7 +123,7 @@ class CacheSimulation : Benchmark() {
         var finalResult = resultVal
         finalResult = (finalResult shl 5) + hits
         finalResult = (finalResult shl 5) + misses
-        finalResult = (finalResult shl 5) + cache.getSize().toUInt()
+        finalResult = (finalResult shl 5) + cache.size.toUInt()
         return finalResult
     }
 

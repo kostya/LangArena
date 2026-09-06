@@ -1,7 +1,7 @@
 package benchmarks
 
 import Benchmark
-import com.alibaba.fastjson2.*
+import com.alibaba.fastjson2.into
 
 data class Coord(
     val x: Double,
@@ -45,9 +45,7 @@ class JsonParseMapping : Benchmark() {
 
     override fun run(iterationId: Int) {
         val coord = calc(text)
-        resultVal += Helper.checksum("%.7f".format(coord.x)) +
-            Helper.checksum("%.7f".format(coord.y)) +
-            Helper.checksum("%.7f".format(coord.z))
+        resultVal += Helper.checksumF64(coord.x) + Helper.checksumF64(coord.y) + Helper.checksumF64(coord.z)
     }
 
     override fun checksum(): UInt = resultVal

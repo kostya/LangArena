@@ -4,15 +4,11 @@ import Benchmark
 import kotlin.math.sqrt
 
 class Sieve : Benchmark() {
-    private var limit: Long = 0
-    private var checksum: UInt = 0u
-
-    init {
-        limit = configVal("limit")
-    }
+    private val limit = configInt("limit")
+    private var resultVal: UInt = 0u
 
     override fun run(iterationId: Int) {
-        val lim = limit.toInt()
+        val lim = limit
         val primes = ByteArray(lim + 1) { 1 }
         primes[0] = 0
         primes[1] = 0
@@ -41,10 +37,10 @@ class Sieve : Benchmark() {
             n += 2
         }
 
-        checksum = (checksum.toLong() + lastPrime + count).toUInt() and 0xFFFFFFFFu
+        resultVal += (lastPrime + count).toUInt()
     }
 
-    override fun checksum(): UInt = checksum
+    override fun checksum(): UInt = resultVal
 
     override fun name(): String = "Etc::Sieve"
 }

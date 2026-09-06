@@ -3,35 +3,31 @@ package benchmarks
 import Benchmark
 
 class CalculatorAst : Benchmark() {
-    sealed class Node
+    sealed interface Node
 
     data class Number(
         val value: Long,
-    ) : Node()
+    ) : Node
 
     data class Variable(
         val name: String,
-    ) : Node()
+    ) : Node
 
     data class BinaryOp(
         val op: Char,
         val left: Node,
         val right: Node,
-    ) : Node()
+    ) : Node
 
     data class Assignment(
         val variable: String,
         val expr: Node,
-    ) : Node()
+    ) : Node
 
-    var n: Long = 0
+    var n = configVal("operations")
     private var resultVal: UInt = 0u
     private lateinit var text: String
     lateinit var expressions: List<Node>
-
-    init {
-        n = configVal("operations")
-    }
 
     private fun generateRandomProgram(lines: Long = 1000): String =
         buildString {
@@ -124,7 +120,7 @@ class CalculatorAst : Benchmark() {
             skipWhitespace()
             if (pos >= length) return Number(0)
 
-            return when (val ch = currentChar()) {
+            return when (currentChar()) {
                 in '0'..'9' -> {
                     parseNumber()
                 }
@@ -151,7 +147,7 @@ class CalculatorAst : Benchmark() {
 
         private fun parseNumber(): Node {
             var value = 0L
-            while (pos < length && chars[pos].isDigit()) {
+            while (pos < length && chars[pos] in '0'..'9') {
                 value = value * 10 + (chars[pos] - '0')
                 advance()
             }
@@ -160,7 +156,7 @@ class CalculatorAst : Benchmark() {
 
         private fun parseVariable(): Node {
             val start = pos
-            while (pos < length && (chars[pos].isLetterOrDigit())) {
+            while (pos < length && (chars[pos] in 'a'..'z' || chars[pos] in '0'..'9')) {
                 advance()
             }
             val varName = input.substring(start, pos)
@@ -182,7 +178,7 @@ class CalculatorAst : Benchmark() {
         }
 
         private fun skipWhitespace() {
-            while (pos < length && chars[pos].isWhitespace()) {
+            while (pos < length && Character.isWhitespace(chars[pos])) {
                 advance()
             }
         }
@@ -192,9 +188,9 @@ class CalculatorAst : Benchmark() {
         val parser = Parser(text)
         expressions = parser.parse()
         resultVal += expressions.size.toUInt()
-        if (expressions.isNotEmpty() && expressions.last() is Assignment) {
-            val assign = expressions.last() as Assignment
-            resultVal += Helper.checksum(assign.variable)
+        val last = expressions.lastOrNull()
+        if (last is Assignment) {
+            resultVal += Helper.checksum(last.variable)
         }
     }
 

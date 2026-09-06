@@ -3,12 +3,8 @@ package benchmarks
 import Benchmark
 
 class Fannkuchredux : Benchmark() {
-    private var n: Long = 0
+    private val n = configInt("n")
     private var resultVal: UInt = 0u
-
-    init {
-        n = configVal("n")
-    }
 
     private data class Result(
         val checksum: Int,
@@ -30,7 +26,7 @@ class Fannkuchredux : Benchmark() {
                 r -= 1
             }
 
-            System.arraycopy(perm1, 0, perm, 0, n)
+            perm1.copyInto(perm, 0, 0, n)
 
             var flipsCount = 0
             var k = perm[0]
@@ -77,8 +73,8 @@ class Fannkuchredux : Benchmark() {
     }
 
     override fun run(iterationId: Int) {
-        val (a, b) = fannkuchredux(n.toInt())
-        resultVal += (a * 100 + b).toUInt()
+        val result = fannkuchredux(n)
+        resultVal += (result.checksum * 100 + result.maxFlipsCount).toUInt()
     }
 
     override fun checksum(): UInt = resultVal

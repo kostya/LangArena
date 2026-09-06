@@ -27,7 +27,7 @@ class SortMerge : SortBenchmark() {
         mid: Int,
         right: Int,
     ) {
-        System.arraycopy(arr, left, temp, left, right - left + 1)
+        arr.copyInto(temp, left, left, right + 1)
 
         var i = left
         var j = mid + 1

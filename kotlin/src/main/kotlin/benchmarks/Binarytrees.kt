@@ -1,14 +1,9 @@
 package benchmarks
 
 import Benchmark
-import java.util.*
 
 class BinarytreesObj : Benchmark() {
-    private var n: Long = 0
-
-    init {
-        n = configVal("depth")
-    }
+    private val n = configInt("depth")
 
     class TreeNode(
         val item: Int,
@@ -28,18 +23,13 @@ class BinarytreesObj : Benchmark() {
             }
         }
 
-        fun sum(): UInt {
-            var total = item.toUInt() + 1u
-            if (left != null) total += left!!.sum()
-            if (right != null) total += right!!.sum()
-            return total
-        }
+        fun sum(): UInt = item.toUInt() + 1u + (left?.sum() ?: 0u) + (right?.sum() ?: 0u)
     }
 
     private var resultVal: UInt = 0u
 
     override fun run(iterationId: Int) {
-        val root = TreeNode(0, n.toInt())
+        val root = TreeNode(0, n)
         resultVal += root.sum()
     }
 
@@ -49,17 +39,14 @@ class BinarytreesObj : Benchmark() {
 }
 
 class BinarytreesArena : Benchmark() {
-    private var n: Long = 0
+    private val n = configInt("depth")
 
-    init {
-        n = configVal("depth")
-    }
-
-    data class TreeNode(
+    class TreeNode(
         val item: Int,
-        var left: Int = -1,
-        var right: Int = -1,
-    )
+    ) {
+        var left = -1
+        var right = -1
+    }
 
     class TreeArena {
         private val nodes = ArrayList<TreeNode>()
@@ -96,7 +83,7 @@ class BinarytreesArena : Benchmark() {
 
     override fun run(iterationId: Int) {
         val arena = TreeArena()
-        val rootIdx = arena.build(0, n.toInt())
+        val rootIdx = arena.build(0, n)
         resultVal += arena.sum(rootIdx)
     }
 
