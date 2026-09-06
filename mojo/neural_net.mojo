@@ -142,16 +142,14 @@ struct _NN(Movable):
                 * NN_LEARNING_RATE
                 * neuron.error
                 * self.neurons[syn.source_idx].output
-            )
-            syn.weight += NN_MOMENTUM * (syn.weight - syn.prev_weight)
+            ) + NN_MOMENTUM * (syn.weight - syn.prev_weight)
             syn.prev_weight = temp_weight
             self.synapses[syn_idx] = syn
 
         var temp_threshold = neuron.threshold
         neuron.threshold += (
             NN_TRAIN_RATE * NN_LEARNING_RATE * neuron.error * (-1.0)
-        )
-        neuron.threshold += NN_MOMENTUM * (
+        ) + NN_MOMENTUM * (
             neuron.threshold - neuron.prev_threshold
         )
         neuron.prev_threshold = temp_threshold
