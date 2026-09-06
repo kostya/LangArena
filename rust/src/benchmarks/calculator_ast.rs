@@ -134,7 +134,6 @@ struct Parser<'a> {
 
 impl<'a> Parser<'a> {
     fn new(input: &'a str) -> Self {
-        // The calculator grammar uses ASCII tokens. Borrow the source directly.
         let current_char = input.as_bytes().first().copied().unwrap_or(b'\0');
 
         Self {
@@ -292,4 +291,3 @@ impl<'a> Parser<'a> {
         }
     }
 }
-

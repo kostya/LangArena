@@ -252,4 +252,3 @@ impl Benchmark for CacheSimulation {
         result
     }
 }
-

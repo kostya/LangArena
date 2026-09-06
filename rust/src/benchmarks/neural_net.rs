@@ -11,7 +11,7 @@ const TARGET_1: [f64; 1] = [1.0];
 struct Synapse {
     weight: f64,
     prev_weight: f64,
-    // Indices within the source and destination layers of this connection.
+
     source_neuron: usize,
     dest_neuron: usize,
 }
@@ -220,4 +220,3 @@ impl Benchmark for NeuralNet {
         helper::checksum_f64(sum)
     }
 }
-
