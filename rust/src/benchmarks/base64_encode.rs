@@ -1,6 +1,6 @@
 use super::super::{helper, Benchmark};
 use crate::config_i64;
-use base64::{engine::general_purpose, Engine as _};
+use base64_simd::STANDARD;
 
 pub struct Base64Encode {
     str_data: String,
@@ -12,7 +12,7 @@ impl Base64Encode {
     pub fn new() -> Self {
         let n = config_i64("Base64::Encode", "size");
         let str_data = "a".repeat(n as usize);
-        let str2_encoded = general_purpose::STANDARD.encode(&str_data);
+        let str2_encoded = STANDARD.encode_to_string(str_data.as_bytes());
         Self {
             str_data,
             str2_encoded,
@@ -27,7 +27,7 @@ impl Benchmark for Base64Encode {
     }
 
     fn run(&mut self, _iteration_id: i64) {
-        self.str2_encoded = general_purpose::STANDARD.encode(&self.str_data);
+        self.str2_encoded = STANDARD.encode_to_string(self.str_data.as_bytes());
         self.result_val = self.result_val.wrapping_add(self.str2_encoded.len() as u32);
     }
 

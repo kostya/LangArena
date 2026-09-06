@@ -1,6 +1,6 @@
 use super::super::{helper, Benchmark};
 use crate::config_i64;
-use serde_json::Value;
+use simd_json::prelude::*;
 
 pub struct JsonParseDom {
     n: i64,
@@ -20,18 +20,19 @@ impl JsonParseDom {
     }
 
     fn calc(&self, text: &str) -> (f64, f64, f64) {
-        let json: Value = serde_json::from_str(text).unwrap();
-        let coordinates = json["coordinates"].as_array().unwrap();
+        let mut input = text.as_bytes().to_vec();
+        let tape = simd_json::to_tape(&mut input).unwrap();
+        let coordinates = tape.as_value().get_array("coordinates").unwrap();
         let len = coordinates.len() as f64;
 
         let mut x = 0.0;
         let mut y = 0.0;
         let mut z = 0.0;
 
-        for coord in coordinates {
-            x += coord["x"].as_f64().unwrap();
-            y += coord["y"].as_f64().unwrap();
-            z += coord["z"].as_f64().unwrap();
+        for coord in &coordinates {
+            x += coord.get("x").unwrap().cast_f64().unwrap();
+            y += coord.get("y").unwrap().cast_f64().unwrap();
+            z += coord.get("z").unwrap().cast_f64().unwrap();
         }
 
         (x / len, y / len, z / len)
@@ -66,3 +67,4 @@ impl Benchmark for JsonParseDom {
         self.result_val
     }
 }
+
