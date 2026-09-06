@@ -11,6 +11,7 @@ const TARGET_1: [f64; 1] = [1.0];
 struct Synapse {
     weight: f64,
     prev_weight: f64,
+    // Indices within the source and destination layers of this connection.
     source_neuron: usize,
     dest_neuron: usize,
 }
@@ -56,55 +57,68 @@ impl Neuron {
     fn derivative(&self) -> f64 {
         self.output * (1.0 - self.output)
     }
+
+    fn calculate_output(&mut self, sources: &[Neuron], synapses: &[Synapse]) {
+        let mut activation = 0.0;
+        for &synapse_idx in &self.synapses_in {
+            let synapse = &synapses[synapse_idx];
+            activation += synapse.weight * sources[synapse.source_neuron].output;
+        }
+        activation -= self.threshold;
+        self.output = 1.0 / (1.0 + (-activation).exp());
+    }
+
+    fn update_weights(&mut self, rate: f64, sources: &[Neuron], synapses: &mut [Synapse]) {
+        for &synapse_idx in &self.synapses_in {
+            let synapse = &mut synapses[synapse_idx];
+            let source_output = sources[synapse.source_neuron].output;
+            let temp_weight = synapse.weight;
+            synapse.weight += (rate * Self::LEARNING_RATE * self.error * source_output)
+                + (Self::MOMENTUM * (synapse.weight - synapse.prev_weight));
+            synapse.prev_weight = temp_weight;
+        }
+
+        let temp_threshold = self.threshold;
+        self.threshold += (rate * Self::LEARNING_RATE * self.error * -1.0)
+            + (Self::MOMENTUM * (self.threshold - self.prev_threshold));
+        self.prev_threshold = temp_threshold;
+    }
 }
 
 #[derive(Clone)]
 struct NeuralNetwork {
-    input_layer: Vec<usize>,
-    hidden_layer: Vec<usize>,
-    output_layer: Vec<usize>,
-    neurons: Vec<Neuron>,
+    input_layer: Vec<Neuron>,
+    hidden_layer: Vec<Neuron>,
+    output_layer: Vec<Neuron>,
     synapses: Vec<Synapse>,
 }
 
 impl NeuralNetwork {
     fn new(inputs: usize, hidden: usize, outputs: usize) -> Self {
-        let total_neurons = inputs + hidden + outputs;
-        let mut neurons = Vec::with_capacity(total_neurons);
-        for _ in 0..total_neurons {
-            neurons.push(Neuron::new());
-        }
-
-        let input_layer: Vec<usize> = (0..inputs).collect();
-        let hidden_layer: Vec<usize> = (inputs..inputs + hidden).collect();
-        let output_layer: Vec<usize> = (inputs + hidden..inputs + hidden + outputs).collect();
-
+        let mut input_layer: Vec<_> = (0..inputs).map(|_| Neuron::new()).collect();
+        let mut hidden_layer: Vec<_> = (0..hidden).map(|_| Neuron::new()).collect();
+        let mut output_layer: Vec<_> = (0..outputs).map(|_| Neuron::new()).collect();
         let mut synapses = Vec::new();
 
-        for &source_idx in &input_layer {
-            for &dest_idx in &hidden_layer {
-                let synapse_idx = synapses.len();
-                synapses.push(Synapse::new(source_idx, dest_idx));
-                neurons[source_idx].synapses_out.push(synapse_idx);
-                neurons[dest_idx].synapses_in.push(synapse_idx);
-            }
-        }
-
-        for &source_idx in &hidden_layer {
-            for &dest_idx in &output_layer {
-                let synapse_idx = synapses.len();
-                synapses.push(Synapse::new(source_idx, dest_idx));
-                neurons[source_idx].synapses_out.push(synapse_idx);
-                neurons[dest_idx].synapses_in.push(synapse_idx);
-            }
-        }
+        Self::connect(&mut input_layer, &mut hidden_layer, &mut synapses);
+        Self::connect(&mut hidden_layer, &mut output_layer, &mut synapses);
 
         Self {
             input_layer,
             hidden_layer,
             output_layer,
-            neurons,
             synapses,
+        }
+    }
+
+    fn connect(sources: &mut [Neuron], destinations: &mut [Neuron], synapses: &mut Vec<Synapse>) {
+        for (source_idx, source) in sources.iter_mut().enumerate() {
+            for (dest_idx, dest) in destinations.iter_mut().enumerate() {
+                let synapse_idx = synapses.len();
+                synapses.push(Synapse::new(source_idx, dest_idx));
+                source.synapses_out.push(synapse_idx);
+                dest.synapses_in.push(synapse_idx);
+            }
         }
     }
 
@@ -113,109 +127,40 @@ impl NeuralNetwork {
 
         const RATE: f64 = 0.3;
 
-        for (i, &target) in targets.iter().enumerate() {
-            let neuron_idx = self.output_layer[i];
-
-            let output = self.neurons[neuron_idx].output;
-            let derivative = self.neurons[neuron_idx].derivative();
-            let error = (target - output) * derivative;
-            self.neurons[neuron_idx].error = error;
-
-            let synapses_in = self.neurons[neuron_idx].synapses_in.clone();
-            for &synapse_idx in &synapses_in {
-                let synapse = &mut self.synapses[synapse_idx];
-                let source_output = self.neurons[synapse.source_neuron].output;
-
-                let temp_weight = synapse.weight;
-                synapse.weight += (RATE * Neuron::LEARNING_RATE * error * source_output)
-                    + (Neuron::MOMENTUM * (synapse.weight - synapse.prev_weight));
-                synapse.prev_weight = temp_weight;
-            }
-
-            let neuron = &mut self.neurons[neuron_idx];
-            let temp_threshold = neuron.threshold;
-            neuron.threshold += (RATE * Neuron::LEARNING_RATE * error * -1.0)
-                + (Neuron::MOMENTUM * (neuron.threshold - neuron.prev_threshold));
-            neuron.prev_threshold = temp_threshold;
+        for (neuron, &target) in self.output_layer.iter_mut().zip(targets) {
+            neuron.error = (target - neuron.output) * neuron.derivative();
+            neuron.update_weights(RATE, &self.hidden_layer, &mut self.synapses);
         }
 
-        let mut hidden_errors = vec![0.0; self.hidden_layer.len()];
-
-        for (i, &neuron_idx) in self.hidden_layer.iter().enumerate() {
-            let neuron = &self.neurons[neuron_idx];
+        for neuron in &mut self.hidden_layer {
             let mut sum = 0.0;
-
             for &synapse_idx in &neuron.synapses_out {
                 let synapse = &self.synapses[synapse_idx];
-
-                sum += synapse.prev_weight * self.neurons[synapse.dest_neuron].error;
+                sum += synapse.prev_weight * self.output_layer[synapse.dest_neuron].error;
             }
-
-            hidden_errors[i] = sum * neuron.derivative();
-        }
-
-        for (i, &neuron_idx) in self.hidden_layer.iter().enumerate() {
-            let error = hidden_errors[i];
-            self.neurons[neuron_idx].error = error;
-
-            let synapses_in = self.neurons[neuron_idx].synapses_in.clone();
-            for &synapse_idx in &synapses_in {
-                let synapse = &mut self.synapses[synapse_idx];
-                let source_output = self.neurons[synapse.source_neuron].output;
-
-                let temp_weight = synapse.weight;
-                synapse.weight += (RATE * Neuron::LEARNING_RATE * error * source_output)
-                    + (Neuron::MOMENTUM * (synapse.weight - synapse.prev_weight));
-                synapse.prev_weight = temp_weight;
-            }
-
-            let neuron = &mut self.neurons[neuron_idx];
-            let temp_threshold = neuron.threshold;
-            neuron.threshold += (RATE * Neuron::LEARNING_RATE * error * -1.0)
-                + (Neuron::MOMENTUM * (neuron.threshold - neuron.prev_threshold));
-            neuron.prev_threshold = temp_threshold;
+            neuron.error = sum * neuron.derivative();
+            neuron.update_weights(RATE, &self.input_layer, &mut self.synapses);
         }
     }
 
     fn feed_forward(&mut self, inputs: &[f64]) {
-        for (i, &input) in inputs.iter().enumerate() {
-            let neuron_idx = self.input_layer[i];
-            self.neurons[neuron_idx].output = input;
+        for (neuron, &input) in self.input_layer.iter_mut().zip(inputs) {
+            neuron.output = input;
         }
 
-        for &neuron_idx in &self.hidden_layer {
-            let mut activation = 0.0;
-            let neuron = &self.neurons[neuron_idx];
-
-            for &synapse_idx in &neuron.synapses_in {
-                let synapse = &self.synapses[synapse_idx];
-                activation += synapse.weight * self.neurons[synapse.source_neuron].output;
-            }
-            activation -= neuron.threshold;
-
-            let output = 1.0 / (1.0 + (-activation).exp());
-            self.neurons[neuron_idx].output = output;
+        for neuron in &mut self.hidden_layer {
+            neuron.calculate_output(&self.input_layer, &self.synapses);
         }
 
-        for &neuron_idx in &self.output_layer {
-            let mut activation = 0.0;
-            let neuron = &self.neurons[neuron_idx];
-
-            for &synapse_idx in &neuron.synapses_in {
-                let synapse = &self.synapses[synapse_idx];
-                activation += synapse.weight * self.neurons[synapse.source_neuron].output;
-            }
-            activation -= neuron.threshold;
-
-            let output = 1.0 / (1.0 + (-activation).exp());
-            self.neurons[neuron_idx].output = output;
+        for neuron in &mut self.output_layer {
+            neuron.calculate_output(&self.hidden_layer, &self.synapses);
         }
     }
 
     fn current_outputs(&self) -> Vec<f64> {
         self.output_layer
             .iter()
-            .map(|&idx| self.neurons[idx].output)
+            .map(|neuron| neuron.output)
             .collect()
     }
 }
@@ -275,3 +220,4 @@ impl Benchmark for NeuralNet {
         helper::checksum_f64(sum)
     }
 }
+

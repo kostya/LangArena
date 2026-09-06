@@ -112,9 +112,7 @@ impl Benchmark for CalculatorAst {
     }
 
     fn run(&mut self, _iteration_id: i64) {
-        let mut parser = Parser::new(&self.text);
-        parser.parse();
-        self.expressions = parser.expressions;
+        self.expressions = Parser::new(&self.text).parse();
         self.result_val = self.result_val.wrapping_add(self.expressions.len() as u32);
 
         if let Some(Node::Assignment(var, _)) = self.expressions.last() {
@@ -127,30 +125,30 @@ impl Benchmark for CalculatorAst {
     }
 }
 
-struct Parser {
-    chars: Vec<char>,
+struct Parser<'a> {
+    input: &'a str,
     pos: usize,
-    current_char: char,
+    current_char: u8,
     expressions: Vec<Node>,
 }
 
-impl Parser {
-    fn new(input: &str) -> Self {
-        let chars: Vec<char> = input.chars().collect();
-        let current_char = if chars.is_empty() { '\0' } else { chars[0] };
+impl<'a> Parser<'a> {
+    fn new(input: &'a str) -> Self {
+        // The calculator grammar uses ASCII tokens. Borrow the source directly.
+        let current_char = input.as_bytes().first().copied().unwrap_or(b'\0');
 
         Self {
-            chars,
+            input,
             pos: 0,
             current_char,
             expressions: Vec::new(),
         }
     }
 
-    fn parse(&mut self) -> Vec<Node> {
-        while self.pos < self.chars.len() {
+    fn parse(mut self) -> Vec<Node> {
+        while self.pos < self.input.len() {
             self.skip_whitespace();
-            if self.pos >= self.chars.len() {
+            if self.pos >= self.input.len() {
                 break;
             }
 
@@ -159,15 +157,15 @@ impl Parser {
 
             self.skip_whitespace();
 
-            while self.pos < self.chars.len()
-                && (self.current_char == '\n' || self.current_char == ';')
+            while self.pos < self.input.len()
+                && (self.current_char == b'\n' || self.current_char == b';')
             {
                 self.advance();
                 self.skip_whitespace();
             }
         }
 
-        self.expressions.clone()
+        self.expressions
     }
 
     fn parse_expression(&mut self) -> Node {
@@ -178,14 +176,14 @@ impl Parser {
     fn parse_expression_rest(&mut self, left_node: Node) -> Node {
         let mut current_node = left_node;
 
-        while self.pos < self.chars.len() {
+        while self.pos < self.input.len() {
             self.skip_whitespace();
-            if self.pos >= self.chars.len() {
+            if self.pos >= self.input.len() {
                 break;
             }
 
-            if self.current_char == '+' || self.current_char == '-' {
-                let op = self.current_char;
+            if self.current_char == b'+' || self.current_char == b'-' {
+                let op = self.current_char as char;
                 self.advance();
                 let right = self.parse_term();
                 current_node = Node::BinaryOp(op, Box::new(current_node), Box::new(right));
@@ -205,14 +203,14 @@ impl Parser {
     fn parse_term_rest(&mut self, left_node: Node) -> Node {
         let mut current_node = left_node;
 
-        while self.pos < self.chars.len() {
+        while self.pos < self.input.len() {
             self.skip_whitespace();
-            if self.pos >= self.chars.len() {
+            if self.pos >= self.input.len() {
                 break;
             }
 
-            if self.current_char == '*' || self.current_char == '/' || self.current_char == '%' {
-                let op = self.current_char;
+            if self.current_char == b'*' || self.current_char == b'/' || self.current_char == b'%' {
+                let op = self.current_char as char;
                 self.advance();
                 let right = self.parse_factor();
                 current_node = Node::BinaryOp(op, Box::new(current_node), Box::new(right));
@@ -226,18 +224,18 @@ impl Parser {
 
     fn parse_factor(&mut self) -> Node {
         self.skip_whitespace();
-        if self.pos >= self.chars.len() {
+        if self.pos >= self.input.len() {
             return Node::Number(0);
         }
 
         match self.current_char {
-            '0'..='9' => self.parse_number(),
-            'a'..='z' => self.parse_variable(),
-            '(' => {
+            b'0'..=b'9' => self.parse_number(),
+            b'a'..=b'z' => self.parse_variable(),
+            b'(' => {
                 self.advance();
                 let node = self.parse_expression();
                 self.skip_whitespace();
-                if self.current_char == ')' {
+                if self.current_char == b')' {
                     self.advance();
                 }
                 node
@@ -248,11 +246,11 @@ impl Parser {
 
     fn parse_number(&mut self) -> Node {
         let start = self.pos;
-        while self.pos < self.chars.len() && self.current_char.is_ascii_digit() {
+        while self.pos < self.input.len() && self.current_char.is_ascii_digit() {
             self.advance();
         }
 
-        let num_str: String = self.chars[start..self.pos].iter().collect();
+        let num_str = &self.input[start..self.pos];
         match num_str.parse::<i64>() {
             Ok(n) => Node::Number(n),
             Err(_) => Node::Number(0),
@@ -261,16 +259,16 @@ impl Parser {
 
     fn parse_variable(&mut self) -> Node {
         let start = self.pos;
-        while self.pos < self.chars.len()
+        while self.pos < self.input.len()
             && (self.current_char.is_ascii_lowercase() || self.current_char.is_ascii_digit())
         {
             self.advance();
         }
 
-        let var_name: String = self.chars[start..self.pos].iter().collect();
+        let var_name = self.input[start..self.pos].to_owned();
 
         self.skip_whitespace();
-        if self.current_char == '=' {
+        if self.current_char == b'=' {
             self.advance();
             let expr = self.parse_expression();
             return Node::Assignment(var_name, Box::new(expr));
@@ -281,16 +279,17 @@ impl Parser {
 
     fn advance(&mut self) {
         self.pos += 1;
-        if self.pos >= self.chars.len() {
-            self.current_char = '\0';
+        if self.pos >= self.input.len() {
+            self.current_char = b'\0';
         } else {
-            self.current_char = self.chars[self.pos];
+            self.current_char = self.input.as_bytes()[self.pos];
         }
     }
 
     fn skip_whitespace(&mut self) {
-        while self.pos < self.chars.len() && self.current_char.is_ascii_whitespace() {
+        while self.pos < self.input.len() && self.current_char.is_ascii_whitespace() {
             self.advance();
         }
     }
 }
+

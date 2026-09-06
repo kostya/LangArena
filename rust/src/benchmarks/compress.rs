@@ -888,45 +888,35 @@ impl LZWEncode {
         }
     }
 
-    fn lzw_encode(&self, input: &[u8]) -> LZWResult {
+    fn lzw_encode(input: &[u8]) -> LZWResult {
         if input.is_empty() {
             return LZWResult::new();
         }
 
         let mut dict = HashMap::with_capacity(4096);
         for i in 0..256 {
-            let s = String::from_utf8_lossy(&[i as u8]).to_string();
-            dict.insert(s, i);
+            dict.insert(vec![i as u8], i);
         }
-
         let mut next_code = 256;
-
         let mut result = Vec::with_capacity(input.len() * 2);
+        let mut current = vec![input[0]];
 
-        let current_str = String::from_utf8_lossy(&[input[0]]).to_string();
-        let mut current = current_str;
-
-        for i in 1..input.len() {
-            let next_char_str = String::from_utf8_lossy(&[input[i]]).to_string();
-            let new_str = current.clone() + &next_char_str;
-
-            if dict.contains_key(&new_str) {
-                current = new_str;
-            } else {
-                let code = dict[&current];
+        for &byte in &input[1..] {
+            current.push(byte);
+            if !dict.contains_key(&current) {
+                let code = dict[&current[..current.len() - 1]];
                 result.push(((code >> 8) & 0xFF) as u8);
                 result.push((code & 0xFF) as u8);
 
-                dict.insert(new_str, next_code);
+                dict.insert(current, next_code);
                 next_code += 1;
-                current = next_char_str;
+                current = vec![byte];
             }
         }
 
         let code = dict[&current];
         result.push(((code >> 8) & 0xFF) as u8);
         result.push((code & 0xFF) as u8);
-
         LZWResult { data: result }
     }
 }
@@ -941,7 +931,7 @@ impl Benchmark for LZWEncode {
     }
 
     fn run(&mut self, _iteration_id: i64) {
-        self.encoded = self.lzw_encode(&self.test_data);
+        self.encoded = Self::lzw_encode(&self.test_data);
         self.result_val = self.result_val.wrapping_add(self.encoded.data.len() as u32);
     }
 
@@ -976,46 +966,34 @@ fn lzw_decode(encoded: &LZWResult) -> Vec<u8> {
         return Vec::new();
     }
 
-    let mut dict: Vec<String> = Vec::with_capacity(4096);
+    assert_eq!(encoded.data.len() % 2, 0, "Decode error: incomplete code");
+
+    let mut dict: Vec<Vec<u8>> = Vec::with_capacity(4096);
     for i in 0..256 {
-        dict.push(String::from_utf8_lossy(&[i as u8]).to_string());
+        dict.push(vec![i as u8]);
     }
 
     let mut result = Vec::with_capacity(encoded.data.len() * 2);
-    let data = &encoded.data;
-    let mut pos = 0;
+    let mut codes = encoded.data.chunks_exact(2);
+    let first = codes.next().unwrap();
+    let mut old_code = u16::from_be_bytes([first[0], first[1]]) as usize;
+    result.extend_from_slice(&dict[old_code]);
 
-    let high = data[pos] as u16;
-    let low = data[pos + 1] as u16;
-    let old_code = ((high as usize) << 8) | (low as usize);
-    pos += 2;
-
-    let old_str = dict[old_code].clone();
-    result.extend_from_slice(old_str.as_bytes());
-
-    let mut next_code = 256;
-    let mut old_str = old_str;
-
-    while pos < data.len() {
-        let high = data[pos] as u16;
-        let low = data[pos + 1] as u16;
-        let new_code = ((high as usize) << 8) | (low as usize);
-        pos += 2;
-
-        let new_str = if new_code < dict.len() {
-            dict[new_code].clone()
-        } else if new_code == next_code {
-            old_str.clone() + &old_str[0..1]
+    for bytes in codes {
+        let new_code = u16::from_be_bytes([bytes[0], bytes[1]]) as usize;
+        let mut entry = dict[old_code].clone();
+        if new_code < dict.len() {
+            entry.push(dict[new_code][0]);
+            result.extend_from_slice(&dict[new_code]);
+        } else if new_code == dict.len() {
+            entry.push(entry[0]);
+            result.extend_from_slice(&entry);
         } else {
             panic!("Decode error");
-        };
+        }
 
-        result.extend_from_slice(new_str.as_bytes());
-
-        dict.push(old_str.clone() + &new_str[0..1]);
-        next_code += 1;
-
-        old_str = new_str;
+        dict.push(entry);
+        old_code = new_code;
     }
 
     result
@@ -1050,3 +1028,4 @@ impl Benchmark for LZWDecode {
         res
     }
 }
+
