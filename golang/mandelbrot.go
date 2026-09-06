@@ -30,10 +30,10 @@ func (m *Mandelbrot) Run(iteration_id int) {
 	byteAcc := byte(0)
 
 	for y := 0; y < h; y++ {
+		ci := 2.0*float64(y)/float64(h) - 1.0
 		for x := 0; x < w; x++ {
 			zr, zi, tr, ti := 0.0, 0.0, 0.0, 0.0
 			cr := 2.0*float64(x)/float64(w) - 1.5
-			ci := 2.0*float64(y)/float64(h) - 1.0
 
 			i := 0
 			for i < ITER && tr+ti <= LIMIT*LIMIT {

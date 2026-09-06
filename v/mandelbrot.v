@@ -42,11 +42,10 @@ pub fn (mut m Mandelbrot) run(iteration_id int) {
 
 	for y in 0 .. h {
 		fy := f64(y)
+		ci := 2.0 * fy / fh - 1.0
 		for x in 0 .. w {
 			fx := f64(x)
-
 			cr := 2.0 * fx / fw - 1.5
-			ci := 2.0 * fy / fh - 1.0
 
 			mut zr := 0.0
 			mut zi := 0.0

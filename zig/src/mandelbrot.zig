@@ -73,10 +73,10 @@ pub const Mandelbrot = struct {
 
         var y: i32 = 0;
         while (y < h) : (y += 1) {
+            const ci = 2.0 * @as(f64, @floatFromInt(y)) / h_f64 - 1.0;
             var x: i32 = 0;
             while (x < w) : (x += 1) {
                 const cr = 2.0 * @as(f64, @floatFromInt(x)) / w_f64 - 1.5;
-                const ci = 2.0 * @as(f64, @floatFromInt(y)) / h_f64 - 1.0;
 
                 var zr: f64 = 0.0;
                 var zi: f64 = 0.0;

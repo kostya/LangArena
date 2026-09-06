@@ -2857,10 +2857,10 @@ module CLBG
       byte_acc = 0_u8
 
       h.times do |y|
+        ci = (2.0 * y / h - 1.0)
         w.times do |x|
           zr = zi = tr = ti = 0.0
           cr = (2.0 * x / w - 1.5)
-          ci = (2.0 * y / h - 1.0)
 
           i = 0
           while (i < ITER) && (tr + ti <= LIMIT * LIMIT)

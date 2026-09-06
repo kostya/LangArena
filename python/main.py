@@ -781,6 +781,7 @@ class Mandelbrot(Benchmark):
         byte_acc = 0
 
         for y in range(self.h):
+            ci = (2.0 * y / self.h - 1.0)
             for x in range(self.w):
                 zr = 0.0
                 zi = 0.0
@@ -788,7 +789,6 @@ class Mandelbrot(Benchmark):
                 ti = 0.0
 
                 cr = (2.0 * x / self.w - 1.5)
-                ci = (2.0 * y / self.h - 1.0)
 
                 i = 0
                 while i < self.ITER and (tr + ti) <= self.LIMIT * self.LIMIT:

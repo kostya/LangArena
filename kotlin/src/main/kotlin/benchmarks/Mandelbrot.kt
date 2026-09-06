@@ -24,13 +24,13 @@ class Mandelbrot : Benchmark() {
         var byteAcc = 0
 
         for (y in 0 until h) {
+            val ci = 2.0 * y / h.toDouble() - 1.0
             for (x in 0 until w) {
                 var zr = 0.0
                 var zi = 0.0
                 var tr = 0.0
                 var ti = 0.0
                 val cr = 2.0 * x / w.toDouble() - 1.5
-                val ci = 2.0 * y / h.toDouble() - 1.0
 
                 var i = 0
                 while (i < ITER && tr + ti <= LIMIT * LIMIT) {

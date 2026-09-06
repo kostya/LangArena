@@ -1277,10 +1277,10 @@ class Mandelbrot extends Benchmark
         $limitSq = self::LIMIT * self::LIMIT;
 
         for ($y = 0; $y < $h; $y++) {
+            $ci = (2.0 * $y / $h - 1.0);
             for ($x = 0; $x < $w; $x++) {
                 $zr = $zi = $tr = $ti = 0.0;
                 $cr = (2.0 * $x / $w - 1.5);
-                $ci = (2.0 * $y / $h - 1.0);
 
                 $i = 0;
                 while ($i < $iter && ($tr + $ti <= $limitSq)) {

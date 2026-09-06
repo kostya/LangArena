@@ -19,14 +19,9 @@ void Mandelbrot::run(int iteration_id) {
   uint8_t byte_acc = 0;
 
   for (int y = 0; y < h; y++) {
+    double ci = 2.0 * static_cast<double>(y) / static_cast<double>(h) - 1.0;
     for (int x = 0; x < w; x++) {
-      double tmp_x = static_cast<double>(x);
-      double tmp_y = static_cast<double>(y);
-      volatile double tmp_w = static_cast<double>(w);
-      double tmp_h = static_cast<double>(h);
-
-      double cr = 2.0 * tmp_x / tmp_w - 1.5;
-      double ci = 2.0 * tmp_y / tmp_h - 1.0;
+      double cr = 2.0 * static_cast<double>(x) / static_cast<double>(w) - 1.5;
 
       double zr = 0.0, zi = 0.0;
       double tr = 0.0, ti = 0.0;

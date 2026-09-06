@@ -29,13 +29,13 @@ final class Mandelbrot: BenchmarkProtocol {
     var byteAcc: UInt8 = 0
 
     for y in 0..<height {
+      let ci = 2.0 * Double(y) / Double(height) - 1.0
       for x in 0..<width {
         var zr = 0.0
         var zi = 0.0
         var tr = 0.0
         var ti = 0.0
         let cr = 2.0 * Double(x) / Double(width) - 1.5
-        let ci = 2.0 * Double(y) / Double(height) - 1.0
         var i = 0
 
         while i < Mandelbrot.ITER && tr + ti <= Mandelbrot.LIMIT * Mandelbrot.LIMIT {

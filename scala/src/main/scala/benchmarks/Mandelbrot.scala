@@ -24,6 +24,7 @@ class Mandelbrot extends Benchmark:
 
     var y = 0
     while y < h do
+      val ci = (2.0 * y / h - 1.0)
       var x = 0
       while x < w do
         var zr = 0.0
@@ -31,7 +32,6 @@ class Mandelbrot extends Benchmark:
         var tr = 0.0
         var ti = 0.0
         val cr = (2.0 * x / w - 1.5)
-        val ci = (2.0 * y / h - 1.0)
 
         var i = 0
         while i < ITER && (tr + ti <= LIMIT * LIMIT) do

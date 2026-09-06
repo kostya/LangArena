@@ -852,6 +852,7 @@ class Mandelbrot extends Benchmark {
     int byteAcc = 0;
 
     for (int y = 0; y < h; y++) {
+      final ci = (2.0 * y / h - 1.0);
       for (int x = 0; x < w; x++) {
         double zr = 0.0;
         double zi = 0.0;
@@ -859,7 +860,6 @@ class Mandelbrot extends Benchmark {
         double ti = 0.0;
 
         final cr = (2.0 * x / w - 1.5);
-        final ci = (2.0 * y / h - 1.0);
 
         int i = 0;
         while (i < ITER && (tr + ti) <= LIMIT * LIMIT) {

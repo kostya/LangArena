@@ -28,14 +28,14 @@ method run(self: Mandelbrot, iteration_id: int) =
   var byteAcc: byte = 0
 
   for y in 0..<self.h.int:
+    let tmpY = float(y)
+    let tmpH = float(self.h)
+    let ci = 2.0 * tmpY / tmpH - 1.0
+
     for x in 0..<self.w.int:
       let tmpX = float(x)
-      let tmpY = float(y)
       let tmpW = float(self.w)
-      let tmpH = float(self.h)
-
       let cr = 2.0 * tmpX / tmpW - 1.5
-      let ci = 2.0 * tmpY / tmpH - 1.0
 
       var zr = 0.0
       var zi = 0.0

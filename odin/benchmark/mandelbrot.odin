@@ -24,9 +24,9 @@ mandelbrot_run :: proc(bench: ^Benchmark, iteration_id: int) {
 	byte_acc: u8 = 0
 
 	for y in 0 ..< mb.h {
+		ci := 2.0 * f64(y) / f64(mb.h) - 1.0
 		for x in 0 ..< mb.w {
 			cr := 2.0 * f64(x) / f64(mb.w) - 1.5
-			ci := 2.0 * f64(y) / f64(mb.h) - 1.0
 
 			zr, zi, tr, ti: f64
 			i := 0

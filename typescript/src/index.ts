@@ -1022,6 +1022,7 @@ export class Mandelbrot extends Benchmark {
     let byteAcc = 0;
 
     for (let y = 0; y < this.h; y++) {
+      const ci = (2.0 * y) / this.h - 1.0;
       for (let x = 0; x < this.w; x++) {
         let zr = 0.0;
         let zi = 0.0;
@@ -1029,7 +1030,6 @@ export class Mandelbrot extends Benchmark {
         let ti = 0.0;
 
         const cr = (2.0 * x) / this.w - 1.5;
-        const ci = (2.0 * y) / this.h - 1.0;
 
         let i = 0;
         while (i < Mandelbrot.ITER && tr + ti <= Mandelbrot.LIMIT * Mandelbrot.LIMIT) {

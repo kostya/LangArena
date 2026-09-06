@@ -32,13 +32,13 @@ struct Mandelbrot(Benchmark, Movable):
         var byte_acc: UInt8 = 0
 
         for y in range(self.h):
+            var ci = 2.0 * Float64(y) / Float64(self.h) - 1.0
             for x in range(self.w):
                 var zr: Float64 = 0.0
                 var zi: Float64 = 0.0
                 var tr: Float64 = 0.0
                 var ti: Float64 = 0.0
                 var cr = 2.0 * Float64(x) / Float64(self.w) - 1.5
-                var ci = 2.0 * Float64(y) / Float64(self.h) - 1.0
 
                 var i = 0
                 while i < ITER and tr + ti <= LIMIT_SQ:

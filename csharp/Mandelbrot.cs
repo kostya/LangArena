@@ -31,11 +31,11 @@ public class Mandelbrot : Benchmark
 
         for (int y = 0; y < h; y++)
         {
+            double ci = (2.0 * y / h - 1.0);
             for (int x = 0; x < w; x++)
             {
                 double zr = 0.0, zi = 0.0;
                 double cr = (2.0 * x / w - 1.5);
-                double ci = (2.0 * y / h - 1.0);
 
                 int i = 0;
                 double tr, ti;
