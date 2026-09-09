@@ -64,13 +64,19 @@ func matmulParallel(a, b [][]float64, numThreads int) [][]float64 {
 	runtime.GOMAXPROCS(numThreads)
 
 	var wg sync.WaitGroup
-	workCh := make(chan int, n)
+	rowsPerThread := (n + numThreads - 1) / numThreads
 
 	for w := 0; w < numThreads; w++ {
 		wg.Add(1)
-		go func() {
+		go func(threadID int) {
 			defer wg.Done()
-			for i := range workCh {
+			startRow := threadID * rowsPerThread
+			endRow := startRow + rowsPerThread
+			if endRow > n || threadID == numThreads-1 {
+				endRow = n
+			}
+
+			for i := startRow; i < endRow; i++ {
 				ai := a[i]
 				ci := c[i]
 				for j := 0; j < n; j++ {
@@ -83,13 +89,8 @@ func matmulParallel(a, b [][]float64, numThreads int) [][]float64 {
 					ci[j] = sum
 				}
 			}
-		}()
+		}(w)
 	}
-
-	for i := 0; i < n; i++ {
-		workCh <- i
-	}
-	close(workCh)
 
 	wg.Wait()
 	return c
