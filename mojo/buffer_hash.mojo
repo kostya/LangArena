@@ -1,3 +1,4 @@
+from std.algorithm.functional import vectorize
 from helper import Helper
 from benchmark import Benchmark, Config
 
@@ -16,7 +17,7 @@ struct HashSHA256(Benchmark, Movable):
         return "Hash::SHA256"
 
     def prepare(mut self, mut helper: Helper) raises:
-        self.data = List[UInt8]()
+        self.data = List[UInt8](capacity=self.size)
         for _ in range(self.size):
             self.data.append(UInt8(helper.next_int(256)))
 
@@ -28,22 +29,36 @@ struct HashSHA256(Benchmark, Movable):
 
     @staticmethod
     def _simple_sha256(data: List[UInt8]) -> UInt32:
-        var hashes = List[UInt32]()
-        hashes.append(0x6A09E667)
-        hashes.append(0xBB67AE85)
-        hashes.append(0x3C6EF372)
-        hashes.append(0xA54FF53A)
-        hashes.append(0x510E527F)
-        hashes.append(0x9B05688C)
-        hashes.append(0x1F83D9AB)
-        hashes.append(0x5BE0CD19)
+        var hashes = SIMD[DType.uint32, 8](
+            0x6A09E667,
+            0xBB67AE85,
+            0x3C6EF372,
+            0xA54FF53A,
+            0x510E527F,
+            0x9B05688C,
+            0x1F83D9AB,
+            0x5BE0CD19,
+        )
 
-        for i in range(len(data)):
-            var hash_idx = i & 7
-            var hash = hashes[hash_idx]
-            hash = ((hash << 5) + hash) + UInt32(data[i])
-            hash = (hash + (hash << 10)) ^ (hash >> 6)
-            hashes[hash_idx] = hash
+        var data_ptr = data.unsafe_ptr()
+
+        def hash_chunk[width: Int](i: Int) {imm data_ptr, mut hashes}:
+            comptime if width == 8:
+                var bytes = (
+                    data_ptr.unsafe_offset(i)
+                    .unsafe_load[width=8, alignment=1]()
+                    .cast[DType.uint32]()
+                )
+                hashes = ((hashes << 5) + hashes) + bytes
+                hashes = (hashes + (hashes << 10)) ^ (hashes >> 6)
+            else:
+                var hash_idx = i & 7
+                var hash = hashes[hash_idx]
+                hash = ((hash << 5) + hash) + UInt32(data_ptr[unsafe_offset=i])
+                hash = (hash + (hash << 10)) ^ (hash >> 6)
+                hashes[hash_idx] = hash
+
+        vectorize[8](len(data), hash_chunk)
 
         var h0 = hashes[0]
         var b0 = (h0 >> 24) & 0xFF
