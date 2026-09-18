@@ -262,7 +262,7 @@ function create_table($parent_div, title, data, use_color_compare = 0, group_lan
     if (data.first_row) $th.text(data.first_row);
     $tr.append($th);
     for (let h of up_header) {
-        const $td = $('<th>').html(h.replace(/\//g, '<br>').replace(/TypeScript/g, 'TS').replace(/Mojo/g, 'Mojo<br>Preview'));
+        const $td = $('<th>').html(h.replace(/\//g, '<br>').replace(/TypeScript/g, 'TS').replace(/Mojo/g, 'Mojo*').replace(/Gossamer/g, 'Gsmr'));
         $tr.append($td);
         if (lang_sticky_up) $td.attr('class', 'lang_' + run_name_to_lang_class_name(h));
     }
@@ -457,7 +457,9 @@ function lang_color(lang) {
         'c3': '#3C99B1',
         'ruby': '#CC342D',
         'mojo': '#FF4D00',
-        'php': '#8892BF'
+        'php': '#8892BF',
+        'gossamer': '#38BDF8',
+        'js': '#F7DF1E'
     };
 
     return colorMap[key] || '#95a5a6';

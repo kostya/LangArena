@@ -1018,7 +1018,9 @@ DESC
 
   def _lang_for(run)
     v = run.downcase.split('/').first
-    v.gsub("nim++", "nim").gsub("++", "pp").gsub("#", "sharp").gsub("go", "golang")
+    v = v.gsub("nim++", "nim").gsub("++", "pp").gsub("#", "sharp").gsub("js", "javascript")
+    v = "golang" if v == "go"
+    v
   end
 
   def _to_lang(run)

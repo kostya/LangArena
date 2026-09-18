@@ -111,6 +111,9 @@ body {
 .lang_c3 { background: #3C99B1; color: white; }
 .lang_php { background: #8892BF; color: white; }
 .lang_mojo { background: #FF4D00; color: white; }
+.lang_gossamer { background: #38BDF8; color: #000000; }
+.lang_js { background: #F7DF1E; color: #000000; }
+.lang_javascript { background: #F7DF1E; color: #000000; }
 
 .results-table .lang_c { background: #00599C; color: white; }
 .results-table .lang_cpp { background: #F34B7D; color: white; }
@@ -137,6 +140,10 @@ body {
 .results-table .lang_ruby { background: #CC342D; color: white; }
 .results-table .lang_php { background: #8892BF; color: white; }
 .results-table .lang_mojo { background: #FF4D00; color: white; }
+.results-table .lang_gossamer { background: #38BDF8; color: #000000; }
+.results-table .lang_js { background: #F7DF1E; color: #000000; }
+.results-table .lang_javascript { background: #F7DF1E; color: #000000; }
+
 
 td.speed_0 { background: #1b5e20e3; font-weight: bold; color: white; }
 td.speed_1 { background: #4caf50aa; }
