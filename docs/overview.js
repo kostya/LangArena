@@ -159,6 +159,43 @@ function overview_tab($results) {
   color: #888888;
   font-weight: bold;
 }
+
+.runtimes-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0 1.5rem 0;
+  font-size: 0.95rem;
+}
+
+.runtimes-table th,
+.runtimes-table td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #e5e5e5;
+  vertical-align: top;
+}
+
+.runtimes-table th {
+  font-weight: 600;
+  color: #111111;
+  background-color: #fafafa;
+}
+
+.runtimes-table td:first-child {
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.runtimes-table a {
+  color: #1a1a1a;
+  text-decoration: underline;
+  text-decoration-color: #bbbbbb;
+  text-underline-offset: 0.15rem;
+}
+
+.runtimes-table a:hover {
+  text-decoration-color: #000000;
+}
 </style>
 
 <div class="overview">
@@ -167,11 +204,50 @@ function overview_tab($results) {
 
 <h2>What is it?</h2>
 
-<p>A collection of 50 tasks across 24 languages - complex, non-synthetic, and inspired by real-world problems (JSON, Base64, CSV, neural networks, compression, maze A*, graph algorithms, sorting, hashing, interpreters, parallel matmul, and more). Where possible, the same core algorithm is implemented across all languages using idiomatic constructs; for library-based (JSON, Base64, CSV), I use the best practical option for each language. Checksums verify correctness and prevent dead-code elimination. The suite runs monthly with full history, so you can watch compiler performance evolve over time. The goal is not to crown a micro-optimization champion, but to see how well each language's compiler or runtime optimizes clean, readable, idiomatic code. The results include runtime, Runtime Score, memory usage, compile time, and expressiveness.</p>
+<p>A collection of 50 tasks across 26 languages - complex, non-synthetic, and inspired by real-world problems (JSON, Base64, CSV, neural networks, compression, maze A*, graph algorithms, sorting, hashing, interpreters, parallel matmul, and more). Where possible, the same core algorithm is implemented across all languages using idiomatic constructs; for library-based (JSON, Base64, CSV), I use the best practical option for each language. Checksums verify correctness and prevent dead-code elimination. The suite runs monthly with full history, so you can watch compiler performance evolve over time. The goal is not to crown a micro-optimization champion, but to see how well each language's compiler or runtime optimizes clean, readable, idiomatic code. The results include runtime, Runtime Score, memory usage, compile time, and expressiveness.</p>
 
-<p><strong>Contenders:</strong> <span class="language-tag">C</span> <span class="language-tag">C++</span> <span class="language-tag">Crystal</span> <span class="language-tag">Rust</span> <span class="language-tag">Go</span> <span class="language-tag">Swift</span> <span class="language-tag">C#</span> <span class="language-tag">Java</span> <span class="language-tag">Kotlin</span> <span class="language-tag">TypeScript</span> <span class="language-tag">Zig</span> <span class="language-tag">D</span> <span class="language-tag">V</span> <span class="language-tag">Julia</span> <span class="language-tag">Nim</span> <span class="language-tag">F#</span> <span class="language-tag">Dart</span> <span class="language-tag">Python</span> <span class="language-tag">Odin</span> <span class="language-tag">Scala</span> <span class="language-tag">C3</span> <span class="language-tag">Ruby</span><span class="language-tag">PHP</span> <span class="language-tag">Mojo</span></p>
+<p><strong>Contenders:</strong> <span class="language-tag">C</span> <span class="language-tag">C++</span> <span class="language-tag">Crystal</span> <span class="language-tag">Rust</span> <span class="language-tag">Go</span> <span class="language-tag">Swift</span> <span class="language-tag">C#</span> <span class="language-tag">Java</span> <span class="language-tag">Kotlin</span> <span class="language-tag">TypeScript</span> <span class="language-tag">Zig</span> <span class="language-tag">D</span> <span class="language-tag">V</span> <span class="language-tag">Julia</span> <span class="language-tag">Nim</span> <span class="language-tag">F#</span> <span class="language-tag">Dart</span> <span class="language-tag">Python</span> <span class="language-tag">Odin</span> <span class="language-tag">Scala</span> <span class="language-tag">C3</span> <span class="language-tag">Ruby</span> <span class="language-tag">PHP</span> <span class="language-tag">Mojo</span> <span class="language-tag">Javascript</span> <span class="language-tag">Gossamer</span></p>
 
 <p class="language-note"><strong>Note on Mojo:</strong> this is a young language, and many tests use Python interop instead of native implementations, simply because I can't compile libraries for JSON, Regex, or implement certain tasks better due to missing language features. Performance is still very raw.</p>
+
+<h3>Participating Compilers/Runtimes</h3>
+
+<table class="runtimes-table">
+  <thead>
+    <tr>
+      <th>Language</th>
+      <th>Compilers / Runtimes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>C</td><td><a href="https://clang.llvm.org/">Clang</a>, <a href="https://gcc.gnu.org/">GCC</a>, <a href="https://github.com/kostya/myc">mycc</a>, <a href="https://git.sr.ht/~mcf/cproc">cproc</a></td></tr>
+    <tr><td>C++</td><td><a href="https://clang.llvm.org/">Clang++</a>, <a href="https://gcc.gnu.org/">G++</a></td></tr>
+    <tr><td>Rust</td><td><a href="https://www.rust-lang.org/">rustc</a>, rustc/WASM (<a href="https://nodejs.org/">Node</a>, <a href="https://wasmtime.dev/">Wasmtime</a>, <a href="https://wasmer.io/">Wasmer</a>, <a href="https://wasmedge.org/">WasmEdge</a>)</td></tr>
+    <tr><td>Zig</td><td><a href="https://ziglang.org/">Zig</a></td></tr>
+    <tr><td>Crystal</td><td><a href="https://crystal-lang.org/">Crystal</a></td></tr>
+    <tr><td>Mojo</td><td><a href="https://www.modular.com/mojo">Mojo</a></td></tr>
+    <tr><td>D</td><td><a href="https://dlang.org/download.html">DMD</a>, <a href="https://github.com/ldc-developers/ldc">LDC</a></td></tr>
+    <tr><td>V</td><td><a href="https://vlang.io/">V/GCC, V/Clang</a></td></tr>
+    <tr><td>Go</td><td><a href="https://go.dev/">Go</a></td></tr>
+    <tr><td>C#</td><td><a href="https://dotnet.microsoft.com/">.NET/JIT</a>, <a href="https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/">.NET/AOT</a></td></tr>
+    <tr><td>F#</td><td><a href="https://dotnet.microsoft.com/languages/fsharp">.NET/JIT</a></td></tr>
+    <tr><td>Nim</td><td><a href="https://nim-lang.org/">Nim/GCC, Nim/Clang, Nim++/GCC, Nim++/Clang++</a>, <a href="https://github.com/arnetheduck/nlvm">Nim/NLVM</a></td></tr>
+    <tr><td>Julia</td><td><a href="https://julialang.org/">Julia</a></td></tr>
+    <tr><td>Swift</td><td><a href="https://swift.org/">Swift</a></td></tr>
+    <tr><td>Odin</td><td><a href="https://odin-lang.org/">Odin</a></td></tr>
+    <tr><td>C3</td><td><a href="https://c3-lang.org/">C3</a></td></tr>
+    <tr><td>Java</td><td><a href="https://openjdk.org/">OpenJDK</a>, <a href="https://www.graalvm.org/">GraalVM</a></td></tr>
+    <tr><td>Kotlin</td><td><a href="https://kotlinlang.org/">Kotlin/JVM</a>, <a href="https://www.graalvm.org/">Kotlin/GraalVM</a></td></tr>
+    <tr><td>Scala</td><td><a href="https://www.scala-lang.org/">Scala/JVM</a>, <a href="https://www.graalvm.org/">Scala/GraalVM</a></td></tr>
+    <tr><td>Dart</td><td><a href="https://dart.dev/">Dart/AOT, Dart/JIT</a></td></tr>
+    <tr><td>TypeScript</td><td><a href="https://nodejs.org/">Node</a>, <a href="https://bun.sh/">Bun</a>, <a href="https://deno.com/">Deno</a></td></tr>
+    <tr><td>Python</td><td><a href="https://www.pypy.org/">PyPy</a></td></tr>
+    <tr><td>Ruby</td><td><a href="https://www.ruby-lang.org/">CRuby/YJIT</a>, <a href="https://www.graalvm.org/ruby/">TruffleRuby</a>, <a href="https://github.com/matz/spinel">Spinel</a></td></tr>
+    <tr><td>PHP</td><td><a href="https://www.php.net/">PHP/JIT</a></td></tr>
+    <tr><td>JavaScript</td><td><a href="https://nodejs.org/">Node</a>, <a href="https://bun.sh/">Bun</a>, <a href="https://deno.com/">Deno</a></td></tr>
+    <tr><td>Gossamer</td><td><a href="https://gossamer-lang.org">Gossamer</a></td></tr>
+  </tbody>
+</table>
 
 <h2>Why?</h2>
 
@@ -259,6 +335,29 @@ function overview_tab($results) {
 <h2>Hardware</h2>
 
 <p>AMD Ryzen 7 3800X 8-Core, 78GB RAM (x86_64-linux-gnu)</p>
+
+<h2>Running</h2>
+
+<h3>Local run without docker</h3>
+
+<p><code class="code">cd Lang</code> and run scripts <code class="code">./test</code> (for fast testing) and <code class="code">./run</code> (for local measure):</p>
+
+<pre class="code" style="display:block; padding:1rem; white-space:pre; overflow-x:auto;">cd rust
+./test [BenchName]
+./run [BenchName]</pre>
+
+<h3>Run all benchmarks</h3>
+
+<p>Requires only: <code class="code">docker</code>, <code class="code">docker compose</code>, and <code class="code">ruby</code>. Warning: Docker images take up more than 35 GB of disk space.</p>
+
+<pre class="code" style="display:block; padding:1rem; white-space:pre; overflow-x:auto;">sh build-docker.sh
+ruby benchmarks.rb</pre>
+
+<h3>Generate Website</h3>
+
+<pre class="code" style="display:block; padding:1rem; white-space:pre; overflow-x:auto;">cd docs
+ruby gen.rb ../results/2026-02-02-x86_64-linux-gnu.js
+open index.html</pre>
 
 </div>
     `);

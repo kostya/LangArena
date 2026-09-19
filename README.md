@@ -4,11 +4,41 @@
 
 ## What is it?
 
-A collection of 50 tasks across 24 languages - complex, non-synthetic, and inspired by real-world problems (JSON, Base64, CSV, neural networks, compression, maze A*, graph algorithms, sorting, hashing, interpreters, parallel matmul, and more). Where possible, the same core algorithm is implemented across all languages using idiomatic constructs; for library-based (JSON, Base64, CSV), I use the best practical option for each language. Checksums verify correctness and prevent dead-code elimination. The suite runs monthly with full history, so you can watch compiler performance evolve over time. The goal is not to crown a micro-optimization champion, but to see how well each language's compiler or runtime optimizes clean, readable, idiomatic code. The results include runtime, Runtime Score, memory usage, compile time, and expressiveness.
+A collection of 50 tasks across 26 languages - complex, non-synthetic, and inspired by real-world problems (JSON, Base64, CSV, neural networks, compression, maze A*, graph algorithms, sorting, hashing, interpreters, parallel matmul, and more). Where possible, the same core algorithm is implemented across all languages using idiomatic constructs; for library-based (JSON, Base64, CSV), I use the best practical option for each language. Checksums verify correctness and prevent dead-code elimination. The suite runs monthly with full history, so you can watch compiler performance evolve over time. The goal is not to crown a micro-optimization champion, but to see how well each language's compiler or runtime optimizes clean, readable, idiomatic code. The results include runtime, Runtime Score, memory usage, compile time, and expressiveness.
 
-**Contenders:** `C`, `C++`, `Crystal`, `Rust`, `Go`, `Swift`, `C#`, `Java`, `Kotlin`, `TypeScript`, `Zig`, `D`, `V`, `Julia`, `Nim`, `F#`, `Dart`, `Python`, `Odin`, `Scala`, `C3`, `Ruby`, `PHP`, `Mojo`.
+**Contenders:** `C`, `C++`, `Crystal`, `Rust`, `Go`, `Swift`, `C#`, `Java`, `Kotlin`, `TypeScript`, `Zig`, `D`, `V`, `Julia`, `Nim`, `F#`, `Dart`, `Python`, `Odin`, `Scala`, `C3`, `Ruby`, `PHP`, `Mojo`, `Javascript`, `Gossamer`.
 
 Note on `Mojo`: this is a young language, and many tests use Python interop instead of native implementations, simply because I can't compile libraries for JSON, Regex, or implement certain tasks better due to missing language features. Performance is still very raw.
+
+Participating Compilers/Runtimes:
+
+* `C`: [Clang](https://clang.llvm.org/), [GCC](https://gcc.gnu.org/), [mycc](https://github.com/kostya/myc), [cproc](https://git.sr.ht/~mcf/cproc)
+* `C++`: [Clang++](https://clang.llvm.org/), [G++](https://gcc.gnu.org/)
+* `Rust`: [rustc](https://www.rust-lang.org/), rustc/WASM ([Node](https://nodejs.org/), [Wasmtime](https://wasmtime.dev/), [Wasmer](https://wasmer.io/), [WasmEdge](https://wasmedge.org/))
+* `Zig`: [Zig](https://ziglang.org/)
+* `Crystal`: [Crystal](https://crystal-lang.org/)
+* `Mojo`: [Mojo](https://www.modular.com/mojo)
+* `D`: [DMD](https://dlang.org/download.html), [LDC](https://github.com/ldc-developers/ldc)
+* `V`: [V/GCC, V/Clang](https://vlang.io/)
+* `Go`: [Go](https://go.dev/)
+* `C#`: [.NET/JIT](https://dotnet.microsoft.com/), [.NET/AOT](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)
+* `F#`: [.NET/JIT](https://dotnet.microsoft.com/languages/fsharp)
+* `Nim`: [Nim/GCC, Nim/Clang, Nim++/GCC, Nim++/Clang++](https://nim-lang.org/), [Nim/NLVM](https://github.com/arnetheduck/nlvm)
+* `Julia`: [Julia](https://julialang.org/)
+* `Swift`: [Swift](https://swift.org/)
+* `Odin`: [Odin](https://odin-lang.org/)
+* `C3`: [C3](https://c3-lang.org/)
+* `Java`: [OpenJDK](https://openjdk.org/), [GraalVM](https://www.graalvm.org/)
+* `Kotlin`: [Kotlin/JVM](https://kotlinlang.org/), [Kotlin/GraalVM](https://www.graalvm.org/)
+* `Scala`: [Scala/JVM](https://www.scala-lang.org/), [Scala/GraalVM](https://www.graalvm.org/)
+* `Dart`: [Dart/AOT, Dart/JIT](https://dart.dev/)
+* `TypeScript`: [Node](https://nodejs.org/), [Bun](https://bun.sh/), [Deno](https://deno.com/)
+* `Python`: [PyPy](https://www.pypy.org/)
+* `Ruby`: [CRuby/YJIT](https://www.ruby-lang.org/), [TruffleRuby](https://www.graalvm.org/ruby/), [Spinel](https://github.com/matz/spinel)
+* `PHP`: [PHP/JIT](https://www.php.net/)
+* `JavaScript`: [Node](https://nodejs.org/), [Bun](https://bun.sh/), [Deno](https://deno.com/)
+* `Gossamer`: [Gossamer](https://gossamer-lang.org)
+
 
 ## Why?
 

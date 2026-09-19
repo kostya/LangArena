@@ -935,8 +935,7 @@ DESC
     return unless hist
     field = 'runtime'
 
-    summaries1 = Array.new(@runs_prod.size, 0.0)
-    summaries2 = Array.new(@runs_prod.size, 0.0)
+    sums = Array.new(@runs_prod.size, 0.0)
 
     m = @tests.map do |test|
       k = -1
@@ -945,15 +944,14 @@ DESC
         if @j["#{test}-#{field}"][run]
           v = @j["#{test}-#{field}"][run]
 
-          summaries2[k] += v
-
           if (rt = hist["#{test}-#{field}"]) && rt[run]
-            summaries1[k] += rt[run]
             diff = v - rt[run]
-            v = (diff / v.to_f) * 100
+            v = (diff / rt[run].to_f) * 100
           else
             v = 100
           end
+
+          sums[k] += v
 
           v.round(1)
         else
@@ -972,16 +970,10 @@ DESC
         </p>
       DESC
     end
-    summary_data = summaries2.each_with_index.map do |s2, i| 
-      s1 = summaries1[i]
-      if s1 == 0
-        100
-      else
-        diff = s2 - s1
-        (diff / s1 * 100).round(1)
-      end
+    sums.map! do |v|
+      (v / @tests.size).round(1)
     end
-    summary = {desc: 'Summary, %', data: summary_data }
+    summary = {desc: 'Average, %', data: sums }
     {map: m, up_header: @runs_prod, left_header: @tests, summary: summary, lang: :up, description: desc, first_row: "Test"}
   end
 
@@ -1026,7 +1018,9 @@ DESC
 
   def _lang_for(run)
     v = run.downcase.split('/').first
-    v.gsub("nim++", "nim").gsub("++", "pp").gsub("#", "sharp").gsub("go", "golang")
+    v = v.gsub("nim++", "nim").gsub("++", "pp").gsub("#", "sharp").gsub("js", "javascript")
+    v = "golang" if v == "go"
+    v
   end
 
   def _to_lang(run)
