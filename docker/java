@@ -2,15 +2,17 @@ FROM langarena:base
 
 ARG version
 
-RUN apt install -y --no-install-recommends openjdk-$version-jdk-headless \
-    && apt clean
+RUN wget -O jdk.tar.gz "https://api.adoptium.net/v3/binary/latest/$version/ga/linux/x64/jdk/hotspot/normal/eclipse" \
+    && mkdir -p /opt/jdk \
+    && tar -xzf jdk.tar.gz -C /opt/jdk --strip-components=1 \
+    && rm jdk.tar.gz
 
-ENV JAVA_HOME="/usr/lib/jvm/java-$version-openjdk-amd64"
+ENV JAVA_HOME="/opt/jdk"
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 ARG mavenversion
-RUN wget https://dlcdn.apache.org/maven/maven-3/$mavenversion/binaries/apache-maven-$mavenversion-bin.tar.gz && \
-    tar -xzf apache-maven-$mavenversion-bin.tar.gz -C /opt && \
-    ln -s /opt/apache-maven-$mavenversion /opt/maven
+RUN wget https://dlcdn.apache.org/maven/maven-3/$mavenversion/binaries/apache-maven-$mavenversion-bin.tar.gz \
+    && tar -xzf apache-maven-$mavenversion-bin.tar.gz -C /opt \
+    && ln -s /opt/apache-maven-$mavenversion /opt/maven
 
 ENV PATH="/opt/maven/bin:$PATH"

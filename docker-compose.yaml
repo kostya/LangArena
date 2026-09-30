@@ -322,7 +322,7 @@ services:
       dockerfile: docker/java
       args:
         # https://www.java.com/releases/
-        version: "26"
+        version: "27"
         # https://maven.apache.org/download.cgi
         mavenversion: 3.9.16
     volumes:
