@@ -94,7 +94,7 @@ impl Bench for Mandelbrot {
         let w = self.w
         let h = self.h
 
-        let header = format("P4\n{} {}\n", w, h)
+        let header = f"P4\n{w} {h}\n"
         self.bitmap.extend_from_slice(header.as_bytes())
 
         let mut bit_num = 0

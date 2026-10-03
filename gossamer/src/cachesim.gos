@@ -154,14 +154,14 @@ impl Bench for CacheSimulation {
 
     fn run(&mut self, iteration_id: i64) {
         for _ in 0..1000 {
-            let key = format("item_{}", self.rng.next_int(self.values_size))
+            let key = f"item_{self.rng.next_int(self.values_size)}"
 
             if self.cache.get(key).is_some() {
                 self.hits += 1
-                self.cache.put(key, format("updated_{}", iteration_id))
+                self.cache.put(key, f"updated_{iteration_id}")
             } else {
                 self.misses += 1
-                self.cache.put(key, format("new_{}", iteration_id))
+                self.cache.put(key, f"new_{iteration_id}")
             }
         }
     }

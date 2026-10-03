@@ -38,5 +38,5 @@ pub fn checksum_bytes(v: [u8]) -> u32 {
 }
 
 pub fn checksum_f64(v: f64) -> u32 {
-    checksum_str(format("{:.7}", v))
+    checksum_str(f"{v:.7}")
 }

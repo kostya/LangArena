@@ -48,34 +48,31 @@ pub struct LogParser {
 impl LogParser {
     pub fn new(cfg: Config) -> LogParser {
         let mut compiled: Vec<(String, regex::Pattern)> = #[]
-        for (name, pattern) in patterns() { compiled.push((name, regex::compile(pattern).unwrap())) }
+        for (name, pattern) in patterns() { compiled.push((name, regex::new(pattern).unwrap())) }
         LogParser {
             lines_count: cfg.int("Etc::LogParser", "lines_count")
             patterns: compiled
-            ips: (1..=255).map(|i| format("192.168.1.{}", i)).collect()
+            ips: (1..=255).map(|i| f"192.168.1.{i}").collect()
             log: ""
             result: 0
         }
     }
 
     fn generate_log_line(&self, i: i64) -> String {
-        let mut line = format("{} - - [{}/Oct/2023:{}:55:36 +0000] \"{} "
-            self.ips[i % self.ips.len()], i % 31, i % 60, METHODS[i % METHODS.len()])
+        let mut line = f"{self.ips[i % self.ips.len()]} - - [{i % 31}/Oct/2023:{i % 60}:55:36 +0000] \"{METHODS[i % METHODS.len()]} "
 
         if i % 3 == 0 {
-            line.push_str(format("/login?email={}{}@{}&password=secret{}"
-                USERS[i % USERS.len()], i % 100, DOMAINS[i % DOMAINS.len()], i % 10_000))
+            line.push_str(f"/login?email={USERS[i % USERS.len()]}{i % 100}@{DOMAINS[i % DOMAINS.len()]}&password=secret{i % 10_000}")
         } else if i % 5 == 0 {
             line.push_str("/api/data?token=")
             for _ in 0..(i % 3 + 1) { line.push_str("abcdef123456") }
         } else if i % 7 == 0 {
-            line.push_str(format("/user/profile?session_id=sess_{:x}", i * 12_345))
+            line.push_str(f"/user/profile?session_id=sess_{i * 12_345:x}")
         } else {
             line.push_str(PATHS[i % PATHS.len()])
         }
 
-        line.push_str(format(" HTTP/1.1\" {} 2326 \"http://{}\" \"{}\"\n"
-            STATUSES[i % STATUSES.len()], DOMAINS[i % DOMAINS.len()], AGENTS[i % AGENTS.len()]))
+        line.push_str(f" HTTP/1.1\" {STATUSES[i % STATUSES.len()]} 2326 \"http://{DOMAINS[i % DOMAINS.len()]}\" \"{AGENTS[i % AGENTS.len()]}\"\n")
 
         line
     }

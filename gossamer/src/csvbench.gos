@@ -54,13 +54,13 @@ impl Bench for CsvParse {
             let z = self.rng.next_float(1.0)
             let y = self.rng.next_float(1.0)
 
-            data.push_str(format("\"point {}\\n, \"\"{}\"\"\",", letter, i % 100))
-            data.push_str(format("{:.10},", x))
+            data.push_str(f"\"point {letter}\\n, \"\"{i % 100}\"\"\",")
+            data.push_str(f"{x:.10},")
             data.push_str(",")
-            data.push_str(format("{:.10},", z))
+            data.push_str(f"{z:.10},")
             let flag = if i % 2 == 0 { "true" } else { "false" }
-            data.push_str(format("\"[{}\\n, {}]\",", flag, i % 100))
-            data.push_str(format("{:.10}\n", y))
+            data.push_str(f"\"[{flag}\\n, {i % 100}]\",")
+            data.push_str(f"{y:.10}\n")
         }
 
         self.data = data

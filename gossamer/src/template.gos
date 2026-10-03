@@ -37,15 +37,15 @@ fn build_document(count: i64, vars: &mut Map<String, String>) -> String {
     for i in 0..count {
         if i % 3 == 0 { text.push_str("<!-- {comment} -->") }
         text.push_str("<tr>")
-        text.push_str(format("<td>{{{{ FIRST_NAME{} }}}}</td>", i))
-        text.push_str(format("<td>{{{{LAST_NAME{}}}}}</td>", i))
-        text.push_str(format("<td>{{{{  CITY{}  }}}}</td>", i))
+        text.push_str(f"<td>{{{{ FIRST_NAME{i} }}}}</td>")
+        text.push_str(f"<td>{{{{LAST_NAME{i}}}}}</td>")
+        text.push_str(f"<td>{{{{  CITY{i}  }}}}</td>")
 
-        let _ = vars.insert(format("FIRST_NAME{}", i), FIRST_NAMES[i % FIRST_NAMES.len()])
-        let _ = vars.insert(format("LAST_NAME{}", i), LAST_NAMES[i % LAST_NAMES.len()])
-        let _ = vars.insert(format("CITY{}", i), CITIES[i % CITIES.len()])
+        let _ = vars.insert(f"FIRST_NAME{i}", FIRST_NAMES[i % FIRST_NAMES.len()])
+        let _ = vars.insert(f"LAST_NAME{i}", LAST_NAMES[i % LAST_NAMES.len()])
+        let _ = vars.insert(f"CITY{i}", CITIES[i % CITIES.len()])
 
-        text.push_str(format("<td>{{balance: {}}}</td>", i % 100))
+        text.push_str(f"<td>{{balance: {i % 100}}}</td>")
         text.push_str("</tr>\n")
     }
 
@@ -66,7 +66,7 @@ impl TemplateRegex {
     pub fn new(cfg: Config) -> TemplateRegex {
         TemplateRegex {
             count: cfg.int("Template::Regex", "count")
-            placeholder: regex::compile("\\{\\{(.*?)\\}\\}").unwrap()
+            placeholder: regex::compile("\\{\\{(.*?)\\}\\}")
             doc: empty_document()
             rendered: ""
             result: 0

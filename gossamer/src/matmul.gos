@@ -61,11 +61,11 @@ fn matmul_parallel(a: Vec<Vec<f64>>, b: Vec<Vec<f64>>, threads: i64) -> Vec<Vec<
         for handle in handles {
             match handle.join() {
                 Ok(rows) => { for row in rows { c.push(row) } }
-                Err(e) => panic("matmul worker failed: {}", e)
+                Err(e) => panic(f"matmul worker failed: {e}")
             }
         }
     }
-    if let Err(e) = joined { panic("matmul workers failed: {}", e) }
+    if let Err(e) = joined { panic(f"matmul workers failed: {e}") }
 
     c
 }

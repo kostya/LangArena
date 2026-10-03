@@ -23,7 +23,7 @@ impl Base64Encode {
 }
 
 fn head(text: String) -> String {
-    if text.byte_len() > 4 { format("{}...", text.substring(0, 4)) } else { text }
+    if text.byte_len() > 4 { f"{text.substring(0, 4)}..." } else { text }
 }
 
 impl Bench for Base64Encode {
@@ -33,8 +33,7 @@ impl Bench for Base64Encode {
     }
 
     fn checksum(&self) -> u32 {
-        helper::checksum_str(format("encode {} to {}: {}"
-            head(self.plain), head(self.encoded), self.result))
+        helper::checksum_str(f"encode {head(self.plain)} to {head(self.encoded)}: {self.result}")
     }
 }
 
@@ -64,7 +63,6 @@ impl Bench for Base64Decode {
     fn checksum(&self) -> u32 {
         let mut prefix = String::new()
         for i in 0..4 { prefix.push_char(self.decoded[i] as char) }
-        helper::checksum_str(format("decode {} to {}...: {}"
-            head(self.encoded), prefix, self.result))
+        helper::checksum_str(f"decode {head(self.encoded)} to {prefix}...: {self.result}")
     }
 }

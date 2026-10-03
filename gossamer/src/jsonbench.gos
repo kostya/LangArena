@@ -53,7 +53,7 @@ impl Bench for JsonGenerate {
             let y = JsonGenerate::round_to_8(self.rng.next_float(1.0))
             let z = JsonGenerate::round_to_8(self.rng.next_float(1.0))
 
-            let name = format("{:.7} {}", self.rng.next_float(1.0), self.rng.next_int(10_000))
+            let name = f"{self.rng.next_float(1.0):.7} {self.rng.next_int(10_000)}"
 
             let mut opts: OptsMap = Map::new()
             opts.insert("1", (1, true))

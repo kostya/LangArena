@@ -21,7 +21,7 @@ impl Config {
 
             for field in json::keys(item).unwrap_or(#[]) {
                 if let Some(value) = json::get(item, field) {
-                    let key = format("{}|{}", name, field)
+                    let key = f"{name}|{field}"
                     if let Some(n) = json::as_i64(value) {
                         let _ = cfg.ints.insert(key, n)
                     } else if let Some(s) = json::as_str(value) {
@@ -36,11 +36,11 @@ impl Config {
     pub fn order(&self) -> Vec<String> { self.order }
 
     pub fn int(&self, name: String, field: String) -> i64 {
-        self.ints.get_or(format("{}|{}", name, field), 0)
+        self.ints.get_or(f"{name}|{field}", 0)
     }
 
     pub fn str(&self, name: String, field: String) -> String {
-        self.strs.get_or(format("{}|{}", name, field), "")
+        self.strs.get_or(f"{name}|{field}", "")
     }
 
     pub fn iterations(&self, name: String) -> i64 {
