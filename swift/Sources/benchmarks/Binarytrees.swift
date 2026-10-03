@@ -61,50 +61,44 @@ final class BinarytreesArena: BenchmarkProtocol {
   }
 
   struct TreeNode {
-    let item: Int
-    var left: Int = -1
-    var right: Int = -1
+    let item: Int32
+    var left: Int32 = -1
+    var right: Int32 = -1
   }
 
-  class TreeArena {
-    private var nodes: [TreeNode] = []
+  private static func build(_ nodes: inout [TreeNode], item: Int32, depth: Int) -> Int32 {
+    let idx = Int32(nodes.count)
+    nodes.append(TreeNode(item: item))
 
-    func build(item: Int, depth: Int) -> Int {
-      let idx = nodes.count
-      nodes.append(TreeNode(item: item))
-
-      if depth > 0 {
-        let shift = 1 << (depth - 1)
-        let leftIdx = build(item: item - shift, depth: depth - 1)
-        let rightIdx = build(item: item + shift, depth: depth - 1)
-        var node = nodes[idx]
-        node.left = leftIdx
-        node.right = rightIdx
-        nodes[idx] = node
-      }
-
-      return idx
+    if depth > 0 {
+      let shift = Int32(1) << (depth - 1)
+      let leftIdx = build(&nodes, item: item - shift, depth: depth - 1)
+      let rightIdx = build(&nodes, item: item + shift, depth: depth - 1)
+      nodes[Int(idx)].left = leftIdx
+      nodes[Int(idx)].right = rightIdx
     }
 
-    func sum(idx: Int) -> UInt32 {
-      let node = nodes[idx]
-      var total = UInt32(bitPattern: Int32(node.item)) &+ 1
+    return idx
+  }
 
-      if node.left >= 0 {
-        total &+= sum(idx: node.left)
-      }
-      if node.right >= 0 {
-        total &+= sum(idx: node.right)
-      }
+  private static func sum(_ nodes: [TreeNode], _ idx: Int32) -> UInt32 {
+    let node = nodes[Int(idx)]
+    var total = UInt32(bitPattern: node.item) &+ 1
 
-      return total
+    if node.left >= 0 {
+      total &+= sum(nodes, node.left)
     }
+    if node.right >= 0 {
+      total &+= sum(nodes, node.right)
+    }
+
+    return total
   }
 
   func run(iterationId: Int) {
-    let arena = TreeArena()
-    let rootIdx = arena.build(item: 0, depth: Int(n))
-    resultVal &+= arena.sum(idx: rootIdx)
+    var nodes: [TreeNode] = []
+    let rootIdx = Self.build(&nodes, item: 0, depth: Int(n))
+    resultVal &+= Self.sum(nodes, rootIdx)
   }
 
   var checksum: UInt32 {
