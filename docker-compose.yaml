@@ -594,6 +594,21 @@ services:
     depends_on:
       - rust
 
+  goose:
+    <<: *shared
+    image: langarena:goose
+    working_dir: /src/goose
+    build:
+      dockerfile: docker/goose
+      args:
+        # https://github.com/aardappel/goose/commits/master
+        version: "bab8b6f3e7dca2a6959994bab26bb4b16b487185"
+    volumes:
+      - .:/src
+      - ./cache/build/goose/target:/src/goose/target
+    depends_on:
+      - base_clang
+
   julia:
     <<: *shared
     image: langarena:julia

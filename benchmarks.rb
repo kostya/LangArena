@@ -75,6 +75,7 @@ LANG_MASKS = {
   'php' => ['./php', ['.php'], []],
   'mojo' => ['./mojo', ['.mojo'], ['.pixi', 'target']],
   'gossamer' => ['./gossamer', ['.gos'], ['target', '.gos-cache']],
+  'goose' => ['./goose', ['.goose'], ['target']],
   'javascript' => ['./javascript', ['.js'], []],
 }
 
@@ -900,6 +901,20 @@ RUNS = [
     container: "gossamer",
     group: :prod,
     deps_cmd: "true",
+  ),
+
+  # ======================================= Goose ======================================================
+
+  Run.new(
+    name: "Goose",
+    build_cmd: "make prod",
+    binary_name: "./target/benchmark",
+    run_cmd: "./target/benchmark",
+    version_cmd: "git -C /opt/goose log -1 --format='goose %h %cs'",
+    dir: "/src/goose",
+    container: "goose",
+    group: :prod,
+    deps_cmd: "mkdir -p target",
   ),
 
   # ======================================= V ======================================================
