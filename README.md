@@ -4,9 +4,9 @@
 
 ## What is it?
 
-A collection of 50 tasks across 26 languages - complex, non-synthetic, and inspired by real-world problems (JSON, Base64, CSV, neural networks, compression, maze A*, graph algorithms, sorting, hashing, interpreters, parallel matmul, and more). Where possible, the same core algorithm is implemented across all languages using idiomatic constructs; for library-based (JSON, Base64, CSV), I use the best practical option for each language. Checksums verify correctness and prevent dead-code elimination. The suite runs monthly with full history, so you can watch compiler performance evolve over time. The goal is not to crown a micro-optimization champion, but to see how well each language's compiler or runtime optimizes clean, readable, idiomatic code. The results include runtime, Runtime Score, memory usage, compile time, and expressiveness.
+A collection of 50 tasks across 27 languages - complex, non-synthetic, and inspired by real-world problems (JSON, Base64, CSV, neural networks, compression, maze A*, graph algorithms, sorting, hashing, interpreters, parallel matmul, and more). Where possible, the same core algorithm is implemented across all languages using idiomatic constructs; for library-based (JSON, Base64, CSV), I use the best practical option for each language. Checksums verify correctness and prevent dead-code elimination. The suite runs monthly with full history, so you can watch compiler performance evolve over time. The goal is not to crown a micro-optimization champion, but to see how well each language's compiler or runtime optimizes clean, readable, idiomatic code. The results include runtime, Runtime Score, memory usage, compile time, and expressiveness.
 
-**Contenders:** `C`, `C++`, `Crystal`, `Rust`, `Go`, `Swift`, `C#`, `Java`, `Kotlin`, `TypeScript`, `Zig`, `D`, `V`, `Julia`, `Nim`, `F#`, `Dart`, `Python`, `Odin`, `Scala`, `C3`, `Ruby`, `PHP`, `Mojo`, `Javascript`, `Gossamer`.
+**Contenders:** `C`, `C++`, `Crystal`, `Rust`, `Go`, `Swift`, `C#`, `Java`, `Kotlin`, `TypeScript`, `Zig`, `D`, `V`, `Julia`, `Nim`, `F#`, `Dart`, `Python`, `Odin`, `Scala`, `C3`, `Ruby`, `PHP`, `Mojo`, `Javascript`, `Gossamer`, `Goose`.
 
 Note on `Mojo`: this is a young language, and many tests use Python interop instead of native implementations, simply because I can't compile libraries for JSON, Regex, or implement certain tasks better due to missing language features. Performance is still very raw.
 
@@ -38,6 +38,7 @@ Participating Compilers/Runtimes:
 * `PHP`: [PHP/JIT](https://www.php.net/)
 * `JavaScript`: [Node](https://nodejs.org/), [Bun](https://bun.sh/), [Deno](https://deno.com/)
 * `Gossamer`: [Gossamer](https://gossamer-lang.org)
+* `Goose`: [Goose](https://github.com/aardappel/goose) (compiles to C, built with Clang)
 
 
 ## Why?
