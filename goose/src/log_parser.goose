@@ -1,0 +1,78 @@
+namespace log_parser;
+
+import std;
+import dictionary;
+import bench;
+import regex;
+
+struct Pattern { name: const u8[:], regex: regex::Regex }
+
+let PATTERNS = [
+    Pattern { "errors", regex::compile(""" [5][0-9]{2} | [4][0-9]{2} """) },
+    Pattern { "bots", regex::compile("""(?i)bot|crawler|scanner|spider|indexing|crawl|robot|spider""") },
+    Pattern { "suspicious", regex::compile("""(?i)etc/passwd|wp-admin|\.\./""") },
+    Pattern { "ips", regex::compile("""\d+\.\d+\.\d+\.35""") },
+    Pattern { "api_calls", regex::compile("""/api/[^ "]+""") },
+    Pattern { "post_requests", regex::compile("""POST [^ ]* HTTP""") },
+    Pattern { "auth_attempts", regex::compile("""(?i)/login|/signin""") },
+    Pattern { "methods", regex::compile("""(?i)get|post|put""") },
+    Pattern { "emails", regex::compile("""[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}""") },
+    Pattern { "passwords", regex::compile("""password=[^&\s"]+""") },
+    Pattern { "tokens", regex::compile("""token=[^&\s"]+|api[_-]?key=[^&\s"]+""") },
+    Pattern { "sessions", regex::compile("""session[_-]?id=[^&\s"]+""") },
+    Pattern { "peak_hours", regex::compile("""\[\d+/\w+/\d+:1[3-7]:\d+:\d+ [+\-]\d+\]""") },
+];
+
+let IPS = generate_ips();
+
+fn generate_ips() -> u8[..15][>..] {
+    var ips: u8[..15][>..] = [];
+    for i in 1..256 { ips.push(str("192.168.1.", i)); }
+    return ips;
+}
+
+let METHODS = ["GET", "POST", "PUT", "DELETE"];
+let PATHS = ["/index.html", "/api/users", "/admin", "/images/logo.png", "/etc/passwd", "/wp-admin/setup.php"];
+let STATUSES = [200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503];
+let AGENTS = ["Mozilla/5.0", "Googlebot/2.1", "curl/7.68.0", "scanner/2.0"];
+let USERS = ["john", "jane", "alex", "sarah", "mike", "anna", "david", "elena"];
+let DOMAINS = ["example.com", "gmail.com", "yahoo.com", "hotmail.com", "company.org", "mail.ru"];
+
+fn generate_log_line(log: u8[>..]&, i: i64) {
+    format(log, IPS[i % IPS.len], " - - [", i % 31, "/Oct/2023:", i % 60, ":55:36 +0000] \"",
+           METHODS[i % METHODS.len], " ");
+    if i % 3 == 0 {
+        format(log, "/login?email=", USERS[i % USERS.len], i % 100, "@", DOMAINS[i % DOMAINS.len],
+               "&password=secret", i % 10000);
+    } else if i % 5 == 0 {
+        log.append("/api/data?token=");
+        for k in i % 3 + 1 { log.append("abcdef123456"); }
+    } else if i % 7 == 0 {
+        log.append("/user/profile?session_id=sess_");
+        format_uint(log, (i * 12345) as u64, 16, 0, ' ');
+    } else {
+        log.append(PATHS[i % PATHS.len]);
+    }
+    format(log, " HTTP/1.1\" ", STATUSES[i % STATUSES.len], " 2326 \"http://", DOMAINS[i % DOMAINS.len],
+           "\" \"", AGENTS[i % AGENTS.len], "\"\n");
+}
+
+struct LogParser { lines_count: i64, checksum_val: u32, log: u8[>..] }
+
+fn new_log_parser() -> LogParser {
+    LogParser { lines_count: config_i64("Etc::LogParser", "lines_count"), checksum_val: 0, log: [] }
+}
+
+fn prepare(s: LogParser&) {
+    for i in s.lines_count { generate_log_line(s.log, i); }
+}
+
+fn run(s: LogParser&, iteration_id: i64) {
+    var matches = dictionary<const u8[:], i64> {};
+    for p in PATTERNS { matches.insert(p.name, regex::count(p.regex, s.log)); }
+    var total = 0;
+    matches.each() { name, count => total += count; };
+    s.checksum_val += total as! u32;
+}
+
+fn checksum(s: LogParser&) -> u32 { s.checksum_val }

@@ -172,7 +172,7 @@ function overview_tab($results) {
 
 <p>Since this is a language-level evaluation, cross-language comparisons are rough and approximate. Comparing different runtimes or compilers for the same language, however, gives a fairer test - OpenJDK/GraalVM, Node/Bun/Deno, Clang/GCC, CRuby/Spinel, and others.</p>
 
-<p><strong>Languages:</strong> <span class="language-tag">C</span> <span class="language-tag">C++</span> <span class="language-tag">Crystal</span> <span class="language-tag">Rust</span> <span class="language-tag">Go</span> <span class="language-tag">Swift</span> <span class="language-tag">C#</span> <span class="language-tag">Java</span> <span class="language-tag">Kotlin</span> <span class="language-tag">TypeScript</span> <span class="language-tag">Zig</span> <span class="language-tag">D</span> <span class="language-tag">V</span> <span class="language-tag">Julia</span> <span class="language-tag">Nim</span> <span class="language-tag">F#</span> <span class="language-tag">Dart</span> <span class="language-tag">Python</span> <span class="language-tag">Odin</span> <span class="language-tag">Scala</span> <span class="language-tag">C3</span> <span class="language-tag">Ruby</span> <span class="language-tag">PHP</span> <span class="language-tag">Mojo</span> <span class="language-tag">JavaScript</span> <span class="language-tag">Gossamer</span></p>
+<p><strong>Languages:</strong> <span class="language-tag">C</span> <span class="language-tag">C++</span> <span class="language-tag">Crystal</span> <span class="language-tag">Rust</span> <span class="language-tag">Go</span> <span class="language-tag">Swift</span> <span class="language-tag">C#</span> <span class="language-tag">Java</span> <span class="language-tag">Kotlin</span> <span class="language-tag">TypeScript</span> <span class="language-tag">Zig</span> <span class="language-tag">D</span> <span class="language-tag">V</span> <span class="language-tag">Julia</span> <span class="language-tag">Nim</span> <span class="language-tag">F#</span> <span class="language-tag">Dart</span> <span class="language-tag">Python</span> <span class="language-tag">Odin</span> <span class="language-tag">Scala</span> <span class="language-tag">C3</span> <span class="language-tag">Ruby</span> <span class="language-tag">PHP</span> <span class="language-tag">Mojo</span> <span class="language-tag">JavaScript</span> <span class="language-tag">Gossamer</span> <span class="language-tag">Goose</span></p>
 
 <p class="language-note"><strong>Note on Mojo:</strong> this is a young language, and many tests use Python interop instead of native implementations, simply because I can't compile libraries for JSON, Regex. Performance is still very raw.</p>
 
@@ -212,6 +212,7 @@ function overview_tab($results) {
     <tr><td>PHP</td><td><a href="https://www.php.net/">PHP/JIT</a></td></tr>
     <tr><td>JavaScript</td><td><a href="https://nodejs.org/">Node</a>, <a href="https://bun.sh/">Bun</a>, <a href="https://deno.com/">Deno</a></td></tr>
     <tr><td>Gossamer</td><td><a href="https://gossamer-lang.org">Gossamer</a></td></tr>
+    <tr><td>Goose</td><td><a href="https://github.com/aardappel/goose">Goose</a> (compiles to C, built with Clang)</td></tr>
   </tbody>
 </table>
 
