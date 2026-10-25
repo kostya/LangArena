@@ -48,6 +48,8 @@ fn new_buffer_hash_sha256() -> BufferHashSHA256 { BufferHashSHA256 { base: new_b
 fn prepare(s: BufferHashSHA256&) { s.base.prepare("Hash::SHA256"); }
 
 fn run(s: BufferHashSHA256&, iteration_id: i64) {
+    let ch = next_int(256) as! u8;
+    s.base.data[next_int(s.base.size_val)] = ch;
     let digest = simple_sha256_digest(s.base.data);
     let hash, ok = binary::read_u32le(digest, 0);
     s.base.result_val += hash;
@@ -77,6 +79,8 @@ fn new_buffer_hash_crc32() -> BufferHashCRC32 { BufferHashCRC32 { base: new_base
 fn prepare(s: BufferHashCRC32&) { s.base.prepare("Hash::CRC32"); }
 
 fn run(s: BufferHashCRC32&, iteration_id: i64) {
+    let ch = next_int(256) as! u8;
+    s.base.data[next_int(s.base.size_val)] = ch;
     let hash = crc32(s.base.data);
     s.base.result_val += hash;
 }

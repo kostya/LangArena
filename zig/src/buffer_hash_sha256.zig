@@ -89,6 +89,8 @@ pub const BufferHashSHA256 = struct {
         const self: *BufferHashSHA256 = @ptrCast(@alignCast(ptr));
         _ = iteration_id;
 
+        const ch: u8 = @intCast(self.helper.nextInt(256));
+        self.data.items[@intCast(self.helper.nextInt(@intCast(self.size_val)))] = ch;
         const hash_result = simpleSHA256(self.data.items);
         const first_word = std.mem.readInt(u32, hash_result[0..4], .little);
         self.result_val +%= first_word;

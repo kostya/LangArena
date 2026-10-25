@@ -62,9 +62,16 @@ impl BufferHashCrc32 {
 }
 
 impl Bench for BufferHashCrc32 {
+    fn warmup(&mut self, iterations: i64) {
+        for i in 0..iterations { self.run(i) }
+        self.base.rng.reset()
+    }
+
     fn prepare(&mut self) { self.base.prepare() }
 
     fn run(&mut self, iteration_id: i64) {
+        let ch = self.base.rng.next_int(256) as u8
+        self.base.data[self.base.rng.next_int(self.base.size) as usize] = ch
         let hash = crc32(self.base.data)
         self.base.result +%= hash
     }
@@ -114,9 +121,16 @@ impl BufferHashSha256 {
 }
 
 impl Bench for BufferHashSha256 {
+    fn warmup(&mut self, iterations: i64) {
+        for i in 0..iterations { self.run(i) }
+        self.base.rng.reset()
+    }
+
     fn prepare(&mut self) { self.base.prepare() }
 
     fn run(&mut self, iteration_id: i64) {
+        let ch = self.base.rng.next_int(256) as u8
+        self.base.data[self.base.rng.next_int(self.base.size) as usize] = ch
         let digest = SimpleSha256::digest(self.base.data)
         let hash = digest[0] as u32 | (digest[1] as u32 << 8) | (digest[2] as u32 << 16) |
         (digest[3] as u32 << 24)

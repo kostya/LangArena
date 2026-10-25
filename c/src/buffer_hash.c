@@ -71,6 +71,9 @@ void BufferHashSHA256_run(Benchmark *self, int iteration_id) {
   (void)iteration_id;
   BufferHashSHA256Data *data = (BufferHashSHA256Data *)self->data;
 
+  data->base.data[Helper_next_int(data->base.size_val)] =
+      (uint8_t)Helper_next_int(256);
+
   uint32_t hash_result =
       buffer_hash_sha256_digest(data->base.data, data->base.size_val);
 
@@ -131,6 +134,9 @@ void BufferHashCRC32_prepare(Benchmark *self) {
 void BufferHashCRC32_run(Benchmark *self, int iteration_id) {
   (void)iteration_id;
   BufferHashCRC32Data *data = (BufferHashCRC32Data *)self->data;
+
+  data->base.data[Helper_next_int(data->base.size_val)] =
+      (uint8_t)Helper_next_int(256);
 
   uint32_t crc_result =
       buffer_hash_crc32_digest(data->base.data, data->base.size_val);

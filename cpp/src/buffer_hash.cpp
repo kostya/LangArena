@@ -14,6 +14,8 @@ void BufferHashBenchmark::prepare() {
 
 void BufferHashBenchmark::run(int iteration_id) {
   (void)iteration_id;
+  data[static_cast<size_t>(Helper::next_int(size_val))] =
+      static_cast<uint8_t>(Helper::next_int(256));
   result_val += test();
 }
 

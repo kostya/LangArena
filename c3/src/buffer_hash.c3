@@ -81,7 +81,7 @@ fn void buffer_hash_sha256_prepare(Benchmark* self)
 fn void buffer_hash_sha256_run(Benchmark* self, int iteration_id)
 {
 	BufferHashSHA256Data* data = (BufferHashSHA256Data*)self.data;
-
+	data.base.data[helper::helper_next_int((uint)data.base.size_val)] = (char)helper::helper_next_int(256);
 	uint hash_result = buffer_hash_sha256_digest(data.base.data[:data.base.size_val]);
 	data.base.result_val = (uint)(data.base.result_val + hash_result);
 }
@@ -149,7 +149,7 @@ fn void buffer_hash_crc32_prepare(Benchmark* self)
 fn void buffer_hash_crc32_run(Benchmark* self, int iteration_id)
 {
 	BufferHashCRC32Data* data = (BufferHashCRC32Data*)self.data;
-
+	data.base.data[helper::helper_next_int((uint)data.base.size_val)] = (char)helper::helper_next_int(256);
 	uint crc_result = buffer_hash_crc32_digest(data.base.data[:data.base.size_val]);
 	data.base.result_val += crc_result;
 }

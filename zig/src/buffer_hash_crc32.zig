@@ -79,6 +79,8 @@ pub const BufferHashCRC32 = struct {
         const self: *BufferHashCRC32 = @ptrCast(@alignCast(ptr));
         _ = iteration_id;
 
+        const ch: u8 = @intCast(self.helper.nextInt(256));
+        self.data.items[@intCast(self.helper.nextInt(@intCast(self.size_val)))] = ch;
         const crc_result = crc32(self.data.items);
         self.result_val +%= crc_result;
     }

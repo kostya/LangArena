@@ -2,39 +2,6 @@ using ..BenchmarkFramework
 
 abstract type AbstractBufferHashBenchmark <: AbstractBenchmark end
 
-mutable struct BufferHashBenchmark <: AbstractBufferHashBenchmark
-    size::Int64
-    data::Vector{UInt8}
-    result::UInt32
-
-    function BufferHashBenchmark()
-        size_val = Helper.config_i64("BufferHashBenchmark", "size")
-        new(size_val, Vector{UInt8}(undef, size_val), UInt32(0))
-    end
-end
-
-name(b::BufferHashBenchmark)::String = "BufferHashBenchmark"
-
-function prepare(b::BufferHashBenchmark)
-    for i = 1:length(b.data)
-        b.data[i] = UInt8(Helper.next_int(256))
-    end
-end
-
-function test(b::BufferHashBenchmark)::UInt32
-
-    error("Abstract method 'test' not implemented")
-end
-
-function run(b::BufferHashBenchmark, iteration_id::Int64)
-    hash_val = test(b)
-    b.result = (b.result + hash_val) & 0xffffffff
-end
-
-function checksum(b::BufferHashBenchmark)::UInt32
-    return b.result
-end
-
 mutable struct BufferHashSHA256 <: AbstractBufferHashBenchmark
     size::Int64
     data::Vector{UInt8}
@@ -109,6 +76,8 @@ function test(b::BufferHashSHA256)::UInt32
 end
 
 function run(b::BufferHashSHA256, iteration_id::Int64)
+    ch = UInt8(Helper.next_int(256))
+    b.data[Helper.next_int(b.size) + 1] = ch
     hash_val = test(b)
     b.result = (b.result + hash_val) & 0xffffffff
 end
@@ -158,6 +127,8 @@ function test(b::BufferHashCRC32)::UInt32
 end
 
 function run(b::BufferHashCRC32, iteration_id::Int64)
+    ch = UInt8(Helper.next_int(256))
+    b.data[Helper.next_int(b.size) + 1] = ch
     hash_val = test(b)
     b.result = (b.result + hash_val) & 0xffffffff
 end

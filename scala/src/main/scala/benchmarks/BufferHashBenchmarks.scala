@@ -13,6 +13,8 @@ abstract class BufferHashBenchmark extends Benchmark:
   def test(): Long
 
   override def run(iterationId: Int): Unit =
+    val ch = Helper.nextInt(256).toByte
+    data(Helper.nextInt(sizeVal.toInt)) = ch
     resultVal += test()
 
   override def checksum(): Long = resultVal

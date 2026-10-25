@@ -47,6 +47,8 @@ public:
 
     override void run(int iterationId)
     {
+        auto ch = cast(ubyte) Helper.nextInt(256);
+        data[Helper.nextInt(sizeVal)] = ch;
         resultVal += test();
     }
 

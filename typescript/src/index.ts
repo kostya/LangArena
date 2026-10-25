@@ -2575,6 +2575,8 @@ export abstract class BufferHashBenchmark extends Benchmark {
   abstract test(): number;
 
   run(_iteration_id: number): void {
+    const ch = Helper.nextInt(256);
+    this.data[Helper.nextInt(this.size)] = ch;
     const hash = this.test();
     this.resultValue = (this.resultValue + hash) & 0xffffffff;
   }

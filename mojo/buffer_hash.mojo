@@ -21,6 +21,8 @@ struct HashSHA256(Benchmark):
             self.data.append(UInt8(helper.next_int(256)))
 
     def run(mut self, iteration_id: Int, mut helper: Helper) raises:
+        var ch = UInt8(helper.next_int(256))
+        self.data[helper.next_int(self.size)] = ch
         self.result += Self._simple_sha256(self.data)
 
     def checksum(mut self) -> UInt32:
@@ -73,6 +75,8 @@ struct HashCRC32(Benchmark):
             self.data.append(UInt8(helper.next_int(256)))
 
     def run(mut self, iteration_id: Int, mut helper: Helper) raises:
+        var ch = UInt8(helper.next_int(256))
+        self.data[helper.next_int(self.size)] = ch
         self.result += Self._crc32(self.data)
 
     def checksum(mut self) -> UInt32:

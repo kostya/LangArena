@@ -24,6 +24,8 @@ class BufferHashBenchmark: BenchmarkProtocol {
   }
 
   func run(iterationId: Int) {
+    let ch = UInt8(Helper.nextInt(max: 256))
+    data[Helper.nextInt(max: Int(sizeVal))] = ch
     resultVal &+= test()
   }
 

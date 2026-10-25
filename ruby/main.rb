@@ -1989,6 +1989,8 @@ module HashModule
     end
 
     def run(iteration_id)
+      ch = Helper.next_int(256)
+      @data[Helper.next_int(@size)] = ch
       @result = (@result + test) & 0xFFFFFFFF
     end
 

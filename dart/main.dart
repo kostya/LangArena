@@ -2307,6 +2307,8 @@ abstract class BufferHashBenchmark extends Benchmark {
 
   @override
   void runBenchmark(int iterationId) {
+    int ch = Helper.nextInt(256);
+    _data[Helper.nextInt(_n)] = ch;
     final hash = test();
     _result = (_result + hash) & 0xFFFFFFFF;
   }

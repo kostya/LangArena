@@ -81,6 +81,8 @@ type BufferHashBenchmark() =
     abstract member ComputeHash: byte[] -> uint32
 
     override this.Run(_: int64) =
+        let ch = byte (Helper.NextInt(256))
+        data.[Helper.NextInt(data.Length)] <- ch
         let hashValue = this.ComputeHash(data)
         this.UpdateResult hashValue
 
