@@ -251,12 +251,6 @@ Heatmap: greener = faster, redder = slower.
     end
 
     knows_bads = [
-      %w{mojo CSV::Parse}, 
-      %w{mojo Json::Generate}, 
-      %w{mojo Json::ParseDom}, 
-      %w{mojo Json::ParseMapping}, 
-      %w{mojo Etc::LogParser}, 
-      %w{mojo Template::Regex}, 
     ]
 
     bads = Hash.new { |h, k| h[k] = [] } 

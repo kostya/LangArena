@@ -174,8 +174,6 @@ function overview_tab($results) {
 
 <p><strong>Languages:</strong> <span class="language-tag">C</span> <span class="language-tag">C++</span> <span class="language-tag">Crystal</span> <span class="language-tag">Rust</span> <span class="language-tag">Go</span> <span class="language-tag">Swift</span> <span class="language-tag">C#</span> <span class="language-tag">Java</span> <span class="language-tag">Kotlin</span> <span class="language-tag">TypeScript</span> <span class="language-tag">Zig</span> <span class="language-tag">D</span> <span class="language-tag">V</span> <span class="language-tag">Julia</span> <span class="language-tag">Nim</span> <span class="language-tag">F#</span> <span class="language-tag">Dart</span> <span class="language-tag">Python</span> <span class="language-tag">Odin</span> <span class="language-tag">Scala</span> <span class="language-tag">C3</span> <span class="language-tag">Ruby</span> <span class="language-tag">PHP</span> <span class="language-tag">Mojo</span> <span class="language-tag">JavaScript</span> <span class="language-tag">Gossamer</span> <span class="language-tag">Goose</span></p>
 
-<p class="language-note"><strong>Note on Mojo:</strong> this is a young language, and many tests use Python interop instead of native implementations, simply because I can't compile libraries for JSON, Regex. Performance is still very raw.</p>
-
 <h3>Participating Compilers/Runtimes</h3>
 
 <table class="runtimes-table">

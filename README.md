@@ -16,8 +16,6 @@ Since this is a language-level evaluation, cross-language comparisons are rough 
 
 **Languages:** `C`, `C++`, `Crystal`, `Rust`, `Go`, `Swift`, `C#`, `Java`, `Kotlin`, `TypeScript`, `Zig`, `D`, `V`, `Julia`, `Nim`, `F#`, `Dart`, `Python`, `Odin`, `Scala`, `C3`, `Ruby`, `PHP`, `Mojo`, `JavaScript`, `Gossamer`, `Goose`.
 
-Note on `Mojo`: this is a young language, and many tests use Python interop instead of native implementations, simply because I can't compile libraries for JSON, Regex. Performance is still very raw.
-
 Participating Compilers/Runtimes:
 
 * `C`: [Clang](https://clang.llvm.org/), [GCC](https://gcc.gnu.org/), [mycc](https://github.com/kostya/myc), [cproc](https://git.sr.ht/~mcf/cproc)
