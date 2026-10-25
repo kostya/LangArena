@@ -43,16 +43,6 @@ tree_node_obj_sum :: proc(node: ^TreeNodeObj) -> u32 {
 	return total
 }
 
-tree_node_obj_destroy :: proc(node: ^TreeNodeObj, allocator := context.allocator) {
-	if node == nil {
-		return
-	}
-
-	tree_node_obj_destroy(node.left, allocator)
-	tree_node_obj_destroy(node.right, allocator)
-	free(node, allocator)
-}
-
 BinarytreesObj :: struct {
 	using base: Benchmark,
 	depth:      int,
