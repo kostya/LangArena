@@ -743,33 +743,33 @@ function top_tab() {
     
     $results.append(`
         <div class="stats-grid">
-            <div class="stat-card" style="height: 740px">
+            <div class="stat-card" style="height: 840px">
                 <h3>Runtime Score 0-100</h3>
-                <div style="height: 700px">
+                <div style="height: 800px">
                 <canvas id="chart_runtime_score"></canvas>
                 </div>
             </div>
-            <div class="stat-card" style="height: 740px">
+            <div class="stat-card" style="height: 840px">
                 <h3>Runtime, s</h3>
-                <div style="height: 700px">
+                <div style="height: 800px">
                 <canvas id="chart_runtime"></canvas>
                 </div>
             </div>
-            <div class="stat-card" style="height: 740px">
+            <div class="stat-card" style="height: 840px">
                 <h3>Memory, Mb</h3>
-                <div style="height: 700px">
+                <div style="height: 800px">
                 <canvas id="chart_memory"></canvas>
                 </div>
             </div>
-            <div class="stat-card" style="height: 740px">
+            <div class="stat-card" style="height: 840px">
                 <h3>Compile Cold WallTime, s</h3>
-                <div style="height: 700px">
+                <div style="height: 800px">
                 <canvas id="chart_compile"></canvas>
                 </div>
             </div>
-            <div class="stat-card" style="height: 740px">
+            <div class="stat-card" style="height: 840px">
                 <h3>Expressiveness, %</h3>
-                <div style="height: 700px">
+                <div style="height: 800px">
                 <canvas id="chart_expressiveness"></canvas>
                 </div>
             </div>
