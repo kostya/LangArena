@@ -67,7 +67,8 @@ Benchmark ideas were taken from:
 
 ## Related
 
-* A single-file, self-contained [stress test](https://github.com/kostya/index-c) for C compilers and optimizers.
+* [index-c](https://github.com/kostya/index-c) - A single-file, self-contained stress test for C compilers and optimizers.
+* [index-cpp](https://github.com/kostya/index-cpp) - A single-file, self-contained stress test for C++ compilers and optimizers.
 
 ## Hardware
 
