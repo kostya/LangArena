@@ -1104,19 +1104,21 @@ RUNS = [
     dir: "/src/golang",
     container: "golang",
     group: :prod,
-    deps_cmd: "mkdir -p target",
+    deps_cmd: "mkdir -p target; go mod download",
   ),
-  Run.new(
-    name: "Go/Opt", 
-    build_cmd: "go build -buildvcs=false -a -trimpath -ldflags=\"-s -w -extldflags '-static'\" -tags=\"osusergo,netgo\" -o target/bin_go_opts", 
-    binary_name: "./target/bin_go_opts", 
-    run_cmd: "./target/bin_go_opts", 
-    version_cmd: "go version",
-    dir: "/src/golang",
-    container: "golang",
-    group: :hack,
-    deps_cmd: "mkdir -p target",
-  ),
+
+  # no effect
+  # Run.new(
+  #   name: "Go/Opt", 
+  #   build_cmd: "go build -buildvcs=false -a -trimpath -ldflags=\"-s -w -extldflags '-static'\" -tags=\"osusergo,netgo\" -o target/bin_go_opts", 
+  #   binary_name: "./target/bin_go_opts", 
+  #   run_cmd: "./target/bin_go_opts", 
+  #   version_cmd: "go version",
+  #   dir: "/src/golang",
+  #   container: "golang",
+  #   group: :hack,
+  #   deps_cmd: "mkdir -p target",
+  # ),
 
   # cant compile 
   # Run.new(
