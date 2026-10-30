@@ -2181,23 +2181,24 @@ RUNS = [
     deps_cmd: "npm ci",
   ),
 
-  Run.new(
-    name: "TypeScript/Node/Opt",
-    build_cmd: "sh -c 'npm ci --silent && npm run build:run --silent'",
-    binary_name: "/src/typescript/target/dist/index.js",
-    run_cmd: <<~CMD.chomp,
-      node \
-        --max-old-space-size=4096 \
-        --max-semi-space-size=256 \
-        --optimize-for-size \
-        /src/typescript/target/dist/index.js
-    CMD
-    version_cmd: "echo \"TCS $(tsc --version), Node $(node --version)\"",
-    dir: "/src/typescript",
-    container: "typescript",
-    group: :hack,
-    deps_cmd: "npm ci",
-  ),
+  # slow
+  # Run.new(
+  #   name: "TypeScript/Node/Opt",
+  #   build_cmd: "sh -c 'npm ci --silent && npm run build:run --silent'",
+  #   binary_name: "/src/typescript/target/dist/index.js",
+  #   run_cmd: <<~CMD.chomp,
+  #     node \
+  #       --max-old-space-size=4096 \
+  #       --max-semi-space-size=256 \
+  #       --optimize-for-size \
+  #       /src/typescript/target/dist/index.js
+  #   CMD
+  #   version_cmd: "echo \"TCS $(tsc --version), Node $(node --version)\"",
+  #   dir: "/src/typescript",
+  #   container: "typescript",
+  #   group: :hack,
+  #   deps_cmd: "npm ci",
+  # ),
 
   # No effect
   # Run.new(
@@ -2339,23 +2340,24 @@ RUNS = [
   #   deps_cmd: "deno cache --quiet src/index.ts",
   # ),
 
-  Run.new(
-    name: "TypeScript/Deno/Turbo",
-    build_cmd: "true",
-    binary_name: "/src/typescript/src/index.ts",
-    run_cmd: <<~CMD.chomp,
-      deno run \
-        --allow-all \
-        --v8-flags="--max-old-space-size=4096,--concurrent-recompilation" \
-        --no-check \
-        /src/typescript/src/index.ts
-    CMD
-    version_cmd: "deno --version",
-    dir: "/src/typescript",
-    container: "typescript-deno",
-    group: :hack,
-    deps_cmd: "deno cache --quiet src/index.ts",
-  ),
+  # no effect
+  # Run.new(
+  #   name: "TypeScript/Deno/Turbo",
+  #   build_cmd: "true",
+  #   binary_name: "/src/typescript/src/index.ts",
+  #   run_cmd: <<~CMD.chomp,
+  #     deno run \
+  #       --allow-all \
+  #       --v8-flags="--max-old-space-size=4096,--concurrent-recompilation" \
+  #       --no-check \
+  #       /src/typescript/src/index.ts
+  #   CMD
+  #   version_cmd: "deno --version",
+  #   dir: "/src/typescript",
+  #   container: "typescript-deno",
+  #   group: :hack,
+  #   deps_cmd: "deno cache --quiet src/index.ts",
+  # ),
 
   # ======================================= Python ======================================================
 
