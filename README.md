@@ -67,8 +67,8 @@ Benchmark ideas were taken from:
 
 ## Related
 
-* [index-c](https://github.com/kostya/index-c) - A single-file, self-contained stress test for C compilers and optimizers.
-* [index-cpp](https://github.com/kostya/index-cpp) - A single-file, self-contained stress test for C++ compilers and optimizers.
+* [index-c](https://github.com/kostya/index-c#experiment-gcc-and-clang-performance-over-12-years) - Experiment: GCC and Clang performance over 12 years.
+* [index-cpp](https://github.com/kostya/index-cpp#experiment-g-and-clang-performance-over-10-years) - Experiment: G++ and Clang++ performance over 10 years.
 
 ## Hardware
 
