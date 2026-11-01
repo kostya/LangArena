@@ -53,7 +53,7 @@ LANG_MASKS = {
   'c' => ['./c', ['.c', '.h'], ['target', 'deps']],
   'c3' => ['./c3', ['.c3'], ['build']],
   'cpp' => ['./cpp', ['.cpp', '.hpp', '.h', '.cc', '.cxx'], ['target', 'deps']],
-  'golang' => ['./golang', ['.go'], ['target']],
+  'golang' => ['./golang', ['.go'], ['target', 'warmup']],
   'crystal' => ['./crystal', ['.cr'], ['target', 'lib']],
   'ruby' => ['./ruby', ['.rb'], []],
   'rust' => ['./rust', ['.rs'], ['target']],
@@ -1104,7 +1104,7 @@ RUNS = [
     dir: "/src/golang",
     container: "golang",
     group: :prod,
-    deps_cmd: "mkdir -p target; go mod download",
+    deps_cmd: "mkdir -p target; go mod download; go build -o /tmp/warmup_go warmup/warmup.go",
   ),
 
   # no effect
