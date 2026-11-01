@@ -5,6 +5,9 @@ x-shared: &shared
     - .:/src
   working_dir: /src
   shm_size: '4gb'
+  dns:
+    - 8.8.8.8
+    - 1.1.1.1
   deploy:
     resources:
       limits:
