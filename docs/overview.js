@@ -240,7 +240,8 @@ function overview_tab($results) {
 <h2>Related</h2>
 
 <ul>
-  <li>A single-file, self-contained <a href="https://github.com/kostya/index-c">stress test</a> for C compilers and optimizers.</li>
+  <li><a href="https://github.com/kostya/index-c#experiment-gcc-and-clang-performance-over-12-years">index-c</a> - Experiment: GCC and Clang performance over 12 years.</li>
+  <li><a href="https://github.com/kostya/index-cpp#experiment-g-and-clang-performance-over-10-years">index-cpp</a> - Experiment: G++ and Clang++ performance over 10 years.</li>
 </ul>
 
 <h2>Hardware</h2>

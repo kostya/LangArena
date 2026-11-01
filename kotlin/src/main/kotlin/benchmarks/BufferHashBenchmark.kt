@@ -14,6 +14,8 @@ abstract class BufferHashBenchmark : Benchmark() {
     abstract fun test(): UInt
 
     override fun run(iterationId: Int) {
+        val ch = Helper.nextInt(256).toByte()
+        data[Helper.nextInt(sizeVal)] = ch
         resultVal += test()
     }
 

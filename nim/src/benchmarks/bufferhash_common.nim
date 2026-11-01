@@ -19,6 +19,8 @@ method test*(self: BufferHashBenchmark): uint32 {.base.} =
   raise newException(ValueError, "Not implemented")
 
 method run(self: BufferHashBenchmark, iteration_id: int) =
+  let ch = byte(nextInt(256))
+  self.data[int(nextInt(int32(self.sizeVal)))] = ch
   self.resultVal = self.resultVal + self.test()
 
 method checksum(self: BufferHashBenchmark): uint32 =

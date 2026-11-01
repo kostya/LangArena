@@ -53,7 +53,7 @@ LANG_MASKS = {
   'c' => ['./c', ['.c', '.h'], ['target', 'deps']],
   'c3' => ['./c3', ['.c3'], ['build']],
   'cpp' => ['./cpp', ['.cpp', '.hpp', '.h', '.cc', '.cxx'], ['target', 'deps']],
-  'golang' => ['./golang', ['.go'], ['target']],
+  'golang' => ['./golang', ['.go'], ['target', 'warmup']],
   'crystal' => ['./crystal', ['.cr'], ['target', 'lib']],
   'ruby' => ['./ruby', ['.rb'], []],
   'rust' => ['./rust', ['.rs'], ['target']],
@@ -1104,19 +1104,21 @@ RUNS = [
     dir: "/src/golang",
     container: "golang",
     group: :prod,
-    deps_cmd: "mkdir -p target",
+    deps_cmd: "mkdir -p target; go mod download; go build -o /tmp/warmup_go warmup/warmup.go",
   ),
-  Run.new(
-    name: "Go/Opt", 
-    build_cmd: "go build -buildvcs=false -a -trimpath -ldflags=\"-s -w -extldflags '-static'\" -tags=\"osusergo,netgo\" -o target/bin_go_opts", 
-    binary_name: "./target/bin_go_opts", 
-    run_cmd: "./target/bin_go_opts", 
-    version_cmd: "go version",
-    dir: "/src/golang",
-    container: "golang",
-    group: :hack,
-    deps_cmd: "mkdir -p target",
-  ),
+
+  # no effect
+  # Run.new(
+  #   name: "Go/Opt", 
+  #   build_cmd: "go build -buildvcs=false -a -trimpath -ldflags=\"-s -w -extldflags '-static'\" -tags=\"osusergo,netgo\" -o target/bin_go_opts", 
+  #   binary_name: "./target/bin_go_opts", 
+  #   run_cmd: "./target/bin_go_opts", 
+  #   version_cmd: "go version",
+  #   dir: "/src/golang",
+  #   container: "golang",
+  #   group: :hack,
+  #   deps_cmd: "mkdir -p target",
+  # ),
 
   # cant compile 
   # Run.new(
@@ -2179,23 +2181,24 @@ RUNS = [
     deps_cmd: "npm ci",
   ),
 
-  Run.new(
-    name: "TypeScript/Node/Opt",
-    build_cmd: "sh -c 'npm ci --silent && npm run build:run --silent'",
-    binary_name: "/src/typescript/target/dist/index.js",
-    run_cmd: <<~CMD.chomp,
-      node \
-        --max-old-space-size=4096 \
-        --max-semi-space-size=256 \
-        --optimize-for-size \
-        /src/typescript/target/dist/index.js
-    CMD
-    version_cmd: "echo \"TCS $(tsc --version), Node $(node --version)\"",
-    dir: "/src/typescript",
-    container: "typescript",
-    group: :hack,
-    deps_cmd: "npm ci",
-  ),
+  # slow
+  # Run.new(
+  #   name: "TypeScript/Node/Opt",
+  #   build_cmd: "sh -c 'npm ci --silent && npm run build:run --silent'",
+  #   binary_name: "/src/typescript/target/dist/index.js",
+  #   run_cmd: <<~CMD.chomp,
+  #     node \
+  #       --max-old-space-size=4096 \
+  #       --max-semi-space-size=256 \
+  #       --optimize-for-size \
+  #       /src/typescript/target/dist/index.js
+  #   CMD
+  #   version_cmd: "echo \"TCS $(tsc --version), Node $(node --version)\"",
+  #   dir: "/src/typescript",
+  #   container: "typescript",
+  #   group: :hack,
+  #   deps_cmd: "npm ci",
+  # ),
 
   # No effect
   # Run.new(
@@ -2337,23 +2340,24 @@ RUNS = [
   #   deps_cmd: "deno cache --quiet src/index.ts",
   # ),
 
-  Run.new(
-    name: "TypeScript/Deno/Turbo",
-    build_cmd: "true",
-    binary_name: "/src/typescript/src/index.ts",
-    run_cmd: <<~CMD.chomp,
-      deno run \
-        --allow-all \
-        --v8-flags="--max-old-space-size=4096,--concurrent-recompilation" \
-        --no-check \
-        /src/typescript/src/index.ts
-    CMD
-    version_cmd: "deno --version",
-    dir: "/src/typescript",
-    container: "typescript-deno",
-    group: :hack,
-    deps_cmd: "deno cache --quiet src/index.ts",
-  ),
+  # no effect
+  # Run.new(
+  #   name: "TypeScript/Deno/Turbo",
+  #   build_cmd: "true",
+  #   binary_name: "/src/typescript/src/index.ts",
+  #   run_cmd: <<~CMD.chomp,
+  #     deno run \
+  #       --allow-all \
+  #       --v8-flags="--max-old-space-size=4096,--concurrent-recompilation" \
+  #       --no-check \
+  #       /src/typescript/src/index.ts
+  #   CMD
+  #   version_cmd: "deno --version",
+  #   dir: "/src/typescript",
+  #   container: "typescript-deno",
+  #   group: :hack,
+  #   deps_cmd: "deno cache --quiet src/index.ts",
+  # ),
 
   # ======================================= Python ======================================================
 

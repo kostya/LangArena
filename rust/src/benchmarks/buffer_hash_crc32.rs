@@ -1,3 +1,4 @@
+use super::super::helper;
 use super::super::Benchmark;
 use crate::benchmarks::buffer_hash_benchmark::BufferHashBenchmark;
 
@@ -40,6 +41,8 @@ impl Benchmark for BufferHashCRC32 {
     }
 
     fn run(&mut self, _iteration_id: i64) {
+        let ch = helper::next_int(256) as u8;
+        self.base.data[helper::next_int(self.base.size_val as i32) as usize] = ch;
         let hash = crc32(&self.base.data);
         self.base.result_val = self.base.result_val.wrapping_add(hash);
     }

@@ -2000,6 +2000,9 @@ class Hash
     end
 
     def run(iteration_id)
+      b = Helper.next_int(256)
+      a = Helper.next_int(@data.size)
+      @data[a] = b.to_u8
       @result &+= test
     end
 

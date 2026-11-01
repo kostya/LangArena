@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"regexp"
+	regexp "github.com/coregx/coregex"
 	"strings"
 )
 

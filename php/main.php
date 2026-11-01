@@ -1067,6 +1067,8 @@ abstract class BufferHashBenchmark extends Benchmark
 
     public function run(int $iteration_id): void
     {
+        $ch = chr(Helper::nextInt(256));
+        $this->data[Helper::nextInt($this->size)] = $ch;
         $this->result_val = ($this->result_val + $this->test()) & 0xFFFFFFFF;
     }
 

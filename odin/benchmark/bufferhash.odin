@@ -88,6 +88,8 @@ simple_sha256 :: proc(data: []u8) -> [32]u8 {
 }
 
 sha256_test :: proc(bh: ^BufferHash) -> u32 {
+	ch := u8(next_int(256))
+	bh.data[next_int(bh.size_val)] = ch
 	hash_result := simple_sha256(bh.data)
 
 	result: u32
@@ -134,6 +136,8 @@ crc32_simple :: proc(data: []u8) -> u32 {
 }
 
 crc32_test :: proc(bh: ^BufferHash) -> u32 {
+	ch := u8(next_int(256))
+	bh.data[next_int(bh.size_val)] = ch
 	return crc32_simple(bh.data)
 }
 

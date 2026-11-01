@@ -188,15 +188,15 @@
   },
   {
     "name": "Hash::SHA256",
-    "checksum": 2844672256,
-    "size": 1000000,
+    "checksum": 346753887,
+    "size": 1100000,
     "iterations": 1200
   },
   {
     "name": "Hash::CRC32",
-    "checksum": 2318723244,
-    "size": 1000000,
-    "iterations": 150
+    "checksum": 2412799940,
+    "size": 1200000,
+    "iterations": 98
   },
   {
     "name": "Calculator::Ast",

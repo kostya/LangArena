@@ -25,6 +25,8 @@ public abstract class BufferHashBenchmark extends Benchmark {
 
     @Override
     public void run(int iterationId) {
+        byte ch = (byte) Helper.nextInt(256);
+        data[Helper.nextInt(data.length)] = ch;
         resultVal += test();
     }
 

@@ -24,6 +24,8 @@ public abstract class BufferHashBenchmark : Benchmark
 
     public override void Run(long IterationId)
     {
+        var ch = (byte)Helper.NextInt(256);
+        _data[Helper.NextInt(_n)] = ch;
         _result += Test();
     }
 

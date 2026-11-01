@@ -42,6 +42,8 @@ func (b *BufferHashSHA256) test() uint32 {
 }
 
 func (b *BufferHashSHA256) Run(iteration_id int) {
+	ch := byte(NextInt(256))
+	b.data[NextInt(len(b.data))] = ch
 	b.result += b.test()
 }
 
@@ -81,6 +83,8 @@ func (b *BufferHashCRC32) test() uint32 {
 }
 
 func (b *BufferHashCRC32) Run(iteration_id int) {
+	ch := byte(NextInt(256))
+	b.data[NextInt(len(b.data))] = ch
 	b.result += b.test()
 }
 

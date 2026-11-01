@@ -92,16 +92,16 @@ private:
     Node parse_term();
     Node parse_expression();
 
-    inline bool is_digit(char c) const {
+    bool is_digit(char c) const {
       return c >= CHAR_ZERO && c <= CHAR_NINE;
     }
 
-    inline bool is_letter(char c) const {
+    bool is_letter(char c) const {
       return (c >= CHAR_A_LOWER && c <= CHAR_Z_LOWER) ||
              (c >= CHAR_A_UPPER && c <= CHAR_Z_UPPER);
     }
 
-    inline bool is_whitespace(char c) const {
+    bool is_whitespace(char c) const {
       return c == CHAR_SPACE || c == CHAR_TAB || c == CHAR_NEWLINE ||
              c == CHAR_CR;
     }

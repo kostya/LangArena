@@ -75,6 +75,8 @@ pub fn (mut b BufferHashSHA256) prepare() {
 }
 
 pub fn (mut b BufferHashSHA256) run(iteration_id int) {
+	ch := u8(helper.next_int(256))
+	b.data[int(helper.next_int(int(b.size_val)))] = ch
 	bytes := simple_sha256_digest(b.data)
 
 	mut hash_val := u32(0)
@@ -130,6 +132,8 @@ pub fn (mut b BufferHashCRC32) prepare() {
 }
 
 pub fn (mut b BufferHashCRC32) run(iteration_id int) {
+	ch := u8(helper.next_int(256))
+	b.data[int(helper.next_int(int(b.size_val)))] = ch
 	hash_val := crc32(b.data)
 	b.result_val += hash_val
 }

@@ -304,7 +304,8 @@ Heatmap: greener = faster, redder = slower.
     m.sort_by! { |arr| -arr[-1] }
 
     left_header = m.map { |arr| arr[0] }
-
+    m.each_with_index { |arr, index| arr.shift }
+    
     desc = <<-DESC
 This table compares how concisely different programming languages express the same program.
 <br><br>
@@ -313,7 +314,6 @@ This table compares how concisely different programming languages express the sa
 • <strong>Lines vs Avg</strong> = line count relative to average (1.0 = average)<br>
 • <strong>Expressiveness Score</strong> = (Boilerplate vs Avg) × (Lines vs Avg)<sup>1.5</sup> — lower is better<br>
 • <strong>Expressiveness vs Avg, %</strong> = how much better/worse than average language.<br>
-• <strong>Award stars</strong> = overall rating (5★ = most expressive, 1★ = most verbose)
 <br><br>
     DESC
 

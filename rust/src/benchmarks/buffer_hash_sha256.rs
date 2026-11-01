@@ -1,3 +1,4 @@
+use super::super::helper;
 use super::super::Benchmark;
 use crate::benchmarks::buffer_hash_benchmark::BufferHashBenchmark;
 
@@ -63,6 +64,8 @@ impl Benchmark for BufferHashSHA256 {
     }
 
     fn run(&mut self, _iteration_id: i64) {
+        let ch = helper::next_int(256) as u8;
+        self.base.data[helper::next_int(self.base.size_val as i32) as usize] = ch;
         let digest = SimpleSHA256::digest(&self.base.data);
 
         let hash = u32::from_le_bytes([digest[0], digest[1], digest[2], digest[3]]);

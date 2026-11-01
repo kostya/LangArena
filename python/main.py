@@ -2076,6 +2076,8 @@ class BufferHashBenchmark(Benchmark, ABC):
         pass
 
     def run_benchmark(self, iteration_id: int):
+        ch = Helper.next_int(256)
+        self._data[Helper.next_int(self._n)] = ch
         hash_value = self.test()
         self._result = (self._result + hash_value) & 0xFFFFFFFF
 

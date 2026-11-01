@@ -2413,6 +2413,8 @@ class BufferHashBenchmark extends Benchmark {
   }
 
   run(_iteration_id) {
+    let ch = Helper.nextInt(256);
+    this.data[Helper.nextInt(this.data.length)] = ch;
     const hash = this.test();
     this.resultValue = (this.resultValue + hash) & 0xffffffff;
   }
