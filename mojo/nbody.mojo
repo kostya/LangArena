@@ -6,7 +6,7 @@ comptime SOLAR_MASS = 4.0 * pi * pi
 comptime DAYS_PER_YEAR = 365.24
 
 
-struct _Planet(TrivialRegisterPassable):
+struct _Planet(ImplicitlyCopyable):
     var x: Float64
     var y: Float64
     var z: Float64

@@ -3,7 +3,7 @@ from helper import Helper
 from benchmark import Benchmark, Config
 
 
-struct _Vec3(TrivialRegisterPassable):
+struct _Vec3(ImplicitlyCopyable):
     var x: Float64
     var y: Float64
     var z: Float64
@@ -35,7 +35,7 @@ struct _Vec3(TrivialRegisterPassable):
         return self.scale(1.0 / mag)
 
 
-struct _Color(TrivialRegisterPassable):
+struct _Color(ImplicitlyCopyable):
     var r: Float64
     var g: Float64
     var b: Float64
@@ -52,7 +52,7 @@ struct _Color(TrivialRegisterPassable):
         return Self(self.r + other.r, self.g + other.g, self.b + other.b)
 
 
-struct _Sphere(TrivialRegisterPassable):
+struct _Sphere(ImplicitlyCopyable):
     var center: _Vec3
     var radius: Float64
     var color: _Color
@@ -66,7 +66,7 @@ struct _Sphere(TrivialRegisterPassable):
         return (pt - self.center).normalize()
 
 
-struct _Light(TrivialRegisterPassable):
+struct _Light(ImplicitlyCopyable):
     var position: _Vec3
     var color: _Color
 
