@@ -2512,7 +2512,7 @@ RUNS = [
     version_cmd: "spinel --version",
     dir: "/src/ruby",
     container: "spinel_clang",
-    group: :hack, 
+    group: :prod, 
     deps_cmd: "mkdir -p target",
   ),
 
