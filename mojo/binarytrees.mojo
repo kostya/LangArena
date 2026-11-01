@@ -1,4 +1,4 @@
-from std.memory import Pointer, bitcast
+from std.memory import Pointer
 from std.memory.alloc import unsafe_alloc
 from helper import Helper
 from benchmark import Benchmark, Config

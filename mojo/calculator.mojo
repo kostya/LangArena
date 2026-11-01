@@ -29,7 +29,7 @@ comptime CALC_BINARY = 2
 comptime CALC_ASSIGN = 3
 
 
-struct _CalcNode(Movable):
+struct _CalcNode:
     comptime _NodePointer = Optional[Pointer[_CalcNode, MutUntrackedOrigin]]
 
     var kind: Int
@@ -58,7 +58,7 @@ struct _CalcNode(Movable):
             nn.unsafe_free()
 
 
-struct _CalcParser(Movable):
+struct _CalcParser:
     var input: String
     var pos: Int
     var length: Int
@@ -275,63 +275,41 @@ struct CalculatorAst(Benchmark):
     def _generate_random_program(n: Int, mut helper: Helper) -> String:
         var result = "v0 = 1\n"
 
-        for i in range(1, 11):
-            var v = i
-            result += String("v", v, " = v", v - 1, " + ", v, "\n")
+        for v in range(1, 11):
+            result += String(t"v{v} = v{v - 1} + {v}\n")
 
         for i in range(n):
             var v = i + 10
-            result += String("v", v, " = v", v - 1, " + ")
+            result += String(t"v{v} = v{v - 1} + ")
 
-            var r = helper.next_int(10)
-            if r == 0:
+            var operation = helper.next_int(10)
+            if operation == 0:
                 result += String(
-                    "(v",
-                    v - 1,
-                    " / 3) * 4 - ",
-                    i,
-                    " / (3 + (18 - v",
-                    v - 2,
-                    ")) % v",
-                    v - 3,
-                    " + 2 * ((9 - v",
-                    v - 6,
-                    ") * (v",
-                    v - 5,
-                    " + 7))",
+                    t"(v{v - 1} / 3) * 4 - {i}"
+                    t" / (3 + (18 - v{v - 2})) % v{v - 3}"
+                    t" + 2 * ((9 - v{v - 6}) * (v{v - 5} + 7))"
                 )
-            elif r == 1:
+            elif operation == 1:
                 result += String(
-                    "v",
-                    v - 1,
-                    " + (v",
-                    v - 2,
-                    " + v",
-                    v - 3,
-                    ") * v",
-                    v - 4,
-                    " - (v",
-                    v - 5,
-                    " /  v",
-                    v - 6,
-                    ")",
+                    t"v{v - 1} + (v{v - 2} + v{v - 3}) * v{v - 4}"
+                    t" - (v{v - 5} /  v{v - 6})"
                 )
-            elif r == 2:
-                result += String("(3789 - (((v", v - 7, ")))) + 1")
-            elif r == 3:
-                result += String("4/2 * (1-3) + v", v - 9, "/v", v - 5)
-            elif r == 4:
-                result += String("1+2+3+4+5+6+v", v - 1)
-            elif r == 5:
-                result += String("(99999 / v", v - 3, ")")
-            elif r == 6:
-                result += String("0 + 0 - v", v - 8)
-            elif r == 7:
-                result += String("((((((((((v", v - 6, ")))))))))) * 2")
-            elif r == 8:
-                result += String(i, " * (v", v - 1, "%6)%7")
-            elif r == 9:
-                result += String("(1)/(0-v", v - 5, ") + (v", v - 7, ")")
+            elif operation == 2:
+                result += String(t"(3789 - (((v{v - 7})))) + 1")
+            elif operation == 3:
+                result += String(t"4/2 * (1-3) + v{v - 9}/v{v - 5}")
+            elif operation == 4:
+                result += String(t"1+2+3+4+5+6+v{v - 1}")
+            elif operation == 5:
+                result += String(t"(99999 / v{v - 3})")
+            elif operation == 6:
+                result += String(t"0 + 0 - v{v - 8}")
+            elif operation == 7:
+                result += String(t"((((((((((v{v - 6})))))))))) * 2")
+            elif operation == 8:
+                result += String(t"{i} * (v{v - 1}%6)%7")
+            elif operation == 9:
+                result += String(t"(1)/(0-v{v - 5}) + (v{v - 7})")
 
             result += "\n"
 

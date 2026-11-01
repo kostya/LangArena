@@ -30,15 +30,16 @@ struct HashSHA256(Benchmark):
 
     @staticmethod
     def _simple_sha256(data: List[UInt8]) -> UInt32:
-        var hashes = List[UInt32]()
-        hashes.append(0x6A09E667)
-        hashes.append(0xBB67AE85)
-        hashes.append(0x3C6EF372)
-        hashes.append(0xA54FF53A)
-        hashes.append(0x510E527F)
-        hashes.append(0x9B05688C)
-        hashes.append(0x1F83D9AB)
-        hashes.append(0x5BE0CD19)
+        var hashes: Array[UInt32, 8] = [
+            0x6A09E667,
+            0xBB67AE85,
+            0x3C6EF372,
+            0xA54FF53A,
+            0x510E527F,
+            0x9B05688C,
+            0x1F83D9AB,
+            0x5BE0CD19,
+        ]
 
         for i in range(len(data)):
             var hash_idx = i % 8

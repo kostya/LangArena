@@ -31,7 +31,7 @@ struct _GOLCell(Copyable):
         self.alive = self.next_state
 
 
-struct _GOLGrid(Movable):
+struct _GOLGrid:
     var width: Int
     var height: Int
     var cells: List[List[_GOLCell]]

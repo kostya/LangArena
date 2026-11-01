@@ -21,8 +21,7 @@ struct Mandelbrot(Benchmark):
         var header = (
             String("P4\n") + String(self.w) + " " + String(self.h) + "\n"
         )
-        for b in header.as_bytes():
-            self.result_data.append(b)
+        self.result_data.extend(header.as_bytes())
 
         comptime ITER: Int = 50
         comptime LIMIT: Float64 = 2.0

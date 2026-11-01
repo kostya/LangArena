@@ -50,56 +50,40 @@ struct LogParser(Benchmark):
         for i in range(1, 256):
             ips.append(String("192.168.1.", i))
 
-        var methods = List[String]()
-        methods.append("GET")
-        methods.append("POST")
-        methods.append("PUT")
-        methods.append("DELETE")
-
-        var paths = List[String]()
-        paths.append("/index.html")
-        paths.append("/api/users")
-        paths.append("/admin")
-        paths.append("/images/logo.png")
-        paths.append("/etc/passwd")
-        paths.append("/wp-admin/setup.php")
-
-        var statuses = List[Int]()
-        statuses.append(200)
-        statuses.append(201)
-        statuses.append(301)
-        statuses.append(302)
-        statuses.append(400)
-        statuses.append(401)
-        statuses.append(403)
-        statuses.append(404)
-        statuses.append(500)
-        statuses.append(502)
-        statuses.append(503)
-
-        var agents = List[String]()
-        agents.append("Mozilla/5.0")
-        agents.append("Googlebot/2.1")
-        agents.append("curl/7.68.0")
-        agents.append("scanner/2.0")
-
-        var users = List[String]()
-        users.append("john")
-        users.append("jane")
-        users.append("alex")
-        users.append("sarah")
-        users.append("mike")
-        users.append("anna")
-        users.append("david")
-        users.append("elena")
-
-        var domains = List[String]()
-        domains.append("example.com")
-        domains.append("gmail.com")
-        domains.append("yahoo.com")
-        domains.append("hotmail.com")
-        domains.append("company.org")
-        domains.append("mail.ru")
+        var methods = ["GET", "POST", "PUT", "DELETE"]
+        var paths = [
+            "/index.html",
+            "/api/users",
+            "/admin",
+            "/images/logo.png",
+            "/etc/passwd",
+            "/wp-admin/setup.php",
+        ]
+        var statuses = [200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503]
+        var agents = [
+            "Mozilla/5.0",
+            "Googlebot/2.1",
+            "curl/7.68.0",
+            "scanner/2.0",
+        ]
+        var users = [
+            "john",
+            "jane",
+            "alex",
+            "sarah",
+            "mike",
+            "anna",
+            "david",
+            "elena",
+        ]
+        var domains = [
+            "example.com",
+            "gmail.com",
+            "yahoo.com",
+            "hotmail.com",
+            "company.org",
+            "mail.ru",
+        ]
 
         var log = ""
         for i in range(self.lines_count):

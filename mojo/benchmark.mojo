@@ -13,50 +13,31 @@ struct ConfigEntry(Copyable):
 
 struct Config(Copyable):
     var entries: List[ConfigEntry]
-    var order: List[String]
 
     def __init__(out self, path: String) raises:
-        self.entries = List[ConfigEntry]()
-        self.order = List[String]()
-
-        var raw: String
         with open(path, "r") as f:
-            raw = f.read()
-        var data = loads(raw)
+            var raw = f.read()
+            var data = loads(raw)
+            self.entries = [ConfigEntry(item^) for item in data]
 
-        for item in data:
-            var entry = ConfigEntry(item^)
 
-            self.order.append(entry.name)
-            self.entries.append(entry^)
+    def _get_field(
+        self, class_name: String, field_name: String
+    ) raises -> Value:
+        for entry in self.entries:
+            if entry.name == class_name:
+                if field_name in entry.fields:
+                    return entry.fields[field_name]
+                raise Error(
+                    String("field not found: ", field_name, " in ", class_name)
+                )
+        raise Error(String("class not found: ", class_name))
 
     def get_i64(self, class_name: String, field_name: String) raises -> Int:
-        for i in range(len(self.entries)):
-            ref entry = self.entries[i]
-            if entry.name == class_name:
-                if field_name in entry.fields:
-                    return Int(entry.fields[field_name].as_int())
-                else:
-                    raise Error(
-                        String(
-                            "field not found: ", field_name, " in ", class_name
-                        )
-                    )
-        raise Error(String("class not found: ", class_name))
+        return Int(self._get_field(class_name, field_name).as_int())
 
     def get_s(self, class_name: String, field_name: String) raises -> String:
-        for i in range(len(self.entries)):
-            ref entry = self.entries[i]
-            if entry.name == class_name:
-                if field_name in entry.fields:
-                    return entry.fields[field_name].as_string()
-                else:
-                    raise Error(
-                        String(
-                            "field not found: ", field_name, " in ", class_name
-                        )
-                    )
-        raise Error(String("class not found: ", class_name))
+        return self._get_field(class_name, field_name).as_string()
 
 
 trait Benchmark:

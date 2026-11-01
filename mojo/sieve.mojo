@@ -24,8 +24,7 @@ struct Sieve(Benchmark):
 
         for p in range(2, sqrt_limit + 1):
             if primes[p] == 1:
-                var start = p * p
-                var multiple = start
+                var multiple = p * p
                 while multiple <= limit:
                     primes[multiple] = 0
                     multiple += p

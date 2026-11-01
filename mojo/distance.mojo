@@ -6,17 +6,7 @@ def generate_pair_strings(
     mut helper: Helper, n: Int, m: Int
 ) -> List[Tuple[String, String]]:
     var pairs = List[Tuple[String, String]](capacity=n)
-    var chars = List[String]()
-    chars.append("a")
-    chars.append("b")
-    chars.append("c")
-    chars.append("d")
-    chars.append("e")
-    chars.append("f")
-    chars.append("g")
-    chars.append("h")
-    chars.append("i")
-    chars.append("j")
+    var chars = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
 
     for _ in range(n):
         var len1 = helper.next_int(m) + 4
@@ -57,7 +47,7 @@ struct DistanceJaro(Benchmark):
         for pair in self.pairs:
             self.result += UInt32(Self.jaro(pair[0], pair[1]) * 1000)
 
-    def checksum(mut self) -> UInt32:
+    def checksum(self) -> UInt32:
         return self.result
 
     @staticmethod

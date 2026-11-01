@@ -31,8 +31,7 @@ struct _BFTape:
 
     def __init__(out self):
         self.pos = 0
-        self.tape = List[UInt8]()
-        self.tape.append(0)
+        self.tape = [0]
 
     def get(self) -> UInt8:
         return self.tape[self.pos]
