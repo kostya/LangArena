@@ -267,7 +267,7 @@ function create_table($parent_div, title, data, use_color_compare = 0, group_lan
     if (data.first_row) $th.text(data.first_row);
     $tr.append($th);
     for (let h of up_header) {
-        const $td = $('<th>').html(h.replace(/\//g, '<br>').replace(/TypeScript/g, 'TS').replace(/Mojo/g, 'Mojo*').replace(/Gossamer/g, 'Gsmr'));
+        const $td = $('<th>').html(h.replace(/\//g, '<br>').replace(/TypeScript/g, 'TS').replace(/Gossamer/g, 'Gsmr'));
         $tr.append($td);
         if (lang_sticky_up) $td.attr('class', 'lang_' + run_name_to_lang_class_name(h));
     }
