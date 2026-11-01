@@ -89,13 +89,6 @@ class Gen
     <strong>Matmul::T4/T8/T16</strong> — multi-threaded versions (4/8/16 threads).<br>
     <br>
     Heatmap visualization: greener = faster, redder = slower (relative performance within each benchmark), black = incomparable.
-
-<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 15px; margin: 10px 0; border-radius: 4px;">
-  <strong>Note on <code>Mojo</code>:</strong> this is a young language, and many tests use Python interop instead of native implementations (marked black), simply because I can't compile libraries for JSON, Regex, Csv. Performance is still very raw.
-</div>
-<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 15px; margin: 10px 0; border-radius: 4px;">
-  <strong>Note on <code>Go</code>:</strong> Go suffers from regex benchmarks — see my <a href="https://www.reddit.com/r/golang/comments/1rr2evh/why_is_gos_regex_so_slow/">post</a> on this.
-</div>
     DESC
 
     t
