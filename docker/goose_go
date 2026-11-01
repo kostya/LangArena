@@ -1,0 +1,9 @@
+FROM langarena:golang
+
+ARG version
+RUN git clone https://github.com/robtandy/goose.go.git \
+	&& cd goose.go \
+	&& git checkout $version \
+	&& cmake -B build -DCMAKE_BUILD_TYPE=Release \
+	&& cmake --build build -j 6 \
+	&& ln -sf /opt/goose.go/build/goose /usr/local/bin/goose

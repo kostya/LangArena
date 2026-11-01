@@ -649,6 +649,21 @@ services:
     depends_on:
       - base_gcc
 
+  goose_go:
+    <<: *shared
+    image: langarena:goose_go
+    working_dir: /src/goose
+    build:
+      dockerfile: docker/goose_go
+      args:
+        # https://github.com/robtandy/goose.go
+        version: "5a5ba602518a2b73e2e3fad144ebd292b9564d11"
+    volumes:
+      - .:/src
+      - ./cache/build/goose_go/target:/src/goose/target
+    depends_on:
+      - base_gcc
+
   julia:
     <<: *shared
     image: langarena:julia

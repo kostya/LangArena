@@ -664,6 +664,18 @@ RUNS = [
   #   deps_cmd: "mkdir -p target",
   # ),
 
+  Run.new(
+    name: "Goose/Go",
+    build_cmd: "sh -c 'goose -O2 --standalone -o target/prod.go --target=go src/main.goose; go build -o target/la_go target/prod.go'",
+    binary_name: "target/la_go",
+    run_cmd: "target/la_go",
+    version_cmd: "echo \"Goose.go $(goose --version), Go $(go version)\"",
+    dir: "/src/goose",
+    container: "goose_go",
+    group: :hack,
+    deps_cmd: "mkdir -p target",
+  ),
+
   # ======================================= Rust ======================================================
   Run.new(
     name: "Rust", 
