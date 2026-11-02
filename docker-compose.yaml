@@ -671,7 +671,7 @@ services:
       - GOCACHE=/root/.cache/go-build
       - GOMODCACHE=/go/pkg/mod
     depends_on:
-      - base_go
+      - golang
 
   julia:
     <<: *shared
