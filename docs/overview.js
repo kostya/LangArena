@@ -210,7 +210,7 @@ function overview_tab($results) {
     <tr><td>PHP</td><td><a href="https://www.php.net/">PHP/JIT</a></td></tr>
     <tr><td>JavaScript</td><td><a href="https://nodejs.org/">Node</a>, <a href="https://bun.sh/">Bun</a>, <a href="https://deno.com/">Deno</a></td></tr>
     <tr><td>Gossamer</td><td><a href="https://gossamer-lang.org">Gossamer</a></td></tr>
-    <tr><td>Goose</td><td><a href="https://github.com/aardappel/goose">Goose</a></td></tr>
+    <tr><td>Goose</td><td><a href="https://github.com/aardappel/goose">Goose</a>, <a href="https://github.com/robtandy/goose.go">Goose.go</a></td></tr>
   </tbody>
 </table>
 

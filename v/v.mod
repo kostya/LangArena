@@ -1,6 +1,6 @@
 Module {
-    name: 'my_project'
-    description: 'Описание моего проекта'
+    name: 'langarena'
+    description: 'LangArena'
     version: '0.1.0'
     dependencies: ['srackham.pcre2']
 }

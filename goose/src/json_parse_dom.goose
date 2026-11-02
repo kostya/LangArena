@@ -19,8 +19,8 @@ fn number_at(coord: json::Node&, key: u8[:]) -> f64 {
 }
 
 fn calc(s: JsonParseDom&, text: u8[:]) -> f64, f64, f64 {
-    var doc: json::Node[>..] = [];
-    var decoded: u8[>..] = [];
+    var doc:     json::Node[>..] = [];
+    var decoded: u8[>..]         = [];
     let root, err = json::parse(text, doc, decoded);
     guard root else { abort(err); }
     let coordinates = json::member(root, "coordinates");

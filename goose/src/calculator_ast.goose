@@ -14,10 +14,10 @@ enum Node {
 let CHAR_EOF: u8 = 0;
 
 struct CalculatorAst {
-    n: i64,
-    result_val: u32,
-    text: u8[>..]&,
-    nodes: Node..[>..]&,
+    n:           i64,
+    result_val:  u32,
+    text:        u8[>..]&,
+    nodes:       Node..[>..]&,
     expressions: (Node..&)[>..],
 }
 
@@ -57,11 +57,11 @@ fn generate_random_program(s: CalculatorAst&, n: i64) -> u8[>..] {
 }
 
 struct Parser {
-    input: const u8[:],
-    pos: i64,
-    len: i64,
+    input:        const u8[:],
+    pos:          i64,
+    len:          i64,
     current_byte: u8,
-    expressions: (Node..&)[>..],
+    expressions:  (Node..&)[>..],
 }
 
 fn new_parser(input: const u8[:]) -> Parser {

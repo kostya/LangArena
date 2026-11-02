@@ -81,8 +81,8 @@ struct BrainfuckArray { program_text: const u8[:], warmup_text: const u8[:], res
 fn new_brainfuck_array() -> BrainfuckArray {
     BrainfuckArray {
         program_text: config_s("Brainfuck::Array", "program"),
-        warmup_text: config_s("Brainfuck::Array", "warmup_program"),
-        result_val: 0,
+        warmup_text:  config_s("Brainfuck::Array", "warmup_program"),
+        result_val:   0,
     }
 }
 

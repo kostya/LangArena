@@ -7,12 +7,12 @@ fn fannkuchredux(n: i32) -> i32, i32 {
     var perm1: i32[32] = [0; 32];
     for i in 32 { perm1[i] = i as i32; }
 
-    var perm: i32[32] = [0; 32];
-    var count: i32[32] = [0; 32];
-    var max_flips_count: i32 = 0;
+    var perm:            i32[32] = [0; 32];
+    var count:           i32[32] = [0; 32];
+    var max_flips_count: i32     = 0;
     var perm_count = 0;
     var checksum: i32 = 0;
-    var r: i64 = n;
+    var r:        i64 = n;
 
     loop {
         while r > 1 {

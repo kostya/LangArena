@@ -21,7 +21,7 @@ fn bwt_transform(input: u8[:]) -> BWTResult {
     for byte in input { counts[byte] += 1; }
 
     var positions: i32[256] = [0; 256];
-    var total: i32 = 0;
+    var total:     i32      = 0;
     for i in 256 {
         positions[i] = total;
         total += counts[i];
@@ -93,9 +93,9 @@ struct BWTEncode { size_val: i64, result_val: u32, test_data: u8[>..<]&, bwt_res
 
 fn new_bwt_encode(test_data: u8[>..<]&) -> BWTEncode {
     BWTEncode {
-        size_val: config_i64("Compress::BWTEncode", "size"),
+        size_val:   config_i64("Compress::BWTEncode", "size"),
         result_val: 0,
-        test_data: test_data,
+        test_data:  test_data,
         bwt_result: new_bwt_result(),
     }
 }
@@ -118,7 +118,7 @@ fn bwt_inverse(bwt_result: BWTResult&) -> u8[>..] {
     for byte in bwt { counts[byte] += 1; }
 
     var positions: i32[256] = [0; 256];
-    var total: i32 = 0;
+    var total:     i32      = 0;
     for i in 256 {
         positions[i] = total;
         total += counts[i];
@@ -146,20 +146,20 @@ fn bwt_inverse(bwt_result: BWTResult&) -> u8[>..] {
 }
 
 struct BWTDecode {
-    size_val: i64,
+    size_val:   i64,
     result_val: u32,
-    test_data: u8[>..<]&,
+    test_data:  u8[>..<]&,
     bwt_result: BWTResult&,
-    inverted: u8[>..],
+    inverted:   u8[>..],
 }
 
 fn new_bwt_decode(test_data: u8[>..<]&, bwt_result: BWTResult&) -> BWTDecode {
     BWTDecode {
-        size_val: config_i64("Compress::BWTDecode", "size"),
+        size_val:   config_i64("Compress::BWTDecode", "size"),
         result_val: 0,
-        test_data: test_data,
+        test_data:  test_data,
         bwt_result: bwt_result,
-        inverted: [],
+        inverted:   [],
     }
 }
 

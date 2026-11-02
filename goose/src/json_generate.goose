@@ -31,10 +31,10 @@ fn new_json_generate(n: i64 = config_i64("Json::Generate", "coords")) -> JsonGen
                                opts: [Opt { key: "1", num: 1, flag: true }] });
     }
     return JsonGenerate {
-        n: n,
+        n:      n,
         result: 0,
-        data: JsonData { coordinates: copy(data), info: "some info" },
-        text: [],
+        data:   JsonData { coordinates: copy(data), info: "some info" },
+        text:   [],
     };
 }
 

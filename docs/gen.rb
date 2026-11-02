@@ -285,7 +285,7 @@ Heatmap: greener = faster, redder = slower.
       cf = bcf * (lcf ** 1.5)
       pc = -((cf - 1.0) * 100).round(1)
 
-      m << [lang, sz.round(1), gsz.round(1), lines, (sz / gsz.to_f).round(2), bcf.round(3), lcf.round(3), cf.round(3), pc]
+      m << [_to_lang(lang), sz.round(1), gsz.round(1), lines, (sz / gsz.to_f).round(2), bcf.round(3), lcf.round(3), cf.round(3), pc]
     end
 
     m.sort_by! { |arr| -arr[-1] }
@@ -771,7 +771,7 @@ DESC
     up_header << "Expressiveness"
     s = source
     runs.each do |run|
-      left_index = s[:left_header].index(_lang_for run)
+      left_index = s[:left_header].index(_to_lang run)
       up_index = s[:up_header].index("Expressiveness vs Avg, %")
       result[_lang_for run] << s[:map][left_index][up_index]
     end

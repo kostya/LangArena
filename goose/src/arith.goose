@@ -12,7 +12,7 @@ struct ArithFreqTable { total: i32, low: i32[256], high: i32[256] }
 
 fn new_arith_freq_table(frequencies: i32[:]) -> ArithFreqTable {
     let total = sum(frequencies);
-    var low: i32[256] = [0; 256];
+    var low:  i32[256] = [0; 256];
     var high: i32[256] = [0; 256];
 
     var cum: i32 = 0;
@@ -58,7 +58,7 @@ fn arith_encode(data: u8[:]) -> ArithEncodedResult {
 
     let freq_table = new_arith_freq_table(frequencies);
 
-    var low: u64 = 0;
+    var low:  u64 = 0;
     var high: u64 = 0xFFFFFFFF;
     var pending = 0;
 
@@ -122,10 +122,10 @@ struct ArithEncode { size_val: i64, result_val: u32, test_data: u8[>..<]&, encod
 
 fn new_arith_encode(test_data: u8[>..<]&) -> ArithEncode {
     ArithEncode {
-        size_val: config_i64("Compress::ArithEncode", "size"),
+        size_val:   config_i64("Compress::ArithEncode", "size"),
         result_val: 0,
-        test_data: test_data,
-        encoded: new_arith_encoded_result(),
+        test_data:  test_data,
+        encoded:    new_arith_encoded_result(),
     }
 }
 
@@ -162,9 +162,9 @@ fn arith_decode(encoded: ArithEncodedResult&) -> u8[>..] {
     let total = sum(frequencies);
     let data_size = total as i64;
 
-    var low_table: i32[256] = [0; 256];
+    var low_table:  i32[256] = [0; 256];
     var high_table: i32[256] = [0; 256];
-    var cum: i32 = 0;
+    var cum:        i32      = 0;
     for i in 256 {
         low_table[i] = cum;
         cum += frequencies[i];
@@ -180,7 +180,7 @@ fn arith_decode(encoded: ArithEncodedResult&) -> u8[>..] {
         value = (value << 1) | input.read_bit() as u64;
     }
 
-    var low: u64 = 0;
+    var low:  u64 = 0;
     var high: u64 = 0xFFFFFFFF;
 
     for j in data_size {
@@ -217,20 +217,20 @@ fn arith_decode(encoded: ArithEncodedResult&) -> u8[>..] {
 }
 
 struct ArithDecode {
-    size_val: i64,
+    size_val:   i64,
     result_val: u32,
-    test_data: u8[>..<]&,
-    encoded: ArithEncodedResult&,
-    decoded: u8[>..],
+    test_data:  u8[>..<]&,
+    encoded:    ArithEncodedResult&,
+    decoded:    u8[>..],
 }
 
 fn new_arith_decode(test_data: u8[>..<]&, encoded: ArithEncodedResult&) -> ArithDecode {
     ArithDecode {
-        size_val: config_i64("Compress::ArithDecode", "size"),
+        size_val:   config_i64("Compress::ArithDecode", "size"),
         result_val: 0,
-        test_data: test_data,
-        encoded: encoded,
-        decoded: [],
+        test_data:  test_data,
+        encoded:    encoded,
+        decoded:    [],
     }
 }
 

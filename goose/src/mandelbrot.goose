@@ -11,8 +11,8 @@ struct Mandelbrot { w: i64, h: i64, result_bin: u8[>..] }
 
 fn new_mandelbrot() -> Mandelbrot {
     Mandelbrot {
-        w: config_i64("CLBG::Mandelbrot", "w"),
-        h: config_i64("CLBG::Mandelbrot", "h"),
+        w:          config_i64("CLBG::Mandelbrot", "w"),
+        h:          config_i64("CLBG::Mandelbrot", "h"),
         result_bin: [],
     }
 }

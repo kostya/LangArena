@@ -144,8 +144,8 @@ all: $(TARGET)
 deps/simdjson:
 	@echo "Downloading simdjson..."
 	mkdir -p deps/simdjson
-	wget -q https://github.com/simdjson/simdjson/releases/download/v5.0.4/simdjson.h -O deps/simdjson/simdjson.h
-	wget -q https://github.com/simdjson/simdjson/releases/download/v5.0.4/simdjson.cpp -O deps/simdjson/simdjson.cpp
+	wget -q https://github.com/simdjson/simdjson/releases/download/v5.1.1/simdjson.h -O deps/simdjson/simdjson.h
+	wget -q https://github.com/simdjson/simdjson/releases/download/v5.1.1/simdjson.cpp -O deps/simdjson/simdjson.cpp
 
 deps/base64:
 	@echo "Cloning base64..."
