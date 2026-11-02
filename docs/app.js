@@ -736,94 +736,501 @@ function prev_run_tab() {
 function top_tab() {
     const $results = $('#results');
     $results.empty();
-    
+
     $results.append(`
-        <div class=table_header><h2>Summary</h2></div>
+        <div class=table_header>
+            <h2>Summary</h2>
+        </div>
     `);
-    
+
+    const paretoButtons = [
+        { id: 'charts',             label: 'Charts',                 color: '#607d8b' },
+        { id: 'pareto_rt_compile',  label: 'RtScore / Compile',      color: '#e74c3c' },
+        { id: 'pareto_rt_mem',      label: 'RtScore / Memory',       color: '#9b59b6' },
+        { id: 'pareto_rt_expr',     label: 'RtScore / Expressiveness', color: '#3498db' },
+        { id: 'pareto_expr_compile',label: 'Expressiveness / Compile', color: '#f39c12' }
+    ];
+
+    const $filters = $('<div>', {class: 'filters'});
+    for (const b of paretoButtons) {
+        const activeClass = b.id === 'charts' ? ' active' : '';
+        $filters.append(`
+            <button class="filter-btn${activeClass}" id="top_panel_btn_${b.id}"
+                    onclick="topSwitchPanel('${b.id}')"
+                    style="border-left-color: ${b.color}; border-left-width: 3px;">
+                ${b.label}
+            </button>
+        `);
+    }
+    $results.append($filters);
+
     $results.append(`
-        <div class="stats-grid">
-            <div class="stat-card" style="height: 840px">
-                <h3>Runtime Score 0-100</h3>
-                <div style="height: 800px">
-                <canvas id="chart_runtime_score"></canvas>
+        <div id="top_panel_charts" class="top-panel">
+            <div class="stats-grid">
+                <div class="stat-card" style="height: 840px">
+                    <h3>Runtime Score 0-100</h3>
+                    <div style="height: 800px; position: relative; min-width: 0; overflow: hidden;">
+                    <canvas id="chart_runtime_score"></canvas>
+                    </div>
                 </div>
-            </div>
-            <div class="stat-card" style="height: 840px">
-                <h3>Runtime, s</h3>
-                <div style="height: 800px">
-                <canvas id="chart_runtime"></canvas>
+                <div class="stat-card" style="height: 840px">
+                    <h3>Runtime, s</h3>
+                    <div style="height: 800px; position: relative; min-width: 0; overflow: hidden;">
+                    <canvas id="chart_runtime"></canvas>
+                    </div>
                 </div>
-            </div>
-            <div class="stat-card" style="height: 840px">
-                <h3>Memory, Mb</h3>
-                <div style="height: 800px">
-                <canvas id="chart_memory"></canvas>
+                <div class="stat-card" style="height: 840px">
+                    <h3>Memory, Mb</h3>
+                    <div style="height: 800px; position: relative; min-width: 0; overflow: hidden;">
+                    <canvas id="chart_memory"></canvas>
+                    </div>
                 </div>
-            </div>
-            <div class="stat-card" style="height: 840px">
-                <h3>Compile Cold WallTime, s</h3>
-                <div style="height: 800px">
-                <canvas id="chart_compile"></canvas>
+                <div class="stat-card" style="height: 840px">
+                    <h3>Compile Cold WallTime, s</h3>
+                    <div style="height: 800px; position: relative; min-width: 0; overflow: hidden;">
+                    <canvas id="chart_compile"></canvas>
+                    </div>
                 </div>
-            </div>
-            <div class="stat-card" style="height: 840px">
-                <h3>Expressiveness, %</h3>
-                <div style="height: 800px">
-                <canvas id="chart_expressiveness"></canvas>
+                <div class="stat-card" style="height: 840px">
+                    <h3>Expressiveness, %</h3>
+                    <div style="height: 800px; position: relative; min-width: 0; overflow: hidden;">
+                    <canvas id="chart_expressiveness"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
     `);
-    
+
+    const paretoPanels = [
+        { id: 'pareto_rt_compile', title: 'Pareto: RtScore/Compile' },
+        { id: 'pareto_rt_mem', title: 'Pareto: RtScore/Memory' },
+        { id: 'pareto_rt_expr', title: 'Pareto: RtScore/Expressiveness' },
+        { id: 'pareto_expr_compile', title: 'Pareto: Expressiveness/Compile' }
+    ];
+
+    for (const p of paretoPanels) {
+        $results.append(`
+            <div id="top_panel_${p.id}" class="top-panel"
+                 style="visibility: hidden; height: 0; overflow: hidden;">
+                <div class="stat-card" style="height: 900px; width: 100%; max-width: 1200px; margin: 0 auto;">
+                    <h3>${p.title}</h3>
+                    <div style="height: 840px; position: relative; overflow: hidden;">
+                        <div style="position: absolute; inset: 0;">
+                            <canvas id="chart_${p.id}"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+
     setTimeout(() => {
         if (window.Data.runtime_table_by_lang_rel) {
-            createTopChart(
-                'chart_runtime_score',
-                window.Data.runtime_table_by_lang_rel,
-                '',
-                false,
-                100
-            );
+            createTopChart('chart_runtime_score', window.Data.runtime_table_by_lang_rel, '', false, 100);
         }
-        
         if (window.Data.runtime_table_by_lang) {
-            createTopChart(
-                'chart_runtime',
-                window.Data.runtime_table_by_lang,
-                '',
-                true,
-                null
-            );
+            createTopChart('chart_runtime', window.Data.runtime_table_by_lang, '', true, null);
         }
-        
         if (window.Data.memory_table_by_lang) {
-            createTopChart(
-                'chart_memory',
-                window.Data.memory_table_by_lang,
-                '',
-                true,
-                null
-            );
+            createTopChart('chart_memory', window.Data.memory_table_by_lang, '', true, null);
         }
-        
         if (window.Data.compile_by_lang) {
-            createTopChartFromCompile(
-                'chart_compile',
-                window.Data.compile_by_lang,
-                ''
-            );
+            createTopChartFromCompile('chart_compile', window.Data.compile_by_lang, '');
         }
-        
         if (window.Data.source) {
-            createTopChartFromSource(
-                'chart_expressiveness',
-                window.Data.source,
-                ''
-            );
+            createTopChartFromSource('chart_expressiveness', window.Data.source, '');
         }
-        
+
+        initParetoCharts();
     }, 300);
+}
+
+function initParetoCharts() {
+    const D = window.Data;
+
+    const scoreExtractor = (lang) => {
+        if (!D.runtime_table_by_lang_rel) return undefined;
+        const i = D.runtime_table_by_lang_rel.up_header.findIndex(h =>
+            String(h).split('/')[0].trim().toLowerCase() === lang
+        );
+        if (i === -1) return undefined;
+        const v = D.runtime_table_by_lang_rel.summary.data[i];
+        const n = typeof v === 'number' ? v : parseFloat(v);
+        return isFinite(n) ? n : undefined;
+    };
+
+    const compileExtractor = (lang) => {
+        if (!D.compile_by_lang) return undefined;
+        const headers = D.compile_by_lang.up_header;
+        const patterns = [/cold\s*wall\s*time/i, /wall\s*time/i, /compile/i];
+        let idx = -1;
+        for (const re of patterns) {
+            idx = headers.findIndex(h => re.test(String(h)));
+            if (idx !== -1) break;
+        }
+        if (idx === -1) return undefined;
+        const row = D.compile_by_lang.left_header.findIndex(h =>
+            String(h).split('/')[0].trim().toLowerCase() === lang
+        );
+        if (row === -1) return undefined;
+        const v = D.compile_by_lang.map[row][idx];
+        const n = typeof v === 'number' ? v : parseFloat(v);
+        return isFinite(n) && n > 0 ? n : undefined;
+    };
+
+    const memoryExtractor = (lang) => {
+        if (!D.memory_table_by_lang) return undefined;
+        const i = D.memory_table_by_lang.up_header.findIndex(h =>
+            String(h).split('/')[0].trim().toLowerCase() === lang
+        );
+        if (i === -1) return undefined;
+        const v = D.memory_table_by_lang.summary.data[i];
+        const n = typeof v === 'number' ? v : parseFloat(v);
+        return isFinite(n) && n > 0 ? n : undefined;
+    };
+
+    const exprExtractor = (lang) => {
+        if (!D.source) return undefined;
+        const headers = D.source.up_header;
+        let idx = headers.findIndex(h => String(h).includes('Expressiveness vs Avg'));
+        if (idx === -1) idx = headers.findIndex(h => String(h).includes('Expressiveness'));
+        if (idx === -1) return undefined;
+        const row = D.source.left_header.findIndex(h =>
+            String(h).split('/')[0].trim().toLowerCase() === lang
+        );
+        if (row === -1) return undefined;
+        const v = D.source.map[row][idx];
+        const n = typeof v === 'number' ? v : parseFloat(v);
+        return isFinite(n) ? n : undefined;
+    };
+
+    createParetoChartGeneric('chart_pareto_rt_compile', {
+        xExtractor: compileExtractor, xLabel: 'Compile Cold WallTime, s', xLowerBetter: true,
+        yExtractor: scoreExtractor,   yLabel: 'Runtime Score',              yLowerBetter: false,
+        yIsScore: true,
+        title: 'Pareto: RtScore/Compile'
+    });
+
+    createParetoChartGeneric('chart_pareto_rt_mem', {
+        xExtractor: memoryExtractor, xLabel: 'Memory, Mb',        xLowerBetter: true,
+        yExtractor: scoreExtractor,  yLabel: 'Runtime Score',     yLowerBetter: false,
+        yIsScore: true,
+        title: 'Pareto: RtScore/Memory'
+    });
+
+    createParetoChartGeneric('chart_pareto_rt_expr', {
+        xExtractor: exprExtractor,   xLabel: 'Expressiveness, %', xLowerBetter: false,
+        xAllowLog: false,
+        yExtractor: scoreExtractor,  yLabel: 'Runtime Score',     yLowerBetter: false,
+        yIsScore: true,
+        title: 'Pareto: RtScore/Expressiveness'
+    });
+
+    createParetoChartGeneric('chart_pareto_expr_compile', {
+        xExtractor: compileExtractor, xLabel: 'Compile Cold WallTime, s', xLowerBetter: true,
+        yExtractor: exprExtractor,    yLabel: 'Expressiveness, %',        yLowerBetter: false,
+        title: 'Pareto: Expressiveness/Compile'
+    });
+}
+
+function topSwitchPanel(panel) {
+    const panels = ['charts', 'pareto_rt_compile', 'pareto_rt_mem', 'pareto_rt_expr', 'pareto_expr_compile'];
+    if (!panels.includes(panel)) return;
+
+    for (const p of panels) {
+        const $el = $(`#top_panel_${p}`);
+        const $btn = $(`#top_panel_btn_${p}`);
+        if (!$el.length) continue;
+
+        if (p === panel) {
+            $el.css({ visibility: 'visible', height: 'auto', overflow: 'visible' });
+            $btn.addClass('active');
+        } else {
+            if (p === 'charts') {
+                $el.hide();
+            } else {
+                $el.css({ visibility: 'hidden', height: 0, overflow: 'hidden' });
+            }
+            $btn.removeClass('active');
+        }
+    }
+
+    if (panel === 'charts') {
+        ['chart_runtime_score', 'chart_runtime', 'chart_memory', 'chart_compile', 'chart_expressiveness']
+            .forEach(id => {
+                const c = Chart.getChart(id);
+                if (c) c.resize();
+            });
+        $('#top_panel_charts').show();
+    } else {
+        const c = Chart.getChart(`chart_${panel}`);
+        if (c) c.resize();
+    }
+}
+
+function createParetoChartGeneric(containerId, opts) {
+    const { xExtractor, xLabel, xLowerBetter, yExtractor, yLabel, yLowerBetter, title } = opts;
+
+    const canvas = document.getElementById(containerId);
+    if (!canvas) {
+        console.error('Canvas not found:', containerId);
+        return;
+    }
+
+    const existingChart = Chart.getChart(containerId);
+    if (existingChart) existingChart.destroy();
+
+    const langSet = new Set();
+    const allLangs = new Set();
+    if (window.Data.langs) {
+        for (const l of window.Data.langs) {
+            allLangs.add(String(l).split('/')[0].trim().toLowerCase());
+        }
+    }
+    for (const l of allLangs) {
+        if (xExtractor(l) !== undefined && yExtractor(l) !== undefined) langSet.add(l);
+    }
+
+    const points = [];
+    for (const lang of langSet) {
+        points.push({
+            lang: lang,
+            name: lang_name_to_human(lang),
+            x: xExtractor(lang),
+            y: yExtractor(lang)
+        });
+    }
+
+    if (points.length === 0) {
+        console.error('No data for Pareto:', containerId);
+        return;
+    }
+
+    const xDir = xLowerBetter ? 1 : -1;
+    const yDir = yLowerBetter ? 1 : -1;
+
+    const sorted = [...points].sort((a, b) => xDir * (a.x - b.x) || yDir * (a.y - b.y));
+
+    const pareto = [];
+    let bestY = null;
+    for (const p of sorted) {
+        if (bestY === null || yDir * (p.y - bestY) < 0) {
+            pareto.push(p);
+            bestY = p.y;
+        }
+    }
+    const paretoSet = new Set(pareto.map(p => p.lang));
+
+    const xs = points.map(p => p.x);
+    const ys = points.map(p => p.y);
+
+    const xMinRaw = Math.min(...xs);
+    const xMaxRaw = Math.max(...xs);
+    const yMinRaw = Math.min(...ys);
+    const yMaxRaw = Math.max(...ys);
+
+    const useLogX = opts.xAllowLog !== false && xMinRaw > 0 && (xMaxRaw / xMinRaw) > 20;
+
+    const xPad = useLogX ? 0.15 : (xMaxRaw - xMinRaw) * 0.08 || 1;
+    const yPad = (yMaxRaw - yMinRaw) * 0.10 || 5;
+
+    const xMin = useLogX ? xMinRaw / Math.pow(10, xPad) : xMinRaw - xPad;
+    const xMax = useLogX ? xMaxRaw * Math.pow(10, xPad) : xMaxRaw + xPad;
+
+    const yIsScore = opts.yIsScore === true;
+    const yMin = yIsScore ? Math.max(0, yMinRaw - yPad) : yMinRaw - yPad;
+    const yMax = yIsScore ? Math.min(100, yMaxRaw + yPad) : yMaxRaw + yPad;
+
+    const pointBg = points.map(p =>
+        paretoSet.has(p.lang)
+            ? lang_color(run_name_to_lang_class_name(p.lang))
+            : lang_color(run_name_to_lang_class_name(p.lang)) + 'cc'
+    );
+    const pointBorder = points.map(p =>
+        lang_color(run_name_to_lang_class_name(p.lang))
+    );
+    const pointRadius = points.map(p => paretoSet.has(p.lang) ? 9 : 6);
+
+    const paretoLine = pareto
+        .slice()
+        .sort((a, b) => a.x - b.x)
+        .map(p => ({ x: p.x, y: p.y }));
+
+    const paretoLabels = {
+        id: 'paretoLabels',
+        afterDatasetsDraw(chart) {
+            const { ctx } = chart;
+            const meta = chart.getDatasetMeta(0);
+            if (!meta || !meta.data) return;
+
+            const placed = [];
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.lineWidth = 3;
+            ctx.lineJoin = 'round';
+
+            const order = meta.data
+                .map((el, i) => ({ el, i, p: points[i] }))
+                .filter(o => o.p)
+                .sort((a, b) => {
+                    const pa = paretoSet.has(a.p.lang) ? 0 : 1;
+                    const pb = paretoSet.has(b.p.lang) ? 0 : 1;
+                    return pa - pb;
+                });
+
+            for (const { el, p } of order) {
+                const isPareto = paretoSet.has(p.lang);
+                const fontSize = isPareto ? 13 : 11;
+                ctx.font = `${isPareto ? 'bold ' : ''}${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+
+                const text = p.name;
+                const w = ctx.measureText(text).width;
+                const h = fontSize;
+                const x = el.x;
+                const y = el.y - (el.options.radius || 0) - 4;
+
+                const box = { x1: x - w / 2, x2: x + w / 2, y1: y - h, y2: y };
+                const overlaps = placed.some(b =>
+                    !(box.x2 < b.x1 || box.x1 > b.x2 || box.y2 < b.y1 || box.y1 > b.y2)
+                );
+
+                if (!isPareto && overlaps) continue;
+
+                ctx.fillStyle = isPareto ? '#111' : '#444';
+                ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+                ctx.strokeText(text, x, y);
+                ctx.fillText(text, x, y);
+
+                placed.push(box);
+            }
+            ctx.restore();
+        }
+    };
+
+    const ctx = canvas.getContext('2d');
+
+    const chart = new Chart(ctx, {
+        type: 'scatter',
+        plugins: [paretoLabels],
+        data: {
+            datasets: [
+                {
+                    label: 'Languages',
+                    data: points.map(p => ({ x: p.x, y: p.y, _lang: p.lang, _name: p.name })),
+                    backgroundColor: pointBg,
+                    borderColor: pointBorder,
+                    borderWidth: 2,
+                    pointRadius: pointRadius,
+                    pointHoverRadius: pointRadius.map(r => r + 3)
+                },
+                {
+                    label: 'Pareto front',
+                    data: paretoLine,
+                    type: 'line',
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2.5,
+                    borderDash: [6, 4],
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    fill: false,
+                    tension: 0
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            resizeDelay: 100,
+            animation: false,
+            layout: {
+                padding: { top: 28, right: 32, bottom: 12, left: 12 }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    labels: { boxWidth: 12, padding: 15 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const raw = context.raw;
+                            if (raw._name) {
+                                const isPareto = paretoSet.has(raw._lang);
+                                return [
+                                    `${raw._name}${isPareto ? ' ★ Pareto' : ''}`,
+                                    `${xLabel}: ${raw.x.toFixed(2)}`,
+                                    `${yLabel}: ${raw.y.toFixed(1)}`
+                                ];
+                            }
+                            return null;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: useLogX ? 'logarithmic' : 'linear',
+                    min: xMin,
+                    max: xMax,
+                    title: {
+                        display: true,
+                        text: xLabel + (xLowerBetter ? ' (lower is better)' : ' (higher is better)') +
+                              (useLogX ? ' [log scale]' : '')
+                    }
+                },
+                y: {
+                    min: yMin,
+                    max: yMax,
+                    title: {
+                        display: true,
+                        text: yLabel + (yLowerBetter ? ' (lower is better)' : ' (higher is better)')
+                    }
+                }
+            }
+        }
+    });
+
+    setTimeout(() => chart.resize(), 50);
+}
+
+function createParetoChart(containerId, scoreData, compileData) {
+    createParetoChartGeneric(containerId, {
+        xExtractor: (lang) => {
+            if (!compileData) return undefined;
+            const headers = compileData.up_header;
+            const patterns = [/cold\s*wall\s*time/i, /wall\s*time/i, /compile/i];
+            let idx = -1;
+            for (const re of patterns) {
+                idx = headers.findIndex(h => re.test(String(h)));
+                if (idx !== -1) break;
+            }
+            if (idx === -1) return undefined;
+            const row = compileData.left_header.findIndex(h =>
+                String(h).split('/')[0].trim().toLowerCase() === lang
+            );
+            if (row === -1) return undefined;
+            const v = compileData.map[row][idx];
+            const n = typeof v === 'number' ? v : parseFloat(v);
+            return isFinite(n) && n > 0 ? n : undefined;
+        },
+        xLabel: 'Compile Cold WallTime, s',
+        xLowerBetter: true,
+        yExtractor: (lang) => {
+            if (!scoreData) return undefined;
+            const i = scoreData.up_header.findIndex(h =>
+                String(h).split('/')[0].trim().toLowerCase() === lang
+            );
+            if (i === -1) return undefined;
+            const v = scoreData.summary.data[i];
+            const n = typeof v === 'number' ? v : parseFloat(v);
+            return isFinite(n) ? n : undefined;
+        },
+        yLabel: 'Runtime Score',
+        yLowerBetter: false,
+        title: 'Pareto: RtScore/Compile'
+    });
 }
 
 function createTopChart(containerId, data, title, lowerIsBetter, maxValue) {
