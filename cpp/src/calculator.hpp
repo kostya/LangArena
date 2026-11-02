@@ -92,9 +92,7 @@ private:
     Node parse_term();
     Node parse_expression();
 
-    bool is_digit(char c) const {
-      return c >= CHAR_ZERO && c <= CHAR_NINE;
-    }
+    bool is_digit(char c) const { return c >= CHAR_ZERO && c <= CHAR_NINE; }
 
     bool is_letter(char c) const {
       return (c >= CHAR_A_LOWER && c <= CHAR_Z_LOWER) ||
