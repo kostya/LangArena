@@ -26,10 +26,10 @@ struct Jaro { count: i64, size: i64, result_val: u32, pairs: Pair[>..] }
 
 fn new_jaro() -> Jaro {
     Jaro {
-        count: config_i64("Distance::Jaro", "count"),
-        size: config_i64("Distance::Jaro", "size"),
+        count:      config_i64("Distance::Jaro", "count"),
+        size:       config_i64("Distance::Jaro", "size"),
         result_val: 0,
-        pairs: [],
+        pairs:      [],
     }
 }
 
@@ -91,11 +91,11 @@ struct NGram { count: i64, size: i64, result_val: u32, n: i64, pairs: Pair[>..] 
 
 fn new_ngram() -> NGram {
     NGram {
-        count: config_i64("Distance::NGram", "count"),
-        size: config_i64("Distance::NGram", "size"),
+        count:      config_i64("Distance::NGram", "count"),
+        size:       config_i64("Distance::NGram", "size"),
         result_val: 0,
-        n: 4,
-        pairs: [],
+        n:          4,
+        pairs:      [],
     }
 }
 

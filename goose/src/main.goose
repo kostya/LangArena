@@ -105,7 +105,6 @@ fn dispatch(b: Bench&) -> u32, bool {
         return execute(b, s, neural_net::prepare, neural_net::run, neural_net::checksum), true;
     }
     if n == "Etc::CacheSimulation" {
-
         reusable[] var strings: u8[>..] = [];
         var map = dictionary<u8[:], cache_simulation::Node?> {};
         var s = cache_simulation::new_cache_simulation(map);
@@ -130,7 +129,6 @@ fn dispatch(b: Bench&) -> u32, bool {
     if n == "Sort::Merge" { var s = sort::new_sort_merge(); return execute(b, s, sort::prepare, sort::run, sort::checksum), true; }
     if n == "Sort::Self" { var s = sort::new_sort_self(); return execute(b, s, sort::prepare, sort::run, sort::checksum), true; }
     if n == "Graph::BFS" || n == "Graph::DFS" || n == "Graph::AStar" {
-
         reusable[] var edges: i32[>..] = [];
         fn prepare(s) { graph_path::prepare(s, edges); }
         if n == "Graph::BFS" { var s = graph_path::new_graph_path_bfs(); return execute(b, s, prepare, graph_path::run, graph_path::checksum), true; }
@@ -146,22 +144,19 @@ fn dispatch(b: Bench&) -> u32, bool {
         return execute(b, s, buffer_hash::prepare, buffer_hash::run, buffer_hash::checksum), true;
     }
     if n == "Calculator::Ast" {
-
-        var text: u8[>..] = [];
+        var text:  u8[>..]                     = [];
         var nodes: calculator_ast::Node..[>..] = [];
         var s = calculator_ast::new_calculator_ast(text, nodes);
         return execute(b, s, calculator_ast::prepare, calculator_ast::run, calculator_ast::checksum), true;
     }
     if n == "Calculator::Interpreter" {
-
-        var text: u8[>..] = [];
+        var text:  u8[>..]                     = [];
         var nodes: calculator_ast::Node..[>..] = [];
         var s = calculator_interpreter::new_calculator_interpreter(text, nodes);
         return execute(b, s, calculator_interpreter::prepare, calculator_interpreter::run,
                        calculator_interpreter::checksum), true;
     }
     if n == "Maze::Generator" || n == "Maze::BFS" || n == "Maze::AStar" {
-
         reusable[] var cells: maze::Cell[>..] = [];
         if n == "Maze::Generator" { var s = maze::new_maze_generator(cells); return execute(b, s, maze::prepare, maze::run, maze::checksum), true; }
         if n == "Maze::BFS" { var s = maze::new_maze_bfs(cells); return execute(b, s, maze::prepare, maze::run, maze::checksum), true; }
@@ -171,13 +166,11 @@ fn dispatch(b: Bench&) -> u32, bool {
     if n == "CLBG::Mandelbrot" { var s = mandelbrot::new_mandelbrot(); return execute(b, s, mandelbrot::prepare, mandelbrot::run, mandelbrot::checksum), true; }
     if n == "CLBG::Nbody" { var s = nbody::new_nbody(); return execute(b, s, nbody::prepare, nbody::run, nbody::checksum), true; }
     if n == "CLBG::Spectralnorm" {
-
         var v: f64[>..<] = [];
         var s = spectralnorm::new_spectralnorm(v);
         return execute(b, s, spectralnorm::prepare, spectralnorm::run, spectralnorm::checksum), true;
     }
     if starts_with(n, "Compress::") {
-
         var test_data: u8[>..<] = [];
         if n == "Compress::BWTEncode" { var s = bwt::new_bwt_encode(test_data); return execute(b, s, bwt::prepare, bwt::run, bwt::checksum), true; }
         if n == "Compress::BWTDecode" {

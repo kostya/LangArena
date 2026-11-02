@@ -70,10 +70,10 @@ struct LZWEncode { size_val: i64, result_val: u32, test_data: u8[>..<]&, encoded
 
 fn new_lzw_encode(test_data: u8[>..<]&) -> LZWEncode {
     LZWEncode {
-        size_val: config_i64("Compress::LZWEncode", "size"),
+        size_val:   config_i64("Compress::LZWEncode", "size"),
         result_val: 0,
-        test_data: test_data,
-        encoded: new_lzw_result(),
+        test_data:  test_data,
+        encoded:    new_lzw_result(),
     }
 }
 
@@ -91,8 +91,8 @@ fn lzw_decode(encoded: LZWResult&) -> u8[>..] {
         return [];
     }
 
-    var strings: u8[>..] = [];
-    var dict: (const u8[:])[>..] = [];
+    var strings: u8[>..]            = [];
+    var dict:    (const u8[:])[>..] = [];
     for i in 256 {
         dict.push(new_string(strings, [i as! u8]));
     }
@@ -137,20 +137,20 @@ fn lzw_decode(encoded: LZWResult&) -> u8[>..] {
 }
 
 struct LZWDecode {
-    size_val: i64,
+    size_val:   i64,
     result_val: u32,
-    test_data: u8[>..<]&,
-    encoded: LZWResult&,
-    decoded: u8[>..],
+    test_data:  u8[>..<]&,
+    encoded:    LZWResult&,
+    decoded:    u8[>..],
 }
 
 fn new_lzw_decode(test_data: u8[>..<]&, encoded: LZWResult&) -> LZWDecode {
     LZWDecode {
-        size_val: config_i64("Compress::LZWDecode", "size"),
+        size_val:   config_i64("Compress::LZWDecode", "size"),
         result_val: 0,
-        test_data: test_data,
-        encoded: encoded,
-        decoded: [],
+        test_data:  test_data,
+        encoded:    encoded,
+        decoded:    [],
     }
 }
 

@@ -14,11 +14,11 @@ let LOREM = "Lorem {ipsum} dolor {sit} amet, consectetur adipiscing elit. Sed do
 type Vars = dictionary<const u8[:], const u8[:]>;
 
 struct TemplateBase {
-    count: i64,
+    count:    i64,
     checksum: u32,
-    text: u8[>..]&,
-    keys: u8[>..]&,
-    vars: Vars&,
+    text:     u8[>..]&,
+    keys:     u8[>..]&,
+    vars:     Vars&,
     rendered: u8[>..],
 }
 

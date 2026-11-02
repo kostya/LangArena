@@ -13,10 +13,10 @@ const TARGET_0: f64[1] = [0.0];
 const TARGET_1: f64[1] = [1.0];
 
 struct Synapse {
-    weight: f64,
-    prev_weight: f64,
+    weight:        f64,
+    prev_weight:   f64,
     source_neuron: Neuron&<u32>,
-    dest_neuron: Neuron&<u32>,
+    dest_neuron:   Neuron&<u32>,
 }
 
 fn new_synapse(synapses: Synapse[..]&, source_neuron: Neuron&, dest_neuron: Neuron&) -> Synapse& {
@@ -28,12 +28,12 @@ fn new_synapse(synapses: Synapse[..]&, source_neuron: Neuron&, dest_neuron: Neur
 let MAX_SYNAPSES = 10;
 
 struct Neuron {
-    threshold: f64,
+    threshold:      f64,
     prev_threshold: f64,
-    output: f64,
-    error: f64,
-    synapses_in: (Synapse&<u32>)[..MAX_SYNAPSES],
-    synapses_out: (Synapse&<u32>)[..MAX_SYNAPSES],
+    output:         f64,
+    error:          f64,
+    synapses_in:    (Synapse&<u32>)[..MAX_SYNAPSES],
+    synapses_out:   (Synapse&<u32>)[..MAX_SYNAPSES],
 }
 
 let LEARNING_RATE = 1.0;
@@ -84,10 +84,10 @@ fn update_weights(n: Neuron&, rate: f64) {
 }
 
 struct NeuralNetwork {
-    input_layer: Neuron[],
+    input_layer:  Neuron[],
     hidden_layer: Neuron[],
     output_layer: Neuron[],
-    synapses: Synapse[..],
+    synapses:     Synapse[..],
 }
 
 fn new_layer(n: i64) -> Neuron[>..] {
@@ -98,10 +98,10 @@ fn new_layer(n: i64) -> Neuron[>..] {
 
 fn new_network(inputs: i64, hidden: i64, outputs: i64) -> NeuralNetwork {
     var net = NeuralNetwork {
-        input_layer: new_layer(inputs),
+        input_layer:  new_layer(inputs),
         hidden_layer: new_layer(hidden),
         output_layer: new_layer(outputs),
-        synapses: [..inputs * hidden + hidden * outputs],
+        synapses:     [..inputs * hidden + hidden * outputs],
     };
 
     connect(net.input_layer, net.hidden_layer, net.synapses);

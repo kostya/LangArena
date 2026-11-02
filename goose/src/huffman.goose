@@ -6,10 +6,10 @@ import compress_data;
 
 struct HuffmanNode {
     frequency: i32,
-    byte_val: u8,
-    is_leaf: bool,
-    left: HuffmanNode?,
-    right: HuffmanNode?,
+    byte_val:  u8,
+    is_leaf:   bool,
+    left:      HuffmanNode?,
+    right:     HuffmanNode?,
 }
 
 fn new_huffman_node(freq: i32, byte: u8, leaf: bool) -> HuffmanNode {
@@ -76,7 +76,6 @@ recursive fn build_huffman_codes(node: HuffmanNode&, code: i32, length: i32, huf
 }
 
 fn huffman_encode(data: u8[:], codes: HuffmanCodes&, frequencies: i32[256]&) -> EncodedResult {
-
     var encoded = EncodedResult { bit_count: 0, frequencies: frequencies, data: [] };
     let result: u8[>..]& = encoded.data;
     var current_byte: u8 = 0;
@@ -116,10 +115,10 @@ struct HuffEncode { size_val: i64, result_val: u32, test_data: u8[>..<]&, encode
 
 fn new_huff_encode(test_data: u8[>..<]&) -> HuffEncode {
     HuffEncode {
-        size_val: config_i64("Compress::HuffEncode", "size"),
+        size_val:   config_i64("Compress::HuffEncode", "size"),
         result_val: 0,
-        test_data: test_data,
-        encoded: new_encoded_result(),
+        test_data:  test_data,
+        encoded:    new_encoded_result(),
     }
 }
 
@@ -186,20 +185,20 @@ fn huffman_decode(encoded: u8[:], root: HuffmanNode&, bit_count: i32) -> u8[>..]
 }
 
 struct HuffDecode {
-    size_val: i64,
+    size_val:   i64,
     result_val: u32,
-    test_data: u8[>..<]&,
-    encoded: EncodedResult&,
-    decoded: u8[>..],
+    test_data:  u8[>..<]&,
+    encoded:    EncodedResult&,
+    decoded:    u8[>..],
 }
 
 fn new_huff_decode(test_data: u8[>..<]&, encoded: EncodedResult&) -> HuffDecode {
     HuffDecode {
-        size_val: config_i64("Compress::HuffDecode", "size"),
+        size_val:   config_i64("Compress::HuffDecode", "size"),
         result_val: 0,
-        test_data: test_data,
-        encoded: encoded,
-        decoded: [],
+        test_data:  test_data,
+        encoded:    encoded,
+        decoded:    [],
     }
 }
 

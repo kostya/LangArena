@@ -18,7 +18,7 @@ fn new_base64_decode() -> Base64Decode {
     let n = config_i64("Base64::Decode", "size");
     let str_data = base64_encode::repeat("a", n);
     var s = Base64Decode {
-        result_val: 0,
+        result_val:   0,
         str2_encoded: base64_encode::encode_to_string(str_data),
         str3_decoded: [],
     };

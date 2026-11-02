@@ -11,10 +11,10 @@ struct Words { words: i64, word_len: i64, checksum_val: u32, text: u8[>..] }
 
 fn new_words() -> Words {
     Words {
-        words: config_i64("Etc::Words", "words"),
-        word_len: config_i64("Etc::Words", "word_len"),
+        words:        config_i64("Etc::Words", "words"),
+        word_len:     config_i64("Etc::Words", "word_len"),
         checksum_val: 0,
-        text: [],
+        text:         [],
     }
 }
 

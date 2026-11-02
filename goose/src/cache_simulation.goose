@@ -12,10 +12,10 @@ fn new_string(strings: u8[>..]&, text: u8[:]) -> u8[:] {
 }
 
 struct Node {
-    key: u8[:],
+    key:   u8[:],
     value: u8[:],
-    prev: Node?,
-    next: Node?,
+    prev:  Node?,
+    next:  Node?,
 }
 
 fn new_node(key: u8[:], value: u8[:]) -> Node {
@@ -24,12 +24,12 @@ fn new_node(key: u8[:], value: u8[:]) -> Node {
 
 struct LruCache {
     capacity: i64,
-    cache: dictionary<u8[:], Node?>&,
-    head: Node?,
-    tail: Node?,
-    size: i64,
-    free: Node?,
-    nodes: Node[>..],
+    cache:    dictionary<u8[:], Node?>&,
+    head:     Node?,
+    tail:     Node?,
+    size:     i64,
+    free:     Node?,
+    nodes:    Node[>..],
 }
 
 fn new_cache(capacity: i64, cache: dictionary<u8[:], Node?>&) -> LruCache {
@@ -127,24 +127,24 @@ fn remove_oldest(c: LruCache&, strings: u8[>..]&) {
 }
 
 struct CacheSimulation {
-    result_val: u32,
+    result_val:  u32,
     values_size: i64,
-    cache_size: i64,
-    hits: u32,
-    misses: u32,
-    cache: LruCache,
+    cache_size:  i64,
+    hits:        u32,
+    misses:      u32,
+    cache:       LruCache,
 }
 
 fn new_cache_simulation(map: dictionary<u8[:], Node?>&) -> CacheSimulation {
     let values_size = config_i64("Etc::CacheSimulation", "values");
     let cache_size = config_i64("Etc::CacheSimulation", "size");
     return CacheSimulation {
-        result_val: 5432,
+        result_val:  5432,
         values_size: values_size,
-        cache_size: cache_size,
-        hits: 0,
-        misses: 0,
-        cache: new_cache(cache_size, map),
+        cache_size:  cache_size,
+        hits:        0,
+        misses:      0,
+        cache:       new_cache(cache_size, map),
     };
 }
 

@@ -211,7 +211,6 @@ fn bfs(s: MazeBFS&, start: Cell&, target: Cell&) -> (Cell&)[>..] {
 fn prepare(s: MazeBFS&) { s.maze.generate(); }
 
 fn run(s: MazeBFS&, iteration_id: i64) {
-
     let path = s.bfs(s.maze.get_start(), s.maze.get_finish());
     s.path = copy(path);
     s.result_val += s.path.len as! u32;
@@ -313,7 +312,6 @@ fn astar(s: MazeAStar&, start: Cell&, target: Cell&) -> (Cell&)[>..] {
 fn prepare(s: MazeAStar&) { s.maze.generate(); }
 
 fn run(s: MazeAStar&, iteration_id: i64) {
-
     let path = s.astar(s.maze.get_start(), s.maze.get_finish());
     s.path = copy(path);
     s.result_val += s.path.len as! u32;

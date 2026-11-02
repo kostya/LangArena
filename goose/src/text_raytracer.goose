@@ -81,8 +81,8 @@ struct TextRaytracer { w: i32, h: i32, result_val: u32 }
 
 fn new_text_raytracer() -> TextRaytracer {
     TextRaytracer {
-        w: config_i64("Etc::TextRaytracer", "w") as i32,
-        h: config_i64("Etc::TextRaytracer", "h") as i32,
+        w:          config_i64("Etc::TextRaytracer", "w") as i32,
+        h:          config_i64("Etc::TextRaytracer", "h") as i32,
         result_val: 0,
     }
 }
@@ -100,7 +100,7 @@ fn run(s: TextRaytracer&, iteration_id: i64) {
 
             let ray = Ray {
                 orig: Vector { 0.0, 0.0, 0.0 },
-                dir: Vector { (fi - fw / 2.0) / fw, (fj - fh / 2.0) / fh, 1.0 }.normalize(),
+                dir:  Vector { (fi - fw / 2.0) / fw, (fj - fh / 2.0) / fh, 1.0 }.normalize(),
             };
 
             var hit = Hit { .. };
