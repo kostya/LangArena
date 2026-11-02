@@ -661,8 +661,17 @@ services:
     volumes:
       - .:/src
       - ./cache/build/goose_go/target:/src/goose/target
+
+      - ./cache/deps/goose_go/mod-cache:/go/pkg/mod
+      - ./cache/deps/goose_go/sumdb:/go/pkg/sumdb
+
+      - ./cache/build/goose_go/build-cache:/root/.cache/go-build
+      - ./cache/build/goose_go/bin-cache:/go/bin
+    environment:
+      - GOCACHE=/root/.cache/go-build
+      - GOMODCACHE=/go/pkg/mod
     depends_on:
-      - base_gcc
+      - base_go
 
   julia:
     <<: *shared
