@@ -3,8 +3,8 @@
     .version = "0.16.0",
     .dependencies = .{
         .csvzero = .{
-            .url = "git+https://github.com/peymanmortazavi/csv-zero.git?ref=HEAD#a687d508e57b1cd62dc1efa7d90f268055e1ca46",
-            .hash = "csvzero-0.2.0-YQXXvD3GAAB60CVoVAuz64YS3Lg3okE2UKRPviOe2lcL",
+            .url = "git+https://github.com/peymanmortazavi/csv-zero.git?ref=HEAD#6581656637a2b8566005e21291573837771ce8ab",
+            .hash = "csvzero-0.2.0-YQXXvIDIAADbjoPq7oNGPvySMe7-wlvEuSD-0Y_7VwjE",
         },
     },
     .paths = .{""},
