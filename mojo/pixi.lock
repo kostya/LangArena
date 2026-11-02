@@ -91,8 +91,8 @@ environments:
       - conda: https://conda.modular.com/max-nightly/noarch/mblack-26.7.0-release.conda
       - conda: https://conda.modular.com/max-nightly/noarch/mojo-python-1.2.0-release.conda
       - conda: https://repo.prefix.dev/modular-community/linux-64/mojo_csv-1.8.1-h6f44653_0.conda
-      - conda_source: json[92cf3c8b] @ git+https://github.com/ehsanmok/json?tag=v0.4.2#c6016ca12ccccf3a06ab93a4eecacf884a2de864
-      - conda_source: moregex[6cd6f21c] @ git+https://github.com/jgsimard/moregex?branch=main#ecaae09bc58210da7f87b7f7f3d25825c6471e23
+      - conda_source: json[387046c8] @ git+https://github.com/ehsanmok/json?tag=v0.4.2#c6016ca12ccccf3a06ab93a4eecacf884a2de864
+      - conda_source: moregex[d121ac80] @ git+https://github.com/jgsimard/moregex?branch=main#ecaae09bc58210da7f87b7f7f3d25825c6471e23
       osx-arm64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.10.23-hbd8a1cb_0.conda
@@ -163,8 +163,8 @@ environments:
       - conda: https://conda.modular.com/max-nightly/osx-arm64/mojo-1.2.0-release.conda
       - conda: https://conda.modular.com/max-nightly/osx-arm64/mojo-compiler-1.2.0-release.conda
       - conda: https://repo.prefix.dev/modular-community/osx-arm64/mojo_csv-1.8.1-h58ea7c0_0.conda
-      - conda_source: json[e5f753c6] @ git+https://github.com/ehsanmok/json?tag=v0.4.2#c6016ca12ccccf3a06ab93a4eecacf884a2de864
-      - conda_source: moregex[caa8bb80] @ git+https://github.com/jgsimard/moregex?branch=main#ecaae09bc58210da7f87b7f7f3d25825c6471e23
+      - conda_source: json[738ad7d1] @ git+https://github.com/ehsanmok/json?tag=v0.4.2#c6016ca12ccccf3a06ab93a4eecacf884a2de864
+      - conda_source: moregex[4f4181b9] @ git+https://github.com/jgsimard/moregex?branch=main#ecaae09bc58210da7f87b7f7f3d25825c6471e23
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
   build_number: 20
@@ -2246,18 +2246,18 @@ packages:
   run_exports: {}
   size: 1776049
   timestamp: 1792953004669
-- conda_source: json[92cf3c8b] @ git+https://github.com/ehsanmok/json?tag=v0.4.2#c6016ca12ccccf3a06ab93a4eecacf884a2de864
+- conda_source: json[387046c8] @ git+https://github.com/ehsanmok/json?tag=v0.4.2#c6016ca12ccccf3a06ab93a4eecacf884a2de864
   version: 0.4.2
   build: hb0f4dca_0
   subdir: linux-64
   variants:
     target_platform: linux-64
   depends:
+  - libgcc >=16
+  - libstdcxx >=16
   - mojo >=1.2.0,<2.0.0
   - simdjson >=4.2.4,<5
   - simdjson >=4.6.11,<4.7.0a0
-  - libstdcxx >=16
-  - libgcc >=16
   constrains:
   - max-core ==26.7
   license: MIT
@@ -2287,17 +2287,17 @@ packages:
   - conda: https://conda.anaconda.org/conda-forge/linux-64/libgomp-16.2.0-he0feb66_7.conda
   - conda: https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-16.2.0-h934c35e_7.conda
   - conda: https://conda.anaconda.org/conda-forge/linux-64/simdjson-4.6.11-h4dbf13b_0.conda
-- conda_source: json[e5f753c6] @ git+https://github.com/ehsanmok/json?tag=v0.4.2#c6016ca12ccccf3a06ab93a4eecacf884a2de864
+- conda_source: json[738ad7d1] @ git+https://github.com/ehsanmok/json?tag=v0.4.2#c6016ca12ccccf3a06ab93a4eecacf884a2de864
   version: 0.4.2
   build: h60d57d3_0
   subdir: osx-arm64
   variants:
     target_platform: osx-arm64
   depends:
+  - libcxx >=23
   - mojo >=1.2.0,<2.0.0
   - simdjson >=4.2.4,<5
   - simdjson >=4.6.11,<4.7.0a0
-  - libcxx >=23
   constrains:
   - max-core ==26.7
   license: MIT
@@ -2341,19 +2341,19 @@ packages:
   host_packages:
   - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcxx-23.1.4-h55c6f16_2.conda
   - conda: https://conda.anaconda.org/conda-forge/osx-arm64/simdjson-4.6.11-hfbe1efa_0.conda
-- conda_source: moregex[6cd6f21c] @ git+https://github.com/jgsimard/moregex?branch=main#ecaae09bc58210da7f87b7f7f3d25825c6471e23
-  version: 0.1.1
-  build: hb0f4dca_0
-  subdir: linux-64
-  variants:
-    target_platform: linux-64
-  depends:
-  - mojo ==1.2.0
-- conda_source: moregex[caa8bb80] @ git+https://github.com/jgsimard/moregex?branch=main#ecaae09bc58210da7f87b7f7f3d25825c6471e23
+- conda_source: moregex[4f4181b9] @ git+https://github.com/jgsimard/moregex?branch=main#ecaae09bc58210da7f87b7f7f3d25825c6471e23
   version: 0.1.1
   build: h60d57d3_0
   subdir: osx-arm64
   variants:
     target_platform: osx-arm64
+  depends:
+  - mojo ==1.2.0
+- conda_source: moregex[d121ac80] @ git+https://github.com/jgsimard/moregex?branch=main#ecaae09bc58210da7f87b7f7f3d25825c6471e23
+  version: 0.1.1
+  build: hb0f4dca_0
+  subdir: linux-64
+  variants:
+    target_platform: linux-64
   depends:
   - mojo ==1.2.0
