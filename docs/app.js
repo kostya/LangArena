@@ -745,11 +745,12 @@ function top_tab() {
 
     const paretoButtons = [
         { id: 'charts',             label: 'Charts',                 color: '#607d8b' },
-        { id: 'pareto_rt_compile',  label: 'RtScore / Compile',      color: '#e74c3c' },
-        { id: 'pareto_rt_mem',      label: 'RtScore / Memory',       color: '#9b59b6' },
-        { id: 'pareto_rt_expr',     label: 'RtScore / Expressiveness', color: '#3498db' },
-        { id: 'pareto_expr_compile',label: 'Expressiveness / Compile', color: '#f39c12' },
-        { id: 'pareto_boiler_lines', label: 'Boilerplate / LinesCount', color: '#16a085' }
+        { id: 'pareto_rt_compile',  label: 'RtScore/Compile',      color: '#e74c3c' },
+        { id: 'pareto_rt_mem',      label: 'RtScore/Memory',       color: '#9b59b6' },
+        { id: 'pareto_rt_expr',     label: 'RtScore/Expressiveness', color: '#3498db' },
+        { id: 'pareto_expr_compile',label: 'Expressiveness/Compile', color: '#f39c12' },
+        { id: 'pareto_boiler_lines', label: 'Boilerplate/LinesCount', color: '#16a085' },
+        { id: 'pareto_coldwall_colduser', label: 'Cold Wall/Cold User', color: '#34495e' }
     ];
 
     const $filters = $('<div>', {class: 'filters'});
@@ -807,7 +808,8 @@ function top_tab() {
         { id: 'pareto_rt_mem', title: 'Pareto: RtScore/Memory' },
         { id: 'pareto_rt_expr', title: 'Pareto: RtScore/Expressiveness' },
         { id: 'pareto_expr_compile', title: 'Pareto: Expressiveness/Compile' },
-        { id: 'pareto_boiler_lines', title: 'Pareto: Boilerplate/LinesCount' }
+        { id: 'pareto_boiler_lines', title: 'Pareto: Boilerplate/LinesCount' },
+        { id: 'pareto_coldwall_colduser', title: 'Scatter: Compile Cold Wall/Compile Cold User' }
     ];
 
     for (const p of paretoPanels) {
@@ -934,6 +936,34 @@ function initParetoCharts() {
         return isFinite(n) ? n : undefined;
     };
 
+    const coldWallExtractor = (lang) => {
+        if (!D.compile_by_lang) return undefined;
+        const headers = D.compile_by_lang.up_header;
+        const idx = headers.findIndex(h => /cold\s*wall/i.test(String(h)));
+        if (idx === -1) return undefined;
+        const row = D.compile_by_lang.left_header.findIndex(h =>
+            String(h).split('/')[0].trim().toLowerCase() === lang
+        );
+        if (row === -1) return undefined;
+        const v = D.compile_by_lang.map[row][idx];
+        const n = typeof v === 'number' ? v : parseFloat(v);
+        return isFinite(n) && n > 0 ? n : undefined;
+    };
+
+    const coldUserExtractor = (lang) => {
+        if (!D.compile_by_lang) return undefined;
+        const headers = D.compile_by_lang.up_header;
+        const idx = headers.findIndex(h => /cold\s*user/i.test(String(h)));
+        if (idx === -1) return undefined;
+        const row = D.compile_by_lang.left_header.findIndex(h =>
+            String(h).split('/')[0].trim().toLowerCase() === lang
+        );
+        if (row === -1) return undefined;
+        const v = D.compile_by_lang.map[row][idx];
+        const n = typeof v === 'number' ? v : parseFloat(v);
+        return isFinite(n) && n > 0 ? n : undefined;
+    };
+
     createParetoChartGeneric('chart_pareto_rt_compile', {
         xExtractor: compileExtractor, xLabel: 'Compile Cold WallTime, s', xLowerBetter: true,
         yExtractor: scoreExtractor,   yLabel: 'Runtime Score',              yLowerBetter: false,
@@ -968,10 +998,16 @@ function initParetoCharts() {
         yExtractor: linesCountExtractor,  yLabel: 'Lines Count',  yLowerBetter: true,
         title: 'Pareto: Boilerplate/LinesCount'
     });
+
+    createScatterChart('chart_pareto_coldwall_colduser', {
+        xExtractor: coldWallExtractor, xLabel: 'Compile Cold WallTime, s',
+        yExtractor: coldUserExtractor, yLabel: 'Compile Cold UserTime, s',
+        title: 'Scatter: Cold Wall / Cold User'
+    });
 }
 
 function topSwitchPanel(panel) {
-    const panels = ['charts', 'pareto_rt_compile', 'pareto_rt_mem', 'pareto_rt_expr', 'pareto_expr_compile', 'pareto_boiler_lines'];
+    const panels = ['charts', 'pareto_rt_compile', 'pareto_rt_mem', 'pareto_rt_expr', 'pareto_expr_compile', 'pareto_boiler_lines', 'pareto_coldwall_colduser'];
     if (!panels.includes(panel)) return;
 
     for (const p of panels) {
@@ -1223,6 +1259,198 @@ function createParetoChartGeneric(containerId, opts) {
                     title: {
                         display: true,
                         text: yLabel + (yLowerBetter ? ' (lower is better)' : ' (higher is better)')
+                    }
+                }
+            }
+        }
+    });
+
+    setTimeout(() => chart.resize(), 50);
+}
+
+function createScatterChart(containerId, opts) {
+    const { xExtractor, xLabel, yExtractor, yLabel, title } = opts;
+
+    const canvas = document.getElementById(containerId);
+    if (!canvas) {
+        console.error('Canvas not found:', containerId);
+        return;
+    }
+
+    const existingChart = Chart.getChart(containerId);
+    if (existingChart) existingChart.destroy();
+
+    const allLangs = new Set();
+    if (window.Data.langs) {
+        for (const l of window.Data.langs) {
+            allLangs.add(String(l).split('/')[0].trim().toLowerCase());
+        }
+    }
+
+    const points = [];
+    for (const lang of allLangs) {
+        const x = xExtractor(lang);
+        const y = yExtractor(lang);
+        if (x === undefined || y === undefined) continue;
+        points.push({
+            lang: lang,
+            name: lang_name_to_human(lang),
+            x: x,
+            y: y
+        });
+    }
+
+    if (points.length === 0) {
+        console.error('No data for scatter:', containerId);
+        return;
+    }
+
+    const xs = points.map(p => p.x);
+    const ys = points.map(p => p.y);
+
+    const xMinRaw = Math.min(...xs);
+    const xMaxRaw = Math.max(...xs);
+    const yMinRaw = Math.min(...ys);
+    const yMaxRaw = Math.max(...ys);
+
+    const xPad = (xMaxRaw - xMinRaw) * 0.08 || 1;
+    const yPad = (yMaxRaw - yMinRaw) * 0.08 || 1;
+
+    const xMin = xMinRaw - xPad;
+    const xMax = xMaxRaw + xPad;
+    const yMin = yMinRaw - yPad;
+    const yMax = yMaxRaw + yPad;
+
+    const diagMin = Math.min(xMinRaw, yMinRaw);
+    const diagMax = Math.max(xMaxRaw, yMaxRaw);
+
+    const pointBg = points.map(p => lang_color(run_name_to_lang_class_name(p.lang)) + 'cc');
+    const pointBorder = points.map(p => lang_color(run_name_to_lang_class_name(p.lang)));
+    const pointRadius = points.map(() => 7);
+
+    const scatterLabels = {
+        id: 'scatterLabels',
+        afterDatasetsDraw(chart) {
+            const { ctx } = chart;
+            const meta = chart.getDatasetMeta(0);
+            if (!meta || !meta.data) return;
+
+            const placed = [];
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.lineWidth = 3;
+            ctx.lineJoin = 'round';
+
+            for (let i = 0; i < meta.data.length; i++) {
+                const el = meta.data[i];
+                const p = points[i];
+                if (!p) continue;
+
+                const fontSize = 11;
+                ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+
+                const text = p.name;
+                const w = ctx.measureText(text).width;
+                const h = fontSize;
+                const x = el.x;
+                const y = el.y - (el.options.radius || 0) - 4;
+
+                const box = { x1: x - w / 2, x2: x + w / 2, y1: y - h, y2: y };
+                const overlaps = placed.some(b =>
+                    !(box.x2 < b.x1 || box.x1 > b.x2 || box.y2 < b.y1 || box.y1 > b.y2)
+                );
+                if (overlaps) continue;
+
+                ctx.fillStyle = '#222';
+                ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+                ctx.strokeText(text, x, y);
+                ctx.fillText(text, x, y);
+
+                placed.push(box);
+            }
+            ctx.restore();
+        }
+    };
+
+    const ctx = canvas.getContext('2d');
+
+    const chart = new Chart(ctx, {
+        type: 'scatter',
+        plugins: [scatterLabels],
+        data: {
+            datasets: [
+                {
+                    label: 'Languages',
+                    data: points.map(p => ({ x: p.x, y: p.y, _lang: p.lang, _name: p.name })),
+                    backgroundColor: pointBg,
+                    borderColor: pointBorder,
+                    borderWidth: 2,
+                    pointRadius: pointRadius,
+                    pointHoverRadius: pointRadius.map(r => r + 3)
+                },
+                {
+                    label: 'y = x (single-threaded)',
+                    data: [{ x: diagMin, y: diagMin }, { x: diagMax, y: diagMax }],
+                    type: 'line',
+                    borderColor: '#999',
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.5,
+                    borderDash: [6, 4],
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    fill: false,
+                    tension: 0
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            resizeDelay: 100,
+            animation: false,
+            layout: {
+                padding: { top: 28, right: 32, bottom: 12, left: 12 }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    labels: { boxWidth: 12, padding: 15 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const raw = context.raw;
+                            if (raw._name) {
+                                return [
+                                    raw._name,
+                                    `${xLabel}: ${raw.x.toFixed(2)} s`,
+                                    `${yLabel}: ${raw.y.toFixed(2)} s`,
+                                    `Parallelism: ${(raw.y / raw.x).toFixed(2)}x`
+                                ];
+                            }
+                            return null;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'linear',
+                    min: xMin,
+                    max: xMax,
+                    title: {
+                        display: true,
+                        text: xLabel + ' (lower is better)'
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    min: yMin,
+                    max: yMax,
+                    title: {
+                        display: true,
+                        text: yLabel + ' (lower is better)'
                     }
                 }
             }
