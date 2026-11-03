@@ -9,8 +9,11 @@ function changeTab(tabId, group_lang_option_checked = false, choose_lang = null)
     if (choose_lang) {
         newUrl += '/lang/' + choose_lang;
     }
-    history.pushState({ tab: tabId, group: group_lang_option_checked, lang: choose_lang }, '', newUrl);
-    
+    if (tabId === 'top_tab' && window.topCurrentPanel && window.topCurrentPanel !== 'charts') {
+        newUrl += '/' + window.topCurrentPanel;
+    }
+    history.pushState({ tab: tabId, group: group_lang_option_checked, lang: choose_lang, panel: window.topCurrentPanel }, '', newUrl);
+
     const tabNames = {
         'overview_tab': 'Overview',
         'runtime_tab': 'Runtime Performance',
@@ -206,6 +209,8 @@ function UpdateData(data) {
     if (hash && hash.startsWith('#/')) {
         const parts = hash.substring(2).split('/');
         tabFromUrl = parts[0];
+
+        const paretoPanels = ['pareto_rt_compile', 'pareto_rt_mem', 'pareto_rt_expr', 'pareto_expr_compile', 'pareto_boiler_lines', 'pareto_coldwall_colduser'];
         
         for (let i = 1; i < parts.length; i++) {
             if (parts[i] === 'group') {
@@ -213,8 +218,14 @@ function UpdateData(data) {
             } else if (parts[i] === 'lang' && parts[i+1]) {
                 langFromUrl = parts[i+1];
                 i++;
+            } else if (paretoPanels.includes(parts[i])) {
+                window.topCurrentPanel = parts[i];
             }
         }
+    }
+
+    if (tabFromUrl !== 'top_tab') {
+        window.topCurrentPanel = null;
     }
 
     if (tabFromUrl && document.getElementById(tabFromUrl)) {
@@ -846,7 +857,9 @@ function top_tab() {
         }
 
         initParetoCharts();
-    }, 300);
+        const panel = window.topCurrentPanel || 'charts';
+        topSwitchPanel(panel, true);
+    }, 30);
 }
 
 function initParetoCharts() {
@@ -1006,9 +1019,17 @@ function initParetoCharts() {
     });
 }
 
-function topSwitchPanel(panel) {
+function topSwitchPanel(panel, skipHistory) {
     const panels = ['charts', 'pareto_rt_compile', 'pareto_rt_mem', 'pareto_rt_expr', 'pareto_expr_compile', 'pareto_boiler_lines', 'pareto_coldwall_colduser'];
     if (!panels.includes(panel)) return;
+
+    window.topCurrentPanel = panel;
+
+    if (!skipHistory) {
+        const base = '#/top_tab';
+        const suffix = panel === 'charts' ? '' : '/' + panel;
+        history.pushState({ tab: 'top_tab', panel: panel }, '', window.location.pathname + base + suffix);
+    }
 
     for (const p of panels) {
         const $el = $(`#top_panel_${p}`);
@@ -2012,27 +2033,43 @@ document.head.appendChild(s);
 
 window.addEventListener('popstate', function(event) {
     if (event.state) {
+        if (event.state.tab === 'top_tab') {
+            window.topCurrentPanel = event.state.panel || 'charts';
+        } else {
+            window.topCurrentPanel = null;
+        }
         changeTab(event.state.tab, event.state.group || false, event.state.lang || null);
     } else {
         const hash = window.location.hash;
         let tabFromUrl = null;
         let groupFromUrl = false;
         let langFromUrl = null;
-        
+        let panelFromUrl = null;
+
         if (hash && hash.startsWith('#/')) {
             const parts = hash.substring(2).split('/');
             tabFromUrl = parts[0];
-            
+
+            const paretoPanels = ['pareto_rt_compile', 'pareto_rt_mem', 'pareto_rt_expr', 'pareto_expr_compile', 'pareto_boiler_lines', 'pareto_coldwall_colduser'];
+
             for (let i = 1; i < parts.length; i++) {
                 if (parts[i] === 'group') {
                     groupFromUrl = true;
                 } else if (parts[i] === 'lang' && parts[i+1]) {
                     langFromUrl = parts[i+1];
                     i++;
+                } else if (paretoPanels.includes(parts[i])) {
+                    panelFromUrl = parts[i];
                 }
             }
         }
-        
+
+        if (tabFromUrl === 'top_tab') {
+            window.topCurrentPanel = panelFromUrl || 'charts';
+        } else {
+            window.topCurrentPanel = null;
+        }
+
         if (tabFromUrl && document.getElementById(tabFromUrl)) {
             changeTab(tabFromUrl, groupFromUrl, langFromUrl);
         } else {
