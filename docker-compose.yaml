@@ -390,9 +390,9 @@ services:
       dockerfile: docker/graalvm
       args:
         # https://github.com/graalvm/graalvm-ce-builds/releases
-        graal_version: "25.4.4.1.1"
-        jdk_version: "25.0.4.1.1"
-        iversion: "25i4"
+        graal_version: "25.5.5.0.3"
+        jdk_version: "25.0.5.0.3"
+        iversion: "25i5"
         # https://maven.apache.org/download.cgi
         mavenversion: 3.10.0
     volumes:
@@ -822,7 +822,7 @@ services:
       dockerfile: docker/odin
       args:
         # https://github.com/odin-lang/Odin/releases
-        version: "2026-11"
+        version: "2026-11a"
     volumes:
       - .:/src
       
