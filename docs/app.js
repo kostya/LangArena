@@ -748,7 +748,8 @@ function top_tab() {
         { id: 'pareto_rt_compile',  label: 'RtScore / Compile',      color: '#e74c3c' },
         { id: 'pareto_rt_mem',      label: 'RtScore / Memory',       color: '#9b59b6' },
         { id: 'pareto_rt_expr',     label: 'RtScore / Expressiveness', color: '#3498db' },
-        { id: 'pareto_expr_compile',label: 'Expressiveness / Compile', color: '#f39c12' }
+        { id: 'pareto_expr_compile',label: 'Expressiveness / Compile', color: '#f39c12' },
+        { id: 'pareto_boiler_lines', label: 'Boilerplate / LinesCount', color: '#16a085' }
     ];
 
     const $filters = $('<div>', {class: 'filters'});
@@ -805,7 +806,8 @@ function top_tab() {
         { id: 'pareto_rt_compile', title: 'Pareto: RtScore/Compile' },
         { id: 'pareto_rt_mem', title: 'Pareto: RtScore/Memory' },
         { id: 'pareto_rt_expr', title: 'Pareto: RtScore/Expressiveness' },
-        { id: 'pareto_expr_compile', title: 'Pareto: Expressiveness/Compile' }
+        { id: 'pareto_expr_compile', title: 'Pareto: Expressiveness/Compile' },
+        { id: 'pareto_boiler_lines', title: 'Pareto: Boilerplate/LinesCount' }
     ];
 
     for (const p of paretoPanels) {
@@ -904,6 +906,34 @@ function initParetoCharts() {
         return isFinite(n) ? n : undefined;
     };
 
+    const linesCountExtractor = (lang) => {
+        if (!D.source) return undefined;
+        const headers = D.source.up_header;
+        const idx = headers.findIndex(h => /lines?\s*count/i.test(String(h)));
+        if (idx === -1) return undefined;
+        const row = D.source.left_header.findIndex(h =>
+            String(h).split('/')[0].trim().toLowerCase() === lang
+        );
+        if (row === -1) return undefined;
+        const v = D.source.map[row][idx];
+        const n = typeof v === 'number' ? v : parseFloat(v);
+        return isFinite(n) && n > 0 ? n : undefined;
+    };
+
+    const boilerplateExtractor = (lang) => {
+        if (!D.source) return undefined;
+        const headers = D.source.up_header;
+        const idx = headers.findIndex(h => /^boilerplate$/i.test(String(h).trim()));
+        if (idx === -1) return undefined;
+        const row = D.source.left_header.findIndex(h =>
+            String(h).split('/')[0].trim().toLowerCase() === lang
+        );
+        if (row === -1) return undefined;
+        const v = D.source.map[row][idx];
+        const n = typeof v === 'number' ? v : parseFloat(v);
+        return isFinite(n) ? n : undefined;
+    };
+
     createParetoChartGeneric('chart_pareto_rt_compile', {
         xExtractor: compileExtractor, xLabel: 'Compile Cold WallTime, s', xLowerBetter: true,
         yExtractor: scoreExtractor,   yLabel: 'Runtime Score',              yLowerBetter: false,
@@ -931,10 +961,17 @@ function initParetoCharts() {
         yExtractor: exprExtractor,    yLabel: 'Expressiveness, %',        yLowerBetter: false,
         title: 'Pareto: Expressiveness/Compile'
     });
+
+    createParetoChartGeneric('chart_pareto_boiler_lines', {
+        xExtractor: boilerplateExtractor, xLabel: 'Boilerplate', xLowerBetter: true,
+        xAllowLog: false,
+        yExtractor: linesCountExtractor,  yLabel: 'Lines Count',  yLowerBetter: true,
+        title: 'Pareto: Boilerplate/LinesCount'
+    });
 }
 
 function topSwitchPanel(panel) {
-    const panels = ['charts', 'pareto_rt_compile', 'pareto_rt_mem', 'pareto_rt_expr', 'pareto_expr_compile'];
+    const panels = ['charts', 'pareto_rt_compile', 'pareto_rt_mem', 'pareto_rt_expr', 'pareto_expr_compile', 'pareto_boiler_lines'];
     if (!panels.includes(panel)) return;
 
     for (const p of panels) {
