@@ -6,5 +6,5 @@ shards:
 
   gcry:
     git: https://github.com/sdogruyol/gcry.git
-    version: 0.36.0
+    version: 0.39.0
 

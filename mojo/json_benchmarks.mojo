@@ -46,7 +46,7 @@ struct Coordinate(Copyable):
 
 
 @fieldwise_init
-struct Coordinates(Movable):
+struct Coordinates:
     var coordinates: List[Coordinate]
 
 

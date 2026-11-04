@@ -22,14 +22,9 @@ struct Fannkuchredux(Benchmark):
 
     @staticmethod
     def fannkuchredux(n: Int) -> Tuple[Int, Int]:
-        var perm1 = List[Int](capacity=32)
-        var perm = List[Int](capacity=32)
-        var count = List[Int](capacity=32)
-
-        for i in range(32):
-            perm1.append(i)
-            perm.append(0)
-            count.append(0)
+        var perm1: List[Int] = [i for i in range(32)]
+        var perm = List[Int](length=32, fill=0)
+        var count = List[Int](length=32, fill=0)
 
         var max_flips = 0
         var checksum = 0
@@ -41,8 +36,7 @@ struct Fannkuchredux(Benchmark):
                 count[r - 1] = r
                 r -= 1
 
-            for i in range(n):
-                perm[i] = perm1[i]
+            perm[:n].copy_from(perm1[:n])
 
             var flips = 0
             var k = perm[0]
@@ -50,9 +44,7 @@ struct Fannkuchredux(Benchmark):
                 var k2 = (k + 1) >> 1
                 for i in range(k2):
                     var j = k - i
-                    var tmp = perm[i]
-                    perm[i] = perm[j]
-                    perm[j] = tmp
+                    perm.swap_elements(i, j)
                 flips += 1
                 k = perm[0]
 
@@ -71,9 +63,7 @@ struct Fannkuchredux(Benchmark):
                 var perm0 = perm1[0]
                 for i in range(r):
                     var j = i + 1
-                    var tmp = perm1[i]
-                    perm1[i] = perm1[j]
-                    perm1[j] = tmp
+                    perm1.swap_elements(i, j)
 
                 perm1[r] = perm0
                 count[r] -= 1

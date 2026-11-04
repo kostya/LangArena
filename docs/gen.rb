@@ -89,13 +89,6 @@ class Gen
     <strong>Matmul::T4/T8/T16</strong> — multi-threaded versions (4/8/16 threads).<br>
     <br>
     Heatmap visualization: greener = faster, redder = slower (relative performance within each benchmark), black = incomparable.
-
-<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 15px; margin: 10px 0; border-radius: 4px;">
-  <strong>Note on <code>Mojo</code>:</strong> this is a young language, and many tests use Python interop instead of native implementations (marked black), simply because I can't compile libraries for JSON, Regex, Csv. Performance is still very raw.
-</div>
-<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 15px; margin: 10px 0; border-radius: 4px;">
-  <strong>Note on <code>Go</code>:</strong> Go suffers from regex benchmarks — see my <a href="https://www.reddit.com/r/golang/comments/1rr2evh/why_is_gos_regex_so_slow/">post</a> on this.
-</div>
     DESC
 
     t
@@ -251,12 +244,6 @@ Heatmap: greener = faster, redder = slower.
     end
 
     knows_bads = [
-      %w{mojo CSV::Parse}, 
-      %w{mojo Json::Generate}, 
-      %w{mojo Json::ParseDom}, 
-      %w{mojo Json::ParseMapping}, 
-      %w{mojo Etc::LogParser}, 
-      %w{mojo Template::Regex}, 
     ]
 
     bads = Hash.new { |h, k| h[k] = [] } 
@@ -298,7 +285,7 @@ Heatmap: greener = faster, redder = slower.
       cf = bcf * (lcf ** 1.5)
       pc = -((cf - 1.0) * 100).round(1)
 
-      m << [lang, sz.round(1), gsz.round(1), lines, (sz / gsz.to_f).round(2), bcf.round(3), lcf.round(3), cf.round(3), pc]
+      m << [_to_lang(lang), sz.round(1), gsz.round(1), lines, (sz / gsz.to_f).round(2), bcf.round(3), lcf.round(3), cf.round(3), pc]
     end
 
     m.sort_by! { |arr| -arr[-1] }
@@ -784,7 +771,7 @@ DESC
     up_header << "Expressiveness"
     s = source
     runs.each do |run|
-      left_index = s[:left_header].index(_lang_for run)
+      left_index = s[:left_header].index(_to_lang run)
       up_index = s[:up_header].index("Expressiveness vs Avg, %")
       result[_lang_for run] << s[:map][left_index][up_index]
     end

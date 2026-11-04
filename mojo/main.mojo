@@ -1,6 +1,7 @@
 from std.time import perf_counter_ns
 from std.sys import argv
 from std.utils.variant import Variant
+from std.builtin.rebind import downcast
 from helper import Helper
 from benchmark import Benchmark, Config
 from binarytrees import BinarytreesObj, BinarytreesArena
@@ -86,108 +87,109 @@ comptime BenchVariant = Variant[
 
 
 def create_benchmark(name: String, config: Config) raises -> BenchVariant:
-    if name == "Binarytrees::Obj":
-        return BenchVariant(BinarytreesObj(config))
-    elif name == "Binarytrees::Arena":
-        return BenchVariant(BinarytreesArena(config))
-    elif name == "Brainfuck::Array":
-        return BenchVariant(BrainfuckArray(config))
-    elif name == "Brainfuck::Recursion":
-        return BenchVariant(BrainfuckRecursion(config))
-    elif name == "Matmul::Single":
-        return BenchVariant(MatmulSingle(config))
-    elif name == "Matmul::T4":
-        return BenchVariant(MatmulT4(config))
-    elif name == "Matmul::T8":
-        return BenchVariant(MatmulT8(config))
-    elif name == "Matmul::T16":
-        return BenchVariant(MatmulT16(config))
-    elif name == "Base64::Encode":
-        return BenchVariant(Base64Encode(config))
-    elif name == "Base64::Decode":
-        return BenchVariant(Base64Decode(config))
-    elif name == "CLBG::Fannkuchredux":
-        return BenchVariant(Fannkuchredux(config))
-    elif name == "CLBG::Spectralnorm":
-        return BenchVariant(Spectralnorm(config))
-    elif name == "CLBG::Mandelbrot":
-        return BenchVariant(Mandelbrot(config))
-    elif name == "CLBG::Nbody":
-        return BenchVariant(Nbody(config))
-    elif name == "Distance::Jaro":
-        return BenchVariant(DistanceJaro(config))
-    elif name == "Distance::NGram":
-        return BenchVariant(DistanceNGram(config))
-    elif name == "Maze::Generator":
-        return BenchVariant(MazeGenerator(config))
-    elif name == "Maze::BFS":
-        return BenchVariant(MazeBFS(config))
-    elif name == "Maze::AStar":
-        return BenchVariant(MazeAStar(config))
-    elif name == "Hash::SHA256":
-        return BenchVariant(HashSHA256(config))
-    elif name == "Hash::CRC32":
-        return BenchVariant(HashCRC32(config))
-    elif name == "Graph::BFS":
-        return BenchVariant(GraphBFS(config))
-    elif name == "Graph::DFS":
-        return BenchVariant(GraphDFS(config))
-    elif name == "Graph::AStar":
-        return BenchVariant(GraphAStar(config))
-    elif name == "Sort::Quick":
-        return BenchVariant(SortQuick(config))
-    elif name == "Sort::Merge":
-        return BenchVariant(SortMerge(config))
-    elif name == "Sort::Self":
-        return BenchVariant(SortSelf(config))
-    elif name == "Etc::Sieve":
-        return BenchVariant(Sieve(config))
-    elif name == "Etc::TextRaytracer":
-        return BenchVariant(TextRaytracer(config))
-    elif name == "Etc::NeuralNet":
-        return BenchVariant(NeuralNet(config))
-    elif name == "Etc::CacheSimulation":
-        return BenchVariant(CacheSimulation(config))
-    elif name == "Etc::GameOfLife":
-        return BenchVariant(GameOfLife(config))
-    elif name == "Etc::Words":
-        return BenchVariant(Words(config))
-    elif name == "Calculator::Ast":
-        return BenchVariant(CalculatorAst(config))
-    elif name == "Calculator::Interpreter":
-        return BenchVariant(CalculatorInterpreter(config))
-    elif name == "Compress::BWTEncode":
-        return BenchVariant(BWTEncode(config))
-    elif name == "Compress::BWTDecode":
-        return BenchVariant(BWTDecode(config))
-    elif name == "Compress::HuffEncode":
-        return BenchVariant(HuffEncode(config))
-    elif name == "Compress::HuffDecode":
-        return BenchVariant(HuffDecode(config))
-    elif name == "Compress::ArithEncode":
-        return BenchVariant(ArithEncode(config))
-    elif name == "Compress::ArithDecode":
-        return BenchVariant(ArithDecode(config))
-    elif name == "Compress::LZWEncode":
-        return BenchVariant(LZWEncode(config))
-    elif name == "Compress::LZWDecode":
-        return BenchVariant(LZWDecode(config))
-    elif name == "CSV::Parse":
-        return BenchVariant(CsvParse(config))
-    elif name == "Etc::LogParser":
-        return BenchVariant(LogParser(config))
-    elif name == "Template::Regex":
-        return BenchVariant(TemplateRegex(config))
-    elif name == "Template::Parse":
-        return BenchVariant(TemplateParse(config))
-    elif name == "Json::Generate":
-        return BenchVariant(JsonGenerate(config))
-    elif name == "Json::ParseDom":
-        return BenchVariant(JsonParseDom(config))
-    elif name == "Json::ParseMapping":
-        return BenchVariant(JsonParseMapping(config))
-    else:
-        raise Error(String("Unknown benchmark: ", name))
+    match name:
+        case "Binarytrees::Obj":
+            return BenchVariant(BinarytreesObj(config))
+        case "Binarytrees::Arena":
+            return BenchVariant(BinarytreesArena(config))
+        case "Brainfuck::Array":
+            return BenchVariant(BrainfuckArray(config))
+        case "Brainfuck::Recursion":
+            return BenchVariant(BrainfuckRecursion(config))
+        case "Matmul::Single":
+            return BenchVariant(MatmulSingle(config))
+        case "Matmul::T4":
+            return BenchVariant(MatmulT4(config))
+        case "Matmul::T8":
+            return BenchVariant(MatmulT8(config))
+        case "Matmul::T16":
+            return BenchVariant(MatmulT16(config))
+        case "Base64::Encode":
+            return BenchVariant(Base64Encode(config))
+        case "Base64::Decode":
+            return BenchVariant(Base64Decode(config))
+        case "CLBG::Fannkuchredux":
+            return BenchVariant(Fannkuchredux(config))
+        case "CLBG::Spectralnorm":
+            return BenchVariant(Spectralnorm(config))
+        case "CLBG::Mandelbrot":
+            return BenchVariant(Mandelbrot(config))
+        case "CLBG::Nbody":
+            return BenchVariant(Nbody(config))
+        case "Distance::Jaro":
+            return BenchVariant(DistanceJaro(config))
+        case "Distance::NGram":
+            return BenchVariant(DistanceNGram(config))
+        case "Maze::Generator":
+            return BenchVariant(MazeGenerator(config))
+        case "Maze::BFS":
+            return BenchVariant(MazeBFS(config))
+        case "Maze::AStar":
+            return BenchVariant(MazeAStar(config))
+        case "Hash::SHA256":
+            return BenchVariant(HashSHA256(config))
+        case "Hash::CRC32":
+            return BenchVariant(HashCRC32(config))
+        case "Graph::BFS":
+            return BenchVariant(GraphBFS(config))
+        case "Graph::DFS":
+            return BenchVariant(GraphDFS(config))
+        case "Graph::AStar":
+            return BenchVariant(GraphAStar(config))
+        case "Sort::Quick":
+            return BenchVariant(SortQuick(config))
+        case "Sort::Merge":
+            return BenchVariant(SortMerge(config))
+        case "Sort::Self":
+            return BenchVariant(SortSelf(config))
+        case "Etc::Sieve":
+            return BenchVariant(Sieve(config))
+        case "Etc::TextRaytracer":
+            return BenchVariant(TextRaytracer(config))
+        case "Etc::NeuralNet":
+            return BenchVariant(NeuralNet(config))
+        case "Etc::CacheSimulation":
+            return BenchVariant(CacheSimulation(config))
+        case "Etc::GameOfLife":
+            return BenchVariant(GameOfLife(config))
+        case "Etc::Words":
+            return BenchVariant(Words(config))
+        case "Calculator::Ast":
+            return BenchVariant(CalculatorAst(config))
+        case "Calculator::Interpreter":
+            return BenchVariant(CalculatorInterpreter(config))
+        case "Compress::BWTEncode":
+            return BenchVariant(BWTEncode(config))
+        case "Compress::BWTDecode":
+            return BenchVariant(BWTDecode(config))
+        case "Compress::HuffEncode":
+            return BenchVariant(HuffEncode(config))
+        case "Compress::HuffDecode":
+            return BenchVariant(HuffDecode(config))
+        case "Compress::ArithEncode":
+            return BenchVariant(ArithEncode(config))
+        case "Compress::ArithDecode":
+            return BenchVariant(ArithDecode(config))
+        case "Compress::LZWEncode":
+            return BenchVariant(LZWEncode(config))
+        case "Compress::LZWDecode":
+            return BenchVariant(LZWDecode(config))
+        case "CSV::Parse":
+            return BenchVariant(CsvParse(config))
+        case "Etc::LogParser":
+            return BenchVariant(LogParser(config))
+        case "Template::Regex":
+            return BenchVariant(TemplateRegex(config))
+        case "Template::Parse":
+            return BenchVariant(TemplateParse(config))
+        case "Json::Generate":
+            return BenchVariant(JsonGenerate(config))
+        case "Json::ParseDom":
+            return BenchVariant(JsonParseDom(config))
+        case "Json::ParseMapping":
+            return BenchVariant(JsonParseMapping(config))
+        case _:
+            raise Error(String(t"Unknown benchmark: {name}"))
 
 
 def dispatch_bench(
@@ -199,230 +201,13 @@ def dispatch_bench(
     mut ok: Int,
     mut fails: Int,
 ) raises:
-    if bench.isa[BinarytreesObj]():
-        run_single(
-            name, bench[BinarytreesObj], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[BinarytreesArena]():
-        run_single(
-            name,
-            bench[BinarytreesArena],
-            config,
-            helper,
-            summary_time,
-            ok,
-            fails,
-        )
-    elif bench.isa[BrainfuckArray]():
-        run_single(
-            name, bench[BrainfuckArray], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[BrainfuckRecursion]():
-        run_single(
-            name,
-            bench[BrainfuckRecursion],
-            config,
-            helper,
-            summary_time,
-            ok,
-            fails,
-        )
-    elif bench.isa[MatmulSingle]():
-        run_single(
-            name, bench[MatmulSingle], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[MatmulT4]():
-        run_single(
-            name, bench[MatmulT4], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[MatmulT8]():
-        run_single(
-            name, bench[MatmulT8], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[MatmulT16]():
-        run_single(
-            name, bench[MatmulT16], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[Base64Encode]():
-        run_single(
-            name, bench[Base64Encode], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[Base64Decode]():
-        run_single(
-            name, bench[Base64Decode], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[Fannkuchredux]():
-        run_single(
-            name, bench[Fannkuchredux], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[Spectralnorm]():
-        run_single(
-            name, bench[Spectralnorm], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[Mandelbrot]():
-        run_single(
-            name, bench[Mandelbrot], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[Nbody]():
-        run_single(name, bench[Nbody], config, helper, summary_time, ok, fails)
-    elif bench.isa[DistanceJaro]():
-        run_single(
-            name, bench[DistanceJaro], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[DistanceNGram]():
-        run_single(
-            name, bench[DistanceNGram], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[MazeGenerator]():
-        run_single(
-            name, bench[MazeGenerator], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[MazeBFS]():
-        run_single(
-            name, bench[MazeBFS], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[MazeAStar]():
-        run_single(
-            name, bench[MazeAStar], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[HashSHA256]():
-        run_single(
-            name, bench[HashSHA256], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[HashCRC32]():
-        run_single(
-            name, bench[HashCRC32], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[GraphBFS]():
-        run_single(
-            name, bench[GraphBFS], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[GraphDFS]():
-        run_single(
-            name, bench[GraphDFS], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[GraphAStar]():
-        run_single(
-            name, bench[GraphAStar], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[SortQuick]():
-        run_single(
-            name, bench[SortQuick], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[SortMerge]():
-        run_single(
-            name, bench[SortMerge], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[SortSelf]():
-        run_single(
-            name, bench[SortSelf], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[Sieve]():
-        run_single(name, bench[Sieve], config, helper, summary_time, ok, fails)
-    elif bench.isa[TextRaytracer]():
-        run_single(
-            name, bench[TextRaytracer], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[NeuralNet]():
-        run_single(
-            name, bench[NeuralNet], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[CacheSimulation]():
-        run_single(
-            name,
-            bench[CacheSimulation],
-            config,
-            helper,
-            summary_time,
-            ok,
-            fails,
-        )
-    elif bench.isa[GameOfLife]():
-        run_single(
-            name, bench[GameOfLife], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[Words]():
-        run_single(name, bench[Words], config, helper, summary_time, ok, fails)
-    elif bench.isa[CalculatorAst]():
-        run_single(
-            name, bench[CalculatorAst], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[CalculatorInterpreter]():
-        run_single(
-            name,
-            bench[CalculatorInterpreter],
-            config,
-            helper,
-            summary_time,
-            ok,
-            fails,
-        )
-    elif bench.isa[BWTEncode]():
-        run_single(
-            name, bench[BWTEncode], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[BWTDecode]():
-        run_single(
-            name, bench[BWTDecode], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[HuffEncode]():
-        run_single(
-            name, bench[HuffEncode], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[HuffDecode]():
-        run_single(
-            name, bench[HuffDecode], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[ArithEncode]():
-        run_single(
-            name, bench[ArithEncode], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[ArithDecode]():
-        run_single(
-            name, bench[ArithDecode], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[LZWEncode]():
-        run_single(
-            name, bench[LZWEncode], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[LZWDecode]():
-        run_single(
-            name, bench[LZWDecode], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[CsvParse]():
-        run_single(
-            name, bench[CsvParse], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[LogParser]():
-        run_single(
-            name, bench[LogParser], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[TemplateRegex]():
-        run_single(
-            name, bench[TemplateRegex], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[TemplateParse]():
-        run_single(
-            name, bench[TemplateParse], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[JsonGenerate]():
-        run_single(
-            name, bench[JsonGenerate], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[JsonParseDom]():
-        run_single(
-            name, bench[JsonParseDom], config, helper, summary_time, ok, fails
-        )
-    elif bench.isa[JsonParseMapping]():
-        run_single(
-            name,
-            bench[JsonParseMapping],
-            config,
-            helper,
-            summary_time,
-            ok,
-            fails,
-        )
+    comptime for i in range(BenchVariant.Ts.length):
+        comptime BenchType = downcast[BenchVariant.Ts[i], Benchmark]
+        if bench.isa[BenchType]():
+            run_single(
+                name, bench[BenchType], config, helper, summary_time, ok, fails
+            )
+            return
 
 
 def run_benchmarks(config: Config, single_bench: Optional[String]) raises:

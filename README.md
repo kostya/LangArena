@@ -6,7 +6,7 @@
 
 My experiment. It evaluates 27 programming languages across 50 real-world-inspired tasks using 5 metrics: runtime, runtime score, memory usage, compile time, and expressiveness. The results are aggregated to provide a rough picture of each language's performance. This is a comparative evaluation, not a race to crown the fastest language. 8/50 tests cover ecosystem capabilities Base64, JSON, CSV, Regexp - while the rest are pure algorithms.
 
-The implementations follow a simple, Rosetta Code-like approach: comparable implementations of the same algorithms, with exceptions where necessary. The aim is not to squeeze the maximum performance out of each language, but to write roughly equivalent code across languages. Idiomatic constructs are used where they don't compromise comparability. This reflects typical production code written by teams: readable, maintainable solutions using standard containers, libraries, idioms, and compiler flags.
+The implementations follow a simple, Rosetta Code-like approach: comparable implementations of the same algorithms, with exceptions where necessary. The aim is not to squeeze the maximum performance out of each language, but to write roughly equivalent code across languages. Idiomatic constructs are used where they don't compromise comparability. I want to see the actual cost of language abstractions; this reflects typical production code written by teams: readable, maintainable solutions using standard containers, libraries, idioms, and compiler flags.
 
 The suite began with my original implementation in Crystal. The other languages were ported from it with LLM assistance. Each task has a checksum to validate implementation correctness and prevent DCE.
 
@@ -15,8 +15,6 @@ The main table shows results for standard safe release flags. A separate "Hackin
 Since this is a language-level evaluation, cross-language comparisons are rough and approximate. Comparing different runtimes or compilers for the same language, however, gives a fairer test - OpenJDK/GraalVM, Node/Bun/Deno, Clang/GCC, CRuby/Spinel, and others.
 
 **Languages:** `C`, `C++`, `Crystal`, `Rust`, `Go`, `Swift`, `C#`, `Java`, `Kotlin`, `TypeScript`, `Zig`, `D`, `V`, `Julia`, `Nim`, `F#`, `Dart`, `Python`, `Odin`, `Scala`, `C3`, `Ruby`, `PHP`, `Mojo`, `JavaScript`, `Gossamer`, `Goose`.
-
-Note on `Mojo`: this is a young language, and many tests use Python interop instead of native implementations, simply because I can't compile libraries for JSON, Regex. Performance is still very raw.
 
 Participating Compilers/Runtimes:
 
@@ -46,7 +44,7 @@ Participating Compilers/Runtimes:
 * `PHP`: [PHP/JIT](https://www.php.net/)
 * `JavaScript`: [Node](https://nodejs.org/), [Bun](https://bun.sh/), [Deno](https://deno.com/)
 * `Gossamer`: [Gossamer](https://gossamer-lang.org)
-* `Goose`: [Goose](https://github.com/aardappel/goose)
+* `Goose`: [Goose](https://github.com/aardappel/goose), [Goose.go](https://github.com/robtandy/goose.go)
 
 ## Benchmarking Methodology
 

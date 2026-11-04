@@ -45,9 +45,8 @@ fn format_fixed(out: u8[>..]&, v: f64, decimals: i64) {
     for i in decimals { scale *= 10.0; iscale *= 10; }
     let p = x * scale;
     var whole: u64 = 0;
-    var frac: u64 = 0;
+    var frac:  u64 = 0;
     if p < 4503599627370496.0 {
-
         let err = fma(x, scale, -p);
         let n = floor(p);
         let t = (p - n) - 0.5;
@@ -56,7 +55,6 @@ fn format_fixed(out: u8[>..]&, v: f64, decimals: i64) {
         whole = r / iscale;
         frac = r % iscale;
     } else {
-
         var e: i32 = 0;
         let f = frexp(x, e);
         let m = (f * 9007199254740992.0) as! u64;

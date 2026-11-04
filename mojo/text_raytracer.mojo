@@ -3,7 +3,7 @@ from helper import Helper
 from benchmark import Benchmark, Config
 
 
-struct _Vec3(Copyable, ImplicitlyCopyable):
+struct _Vec3(ImplicitlyCopyable):
     var x: Float64
     var y: Float64
     var z: Float64
@@ -35,7 +35,7 @@ struct _Vec3(Copyable, ImplicitlyCopyable):
         return self.scale(1.0 / mag)
 
 
-struct _Color(Copyable, ImplicitlyCopyable):
+struct _Color(ImplicitlyCopyable):
     var r: Float64
     var g: Float64
     var b: Float64
@@ -52,7 +52,7 @@ struct _Color(Copyable, ImplicitlyCopyable):
         return Self(self.r + other.r, self.g + other.g, self.b + other.b)
 
 
-struct _Sphere(Copyable, ImplicitlyCopyable):
+struct _Sphere(ImplicitlyCopyable):
     var center: _Vec3
     var radius: Float64
     var color: _Color
@@ -66,7 +66,7 @@ struct _Sphere(Copyable, ImplicitlyCopyable):
         return (pt - self.center).normalize()
 
 
-struct _Light(Copyable, ImplicitlyCopyable):
+struct _Light(ImplicitlyCopyable):
     var position: _Vec3
     var color: _Color
 
@@ -79,7 +79,7 @@ struct TextRaytracer(Benchmark):
     var w: Int
     var h: Int
     var result: UInt32
-    var lut: List[Int]
+    var lut: Array[Int, 6]
     var light1: _Light
     var scene: List[_Sphere]
 
@@ -87,28 +87,15 @@ struct TextRaytracer(Benchmark):
         self.w = config.get_i64("Etc::TextRaytracer", "w")
         self.h = config.get_i64("Etc::TextRaytracer", "h")
         self.result = 0
-
-        var lut = List[Int]()
-        lut.append(46)
-        lut.append(45)
-        lut.append(43)
-        lut.append(42)
-        lut.append(88)
-        lut.append(77)
-        self.lut = lut^
+        self.lut = [46, 45, 43, 42, 88, 77]
 
         self.light1 = _Light(_Vec3(0.7, -1.0, 1.7), _Color(1.0, 1.0, 1.0))
 
-        self.scene = List[_Sphere]()
-        self.scene.append(
-            _Sphere(_Vec3(-1.0, 0.0, 3.0), 0.3, _Color(1.0, 0.0, 0.0))
-        )
-        self.scene.append(
-            _Sphere(_Vec3(0.0, 0.0, 3.0), 0.8, _Color(0.0, 1.0, 0.0))
-        )
-        self.scene.append(
-            _Sphere(_Vec3(1.0, 0.0, 3.0), 0.4, _Color(0.0, 0.0, 1.0))
-        )
+        self.scene = [
+            _Sphere(_Vec3(-1.0, 0.0, 3.0), 0.3, _Color(1.0, 0.0, 0.0)),
+            _Sphere(_Vec3(0.0, 0.0, 3.0), 0.8, _Color(0.0, 1.0, 0.0)),
+            _Sphere(_Vec3(1.0, 0.0, 3.0), 0.4, _Color(0.0, 0.0, 1.0)),
+        ]
 
     def class_name(self) -> String:
         return "Etc::TextRaytracer"

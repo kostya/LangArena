@@ -16,9 +16,7 @@ def _quick_sort(mut arr: List[Int], low: Int, high: Int):
         while arr[j] > pivot:
             j -= 1
         if i <= j:
-            var tmp = arr[i]
-            arr[i] = arr[j]
-            arr[j] = tmp
+            arr.swap_elements(i, j)
             i += 1
             j -= 1
 
@@ -39,8 +37,7 @@ def _merge_sort(mut arr: List[Int], mut temp: List[Int], left: Int, right: Int):
 def _merge(
     mut arr: List[Int], mut temp: List[Int], left: Int, mid: Int, right: Int
 ):
-    for i in range(left, right + 1):
-        temp[i] = arr[i]
+    temp[left : right + 1].copy_from(arr[left : right + 1])
 
     var i = left
     var j = mid + 1

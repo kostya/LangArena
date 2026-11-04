@@ -60,11 +60,11 @@ fn run(interp: Interpreter&, expressions: (calculator_ast::Node..&)[:]) -> i64 {
 }
 
 struct CalculatorInterpreter {
-    n: i64,
+    n:          i64,
     result_val: u32,
-    text: u8[>..]&,
-    nodes: calculator_ast::Node..[>..]&,
-    ast: (calculator_ast::Node..&)[>..],
+    text:       u8[>..]&,
+    nodes:      calculator_ast::Node..[>..]&,
+    ast:        (calculator_ast::Node..&)[>..],
 }
 
 fn new_calculator_interpreter(text: u8[>..]&, nodes: calculator_ast::Node..[>..]&) -> CalculatorInterpreter {

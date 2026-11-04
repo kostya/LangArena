@@ -94,8 +94,7 @@ struct BrainfuckArray(Benchmark):
             elif cmd == CHAR_RIGHT_BRACKET:
                 if len(stack) == 0:
                     return List[Int]()
-                var start = stack[len(stack) - 1]
-                _ = stack.pop()
+                var start = stack.pop()
                 jumps[start] = i
                 jumps[i] = start
 

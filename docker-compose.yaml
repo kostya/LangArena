@@ -5,6 +5,9 @@ x-shared: &shared
     - .:/src
   working_dir: /src
   shm_size: '4gb'
+  dns:
+    - 8.8.8.8
+    - 1.1.1.1
   deploy:
     resources:
       limits:
@@ -28,7 +31,7 @@ services:
       dockerfile: docker/crystal
       args:
         # https://github.com/crystal-lang/crystal/releases
-        version: 1.22.0
+        version: 1.22.2
     volumes:
       - .:/src
 
@@ -69,7 +72,7 @@ services:
       args:
         nodeversion: "26.x"
         # https://github.com/WasmEdge/WasmEdge/releases
-        wasmedge_version: "0.18.0"
+        wasmedge_version: "0.18.1"
     volumes:
       - .:/src
 
@@ -116,7 +119,7 @@ services:
       dockerfile: docker/base_clang
       args:
         # https://github.com/llvm/llvm-project/releases
-        version: "23.1.3"
+        version: "23.1.4"
     depends_on:
       - base
 
@@ -158,7 +161,7 @@ services:
       dockerfile: docker/dotnet
       args:
         # https://dotnet.microsoft.com/en-us/download/dotnet
-        version: "11.0.100-rc.2.26504.105"
+        version: "11.0.100-rc.3.26522.148"
     volumes:
       - .:/src
 
@@ -263,7 +266,7 @@ services:
       dockerfile: docker/golang
       args:
         # https://go.dev/dl/
-        version: "1.27.2"
+        version: "1.27.3"
     volumes:
       - .:/src
 
@@ -287,7 +290,7 @@ services:
       dockerfile: docker/swift
       args:
         # https://github.com/swiftlang/swift/releases
-        version: "6.4.1"
+        version: "6.4.2"
     volumes:
       - .:/src
       - ./cache/deps/swift/package-cache:/root/.swiftpm/package-cache
@@ -339,7 +342,7 @@ services:
       dockerfile: docker/java_ea
       args:
         # https://jdk.java.net/28/
-        url: "https://download.java.net/java/early_access/jdk28/20/GPL/openjdk-28-ea+20_linux-x64_bin.tar.gz"
+        url: "https://download.java.net/java/early_access/jdk28/22/GPL/openjdk-28-ea+22_linux-x64_bin.tar.gz"
         # https://maven.apache.org/download.cgi
         mavenversion: 3.10.0
     volumes:
@@ -363,7 +366,7 @@ services:
         # https://kotlinlang.org/docs/releases.html
         version: "2.4.21"
         # https://gradle.org/releases/
-        gradleversion: 9.8.1
+        gradleversion: 9.8.2
     volumes:
       - .:/src
 
@@ -387,9 +390,9 @@ services:
       dockerfile: docker/graalvm
       args:
         # https://github.com/graalvm/graalvm-ce-builds/releases
-        graal_version: "25.4.4.1.1"
-        jdk_version: "25.0.4.1.1"
-        iversion: "25i4"
+        graal_version: "25.5.5.0.3"
+        jdk_version: "25.0.5.0.3"
+        iversion: "25i5"
         # https://maven.apache.org/download.cgi
         mavenversion: 3.10.0
     volumes:
@@ -413,7 +416,7 @@ services:
         # https://kotlinlang.org/docs/releases.html
         version: "2.4.21"
         # https://gradle.org/releases/
-        gradleversion: 9.8.1
+        gradleversion: 9.8.2
     volumes:
       - .:/src
 
@@ -460,7 +463,7 @@ services:
       dockerfile: docker/typescript-deno
       args:
         # https://github.com/denoland/deno/releases
-        version: "2.9.7"
+        version: "2.9.8"
     volumes:
       - .:/src
 
@@ -482,7 +485,7 @@ services:
       dockerfile: docker/typescript-bun
       args:
         # https://bun.com/
-        version: "1.4.3"
+        version: "1.4.4"
     volumes:
       - .:/src
 
@@ -504,7 +507,7 @@ services:
       dockerfile: docker/dmd
       args:
         # https://github.com/dlang/dmd/releases
-        version: "2.113.0"
+        version: "2.114.0"
     volumes:
       - .:/src
 
@@ -608,7 +611,7 @@ services:
       dockerfile: docker/gossamer
       args:
         # https://github.com/gossamer-lang/gossamer/releases
-        version: "0.73.0"
+        version: "0.75.14"
     volumes:
       - .:/src
       - ./cache/build/gossamer/target:/src/gossamer/target
@@ -624,7 +627,7 @@ services:
       dockerfile: docker/goose_clang
       args:
         # https://github.com/aardappel/goose/commits/master
-        version: "ea1f368c109c083a2161580ff1d74c70200b6cc8"
+        version: "369c7a2cfca74bfcee60379727e8bdfd83da2d75"
     volumes:
       - .:/src
       - ./cache/build/goose_clang/target:/src/goose/target
@@ -639,12 +642,36 @@ services:
       dockerfile: docker/goose_gcc
       args:
         # https://github.com/aardappel/goose/commits/master
-        version: "ea1f368c109c083a2161580ff1d74c70200b6cc8"
+        version: "369c7a2cfca74bfcee60379727e8bdfd83da2d75"
     volumes:
       - .:/src
       - ./cache/build/goose_gcc/target:/src/goose/target
     depends_on:
       - base_gcc
+
+  goose_go:
+    <<: *shared
+    image: langarena:goose_go
+    working_dir: /src/goose
+    build:
+      dockerfile: docker/goose_go
+      args:
+        # https://github.com/robtandy/goose.go
+        version: "5a5ba602518a2b73e2e3fad144ebd292b9564d11"
+    volumes:
+      - .:/src
+      - ./cache/build/goose_go/target:/src/goose/target
+
+      - ./cache/deps/goose_go/mod-cache:/go/pkg/mod
+      - ./cache/deps/goose_go/sumdb:/go/pkg/sumdb
+
+      - ./cache/build/goose_go/build-cache:/root/.cache/go-build
+      - ./cache/build/goose_go/bin-cache:/go/bin
+    environment:
+      - GOCACHE=/root/.cache/go-build
+      - GOMODCACHE=/go/pkg/mod
+    depends_on:
+      - golang
 
   julia:
     <<: *shared
@@ -654,7 +681,7 @@ services:
       dockerfile: docker/julia
       args:
         # https://github.com/JuliaLang/julia/releases
-        version: "1.13.2"
+        version: "1.13.3"
     volumes:
       - .:/src
 
@@ -680,7 +707,7 @@ services:
       dockerfile: docker/nim_gcc
       args:
         # https://nim-lang.org
-        version: "2.2.12"
+        version: "2.4.0"
     volumes:
       - .:/src
 
@@ -705,7 +732,7 @@ services:
       dockerfile: docker/nim_clang
       args:
         # https://nim-lang.org
-        version: "2.2.12"
+        version: "2.4.0"
     volumes:
       - .:/src
 
@@ -732,7 +759,7 @@ services:
       args:
         # https://github.com/arnetheduck/nlvm/releases/tag/continuous
         version: "40d7339"
-        nimversion: "2.2.12"
+        nimversion: "2.4.0"
     volumes:
       - .:/src
 
@@ -758,7 +785,7 @@ services:
       dockerfile: docker/dart
       args:
         # https://dart.dev/get-dart/archive#stable-channel
-        version: "3.13.5"
+        version: "3.13.7"
     volumes:
       - .:/src
 
@@ -795,7 +822,7 @@ services:
       dockerfile: docker/odin
       args:
         # https://github.com/odin-lang/Odin/releases
-        version: "2026-10"
+        version: "2026-11a"
     volumes:
       - .:/src
       
@@ -831,7 +858,7 @@ services:
         # https://www.scala-lang.org/download/
         version: "3.10.0"
         # https://github.com/sbt/sbt/releases
-        sbtversion: "2.0.10"
+        sbtversion: "2.0.12"
     volumes:
       - .:/src
 
@@ -855,7 +882,7 @@ services:
         # https://www.scala-lang.org/download/
         version: "3.10.0"
         # https://github.com/sbt/sbt/releases
-        sbtversion: "2.0.10"
+        sbtversion: "2.0.12"
     volumes:
       - .:/src
 
@@ -890,7 +917,7 @@ services:
       dockerfile: docker/mycc
       args:
         # https://github.com/crystal-lang/crystal/releases
-        crystal_version: 1.22.0
+        crystal_version: 1.22.2
         # https://github.com/kostya/myc/tags
         version: "v0.11.0"
     volumes:
@@ -932,7 +959,7 @@ services:
       dockerfile: docker/ruby4
       args:
         # https://www.ruby-lang.org/ru/downloads/releases/
-        version: "4.0.7"
+        version: "4.0.9"
     depends_on:
       - rust
   
@@ -980,7 +1007,7 @@ services:
       dockerfile: docker/spinel_clang
       args:
         # https://github.com/matz/spinel
-        version: "a1170bfc986c9401663ca97c83085c2e22b01628"
+        version: "d9d4b0e7e8f24ad23bd58ca0bd40a22381ae35bc"
     volumes:
       - .:/src
       - ./cache/build/spinel_clang/target:/src/ruby/target
@@ -995,7 +1022,7 @@ services:
   #     dockerfile: docker/spinel_gcc
   #     args:
   #       # https://github.com/matz/spinel
-  #       version: "78f436e0640938845498d0a97b2c3517dbe3a6dd"
+  #       version: "d9d4b0e7e8f24ad23bd58ca0bd40a22381ae35bc"
   #     volumes:
   #     - .:/src
   #     - ./cache/build/spinel_gcc/target:/src/ruby/target

@@ -42,7 +42,7 @@ struct _Neuron(Copyable):
         return self.output * (1.0 - self.output)
 
 
-struct _NN(Movable):
+struct _NN:
     var neurons: List[_Neuron]
     var input_indices: List[Int]
     var hidden_indices: List[Int]

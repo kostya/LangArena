@@ -20,7 +20,7 @@ struct _LRUNode(Copyable):
         pass
 
 
-struct _LRUCache(Movable):
+struct _LRUCache:
     var capacity: Int
     var cache: Dict[String, Pointer[_LRUNode, MutUntrackedOrigin]]
     var head: Optional[Pointer[_LRUNode, MutUntrackedOrigin]]

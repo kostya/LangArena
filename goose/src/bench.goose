@@ -3,8 +3,8 @@ import os;
 import json;
 import helper;
 
-var cfg_text: u8[>..];
-var cfg_doc: json::Node[>..];
+var cfg_text:    u8[>..];
+var cfg_doc:     json::Node[>..];
 var cfg_decoded: u8[>..];
 
 fn load_config(path: const u8[:]) {

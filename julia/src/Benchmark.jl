@@ -38,7 +38,7 @@ function warmup_iterations(b::AbstractBenchmark)::Int64
         return config[name_str]["warmup_iterations"]
     else
         iters = iterations(b)
-        return max(Int64(round(iters * 0.2)), 1)
+        return max(Int64(trunc(iters * 0.2)), 1)
     end
 end
 

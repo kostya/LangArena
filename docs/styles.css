@@ -218,7 +218,7 @@ td.speed_9 { background: #b71c1ce0; font-weight: bold; color: white; }
     padding: 15px;
     border-radius: 8px;
     align-items: center;
-    background: #d1e8ee;
+    justify-content: center;
 }
 
 .filter-btn {

@@ -164,7 +164,7 @@ function overview_tab($results) {
 
 <p>My experiment. It evaluates 27 programming languages across 50 real-world-inspired tasks using 5 metrics: runtime, runtime score, memory usage, compile time, and expressiveness. The results are aggregated to provide a rough picture of each language's performance. This is a comparative evaluation, not a race to crown the fastest language. 8/50 tests cover ecosystem capabilities Base64, JSON, CSV, Regexp - while the rest are pure algorithms.</p>
 
-<p>The implementations follow a simple, Rosetta Code-like approach: comparable implementations of the same algorithms, with exceptions where necessary. The aim is not to squeeze the maximum performance out of each language, but to write roughly equivalent code across languages. Idiomatic constructs are used where they don't compromise comparability. This reflects typical production code written by teams: readable, maintainable solutions using standard containers, libraries, idioms, and compiler flags.</p>
+<p>The implementations follow a simple, Rosetta Code-like approach: comparable implementations of the same algorithms, with exceptions where necessary. The aim is not to squeeze the maximum performance out of each language, but to write roughly equivalent code across languages. Idiomatic constructs are used where they don't compromise comparability. I want to see the actual cost of language abstractions; this reflects typical production code written by teams: readable, maintainable solutions using standard containers, libraries, idioms, and compiler flags.</p>
 
 <p>The suite began with my original implementation in Crystal. The other languages were ported from it with LLM assistance. Each task has a checksum to validate implementation correctness and prevent DCE.</p>
 
@@ -173,8 +173,6 @@ function overview_tab($results) {
 <p>Since this is a language-level evaluation, cross-language comparisons are rough and approximate. Comparing different runtimes or compilers for the same language, however, gives a fairer test - OpenJDK/GraalVM, Node/Bun/Deno, Clang/GCC, CRuby/Spinel, and others.</p>
 
 <p><strong>Languages:</strong> <span class="language-tag">C</span> <span class="language-tag">C++</span> <span class="language-tag">Crystal</span> <span class="language-tag">Rust</span> <span class="language-tag">Go</span> <span class="language-tag">Swift</span> <span class="language-tag">C#</span> <span class="language-tag">Java</span> <span class="language-tag">Kotlin</span> <span class="language-tag">TypeScript</span> <span class="language-tag">Zig</span> <span class="language-tag">D</span> <span class="language-tag">V</span> <span class="language-tag">Julia</span> <span class="language-tag">Nim</span> <span class="language-tag">F#</span> <span class="language-tag">Dart</span> <span class="language-tag">Python</span> <span class="language-tag">Odin</span> <span class="language-tag">Scala</span> <span class="language-tag">C3</span> <span class="language-tag">Ruby</span> <span class="language-tag">PHP</span> <span class="language-tag">Mojo</span> <span class="language-tag">JavaScript</span> <span class="language-tag">Gossamer</span> <span class="language-tag">Goose</span></p>
-
-<p class="language-note"><strong>Note on Mojo:</strong> this is a young language, and many tests use Python interop instead of native implementations, simply because I can't compile libraries for JSON, Regex. Performance is still very raw.</p>
 
 <h3>Participating Compilers/Runtimes</h3>
 
@@ -212,7 +210,7 @@ function overview_tab($results) {
     <tr><td>PHP</td><td><a href="https://www.php.net/">PHP/JIT</a></td></tr>
     <tr><td>JavaScript</td><td><a href="https://nodejs.org/">Node</a>, <a href="https://bun.sh/">Bun</a>, <a href="https://deno.com/">Deno</a></td></tr>
     <tr><td>Gossamer</td><td><a href="https://gossamer-lang.org">Gossamer</a></td></tr>
-    <tr><td>Goose</td><td><a href="https://github.com/aardappel/goose">Goose</a></td></tr>
+    <tr><td>Goose</td><td><a href="https://github.com/aardappel/goose">Goose</a>, <a href="https://github.com/robtandy/goose.go">Goose.go</a></td></tr>
   </tbody>
 </table>
 

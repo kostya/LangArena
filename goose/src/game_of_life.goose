@@ -5,9 +5,9 @@ import bench;
 import helper;
 
 struct Cell {
-    alive: bool,
+    alive:      bool,
     next_state: bool,
-    neighbors: (Cell&<u32>)[..8],
+    neighbors:  (Cell&<u32>)[..8],
 }
 
 fn new_cell(alive: bool) -> Cell {
@@ -80,7 +80,7 @@ fn count_alive(grid: Grid&) -> u32 {
 
 fn compute_hash(grid: Grid&) -> u32 {
     let FNV_OFFSET_BASIS: u32 = 2166136261;
-    let FNV_PRIME: u32 = 16777619;
+    let FNV_PRIME:        u32 = 16777619;
     var hash = FNV_OFFSET_BASIS;
     for row in grid.cells {
         for &cell in row {

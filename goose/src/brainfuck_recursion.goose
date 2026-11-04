@@ -76,7 +76,7 @@ recursive fn execute(p: Program&, program: Op[:], tape: Tape&, result: i64&) {
 }
 
 fn run_text(text: const u8[:]) -> i64 {
-    var op_pool: Op[>..] = [];
+    var op_pool: Op[>..]  = [];
     var pending: Op[>..<] = [];
     let program = new_program(text, op_pool, pending);
     return program.run();
@@ -86,9 +86,9 @@ struct BrainfuckRecursion { text: const u8[:], warmup_text: const u8[:], result_
 
 fn new_brainfuck_recursion() -> BrainfuckRecursion {
     BrainfuckRecursion {
-        text: config_s("Brainfuck::Recursion", "program"),
+        text:        config_s("Brainfuck::Recursion", "program"),
         warmup_text: config_s("Brainfuck::Recursion", "warmup_program"),
-        result_val: 0,
+        result_val:  0,
     }
 }
 

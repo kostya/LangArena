@@ -13,14 +13,14 @@ struct _MazeCell(Copyable):
     var kind: Int
     var x: Int
     var y: Int
-    var neighbors: List[Tuple[Int, Int]]
+    var neighbors: Array[Tuple[Int, Int], 4]
     var neighbor_count: Int
 
     def __init__(out self, x: Int, y: Int):
         self.kind = MAZE_WALL
         self.x = x
         self.y = y
-        self.neighbors = List[Tuple[Int, Int]](capacity=4)
+        self.neighbors = Array[Tuple[Int, Int], 4](fill=(0, 0))
         self.neighbor_count = 0
 
     def is_walkable(self) -> Bool:
@@ -29,12 +29,6 @@ struct _MazeCell(Copyable):
             or self.kind == MAZE_START
             or self.kind == MAZE_FINISH
         )
-
-    def is_wall(self) -> Bool:
-        return self.kind == MAZE_WALL
-
-    def is_space(self) -> Bool:
-        return self.kind == MAZE_SPACE
 
     def reset(mut self):
         if self.kind == MAZE_SPACE:
@@ -109,13 +103,10 @@ struct MazeGenerator(Benchmark):
                 if x == 0 or y == 0 or x == self.w - 1 or y == self.h - 1:
                     cell.kind = MAZE_BORDER
                 else:
-                    cell.neighbors = List[Tuple[Int, Int]](capacity=4)
-                    cell.neighbor_count = 0
-
-                    cell.neighbors.append((y - 1, x))
-                    cell.neighbors.append((y + 1, x))
-                    cell.neighbors.append((y, x + 1))
-                    cell.neighbors.append((y, x - 1))
+                    cell.neighbors[0] = (y - 1, x)
+                    cell.neighbors[1] = (y + 1, x)
+                    cell.neighbors[2] = (y, x + 1)
+                    cell.neighbors[3] = (y, x - 1)
                     cell.neighbor_count = 4
 
                     for _ in range(4):
@@ -155,16 +146,12 @@ struct MazeGenerator(Benchmark):
 
     def _generate(mut self):
         for i in range(4):
-            var neighbor = self.cells[self.start_y][self.start_x].neighbors[i]
-            var ny = neighbor[0]
-            var nx = neighbor[1]
+            var ny, nx = self.cells[self.start_y][self.start_x].neighbors[i]
             if self.cells[ny][nx].kind == MAZE_WALL:
                 self._dig(ny, nx)
 
         for i in range(4):
-            var neighbor = self.cells[self.finish_y][self.finish_x].neighbors[i]
-            var ny = neighbor[0]
-            var nx = neighbor[1]
+            var ny, nx = self.cells[self.finish_y][self.finish_x].neighbors[i]
             if self.cells[ny][nx].kind == MAZE_WALL:
                 self._ensure_open_finish(ny, nx)
 
@@ -173,16 +160,12 @@ struct MazeGenerator(Benchmark):
         stack.append((start_y, start_x))
 
         while len(stack) > 0:
-            var pos = stack.pop()
-            var y = pos[0]
-            var x = pos[1]
+            var y, x = stack.pop()
 
             var walkable_count = 0
 
             for i in range(4):
-                var neighbor = self.cells[y][x].neighbors[i]
-                var ny = neighbor[0]
-                var nx = neighbor[1]
+                var ny, nx = self.cells[y][x].neighbors[i]
                 if self.cells[ny][nx].is_walkable():
                     walkable_count += 1
 
@@ -192,9 +175,7 @@ struct MazeGenerator(Benchmark):
             self.cells[y][x].kind = MAZE_SPACE
 
             for i in range(4):
-                var neighbor = self.cells[y][x].neighbors[i]
-                var ny = neighbor[0]
-                var nx = neighbor[1]
+                var ny, nx = self.cells[y][x].neighbors[i]
                 if self.cells[ny][nx].kind == MAZE_WALL:
                     stack.append((ny, nx))
 
@@ -204,9 +185,7 @@ struct MazeGenerator(Benchmark):
         var walkable_count = 0
 
         for i in range(4):
-            var neighbor = self.cells[y][x].neighbors[i]
-            var ny = neighbor[0]
-            var nx = neighbor[1]
+            var ny, nx = self.cells[y][x].neighbors[i]
             if self.cells[ny][nx].is_walkable():
                 walkable_count += 1
 
@@ -214,9 +193,7 @@ struct MazeGenerator(Benchmark):
             return
 
         for i in range(4):
-            var neighbor = self.cells[y][x].neighbors[i]
-            var ny = neighbor[0]
-            var nx = neighbor[1]
+            var ny, nx = self.cells[y][x].neighbors[i]
             if self.cells[ny][nx].kind == MAZE_WALL:
                 self._ensure_open_finish(ny, nx)
 
@@ -270,17 +247,15 @@ struct MazeBFS(Benchmark):
         ty: Int,
     ) -> List[Tuple[Int, Int]]:
         if sx == tx and sy == ty:
-            var r = List[Tuple[Int, Int]]()
-            r.append((sx, sy))
-            return r^
+            return [(sx, sy)]
 
-        var visited = List[List[Bool]]()
+        var visited = List[List[Bool]](capacity=maze.h)
         for _ in range(maze.h):
             var row = List[Bool](length=maze.w, fill=False)
             visited.append(row^)
 
-        var queue = List[Int]()
-        var path_nodes = List[Tuple[Int, Int, Int]]()
+        var queue = List[Int](capacity=maze.w * maze.h)
+        var path_nodes = List[Tuple[Int, Int, Int]](capacity=maze.w * maze.h)
 
         visited[sy][sx] = True
         path_nodes.append((sx, sy, -1))
@@ -290,20 +265,15 @@ struct MazeBFS(Benchmark):
         while q_idx < len(queue):
             var path_id = queue[q_idx]
             q_idx += 1
-            var cur = path_nodes[path_id]
-            var cx = cur[0]
-            var cy = cur[1]
+            var cx, cy, _ = path_nodes[path_id]
 
             ref cell = maze.cells[cy][cx]
 
             for i in range(cell.neighbor_count):
-                var neighbor_coords = cell.neighbors[i]
-                var ny = neighbor_coords[0]
-                var nx = neighbor_coords[1]
+                var ny, nx = cell.neighbors[i]
 
                 if nx == tx and ny == ty:
-                    var result = List[Tuple[Int, Int]]()
-                    result.append((tx, ty))
+                    var result: List[Tuple[Int, Int]] = [(tx, ty)]
                     var current = path_id
                     while current >= 0:
                         var p = path_nodes[current]
@@ -379,9 +349,7 @@ struct MazeAStar(Benchmark):
         ty: Int,
     ) -> List[Tuple[Int, Int]]:
         if sx == tx and sy == ty:
-            var r = List[Tuple[Int, Int]]()
-            r.append((sx, sy))
-            return r^
+            return [(sx, sy)]
 
         var size = maze.w * maze.h
         var start_idx = sy * maze.w + sx
@@ -421,10 +389,7 @@ struct MazeAStar(Benchmark):
             ref cell = maze.cells[cy][cx]
 
             for i in range(cell.neighbor_count):
-                var neighbor_coords = cell.neighbors[i]
-                var ny = neighbor_coords[0]
-                var nx = neighbor_coords[1]
-
+                var ny, nx = cell.neighbors[i]
                 if not maze.cells[ny][nx].is_walkable():
                     continue
 

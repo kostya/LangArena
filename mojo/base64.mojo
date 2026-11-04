@@ -19,9 +19,7 @@ struct Base64Encode(Benchmark):
         return "Base64::Encode"
 
     def prepare(mut self, mut helper: Helper) raises:
-        self.str = String()
-        for _ in range(self.n):
-            self.str += "a"
+        self.str = "a" * self.n
         self.str2 = b64encode(self.str.as_bytes())
 
     def run(mut self, iteration_id: Int, mut helper: Helper) raises:
@@ -67,9 +65,7 @@ struct Base64Decode(Benchmark):
         return "Base64::Decode"
 
     def prepare(mut self, mut helper: Helper) raises:
-        var str = String()
-        for _ in range(self.n):
-            str += "a"
+        var str = "a" * self.n
         self.str2 = b64encode(str.as_bytes())
         self.str3 = b64decode(StringSlice(self.str2))
 

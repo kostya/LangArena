@@ -12,12 +12,12 @@ struct Planet { x: f64, y: f64, z: f64, vx: f64, vy: f64, vz: f64, mass: f64 }
 
 fn new_planet(x: f64, y: f64, z: f64, vx: f64, vy: f64, vz: f64, mass: f64) -> Planet {
     return Planet {
-        x: x,
-        y: y,
-        z: z,
-        vx: vx * DAYS_PER_YEAR,
-        vy: vy * DAYS_PER_YEAR,
-        vz: vz * DAYS_PER_YEAR,
+        x:    x,
+        y:    y,
+        z:    z,
+        vx:   vx * DAYS_PER_YEAR,
+        vy:   vy * DAYS_PER_YEAR,
+        vz:   vz * DAYS_PER_YEAR,
         mass: mass * SOLAR_MASS,
     };
 }

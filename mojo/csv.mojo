@@ -2,16 +2,11 @@ from mojo_csv import CsvReader
 from helper import Helper
 from benchmark import Benchmark, Config
 
-
+@fieldwise_init
 struct CsvPoint(Copyable):
     var x: Float64
     var y: Float64
     var z: Float64
-
-    def __init__(out self, x: Float64, y: Float64, z: Float64):
-        self.x = x
-        self.y = y
-        self.z = z
 
 
 struct CsvParse(Benchmark):
@@ -35,28 +30,12 @@ struct CsvParse(Benchmark):
             var z = helper.next_float()
             var y = helper.next_float()
 
-            self.data += '"'
-            self.data += "point "
-            self.data += c
-            self.data += '\\n, ""'
-            self.data += String(i % 100)
-            self.data += '"""'
-            self.data += ","
-            self.data += Self._format_f64(x)
-            self.data += ","
-            self.data += ","
-            self.data += Self._format_f64(z)
-            self.data += ","
-            self.data += '"'
-            self.data += "["
-            self.data += "true" if i % 2 == 0 else "false"
-            self.data += "\\n, "
-            self.data += String(i % 100)
-            self.data += "]"
-            self.data += '"'
-            self.data += ","
-            self.data += Self._format_f64(y)
-            self.data += "\n"
+            var flag = "true" if i % 2 == 0 else "false"
+            self.data += String(
+                t'"point {c}\\n, ""{i % 100}""",{Self._format_f64(x)},,'
+                t'{Self._format_f64(z)},"[{flag}\\n, {i % 100}]",'
+                t'{Self._format_f64(y)}\n'
+            )
 
     def run(mut self, iteration_id: Int, mut helper: Helper) raises:
         var reader = CsvReader(
@@ -95,9 +74,9 @@ struct CsvParse(Benchmark):
         var y_avg = y_sum / Float64(count)
         var z_avg = z_sum / Float64(count)
 
-        self._checksum = self._checksum + Helper.checksum_f64(x_avg)
-        self._checksum = self._checksum + Helper.checksum_f64(y_avg)
-        self._checksum = self._checksum + Helper.checksum_f64(z_avg)
+        self._checksum += Helper.checksum_f64(x_avg)
+        self._checksum += Helper.checksum_f64(y_avg)
+        self._checksum += Helper.checksum_f64(z_avg)
 
     def checksum(self) -> UInt32:
         return self._checksum + Helper.checksum_string(self.data)

@@ -64,15 +64,7 @@ end
 
 function test(b::BufferHashSHA256)::UInt32
     bytes = SimpleSHA256.digest(b.data)
-
     return reinterpret(UInt32, bytes[1:4])[1]
-
-    b0 = UInt32(bytes[1])
-    b1 = UInt32(bytes[2])
-    b2 = UInt32(bytes[3])
-    b3 = UInt32(bytes[4])
-
-    return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0
 end
 
 function run(b::BufferHashSHA256, iteration_id::Int64)
