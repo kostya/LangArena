@@ -31,10 +31,9 @@ fn void base64_encode_prepare(Benchmark* self)
 fn void base64_encode_run(Benchmark* self, int iteration_id)
 {
 	Base64EncodeData* data = (Base64EncodeData*)self.data;
-
-	char[] encoded = base64::encode(mem, data.input_data);
-	data.result_val += (uint)encoded.len;
-	mem::free(encoded.ptr);
+	free(data.encoded_data);
+	data.encoded_data = base64::encode(mem, data.input_data);
+	data.result_val += (uint)data.encoded_data.len;
 }
 
 fn uint base64_encode_checksum(Benchmark* self)
@@ -131,13 +130,9 @@ fn void base64_decode_prepare(Benchmark* self)
 fn void base64_decode_run(Benchmark* self, int iteration_id)
 {
 	Base64DecodeData* data = (Base64DecodeData*)self.data;
-
-	char[]? decoded_opt = base64::decode(mem, data.encoded_data);
-	if (try decoded = decoded_opt)
-	{
-		data.result_val += (uint)decoded.len;
-		mem::free(decoded.ptr);
-	}
+	free(data.decoded_data);
+	data.decoded_data = base64::decode(mem, data.encoded_data) ?? { };
+	data.result_val += (uint)data.decoded_data.len;
 }
 
 fn uint base64_decode_checksum(Benchmark* self)

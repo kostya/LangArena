@@ -43,14 +43,11 @@ void Base64Encode_prepare(Benchmark *self) {
 void Base64Encode_run(Benchmark *self, int iteration_id) {
   (void)iteration_id;
   Base64EncodeData *data = (Base64EncodeData *)self->data;
-
-  size_t encoded_size = b64_encode_size(data->input_len);
-  char *encoded_buf = (char *)malloc(encoded_size);
-
-  size_t actual_len = b64_encode(encoded_buf, data->input_str, data->input_len);
-
-  data->result_val += actual_len;
-  free(encoded_buf);
+  free(data->encoded_str);
+  data->encoded_str = malloc(b64_encode_size(data->input_len));
+  data->encoded_len =
+      b64_encode(data->encoded_str, data->input_str, data->input_len);
+  data->result_val += (uint32_t)data->encoded_len;
 }
 
 uint32_t Base64Encode_checksum(Benchmark *self) {
@@ -167,15 +164,11 @@ void Base64Decode_prepare(Benchmark *self) {
 void Base64Decode_run(Benchmark *self, int iteration_id) {
   (void)iteration_id;
   Base64DecodeData *data = (Base64DecodeData *)self->data;
-
-  size_t decoded_size = b64_decode_size(data->encoded_len);
-  char *decoded_buf = (char *)malloc(decoded_size);
-
-  size_t actual_len =
-      b64_decode(decoded_buf, data->encoded_str, data->encoded_len);
-
-  data->result_val += actual_len;
-  free(decoded_buf);
+  free(data->decoded_str);
+  data->decoded_str = malloc(b64_decode_size(data->encoded_len));
+  data->decoded_len =
+      b64_decode(data->decoded_str, data->encoded_str, data->encoded_len);
+  data->result_val += (uint32_t)data->decoded_len;
 }
 
 uint32_t Base64Decode_checksum(Benchmark *self) {
