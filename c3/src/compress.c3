@@ -42,10 +42,6 @@ fn BWTResult bwt_transform(char[] input)
 	usz n = input.len;
 	if (n == 0) return result;
 
-	char* doubled = mem::new_array(char, (sz)n * 2);
-	mem::copy(doubled, input.ptr, (sz)n);
-	mem::copy(doubled + n, input.ptr, (sz)n);
-
 	usz* sa = mem::new_array(usz, (sz)n);
 	for (usz i = 0; i < n; i++)
 	{
@@ -179,7 +175,6 @@ fn BWTResult bwt_transform(char[] input)
 
 	result.transformed = transformed[:n];
 
-	mem::free(doubled);
 	mem::free(sa);
 	mem::free(temp_buffer);
 

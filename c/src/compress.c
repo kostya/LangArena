@@ -31,10 +31,6 @@ static BWTResult bwt_transform(uint8_t *input, size_t n) {
     return result;
   }
 
-  uint8_t *doubled = malloc(n * 2);
-  memcpy(doubled, input, n);
-  memcpy(doubled + n, input, n);
-
   size_t *sa = malloc(sizeof(size_t) * n);
 
   for (size_t i = 0; i < n; i++) {
@@ -159,7 +155,6 @@ static BWTResult bwt_transform(uint8_t *input, size_t n) {
     }
   }
 
-  free(doubled);
   free(sa);
   free(temp_buffer);
 
