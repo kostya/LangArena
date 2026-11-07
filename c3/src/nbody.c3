@@ -3,8 +3,6 @@ module nbody;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::math;
 
 const M_PI          = 3.14159265358979323846;
@@ -116,7 +114,7 @@ fn void nbody_prepare(Benchmark* self)
 	if (!data.bodies)
 	{
 		data.nbodies = 5;
-		data.bodies = mem::alloc_array(NbodyPlanet, (usz)data.nbodies);
+		data.bodies = mem::new_array(NbodyPlanet, (usz)data.nbodies);
 
 		nbody_planet_init(&data.bodies[0], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0);
 
@@ -202,7 +200,7 @@ fn void nbody_cleanup(Benchmark* self)
 	NbodyData* data = (NbodyData*)self.data;
 	if (data)
 	{
-		mem::free(data.bodies);
+		free(data.bodies);
 		data.bodies = null;
 	}
 }

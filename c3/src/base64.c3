@@ -3,8 +3,6 @@ module base64_bench;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::encoding::base64;
 
 fn String preview(char[] s)

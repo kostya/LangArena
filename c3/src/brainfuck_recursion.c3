@@ -3,8 +3,6 @@ module brainfuck_rec;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 
 enum OpType
 {
@@ -72,8 +70,8 @@ fn void tape_left(TapeRec* self)
 
 fn void tape_free(TapeRec* self)
 {
-	mem::free(self.data);
-	mem::free(self);
+	free(self.data);
+	free(self);
 }
 
 fn Op[] parse_ops(ZString* code, int* ops_count)
@@ -87,7 +85,7 @@ fn Op[] parse_ops(ZString* code, int* ops_count)
 		if (count >= capacity)
 		{
 			capacity *= 2;
-			ops = mem::realloc(ops, Op::size * capacity);
+			ops = (Op*)mem::realloc(ops, Op::size * capacity);
 		}
 
 		switch ((*code)[0])
@@ -154,7 +152,7 @@ fn void free_ops(Op[] ops)
 			free_ops(op.loop_ops[:op.loop_size]);
 		}
 	}
-	mem::free(ops.ptr);
+	free(ops);
 }
 
 fn void run_ops(Op[] ops, TapeRec* tape, uint* result)
@@ -221,7 +219,6 @@ fn void brainfuck_rec_prepare(Benchmark* self)
 	BrainfuckRecursionData* data = (BrainfuckRecursionData*)self.data;
 	data.program = helper::helper_config_s(self.name, "program");
 	data.warmup_program = helper::helper_config_s(self.name, "warmup_program");
-	data.result_val = 0;
 }
 
 fn void brainfuck_rec_warmup(Benchmark* self)

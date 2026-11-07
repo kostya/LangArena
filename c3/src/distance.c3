@@ -3,8 +3,6 @@ module distance_bench;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::collections::map;
 
 struct StringPairs
@@ -16,31 +14,29 @@ struct StringPairs
 fn StringPairs* generate_pair_strings(long n, long m)
 {
 	StringPairs* pairs = mem::new(StringPairs);
-	pairs.s1 = mem::alloc_array(String, (usz)n);
-	pairs.s2 = mem::alloc_array(String, (usz)n);
+	pairs.s1 = mem::new_array(String, (usz)n);
+	pairs.s2 = mem::new_array(String, (usz)n);
 
 	for (long i = 0; i < n; i++)
 	{
 		int len1 = (int)helper::helper_next_int((uint)m) + 4;
 		int len2 = (int)helper::helper_next_int((uint)m) + 4;
 
-		char* s1 = mem::alloc_array(char, (usz)(len1 + 1));
-		char* s2 = mem::alloc_array(char, (usz)(len2 + 1));
+		String s1 = (String)mem::new_array(char, (usz)len1);
+		String s2 = (String)mem::new_array(char, (usz)len2);
 
 		for (int j = 0; j < len1; j++)
 		{
 			s1[j] = (char)('a' + helper::helper_next_int(10));
 		}
-		s1[len1] = 0;
 
 		for (int j = 0; j < len2; j++)
 		{
 			s2[j] = (char)('a' + helper::helper_next_int(10));
 		}
-		s2[len2] = 0;
 
-		pairs.s1[i] = ((ZString)s1).str_view();
-		pairs.s2[i] = ((ZString)s2).str_view();
+		pairs.s1[i] = s1;
+		pairs.s2[i] = s2;
 	}
 
 	return pairs;
@@ -52,12 +48,12 @@ fn void free_string_pairs(StringPairs* pairs)
 
 	for (usz i = 0; i < pairs.s1.len; i++)
 	{
-		mem::free((void*)pairs.s1[i].ptr);
-		mem::free((void*)pairs.s2[i].ptr);
+		free(pairs.s1[i]);
+		free(pairs.s2[i]);
 	}
-	mem::free(pairs.s1.ptr);
-	mem::free(pairs.s2.ptr);
-	mem::free(pairs);
+	free(pairs.s1);
+	free(pairs.s2);
+	free(pairs);
 }
 
 struct JaroData
@@ -76,7 +72,6 @@ fn void jaro_prepare(Benchmark* self)
 	data.size = helper::helper_config_i64(self.name, "size");
 
 	data.pairs = generate_pair_strings(data.count, data.size);
-	data.result = 0;
 }
 
 fn double jaro_calc(String s1, String s2)
@@ -86,11 +81,11 @@ fn double jaro_calc(String s1, String s2)
 
 	if (len1 == 0 || len2 == 0) return 0.0;
 
-	long match_dist = (long)(len1 > len2 ? len1 : len2) / 2 - 1;
+	sz match_dist = (sz)((len1 > len2 ? len1 : len2) / 2) - 1;
 	if (match_dist < 0) match_dist = 0;
 
-	bool* s1_matches = mem::new_array(bool, len1);
-	bool* s2_matches = mem::new_array(bool, len2);
+	bool[] s1_matches = mem::new_array(bool, len1);
+	bool[] s2_matches = mem::new_array(bool, len2);
 
 	int matches = 0;
 	for (sz i = 0; i < len1; i++)
@@ -135,8 +130,8 @@ fn double jaro_calc(String s1, String s2)
 		result = (m / len1 + m / len2 + (m - transpositions) / m) / 3.0;
 	}
 
-	mem::free(s1_matches);
-	mem::free(s2_matches);
+	free(s1_matches);
+	free(s2_matches);
 
 	return result;
 }
@@ -201,7 +196,6 @@ fn void ngram_prepare(Benchmark* self)
 	data.size = helper::helper_config_i64(self.name, "size");
 
 	data.pairs = generate_pair_strings(data.count, data.size);
-	data.result = 0;
 }
 
 fn double ngram_calc(String s1, String s2)
@@ -216,18 +210,9 @@ fn double ngram_calc(String s1, String s2)
 
 	for (usz i = 0; i <= len1 - 4; i++)
 	{
-		uint gram = ((uint)(char)s1[i] << 24) | ((uint)(char)s1[i + 1] << 16) | ((uint)(char)s1[i + 2] << 8)
-			| (uint)(char)s1[i + 3];
+		uint gram = ((uint)s1[i] << 24) | ((uint)s1[i + 1] << 16) | ((uint)s1[i + 2] << 8) | (uint)s1[i + 3];
 
-		int? current = grams1.get(gram);
-		if (try val = current)
-		{
-			grams1.set(gram, val + 1);
-		}
-		else
-		{
-			grams1.set(gram, 1);
-		}
+		*grams1.get_or_create_ref(gram) += 1;
 	}
 
 	GramMap grams2;
@@ -236,24 +221,13 @@ fn double ngram_calc(String s1, String s2)
 
 	for (usz i = 0; i <= len2 - 4; i++)
 	{
-		uint gram = ((uint)(char)s2[i] << 24) | ((uint)(char)s2[i + 1] << 16) | ((uint)(char)s2[i + 2] << 8)
-			| (uint)(char)s2[i + 3];
+		uint gram = ((uint)s2[i] << 24) | ((uint)s2[i + 1] << 16) | ((uint)s2[i + 2] << 8) | (uint)s2[i + 3];
 
-		int? current2 = grams2.get(gram);
-		if (try val2 = current2)
-		{
-			grams2.set(gram, val2 + 1);
-		}
-		else
-		{
-			grams2.set(gram, 1);
-		}
+		*grams2.get_or_create_ref(gram) += 1;
 
-		int? g1_count = grams1.get(gram);
-		int? g2_count = grams2.get(gram);
-		if (try g1 = g1_count)
+		if (try g1 = grams1.get(gram))
 		{
-			if (try g2 = g2_count)
+			if (try g2 = grams2.get(gram))
 			{
 				if (g2 <= g1) intersection++;
 			}

@@ -2,8 +2,6 @@ module benchmark;
 
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::thread;
 import std::time;
 import std::os;
@@ -88,9 +86,6 @@ fn Benchmark* benchmark_create(String name)
 {
 	Benchmark* bench = mem::new(Benchmark);
 	bench.name = name;
-	bench.checksum_val = 0;
-	bench.iterations_val = 0;
-	bench.data = null;
 
 	bench.prepare = (PrepareFn)&benchmark_default_prepare;
 	bench.warmup = (WarmupFn)&benchmark_default_warmup;
@@ -128,7 +123,7 @@ fn void benchmark_register(String name, FactoryFn factory_func)
 
 	sz len = name.len;
 	if (len > 99) len = 99;
-	mem::copy(&benchmark_factories[benchmark_factories_count].name, (char*)name, len);
+	benchmark_factories[benchmark_factories_count].name[:len] = name[:len];
 	benchmark_factories[benchmark_factories_count].name[len] = 0;
 
 	benchmark_factories[benchmark_factories_count].create = factory_func;
@@ -141,11 +136,8 @@ fn void benchmark_run_all(String single_bench)
 	int ok              = 0;
 	int fails           = 0;
 
-	for (usz i = 0; i < helper::global_order_count; i++)
+	foreach (bench_name : helper::global_order)
 	{
-		char* bench_name_c = helper::global_order[i];
-		String bench_name  = ((ZString)bench_name_c).str_view();
-
 		if (single_bench.len > 0)
 		{
 			@pool()
@@ -159,7 +151,7 @@ fn void benchmark_run_all(String single_bench)
 		FactoryFn found_factory = null;
 		for (usz j = 0; j < benchmark_factories_count; j++)
 		{
-			if (((ZString)&benchmark_factories[j].name).eq((ZString)bench_name_c))
+			if (((ZString)&benchmark_factories[j].name).str_view() == bench_name)
 			{
 				found_factory = benchmark_factories[j].create;
 				break;
@@ -208,8 +200,8 @@ fn void benchmark_run_all(String single_bench)
 		}
 
 		bench.cleanup(bench);
-		mem::free(bench.data);
-		mem::free(bench);
+		free(bench.data);
+		free(bench);
 
 		(void)thread::sleep_ms(1);
 	}

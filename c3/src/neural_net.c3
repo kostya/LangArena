@@ -3,9 +3,8 @@ module neural_net;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::math;
+import std::collections::list;
 
 const LEARNING_RATE = 1.0;
 const MOMENTUM      = 0.3;
@@ -28,13 +27,8 @@ struct NeuralNetSynapse
 
 struct NeuralNetNeuron
 {
-	NeuralNetSynapse** synapses_in;
-	int synapses_in_count;
-	int synapses_in_capacity;
-
-	NeuralNetSynapse** synapses_out;
-	int synapses_out_count;
-	int synapses_out_capacity;
+	List{NeuralNetSynapse*} synapses_in;
+	List{NeuralNetSynapse*} synapses_out;
 
 	double threshold;
 	double prev_threshold;
@@ -44,7 +38,7 @@ struct NeuralNetNeuron
 
 fn void neuron_update_weights(NeuralNetNeuron* neuron)
 {
-	for (int i = 0; i < neuron.synapses_in_count; i++)
+	for (int i = 0; i < neuron.synapses_in.len(); i++)
 	{
 		NeuralNetSynapse* synapse = neuron.synapses_in[i];
 		double temp_weight        = synapse.weight;
@@ -66,34 +60,18 @@ fn void neuron_init(NeuralNetNeuron* neuron)
 	neuron.prev_threshold = neuron.threshold;
 	neuron.output = 0.0;
 	neuron.error = 0.0;
-
-	neuron.synapses_in_count = 0;
-	neuron.synapses_in_capacity = 4;
-	neuron.synapses_in = mem::alloc_array(NeuralNetSynapse*, 4);
-
-	neuron.synapses_out_count = 0;
-	neuron.synapses_out_capacity = 4;
-	neuron.synapses_out = mem::alloc_array(NeuralNetSynapse*, 4);
+	neuron.synapses_in.init(mem);
+	neuron.synapses_out.init(mem);
 }
 
 fn void neuron_add_synapse_in(NeuralNetNeuron* neuron, NeuralNetSynapse* synapse)
 {
-	if (neuron.synapses_in_count >= neuron.synapses_in_capacity)
-	{
-		neuron.synapses_in_capacity *= 2;
-		neuron.synapses_in = mem::realloc(neuron.synapses_in, (usz)neuron.synapses_in_capacity * void*::size);
-	}
-	neuron.synapses_in[neuron.synapses_in_count++] = synapse;
+	neuron.synapses_in.push(synapse);
 }
 
 fn void neuron_add_synapse_out(NeuralNetNeuron* neuron, NeuralNetSynapse* synapse)
 {
-	if (neuron.synapses_out_count >= neuron.synapses_out_capacity)
-	{
-		neuron.synapses_out_capacity *= 2;
-		neuron.synapses_out = mem::realloc(neuron.synapses_out, (usz)neuron.synapses_out_capacity * void*::size);
-	}
-	neuron.synapses_out[neuron.synapses_out_count++] = synapse;
+	neuron.synapses_out.push(synapse);
 }
 
 fn double neuron_derivative(NeuralNetNeuron* neuron)
@@ -104,7 +82,7 @@ fn double neuron_derivative(NeuralNetNeuron* neuron)
 fn void neuron_calculate_output(NeuralNetNeuron* neuron)
 {
 	double activation = 0.0;
-	for (int i = 0; i < neuron.synapses_in_count; i++)
+	for (int i = 0; i < neuron.synapses_in.len(); i++)
 	{
 		NeuralNetSynapse* synapse = neuron.synapses_in[i];
 		activation += synapse.weight * synapse.source_neuron.output;
@@ -122,7 +100,7 @@ fn void neuron_output_train(NeuralNetNeuron* neuron, double target)
 fn void neuron_hidden_train(NeuralNetNeuron* neuron)
 {
 	double sum = 0.0;
-	for (int i = 0; i < neuron.synapses_out_count; i++)
+	for (int i = 0; i < neuron.synapses_out.len(); i++)
 	{
 		NeuralNetSynapse* synapse = neuron.synapses_out[i];
 		sum += synapse.prev_weight * synapse.dest_neuron.error;
@@ -153,7 +131,7 @@ fn NeuralNetwork* network_new(int inputs, int hidden, int outputs)
 	NeuralNetwork* net = mem::new(NeuralNetwork);
 
 	net.total_neurons = inputs + hidden + outputs;
-	net.neurons = mem::alloc_array(NeuralNetNeuron, (usz)net.total_neurons);
+	net.neurons = mem::new_array(NeuralNetNeuron, (usz)net.total_neurons);
 
 	for (int i = 0; i < net.total_neurons; i++)
 	{
@@ -164,9 +142,9 @@ fn NeuralNetwork* network_new(int inputs, int hidden, int outputs)
 	net.hidden_count = hidden;
 	net.output_count = outputs;
 
-	net.input_layer = mem::alloc_array(int, (usz)inputs);
-	net.hidden_layer = mem::alloc_array(int, (usz)hidden);
-	net.output_layer = mem::alloc_array(int, (usz)outputs);
+	net.input_layer = mem::new_array(int, (usz)inputs);
+	net.hidden_layer = mem::new_array(int, (usz)hidden);
+	net.output_layer = mem::new_array(int, (usz)outputs);
 
 	for (int i = 0; i < inputs; i++)
 	{
@@ -183,7 +161,7 @@ fn NeuralNetwork* network_new(int inputs, int hidden, int outputs)
 
 	net.synapse_count = 0;
 	net.synapse_capacity = inputs * hidden + hidden * outputs;
-	net.synapses = mem::alloc_array(NeuralNetSynapse, (usz)net.synapse_capacity);
+	net.synapses = mem::new_array(NeuralNetSynapse, (usz)net.synapse_capacity);
 
 	for (int i = 0; i < inputs; i++)
 	{
@@ -232,16 +210,16 @@ fn void network_free(NeuralNetwork* net)
 
 	for (int i = 0; i < net.total_neurons; i++)
 	{
-		mem::free(net.neurons[i].synapses_in);
-		mem::free(net.neurons[i].synapses_out);
+		net.neurons[i].synapses_in.free();
+		net.neurons[i].synapses_out.free();
 	}
 
-	mem::free(net.neurons);
-	mem::free(net.input_layer);
-	mem::free(net.hidden_layer);
-	mem::free(net.output_layer);
-	mem::free(net.synapses);
-	mem::free(net);
+	free(net.neurons);
+	free(net.input_layer);
+	free(net.hidden_layer);
+	free(net.output_layer);
+	free(net.synapses);
+	free(net);
 }
 
 fn void network_train(NeuralNetwork* net, double* inputs, double* targets)
@@ -306,9 +284,6 @@ fn void neural_net_prepare(Benchmark* self)
 {
 	NeuralNetData* data = (NeuralNetData*)self.data;
 
-	data.result_val = 0;
-	data.sum_outputs = 0.0;
-
 	network_free(data.xor_net);
 	helper::helper_reset();
 
@@ -321,10 +296,10 @@ fn void neural_net_run(Benchmark* self, int iteration_id)
 
 	for (int iter = 0; iter < 1000; iter++)
 	{
-		network_train(data.xor_net, &INPUTS_00, &TARGETS_0);
-		network_train(data.xor_net, &INPUTS_10, &TARGETS_1);
-		network_train(data.xor_net, &INPUTS_01, &TARGETS_1);
-		network_train(data.xor_net, &INPUTS_11, &TARGETS_0);
+		network_train(data.xor_net, (double*)&INPUTS_00[0], (double*)&TARGETS_0[0]);
+		network_train(data.xor_net, (double*)&INPUTS_10[0], (double*)&TARGETS_1[0]);
+		network_train(data.xor_net, (double*)&INPUTS_01[0], (double*)&TARGETS_1[0]);
+		network_train(data.xor_net, (double*)&INPUTS_11[0], (double*)&TARGETS_0[0]);
 	}
 }
 
@@ -335,16 +310,16 @@ fn uint neural_net_checksum(Benchmark* self)
 
 	double sum = 0.0;
 
-	network_feed_forward(data.xor_net, &INPUTS_00);
+	network_feed_forward(data.xor_net, (double*)&INPUTS_00[0]);
 	sum += network_get_output(data.xor_net);
 
-	network_feed_forward(data.xor_net, &INPUTS_01);
+	network_feed_forward(data.xor_net, (double*)&INPUTS_01[0]);
 	sum += network_get_output(data.xor_net);
 
-	network_feed_forward(data.xor_net, &INPUTS_10);
+	network_feed_forward(data.xor_net, (double*)&INPUTS_10[0]);
 	sum += network_get_output(data.xor_net);
 
-	network_feed_forward(data.xor_net, &INPUTS_11);
+	network_feed_forward(data.xor_net, (double*)&INPUTS_11[0]);
 	sum += network_get_output(data.xor_net);
 
 	data.sum_outputs = sum;

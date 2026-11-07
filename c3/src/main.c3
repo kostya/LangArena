@@ -4,7 +4,6 @@ import benchmark;
 import helper;
 import std::io;
 import std::io::file;
-import std::core::mem;
 import std::time;
 
 extern fn Benchmark* binarytrees_obj_create() @cname("BinarytreesObj_create");
@@ -130,7 +129,7 @@ fn int main(int argc, char** argv)
 
 	if (benchmark::benchmark_factories)
 	{
-		mem::free(benchmark::benchmark_factories);
+		free(benchmark::benchmark_factories);
 		benchmark::benchmark_factories = null;
 		benchmark::benchmark_factories_count = 0;
 		benchmark::benchmark_factories_capacity = 0;

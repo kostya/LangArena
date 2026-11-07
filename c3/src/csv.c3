@@ -3,61 +3,22 @@ module csv_bench;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
+import std::collections::list;
 
 struct Point
 {
 	double x, y, z;
 }
 
-struct PointList
+fn double parse_field_value(String field)
 {
-	Point* items;
-	int count;
-	int capacity;
+	field = field.strip_suffix("\"").strip_prefix("\"");
+	return field.to_double() ?? 0;
 }
 
-fn void point_list_init(PointList* list)
-{
-	list.items = null;
-	list.count = 0;
-	list.capacity = 0;
-}
+fn bool is_numeric_field(int idx) => idx == 1 || idx == 3 || idx == 5;
 
-fn int point_list_add(PointList* list, Point point)
-{
-	if (list.count >= list.capacity)
-	{
-		int new_capacity = list.capacity == 0 ? 16 : list.capacity * 2;
-		Point* new_items = mem::realloc(list.items, (usz)new_capacity * Point::size);
-		if (!new_items) return -1;
-		list.items = new_items;
-		list.capacity = new_capacity;
-	}
-	list.items[list.count++] = point;
-	return 0;
-}
-
-fn void point_list_free(PointList* list)
-{
-	mem::free(list.items);
-	list.items = null;
-	list.count = 0;
-	list.capacity = 0;
-}
-
-fn int parse_field_value(String field, double* value)
-{
-	if (field.len >= 2 && field[0] == '"' && field[^1] == '"')
-	{
-		field = field[1:field.len - 2];
-	}
-	*value = field.to_double() ?? 0;
-	return 0;
-}
-
-fn int parse_points(String csv_data, PointList* points)
+fn int parse_points(String csv_data, List{Point}* points)
 {
 	int field_idx    = 0;
 	usz field_start  = 0;
@@ -81,13 +42,10 @@ fn int parse_points(String csv_data, PointList* points)
 		}
 		else if (ch == ',' && !in_quotes)
 		{
-			if (field_idx == 1 || field_idx == 3 || field_idx == 5)
+			if (is_numeric_field(field_idx))
 			{
 				String field = csv_data[field_start:pos - field_start];
-				if (parse_field_value(field, &values[field_idx]) != 0)
-				{
-					return -1;
-				}
+				values[field_idx] = parse_field_value(field);
 			}
 			field_idx++;
 			field_start = pos + 1;
@@ -97,24 +55,17 @@ fn int parse_points(String csv_data, PointList* points)
 		{
 			if (field_idx < 6)
 			{
-				if (field_idx == 1 || field_idx == 3 || field_idx == 5)
+				if (is_numeric_field(field_idx))
 				{
 					String field = csv_data[field_start:pos - field_start];
-					if (parse_field_value(field, &values[field_idx]) != 0)
-					{
-						return -1;
-					}
+					values[field_idx] = parse_field_value(field);
 				}
 				field_idx++;
 			}
 
 			if (field_idx >= 6)
 			{
-				Point point = { values[1], values[5], values[3] };
-				if (point_list_add(points, point) != 0)
-				{
-					return -1;
-				}
+				points.push({ .x = values[1], .y = values[5], .z = values[3] });
 			}
 
 			field_idx = 0;
@@ -131,38 +82,31 @@ fn int parse_points(String csv_data, PointList* points)
 	{
 		if (field_idx < 6)
 		{
-			if (field_idx == 1 || field_idx == 3 || field_idx == 5)
+			if (is_numeric_field(field_idx))
 			{
 				String field = csv_data[field_start:pos - field_start];
-				if (parse_field_value(field, &values[field_idx]) != 0)
-				{
-					return -1;
-				}
+				values[field_idx] = parse_field_value(field);
 			}
 			field_idx++;
 		}
 
 		if (field_idx >= 6)
 		{
-			Point point = { values[1], values[5], values[3] };
-			if (point_list_add(points, point) != 0)
-			{
-				return -1;
-			}
+			points.push({ .x = values[1], .y = values[5], .z = values[3] });
 		}
 	}
 
-	return points.count;
+	return (int)points.len();
 }
 
 struct CsvParseData
 {
-	String csv_data;
+	char[] csv_data;
 	uint result_val;
 	long rows;
 }
 
-fn String generate_csv_for_parsing(long rows)
+fn char[] generate_csv_for_parsing(long rows)
 {
 	DString buffer;
 	buffer.init(mem, (usz)(rows * 100 + 1));
@@ -177,7 +121,7 @@ fn String generate_csv_for_parsing(long rows)
 
 		String bool_str = (i % 2 == 0) ? "true" : "false";
 
-		String line = string::tformat(
+		buffer.appendf(
 			"\"point %c\\n, \"\"%d\"\"\",%.10f,,%.10f,\"[%s\\n, %d]\",%.10f\n",
 			c,
 			(int)(i % 100),
@@ -187,14 +131,9 @@ fn String generate_csv_for_parsing(long rows)
 			(int)(i % 100),
 			y
 		);
-		buffer.append(line);
 	}
 
-	String result = buffer.str_view();
-	char* copy    = mem::alloc_array(char, result.len + 1);
-	mem::copy(copy, (char*)result, result.len);
-	copy[result.len] = 0;
-	return ((ZString)copy).str_view();
+	return buffer.copy_str(mem);
 }
 
 fn void csv_parse_prepare(Benchmark* self)
@@ -202,7 +141,6 @@ fn void csv_parse_prepare(Benchmark* self)
 	CsvParseData* data = (CsvParseData*)self.data;
 	data.rows = helper::helper_config_i64(self.name, "rows");
 	data.csv_data = generate_csv_for_parsing(data.rows);
-	data.result_val = 0;
 }
 
 fn void csv_parse_run(Benchmark* self, int iteration_id)
@@ -210,46 +148,42 @@ fn void csv_parse_run(Benchmark* self, int iteration_id)
 	CsvParseData* data = (CsvParseData*)self.data;
 	if (data.csv_data.len == 0) return;
 
-	PointList points;
-	point_list_init(&points);
+	List{Point} points;
+	points.init(mem);
+	defer points.free();
 
-	int point_count = parse_points(data.csv_data, &points);
+	int point_count = parse_points((String)data.csv_data, &points);
 
 	if (point_count > 0)
 	{
 		double x_sum = 0;
 		double y_sum = 0;
 		double z_sum = 0;
-		for (int i = 0; i < points.count; i++)
+		foreach (p : points)
 		{
-			x_sum += points.items[i].x;
-			y_sum += points.items[i].y;
-			z_sum += points.items[i].z;
+			x_sum += p.x;
+			y_sum += p.y;
+			z_sum += p.z;
 		}
 
-		double len = (double)points.count;
+		double len = (double)points.len();
 		data.result_val += helper::helper_checksum_f64(
 			x_sum / len
 		) + helper::helper_checksum_f64(y_sum / len) + helper::helper_checksum_f64(z_sum / len);
 	}
-
-	point_list_free(&points);
 }
 
 fn uint csv_parse_checksum(Benchmark* self)
 {
 	CsvParseData* data = (CsvParseData*)self.data;
-	return data.result_val + helper::helper_checksum_string(data.csv_data);
+	return data.result_val + helper::helper_checksum_string((String)data.csv_data);
 }
 
 fn void csv_parse_cleanup(Benchmark* self)
 {
 	CsvParseData* data = (CsvParseData*)self.data;
-	if (data.csv_data.ptr)
-	{
-		mem::free((void*)data.csv_data.ptr);
-		data.csv_data = { };
-	}
+	free(data.csv_data);
+	data.csv_data = { };
 }
 
 fn Benchmark* csv_parse_create() @cname("CsvParse_create") @export

@@ -3,8 +3,6 @@ module maze;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::collections::priorityqueue;
 
 enum MazeCellKind
@@ -102,14 +100,12 @@ fn Maze* maze_create(int width, int height)
 	maze.cells = mem::alloc_array(MazeCell*, (usz)height);
 	for (int y = 0; y < height; y++)
 	{
-		maze.cells[y] = mem::alloc_array(MazeCell, (usz)width);
+		maze.cells[y] = mem::new_array(MazeCell, (usz)width);
 		for (int x = 0; x < width; x++)
 		{
 			MazeCell* cell = &maze.cells[y][x];
-			cell.kind = MAZE_CELL_WALL;
 			cell.x = x;
 			cell.y = y;
-			cell.neighbor_count = 0;
 		}
 	}
 
@@ -175,7 +171,7 @@ fn void maze_dig(Maze* maze, MazeCell* start_cell)
 		}
 	}
 
-	mem::free(stack);
+	free(stack);
 }
 
 fn void maze_ensure_open_finish(Maze* maze, MazeCell* cell)
@@ -231,8 +227,8 @@ fn MazeCell* maze_middle_cell(Maze* maze)
 
 fn uint maze_checksum(Maze* maze)
 {
-	uint hasher = 2166136261UL;
-	uint prime  = 16777619UL;
+	uint hasher = 2166136261;
+	uint prime  = 16777619;
 
 	for (int y = 0; y < maze.height; y++)
 	{
@@ -253,10 +249,10 @@ fn void maze_free(Maze* maze)
 	if (!maze) return;
 	for (int y = 0; y < maze.height; y++)
 	{
-		mem::free(maze.cells[y]);
+		free(maze.cells[y]);
 	}
-	mem::free(maze.cells);
-	mem::free(maze);
+	free(maze.cells);
+	free(maze);
 }
 
 struct MazeGeneratorData
@@ -269,8 +265,6 @@ struct MazeGeneratorData
 
 fn void maze_generator_prepare(Benchmark* self)
 {
-	MazeGeneratorData* data = (MazeGeneratorData*)self.data;
-	data.result_val = 0;
 }
 
 fn void maze_generator_run(Benchmark* self, int iteration_id)
@@ -303,11 +297,8 @@ fn Benchmark* maze_generator_create() @cname("MazeGenerator_create") @export
 
 	data.width = (int)helper::helper_config_i64(bench.name, "w");
 	data.height = (int)helper::helper_config_i64(bench.name, "h");
-	if (data.width < 5) data.width = 5;
-	if (data.height < 5) data.height = 5;
 
 	data.maze = maze_create(data.width, data.height);
-	data.result_val = 0;
 
 	bench.data = data;
 	bench.prepare = (PrepareFn)&maze_generator_prepare;
@@ -397,13 +388,13 @@ fn MazeCell** maze_bfs(Maze* maze, MazeCell* start, MazeCell* target, int* out_l
 				}
 
 				*out_length = length;
-				mem::free(queue);
+				free(queue);
 				for (int y = 0; y < height; y++)
 				{
-					mem::free(visited[y]);
+					free(visited[y]);
 				}
-				mem::free(visited);
-				mem::free(path_nodes);
+				free(visited);
+				free(path_nodes);
 				return result;
 			}
 
@@ -419,13 +410,13 @@ fn MazeCell** maze_bfs(Maze* maze, MazeCell* start, MazeCell* target, int* out_l
 	}
 
 	*out_length = 0;
-	mem::free(queue);
+	free(queue);
 	for (int y = 0; y < height; y++)
 	{
-		mem::free(visited[y]);
+		free(visited[y]);
 	}
-	mem::free(visited);
-	mem::free(path_nodes);
+	free(visited);
+	free(path_nodes);
 	return null;
 }
 
@@ -433,16 +424,13 @@ fn void maze_bfs_prepare(Benchmark* self)
 {
 	MazeBFSData* data = (MazeBFSData*)self.data;
 	maze_generate(data.maze);
-	data.result_val = 0;
-	data.path = null;
-	data.path_length = 0;
 }
 
 fn void maze_bfs_run(Benchmark* self, int iteration_id)
 {
 	MazeBFSData* data = (MazeBFSData*)self.data;
 
-	mem::free(data.path);
+	free(data.path);
 	data.path = maze_bfs(data.maze, data.maze.start, data.maze.finish, &data.path_length);
 	data.result_val += (uint)data.path_length;
 }
@@ -458,7 +446,7 @@ fn uint maze_bfs_checksum(Benchmark* self)
 fn void maze_bfs_cleanup(Benchmark* self)
 {
 	MazeBFSData* data = (MazeBFSData*)self.data;
-	mem::free(data.path);
+	free(data.path);
 	maze_free(data.maze);
 }
 
@@ -469,13 +457,8 @@ fn Benchmark* maze_bfs_create() @cname("MazeBFS_create") @export
 
 	data.width = (int)helper::helper_config_i64(bench.name, "w");
 	data.height = (int)helper::helper_config_i64(bench.name, "h");
-	if (data.width < 5) data.width = 5;
-	if (data.height < 5) data.height = 5;
 
 	data.maze = maze_create(data.width, data.height);
-	data.result_val = 0;
-	data.path = null;
-	data.path_length = 0;
 
 	bench.data = data;
 	bench.prepare = (PrepareFn)&maze_bfs_prepare;
@@ -582,9 +565,9 @@ fn MazeCell** maze_astar(Maze* maze, MazeCell* start, MazeCell* target, int* out
 			}
 
 			*out_length = length;
-			mem::free(came_from);
-			mem::free(g_score);
-			mem::free(best_f);
+			free(came_from);
+			free(g_score);
+			free(best_f);
 			open_set.free();
 			return result;
 		}
@@ -618,9 +601,9 @@ fn MazeCell** maze_astar(Maze* maze, MazeCell* start, MazeCell* target, int* out
 	}
 
 	*out_length = 0;
-	mem::free(came_from);
-	mem::free(g_score);
-	mem::free(best_f);
+	free(came_from);
+	free(g_score);
+	free(best_f);
 	open_set.free();
 	return null;
 }
@@ -629,16 +612,13 @@ fn void maze_astar_prepare(Benchmark* self)
 {
 	MazeAStarData* data = (MazeAStarData*)self.data;
 	maze_generate(data.maze);
-	data.result_val = 0;
-	data.path = null;
-	data.path_length = 0;
 }
 
 fn void maze_astar_run(Benchmark* self, int iteration_id)
 {
 	MazeAStarData* data = (MazeAStarData*)self.data;
 
-	mem::free(data.path);
+	free(data.path);
 	data.path = maze_astar(data.maze, data.maze.start, data.maze.finish, &data.path_length);
 	data.result_val += (uint)data.path_length;
 }
@@ -654,7 +634,7 @@ fn uint maze_astar_checksum(Benchmark* self)
 fn void maze_astar_cleanup(Benchmark* self)
 {
 	MazeAStarData* data = (MazeAStarData*)self.data;
-	mem::free(data.path);
+	free(data.path);
 	maze_free(data.maze);
 }
 
@@ -665,13 +645,8 @@ fn Benchmark* maze_astar_create() @cname("MazeAStar_create") @export
 
 	data.width = (int)helper::helper_config_i64(bench.name, "w");
 	data.height = (int)helper::helper_config_i64(bench.name, "h");
-	if (data.width < 5) data.width = 5;
-	if (data.height < 5) data.height = 5;
 
 	data.maze = maze_create(data.width, data.height);
-	data.result_val = 0;
-	data.path = null;
-	data.path_length = 0;
 
 	bench.data = data;
 	bench.prepare = (PrepareFn)&maze_astar_prepare;

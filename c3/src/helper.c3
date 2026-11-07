@@ -2,10 +2,9 @@ module helper;
 
 import std::io;
 import std::io::file;
-import std::core::mem;
-import std::core::string;
 import std::encoding::json;
 import std::collections::object;
+import std::collections::list;
 import std::os;
 
 const IM   = 139968;
@@ -15,20 +14,7 @@ const INIT = 42;
 
 uint helper_last = INIT;
 
-char** global_order;
-usz global_order_count;
-usz global_order_capacity;
-
-fn void global_order_push(char* str)
-{
-	if (global_order_count >= global_order_capacity)
-	{
-		global_order_capacity = global_order_capacity ? global_order_capacity * 2 : 16;
-		global_order = mem::realloc(global_order, (sz)global_order_capacity * usz::size);
-	}
-	global_order[global_order_count] = str;
-	global_order_count++;
-}
+List{String} global_order;
 
 fn void helper_reset()
 {
@@ -74,8 +60,11 @@ fn uint helper_checksum_bytes(char[] data)
 
 fn uint helper_checksum_f64(double v)
 {
-	String s = string::tformat("%.7f", v);
-	return helper_checksum_string(s);
+	@pool()
+	{
+		String s = string::tformat("%.7f", v);
+		return helper_checksum_string(s);
+	};
 }
 
 Object* global_config;
@@ -90,12 +79,12 @@ fn void? helper_load_config(String filename)
 	sz len = fh.cursor()!;
 	fh.seek(0, FROM_START)!;
 
-	char* json_data = mem::alloc_array(char, (usz)len + 1);
-	sz read         = fh.read(json_data[:(usz)len])!;
+	char[] json_data = mem::alloc_array(char, (usz)len + 1);
+	sz read          = fh.read(json_data[:(usz)len])!;
 	json_data[read] = 0;
 
-	Object*? doc_opt = json::parse(mem, (String)json_data[:(usz)read]);
-	mem::free(json_data);
+	Object*? doc_opt = json::parse(mem, (String)json_data[:read]);
+	free(json_data);
 
 	if (catch err = doc_opt)
 	{
@@ -109,6 +98,7 @@ fn void? helper_load_config(String filename)
 	{
 		global_config_is_array = true;
 
+		global_order.init(mem);
 		sz count = global_config.get_len();
 		for (sz i = 0; i < count; i++)
 		{
@@ -117,11 +107,7 @@ fn void? helper_load_config(String filename)
 			{
 				if (name_val.is_string())
 				{
-					String name  = name_val.s;
-					char* c_name = mem::alloc_array(char, name.len + 1);
-					mem::copy(c_name, (char*)name, name.len);
-					c_name[name.len] = 0;
-					global_order_push(c_name);
+					global_order.push(name_val.s.copy(mem));
 				}
 			}
 		}
@@ -141,16 +127,13 @@ fn void helper_free_config()
 		global_config.free();
 		global_config = null;
 	}
-	if (global_order)
+	if (global_order.is_initialized())
 	{
-		for (usz i = 0; i < global_order_count; i++)
+		foreach (s : global_order)
 		{
-			mem::free(global_order[i]);
+			free(s);
 		}
-		mem::free(global_order);
-		global_order = null;
-		global_order_count = 0;
-		global_order_capacity = 0;
+		global_order.free();
 	}
 }
 

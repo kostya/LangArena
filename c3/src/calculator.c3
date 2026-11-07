@@ -3,8 +3,6 @@ module calculator;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::collections::map;
 
 const char CHAR_EOF     = 0;
@@ -112,20 +110,20 @@ fn void ast_node_free(AstNode* node)
 			{
 				ast_node_free(node.binary_op.left);
 				ast_node_free(node.binary_op.right);
-				mem::free(node.binary_op);
+				free(node.binary_op);
 			}
 			break;
 		case AST_ASSIGNMENT:
 			if (node.assignment)
 			{
 				ast_node_free(node.assignment.expr);
-				mem::free(node.assignment);
+				free(node.assignment);
 			}
 			break;
 		default:
 			break;
 	}
-	mem::free(node);
+	free(node);
 }
 
 struct CalculatorAstParser
@@ -317,34 +315,27 @@ fn void parser_parse_all(CalculatorAstParser* parser, CalculatorAstData* data)
 	}
 }
 
-fn char* generate_random_program(long operations)
+fn char[] generate_random_program(long operations)
 {
-	sz capacity  = (operations * 100);
-	char* result = mem::alloc_array(char, capacity);
-	usz len      = 0;
+	DString result;
+	result.init(mem, (usz)(operations * 100 + 256));
 
-	String s = string::tformat("v0 = 1\n");
-	mem::copy(result + len, (char*)s, s.len);
-	len += s.len;
+	result.append("v0 = 1\n");
 
 	for (int i = 0; i < 10; i++)
 	{
-		s = string::tformat("v%d = v%d + %d\n", i + 1, i, i + 1);
-		mem::copy(result + len, (char*)s, s.len);
-		len += s.len;
+		result.appendf("v%d = v%d + %d\n", i + 1, i, i + 1);
 	}
 
 	for (long i = 0; i < operations; i++)
 	{
 		int v = (int)(i + 10);
-		s = string::tformat("v%d = v%d + ", v, v - 1);
-		mem::copy(result + len, (char*)s, s.len);
-		len += s.len;
+		result.appendf("v%d = v%d + ", v, v - 1);
 
 		switch ((int)helper::helper_next_int(10))
 		{
 			case 0:
-				s = string::tformat(
+				result.appendf(
 					"(v%d / 3) * 4 - %d / (3 + (18 - v%d)) %% v%d + 2 * ((9 - v%d) * (v%d + 7))",
 					v - 1,
 					(int)i,
@@ -355,43 +346,37 @@ fn char* generate_random_program(long operations)
 				);
 				break;
 			case 1:
-				s = string::tformat("v%d + (v%d + v%d) * v%d - (v%d / v%d)", v - 1, v - 2, v - 3, v - 4, v - 5, v - 6);
+				result.appendf("v%d + (v%d + v%d) * v%d - (v%d / v%d)", v - 1, v - 2, v - 3, v - 4, v - 5, v - 6);
 				break;
 			case 2:
-				s = string::tformat("(3789 - (((v%d)))) + 1", v - 7);
+				result.appendf("(3789 - (((v%d)))) + 1", v - 7);
 				break;
 			case 3:
-				s = string::tformat("4/2 * (1-3) + v%d/v%d", v - 9, v - 5);
+				result.appendf("4/2 * (1-3) + v%d/v%d", v - 9, v - 5);
 				break;
 			case 4:
-				s = string::tformat("1+2+3+4+5+6+v%d", v - 1);
+				result.appendf("1+2+3+4+5+6+v%d", v - 1);
 				break;
 			case 5:
-				s = string::tformat("(99999 / v%d)", v - 3);
+				result.appendf("(99999 / v%d)", v - 3);
 				break;
 			case 6:
-				s = string::tformat("0 + 0 - v%d", v - 8);
+				result.appendf("0 + 0 - v%d", v - 8);
 				break;
 			case 7:
-				s = string::tformat("((((((((((v%d)))))))))) * 2", v - 6);
+				result.appendf("((((((((((v%d)))))))))) * 2", v - 6);
 				break;
 			case 8:
-				s = string::tformat("%d * (v%d%%6)%%7", (int)i, v - 1);
+				result.appendf("%d * (v%d%%6)%%7", (int)i, v - 1);
 				break;
 			case 9:
-				s = string::tformat("(1)/(0-v%d) + (v%d)", v - 5, v - 7);
+				result.appendf("(1)/(0-v%d) + (v%d)", v - 5, v - 7);
 				break;
 		}
-		mem::copy(result + len, (char*)s, s.len);
-		len += s.len;
-
-		s = "\n";
-		mem::copy(result + len, (char*)s, 1);
-		len += 1;
+		result.append("\n");
 	}
 
-	result[len] = 0;
-	return result;
+	return result.copy_str(mem);
 }
 
 struct CalculatorAstData
@@ -400,7 +385,7 @@ struct CalculatorAstData
 	long expressions_count;
 	long expressions_capacity;
 	uint result_val;
-	char* text;
+	char[] text;
 	long operations;
 }
 
@@ -415,10 +400,6 @@ fn void calculator_ast_prepare(Benchmark* self)
 	}
 
 	data.text = generate_random_program(data.operations);
-	data.expressions = null;
-	data.expressions_count = 0;
-	data.expressions_capacity = 0;
-	data.result_val = 0;
 }
 
 fn void calculator_ast_run(Benchmark* self, int iteration_id)
@@ -431,14 +412,14 @@ fn void calculator_ast_run(Benchmark* self, int iteration_id)
 		{
 			ast_node_free(data.expressions[i]);
 		}
-		mem::free(data.expressions);
+		free(data.expressions);
 		data.expressions = null;
 		data.expressions_count = 0;
 		data.expressions_capacity = 0;
 	}
 
 	CalculatorAstParser parser;
-	parser_init(&parser, ((ZString)data.text).str_view());
+	parser_init(&parser, (String)data.text);
 	parser_parse_all(&parser, data);
 
 	uint iteration_result = (uint)data.expressions_count;
@@ -461,10 +442,10 @@ fn void calculator_ast_cleanup(Benchmark* self)
 {
 	CalculatorAstData* data = (CalculatorAstData*)self.data;
 
-	if (data.text)
+	if (data.text.len > 0)
 	{
-		mem::free(data.text);
-		data.text = null;
+		free(data.text);
+		data.text = { };
 	}
 
 	if (data.expressions)
@@ -473,7 +454,7 @@ fn void calculator_ast_cleanup(Benchmark* self)
 		{
 			ast_node_free(data.expressions[i]);
 		}
-		mem::free(data.expressions);
+		free(data.expressions);
 		data.expressions = null;
 	}
 }
@@ -509,7 +490,7 @@ fn CalculatorInterpreterContext* interpreter_context_new()
 fn void interpreter_context_free(CalculatorInterpreterContext* ctx)
 {
 	ctx.variables.free();
-	mem::free(ctx);
+	free(ctx);
 }
 
 fn long interpreter_simple_div(long a, long b)
@@ -578,15 +559,10 @@ fn void calculator_interpreter_prepare(Benchmark* self)
 	}
 
 	data.ast_data.text = generate_random_program(data.ast_data.operations);
-	data.ast_data.expressions = null;
-	data.ast_data.expressions_count = 0;
-	data.ast_data.expressions_capacity = 0;
 
 	CalculatorAstParser parser;
-	parser_init(&parser, ((ZString)data.ast_data.text).str_view());
+	parser_init(&parser, (String)data.ast_data.text);
 	parser_parse_all(&parser, &data.ast_data);
-
-	data.result_val = 0;
 }
 
 fn void calculator_interpreter_run(Benchmark* self, int iteration_id)
@@ -614,10 +590,10 @@ fn void calculator_interpreter_cleanup(Benchmark* self)
 {
 	CalculatorInterpreterData* data = (CalculatorInterpreterData*)self.data;
 
-	if (data.ast_data.text)
+	if (data.ast_data.text.len > 0)
 	{
-		mem::free(data.ast_data.text);
-		data.ast_data.text = null;
+		free(data.ast_data.text);
+		data.ast_data.text = { };
 	}
 
 	if (data.ast_data.expressions)
@@ -626,7 +602,7 @@ fn void calculator_interpreter_cleanup(Benchmark* self)
 		{
 			ast_node_free(data.ast_data.expressions[i]);
 		}
-		mem::free(data.ast_data.expressions);
+		free(data.ast_data.expressions);
 		data.ast_data.expressions = null;
 	}
 }

@@ -3,8 +3,6 @@ module fannkuchredux;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 
 struct FannkuchreduxData
 {
@@ -98,7 +96,6 @@ fn void fannkuchredux_prepare(Benchmark* self)
 	{
 		data.n = 12;
 	}
-	data.result_val = 0;
 }
 
 fn void fannkuchredux_run(Benchmark* self, int iteration_id)
@@ -109,7 +106,7 @@ fn void fannkuchredux_run(Benchmark* self, int iteration_id)
 	int max_flips;
 	fannkuchredux_calculate((int)data.n, &checksum, &max_flips);
 
-	data.result_val = (data.result_val + (uint)(checksum * 100 + max_flips)) & 0xFFFFFFFFu;
+	data.result_val += (uint)((long)checksum * 100 + max_flips);
 }
 
 fn uint fannkuchredux_checksum(Benchmark* self)

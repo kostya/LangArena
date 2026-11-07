@@ -3,8 +3,6 @@ module spectralnorm;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::math;
 
 struct SpectralnormData
@@ -23,8 +21,8 @@ fn void spectralnorm_prepare(Benchmark* self)
 		data.size_val = 100;
 	}
 
-	data.u = mem::alloc_array(double, (usz)data.size_val);
-	data.v = mem::alloc_array(double, (usz)data.size_val);
+	data.u = mem::new_array(double, (usz)data.size_val);
+	data.v = mem::new_array(double, (usz)data.size_val);
 
 	for (long i = 0; i < data.size_val; i++)
 	{
@@ -40,7 +38,7 @@ fn double eval_A(long i, long j)
 
 fn double* eval_A_times_u(double* u, long n)
 {
-	double* result = mem::alloc_array(double, (usz)n);
+	double* result = mem::new_array(double, (usz)n);
 	for (long i = 0; i < n; i++)
 	{
 		double sum = 0.0;
@@ -55,7 +53,7 @@ fn double* eval_A_times_u(double* u, long n)
 
 fn double* eval_At_times_u(double* u, long n)
 {
-	double* result = mem::alloc_array(double, (usz)n);
+	double* result = mem::new_array(double, (usz)n);
 	for (long i = 0; i < n; i++)
 	{
 		double sum = 0.0;
@@ -72,7 +70,7 @@ fn double* eval_AtA_times_u(double* u, long n)
 {
 	double* temp   = eval_A_times_u(u, n);
 	double* result = eval_At_times_u(temp, n);
-	mem::free(temp);
+	free(temp);
 	return result;
 }
 
@@ -83,8 +81,8 @@ fn void spectralnorm_run(Benchmark* self, int iteration_id)
 	double* new_v = eval_AtA_times_u(data.u, data.size_val);
 	double* new_u = eval_AtA_times_u(new_v, data.size_val);
 
-	mem::free(data.u);
-	mem::free(data.v);
+	free(data.u);
+	free(data.v);
 
 	data.u = new_u;
 	data.v = new_v;
@@ -109,8 +107,8 @@ fn uint spectralnorm_checksum(Benchmark* self)
 fn void spectralnorm_cleanup(Benchmark* self)
 {
 	SpectralnormData* data = (SpectralnormData*)self.data;
-	mem::free(data.u);
-	mem::free(data.v);
+	free(data.u);
+	free(data.v);
 }
 
 fn Benchmark* spectralnorm_create() @cname("Spectralnorm_create") @export

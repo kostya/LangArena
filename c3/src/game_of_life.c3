@@ -3,14 +3,12 @@ module game_of_life;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 
 struct Cell
 {
 	bool alive;
 	bool next_state;
-	Cell** neighbors;
+	Cell*[8] neighbors;
 	int neighbor_count;
 }
 
@@ -31,8 +29,8 @@ struct GameOfLifeData
 
 fn uint fnv1a_hash(uint hash, uint value)
 {
-	const uint FNV_OFFSET_BASIS = 2166136261UL;
-	const uint FNV_PRIME        = 16777619UL;
+	const uint FNV_OFFSET_BASIS = 2166136261;
+	const uint FNV_PRIME        = 16777619;
 
 	if (hash == 0) hash = FNV_OFFSET_BASIS;
 	hash ^= value;
@@ -42,16 +40,12 @@ fn uint fnv1a_hash(uint hash, uint value)
 
 fn Cell* cell_create()
 {
-	Cell* cell = mem::new(Cell);
-	cell.neighbors = mem::alloc_array(Cell*, 8);
-	cell.neighbor_count = 0;
-	return cell;
+	return mem::new(Cell);
 }
 
 fn void cell_destroy(Cell* cell)
 {
-	mem::free(cell.neighbors);
-	mem::free(cell);
+	free(cell);
 }
 
 fn void cell_add_neighbor(Cell* cell, Cell* neighbor)
@@ -134,9 +128,9 @@ fn void game_of_life_grid_free(GameOfLifeGrid* grid)
 		{
 			cell_destroy(grid.cells[y][x]);
 		}
-		mem::free(grid.cells[y]);
+		free(grid.cells[y]);
 	}
-	mem::free(grid.cells);
+	free(grid.cells);
 }
 
 fn void game_of_life_next_generation(GameOfLifeGrid* grid)
@@ -197,15 +191,6 @@ fn void game_of_life_prepare(Benchmark* self)
 	data.width_val = helper::helper_config_i64(self.name, "w");
 	data.height_val = helper::helper_config_i64(self.name, "h");
 
-	if (data.width_val <= 0)
-	{
-		data.width_val = 256;
-	}
-	if (data.height_val <= 0)
-	{
-		data.height_val = 256;
-	}
-
 	game_of_life_grid_init(&data.grid, (int)data.width_val, (int)data.height_val);
 
 	for (int y = 0; y < data.grid.height; y++)
@@ -218,8 +203,6 @@ fn void game_of_life_prepare(Benchmark* self)
 			}
 		}
 	}
-
-	data.result_val = 0;
 }
 
 fn void game_of_life_run(Benchmark* self, int iteration_id)

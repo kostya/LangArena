@@ -3,8 +3,6 @@ module compress;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::collections::map;
 import std::sort;
 
@@ -13,14 +11,14 @@ fn char[] generate_test_data(long size)
 	String pattern  = "ABRACADABRA";
 	usz pattern_len = pattern.len;
 
-	char* data = mem::alloc_array(char, (usz)size);
+	char[] data = mem::new_array(char, (usz)size);
 
 	for (long i = 0; i < size; i++)
 	{
 		data[i] = pattern[(usz)i % pattern_len];
 	}
 
-	return data[:(usz)size];
+	return data;
 }
 
 struct BWTResult
@@ -42,18 +40,18 @@ fn BWTResult bwt_transform(char[] input)
 	usz n = input.len;
 	if (n == 0) return result;
 
-	usz* sa = mem::new_array(usz, (sz)n);
+	usz[] sa = mem::new_array(usz, (sz)n);
 	for (usz i = 0; i < n; i++)
 	{
 		sa[i] = i;
 	}
 
-	usz* temp_buffer       = mem::new_array(usz, (sz)n);
+	usz[] temp_buffer      = mem::new_array(usz, (sz)n);
 	usz[256] bucket_counts = { };
 
 	for (usz i = 0; i < n; i++)
 	{
-		bucket_counts[(uint)(char)input[sa[i]]]++;
+		bucket_counts[(uint)input[sa[i]]]++;
 	}
 
 	usz[256] bucket_starts;
@@ -67,13 +65,13 @@ fn BWTResult bwt_transform(char[] input)
 	for (usz i = 0; i < n; i++)
 	{
 		char c = input[sa[i]];
-		temp_buffer[bucket_starts[(uint)(char)c]++] = sa[i];
+		temp_buffer[bucket_starts[(uint)c]++] = sa[i];
 	}
-	mem::copy(sa, temp_buffer, (sz)n * usz::size);
+	mem::copy(sa.ptr, temp_buffer.ptr, (sz)n * usz::size);
 
 	if (n > 1)
 	{
-		int* rank        = mem::new_array(int, (sz)n);
+		int[] rank       = mem::new_array(int, (sz)n);
 		int current_rank = 0;
 		char prev_char   = input[sa[0]];
 
@@ -92,7 +90,7 @@ fn BWTResult bwt_transform(char[] input)
 		usz k = 1;
 		while (k < n)
 		{
-			Pair* pairs = mem::new_array(Pair, (sz)n);
+			Pair[] pairs = mem::new_array(Pair, (sz)n);
 
 			for (usz i = 0; i < n; i++)
 			{
@@ -100,7 +98,7 @@ fn BWTResult bwt_transform(char[] input)
 				pairs[i].second = rank[(i + k) % n];
 			}
 
-			int* count = mem::new_array(int, (sz)n + 1);
+			int[] count = mem::new_array(int, (sz)n + 1);
 
 			for (usz i = 0; i < n; i++)
 			{
@@ -111,14 +109,14 @@ fn BWTResult bwt_transform(char[] input)
 				count[i] += count[i - 1];
 			}
 
-			mem::copy(temp_buffer, sa, (sz)n * usz::size);
+			mem::copy(temp_buffer.ptr, sa.ptr, (sz)n * usz::size);
 			for (int i = (int)n - 1; i >= 0; i--)
 			{
 				int key = pairs[temp_buffer[i]].second;
 				sa[--count[key]] = temp_buffer[i];
 			}
 
-			mem::set(count, 0, (sz)(n + 1) * int::size);
+			mem::set(count.ptr, 0, (sz)(n + 1) * int::size);
 
 			for (usz i = 0; i < n; i++)
 			{
@@ -129,14 +127,14 @@ fn BWTResult bwt_transform(char[] input)
 				count[i] += count[i - 1];
 			}
 
-			mem::copy(temp_buffer, sa, (sz)n * usz::size);
+			mem::copy(temp_buffer.ptr, sa.ptr, (sz)n * usz::size);
 			for (int i = (int)n - 1; i >= 0; i--)
 			{
 				int key = pairs[temp_buffer[i]].first;
 				sa[--count[key]] = temp_buffer[i];
 			}
 
-			int* new_rank = mem::new_array(int, (sz)n);
+			int[] new_rank = mem::new_array(int, (sz)n);
 			new_rank[sa[0]] = 0;
 			for (usz i = 1; i < n; i++)
 			{
@@ -147,16 +145,16 @@ fn BWTResult bwt_transform(char[] input)
 					: 0);
 			}
 
-			mem::free(count);
-			mem::free(pairs);
-			mem::free(rank);
+			free(count);
+			free(pairs);
+			free(rank);
 			rank = new_rank;
 			k *= 2;
 		}
-		mem::free(rank);
+		free(rank);
 	}
 
-	char* transformed = mem::new_array(char, (sz)n);
+	char[] transformed = mem::new_array(char, (sz)n);
 	result.original_idx = 0;
 
 	for (usz i = 0; i < n; i++)
@@ -173,11 +171,10 @@ fn BWTResult bwt_transform(char[] input)
 		}
 	}
 
-	result.transformed = transformed[:n];
+	result.transformed = transformed;
 
-	mem::free(sa);
-	mem::free(temp_buffer);
-
+	free(sa);
+	free(temp_buffer);
 	return result;
 }
 
@@ -193,7 +190,6 @@ fn void bwt_encode_prepare(Benchmark* self)
 	BWTEncodeData* data = (BWTEncodeData*)self.data;
 	data.size_val = helper::helper_config_i64(self.name, "size");
 	data.test_data = generate_test_data(data.size_val);
-	data.result_val = 0;
 }
 
 fn void bwt_encode_run(Benchmark* self, int iteration_id)
@@ -203,8 +199,8 @@ fn void bwt_encode_run(Benchmark* self, int iteration_id)
 
 	if (result.transformed.len > 0)
 	{
-		data.result_val = (uint)(data.result_val + (uint)result.transformed.len);
-		mem::free(result.transformed.ptr);
+		data.result_val += (uint)result.transformed.len;
+		free(result.transformed);
 	}
 }
 
@@ -216,8 +212,8 @@ fn uint bwt_encode_checksum(Benchmark* self)
 fn void bwt_encode_cleanup(Benchmark* self)
 {
 	BWTEncodeData* data = (BWTEncodeData*)self.data;
-	mem::free(data.test_data.ptr);
-	mem::free(data);
+	free(data.test_data);
+	free(data);
 	self.data = null;
 }
 
@@ -245,7 +241,7 @@ fn char[] bwt_inverse(BWTResult* bwt_result)
 	int[256] counts = { };
 	for (usz i = 0; i < n; i++)
 	{
-		counts[(uint)(char)bwt[i]]++;
+		counts[(uint)bwt[i]]++;
 	}
 
 	int[256] positions;
@@ -256,19 +252,19 @@ fn char[] bwt_inverse(BWTResult* bwt_result)
 		total += counts[i];
 	}
 
-	usz* next            = mem::alloc_array(usz, (sz)n);
+	usz[] next           = mem::new_array(usz, (sz)n);
 	int[256] temp_counts = { };
 
 	for (usz i = 0; i < n; i++)
 	{
-		int byte_idx = (uint)(char)bwt[i];
+		int byte_idx = (uint)bwt[i];
 		int pos      = positions[byte_idx] + temp_counts[byte_idx];
 		next[pos] = i;
 		temp_counts[byte_idx]++;
 	}
 
-	char* result = mem::alloc_array(char, (sz)n);
-	usz idx      = bwt_result.original_idx;
+	char[] result = mem::new_array(char, (sz)n);
+	usz idx       = bwt_result.original_idx;
 
 	for (usz i = 0; i < n; i++)
 	{
@@ -276,8 +272,8 @@ fn char[] bwt_inverse(BWTResult* bwt_result)
 		result[i] = bwt[idx];
 	}
 
-	mem::free(next);
-	return result[:n];
+	free(next);
+	return result;
 }
 
 struct BWTDecodeData
@@ -295,20 +291,18 @@ fn void bwt_decode_prepare(Benchmark* self)
 	data.size_val = helper::helper_config_i64(self.name, "size");
 	data.test_data = generate_test_data(data.size_val);
 	data.bwt_result = bwt_transform(data.test_data);
-	data.inverted = { };
-	data.result_val = 0;
 }
 
 fn void bwt_decode_run(Benchmark* self, int iteration_id)
 {
 	BWTDecodeData* data = (BWTDecodeData*)self.data;
 
-	mem::free(data.inverted.ptr);
+	free(data.inverted);
 	data.inverted = bwt_inverse(&data.bwt_result);
 
 	if (data.inverted.len > 0)
 	{
-		data.result_val = (uint)(data.result_val + (uint)data.inverted.len);
+		data.result_val += (uint)data.inverted.len;
 	}
 }
 
@@ -330,10 +324,10 @@ fn uint bwt_decode_checksum(Benchmark* self)
 fn void bwt_decode_cleanup(Benchmark* self)
 {
 	BWTDecodeData* data = (BWTDecodeData*)self.data;
-	mem::free(data.test_data.ptr);
-	mem::free(data.inverted.ptr);
-	mem::free(data.bwt_result.transformed.ptr);
-	mem::free(data);
+	free(data.test_data);
+	free(data.inverted);
+	free(data.bwt_result.transformed);
+	free(data);
 	self.data = null;
 }
 
@@ -380,7 +374,7 @@ fn int compare_huffman_nodes(HuffmanNode* a, HuffmanNode* b)
 
 fn HuffmanNode* build_huffman_tree(int[256] frequencies)
 {
-	HuffmanNode** nodes = mem::alloc_array(HuffmanNode*, 256);
+	HuffmanNode** nodes = mem::new_array(HuffmanNode*, 256);
 	int node_count      = 0;
 
 	for (int i = 0; i < 256; i++)
@@ -397,7 +391,7 @@ fn HuffmanNode* build_huffman_tree(int[256] frequencies)
 
 	if (node_count == 0)
 	{
-		mem::free(nodes);
+		free(nodes);
 		return null;
 	}
 
@@ -411,7 +405,7 @@ fn HuffmanNode* build_huffman_tree(int[256] frequencies)
 		root.right = mem::new(HuffmanNode);
 		root.right.is_leaf = true;
 
-		mem::free(nodes);
+		free(nodes);
 		return root;
 	}
 
@@ -439,7 +433,7 @@ fn HuffmanNode* build_huffman_tree(int[256] frequencies)
 	}
 
 	HuffmanNode* root = nodes[0];
-	mem::free(nodes);
+	free(nodes);
 	return root;
 }
 
@@ -449,7 +443,7 @@ fn void build_huffman_codes(HuffmanNode* node, int code, int length, HuffmanCode
 
 	if (node.is_leaf)
 	{
-		int idx = (uint)(char)node.byte_val;
+		int idx = (uint)node.byte_val;
 		codes.code_lengths[idx] = length;
 		codes.codes[idx] = code;
 	}
@@ -474,7 +468,7 @@ fn void free_huffman_tree(HuffmanNode* node)
 		free_huffman_tree(node.left);
 		free_huffman_tree(node.right);
 	}
-	mem::free(node);
+	free(node);
 }
 
 fn EncodedResult huffman_encode(char[] data, HuffmanCodes* codes, int[256] frequencies)
@@ -485,7 +479,7 @@ fn EncodedResult huffman_encode(char[] data, HuffmanCodes* codes, int[256] frequ
 	mem::copy(&result.frequencies, &frequencies, 256 * int::size);
 
 	usz max_size  = data.len * 2;
-	char* buf     = mem::alloc_array(char, (sz)max_size);
+	char[] buf    = mem::new_array(char, (sz)max_size);
 	usz data_size = 0;
 
 	char current_byte = 0;
@@ -493,7 +487,7 @@ fn EncodedResult huffman_encode(char[] data, HuffmanCodes* codes, int[256] frequ
 
 	for (usz i = 0; i < data.len; i++)
 	{
-		int idx    = (uint)(char)data[i];
+		int idx    = (uint)data[i];
 		int code   = codes.codes[idx];
 		int length = codes.code_lengths[idx];
 
@@ -513,7 +507,7 @@ fn EncodedResult huffman_encode(char[] data, HuffmanCodes* codes, int[256] frequ
 				if (data_size >= max_size)
 				{
 					max_size *= 2;
-					buf = mem::realloc(buf, (sz)max_size);
+					buf = mem::realloc(buf.ptr, (sz)max_size)[:max_size];
 				}
 				buf[data_size++] = current_byte;
 				current_byte = 0;
@@ -527,7 +521,7 @@ fn EncodedResult huffman_encode(char[] data, HuffmanCodes* codes, int[256] frequ
 		if (data_size >= max_size)
 		{
 			max_size *= 2;
-			buf = mem::realloc(buf, (sz)max_size);
+			buf = mem::realloc(buf.ptr, (sz)max_size)[:max_size];
 		}
 		buf[data_size++] = current_byte;
 	}
@@ -541,7 +535,7 @@ fn char[] huffman_decode(char[] encoded, HuffmanNode* root, int bit_count)
 	if (!root || bit_count <= 0 || encoded.len == 0) return { };
 
 	usz max_size              = (usz)bit_count;
-	char* result              = mem::alloc_array(char, (sz)max_size);
+	char[] result             = mem::new_array(char, (sz)max_size);
 	usz result_idx            = 0;
 	HuffmanNode* current_node = root;
 	int bits_processed        = 0;
@@ -553,7 +547,7 @@ fn char[] huffman_decode(char[] encoded, HuffmanNode* root, int bit_count)
 
 		for (int bit_pos = 7; bit_pos >= 0 && bits_processed < bit_count; bit_pos--)
 		{
-			int bit = ((uint)(char)byte_val >> bit_pos) & 1;
+			int bit = ((uint)byte_val >> bit_pos) & 1;
 			bits_processed++;
 
 			current_node = bit != 0 ? current_node.right : current_node.left;
@@ -583,20 +577,19 @@ fn void huff_encode_prepare(Benchmark* self)
 	HuffEncodeData* data = (HuffEncodeData*)self.data;
 	data.size_val = helper::helper_config_i64(self.name, "size");
 	data.test_data = generate_test_data(data.size_val);
-	data.result_val = 0;
 }
 
 fn void huff_encode_run(Benchmark* self, int iteration_id)
 {
 	HuffEncodeData* data = (HuffEncodeData*)self.data;
 
-	mem::free(data.encoded.data.ptr);
+	free(data.encoded.data);
 	data.encoded = (EncodedResult) { };
 
 	int[256] frequencies = { };
 	for (usz i = 0; i < data.test_data.len; i++)
 	{
-		frequencies[(uint)(char)data.test_data[i]]++;
+		frequencies[(uint)data.test_data[i]]++;
 	}
 
 	HuffmanNode* tree = build_huffman_tree(frequencies);
@@ -609,7 +602,7 @@ fn void huff_encode_run(Benchmark* self, int iteration_id)
 
 	if (data.encoded.data.len > 0)
 	{
-		data.result_val = (uint)(data.result_val + (uint)data.encoded.data.len);
+		data.result_val += (uint)data.encoded.data.len;
 	}
 
 	free_huffman_tree(tree);
@@ -623,9 +616,9 @@ fn uint huff_encode_checksum(Benchmark* self)
 fn void huff_encode_cleanup(Benchmark* self)
 {
 	HuffEncodeData* data = (HuffEncodeData*)self.data;
-	mem::free(data.test_data.ptr);
-	mem::free(data.encoded.data.ptr);
-	mem::free(data);
+	free(data.test_data);
+	free(data.encoded.data);
+	free(data);
 	self.data = null;
 }
 
@@ -657,13 +650,11 @@ fn void huff_decode_prepare(Benchmark* self)
 	HuffDecodeData* data = (HuffDecodeData*)self.data;
 	data.size_val = helper::helper_config_i64(self.name, "size");
 	data.test_data = generate_test_data(data.size_val);
-	data.result_val = 0;
-	data.decoded = { };
 
 	int[256] frequencies = { };
 	for (usz i = 0; i < data.test_data.len; i++)
 	{
-		frequencies[(uint)(char)data.test_data[i]]++;
+		frequencies[(uint)data.test_data[i]]++;
 	}
 
 	HuffmanNode* tree = build_huffman_tree(frequencies);
@@ -683,12 +674,12 @@ fn void huff_decode_run(Benchmark* self, int iteration_id)
 	HuffmanNode* tree = build_huffman_tree(data.encoded.frequencies);
 	if (!tree) return;
 
-	mem::free(data.decoded.ptr);
+	free(data.decoded);
 	data.decoded = huffman_decode(data.encoded.data, tree, data.encoded.bit_count);
 
 	if (data.decoded.len > 0)
 	{
-		data.result_val = (uint)(data.result_val + (uint)data.decoded.len);
+		data.result_val += (uint)data.decoded.len;
 	}
 
 	free_huffman_tree(tree);
@@ -712,10 +703,10 @@ fn uint huff_decode_checksum(Benchmark* self)
 fn void huff_decode_cleanup(Benchmark* self)
 {
 	HuffDecodeData* data = (HuffDecodeData*)self.data;
-	mem::free(data.test_data.ptr);
-	mem::free(data.decoded.ptr);
-	mem::free(data.encoded.data.ptr);
-	mem::free(data);
+	free(data.test_data);
+	free(data.decoded);
+	free(data.encoded.data);
+	free(data);
 	self.data = null;
 }
 
@@ -763,7 +754,7 @@ struct BitOutputStream
 {
 	int buffer;
 	int bit_pos;
-	char* bytes;
+	char[] bytes;
 	usz bytes_size;
 	usz bytes_capacity;
 	int bits_written;
@@ -773,7 +764,7 @@ fn BitOutputStream* bit_output_create()
 {
 	BitOutputStream* out = mem::new(BitOutputStream);
 	out.bytes_capacity = 1024;
-	out.bytes = mem::alloc_array(char, (sz)out.bytes_capacity);
+	out.bytes = mem::new_array(char, (sz)out.bytes_capacity);
 	return out;
 }
 
@@ -789,7 +780,7 @@ fn void bit_output_write_bit(BitOutputStream* out, int bit)
 		if (out.bytes_size >= out.bytes_capacity)
 		{
 			out.bytes_capacity *= 2;
-			out.bytes = mem::realloc(out.bytes, (sz)out.bytes_capacity);
+			out.bytes = mem::realloc(out.bytes.ptr, (sz)out.bytes_capacity)[:out.bytes_capacity];
 		}
 		out.bytes[out.bytes_size++] = (char)out.buffer;
 		out.buffer = 0;
@@ -807,22 +798,22 @@ fn char[] bit_output_flush(BitOutputStream* out)
 		if (out.bytes_size >= out.bytes_capacity)
 		{
 			out.bytes_capacity *= 2;
-			out.bytes = mem::realloc(out.bytes, (sz)out.bytes_capacity);
+			out.bytes = mem::realloc(out.bytes.ptr, (sz)out.bytes_capacity)[:out.bytes_capacity];
 		}
 		out.bytes[out.bytes_size++] = (char)out.buffer;
 	}
 
-	char* result = mem::alloc_array(char, (sz)out.bytes_size);
-	mem::copy(result, out.bytes, (sz)out.bytes_size);
-	return result[:out.bytes_size];
+	char[] result = mem::new_array(char, (sz)out.bytes_size);
+	mem::copy(result.ptr, out.bytes.ptr, (sz)out.bytes_size);
+	return result;
 }
 
 fn void bit_output_free(BitOutputStream* out)
 {
 	if (out)
 	{
-		mem::free(out.bytes);
-		mem::free(out);
+		free(out.bytes);
+		free(out);
 	}
 }
 
@@ -841,7 +832,7 @@ fn ArithEncodedResult arith_encode(char[] data)
 	int[256] frequencies = { };
 	for (usz i = 0; i < data.len; i++)
 	{
-		frequencies[(uint)(char)data[i]]++;
+		frequencies[(uint)data[i]]++;
 	}
 
 	ArithFreqTable* freq_table = create_arith_freq_table(frequencies);
@@ -853,13 +844,13 @@ fn ArithEncodedResult arith_encode(char[] data)
 	BitOutputStream* output = bit_output_create();
 	if (!output)
 	{
-		mem::free(freq_table);
+		free(freq_table);
 		return result;
 	}
 
 	for (usz i = 0; i < data.len; i++)
 	{
-		int idx     = (uint)(char)data[i];
+		int idx     = (uint)data[i];
 		ulong range = high - low + 1;
 
 		high = low + (range * (ulong)freq_table.high[idx] / (ulong)freq_table.total) - 1;
@@ -926,7 +917,7 @@ fn ArithEncodedResult arith_encode(char[] data)
 	mem::copy(&result.frequencies, &frequencies, 256 * int::size);
 
 	bit_output_free(output);
-	mem::free(freq_table);
+	free(freq_table);
 	return result;
 }
 
@@ -945,9 +936,8 @@ fn void arith_encode_prepare(Benchmark* self)
 	{
 		data.size_val = 1000;
 	}
-	mem::free(data.test_data.ptr);
+	free(data.test_data);
 	data.test_data = generate_test_data(data.size_val);
-	data.result_val = 0;
 }
 
 fn void arith_encode_run(Benchmark* self, int iteration_id)
@@ -958,8 +948,8 @@ fn void arith_encode_run(Benchmark* self, int iteration_id)
 	ArithEncodedResult result = arith_encode(data.test_data);
 	if (result.data.len > 0)
 	{
-		data.result_val = (uint)(data.result_val + (uint)result.data.len);
-		mem::free(result.data.ptr);
+		data.result_val += (uint)result.data.len;
+		free(result.data);
 	}
 }
 
@@ -971,8 +961,8 @@ fn uint arith_encode_checksum(Benchmark* self)
 fn void arith_encode_cleanup(Benchmark* self)
 {
 	ArithEncodeData* data = (ArithEncodeData*)self.data;
-	mem::free(data.test_data.ptr);
-	mem::free(data);
+	free(data.test_data);
+	free(data);
 	self.data = null;
 }
 
@@ -1016,7 +1006,7 @@ fn int bit_input_read_bit(BitInputStream* input)
 		input.bit_pos = 0;
 		input.current_byte = input.byte_pos < input.bytes_size ? input.bytes[input.byte_pos] : 0;
 	}
-	int bit = ((uint)(char)input.current_byte >> (7 - input.bit_pos)) & 1;
+	int bit = ((uint)input.current_byte >> (7 - input.bit_pos)) & 1;
 	input.bit_pos++;
 	return bit;
 }
@@ -1042,7 +1032,7 @@ fn char[] arith_decode(ArithEncodedResult* encoded)
 		high_table[i] = cum;
 	}
 
-	char* result = mem::alloc_array(char, (usz)total);
+	char[] result = mem::new_array(char, (usz)total);
 	BitInputStream input;
 	bit_input_init(&input, encoded.data);
 
@@ -1108,7 +1098,7 @@ fn char[] arith_decode(ArithEncodedResult* encoded)
 		}
 	}
 
-	return result[:(usz)total];
+	return result;
 }
 
 struct ArithDecodeData
@@ -1128,23 +1118,21 @@ fn void arith_decode_prepare(Benchmark* self)
 	{
 		data.size_val = 1000;
 	}
-	mem::free(data.test_data.ptr);
+	free(data.test_data);
 	data.test_data = generate_test_data(data.size_val);
-	mem::free(data.encoded.data.ptr);
+	free(data.encoded.data);
 	data.encoded = arith_encode(data.test_data);
-	data.decoded = { };
-	data.result_val = 0;
 }
 
 fn void arith_decode_run(Benchmark* self, int iteration_id)
 {
 	ArithDecodeData* data = (ArithDecodeData*)self.data;
-	mem::free(data.decoded.ptr);
+	free(data.decoded);
 	data.decoded = arith_decode(&data.encoded);
 
 	if (data.decoded.len > 0)
 	{
-		data.result_val = (uint)(data.result_val + (uint)data.decoded.len);
+		data.result_val += (uint)data.decoded.len;
 	}
 }
 
@@ -1166,10 +1154,10 @@ fn uint arith_decode_checksum(Benchmark* self)
 fn void arith_decode_cleanup(Benchmark* self)
 {
 	ArithDecodeData* data = (ArithDecodeData*)self.data;
-	mem::free(data.test_data.ptr);
-	mem::free(data.decoded.ptr);
-	mem::free(data.encoded.data.ptr);
-	mem::free(data);
+	free(data.test_data);
+	free(data.decoded);
+	free(data.encoded.data);
+	free(data);
 	self.data = null;
 }
 
@@ -1223,7 +1211,7 @@ fn LZWResult lzw_encode(char[] input)
 	usz cur_len   = 1;
 
 	usz max_size  = input.len * 2;
-	char* buf     = mem::alloc_array(char, (sz)max_size);
+	char[] buf    = mem::new_array(char, (sz)max_size);
 	usz data_size = 0;
 
 	for (usz i = 1; i < input.len; i++)
@@ -1257,7 +1245,7 @@ fn LZWResult lzw_encode(char[] input)
 			if (data_size + 2 > max_size)
 			{
 				max_size *= 2;
-				buf = mem::realloc(buf, (sz)max_size);
+				buf = mem::realloc(buf.ptr, (sz)max_size)[:max_size];
 			}
 			buf[data_size++] = (char)((code >> 8) & 0xFF);
 			buf[data_size++] = (char)(code & 0xFF);
@@ -1276,7 +1264,7 @@ fn LZWResult lzw_encode(char[] input)
 	if (data_size + 2 > max_size)
 	{
 		max_size *= 2;
-		buf = mem::realloc(buf, (sz)max_size);
+		buf = mem::realloc(buf.ptr, (sz)max_size)[:max_size];
 	}
 	buf[data_size++] = (char)((last_code >> 8) & 0xFF);
 	buf[data_size++] = (char)(last_code & 0xFF);
@@ -1300,7 +1288,6 @@ fn void lzw_encode_prepare(Benchmark* self)
 	LZWEncodeData* data = (LZWEncodeData*)self.data;
 	data.size_val = helper::helper_config_i64(self.name, "size");
 	data.test_data = generate_test_data(data.size_val);
-	data.result_val = 0;
 }
 
 fn void lzw_encode_run(Benchmark* self, int iteration_id)
@@ -1310,8 +1297,8 @@ fn void lzw_encode_run(Benchmark* self, int iteration_id)
 
 	if (result.data.len > 0)
 	{
-		data.result_val = (uint)(data.result_val + (uint)result.data.len);
-		mem::free(result.data.ptr);
+		data.result_val += (uint)result.data.len;
+		free(result.data);
 	}
 }
 
@@ -1323,8 +1310,8 @@ fn uint lzw_encode_checksum(Benchmark* self)
 fn void lzw_encode_cleanup(Benchmark* self)
 {
 	LZWEncodeData* data = (LZWEncodeData*)self.data;
-	mem::free(data.test_data.ptr);
-	mem::free(data);
+	free(data.test_data);
+	free(data);
 	self.data = null;
 }
 
@@ -1373,7 +1360,7 @@ fn char[] lzw_decode(LZWResult* encoded)
 	}
 
 	usz result_capacity = encoded.data.len * 2;
-	char* result        = mem::alloc_array(char, (sz)result_capacity);
+	char[] result       = mem::new_array(char, (sz)result_capacity);
 	usz result_pos      = 0;
 
 	char* data = encoded.data.ptr;
@@ -1381,16 +1368,16 @@ fn char[] lzw_decode(LZWResult* encoded)
 
 	if (pos + 1 >= encoded.data.len)
 	{
-		mem::free(result);
+		free(result);
 		return { };
 	}
 
-	int old_code = ((uint)(char)data[pos] << 8) | (uint)(char)data[pos + 1];
+	int old_code = ((uint)data[pos] << 8) | (uint)data[pos + 1];
 	pos += 2;
 
 	if (old_code < 0 || old_code >= (int)dict_size)
 	{
-		mem::free(result);
+		free(result);
 		return { };
 	}
 
@@ -1400,16 +1387,16 @@ fn char[] lzw_decode(LZWResult* encoded)
 	if (result_pos + old_len >= result_capacity)
 	{
 		result_capacity *= 2;
-		result = mem::realloc(result, (sz)result_capacity);
+		result = mem::realloc(result.ptr, (sz)result_capacity)[:result_capacity];
 	}
-	mem::copy(result + result_pos, old_str, (sz)old_len);
+	mem::copy(result.ptr + result_pos, old_str, (sz)old_len);
 	result_pos += old_len;
 
 	int next_code = 256;
 
 	while (pos + 1 < encoded.data.len)
 	{
-		int new_code = ((uint)(char)data[pos] << 8) | (uint)(char)data[pos + 1];
+		int new_code = ((uint)data[pos] << 8) | (uint)data[pos + 1];
 		pos += 2;
 
 		char* new_str;
@@ -1428,16 +1415,16 @@ fn char[] lzw_decode(LZWResult* encoded)
 		}
 		else
 		{
-			mem::free(result);
+			free(result);
 			return { };
 		}
 
 		if (result_pos + new_len >= result_capacity)
 		{
 			result_capacity *= 2;
-			result = mem::realloc(result, (sz)result_capacity);
+			result = mem::realloc(result.ptr, (sz)result_capacity)[:result_capacity];
 		}
-		mem::copy(result + result_pos, new_str, (sz)new_len);
+		mem::copy(result.ptr + result_pos, new_str, (sz)new_len);
 		result_pos += new_len;
 
 		usz entry_len = old_len + 1;
@@ -1470,20 +1457,18 @@ fn void lzw_decode_prepare(Benchmark* self)
 	data.size_val = helper::helper_config_i64(self.name, "size");
 	data.test_data = generate_test_data(data.size_val);
 	data.encoded = lzw_encode(data.test_data);
-	data.decoded = { };
-	data.result_val = 0;
 }
 
 fn void lzw_decode_run(Benchmark* self, int iteration_id)
 {
 	LZWDecodeData* data = (LZWDecodeData*)self.data;
 
-	mem::free(data.decoded.ptr);
+	free(data.decoded);
 	data.decoded = lzw_decode(&data.encoded);
 
 	if (data.decoded.len > 0)
 	{
-		data.result_val = (uint)(data.result_val + (uint)data.decoded.len);
+		data.result_val += (uint)data.decoded.len;
 	}
 }
 
@@ -1505,10 +1490,10 @@ fn uint lzw_decode_checksum(Benchmark* self)
 fn void lzw_decode_cleanup(Benchmark* self)
 {
 	LZWDecodeData* data = (LZWDecodeData*)self.data;
-	mem::free(data.test_data.ptr);
-	mem::free(data.decoded.ptr);
-	mem::free(data.encoded.data.ptr);
-	mem::free(data);
+	free(data.test_data);
+	free(data.decoded);
+	free(data.encoded.data);
+	free(data);
 	self.data = null;
 }
 

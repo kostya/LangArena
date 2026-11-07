@@ -3,8 +3,6 @@ module brainfuck;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 
 struct Tape
 {
@@ -24,7 +22,7 @@ fn void tape_destroy(Tape* tape)
 {
 	if (tape && tape.data)
 	{
-		mem::free(tape.data);
+		free(tape.data);
 		tape.data = null;
 		tape.size = 0;
 		tape.pos = 0;
@@ -92,8 +90,8 @@ fn char[] filter_commands(String input)
 
 	if (count == 0) return { };
 
-	char* program = mem::alloc_array(char, count);
-	usz pos       = 0;
+	char[] program = mem::alloc_array(char, count);
+	usz pos        = 0;
 	foreach (c : input)
 	{
 		switch (c)
@@ -112,15 +110,15 @@ fn char[] filter_commands(String input)
 		}
 	}
 
-	return program[:count];
+	return program;
 }
 
 fn int[] build_jumps(char[] program)
 {
 	if (program.len == 0) return { };
 
-	int* jumps    =  mem::new_array(int, program.len);
-	int* stack    =  mem::alloc_array(int, program.len / 2 + 1);
+	int[] jumps   =  mem::new_array(int, program.len);
+	int[] stack   =  mem::alloc_array(int, program.len / 2 + 1);
 	int stack_top = -1;
 
 	for (int pc = 0; pc < (int)program.len; pc++)
@@ -141,8 +139,8 @@ fn int[] build_jumps(char[] program)
 		}
 	}
 
-	mem::free(stack);
-	return jumps[:program.len];
+	free(stack);
+	return jumps;
 }
 
 fn uint execute_program(char[] program, int[] jumps)
@@ -212,8 +210,6 @@ fn void brainfuck_array_prepare(Benchmark* self)
 
 	data.warmup_program = filter_commands(warmup_text);
 	data.warmup_jumps = build_jumps(data.warmup_program);
-
-	data.result_val = 0;
 }
 
 fn void brainfuck_array_warmup(Benchmark* self)
@@ -260,12 +256,12 @@ fn void brainfuck_array_cleanup(Benchmark* self)
 
 	BrainfuckArrayData* data = (BrainfuckArrayData*)self.data;
 
-	mem::free(data.program.ptr);
-	mem::free(data.jumps.ptr);
-	mem::free(data.warmup_program.ptr);
-	mem::free(data.warmup_jumps.ptr);
+	free(data.program);
+	free(data.jumps);
+	free(data.warmup_program);
+	free(data.warmup_jumps);
 
-	mem::free(self.data);
+	free(self.data);
 	self.data = null;
 }
 

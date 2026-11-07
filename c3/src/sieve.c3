@@ -3,8 +3,6 @@ module sieve;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::math;
 
 struct SieveData
@@ -17,8 +15,8 @@ fn int sieve_generate(long limit)
 {
 	if (limit < 2) return 0;
 
-	char* primes = mem::alloc_array(char, (usz)(limit + 1));
-	mem::set(primes, 1, (usz)(limit + 1));
+	char[] primes = mem::new_array(char, (usz)(limit + 1));
+	primes[..] = 1;
 	primes[0] = 0;
 	primes[1] = 0;
 
@@ -47,7 +45,7 @@ fn int sieve_generate(long limit)
 		}
 	}
 
-	mem::free(primes);
+	free(primes);
 	return last_prime + count_primes;
 }
 
@@ -59,7 +57,6 @@ fn void sieve_prepare(Benchmark* self)
 	{
 		data.limit = 1000000;
 	}
-	data.checksum = 0;
 }
 
 fn void sieve_run(Benchmark* self, int iteration_id)
@@ -74,6 +71,16 @@ fn uint sieve_checksum(Benchmark* self)
 	return ((SieveData*)self.data).checksum;
 }
 
+fn void sieve_cleanup(Benchmark* self)
+{
+	SieveData* data = (SieveData*)self.data;
+	if (data)
+	{
+		free(data);
+		self.data = null;
+	}
+}
+
 fn Benchmark* sieve_create() @cname("Sieve_create") @export
 {
 	Benchmark* bench = benchmark::benchmark_create("Etc::Sieve");
@@ -84,6 +91,7 @@ fn Benchmark* sieve_create() @cname("Sieve_create") @export
 	bench.prepare = (PrepareFn)&sieve_prepare;
 	bench.run = (RunFn)&sieve_run;
 	bench.checksum = (ChecksumFn)&sieve_checksum;
+	bench.cleanup = (CleanupFn)&sieve_cleanup;
 
 	return bench;
 }

@@ -2,7 +2,7 @@ module binarytrees;
 
 import benchmark;
 import helper;
-import std::core::mem;
+import std::collections::list;
 
 struct TreeNodeObj
 {
@@ -15,8 +15,6 @@ fn TreeNodeObj* tree_node_new(int item, int depth)
 {
 	TreeNodeObj* node = mem::tnew(TreeNodeObj);
 	node.item = item;
-	node.left = null;
-	node.right = null;
 
 	if (depth > 0)
 	{
@@ -46,7 +44,6 @@ fn void binarytrees_obj_prepare(Benchmark* self)
 {
 	BinarytreesObjData* data = (BinarytreesObjData*)self.data;
 	data.n = helper::helper_config_i64(self.name, "depth");
-	data.result_val = 0;
 }
 
 fn void binarytrees_obj_run(Benchmark* self, int iteration_id)
@@ -68,11 +65,9 @@ fn uint binarytrees_obj_checksum(Benchmark* self)
 
 fn void binarytrees_obj_cleanup(Benchmark* self)
 {
-	if (self && self.data)
-	{
-		mem::free(self.data);
-		self.data = null;
-	}
+	BinarytreesObjData* data = (BinarytreesObjData*)self.data;
+	free(data);
+	self.data = null;
 }
 
 fn Benchmark* binarytrees_obj_create() @cname("BinarytreesObj_create") @export
@@ -80,8 +75,6 @@ fn Benchmark* binarytrees_obj_create() @cname("BinarytreesObj_create") @export
 	Benchmark* bench = benchmark::benchmark_create("Binarytrees::Obj");
 
 	BinarytreesObjData* data = mem::new(BinarytreesObjData);
-	data.n = 0;
-	data.result_val = 0;
 
 	bench.data = data;
 	bench.prepare = (PrepareFn)&binarytrees_obj_prepare;
@@ -101,17 +94,13 @@ struct ArenaNode
 
 struct Arena
 {
-	ArenaNode* nodes;
-	usz capacity;
-	usz size;
+	List{ArenaNode} nodes;
 }
 
 fn Arena* arena_new()
 {
 	Arena* arena = mem::new(Arena);
-	arena.nodes = null;
-	arena.capacity = 0;
-	arena.size = 0;
+	arena.nodes.init(mem);
 	return arena;
 }
 
@@ -119,41 +108,16 @@ fn void arena_free(Arena* arena)
 {
 	if (arena)
 	{
-		mem::free(arena.nodes);
-		mem::free(arena);
+		arena.nodes.free();
+		free(arena);
 	}
-}
-
-fn int arena_add(Arena* arena, int item)
-{
-	if (!arena) return -1;
-
-	if (arena.size >= arena.capacity)
-	{
-		usz new_capacity     = arena.capacity == 0 ? 1024 : arena.capacity * 2;
-		ArenaNode* new_nodes = mem::realloc(arena.nodes, (sz)new_capacity * ArenaNode::size);
-		if (!new_nodes) return -1;
-
-		arena.nodes = new_nodes;
-		arena.capacity = new_capacity;
-	}
-
-	int idx         = (int)arena.size;
-	ArenaNode* node = &arena.nodes[idx];
-	node.item = item;
-	node.left = -1;
-	node.right = -1;
-	arena.size++;
-
-	return idx;
 }
 
 fn int arena_build_tree(Arena* arena, int item, int depth)
 {
-	if (!arena) return -1;
-
-	int idx = arena_add(arena, item);
-	if (idx < 0) return -1;
+	ArenaNode node = { .item = item, .left = -1, .right = -1 };
+	arena.nodes.push(node);
+	int idx = (int)arena.nodes.len() - 1;
 
 	if (depth > 0)
 	{
@@ -163,9 +127,8 @@ fn int arena_build_tree(Arena* arena, int item, int depth)
 
 		if (left_idx >= 0 && right_idx >= 0)
 		{
-			ArenaNode* node = &arena.nodes[idx];
-			node.left = left_idx;
-			node.right = right_idx;
+			arena.nodes[idx].left = left_idx;
+			arena.nodes[idx].right = right_idx;
 		}
 	}
 
@@ -174,7 +137,7 @@ fn int arena_build_tree(Arena* arena, int item, int depth)
 
 fn uint arena_sum(Arena* arena, int idx)
 {
-	if (!arena || idx < 0 || (usz)idx >= arena.size) return 0;
+	if (!arena || idx < 0 || idx >= arena.nodes.len()) return 0;
 
 	ArenaNode* node = &arena.nodes[idx];
 	uint total      = (uint)node.item + 1;
@@ -196,7 +159,6 @@ fn void binarytrees_arena_prepare(Benchmark* self)
 {
 	BinarytreesArenaData* data = (BinarytreesArenaData*)self.data;
 	data.n = helper::helper_config_i64(self.name, "depth");
-	data.result_val = 0;
 }
 
 fn void binarytrees_arena_run(Benchmark* self, int iteration_id)
@@ -223,13 +185,10 @@ fn uint binarytrees_arena_checksum(Benchmark* self)
 
 fn void binarytrees_arena_cleanup(Benchmark* self)
 {
-	if (self && self.data)
-	{
-		BinarytreesArenaData* data = (BinarytreesArenaData*)self.data;
-		arena_free(data.arena);
-		mem::free(self.data);
-		self.data = null;
-	}
+	BinarytreesArenaData* data = (BinarytreesArenaData*)self.data;
+	arena_free(data.arena);
+	free(data);
+	self.data = null;
 }
 
 fn Benchmark* binarytrees_arena_create() @cname("BinarytreesArena_create") @export
@@ -237,9 +196,6 @@ fn Benchmark* binarytrees_arena_create() @cname("BinarytreesArena_create") @expo
 	Benchmark* bench = benchmark::benchmark_create("Binarytrees::Arena");
 
 	BinarytreesArenaData* data = mem::new(BinarytreesArenaData);
-	data.n = 0;
-	data.result_val = 0;
-	data.arena = null;
 
 	bench.data = data;
 	bench.prepare = (PrepareFn)&binarytrees_arena_prepare;

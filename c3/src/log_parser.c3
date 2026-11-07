@@ -3,8 +3,6 @@ module log_parser;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 
 extern fn void* pcre2_compile(
 	char* pattern,
@@ -38,7 +36,6 @@ const uint PCRE2_JIT_COMPLETE = 0x00000001;
 
 const PATTERNS_COUNT = 13;
 
-char*[255] ips_list;
 const char*[4] METHODS = { "GET", "POST", "PUT", "DELETE" };
 const char*[6] PATHS   = {
 	"/index.html",
@@ -69,24 +66,7 @@ const char*[13] PATTERNS = {
 	"\\[\\d+/\\w+/\\d+:1[3-7]:\\d+:\\d+ [+\\-]\\d+\\]"
 };
 
-int ips_initialized = 0;
-
-fn void init_ips()
-{
-	if (ips_initialized) return;
-
-	for (int i = 0; i < 255; i++)
-	{
-		char* ip = mem::alloc_array(char, 16);
-		String s = string::tformat("192.168.1.%d", i + 1);
-		mem::copy(ip, (char*)s, s.len);
-		ip[s.len] = 0;
-		ips_list[i] = ip;
-	}
-	ips_initialized = 1;
-}
-
-fn void generate_log_line(char* buffer, usz* pos, int i)
+fn void generate_log_line(char** ips_list, char* buffer, usz* pos, int i)
 {
 	if (i % 3 == 0)
 	{
@@ -173,13 +153,24 @@ struct LogParserData
 	uint checksum_val;
 	void*[13] compiled_patterns;
 	void*[13] match_data;
+	char*[255] ips_list;
 }
 
 fn void log_parser_prepare(Benchmark* self)
 {
 	LogParserData* data = (LogParserData*)self.data;
 
-	init_ips();
+	if (!data.ips_list[0])
+	{
+		for (int i = 0; i < 255; i++)
+		{
+			char* ip = mem::alloc_array(char, 16);
+			String s = string::tformat("192.168.1.%d", i + 1);
+			mem::copy(ip, (char*)s, s.len);
+			ip[s.len] = 0;
+			data.ips_list[i] = ip;
+		}
+	}
 
 	mem::free(data.log);
 	data.log = null;
@@ -191,7 +182,7 @@ fn void log_parser_prepare(Benchmark* self)
 	usz pos = 0;
 	for (int i = 0; i < data.lines_count; i++)
 	{
-		generate_log_line(log_buf, &pos, i);
+		generate_log_line(&data.ips_list, log_buf, &pos, i);
 	}
 	log_buf[pos] = 0;
 
@@ -274,6 +265,15 @@ fn void log_parser_cleanup(Benchmark* self)
 
 	mem::free(data.log);
 	data.log = null;
+
+	for (int i = 0; i < 255; i++)
+	{
+		if (data.ips_list[i])
+		{
+			mem::free(data.ips_list[i]);
+			data.ips_list[i] = null;
+		}
+	}
 
 	for (int i = 0; i < PATTERNS_COUNT; i++)
 	{

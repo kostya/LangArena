@@ -3,15 +3,11 @@ module graph_path;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
+import std::collections::list;
 import std::collections::priorityqueue;
+import std::collections::pair;
 
-struct Pair
-{
-	int vertex;
-	int distance;
-}
+alias IntPair = Pair{int, int};
 
 struct AStarItem
 {
@@ -31,9 +27,7 @@ struct GraphPathGraph
 	int vertices;
 	int jumps;
 	int jump_len;
-	int** adj;
-	int* adj_count;
-	int* adj_capacity;
+	List{int}* adj;
 }
 
 fn GraphPathGraph* graph_path_graph_new(int vertices, int jumps, int jump_len)
@@ -42,16 +36,11 @@ fn GraphPathGraph* graph_path_graph_new(int vertices, int jumps, int jump_len)
 	graph.vertices = vertices;
 	graph.jumps = jumps;
 	graph.jump_len = jump_len;
-
-	graph.adj = mem::alloc_array(int*, (usz)vertices);
-	graph.adj_count = mem::alloc_array(int, (usz)vertices);
-	graph.adj_capacity = mem::alloc_array(int, (usz)vertices);
+	graph.adj = mem::new_array(List{int}, (usz)vertices);
 
 	for (int i = 0; i < vertices; i++)
 	{
-		graph.adj_capacity[i] = 4;
-		graph.adj[i] = mem::alloc_array(int, 4);
-		graph.adj_count[i] = 0;
+		graph.adj[i].init(mem);
 	}
 
 	return graph;
@@ -64,30 +53,17 @@ fn void graph_path_graph_free(GraphPathGraph* graph)
 	{
 		for (int i = 0; i < graph.vertices; i++)
 		{
-			mem::free(graph.adj[i]);
+			graph.adj[i].free();
 		}
-		mem::free(graph.adj);
+		free(graph.adj);
 	}
-	mem::free(graph.adj_count);
-	mem::free(graph.adj_capacity);
-	mem::free(graph);
+	free(graph);
 }
 
 fn void graph_path_graph_add_edge(GraphPathGraph* graph, int u, int v)
 {
-	if (graph.adj_count[u] >= graph.adj_capacity[u])
-	{
-		graph.adj_capacity[u] *= 2;
-		graph.adj[u] = mem::realloc(graph.adj[u], (usz)graph.adj_capacity[u] * int::size);
-	}
-	graph.adj[u][graph.adj_count[u]++] = v;
-
-	if (graph.adj_count[v] >= graph.adj_capacity[v])
-	{
-		graph.adj_capacity[v] *= 2;
-		graph.adj[v] = mem::realloc(graph.adj[v], (usz)graph.adj_capacity[v] * int::size);
-	}
-	graph.adj[v][graph.adj_count[v]++] = u;
+	graph.adj[u].push(v);
+	graph.adj[v].push(u);
 }
 
 fn void graph_path_graph_generate_random(GraphPathGraph* graph)
@@ -127,7 +103,6 @@ fn void graph_path_base_prepare(Benchmark* self, String bench_name, GraphPathBas
 
 	data.graph = graph_path_graph_new(vertices, jumps, jump_len);
 	graph_path_graph_generate_random(data.graph);
-	data.result_val = 0;
 }
 
 fn void graph_path_base_cleanup(GraphPathBaseData* data)
@@ -145,27 +120,27 @@ fn int graph_path_bfs_search(GraphPathGraph* graph, int start, int target)
 {
 	if (start == target) return 0;
 
-	char* visited = mem::new_array(char, (usz)graph.vertices);
-	Pair* queue   = mem::alloc_array(Pair, (usz)graph.vertices);
-	int front     = 0;
-	int rear      = 0;
+	char[] visited  = mem::new_array(char, (usz)graph.vertices);
+	IntPair[] queue = mem::alloc_array(IntPair, (usz)graph.vertices);
+	int front       = 0;
+	int rear        = 0;
 
 	visited[start] = 1;
 	queue[rear++] = { start, 0 };
 
 	while (front < rear)
 	{
-		Pair current = queue[front++];
-		int v        = current.vertex;
-		int dist     = current.distance;
+		IntPair current = queue[front++];
+		int v           = current.first;
+		int dist        = current.second;
 
-		for (int i = 0; i < graph.adj_count[v]; i++)
+		for (int i = 0; i < graph.adj[v].len(); i++)
 		{
 			int neighbor = graph.adj[v][i];
 			if (neighbor == target)
 			{
-				mem::free(visited);
-				mem::free(queue);
+				free(visited);
+				free(queue);
 				return dist + 1;
 			}
 
@@ -177,8 +152,8 @@ fn int graph_path_bfs_search(GraphPathGraph* graph, int start, int target)
 		}
 	}
 
-	mem::free(visited);
-	mem::free(queue);
+	free(visited);
+	free(queue);
 	return -1;
 }
 
@@ -228,23 +203,25 @@ fn int graph_path_dfs_search(GraphPathGraph* graph, int start, int target)
 {
 	if (start == target) return 0;
 
-	char* visited =  mem::new_array(char, (usz)graph.vertices);
-	Pair* stack   =  mem::alloc_array(Pair, (usz)graph.vertices);
-	int stack_top = -1;
-	int best_path =  int::max;
+	char[] visited = mem::new_array(char, (usz)graph.vertices);
+	List{IntPair} stack;
+	stack.init(mem);
+	defer stack.free();
 
-	stack[++stack_top] = { start, 0 };
+	int best_path = int::max;
 
-	while (stack_top >= 0)
+	stack.push({ start, 0 });
+
+	while (!stack.is_empty())
 	{
-		Pair current = stack[stack_top--];
-		int v        = current.vertex;
-		int dist     = current.distance;
+		IntPair current = stack.pop()!!;
+		int v           = current.first;
+		int dist        = current.second;
 
 		if (visited[v] || dist >= best_path) continue;
 		visited[v] = 1;
 
-		for (int i = 0; i < graph.adj_count[v]; i++)
+		for (int i = 0; i < graph.adj[v].len(); i++)
 		{
 			int neighbor = graph.adj[v][i];
 			if (neighbor == target)
@@ -256,13 +233,12 @@ fn int graph_path_dfs_search(GraphPathGraph* graph, int start, int target)
 			}
 			else if (!visited[neighbor])
 			{
-				stack[++stack_top] = { neighbor, dist + 1 };
+				stack.push({ neighbor, dist + 1 });
 			}
 		}
 	}
 
-	mem::free(visited);
-	mem::free(stack);
+	free(visited);
 	return best_path == int::max ? -1 : best_path;
 }
 
@@ -319,8 +295,8 @@ fn int graph_path_astar_search(GraphPathGraph* graph, int start, int target)
 
 	int n = graph.vertices;
 
-	int* g_score = mem::alloc_array(int, (usz)n);
-	int* best_f  = mem::alloc_array(int, (usz)n);
+	int[] g_score = mem::alloc_array(int, (usz)n);
+	int[] best_f  = mem::alloc_array(int, (usz)n);
 
 	for (int i = 0; i < n; i++)
 	{
@@ -334,6 +310,8 @@ fn int graph_path_astar_search(GraphPathGraph* graph, int start, int target)
 
 	AStarQueue open_set;
 	open_set.init(mem, 16);
+	defer open_set.free();
+
 	open_set.push({ f_start, start });
 
 	while (!open_set.is_empty())
@@ -344,13 +322,12 @@ fn int graph_path_astar_search(GraphPathGraph* graph, int start, int target)
 		if (current == target)
 		{
 			int result = g_score[current];
-			mem::free(g_score);
-			mem::free(best_f);
-			open_set.free();
+			free(g_score);
+			free(best_f);
 			return result;
 		}
 
-		for (int i = 0; i < graph.adj_count[current]; i++)
+		for (int i = 0; i < graph.adj[current].len(); i++)
 		{
 			int neighbor    = graph.adj[current][i];
 			int tentative_g = g_score[current] + 1;
@@ -369,9 +346,8 @@ fn int graph_path_astar_search(GraphPathGraph* graph, int start, int target)
 		}
 	}
 
-	mem::free(g_score);
-	mem::free(best_f);
-	open_set.free();
+	free(g_score);
+	free(best_f);
 	return -1;
 }
 

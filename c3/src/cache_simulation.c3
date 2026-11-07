@@ -3,8 +3,6 @@ module cache_simulation;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::collections::map;
 
 struct CacheNode
@@ -29,11 +27,7 @@ struct CacheSimulationCache
 fn CacheSimulationCache* cache_new(usz capacity)
 {
 	CacheSimulationCache* cache = mem::new(CacheSimulationCache);
-	cache.head = null;
-	cache.tail = null;
 	cache.capacity = capacity;
-	cache.size = 0;
-	cache.time = 0;
 	cache.hash_table.init(mem);
 	return cache;
 }
@@ -102,9 +96,9 @@ fn void cache_remove_oldest(CacheSimulationCache* cache)
 		cache.tail = oldest.prev;
 	}
 
-	mem::free((void*)oldest.key.ptr);
-	mem::free((void*)oldest.value.ptr);
-	mem::free(oldest);
+	free(oldest.key);
+	free(oldest.value);
+	free(oldest);
 	cache.size--;
 }
 
@@ -113,7 +107,7 @@ fn void cache_put(CacheSimulationCache* cache, String key, String value)
 	CacheNode*? node_opt = cache.hash_table.get(key);
 	if (try node = node_opt)
 	{
-		mem::free((void*)node.value.ptr);
+		free(node.value);
 		node.value = value.copy(mem);
 		cache_move_to_front(cache, node);
 		node.timestamp = ++cache.time;
@@ -126,16 +120,14 @@ fn void cache_put(CacheSimulationCache* cache, String key, String value)
 	}
 
 	CacheNode* node = mem::new(CacheNode);
-	defer catch mem::free(node);
+	defer catch free(node);
 
 	node.key = key.copy(mem);
-	defer catch mem::free((void*)node.key.ptr);
+	defer catch free(node.key);
 
 	node.value = value.copy(mem);
-	defer catch mem::free((void*)node.value.ptr);
+	defer catch free(node.value);
 
-	node.prev = null;
-	node.next = null;
 	node.timestamp = ++cache.time;
 
 	cache.hash_table.set(node.key, node);
@@ -161,14 +153,14 @@ fn void cache_free(CacheSimulationCache* cache)
 	while (node)
 	{
 		CacheNode* next = node.next;
-		mem::free((void*)node.key.ptr);
-		mem::free((void*)node.value.ptr);
-		mem::free(node);
+		free(node.key);
+		free(node.value);
+		free(node);
 		node = next;
 	}
 
 	cache.hash_table.free();
-	mem::free(cache);
+	free(cache);
 }
 
 struct CacheSimulationData
@@ -185,12 +177,6 @@ fn void cache_simulation_prepare(Benchmark* self)
 {
 	CacheSimulationData* data = (CacheSimulationData*)self.data;
 
-	if (data.cache)
-	{
-		cache_free(data.cache);
-		data.cache = null;
-	}
-
 	data.values_size = helper::helper_config_i64(self.name, "values");
 	if (data.values_size <= 0)
 	{
@@ -204,8 +190,6 @@ fn void cache_simulation_prepare(Benchmark* self)
 	}
 
 	data.result_val = 5432;
-	data.hits = 0;
-	data.misses = 0;
 	data.cache = cache_new((usz)data.cache_size);
 }
 
@@ -240,9 +224,9 @@ fn uint cache_simulation_checksum(Benchmark* self)
 	CacheSimulationData* data = (CacheSimulationData*)self.data;
 
 	uint final_result = data.result_val;
-	final_result = (uint)(((long)final_result << 5) + (uint)data.hits);
-	final_result = (uint)(((long)final_result << 5) + (uint)data.misses);
-	final_result = (uint)(((long)final_result << 5) + (uint)data.cache.size);
+	final_result = (final_result << 5) + (uint)data.hits;
+	final_result = (final_result << 5) + (uint)data.misses;
+	final_result = (final_result << 5) + (uint)data.cache.size;
 
 	return final_result;
 }
@@ -263,11 +247,6 @@ fn Benchmark* cache_simulation_create() @cname("CacheSimulation_create") @export
 
 	CacheSimulationData* data = mem::new(CacheSimulationData);
 	data.result_val = 5432;
-	data.values_size = 0;
-	data.cache_size = 0;
-	data.hits = 0;
-	data.misses = 0;
-	data.cache = null;
 
 	bench.data = data;
 	bench.prepare = (PrepareFn)&cache_simulation_prepare;

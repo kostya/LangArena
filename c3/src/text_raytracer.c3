@@ -3,8 +3,6 @@ module text_raytracer;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::math;
 
 struct TRVector
@@ -143,8 +141,6 @@ fn void text_raytracer_prepare(Benchmark* self)
 	{
 		data.height = 10;
 	}
-
-	data.result_val = 0;
 }
 
 fn void text_raytracer_run(Benchmark* self, int iteration_id)
@@ -208,7 +204,7 @@ fn void text_raytracer_run(Benchmark* self, int iteration_id)
 				pixel = LUT[idx];
 			}
 
-			iteration_result += (uint)(char)pixel;
+			iteration_result += (uint)pixel;
 		}
 	}
 

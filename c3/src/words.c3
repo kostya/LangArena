@@ -3,8 +3,6 @@ module words;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::collections::map;
 
 struct WordsData
@@ -20,28 +18,25 @@ fn void words_data_init(WordsData* data)
 {
 	data.words = helper::helper_config_i64("Etc::Words", "words");
 	data.word_len = helper::helper_config_i64("Etc::Words", "word_len");
-	data.text = null;
-	data.text_size = 0;
-	data.checksum_val = 0;
 }
 
 fn void words_prepare(Benchmark* self)
 {
 	WordsData* data = (WordsData*)self.data;
 
-	mem::free(data.text);
+	free(data.text);
 	data.text = null;
 
 	String chars   = "abcdefghijklmnopqrstuvwxyz";
 	int char_count = 26;
 
-	char** words_array = mem::alloc_array(char*, (usz)data.words);
+	char** words_array = mem::new_array(char*, (usz)data.words);
 	sz total_len       = 0;
 
 	for (int i = 0; i < (int)data.words; i++)
 	{
 		int len    = (int)helper::helper_next_int((uint)data.word_len) + (int)helper::helper_next_int(3) + 3;
-		char* word = mem::alloc_array(char, (usz)(len + 1));
+		char* word = mem::new_array(char, (usz)(len + 1));
 		for (int j = 0; j < len; j++)
 		{
 			int idx = (int)helper::helper_next_int((uint)char_count);
@@ -52,7 +47,7 @@ fn void words_prepare(Benchmark* self)
 		total_len += (sz)len + 1;
 	}
 
-	char* buffer = mem::alloc_array(char, total_len + 1);
+	char* buffer = mem::new_array(char, total_len + 1);
 	sz pos       = 0;
 	for (int i = 0; i < (int)data.words; i++)
 	{
@@ -63,10 +58,10 @@ fn void words_prepare(Benchmark* self)
 		{
 			buffer[pos++] = ' ';
 		}
-		mem::free(words_array[i]);
+		free(words_array[i]);
 	}
 	buffer[pos] = 0;
-	mem::free(words_array);
+	free(words_array);
 
 	data.text = buffer;
 	data.text_size = (usz)pos;
@@ -86,15 +81,7 @@ fn void words_run(Benchmark* self, int iteration_id)
 	{
 		if (word.len >= 3)
 		{
-			int? val = frequencies.get(word);
-			if (try v = val)
-			{
-				frequencies.set(word, v + 1);
-			}
-			else
-			{
-				frequencies.set(word, 1);
-			}
+			*frequencies.get_or_create_ref(word) += 1;
 		}
 	}
 
@@ -127,7 +114,7 @@ fn uint words_checksum(Benchmark* self)
 fn void words_cleanup(Benchmark* self)
 {
 	WordsData* data = (WordsData*)self.data;
-	mem::free(data.text);
+	free(data.text);
 	data.text = null;
 	data.text_size = 0;
 }

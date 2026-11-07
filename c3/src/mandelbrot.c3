@@ -3,37 +3,15 @@ module mandelbrot;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
+
+const int ITER     = 50;
+const double LIMIT = 2.0;
 
 struct MandelbrotData
 {
 	long w;
 	long h;
-	char* result_bin;
-	usz result_size;
-	usz result_capacity;
-}
-
-fn void mandelbrot_grow_result(MandelbrotData* self, usz needed)
-{
-	usz new_capacity = self.result_capacity;
-	while (self.result_size + needed >= new_capacity)
-	{
-		new_capacity = new_capacity ? new_capacity * 2 : 1024;
-	}
-	if (new_capacity > self.result_capacity)
-	{
-		self.result_bin = mem::realloc(self.result_bin, (sz)new_capacity);
-		self.result_capacity = new_capacity;
-	}
-}
-
-fn void mandelbrot_append(MandelbrotData* self, char[] data)
-{
-	mandelbrot_grow_result(self, data.len);
-	mem::copy(self.result_bin + self.result_size, data.ptr, data.len);
-	self.result_size += data.len;
+	DString result;
 }
 
 fn void mandelbrot_prepare(Benchmark* self)
@@ -52,7 +30,7 @@ fn void mandelbrot_prepare(Benchmark* self)
 		data.h = 200;
 	}
 
-	data.result_size = 0;
+	data.result.clear();
 }
 
 fn void mandelbrot_run(Benchmark* self, int iteration_id)
@@ -63,10 +41,7 @@ fn void mandelbrot_run(Benchmark* self, int iteration_id)
 	int h = (int)data.h;
 
 	String header = string::tformat("P4\n%d %d\n", w, h);
-	mandelbrot_append(data, ((char*)header)[:header.len]);
-
-	const int ITER     = 50;
-	const double LIMIT = 2.0;
+	data.result.append(header);
 
 	int bit_num   = 0;
 	char byte_acc = 0;
@@ -103,14 +78,14 @@ fn void mandelbrot_run(Benchmark* self, int iteration_id)
 
 			if (bit_num == 8)
 			{
-				mandelbrot_append(data, (&byte_acc)[:1]);
+				data.result.append_char(byte_acc);
 				byte_acc = 0;
 				bit_num = 0;
 			}
 			else if (x == w - 1)
 			{
 				byte_acc <<= (8 - (w % 8));
-				mandelbrot_append(data, (&byte_acc)[:1]);
+				data.result.append_char(byte_acc);
 				byte_acc = 0;
 				bit_num = 0;
 			}
@@ -122,19 +97,15 @@ fn uint mandelbrot_checksum(Benchmark* self)
 {
 	MandelbrotData* data = (MandelbrotData*)self.data;
 
-	if (!data.result_bin || data.result_size == 0) return 0;
+	if (data.result.len() == 0) return 0;
 
-	return helper::helper_checksum_bytes(data.result_bin[:data.result_size]);
+	return helper::helper_checksum_bytes(data.result.str_view());
 }
 
 fn void mandelbrot_cleanup(Benchmark* self)
 {
 	MandelbrotData* data = (MandelbrotData*)self.data;
-
-	mem::free(data.result_bin);
-	data.result_bin = null;
-	data.result_size = 0;
-	data.result_capacity = 0;
+	data.result.free();
 }
 
 fn Benchmark* mandelbrot_create() @cname("Mandelbrot_create") @export
@@ -142,6 +113,7 @@ fn Benchmark* mandelbrot_create() @cname("Mandelbrot_create") @export
 	Benchmark* bench = benchmark::benchmark_create("CLBG::Mandelbrot");
 
 	MandelbrotData* data = mem::new(MandelbrotData);
+	data.result.init(mem, 4096);
 
 	data.w = helper::helper_config_i64("CLBG::Mandelbrot", "w");
 	data.h = helper::helper_config_i64("CLBG::Mandelbrot", "h");

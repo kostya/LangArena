@@ -3,8 +3,6 @@ module template_bench;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::collections::map;
 
 extern fn void* pcre2_compile(
@@ -68,7 +66,7 @@ fn String get_var(TemplateBaseData* data, String key)
 
 fn int prepare_template(TemplateBaseData* data)
 {
-	mem::free(data.text);
+	free(data.text);
 	data.text = null;
 	data.vars.clear();
 
@@ -94,22 +92,19 @@ fn int prepare_template(TemplateBaseData* data)
 		buf.append("<td>{{ FIRST_NAME");
 		buf.appendf("%d", i);
 		buf.append(" }}</td>");
-		String key = string::tformat("FIRST_NAME%d", i);
-		key = key.copy(mem);
+		String key = string::tformat("FIRST_NAME%d", i).copy(mem);
 		add_var(data, key, FIRST_NAMES[i % 8]);
 
 		buf.append("<td>{{LAST_NAME");
 		buf.appendf("%d", i);
 		buf.append("}}</td>");
-		key = string::tformat("LAST_NAME%d", i);
-		key = key.copy(mem);
+		key = string::tformat("LAST_NAME%d", i).copy(mem);
 		add_var(data, key, LAST_NAMES[i % 8]);
 
 		buf.append("<td>{{  CITY");
 		buf.appendf("%d", i);
 		buf.append("  }}</td>");
-		key = string::tformat("CITY%d", i);
-		key = key.copy(mem);
+		key = string::tformat("CITY%d", i).copy(mem);
 		add_var(data, key, CITIES[i % 6]);
 
 		buf.appendf("<td>{balance: %d}</td>", i % 100);
@@ -120,10 +115,11 @@ fn int prepare_template(TemplateBaseData* data)
 	buf.append("</body></html>");
 
 	String result = buf.str_view();
-	data.text = mem::alloc_array(char, result.len + 1);
+	data.text = mem::new_array(char, result.len + 1);
 	mem::copy(data.text, (char*)result, result.len);
 	data.text[result.len] = 0;
 	data.text_size = result.len;
+	buf.free();
 	return 0;
 }
 
@@ -168,8 +164,8 @@ fn void template_regex_run(Benchmark* self, int iteration_id)
 	if (!data.re || !data.match_data || !base.text) return;
 
 	DString result_buf;
-	defer result_buf.free();
 	result_buf.init(mem, (sz)base.text_size * 2);
+	defer result_buf.free();
 
 	usz start_offset = 0;
 	usz last_pos     = 0;
@@ -215,8 +211,8 @@ fn void template_regex_run(Benchmark* self, int iteration_id)
 	}
 
 	String result = result_buf.str_view();
-	if (base.rendered) mem::free(base.rendered);
-	base.rendered = mem::alloc_array(char, result.len + 1);
+	free(base.rendered);
+	base.rendered = mem::new_array(char, result.len + 1);
 	mem::copy(base.rendered, (char*)result, result.len);
 	base.rendered[result.len] = 0;
 	base.rendered_size = result.len;
@@ -226,14 +222,15 @@ fn void template_regex_run(Benchmark* self, int iteration_id)
 fn uint template_regex_checksum(Benchmark* self)
 {
 	TemplateRegexData* data = (TemplateRegexData*)self.data;
+	if (!data.base.rendered) return data.base.checksum_val;
 	return data.base.checksum_val + helper::helper_checksum_string(((ZString)data.base.rendered).str_view());
 }
 
 fn void template_regex_cleanup(Benchmark* self)
 {
 	TemplateRegexData* data = (TemplateRegexData*)self.data;
-	mem::free(data.base.text);
-	mem::free(data.base.rendered);
+	free(data.base.text);
+	free(data.base.rendered);
 	data.base.vars.free();
 
 	if (data.match_data)
@@ -283,8 +280,8 @@ fn void template_parse_run(Benchmark* self, int iteration_id)
 	if (!base.text) return;
 
 	DString result_buf;
-	defer result_buf.free();
 	result_buf.init(mem, (sz)(base.text_size * 1.5) + 1);
+	defer result_buf.free();
 
 	usz i   = 0;
 	usz len = base.text_size;
@@ -321,9 +318,9 @@ fn void template_parse_run(Benchmark* self, int iteration_id)
 		i++;
 	}
 
-	if (base.rendered) mem::free(base.rendered);
+	free(base.rendered);
 	String result = result_buf.str_view();
-	base.rendered = mem::alloc_array(char, result.len + 1);
+	base.rendered = mem::new_array(char, result.len + 1);
 	mem::copy(base.rendered, (char*)result, result.len);
 	base.rendered[result.len] = 0;
 	base.rendered_size = result.len;
@@ -333,14 +330,15 @@ fn void template_parse_run(Benchmark* self, int iteration_id)
 fn uint template_parse_checksum(Benchmark* self)
 {
 	TemplateParseData* data = (TemplateParseData*)self.data;
+	if (!data.base.rendered) return data.base.checksum_val;
 	return data.base.checksum_val + helper::helper_checksum_string(((ZString)data.base.rendered).str_view());
 }
 
 fn void template_parse_cleanup(Benchmark* self)
 {
 	TemplateParseData* data = (TemplateParseData*)self.data;
-	mem::free(data.base.text);
-	mem::free(data.base.rendered);
+	free(data.base.text);
+	free(data.base.rendered);
 	data.base.vars.free();
 }
 

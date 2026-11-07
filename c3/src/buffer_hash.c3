@@ -3,8 +3,6 @@ module hash_bench;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 
 struct BufferHashBaseData
 {
@@ -32,7 +30,7 @@ fn void buffer_hash_base_cleanup(BufferHashBaseData* data)
 {
 	if (data.data)
 	{
-		mem::free(data.data);
+		free(data.data);
 		data.data = null;
 	}
 }
@@ -52,7 +50,7 @@ fn uint buffer_hash_sha256_digest(char[] data)
 		uint hash     = hashes[hash_idx];
 
 		uint temp = (hash << 5) + hash;
-		temp = temp + (uint)(char)data[i];
+		temp = temp + (uint)data[i];
 		hash = temp;
 
 		temp = hash + (hash << 10);
@@ -68,8 +66,7 @@ fn uint buffer_hash_sha256_digest(char[] data)
 		result[i * 4 + 3] = (char)hashes[i];
 	}
 
-	return (uint)(char)result[0] | ((uint)(char)result[1] << 8) | ((uint)(char)result[2] << 16)
-		| ((uint)(char)result[3] << 24);
+	return (uint)result[0] | ((uint)result[1] << 8) | ((uint)result[2] << 16) | ((uint)result[3] << 24);
 }
 
 fn void buffer_hash_sha256_prepare(Benchmark* self)
@@ -84,7 +81,7 @@ fn void buffer_hash_sha256_run(Benchmark* self, int iteration_id)
 	char ch                    = (char)helper::helper_next_int(256);
 	data.base.data[helper::helper_next_int((uint)data.base.size_val)] = ch;
 	uint hash_result = buffer_hash_sha256_digest(data.base.data[:data.base.size_val]);
-	data.base.result_val = (uint)(data.base.result_val + hash_result);
+	data.base.result_val = data.base.result_val + hash_result;
 }
 
 fn uint buffer_hash_sha256_checksum(Benchmark* self)
@@ -125,7 +122,7 @@ fn uint buffer_hash_crc32_digest(char[] data)
 
 	foreach (b : data)
 	{
-		crc = crc ^ (uint)(char)b;
+		crc = crc ^ (uint)b;
 		for (int j = 0; j < 8; j++)
 		{
 			if (crc & 1)

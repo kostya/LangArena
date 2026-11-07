@@ -3,8 +3,6 @@ module matmul;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::thread;
 
 fn double** matgen(int n)
@@ -14,7 +12,7 @@ fn double** matgen(int n)
 
 	for (int i = 0; i < n; i++)
 	{
-		a[i] = mem::alloc_array(double, (usz)n);
+		a[i] = mem::new_array(double, (usz)n);
 		for (int j = 0; j < n; j++)
 		{
 			a[i][j] = tmp * (double)(i - j) * (double)(i + j);
@@ -28,9 +26,9 @@ fn void free_matrix(double** a, int n)
 	if (!a) return;
 	for (int i = 0; i < n; i++)
 	{
-		mem::free(a[i]);
+		free(a[i]);
 	}
-	mem::free(a);
+	free(a);
 }
 
 fn double** transpose(double** b, int n)
@@ -38,7 +36,7 @@ fn double** transpose(double** b, int n)
 	double** b_t = mem::alloc_array(double*, (usz)n);
 	for (int j = 0; j < n; j++)
 	{
-		b_t[j] = mem::alloc_array(double, (usz)n);
+		b_t[j] = mem::new_array(double, (usz)n);
 		for (int i = 0; i < n; i++)
 		{
 			b_t[j][i] = b[i][j];
@@ -68,7 +66,6 @@ fn void matmul_base_prepare(Benchmark* self)
 
 	data.a = matgen(n);
 	data.b = matgen(n);
-	data.result_val = 0;
 }
 
 fn void matmul_base_cleanup(Benchmark* self)
@@ -89,7 +86,7 @@ fn double** matmul_sequential(double** a, double** b, int n)
 
 	for (int i = 0; i < n; i++)
 	{
-		c[i] = mem::alloc_array(double, (usz)n);
+		c[i] = mem::new_array(double, (usz)n);
 		double* ai = a[i];
 		for (int j = 0; j < n; j++)
 		{
@@ -127,10 +124,6 @@ fn Benchmark* matmul_create() @cname("Matmul_create") @export
 	MatmulBaseData* data = mem::new(MatmulBaseData);
 
 	data.n = helper::helper_config_i64("Matmul::Single", "n");
-	if (data.n == 0)
-	{
-		data.n = 100;
-	}
 
 	bench.data = data;
 	bench.prepare = (PrepareFn)&matmul_base_prepare;
@@ -193,7 +186,7 @@ fn double** matmul_parallel(double** a, double** b, int n, int num_threads)
 
 	int rows_per_thread           = (n + num_threads - 1) / num_threads;
 	MatmulThreadData* thread_data = mem::alloc_array(MatmulThreadData, (usz)num_threads);
-	Thread* threads               = mem::alloc_array(Thread, (usz)num_threads);
+	Thread* threads               = mem::new_array(Thread, (usz)num_threads);
 
 	for (int t = 0; t < num_threads; t++)
 	{
@@ -216,8 +209,8 @@ fn double** matmul_parallel(double** a, double** b, int n, int num_threads)
 		(void)Thread.join(threads[t]);
 	}
 
-	mem::free(threads);
-	mem::free(thread_data);
+	free(threads);
+	free(thread_data);
 	free_matrix(b_t, n);
 	return c;
 }
@@ -241,10 +234,6 @@ fn Benchmark* matmul4t_create() @cname("Matmul4T_create") @export
 	MatmulParallelData* data = mem::new(MatmulParallelData);
 
 	data.base.n = helper::helper_config_i64("Matmul::T4", "n");
-	if (data.base.n == 0)
-	{
-		data.base.n = 100;
-	}
 	data.num_threads = 4;
 
 	bench.data = data;
@@ -262,10 +251,6 @@ fn Benchmark* matmul8t_create() @cname("Matmul8T_create") @export
 	MatmulParallelData* data = mem::new(MatmulParallelData);
 
 	data.base.n = helper::helper_config_i64("Matmul::T8", "n");
-	if (data.base.n == 0)
-	{
-		data.base.n = 100;
-	}
 	data.num_threads = 8;
 
 	bench.data = data;
@@ -283,10 +268,6 @@ fn Benchmark* matmul16t_create() @cname("Matmul16T_create") @export
 	MatmulParallelData* data = mem::new(MatmulParallelData);
 
 	data.base.n = helper::helper_config_i64("Matmul::T16", "n");
-	if (data.base.n == 0)
-	{
-		data.base.n = 100;
-	}
 	data.num_threads = 16;
 
 	bench.data = data;

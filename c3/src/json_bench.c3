@@ -3,8 +3,6 @@ module json_bench;
 import benchmark;
 import helper;
 import std::io;
-import std::core::mem;
-import std::core::string;
 import std::encoding::json;
 import std::collections::object;
 import std::math;
@@ -52,7 +50,7 @@ fn void json_generate_prepare(Benchmark* self)
 	data.result_str.clear();
 	data.result_val = 0;
 
-	data.coords = mem::alloc_array(Coordinate, (usz)data.n);
+	data.coords = mem::new_array(Coordinate, (usz)data.n);
 
 	for (long i = 0; i < data.n; i++)
 	{
@@ -60,11 +58,8 @@ fn void json_generate_prepare(Benchmark* self)
 		data.coords[i].y = round_to_8_digits(helper::helper_next_float(1.0));
 		data.coords[i].z = round_to_8_digits(helper::helper_next_float(1.0));
 
-		String name     = string::tformat("%.7f %d", helper::helper_next_float(1.0), helper::helper_next_int(10000));
-		char* name_copy = mem::alloc_array(char, name.len + 1);
-		mem::copy(name_copy, (char*)name, name.len);
-		name_copy[name.len] = 0;
-		data.coords[i].name = ((ZString)name_copy).str_view();
+		String name = string::tformat("%.7f %d", helper::helper_next_float(1.0), helper::helper_next_int(10000));
+		data.coords[i].name = name.copy(mem);
 		data.coords[i].opts = object::new_obj(mem);
 		Object* arr = object::new_array(mem);
 		arr.push(1);
@@ -77,7 +72,8 @@ fn void json_generate_run(Benchmark* self, int iteration_id)
 {
 	JsonGenerateData* data = (JsonGenerateData*)self.data;
 
-	data.result_str.clear();
+	data.result_str.free();
+	data.result_str.init(mem, 4096);
 
 	JsonGenerateContainer container = {
 		.coordinates = data.coords,
@@ -104,10 +100,10 @@ fn void json_generate_cleanup(Benchmark* self)
 	{
 		for (long i = 0; i < data.n; i++)
 		{
-			mem::free((void*)data.coords[i].name.ptr);
+			free(data.coords[i].name);
 			data.coords[i].opts.free();
 		}
-		mem::free(data.coords);
+		free(data.coords);
 	}
 	data.result_str.free();
 }
@@ -136,16 +132,13 @@ fn String generate_json_for_parsing(long coords_count)
 	json_generate_prepare(gen_bench);
 	json_generate_run(gen_bench, 0);
 
-	String result = gen_data.result_str.str_view();
-	char* copy    = mem::alloc_array(char, result.len + 1);
-	mem::copy(copy, (char*)result, result.len);
-	copy[result.len] = 0;
+	String result = gen_data.result_str.copy_str(mem);
 
 	json_generate_cleanup(gen_bench);
-	mem::free(gen_bench.data);
-	mem::free(gen_bench);
+	free(gen_bench.data);
+	free(gen_bench);
 
-	return ((ZString)copy).str_view();
+	return result;
 }
 
 struct JsonParseDomData
@@ -160,7 +153,6 @@ fn void json_parse_dom_prepare(Benchmark* self)
 	JsonParseDomData* data = (JsonParseDomData*)self.data;
 	data.coords_count = helper::helper_config_i64(self.name, "coords");
 	data.json_text = generate_json_for_parsing(data.coords_count);
-	data.result_val = 0;
 }
 
 fn void json_parse_dom_run(Benchmark* self, int iteration_id)
@@ -224,6 +216,7 @@ fn uint json_parse_dom_checksum(Benchmark* self)
 fn void json_parse_dom_cleanup(Benchmark* self)
 {
 	JsonParseDomData* data = (JsonParseDomData*)self.data;
+	free(data.json_text);
 	data.json_text = "";
 }
 
@@ -253,7 +246,6 @@ fn void json_parse_mapping_prepare(Benchmark* self)
 	JsonParseMappingData* data = (JsonParseMappingData*)self.data;
 	data.coords_count = helper::helper_config_i64(self.name, "coords");
 	data.json_text = generate_json_for_parsing(data.coords_count);
-	data.result_val = 0;
 }
 
 fn void json_parse_mapping_run(Benchmark* self, int iteration_id)
@@ -295,6 +287,7 @@ fn uint json_parse_mapping_checksum(Benchmark* self)
 fn void json_parse_mapping_cleanup(Benchmark* self)
 {
 	JsonParseMappingData* data = (JsonParseMappingData*)self.data;
+	free(data.json_text);
 	data.json_text = "";
 }
 
