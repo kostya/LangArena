@@ -5,7 +5,8 @@ import (
 	"container/heap"
 	"encoding/base64"
 	"encoding/csv"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"math"
 	"os"
@@ -24,6 +25,7 @@ func _warmup() {
 	_ = base64.StdEncoding
 	_ = csv.NewReader
 	_ = json.Marshal
+	_ = jsontext.Value(nil)
 	_ = fmt.Sprint
 	_ = math.Pi
 	_ = os.Args

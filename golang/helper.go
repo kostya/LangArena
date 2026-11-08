@@ -1,7 +1,8 @@
 package main
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"strconv"
@@ -100,7 +101,7 @@ func LoadConfig(filename string) {
 		panic(err)
 	}
 
-	var jsonArray []map[string]json.RawMessage
+	var jsonArray []map[string]jsontext.Value
 	err = json.Unmarshal(data, &jsonArray)
 	if err != nil {
 		panic(err)
