@@ -1,0 +1,168 @@
+use valk.thread
+
+fn matgen(n: uint) Array[Array[float]] {
+    let tmp = 1.0 / (n * n).to(float)
+    let a = Array[Array[float]].new(n)
+    each 0 .. n as i {
+        let row = Array[float]{ 0.0 x n }
+        each 0 .. n as j : row[j] = tmp * (i.to(float) - j.to(float)) * (i.to(float) + j.to(float))
+        a.append(row)
+    }
+    return a
+}
+
+fn matmul_zeros(n: uint) Array[Array[float]] {
+    let c = Array[Array[float]].new(n)
+    each 0 .. n as i : c.append(Array[float]{ 0.0 x n })
+    return c
+}
+
+fn transpose(b: Array[Array[float]]) Array[Array[float]] {
+    let n = b.length
+    let b_t = matmul_zeros(n)
+    each 0 .. n as i {
+        let b_row = b[i]
+        each 0 .. n as j : b_t[j][i] = b_row[j]
+    }
+    return b_t
+}
+
+fn matmul_sequential(a: Array[Array[float]], b: Array[Array[float]]) Array[Array[float]] {
+    let n = a.length
+    let b_t = transpose(b)
+    let c = matmul_zeros(n)
+
+    each 0 .. n as i {
+        let a_row = a[i]
+        let c_row = c[i]
+        each 0 .. n as j {
+            let b_col = b_t[j]
+            let s = 0.0
+            each 0 .. n as k : s += a_row[k] * b_col[k]
+            c_row[j] = s
+        }
+    }
+    return c
+}
+
+fn matmul_parallel(a: atomic Array[Array[float]], b: Array[Array[float]], num_threads: uint) atomic Array[Array[float]] {
+    let n = a.length
+    let b_t: atomic Array[Array[float]] = transpose(b)
+    let c: atomic Array[Array[float]] = matmul_zeros(n)
+
+    thread.parallel_for(n, fn(i: uint) {
+        let a_row = a[i].view()
+        let c_row = c[i]
+        each 0 .. n as j {
+            let b_col = b_t[j].view()
+            let s = 0.0
+            each 0 .. n as k : s += a_row[k] * b_col[k]
+            c_row[j] = s
+        }
+    }, num_threads)
+    return c
+}
+
+class Matmul1T is Benchmark {
+    n: uint
+    a: Array[Array[float]]
+    b: Array[Array[float]]
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        let n = config_int("Matmul::Single", "n").to(uint)
+        return SELF { n: n, a: matgen(n), b: matgen(n) }
+    }
+
+    fn name() String {
+        return "Matmul::Single"
+    }
+
+    fn run(iteration: int) {
+        let c = matmul_sequential(this.a, this.b)
+        let center_value = c[this.n >> 1][this.n >> 1]
+        this.result_val += checksum_f64(center_value)
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}
+
+class MatmulMT {
+    n: uint
+    a: atomic Array[Array[float]]
+    b: Array[Array[float]]
+    result_val: u32 (0)
+
+    static fn new(name: String) SELF {
+        let n = config_int(name, "n").to(uint)
+        return SELF { n: n, a: matgen(n), b: matgen(n) }
+    }
+
+    fn run(num_threads: uint) {
+        let c = matmul_parallel(this.a, this.b, num_threads)
+        let center_value = c[this.n >> 1][this.n >> 1]
+        this.result_val += checksum_f64(center_value)
+    }
+}
+
+class Matmul4T is Benchmark {
+    base: MatmulMT
+
+    static fn new() SELF {
+        return SELF { base: MatmulMT.new("Matmul::T4") }
+    }
+
+    fn name() String {
+        return "Matmul::T4"
+    }
+
+    fn run(iteration: int) {
+        this.base.run(4)
+    }
+
+    fn checksum() u32 {
+        return this.base.result_val
+    }
+}
+
+class Matmul8T is Benchmark {
+    base: MatmulMT
+
+    static fn new() SELF {
+        return SELF { base: MatmulMT.new("Matmul::T8") }
+    }
+
+    fn name() String {
+        return "Matmul::T8"
+    }
+
+    fn run(iteration: int) {
+        this.base.run(8)
+    }
+
+    fn checksum() u32 {
+        return this.base.result_val
+    }
+}
+
+class Matmul16T is Benchmark {
+    base: MatmulMT
+
+    static fn new() SELF {
+        return SELF { base: MatmulMT.new("Matmul::T16") }
+    }
+
+    fn name() String {
+        return "Matmul::T16"
+    }
+
+    fn run(iteration: int) {
+        this.base.run(16)
+    }
+
+    fn checksum() u32 {
+        return this.base.result_val
+    }
+}

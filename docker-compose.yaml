@@ -619,6 +619,26 @@ services:
     depends_on:
       - rust
 
+  valk:
+    <<: *shared
+    image: langarena:valk
+    working_dir: /src/valk
+    build:
+      dockerfile: docker/valk
+      args:
+        # https://valk-lang.dev/download
+        version: "0.8.5"
+    volumes:
+      - .:/src
+      - ./cache/build/valk/target:/src/valk/target
+      - ./cache/deps/valk/vendor:/src/valk/vendor
+    # Valk's runtime and compiler do their I/O through io_uring, which Docker's
+    # default seccomp profile does not allow
+    security_opt:
+      - seccomp:unconfined
+    depends_on:
+      - base
+
   goose_clang:
     <<: *shared
     image: langarena:goose_clang

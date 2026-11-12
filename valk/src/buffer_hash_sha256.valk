@@ -1,0 +1,70 @@
+// Shared by Hash::SHA256 and Hash::CRC32
+class BufferHashBase {
+    data: Array[u8] (Array[u8]{})
+    size_val: int (0)
+    result_val: u32 (0)
+    prepared: bool (false)
+
+    fn prepare(class_name: String) {
+        if !this.prepared {
+            this.size_val = config_int(class_name, "size")
+            this.data = Array[u8]{ 0 x this.size_val.to(uint) }
+            each 0 .. this.data.length as i : this.data[i] = next_int(256).to(u8)
+            this.prepared = true
+        }
+    }
+}
+
+fn simple_sha256_digest(data: local &[u8]) [u8 x 32] {
+    let result: [u8 x 32] = { 0... }
+    let hashes: [u32 x 8] = {
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+        0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+    }
+
+    each data as byte, i {
+        let hash_idx = i % 8
+        let hash = hashes[hash_idx]
+        hash = (hash << 5) + hash + byte.to(u32)
+        hash = (hash + (hash << 10)) ^ (hash >> 6)
+        hashes[hash_idx] = hash
+    }
+
+    each 0 .. 8 as i {
+        let hash = hashes[i]
+        result[i * 4] = (hash >> 24).to(u8)
+        result[i * 4 + 1] = (hash >> 16).to(u8)
+        result[i * 4 + 2] = (hash >> 8).to(u8)
+        result[i * 4 + 3] = hash.to(u8)
+    }
+
+    return result
+}
+
+class BufferHashSHA256 is Benchmark {
+    base: BufferHashBase (BufferHashBase {})
+
+    static fn new() SELF {
+        return SELF {}
+    }
+
+    fn name() String {
+        return "Hash::SHA256"
+    }
+
+    fn prepare() {
+        this.base.prepare("Hash::SHA256")
+    }
+
+    fn run(iteration: int) {
+        let ch = next_int(256).to(u8)
+        this.base.data[next_int(this.base.size_val.to(i32)).to(uint)] = ch
+        let digest = simple_sha256_digest(this.base.data)
+        let hash = digest[0].to(u32) | (digest[1].to(u32) << 8) | (digest[2].to(u32) << 16) | (digest[3].to(u32) << 24)
+        this.base.result_val += hash
+    }
+
+    fn checksum() u32 {
+        return this.base.result_val
+    }
+}

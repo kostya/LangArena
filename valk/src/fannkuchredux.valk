@@ -1,0 +1,86 @@
+class Fannkuchredux is Benchmark {
+    n: i32
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        return SELF { n: config_int("CLBG::Fannkuchredux", "n").to(i32) }
+    }
+
+    fn name() String {
+        return "CLBG::Fannkuchredux"
+    }
+
+    fn fannkuchredux(n: i32) (i32, i32) {
+        let perm1: [i32 x 32] = { 0... }
+        each 0 .. 32 as i : perm1[i] = i.to(i32)
+
+        let perm: [i32 x 32] = { 0... }
+        let count: [i32 x 32] = { 0... }
+        let max_flips_count: i32 = 0
+        let perm_count: i32 = 0
+        let checksum: i32 = 0
+        let nu = n.to(uint)
+        let r = nu
+
+        while true {
+            while r > 1 {
+                count[r - 1] = r.to(i32)
+                r--
+            }
+
+            each 0 .. nu as i : perm[i] = perm1[i]
+
+            let flips_count: i32 = 0
+            let k = perm[0]
+
+            while k != 0 {
+                let k2 = ((k + 1) >> 1).to(uint)
+                each 0 .. k2 as i {
+                    let j = k.to(uint) - i
+                    let tmp = perm[i]
+                    perm[i] = perm[j]
+                    perm[j] = tmp
+                }
+                flips_count++
+                k = perm[0]
+            }
+
+            if flips_count > max_flips_count {
+                max_flips_count = flips_count
+            }
+
+            if perm_count % 2 == 0 {
+                checksum += flips_count
+            } else {
+                checksum -= flips_count
+            }
+
+            while true {
+                if r == nu {
+                    return (checksum, max_flips_count)
+                }
+
+                let perm0 = perm1[0]
+                each 0 .. r as i : perm1[i] = perm1[i + 1]
+
+                perm1[r] = perm0
+                count[r]--
+                if count[r] > 0 {
+                    break
+                }
+                r++
+            }
+
+            perm_count++
+        }
+    }
+
+    fn run(iteration: int) {
+        let checksum, max_flips = this.fannkuchredux(this.n)
+        this.result_val += checksum.to(u32) * 100 + max_flips.to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}

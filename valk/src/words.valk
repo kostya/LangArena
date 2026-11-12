@@ -1,0 +1,52 @@
+class Words is Benchmark {
+    words: uint
+    word_len: uint
+    text: String ("")
+    checksum_val: u32 (0)
+
+    static fn new() SELF {
+        return SELF {
+            words: config_int("Etc::Words", "words").to(uint),
+            word_len: config_int("Etc::Words", "word_len").to(uint),
+        }
+    }
+
+    fn name() String {
+        return "Etc::Words"
+    }
+
+    fn prepare() {
+        let chars = "abcdefghijklmnopqrstuvwxyz"
+        let text = ByteBuffer.new(this.words * (this.word_len + 1))
+
+        each 0 .. this.words as i {
+            let word_len = next_int(this.word_len.to(i32)).to(uint) + next_int(3).to(uint) + 3
+
+            each 0 .. word_len as k : text.write_byte(chars[next_int(chars.length.to(i32)).to(uint)])
+            if i < this.words - 1 : text.write_byte(' ')
+        }
+
+        this.text = text.into_string()
+    }
+
+    fn run(iteration: int) {
+        let frequencies = HashMap[String, u32]{}
+
+        each this.text.words() as word : frequencies.add(word, 1)
+
+        let max_word = ""
+        let max_count: u32 = 0
+        each frequencies as count, word {
+            if count >= max_count {
+                max_word = word
+                max_count = count
+            }
+        }
+
+        this.checksum_val += max_count + checksum_str(max_word) + frequencies.length.to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.checksum_val
+    }
+}

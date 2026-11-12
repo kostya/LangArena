@@ -113,6 +113,7 @@ body {
 .lang_mojo { background: #FF4D00; color: white; }
 .lang_gossamer { background: #38BDF8; color: #000000; }
 .lang_goose { background: #D6CFC7; color: #000000; }
+.lang_valk { background: #D99B50; color: #000000; }
 .lang_js { background: #F7DF1E; color: #000000; }
 .lang_javascript { background: #F7DF1E; color: #000000; }
 
@@ -143,6 +144,7 @@ body {
 .results-table .lang_mojo { background: #FF4D00; color: white; }
 .results-table .lang_gossamer { background: #38BDF8; color: #000000; }
 .results-table .lang_goose { background: #D6CFC7; color: #000000; }
+.results-table .lang_valk { background: #D99B50; color: #000000; }
 .results-table .lang_js { background: #F7DF1E; color: #000000; }
 .results-table .lang_javascript { background: #F7DF1E; color: #000000; }
 

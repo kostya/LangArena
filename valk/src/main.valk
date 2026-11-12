@@ -1,0 +1,181 @@
+use valk.json
+use valk.fs
+use valk.time
+
+// Benchmark settings from run.js or test.js, by benchmark name
+global config: ?json.Value
+global order: Array[String] (Array[String]{})
+
+fn load_config(path: String) {
+    let text = fs.read(path) ! panic("Failed to read config file: %path")
+    let doc = json.decode(text) ! panic("Failed to parse JSON config")
+    let map = json.decode("{}") !!
+    each 0 .. doc.length as i {
+        let item = doc.get(i)
+        let name = item.get("name").string
+        map.set(name, item)
+        order.append(name)
+    }
+    config = map
+}
+
+fn config_value(name: String, field: String) ?json.Value {
+    let c = config
+    if !isset(c) : return null
+    let entry = c.get(name)
+    if !entry.has(field) : return null
+    return entry.get(field)
+}
+
+fn config_int(name: String, field: String) int {
+    let v = config_value(name, field)
+    if isset(v) : return v.int
+    println("Config not found for %name, field: %field")
+    return 0
+}
+
+fn config_str(name: String, field: String) String {
+    let v = config_value(name, field)
+    if isset(v) : return v.string
+    println("Config not found for %name, field: %field")
+    return ""
+}
+
+interface Benchmark {
+    fn name() String;
+    fn run(iteration: int);
+    fn checksum() u32;
+    fn prepare() {}
+
+    fn iterations() int {
+        return config_int(this.name(), "iterations")
+    }
+
+    fn warmup_iterations() int {
+        let v = config_value(this.name(), "warmup_iterations")
+        if isset(v) : return v.int
+        let w = (this.iterations().to(float) * 0.2).to(int)
+        return w > 1 ? w : 1
+    }
+
+    fn expected_checksum() u32 {
+        return config_int(this.name(), "checksum").to(u32)
+    }
+
+    fn warmup() {
+        let n = this.warmup_iterations()
+        each 0 .. n as i : this.run(i)
+    }
+
+    fn run_all() {
+        let n = this.iterations()
+        each 0 .. n as i : this.run(i)
+    }
+}
+
+fn create_benchmark(name: String) ?Benchmark {
+    if name == "Binarytrees::Obj" : return BinarytreesObj.new()
+    if name == "Binarytrees::Arena" : return BinarytreesArena.new()
+    if name == "Brainfuck::Array" : return BrainfuckArray.new()
+    if name == "Brainfuck::Recursion" : return BrainfuckRecursion.new()
+    if name == "Matmul::Single" : return Matmul1T.new()
+    if name == "Matmul::T4" : return Matmul4T.new()
+    if name == "Matmul::T8" : return Matmul8T.new()
+    if name == "Matmul::T16" : return Matmul16T.new()
+    if name == "Base64::Encode" : return Base64Encode.new()
+    if name == "Base64::Decode" : return Base64Decode.new()
+    if name == "Json::Generate" : return JsonGenerate.new()
+    if name == "Json::ParseDom" : return JsonParseDom.new()
+    if name == "Json::ParseMapping" : return JsonParseMapping.new()
+    if name == "CSV::Parse" : return CsvParse.new()
+    if name == "Etc::Sieve" : return Sieve.new()
+    if name == "Etc::TextRaytracer" : return TextRaytracer.new()
+    if name == "Etc::NeuralNet" : return NeuralNet.new()
+    if name == "Etc::CacheSimulation" : return CacheSimulation.new()
+    if name == "Etc::GameOfLife" : return GameOfLife.new()
+    if name == "Etc::Words" : return Words.new()
+    if name == "Etc::LogParser" : return LogParser.new()
+    if name == "Template::Regex" : return TemplateRegex.new()
+    if name == "Template::Parse" : return TemplateParse.new()
+    if name == "Sort::Quick" : return SortQuick.new()
+    if name == "Sort::Merge" : return SortMerge.new()
+    if name == "Sort::Self" : return SortSelf.new()
+    if name == "Graph::BFS" : return GraphPathBFS.new()
+    if name == "Graph::DFS" : return GraphPathDFS.new()
+    if name == "Graph::AStar" : return GraphPathAStar.new()
+    if name == "Hash::SHA256" : return BufferHashSHA256.new()
+    if name == "Hash::CRC32" : return BufferHashCRC32.new()
+    if name == "Calculator::Ast" : return CalculatorAst.new()
+    if name == "Calculator::Interpreter" : return CalculatorInterpreter.new()
+    if name == "Maze::Generator" : return MazeGenerator.new()
+    if name == "Maze::BFS" : return MazeBFS.new()
+    if name == "Maze::AStar" : return MazeAStar.new()
+    if name == "CLBG::Fannkuchredux" : return Fannkuchredux.new()
+    if name == "CLBG::Mandelbrot" : return Mandelbrot.new()
+    if name == "CLBG::Nbody" : return Nbody.new()
+    if name == "CLBG::Spectralnorm" : return Spectralnorm.new()
+    if name == "Compress::BWTEncode" : return BWTEncode.new()
+    if name == "Compress::BWTDecode" : return BWTDecode.new()
+    if name == "Compress::HuffEncode" : return HuffEncode.new()
+    if name == "Compress::HuffDecode" : return HuffDecode.new()
+    if name == "Compress::ArithEncode" : return ArithEncode.new()
+    if name == "Compress::ArithDecode" : return ArithDecode.new()
+    if name == "Compress::LZWEncode" : return LZWEncode.new()
+    if name == "Compress::LZWDecode" : return LZWDecode.new()
+    if name == "Distance::Jaro" : return Jaro.new()
+    if name == "Distance::NGram" : return NGram.new()
+    return null
+}
+
+fn main(args: Array[String]) {
+    println("start: " + time.unix_ms())
+
+    let path = args.get(1) !? "../run.js"
+    let filter = (args.get(2) !? "").lower()
+    load_config(path)
+    reset()
+
+    let summary = 0.0
+    let ok = 0
+    let fails = 0
+
+    each order as name {
+        if filter != "" && !name.lower().contains(filter) : continue
+
+        let bench = create_benchmark(name)
+        if !isset(bench) {
+            println("Warning: Benchmark '%name' defined in config but not found in code")
+            continue
+        }
+
+        print(name + ": ")
+
+        reset()
+        bench.prepare()
+        bench.warmup()
+        reset()
+
+        let start = time.mono_ns()
+        bench.run_all()
+        let delta = (time.mono_ns() - start).to(float) / 1e9
+
+        let expected = bench.expected_checksum()
+        let actual = bench.checksum()
+        if actual == expected {
+            print("OK ")
+            ok++
+        } else {
+            print("ERR[actual=%actual, expected=%expected] ")
+            fails++
+        }
+
+        println("in " + delta.to_string(3) + "s")
+        summary += delta
+    }
+
+    println("Summary: " + summary.to_string(4) + "s, " + (ok + fails) + ", " + ok + ", " + fails)
+
+    fs.write("/tmp/recompile_marker", "RECOMPILE_MARKER_0", false) _
+
+    if fails > 0 : exit(1)
+}

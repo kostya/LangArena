@@ -1,0 +1,173 @@
+fn distance_pair_strings(n: uint, m: uint) Array[(String, String)] {
+    let pairs = Array[(String, String)].new(n)
+    let chars = "abcdefghij"
+
+    each 0 .. n as p {
+        let len1 = next_int(m.to(i32)).to(uint) + 4
+        let len2 = next_int(m.to(i32)).to(uint) + 4
+
+        let str1 = ByteBuffer.new(len1)
+        each 0 .. len1 as k : str1.write_byte(chars[next_int(10).to(uint)])
+        let str2 = ByteBuffer.new(len2)
+        each 0 .. len2 as k : str2.write_byte(chars[next_int(10).to(uint)])
+
+        pairs.append((str1.into_string(), str2.into_string()))
+    }
+
+    return pairs
+}
+
+class Jaro is Benchmark {
+    count: uint
+    size: uint
+    pairs: Array[(String, String)] (Array[(String, String)]{})
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        return SELF {
+            count: config_int("Distance::Jaro", "count").to(uint),
+            size: config_int("Distance::Jaro", "size").to(uint),
+        }
+    }
+
+    fn name() String {
+        return "Distance::Jaro"
+    }
+
+    static fn jaro(s1: String, s2: String) float {
+        let len1 = s1.bytes
+        let len2 = s2.bytes
+
+        if len1 == 0 || len2 == 0 {
+            return 0.0
+        }
+
+        let match_dist = (len1 > len2 ? len1 : len2) / 2
+        if match_dist > 0 : match_dist--
+
+        let s1_matches = [bool]{ false x len1 }
+        let s2_matches = [bool]{ false x len2 }
+
+        let matches: uint = 0
+        each 0 .. len1 as i {
+            let start = i > match_dist ? i - match_dist : 0
+            let end = len2 - 1 < i + match_dist ? len2 - 1 : i + match_dist
+
+            let j = start
+            while j <= end {
+                if !s2_matches[j] && s1[i] == s2[j] {
+                    s1_matches[i] = true
+                    s2_matches[j] = true
+                    matches++
+                    break
+                }
+                j++
+            }
+        }
+
+        if matches == 0 {
+            return 0.0
+        }
+
+        let transpositions: uint = 0
+        let k: uint = 0
+        each 0 .. len1 as i {
+            if s1_matches[i] {
+                while k < len2 && !s2_matches[k] {
+                    k++
+                }
+                if k < len2 {
+                    if s1[i] != s2[k] {
+                        transpositions++
+                    }
+                    k++
+                }
+            }
+        }
+        transpositions /= 2
+
+        let m = matches.to(float)
+        return (m / len1.to(float) + m / len2.to(float) + (m - transpositions.to(float)) / m) / 3.0
+    }
+
+    fn prepare() {
+        this.pairs = distance_pair_strings(this.count, this.size)
+        this.result_val = 0
+    }
+
+    fn run(iteration: int) {
+        each this.pairs as s1, s2 : this.result_val += (Jaro.jaro(s1, s2) * 1000.0).to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}
+
+class NGram is Benchmark {
+    count: uint
+    size: uint
+    pairs: Array[(String, String)] (Array[(String, String)]{})
+    result_val: u32 (0)
+    n: uint (4)
+
+    static fn new() SELF {
+        return SELF {
+            count: config_int("Distance::NGram", "count").to(uint),
+            size: config_int("Distance::NGram", "size").to(uint),
+        }
+    }
+
+    fn name() String {
+        return "Distance::NGram"
+    }
+
+    fn ngram(s1: String, s2: String) float {
+        let len1 = s1.bytes
+        let len2 = s2.bytes
+
+        if len1 < this.n || len2 < this.n {
+            return 0.0
+        }
+
+        let grams1 = HashMap[u32, uint].new(len1)
+
+        each 0 .. (len1 - this.n + 1) as i {
+            let gram = (s1[i].to(u32) << 24) | (s1[i + 1].to(u32) << 16) | (s1[i + 2].to(u32) << 8) | s1[i + 3].to(u32)
+            grams1.add(gram, 1)
+        }
+
+        let grams2 = HashMap[u32, uint].new(len2)
+        let intersection: uint = 0
+
+        each 0 .. (len2 - this.n + 1) as i {
+            let gram = (s2[i].to(u32) << 24) | (s2[i + 1].to(u32) << 16) | (s2[i + 2].to(u32) << 8) | s2[i + 3].to(u32)
+
+            let count2 = grams2.add(gram, 1)
+
+            let count1 = grams1.get(gram) !? 0
+            if count1 > 0 && count2 <= count1 {
+                intersection++
+            }
+        }
+
+        let total = grams1.length + grams2.length
+        if total > 0 {
+            return intersection.to(float) / total.to(float)
+        }
+        return 0.0
+    }
+
+    fn prepare() {
+        this.pairs = distance_pair_strings(this.count, this.size)
+        this.result_val = 0
+    }
+
+    fn run(iteration: int) {
+        each this.pairs as s1, s2 : this.result_val += (this.ngram(s1, s2) * 1000.0).to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}

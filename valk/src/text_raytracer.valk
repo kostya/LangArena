@@ -1,0 +1,180 @@
+use valk.math
+
+struct RtVector {
+    x: float
+    y: float
+    z: float
+
+    fn scale(s: float) RtVector {
+        return RtVector { x: this.x * s, y: this.y * s, z: this.z * s }
+    }
+
+    fn add(other: RtVector) RtVector {
+        return RtVector { x: this.x + other.x, y: this.y + other.y, z: this.z + other.z }
+    }
+
+    fn sub(other: RtVector) RtVector {
+        return RtVector { x: this.x - other.x, y: this.y - other.y, z: this.z - other.z }
+    }
+
+    fn dot(other: RtVector) float {
+        return this.x * other.x + this.y * other.y + this.z * other.z
+    }
+
+    fn magnitude() float {
+        return math.sqrt(this.dot(this))
+    }
+
+    fn normalize() RtVector {
+        let mag = this.magnitude()
+        return this.scale(1.0 / mag)
+    }
+}
+
+struct RtRay {
+    orig: RtVector
+    dir: RtVector
+}
+
+struct RtColor {
+    r: float
+    g: float
+    b: float
+
+    fn scale(s: float) RtColor {
+        return RtColor { r: this.r * s, g: this.g * s, b: this.b * s }
+    }
+
+    fn add(other: RtColor) RtColor {
+        return RtColor { r: this.r + other.r, g: this.g + other.g, b: this.b + other.b }
+    }
+}
+
+struct RtSphere {
+    center: RtVector
+    radius: float
+    color: RtColor
+
+    fn get_normal(pt: RtVector) RtVector {
+        return pt.sub(this.center).normalize()
+    }
+}
+
+struct RtLight {
+    position: RtVector
+    color: RtColor
+}
+
+struct RtHit {
+    obj: RtSphere
+    value: float
+}
+
+class TextRaytracer is Benchmark {
+    w: i32
+    h: i32
+    result_val: u32 (0)
+    light: RtLight
+    lut: [u8 x 6] ({ '.', '-', '+', '*', 'X', 'M' })
+    scene: [RtSphere x 3]
+
+    static fn new() SELF {
+        let white = RtColor { r: 1.0, g: 1.0, b: 1.0 }
+        let red = RtColor { r: 1.0, g: 0.0, b: 0.0 }
+        let green = RtColor { r: 0.0, g: 1.0, b: 0.0 }
+        let blue = RtColor { r: 0.0, g: 0.0, b: 1.0 }
+        return SELF {
+            w: config_int("Etc::TextRaytracer", "w").to(i32)
+            h: config_int("Etc::TextRaytracer", "h").to(i32)
+            light: RtLight { position: RtVector { x: 0.7, y: -1.0, z: 1.7 }, color: white }
+            scene: {
+                RtSphere { center: RtVector { x: -1.0, y: 0.0, z: 3.0 }, radius: 0.3, color: red }
+                RtSphere { center: RtVector { x: 0.0, y: 0.0, z: 3.0 }, radius: 0.8, color: green }
+                RtSphere { center: RtVector { x: 1.0, y: 0.0, z: 3.0 }, radius: 0.4, color: blue }
+            }
+        }
+    }
+
+    fn name() String {
+        return "Etc::TextRaytracer"
+    }
+
+    fn shade_pixel(ray: RtRay, obj: RtSphere, tval: float) uint {
+        let scale_dir = ray.dir.scale(tval)
+        let pi = ray.orig.add(scale_dir)
+        let color = this.diffuse_shading(pi, obj, this.light)
+        let col = (color.r + color.g + color.b) / 3.0
+        return math.floor(col * 6.0).to(uint)
+    }
+
+    fn intersect_sphere(ray: RtRay, center: RtVector, radius: float) ?float {
+        let l = center.sub(ray.orig)
+        let tca = l.dot(ray.dir)
+        if tca < 0.0 : return null
+
+        let d2 = l.dot(l) - tca * tca
+        let r2 = radius * radius
+        if d2 > r2 : return null
+
+        let thc = math.sqrt(r2 - d2)
+        let t0 = tca - thc
+        if t0 > 10000.0 : return null
+
+        return t0
+    }
+
+    fn clamp(x: float, a: float, b: float) float {
+        if x < a : return a
+        if x > b : return b
+        return x
+    }
+
+    fn diffuse_shading(pi: RtVector, obj: RtSphere, light: RtLight) RtColor {
+        let n = obj.get_normal(pi)
+        let light_dir = light.position.sub(pi).normalize()
+        let lam1 = light_dir.dot(n)
+        let lam2 = this.clamp(lam1, 0.0, 1.0)
+        let light_color = light.color.scale(lam2 * 0.5)
+        let obj_color = obj.color.scale(0.3)
+        return light_color.add(obj_color)
+    }
+
+    fn run(iteration: int) {
+        let fw = this.w.to(float)
+        let fh = this.h.to(float)
+
+        each 0 .. this.h as j {
+            each 0 .. this.w as i {
+                let fi = i.to(float)
+                let fj = j.to(float)
+
+                let ray = RtRay {
+                    orig: RtVector { x: 0.0, y: 0.0, z: 0.0 }
+                    dir: (RtVector { x: (fi - fw / 2.0) / fw, y: (fj - fh / 2.0) / fh, z: 1.0 }).normalize()
+                }
+
+                let hit: ?RtHit = null
+
+                each this.scene as obj {
+                    let tval = this.intersect_sphere(ray, obj.center, obj.radius)
+                    if isset(tval) {
+                        hit = RtHit { obj: obj, value: tval }
+                        break
+                    }
+                }
+
+                let pixel: u8 = ' '
+                if isset(hit) {
+                    let idx = this.shade_pixel(ray, hit.obj, hit.value)
+                    if idx < this.lut.length : pixel = this.lut[idx]
+                }
+
+                this.result_val += pixel.to(u32)
+            }
+        }
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}

@@ -1,0 +1,242 @@
+value GRAPH_I32_MAX (2147483647)
+
+class Graph {
+    vertices: i32
+    jumps: i32
+    jump_len: i32
+    adj: Array[Array[i32]]
+    // The rows as views once the graph is built: one indirection less per visited vertex
+    rows: Array[mut &[i32]] (Array[mut &[i32]]{})
+
+    static fn new(vertices: i32, jumps: i32, jump_len: i32) Graph {
+        let adj = Array[Array[i32]].new(vertices.to(uint))
+        each 0 .. vertices as i : adj.append(Array[i32]{})
+        return Graph { vertices: vertices, jumps: jumps, jump_len: jump_len, adj: adj }
+    }
+
+    fn add_edge(u: i32, v: i32) {
+        let u_idx = u.to(uint)
+        let v_idx = v.to(uint)
+        if u_idx < this.adj.length && v_idx < this.adj.length {
+            this.adj[u_idx].append(v)
+            this.adj[v_idx].append(u)
+        }
+    }
+
+    fn generate_random() {
+        each 1 .. (this.vertices - 1) as i : this.add_edge(i, i - 1)
+
+        each 0 .. this.vertices as v {
+            let num_jumps = next_int(this.jumps)
+            each 0 .. num_jumps as j {
+                let offset = next_int(this.jump_len) - this.jump_len / 2
+                let u = v + offset
+                if u >= 0 && u < this.vertices && u != v {
+                    this.add_edge(v, u)
+                }
+            }
+        }
+        each this.adj as row : this.rows.append(row.view())
+    }
+}
+
+// Shared state of the three graph benchmarks
+class GraphPathBase {
+    graph: Graph
+    result_val: u32 (0)
+    prepared: bool (false)
+
+    static fn new() GraphPathBase {
+        return GraphPathBase { graph: Graph.new(0, 0, 0) }
+    }
+
+    fn prepare(class_name: String) {
+        if this.prepared : return
+        let vertices = config_int(class_name, "vertices").to(i32)
+        let jumps = config_int(class_name, "jumps").to(i32)
+        let jump_len = config_int(class_name, "jump_len").to(i32)
+        let graph = Graph.new(vertices, jumps, jump_len)
+        graph.generate_random()
+        this.graph = graph
+        this.prepared = true
+    }
+}
+
+class GraphPathBFS is Benchmark {
+    base: GraphPathBase
+
+    static fn new() SELF {
+        return SELF { base: GraphPathBase.new() }
+    }
+
+    fn name() String {
+        return "Graph::BFS"
+    }
+
+    fn prepare() {
+        this.base.prepare("Graph::BFS")
+    }
+
+    fn bfs_shortest_path(start: i32, target: i32) i64 {
+        if start == target : return 0
+
+        let graph = this.base.graph
+        let visited = [bool]{ false x graph.vertices.to(uint) }
+        let queue = Deque[(i32, i32)]{}
+
+        visited[start.to(uint)] = true
+        queue.push_back((start, 0))
+
+        while true {
+            let v, dist = queue.pop_front() ! break
+            each graph.rows[v.to(uint)] as neighbor {
+                if neighbor == target : return (dist + 1).to(i64)
+                let neighbor_idx = neighbor.to(uint)
+                if !visited[neighbor_idx] {
+                    visited[neighbor_idx] = true
+                    queue.push_back((neighbor, dist + 1))
+                }
+            }
+        }
+
+        return -1
+    }
+
+    fn run(iteration: int) {
+        let total_length = this.bfs_shortest_path(0, this.base.graph.vertices - 1)
+        this.base.result_val += total_length.to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.base.result_val
+    }
+}
+
+class GraphPathDFS is Benchmark {
+    base: GraphPathBase
+
+    static fn new() SELF {
+        return SELF { base: GraphPathBase.new() }
+    }
+
+    fn name() String {
+        return "Graph::DFS"
+    }
+
+    fn prepare() {
+        this.base.prepare("Graph::DFS")
+    }
+
+    fn dfs_find_path(start: i32, target: i32) i64 {
+        if start == target : return 0
+
+        let graph = this.base.graph
+        let visited = [bool]{ false x graph.vertices.to(uint) }
+        let stack = Array[(i32, i32)]{ (start, 0) }
+        let best_path: i32 = GRAPH_I32_MAX
+
+        while true {
+            let v, dist = stack.pop_last() ! break
+            let v_idx = v.to(uint)
+            if visited[v_idx] || dist >= best_path : continue
+            visited[v_idx] = true
+
+            each graph.rows[v_idx] as neighbor {
+                if neighbor == target {
+                    if dist + 1 < best_path : best_path = dist + 1
+                } else if !visited[neighbor.to(uint)] {
+                    stack.append((neighbor, dist + 1))
+                }
+            }
+        }
+
+        if best_path == GRAPH_I32_MAX : return -1
+        return best_path.to(i64)
+    }
+
+    fn run(iteration: int) {
+        let total_length = this.dfs_find_path(0, this.base.graph.vertices - 1)
+        this.base.result_val += total_length.to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.base.result_val
+    }
+}
+
+struct AStarNode {
+    f_score: i32
+    vertex: i32
+}
+
+// Smallest f_score first, ties by vertex (Rust: BinaryHeap of Reverse(Node))
+fn astar_before(a: AStarNode, b: AStarNode) bool {
+    if a.f_score != b.f_score : return a.f_score < b.f_score
+    return a.vertex < b.vertex
+}
+
+class GraphPathAStar is Benchmark {
+    base: GraphPathBase
+
+    static fn new() SELF {
+        return SELF { base: GraphPathBase.new() }
+    }
+
+    fn name() String {
+        return "Graph::AStar"
+    }
+
+    fn prepare() {
+        this.base.prepare("Graph::AStar")
+    }
+
+    fn heuristic(v: i32, target: i32) i32 {
+        return target - v
+    }
+
+    fn a_star_shortest_path(start: i32, target: i32) i64 {
+        if start == target : return 0
+
+        let graph = this.base.graph
+        let vertices = graph.vertices.to(uint)
+        let g_score = [i32]{ GRAPH_I32_MAX x vertices }
+        let best_f = [i32]{ GRAPH_I32_MAX x vertices }
+
+        g_score[start.to(uint)] = 0
+        let f_start = this.heuristic(start, target)
+        best_f[start.to(uint)] = f_start
+
+        let open_set = Heap[AStarNode].new(astar_before)
+        open_set.push(AStarNode { f_score: f_start, vertex: start })
+
+        while true {
+            let current = open_set.pop() ! break
+            let cur_idx = current.vertex.to(uint)
+            if current.vertex == target : return g_score[cur_idx].to(i64)
+
+            each graph.rows[cur_idx] as neighbor {
+                let tentative_g = g_score[cur_idx] + 1
+                let n_idx = neighbor.to(uint)
+                if tentative_g < g_score[n_idx] {
+                    g_score[n_idx] = tentative_g
+                    let f_new = tentative_g + this.heuristic(neighbor, target)
+                    if f_new < best_f[n_idx] {
+                        best_f[n_idx] = f_new
+                        open_set.push(AStarNode { f_score: f_new, vertex: neighbor })
+                    }
+                }
+            }
+        }
+
+        return -1
+    }
+
+    fn run(iteration: int) {
+        let total_length = this.a_star_shortest_path(0, this.base.graph.vertices - 1)
+        this.base.result_val += total_length.to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.base.result_val
+    }
+}

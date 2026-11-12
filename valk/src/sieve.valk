@@ -1,0 +1,54 @@
+use valk.math
+
+class Sieve is Benchmark {
+    limit: uint
+    checksum_val: u32 (0)
+
+    static fn new() SELF {
+        return SELF { limit: config_int("Etc::Sieve", "limit").to(uint) }
+    }
+
+    fn name() String {
+        return "Etc::Sieve"
+    }
+
+    fn run(iteration: int) {
+        let limit = this.limit
+
+        let primes = [u8]{ 1 x limit + 1 }
+        primes[0] = 0
+        primes[1] = 0
+
+        let sqrt_limit = math.sqrt(limit.to(float)).to(uint)
+
+        let p: uint = 2
+        while p <= sqrt_limit {
+            if primes[p] == 1 {
+                let multiple = p * p
+                while multiple <= limit {
+                    primes[multiple] = 0
+                    multiple += p
+                }
+            }
+            p++
+        }
+
+        let last_prime: uint = 2
+        let count: uint = 1
+
+        let n: uint = 3
+        while n <= limit {
+            if primes[n] == 1 {
+                last_prime = n
+                count++
+            }
+            n += 2
+        }
+
+        this.checksum_val += (last_prime + count).to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.checksum_val
+    }
+}

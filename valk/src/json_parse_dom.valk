@@ -1,0 +1,50 @@
+use valk.json
+
+class JsonParseDom is Benchmark {
+    n: int
+    text: String ("")
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        return SELF { n: config_int("Json::ParseDom", "coords") }
+    }
+
+    fn name() String {
+        return "Json::ParseDom"
+    }
+
+    fn calc(text: String) (float, float, float) {
+        let doc = json.read(text) ! panic("Invalid JSON")
+        let coordinates = doc.get("coordinates").array
+        let len = coordinates.length.to(float)
+
+        let x = 0.0
+        let y = 0.0
+        let z = 0.0
+
+        each coordinates as coord {
+            x += coord.get("x").float
+            y += coord.get("y").float
+            z += coord.get("z").float
+        }
+
+        return (x / len, y / len, z / len)
+    }
+
+    fn prepare() {
+        let generator = JsonGenerate.new()
+        generator.n = this.n
+        generator.prepare()
+        generator.run(0)
+        this.text = generator.text
+    }
+
+    fn run(iteration: int) {
+        let x, y, z = this.calc(this.text)
+        this.result_val += checksum_f64(x) + checksum_f64(y) + checksum_f64(z)
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}

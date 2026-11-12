@@ -1,0 +1,42 @@
+fn buffer_crc32(data: local &[u8]) u32 {
+    let crc: u32 = 0xFFFFFFFF
+
+    each data as byte {
+        crc ^= byte.to(u32)
+        each 0 .. 8 as k {
+            if (crc & 1) != 0 {
+                crc = (crc >> 1) ^ 0xEDB88320
+            } else {
+                crc >>= 1
+            }
+        }
+    }
+
+    return crc ^ 0xFFFFFFFF
+}
+
+class BufferHashCRC32 is Benchmark {
+    base: BufferHashBase (BufferHashBase {})
+
+    static fn new() SELF {
+        return SELF {}
+    }
+
+    fn name() String {
+        return "Hash::CRC32"
+    }
+
+    fn prepare() {
+        this.base.prepare("Hash::CRC32")
+    }
+
+    fn run(iteration: int) {
+        let ch = next_int(256).to(u8)
+        this.base.data[next_int(this.base.size_val.to(i32)).to(uint)] = ch
+        this.base.result_val += buffer_crc32(this.base.data)
+    }
+
+    fn checksum() u32 {
+        return this.base.result_val
+    }
+}
