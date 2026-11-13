@@ -1,0 +1,16 @@
+{
+    "src": "src",
+    "require": {
+        "valk": {
+            "min": "0.8.7"
+        }
+    },
+    "dependencies": {
+        "csv": {
+            "src": "github.com/ctxcode/valk-csv",
+            "current": "0.1.2",
+            "current_hash": "ae73502e48c329074915de9eab7db719a0fa89ba",
+            "version": "0.1.x"
+        }
+    }
+}

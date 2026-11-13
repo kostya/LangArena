@@ -14,7 +14,7 @@ The main table shows results for standard safe release flags. A separate "Hackin
 
 Since this is a language-level evaluation, cross-language comparisons are rough and approximate. Comparing different runtimes or compilers for the same language, however, gives a fairer test - OpenJDK/GraalVM, Node/Bun/Deno, Clang/GCC, CRuby/Spinel, and others.
 
-**Languages:** `C`, `C++`, `Crystal`, `Rust`, `Go`, `Swift`, `C#`, `Java`, `Kotlin`, `TypeScript`, `Zig`, `D`, `V`, `Julia`, `Nim`, `F#`, `Dart`, `Python`, `Odin`, `Scala`, `C3`, `Ruby`, `PHP`, `Mojo`, `JavaScript`, `Gossamer`, `Goose`.
+**Languages:** `C`, `C++`, `Crystal`, `Rust`, `Go`, `Swift`, `C#`, `Java`, `Kotlin`, `TypeScript`, `Zig`, `D`, `V`, `Julia`, `Nim`, `F#`, `Dart`, `Python`, `Odin`, `Scala`, `C3`, `Ruby`, `PHP`, `Mojo`, `JavaScript`, `Gossamer`, `Goose`, `Valk`.
 
 Participating Compilers/Runtimes:
 
@@ -45,6 +45,7 @@ Participating Compilers/Runtimes:
 * `JavaScript`: [Node](https://nodejs.org/), [Bun](https://bun.sh/), [Deno](https://deno.com/)
 * `Gossamer`: [Gossamer](https://gossamer-lang.org)
 * `Goose`: [Goose](https://github.com/aardappel/goose), [Goose.go](https://github.com/robtandy/goose.go)
+* `Valk`: [Valk](https://valk-lang.dev)
 
 ## Benchmarking Methodology
 

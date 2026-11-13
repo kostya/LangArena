@@ -619,6 +619,22 @@ services:
     depends_on:
       - rust
 
+  valk:
+    <<: *shared
+    image: langarena:valk
+    working_dir: /src/valk
+    build:
+      dockerfile: docker/valk
+      args:
+        # https://valk-lang.dev/download
+        version: "0.8.7"
+    volumes:
+      - .:/src
+      - ./cache/build/valk/target:/src/valk/target
+      - ./cache/deps/valk/vendor:/src/valk/vendor
+    depends_on:
+      - base
+
   goose_clang:
     <<: *shared
     image: langarena:goose_clang

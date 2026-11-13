@@ -1,0 +1,187 @@
+// Arena node of the LRU list; -1 means no prev/next (Rust: Option<usize>)
+struct LruNode {
+    key: String
+    value: String
+    prev: int (-1)
+    next: int (-1)
+}
+
+class LruCache {
+    capacity: uint
+    cache: HashMap[String, uint]
+    nodes: Array[LruNode]
+    free: Array[uint] (Array[uint]{})
+    head: int (-1)
+    tail: int (-1)
+    size: uint (0)
+
+    static fn new(capacity: uint) LruCache {
+        return LruCache {
+            capacity: capacity
+            cache: HashMap[String, uint].new(capacity)
+            nodes: Array[LruNode].new(capacity)
+        }
+    }
+
+    fn get(key: String) bool {
+        let node = this.cache.get(key) ! return false
+        this.move_to_front(node)
+        return true
+    }
+
+    fn put(key: String, value: String) {
+        this.cache.get(key) -> node {
+            let n = &this.nodes[node]
+            n.value = value
+            this.move_to_front(node)
+            return
+        }
+
+        if this.size >= this.capacity : this.remove_oldest()
+
+        let node: uint = 0
+        if this.free.length > 0 {
+            node = this.free.pop_last() !!
+            this.nodes.set(node, LruNode { key: key, value: value }) !!
+        } else {
+            this.nodes.append(LruNode { key: key, value: value })
+            node = this.nodes.length - 1
+        }
+
+        this.cache.set(key, node)
+        this.add_to_front(node)
+        this.size++
+    }
+
+    fn len() uint {
+        return this.size
+    }
+
+    fn move_to_front(node: uint) {
+        let node_i = node.to(int)
+        if node_i == this.head : return
+
+        let n = &this.nodes[node]
+        let prev = n.prev
+        let next = n.next
+
+        if prev >= 0 {
+            let p = &this.nodes[prev.to(uint)]
+            p.next = next
+        }
+        if next >= 0 {
+            let nx = &this.nodes[next.to(uint)]
+            nx.prev = prev
+        }
+
+        if node_i == this.tail : this.tail = prev
+
+        n.prev = -1
+        n.next = this.head
+
+        if this.head >= 0 {
+            let h = &this.nodes[this.head.to(uint)]
+            h.prev = node_i
+        }
+
+        this.head = node_i
+
+        if this.tail < 0 : this.tail = node_i
+    }
+
+    fn add_to_front(node: uint) {
+        let node_i = node.to(int)
+        let n = &this.nodes[node]
+        n.next = this.head
+
+        if this.head >= 0 {
+            let h = &this.nodes[this.head.to(uint)]
+            h.prev = node_i
+        }
+
+        this.head = node_i
+
+        if this.tail < 0 : this.tail = node_i
+    }
+
+    fn remove_oldest() {
+        if this.tail < 0 : return
+        let tail_node = this.tail.to(uint)
+        let t = &this.nodes[tail_node]
+        this.cache.remove(t.key)
+
+        let prev = t.prev
+        if prev >= 0 {
+            let p = &this.nodes[prev.to(uint)]
+            p.next = -1
+        }
+
+        this.tail = prev
+
+        if this.tail < 0 || this.head == tail_node.to(int) : this.head = -1
+
+        this.free.append(tail_node)
+        this.size--
+    }
+}
+
+class CacheSimulation is Benchmark {
+    result_val: u32 (5432)
+    values_size: int
+    cache_size: int
+    cache: LruCache
+    hits: u32 (0)
+    misses: u32 (0)
+
+    static fn new() SELF {
+        let values_size = config_int("Etc::CacheSimulation", "values")
+        let cache_size = config_int("Etc::CacheSimulation", "size")
+        return SELF {
+            values_size: values_size
+            cache_size: cache_size
+            cache: LruCache.new(cache_size.to(uint))
+        }
+    }
+
+    fn name() String {
+        return "Etc::CacheSimulation"
+    }
+
+    fn prepare() {
+        this.cache = LruCache.new(this.cache_size.to(uint))
+        this.hits = 0
+        this.misses = 0
+    }
+
+    fn run(iteration: int) {
+        let buf = ByteBuffer.new(32)
+        each 0 .. 1000 as i {
+            let k = next_int(this.values_size.to(i32))
+            buf.clear()
+            buf.write("item_")
+            buf.write_int_ascii(k.to(int))
+            let key = buf.to_string()
+            if this.cache.get(key) {
+                this.hits++
+                buf.clear()
+                buf.write("updated_")
+                buf.write_int_ascii(iteration)
+                this.cache.put(key, buf.to_string())
+            } else {
+                this.misses++
+                buf.clear()
+                buf.write("new_")
+                buf.write_int_ascii(iteration)
+                this.cache.put(key, buf.to_string())
+            }
+        }
+    }
+
+    fn checksum() u32 {
+        let result = this.result_val
+        result = (result << 5) + this.hits
+        result = (result << 5) + this.misses
+        result = (result << 5) + this.cache.len().to(u32)
+        return result
+    }
+}

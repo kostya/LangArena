@@ -1,0 +1,853 @@
+fn compress_test_data(size: int) Array[u8] {
+    let pattern = "ABRACADABRA"
+    let pattern_len = pattern.length
+    let data = Array[u8].new(size.to(uint))
+    each 0 .. size as i : data.append(pattern[i.to(uint) % pattern_len])
+    return data
+}
+
+// ---------------------------------------------------------------------------
+// BWT
+
+class BWTResult {
+    transformed: Array[u8] (Array[u8]{})
+    original_idx: i32 (0)
+}
+
+fn bwt_transform(input: Array[u8]) BWTResult {
+    let n = input.length
+    if n == 0 : return BWTResult {}
+
+    let sa = Array[uint]{ 0 x n }
+
+    let counts: [uint x 256] = { 0... }
+    each input as byte : counts[byte.to(uint)] += 1
+
+    let positions: [uint x 256] = { 0... }
+    let total: uint = 0
+    each 0 .. 256 as c {
+        positions[c] = total
+        total += counts[c]
+    }
+
+    let temp_counts: [uint x 256] = { 0... }
+    each 0 .. n as i {
+        let byte = input[i].to(uint)
+        let pos = positions[byte] + temp_counts[byte]
+        sa[pos] = i
+        temp_counts[byte] += 1
+    }
+
+    if n > 1 {
+        // Ranks and positions fit in u32 for any input below 4 GB, which halves the sort's memory
+        let rank = [u32]{ 0 x n }
+        let current_rank: u32 = 0
+        let prev_char = input[sa[0]]
+
+        each sa as idx {
+            if input[idx] != prev_char {
+                current_rank += 1
+                prev_char = input[idx]
+            }
+            rank[idx] = current_rank
+        }
+
+        let k: uint = 1
+        // Suffixes as (rank, rank k further, index): their natural order is the pair order
+        let keyed = Array[(u32, u32, u32)].new(n)
+        let new_rank = [u32]{ 0 x n }
+        while k < n {
+            keyed.clear()
+            // In the previous order, so the sort mostly meets ordered runs
+            each sa as i : keyed.append((rank[i], rank[(i + k) % n], i.to(u32)))
+            keyed.sort()
+
+            each keyed as r1, r2, idx, i {
+                sa[i] = idx.to(uint)
+                if i == 0 {
+                    new_rank[idx.to(uint)] = 0
+                    continue
+                }
+                let p1, p2, prev = keyed[i - 1]
+                new_rank[idx.to(uint)] = new_rank[prev.to(uint)] + (p1 == r1 && p2 == r2 ? 0 : 1)
+            }
+
+            // The two rank buffers take turns
+            let old_rank = rank
+            rank = new_rank
+            new_rank = old_rank
+            k <<= 1
+        }
+    }
+
+    let transformed = Array[u8]{ 0 x n }
+    let original_idx: i32 = 0
+
+    each sa as suffix, i {
+        if suffix == 0 {
+            transformed[i] = input[n - 1]
+            original_idx = i.to(i32)
+        } else {
+            transformed[i] = input[suffix - 1]
+        }
+    }
+
+    return BWTResult { transformed: transformed, original_idx: original_idx }
+}
+
+class BWTEncode is Benchmark {
+    size_val: int
+    test_data: Array[u8] (Array[u8]{})
+    bwt_result: BWTResult (BWTResult {})
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        return SELF { size_val: config_int("Compress::BWTEncode", "size") }
+    }
+
+    fn name() String {
+        return "Compress::BWTEncode"
+    }
+
+    fn prepare() {
+        this.test_data = compress_test_data(this.size_val)
+    }
+
+    fn run(iteration: int) {
+        this.bwt_result = bwt_transform(this.test_data)
+        this.result_val += this.bwt_result.transformed.length.to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}
+
+fn bwt_inverse(bwt_result: BWTResult) Array[u8] {
+    let bwt = bwt_result.transformed.view()
+    let n = bwt.length
+    if n == 0 : return Array[u8]{}
+
+    let counts: [i32 x 256] = { 0... }
+    each bwt as byte : counts[byte.to(uint)] += 1
+
+    let positions: [i32 x 256] = { 0... }
+    let total: i32 = 0
+    each 0 .. 256 as c {
+        positions[c] = total
+        total += counts[c]
+    }
+
+    let next = [uint]{ 0 x n }
+    let temp_counts: [i32 x 256] = { 0... }
+
+    each bwt as byte, i {
+        let byte_idx = byte.to(uint)
+        let pos = (positions[byte_idx] + temp_counts[byte_idx]).to(uint)
+        next[pos] = i
+        temp_counts[byte_idx] += 1
+    }
+
+    let result = Array[u8]{ 0 x n }
+    let idx = bwt_result.original_idx.to(uint)
+
+    each 0 .. n as i {
+        idx = next[idx]
+        result[i] = bwt[idx]
+    }
+
+    return result
+}
+
+class BWTDecode is Benchmark {
+    size_val: int
+    test_data: Array[u8] (Array[u8]{})
+    inverted: Array[u8] (Array[u8]{})
+    bwt_result: BWTResult (BWTResult {})
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        return SELF { size_val: config_int("Compress::BWTDecode", "size") }
+    }
+
+    fn name() String {
+        return "Compress::BWTDecode"
+    }
+
+    fn prepare() {
+        let encoder = BWTEncode.new()
+        encoder.size_val = this.size_val
+        encoder.prepare()
+        encoder.run(0)
+        this.test_data = encoder.test_data.copy()
+        this.bwt_result = encoder.bwt_result
+    }
+
+    fn run(iteration: int) {
+        this.inverted = bwt_inverse(this.bwt_result)
+        this.result_val += this.inverted.length.to(u32)
+    }
+
+    fn checksum() u32 {
+        let res = this.result_val
+        if this.inverted.equals(this.test_data) : res += 100000
+        return res
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Huffman
+
+class HuffmanNode {
+    frequency: i32
+    byte_val: u8
+    is_leaf: bool
+    left: ?HuffmanNode
+    right: ?HuffmanNode
+}
+
+class HuffmanCodes {
+    code_lengths: Array[i32] (Array[i32]{ 0 x 256 })
+    codes: Array[i32] (Array[i32]{ 0 x 256 })
+}
+
+class HuffEncodedResult {
+    data: Array[u8] (Array[u8]{})
+    bit_count: i32 (0)
+    frequencies: Array[i32] (Array[i32]{})
+}
+
+fn build_huffman_tree(frequencies: Array[i32]) ?HuffmanNode {
+    let nodes = Array[HuffmanNode]{}
+    each frequencies as freq, i {
+        if freq > 0 : nodes.append(HuffmanNode { frequency: freq, byte_val: i.to(u8), is_leaf: true })
+    }
+
+    let by_frequency = fn(a: HuffmanNode, b: HuffmanNode) bool { return a.frequency > b.frequency }
+    nodes.sort(by_frequency)
+
+    if nodes.length == 1 {
+        let node = nodes.pop_first() !!
+        return HuffmanNode {
+            frequency: node.frequency
+            byte_val: 0
+            is_leaf: false
+            left: node
+            right: HuffmanNode { frequency: 0, byte_val: 0, is_leaf: true }
+        }
+    }
+
+    while nodes.length > 1 {
+        let left = nodes.pop_first() !!
+        let right = nodes.pop_first() !!
+
+        let parent = HuffmanNode {
+            frequency: left.frequency + right.frequency
+            byte_val: 0
+            is_leaf: false
+            left: left
+            right: right
+        }
+
+        let found = nodes.binary_search(parent, by_frequency)
+        nodes.insert(found[1], parent) !!
+    }
+
+    return nodes.pop_last() !? null
+}
+
+fn build_huffman_codes(node: HuffmanNode, code: i32, length: i32, huffman_codes: HuffmanCodes) {
+    if node.is_leaf {
+        if length > 0 || node.byte_val != 0 {
+            let idx = node.byte_val.to(uint)
+            huffman_codes.code_lengths[idx] = length
+            huffman_codes.codes[idx] = code
+        }
+    } else {
+        let left = node.left
+        if isset(left) : build_huffman_codes(left, code << 1, length + 1, huffman_codes)
+        let right = node.right
+        if isset(right) : build_huffman_codes(right, (code << 1) | 1, length + 1, huffman_codes)
+    }
+}
+
+fn huffman_encode(data: Array[u8], codes: HuffmanCodes, frequencies: Array[i32]) HuffEncodedResult {
+    let result = Array[u8].new(data.length * 2)
+    let current_byte: u8 = 0
+    let bit_pos = 0
+    let total_bits: i32 = 0
+
+    let code_table = codes.codes.view()
+    let length_table = codes.code_lengths.view()
+    each data as byte {
+        let idx = byte.to(uint)
+        let code = code_table[idx]
+        let length = length_table[idx]
+
+        let i = length - 1
+        while i >= 0 {
+            if (code & (1 << i)) != 0 {
+                current_byte |= (1 << (7 - bit_pos)).to(u8)
+            }
+            bit_pos++
+            total_bits++
+
+            if bit_pos == 8 {
+                result.append(current_byte)
+                current_byte = 0
+                bit_pos = 0
+            }
+            i--
+        }
+    }
+
+    if bit_pos > 0 {
+        result.append(current_byte)
+    }
+
+    return HuffEncodedResult { data: result, bit_count: total_bits, frequencies: frequencies }
+}
+
+class HuffEncode is Benchmark {
+    size_val: int
+    test_data: Array[u8] (Array[u8]{})
+    encoded: HuffEncodedResult (HuffEncodedResult {})
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        return SELF { size_val: config_int("Compress::HuffEncode", "size") }
+    }
+
+    fn name() String {
+        return "Compress::HuffEncode"
+    }
+
+    fn prepare() {
+        this.test_data = compress_test_data(this.size_val)
+    }
+
+    fn run(iteration: int) {
+        let frequencies = Array[i32]{ 0 x 256 }
+        each this.test_data as byte : frequencies[byte.to(uint)] += 1
+
+        let tree = build_huffman_tree(frequencies)
+
+        let codes = HuffmanCodes {}
+        if isset(tree) : build_huffman_codes(tree, 0, 0, codes)
+
+        this.encoded = huffman_encode(this.test_data, codes, frequencies)
+        this.result_val += this.encoded.data.length.to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}
+
+fn huffman_decode(encoded: Array[u8], root: HuffmanNode, bit_count: i32) ByteBuffer {
+    let result = ByteBuffer.new(bit_count.to(uint))
+    result.resize(bit_count.to(uint))
+    let out = result.view()
+    let result_size: uint = 0
+
+    let current_node = root
+    let bits_processed: i32 = 0
+    let byte_index: uint = 0
+
+    while bits_processed < bit_count && byte_index < encoded.length {
+        let byte_val = encoded[byte_index]
+        byte_index++
+
+        let bit_pos = 7
+        while bit_pos >= 0 {
+            if bits_processed >= bit_count : break
+
+            let bit = ((byte_val >> bit_pos) & 1) == 1
+            bits_processed++
+
+            let next = bit ? current_node.right : current_node.left
+            if isset(next) {
+                current_node = next
+            } else {
+                panic("Decode error: missing child")
+            }
+
+            if current_node.is_leaf {
+                if current_node.byte_val != 0 {
+                    out[result_size] = current_node.byte_val
+                    result_size++
+                }
+                current_node = root
+            }
+            bit_pos--
+        }
+    }
+
+    result.truncate(result_size)
+    return result
+}
+
+class HuffDecode is Benchmark {
+    size_val: int
+    test_data: Array[u8] (Array[u8]{})
+    decoded: ByteBuffer (ByteBuffer.new(0))
+    encoded: HuffEncodedResult (HuffEncodedResult {})
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        return SELF { size_val: config_int("Compress::HuffDecode", "size") }
+    }
+
+    fn name() String {
+        return "Compress::HuffDecode"
+    }
+
+    fn prepare() {
+        this.test_data = compress_test_data(this.size_val)
+
+        let encoder = HuffEncode.new()
+        encoder.size_val = this.size_val
+        encoder.prepare()
+        encoder.run(0)
+        this.encoded = encoder.encoded
+    }
+
+    fn run(iteration: int) {
+        let tree = build_huffman_tree(this.encoded.frequencies)
+        if isset(tree) {
+            this.decoded = huffman_decode(this.encoded.data, tree, this.encoded.bit_count)
+            this.result_val += this.decoded.length.to(u32)
+        }
+    }
+
+    fn checksum() u32 {
+        let res = this.result_val
+        if this.test_data.view().equals(this.decoded.to_string()) : res += 100000
+        return res
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Arithmetic coding
+
+class ArithEncodedResult {
+    data: Array[u8] (Array[u8]{})
+    frequencies: Array[i32] (Array[i32]{})
+}
+
+class ArithFreqTable {
+    total: i32
+    low: Array[i32]
+    high: Array[i32]
+
+    static fn new(frequencies: Array[i32]) ArithFreqTable {
+        let total: i32 = 0
+        each frequencies as f : total += f
+        let low = Array[i32]{ 0 x 256 }
+        let high = Array[i32]{ 0 x 256 }
+
+        let cum: i32 = 0
+        each 0 .. 256 as i {
+            low[i] = cum
+            cum += frequencies[i]
+            high[i] = cum
+        }
+
+        return ArithFreqTable { total: total, low: low, high: high }
+    }
+}
+
+struct ArithBitOutput {
+    buffer: u8 (0)
+    bit_pos: i32 (0)
+    bytes: Array[u8] (Array[u8]{})
+    bits_written: i32 (0)
+
+    fn write_bit(bit: i32) {
+        this.buffer = (this.buffer << 1) | (bit.to(u8) & 1)
+        this.bit_pos++
+        this.bits_written++
+
+        if this.bit_pos == 8 {
+            this.bytes.append(this.buffer)
+            this.buffer = 0
+            this.bit_pos = 0
+        }
+    }
+
+    fn flush() Array[u8] {
+        if this.bit_pos > 0 {
+            this.buffer <<= (8 - this.bit_pos).to(u8)
+            this.bytes.append(this.buffer)
+        }
+        let out = this.bytes
+        this.bytes = Array[u8]{}
+        return out
+    }
+}
+
+fn arith_encode(data: Array[u8]) ArithEncodedResult {
+    let frequencies = Array[i32]{ 0 x 256 }
+    each data as byte : frequencies[byte.to(uint)] += 1
+
+    let freq_table = ArithFreqTable.new(frequencies)
+    let total = freq_table.total.to(u64)
+
+    let low: u64 = 0
+    let high: u64 = 0xFFFFFFFF
+    let pending: i32 = 0
+    let output = ArithBitOutput {}
+    let high_table = freq_table.high.view()
+    let low_table = freq_table.low.view()
+
+    each data as byte {
+        let idx = byte.to(uint)
+        let range = high - low + 1
+
+        high = low + (range * high_table[idx].to(u64) / total) - 1
+        low = low + (range * low_table[idx].to(u64) / total)
+
+        while true {
+            if high < 0x80000000 {
+                output.write_bit(0)
+                each 0 .. pending : output.write_bit(1)
+                pending = 0
+            } else if low >= 0x80000000 {
+                output.write_bit(1)
+                each 0 .. pending : output.write_bit(0)
+                pending = 0
+                low -= 0x80000000
+                high -= 0x80000000
+            } else if low >= 0x40000000 && high < 0xC0000000 {
+                pending++
+                low -= 0x40000000
+                high -= 0x40000000
+            } else {
+                break
+            }
+
+            low <<= 1
+            high = (high << 1) | 1
+            high &= 0xFFFFFFFF
+        }
+    }
+
+    pending++
+    if low < 0x40000000 {
+        output.write_bit(0)
+        each 0 .. pending : output.write_bit(1)
+    } else {
+        output.write_bit(1)
+        each 0 .. pending : output.write_bit(0)
+    }
+
+    return ArithEncodedResult { data: output.flush(), frequencies: frequencies }
+}
+
+class ArithEncode is Benchmark {
+    size_val: int
+    result_val: u32 (0)
+    test_data: Array[u8] (Array[u8]{})
+    encoded: ArithEncodedResult (ArithEncodedResult {})
+
+    static fn new() SELF {
+        return SELF { size_val: config_int("Compress::ArithEncode", "size") }
+    }
+
+    fn name() String {
+        return "Compress::ArithEncode"
+    }
+
+    fn prepare() {
+        this.test_data = compress_test_data(this.size_val)
+    }
+
+    fn run(iteration: int) {
+        this.encoded = arith_encode(this.test_data)
+        this.result_val += this.encoded.data.length.to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}
+
+class ArithBitInput {
+    bytes: Array[u8]
+    byte_pos: uint (0)
+    bit_pos: i32 (0)
+    current_byte: u8
+
+    static fn new(bytes: Array[u8]) ArithBitInput {
+        return ArithBitInput { bytes: bytes, current_byte: bytes.length > 0 ? bytes[0] : 0 }
+    }
+
+    fn read_bit() i32 {
+        if this.bit_pos == 8 {
+            this.byte_pos++
+            this.bit_pos = 0
+            this.current_byte = this.byte_pos < this.bytes.length ? this.bytes[this.byte_pos] : 0
+        }
+
+        let bit = ((this.current_byte >> (7 - this.bit_pos)) & 1).to(i32)
+        this.bit_pos++
+        return bit
+    }
+}
+
+fn arith_decode(encoded: ArithEncodedResult) Array[u8] {
+    let frequencies = encoded.frequencies
+    let total_i: i32 = 0
+    each frequencies as f : total_i += f
+    let total = total_i.to(u64)
+    let data_size = total_i.to(uint)
+
+    let low_table: [i32 x 256] = { 0... }
+    let high_table: [i32 x 256] = { 0... }
+    let cum: i32 = 0
+    each 0 .. 256 as i {
+        low_table[i] = cum
+        cum += frequencies[i]
+        high_table[i] = cum
+    }
+
+    let result = Array[u8]{ 0 x data_size }
+    let input = ArithBitInput.new(encoded.data)
+
+    let value: u64 = 0
+    each 0 .. 32 : value = (value << 1) | input.read_bit().to(u64)
+
+    let low: u64 = 0
+    let high: u64 = 0xFFFFFFFF
+
+    each 0 .. data_size as j {
+        let range = high - low + 1
+        let scaled = ((value - low + 1) * total - 1) / range
+
+        // partition_point: first index whose high bound is above scaled
+        let lo: uint = 0
+        let hi: uint = 256
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if high_table[mid].to(u64) <= scaled {
+                lo = mid + 1
+            } else {
+                hi = mid
+            }
+        }
+        let symbol = lo.to(u8)
+        result[j] = symbol
+        let sym = symbol.to(uint)
+
+        high = low + (range * high_table[sym].to(u64) / total) - 1
+        low = low + (range * low_table[sym].to(u64) / total)
+
+        while true {
+            if high >= 0x80000000 && low < 0x80000000 && (low < 0x40000000 || high >= 0xC0000000) {
+                break
+            }
+
+            if high < 0x80000000 {
+            } else if low >= 0x80000000 {
+                value -= 0x80000000
+                low -= 0x80000000
+                high -= 0x80000000
+            } else if low >= 0x40000000 && high < 0xC0000000 {
+                value -= 0x40000000
+                low -= 0x40000000
+                high -= 0x40000000
+            }
+
+            low <<= 1
+            high = (high << 1) | 1
+            value = (value << 1) | input.read_bit().to(u64)
+        }
+    }
+
+    return result
+}
+
+class ArithDecode is Benchmark {
+    size_val: int
+    result_val: u32 (0)
+    test_data: Array[u8] (Array[u8]{})
+    decoded: Array[u8] (Array[u8]{})
+    encoded: ArithEncodedResult (ArithEncodedResult {})
+
+    static fn new() SELF {
+        return SELF { size_val: config_int("Compress::ArithDecode", "size") }
+    }
+
+    fn name() String {
+        return "Compress::ArithDecode"
+    }
+
+    fn prepare() {
+        this.test_data = compress_test_data(this.size_val)
+
+        let encoder = ArithEncode.new()
+        encoder.size_val = this.size_val
+        encoder.prepare()
+
+        encoder.test_data = this.test_data.copy()
+        encoder.run(0)
+
+        this.encoded = encoder.encoded
+    }
+
+    fn run(iteration: int) {
+        this.decoded = arith_decode(this.encoded)
+        this.result_val += this.decoded.length.to(u32)
+    }
+
+    fn checksum() u32 {
+        let res = this.result_val
+        if this.decoded.equals(this.test_data) : res += 100000
+        return res
+    }
+}
+
+// ---------------------------------------------------------------------------
+// LZW
+
+class LZWResult {
+    data: Array[u8] (Array[u8]{})
+}
+
+fn lzw_byte_key(byte: u8) String {
+    let buf = ByteBuffer.new(32)
+    buf.write_byte(byte)
+    return buf.to_string()
+}
+
+class LZWEncode is Benchmark {
+    size_val: int
+    result_val: u32 (0)
+    test_data: Array[u8] (Array[u8]{})
+    encoded: LZWResult (LZWResult {})
+
+    static fn new() SELF {
+        return SELF { size_val: config_int("Compress::LZWEncode", "size") }
+    }
+
+    // The dictionary keys are the byte sequences as strings
+    static fn lzw_encode(input: Array[u8]) LZWResult {
+        if input.length == 0 : return LZWResult {}
+
+        let dict = HashMap[String, int].new(4096)
+        each 0 .. 256 as i : dict.set(lzw_byte_key(i.to(u8)), i)
+        let next_code = 256
+        let result = Array[u8].new(input.length * 2)
+        // `current` is always a run of the input, so the keys are views of one string
+        let text = input.view().to_string()
+        let start: uint = 0
+
+        each 1 .. input.length - 1 as i {
+            let key = text.range(start, i + 1 - start)
+            if !dict.has(key) {
+                let code = dict.get(text.range(start, i - start)) !!
+                result.append(((code >> 8) & 0xFF).to(u8))
+                result.append((code & 0xFF).to(u8))
+
+                dict.set(key, next_code)
+                next_code++
+                start = i
+            }
+        }
+
+        let code = dict.get(text.range(start, input.length - start)) !!
+        result.append(((code >> 8) & 0xFF).to(u8))
+        result.append((code & 0xFF).to(u8))
+        return LZWResult { data: result }
+    }
+
+    fn name() String {
+        return "Compress::LZWEncode"
+    }
+
+    fn prepare() {
+        this.test_data = compress_test_data(this.size_val)
+    }
+
+    fn run(iteration: int) {
+        this.encoded = LZWEncode.lzw_encode(this.test_data)
+        this.result_val += this.encoded.data.length.to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}
+
+fn lzw_decode(encoded: LZWResult) Array[u8] {
+    let data = encoded.data
+    if data.length == 0 : return Array[u8]{}
+
+    if data.length % 2 != 0 : panic("Decode error: incomplete code")
+
+    let dict = Array[Array[u8]].new(4096)
+    each 0 .. 256 as i : dict.append(Array[u8]{ i.to(u8) })
+
+    let result = Array[u8].new(data.length * 2)
+    let old_code = ((data[0].to(u16) << 8) | data[1].to(u16)).to(uint)
+    result.append_many(dict[old_code])
+
+    let pos: uint = 2
+    while pos < data.length {
+        let new_code = ((data[pos].to(u16) << 8) | data[pos + 1].to(u16)).to(uint)
+        let entry = dict[old_code].copy()
+        if new_code < dict.length {
+            entry.append(dict[new_code][0])
+            result.append_many(dict[new_code])
+        } else if new_code == dict.length {
+            entry.append(entry[0])
+            result.append_many(entry)
+        } else {
+            return Array[u8]{}
+        }
+
+        dict.append(entry)
+        old_code = new_code
+        pos += 2
+    }
+
+    return result
+}
+
+class LZWDecode is Benchmark {
+    size_val: int
+    result_val: u32 (0)
+    test_data: Array[u8] (Array[u8]{})
+    decoded: Array[u8] (Array[u8]{})
+    encoded: LZWResult (LZWResult {})
+
+    static fn new() SELF {
+        return SELF { size_val: config_int("Compress::LZWDecode", "size") }
+    }
+
+    fn name() String {
+        return "Compress::LZWDecode"
+    }
+
+    fn prepare() {
+        this.test_data = compress_test_data(this.size_val)
+
+        let encoder = LZWEncode.new()
+        encoder.size_val = this.size_val
+        encoder.prepare()
+        encoder.run(0)
+
+        this.encoded = encoder.encoded
+    }
+
+    fn run(iteration: int) {
+        this.decoded = lzw_decode(this.encoded)
+        this.result_val += this.decoded.length.to(u32)
+    }
+
+    fn checksum() u32 {
+        let res = this.result_val
+        if this.decoded.equals(this.test_data) : res += 100000
+        return res
+    }
+}

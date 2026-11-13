@@ -76,6 +76,7 @@ LANG_MASKS = {
   'mojo' => ['./mojo', ['.mojo'], ['.pixi', 'target']],
   'gossamer' => ['./gossamer', ['.gos'], ['target', '.gos-cache']],
   'goose' => ['./goose', ['.goose'], ['target']],
+  'valk' => ['./valk', ['.valk'], ['target', 'vendor']],
   'javascript' => ['./javascript', ['.js'], []],
 }
 
@@ -1001,6 +1002,20 @@ RUNS = [
     container: "gossamer",
     group: :prod,
     deps_cmd: "true",
+  ),
+
+  # ======================================= Valk ======================================================
+
+  Run.new(
+    name: "Valk",
+    build_cmd: "valk build src -o ./target/benchmark --release",
+    binary_name: "./target/benchmark",
+    run_cmd: "./target/benchmark",
+    version_cmd: "valk --version",
+    dir: "/src/valk",
+    container: "valk",
+    group: :prod,
+    deps_cmd: "mkdir -p target ; vman install",
   ),
 
   # ======================================= V ======================================================

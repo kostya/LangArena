@@ -1,0 +1,68 @@
+use valk.math
+
+class Spectralnorm is Benchmark {
+    size_val: uint
+    u: mut &[float]
+    v: mut &[float]
+
+    static fn new() SELF {
+        let size_val = config_int("CLBG::Spectralnorm", "size").to(uint)
+        return SELF {
+            size_val: size_val
+            u: [float]{ 1.0 x size_val }
+            v: [float]{ 1.0 x size_val }
+        }
+    }
+
+    fn name() String {
+        return "CLBG::Spectralnorm"
+    }
+
+    fn eval_a(i: uint, j: uint) float {
+        let ij = (i + j).to(float)
+        return 1.0 / (ij * (ij + 1.0) / 2.0 + i.to(float) + 1.0)
+    }
+
+    fn eval_a_times_u(u: local &[float]) mut &[float] {
+        let n = u.length
+        let result = [float]{ 0.0 x n }
+        each 0 .. n as i {
+            let sum = 0.0
+            each 0 .. n as j : sum += this.eval_a(i, j) * u[j]
+            result[i] = sum
+        }
+        return result
+    }
+
+    fn eval_at_times_u(u: local &[float]) mut &[float] {
+        let n = u.length
+        let result = [float]{ 0.0 x n }
+        each 0 .. n as i {
+            let sum = 0.0
+            each 0 .. n as j : sum += this.eval_a(j, i) * u[j]
+            result[i] = sum
+        }
+        return result
+    }
+
+    fn eval_ata_times_u(u: local &[float]) mut &[float] {
+        let temp = this.eval_a_times_u(u)
+        return this.eval_at_times_u(temp)
+    }
+
+    fn run(iteration: int) {
+        this.v = this.eval_ata_times_u(this.u)
+        this.u = this.eval_ata_times_u(this.v)
+    }
+
+    fn checksum() u32 {
+        let vbv = 0.0
+        let vv = 0.0
+        each 0 .. this.size_val as i {
+            let vi = this.v[i]
+            vbv += this.u[i] * vi
+            vv += vi * vi
+        }
+        return checksum_f64(math.sqrt(vbv / vv))
+    }
+}

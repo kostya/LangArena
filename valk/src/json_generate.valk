@@ -1,0 +1,60 @@
+use valk.json
+use valk.math
+
+struct JsonCoordinate {
+    x: float
+    y: float
+    z: float
+    name: String
+    opts: Map[(int, bool)]
+}
+
+class JsonData {
+    coordinates: Array[JsonCoordinate]
+    info: String
+}
+
+fn json_round_to_8(value: float) float {
+    return math.round(value * 100000000.0) / 100000000.0
+}
+
+class JsonGenerate is Benchmark {
+    n: int
+    text: String ("")
+    data: JsonData (JsonData { coordinates: .{}, info: "some info" })
+    result: u32 (0)
+
+    static fn new() SELF {
+        return SELF { n: config_int("Json::Generate", "coords") }
+    }
+
+    fn name() String {
+        return "Json::Generate"
+    }
+
+    fn prepare() {
+        let data = Array[JsonCoordinate]{}
+        each 0 .. this.n as i {
+            let x = json_round_to_8(next_float(1.0))
+            let y = json_round_to_8(next_float(1.0))
+            let z = json_round_to_8(next_float(1.0))
+
+            let name = next_float(1.0).to_string(7) + " " + next_int(10000)
+
+            let opts = Map[(int, bool)]{}
+            opts.set("1", (1, true))
+
+            data.append(JsonCoordinate { x: x, y: y, z: z, name: name, opts: opts })
+        }
+        this.data = JsonData { coordinates: data, info: "some info" }
+    }
+
+    fn run(iteration: int) {
+        this.text = json.encode(this.data)
+        if this.text.starts_with("{\"coordinates\":") : this.result++
+    }
+
+    fn checksum() u32 {
+        return this.result
+    }
+}

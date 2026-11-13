@@ -1,0 +1,73 @@
+value MANDELBROT_ITER (50)
+value MANDELBROT_LIMIT (2.0)
+
+class Mandelbrot is Benchmark {
+    w: uint
+    h: uint
+    result_bin: Array[u8] (Array[u8]{})
+
+    static fn new() SELF {
+        return SELF {
+            w: config_int("CLBG::Mandelbrot", "w").to(uint)
+            h: config_int("CLBG::Mandelbrot", "h").to(uint)
+        }
+    }
+
+    fn name() String {
+        return "CLBG::Mandelbrot"
+    }
+
+    fn run(iteration: int) {
+        let w = this.w
+        let h = this.h
+        let result_bin = this.result_bin
+
+        let header = "P4\n%w %h\n"
+        each header as byte : result_bin.append(byte)
+
+        let bit_num = 0
+        let byte_acc: u8 = 0
+
+        each 0 .. h as y {
+            let ci = (2.0 * y.to(float) / h.to(float)) - 1.0
+            each 0 .. w as x {
+                let zr = 0.0
+                let zi = 0.0
+                let tr = 0.0
+                let ti = 0.0
+
+                let cr = (2.0 * x.to(float) / w.to(float)) - 1.5
+
+                let i = 0
+                while i < MANDELBROT_ITER && (tr + ti) <= (MANDELBROT_LIMIT * MANDELBROT_LIMIT) {
+                    zi = 2.0 * zr * zi + ci
+                    zr = tr - ti + cr
+                    tr = zr * zr
+                    ti = zi * zi
+                    i++
+                }
+
+                byte_acc <<= 1
+                if tr + ti <= MANDELBROT_LIMIT * MANDELBROT_LIMIT {
+                    byte_acc |= 0x01
+                }
+                bit_num++
+
+                if bit_num == 8 {
+                    result_bin.append(byte_acc)
+                    byte_acc = 0
+                    bit_num = 0
+                } else if x == w - 1 {
+                    byte_acc <<= (8 - (w % 8)).to(u8)
+                    result_bin.append(byte_acc)
+                    byte_acc = 0
+                    bit_num = 0
+                }
+            }
+        }
+    }
+
+    fn checksum() u32 {
+        return checksum_bytes(this.result_bin)
+    }
+}

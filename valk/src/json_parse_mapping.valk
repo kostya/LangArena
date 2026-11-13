@@ -1,0 +1,59 @@
+use valk.json
+
+struct JsonCoordinateData {
+    x: float
+    y: float
+    z: float
+}
+
+class JsonCoordinates {
+    coordinates: Array[JsonCoordinateData]
+}
+
+class JsonParseMapping is Benchmark {
+    n: int
+    text: String ("")
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        return SELF { n: config_int("Json::ParseMapping", "coords") }
+    }
+
+    fn name() String {
+        return "Json::ParseMapping"
+    }
+
+    fn calc(text: String) JsonCoordinateData {
+        let data = json.decode_to[JsonCoordinates](text) ! panic("Invalid JSON")
+        let len = data.coordinates.length.to(float)
+
+        let x = 0.0
+        let y = 0.0
+        let z = 0.0
+
+        each data.coordinates as coord {
+            x += coord.x
+            y += coord.y
+            z += coord.z
+        }
+
+        return JsonCoordinateData { x: x / len, y: y / len, z: z / len }
+    }
+
+    fn prepare() {
+        let generator = JsonGenerate.new()
+        generator.n = this.n
+        generator.prepare()
+        generator.run(0)
+        this.text = generator.text
+    }
+
+    fn run(iteration: int) {
+        let avg = this.calc(this.text)
+        this.result_val += checksum_f64(avg.x) + checksum_f64(avg.y) + checksum_f64(avg.z)
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}
