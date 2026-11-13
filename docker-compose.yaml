@@ -627,7 +627,7 @@ services:
       dockerfile: docker/valk
       args:
         # https://valk-lang.dev/download
-        version: "0.8.5"
+        version: "0.8.7"
     volumes:
       - .:/src
       - ./cache/build/valk/target:/src/valk/target

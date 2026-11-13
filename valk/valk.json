@@ -2,7 +2,7 @@
     "src": "src",
     "require": {
         "valk": {
-            "min": "0.8.5"
+            "min": "0.8.7"
         }
     },
     "dependencies": {
