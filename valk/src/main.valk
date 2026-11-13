@@ -1,5 +1,6 @@
 use valk.json
 use valk.fs
+use valk.gc
 use valk.time
 
 // Benchmark settings from run.js or test.js, by benchmark name
@@ -127,6 +128,38 @@ fn create_benchmark(name: String) ?Benchmark {
     return null
 }
 
+fn run_benchmark(name: String) (float, bool) !LookupError $noinline {
+    let bench = create_benchmark(name)
+    if !isset(bench) {
+        println("Warning: Benchmark '%name' defined in config but not found in code")
+        throw .missing
+    }
+
+    print(name + ": ")
+
+    reset()
+    bench.prepare()
+    bench.warmup()
+    gc.collect()
+    reset()
+
+    let start = time.mono_ns()
+    bench.run_all()
+    let delta = (time.mono_ns() - start).to(float) / 1e9
+
+    let expected = bench.expected_checksum()
+    let actual = bench.checksum()
+    let passed = actual == expected
+    if passed {
+        print("OK ")
+    } else {
+        print("ERR[actual=%actual, expected=%expected] ")
+    }
+
+    println("in " + delta.to_string(3) + "s")
+    return (delta, passed)
+}
+
 fn main(args: Array[String]) {
     println("start: " + time.unix_ms())
 
@@ -141,36 +174,12 @@ fn main(args: Array[String]) {
 
     each order as name {
         if filter != "" && !name.lower().contains(filter) : continue
-
-        let bench = create_benchmark(name)
-        if !isset(bench) {
-            println("Warning: Benchmark '%name' defined in config but not found in code")
-            continue
-        }
-
-        print(name + ": ")
-
-        reset()
-        bench.prepare()
-        bench.warmup()
-        reset()
-
-        let start = time.mono_ns()
-        bench.run_all()
-        let delta = (time.mono_ns() - start).to(float) / 1e9
-
-        let expected = bench.expected_checksum()
-        let actual = bench.checksum()
-        if actual == expected {
-            print("OK ")
-            ok++
-        } else {
-            print("ERR[actual=%actual, expected=%expected] ")
-            fails++
-        }
-
-        println("in " + delta.to_string(3) + "s")
+        let delta, passed = run_benchmark(name) ! continue
+        if passed : ok++
+        else : fails++
         summary += delta
+        gc.collect_shared()
+        gc.release_memory()
     }
 
     println("Summary: " + summary.to_string(4) + "s, " + (ok + fails) + ", " + ok + ", " + fails)
