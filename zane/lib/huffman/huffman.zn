@@ -137,7 +137,6 @@ Encoded(data String, bits Int, frequencies List<Int>) => init {
 }
 
 Encoded encode(input String) {
-  inputBytes Buffer=bytes(input);
   freq List<Int> = frequencies(input);
   if(length(input)==0) {
     return Encoded(String(""), Int(0), freq);
@@ -147,13 +146,13 @@ Encoded encode(input String) {
   root Int=tree.root;
   tree!codes(root, Int(0), Int(0));
   // The pending byte and its bit count stay in locals, as in C's encoder.
-  out Buffer=buffer(Int(0), Int(0));
+  out List<U8> = List(U8);
   pending Int=Int(0);
   position Int=Int(0);
   written Int=Int(0);
   i Int=Int(1);
-  i!to(length(input)) {
-    value Int=byte(inputBytes, i)+1;
+  i!to(input:byteCount()) {
+    value Int=Int(input:byteAt(i))+1;
     code Int=tree.codes[value];
     codeLength Int=tree.lengths[value];
     j Int=Int(1);
@@ -161,7 +160,7 @@ Encoded encode(input String) {
       pending=pending*2+bitAnd(shiftRightLogical(code, codeLength-j), Int(1));
       position=position+1;
       if(position==8) {
-        out!push(pending);
+        out!push(U8.wrap(pending));
         pending=Int(0);
         position=Int(0);
       }
@@ -169,25 +168,27 @@ Encoded encode(input String) {
     written=written+codeLength;
   }
   if(position>0) {
-    out!push(shiftLeft(pending, Int(8)-position));
+    out!push(U8.wrap(shiftLeft(pending, Int(8)-position)));
   }
-  return Encoded(out:string(), written, freq);
+  return Encoded(String(out), written, freq);
 }
 
-String decode(encoded Encoded) {
+// The decoded bytes, as Goose's port gives them back: a byte list, which
+// is a String only where one is compared.
+List<U8> decode(encoded Encoded) {
+  out List<U8> = List(U8);
   if(encoded.bits==0) {
-    return String("");
+    return out;
   }
   tree Tree=Tree();
   tree!build(encoded.frequencies);
   current Int=tree.root;
-  data Buffer=bytes(encoded.data);
-  out Buffer=buffer(Int(0), Int(0));
+  data String=encoded.data;
   // As in C, each byte is read once and its bits taken from the top.
   remaining Int=encoded.bits;
   i Int=Int(1);
-  i!to(length(data)) {
-    value Int=byte(data, i);
+  i!to(data:byteCount()) {
+    value Int=Int(data:byteAt(i));
     b Int=Int(1);
     b!to(min(Int(8), remaining)) {
       bit Int=bitAnd(shiftRightLogical(value, Int(8)-b), Int(1));
@@ -198,20 +199,20 @@ String decode(encoded Encoded) {
         current=tree.nodes[current].right;
       }
       if(tree.nodes[current].left==0 and tree.nodes[current].right==0) {
-        out!push(tree.nodes[current].value);
+        out!push(U8.wrap(tree.nodes[current].value));
         current=tree.root;
       }
     }
     remaining=remaining-8;
   }
-  return out:string();
+  return out;
 }
 
 type State = #struct {
   n Int;
   data String;
   encoded Encoded;
-  decoded String;
+  decoded List<U8>;
   result Int;
   decode Bool;
 }
@@ -220,7 +221,7 @@ State(cfg Config, name String) => init {
   n=cfg:integer(name, "size");
   data=String("");
   encoded=Encoded(String(""), Int(0), List(Int));
-  decoded=String("");
+  decoded=List(U8);
   result=Int(0);
   decode=name=="Compress::HuffDecode";
 }
@@ -236,7 +237,7 @@ Unit prepare(this State) mut {
 Unit step(this State, iteration Int) mut {
   mode Bool=if(this.decode) {
     this.decoded=decode(this.encoded);
-    this.result=u32(this.result+length(this.decoded));
+    this.result=u32(this.result+this.decoded:size());
   }
   mode:else() {
     this.encoded=encode(this.data);
@@ -246,7 +247,7 @@ Unit step(this State, iteration Int) mut {
 }
 
 Int checksum(this State) {
-  if(this.decode and this.decoded==this.data) {
+  if(this.decode and String(this.decoded)==this.data) {
     return u32(this.result+100000);
   }
   return this.result;

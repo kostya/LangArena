@@ -11,94 +11,118 @@ Encoded(data String) => init {
   data;
 }
 
+// As Goose's port: every string is a range of one byte list, made by
+// appending its bytes there, and the dictionary is keyed by those ranges.
 Encoded encode(input String) {
-  inputBytes Buffer=bytes(input);
-  if(length(input)==0) {
+  n Int=input:byteCount();
+  if(n==0) {
     return Encoded(String(""));
   }
-  dict StringMap=StringMap(length(input)*2+1024);
-  // The 256 one-byte strings, made once: C builds each step's next
-  // character in a two-byte stack buffer rather than allocating it.
-  characters List<String> = List(String);
+  strings List<U8> = List(U8);
+  dict BytesMap=BytesMap(min(n*2+1024, Int(65536)*2));
   i Int=Int(0);
   i!to(Int(255)) {
-    characters!push(character(i));
-    dict!put(characters[i+1], i);
+    strings!push(U8.wrap(i));
+    dict!put(strings, i+1, Int(1), i);
   }
   next Int=Int(256);
-  out Buffer=buffer(Int(0), Int(0));
-  current String=characters[byte(inputBytes, Int(1))+1];
+  out List<U8> = List(U8);
+  currentStart Int=strings:size()+1;
+  currentLength Int=Int(1);
+  strings!push(input:byteAt(Int(1)));
   j Int=Int(2);
-  j!to(length(input)) {
-    nextChar Int=byte(inputBytes, j)+1;
-    combined String=current+characters[nextChar];
-    found Bool=if(dict:has(combined)) {
-      current=combined;
+  j!to(n) {
+    b U8=input:byteAt(j);
+    charStart Int=strings:size()+1;
+    strings!push(b);
+    combinedStart Int=strings:size()+1;
+    strings!appendOwn(currentStart, currentLength);
+    strings!push(b);
+    combinedLength Int=currentLength+1;
+    found Bool=if(dict:find(strings, combinedStart, combinedLength)>=0) {
+      currentStart=combinedStart;
+      currentLength=combinedLength;
     }
     found:else() {
-      code Int=dict:get(current);
-      out!push(shiftRightLogical(code, Int(8)));
-      out!push(bitAnd(code, Int(255)));
+      code Int=dict:find(strings, currentStart, currentLength);
+      out!push(U8.wrap(shiftRightLogical(code, Int(8))));
+      out!push(U8.wrap(bitAnd(code, Int(255))));
       if(next<65536) {
-        dict!put(combined, next);
+        dict!put(strings, combinedStart, combinedLength, next);
         next=next+1;
       }
-      current=characters[nextChar];
+      currentStart=charStart;
+      currentLength=Int(1);
     }
   }
-  code Int=dict:get(current);
-  out!push(shiftRightLogical(code, Int(8)));
-  out!push(bitAnd(code, Int(255)));
-  return Encoded(out:string());
+  code Int=dict:find(strings, currentStart, currentLength);
+  out!push(U8.wrap(shiftRightLogical(code, Int(8))));
+  out!push(U8.wrap(bitAnd(code, Int(255))));
+  return Encoded(String(out));
 }
 
-String decode(encoded Encoded) {
+// The decoded bytes, as Goose's port gives them back: a byte list, which
+// is a String only where one is compared.
+List<U8> decode(encoded Encoded) {
   input String=encoded.data;
-  inputBytes Buffer=bytes(input);
-  if(length(input)==0) {
-    return String("");
+  n Int=input:byteCount();
+  if(n==0) {
+    return List(U8);
   }
-  dict List<String> = List(String);
+  // As in Goose's port, every entry's bytes are in one list, and an entry
+  // is where its bytes start there and how many there are.
+  strings List<U8> = List(U8);
+  starts List<Int> = List(Int);
+  lengths List<Int> = List(Int);
   i Int=Int(0);
   i!to(Int(255)) {
-    dict!push(character(i));
+    strings!push(U8.wrap(i));
+    starts!push(i+1);
+    lengths!push(Int(1));
   }
-  // Codes are 0-based and the dictionary 1-based. As in C, the previous
-  // code is kept, not a copy of its string.
-  old Int=byte(inputBytes, Int(1))*256+byte(inputBytes, Int(2));
-  out Buffer=buffer(Int(0), Int(0));
-  out!append(dict[old+1]);
+  // Codes are 0-based and the dictionary 1-based.
+  old Int=Int(input:byteAt(Int(1)))*256+Int(input:byteAt(Int(2)));
+  out List<U8> = List(U8);
+  out!push(strings[starts[old+1]]);
   position Int=Int(3);
   j Int=Int(1);
-  j!to(length(input)/2-1) {
-    next Int=byte(inputBytes, position)*256+byte(inputBytes, position+1);
+  j!to(n/2-1) {
+    next Int=Int(input:byteAt(position))*256+Int(input:byteAt(position+1));
     position=position+2;
-    known Bool=if(next<dict:size()) {
-      out!append(dict[next+1]);
-      if(dict:size()<65536) {
-        dict!push(dict[old+1]+character(byte(dict[next+1], Int(1))));
-      }
+    size Int=starts:size();
+    if(next>size) {
+      return List(U8);
     }
-    known:else() {
-      if(next~=dict:size()) {
-        return String("");
-      }
-      entry String=dict[old+1]+character(byte(dict[old+1], Int(1)));
-      out!append(entry);
-      if(dict:size()<65536) {
-        dict!push(entry);
-      }
+    oldStart Int=starts[old+1];
+    oldLength Int=lengths[old+1];
+    // The new entry is the previous one and the first byte of this one,
+    // which is the previous one's own first byte when this is the entry
+    // being made.
+    firstAt Int=oldStart;
+    if(next<size) {
+      firstAt=starts[next+1];
     }
+    first U8=strings[firstAt];
+    if(size<65536) {
+      starts!push(strings:size()+1);
+      lengths!push(oldLength+1);
+      strings!appendOwn(oldStart, oldLength);
+      strings!push(first);
+    }
+    if(next>=starts:size()) {
+      return List(U8);
+    }
+    out!appendRange(strings, starts[next+1], lengths[next+1]);
     old=next;
   }
-  return out:string();
+  return out;
 }
 
 type State = #struct {
   n Int;
   data String;
   encoded Encoded;
-  decoded String;
+  decoded List<U8>;
   result Int;
   decode Bool;
 }
@@ -107,7 +131,7 @@ State(cfg Config, name String) => init {
   n=cfg:integer(name, "size");
   data=String("");
   encoded=Encoded(String(""));
-  decoded=String("");
+  decoded=List(U8);
   result=Int(0);
   decode=name=="Compress::LZWDecode";
 }
@@ -123,7 +147,7 @@ Unit prepare(this State) mut {
 Unit step(this State, iteration Int) mut {
   mode Bool=if(this.decode) {
     this.decoded=decode(this.encoded);
-    this.result=u32(this.result+length(this.decoded));
+    this.result=u32(this.result+this.decoded:size());
   }
   mode:else() {
     this.encoded=encode(this.data);
@@ -133,7 +157,7 @@ Unit step(this State, iteration Int) mut {
 }
 
 Int checksum(this State) {
-  if(this.decode and this.decoded==this.data) {
+  if(this.decode and String(this.decoded)==this.data) {
     return u32(this.result+100000);
   }
   return this.result;

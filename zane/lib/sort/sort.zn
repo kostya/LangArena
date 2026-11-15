@@ -10,7 +10,6 @@ type State = #struct {
   rng Rng;
   result Int;
   mode Int;
-  raw @primitives$List<@primitives$I32>;
 }
 
 State(cfg Config, name String) => init {
@@ -20,22 +19,12 @@ State(cfg Config, name String) => init {
   rng=Rng();
   result=Int(0);
   mode=Int(0);
-  raw=@primitives$List(@primitives$I32);
 }
 
 Unit prepare(this State) mut {
   i Int=Int(1);
   i!to(this.data:size()) {
-    value I32=I32.wrap(this.rng!next(Int(1000000)));
-    mode Bool=if(this.mode==2) {
-      this.raw!push(value);
-    }
-    mode:else() {
-      this.data[i]=value;
-    }
-  }
-  if(this.mode==2) {
-    this.data=List(I32);
+    this.data[i]=I32.wrap(this.rng!next(Int(1000000)));
   }
   return Unit();
 }
@@ -146,12 +135,14 @@ Unit merge(this State, left Int, right Int) mut {
 Unit step(this State, iteration Int) mut {
   mode Int=this.mode;
   if(mode==2) {
-    n Int=Int(this.raw:size());
+    n Int=this.data:size();
     index Int=this.rng!next(n)+1;
-    this.result=u32(this.result+Int(I32(this.raw[index])));
-    sorted Sorted=standardSort(this.raw);
+    this.result=u32(this.result+Int(this.data[index]));
+    // As Goose's port: a copy of the data, sorted by the standard sort.
+    sorted List<I32> = this.data;
+    sorted!sort();
     index=this.rng!next(n)+1;
-    this.result=u32(this.result+sorted:get(index));
+    this.result=u32(this.result+Int(sorted[index]));
     return Unit();
   }
   index Int=this.rng!next(this.data:size())+1;

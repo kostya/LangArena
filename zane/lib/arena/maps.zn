@@ -1,23 +1,27 @@
 package arena;
 import core$;
 import math$;
+// Open addressing over a power of two slots, a slot from the top bits of
+// a Fibonacci hash of the key, as StringMap's.
 type IntMap = struct {
   keys List<Int>;
   values List<Int>;
   used List<Bool>;
   entries Int;
+  shift Int;
 }
 
 IntMap(capacity Int) => init {
-  keys=filled(capacity, Int(0));
-  values=filled(capacity, Int(0));
-  used=filled(capacity, Bool(false));
+  keys=filled(shiftLeft(Int(1), tableBits(capacity)), Int(0));
+  values=filled(shiftLeft(Int(1), tableBits(capacity)), Int(0));
+  used=filled(shiftLeft(Int(1), tableBits(capacity)), Bool(false));
   entries=Int(0);
+  shift=Int(64)-tableBits(capacity);
 }
 
 Int slot(this IntMap, key Int) {
   capacity Int=this.keys:size();
-  index Int=rem(u32(key*2654435761), capacity)+1;
+  index Int=shiftRightLogical(key*(Int(0)-Int(7046029254386353131)), this.shift)+1;
   probe Int=Int(1);
   probe!to(capacity) {
     if(~this.used[index]) {
@@ -26,7 +30,10 @@ Int slot(this IntMap, key Int) {
     if(this.keys[index]==key) {
       return index;
     }
-    index=rem(index, capacity)+1;
+    index=index+1;
+    if(index>capacity) {
+      index=Int(1);
+    }
   }
   return Int(0);
 }
@@ -61,6 +68,26 @@ Unit put(this IntMap, key Int, value Int) mut {
     this.values[index]=value;
   }
   return Unit();
+}
+
+// Adds amount to key's value, inserting key with value amount when it is
+// absent, and returns the new value: one probe, as Goose's dictionary
+// `update` and `get_or_insert`.
+Int add(this IntMap, key Int, amount Int) mut {
+  index Int=this:slot(key);
+  if(index==0) {
+    return Int(0);
+  }
+  if(~this.used[index]) {
+    this.entries=this.entries+1;
+    this.used[index]=Bool(true);
+    this.keys[index]=key;
+    this.values[index]=amount;
+    return amount;
+  }
+  value Int=this.values[index]+amount;
+  this.values[index]=value;
+  return value;
 }
 
 // Open addressing over a table of slots, each 0 (empty) or the 1-based
@@ -175,4 +202,204 @@ Int add(this StringMap, key String, amount Int) mut {
   value Int=this.values[entry]+amount;
   this.values[entry]=value;
   return value;
+}
+
+// A map from slices of one text to Ints, as Goose's dictionary keyed by
+// `const u8[:]`: a key is where its bytes start in the text and how many
+// there are, so no key is copied out. Every call names the same text.
+// Slots as StringMap's, the same djb2 hash over the key's bytes.
+type SliceMap = struct {
+  slots List<Int>;
+  starts List<Int>;
+  lengths List<Int>;
+  values List<Int>;
+  entries Int;
+  shift Int;
+}
+
+SliceMap(capacity Int) => init {
+  slots=filled(shiftLeft(Int(1), tableBits(capacity)), Int(0));
+  starts=List(Int);
+  lengths=List(Int);
+  values=List(Int);
+  entries=Int(0);
+  shift=Int(64)-tableBits(capacity);
+}
+
+Int hash(text String, start Int, count Int) {
+  value Int=Int(5381);
+  i Int=start;
+  i!to(start+count-1) {
+    value=u32(value*33+Int(text:byteAt(i)));
+  }
+  return value;
+}
+
+Bool same(text String, left Int, right Int, count Int) {
+  i Int=Int(0);
+  i!to(count-1) {
+    if(text:byteAt(left+i)~=text:byteAt(right+i)) {
+      return Bool(false);
+    }
+  }
+  return Bool(true);
+}
+
+Int slot(this SliceMap, text String, start Int, count Int) {
+  capacity Int=this.slots:size();
+  index Int=shiftRightLogical(hash(text, start, count)*(Int(0)-Int(7046029254386353131)), this.shift)+1;
+  probe Int=Int(1);
+  probe!to(capacity) {
+    entry Int=this.slots[index];
+    if(entry==0) {
+      return index;
+    }
+    if(this.lengths[entry]==count and same(text, this.starts[entry], start, count)) {
+      return index;
+    }
+    index=index+1;
+    if(index>capacity) {
+      index=Int(1);
+    }
+  }
+  return Int(0);
+}
+
+Int get(this SliceMap, text String, start Int, count Int) {
+  index Int=this:slot(text, start, count);
+  if(index==0) {
+    return Int(0);
+  }
+  entry Int=this.slots[index];
+  if(entry==0) {
+    return Int(0);
+  }
+  return this.values[entry];
+}
+
+Unit put(this SliceMap, text String, start Int, count Int, value Int) mut {
+  index Int=this:slot(text, start, count);
+  if(index>0) {
+    entry Int=this.slots[index];
+    if(entry==0) {
+      this.starts!push(start);
+      this.lengths!push(count);
+      this.values!push(value);
+      this.entries=this.entries+1;
+      this.slots[index]=this.entries;
+    }
+    if(entry>0) {
+      this.values[entry]=value;
+    }
+  }
+  return Unit();
+}
+
+// Adds amount to the slice's value, inserting it with value amount when
+// it is absent, and returns the new value: one probe.
+Int add(this SliceMap, text String, start Int, count Int, amount Int) mut {
+  index Int=this:slot(text, start, count);
+  if(index==0) {
+    return Int(0);
+  }
+  entry Int=this.slots[index];
+  if(entry==0) {
+    this.starts!push(start);
+    this.lengths!push(count);
+    this.values!push(amount);
+    this.entries=this.entries+1;
+    this.slots[index]=this.entries;
+    return amount;
+  }
+  value Int=this.values[entry]+amount;
+  this.values[entry]=value;
+  return value;
+}
+
+// SliceMap's slots keyed by ranges of one byte list rather than of a
+// String, for keys that are made as the list grows (Goose's LZW strings).
+// As Goose's dictionary, a key is hashed and compared a word at a time
+// (core's hashRange and sameRange), and each entry lies in its slot: a
+// lookup reads one slot, not a slot and then an entry elsewhere.
+type ByteSlot = struct {
+  start I32;
+  length I32;
+  value I32;
+}
+
+ByteSlot(start I32, length I32, value I32) => init {
+  start;
+  length;
+  value;
+}
+
+type BytesMap = struct {
+  slots List<ByteSlot>;
+  entries Int;
+  shift Int;
+}
+
+List<ByteSlot> emptySlots(n Int) {
+  out List<ByteSlot> = List(ByteSlot);
+  i Int=Int(1);
+  i!to(n) {
+    out!push(ByteSlot(I32(0), I32(0), I32(0)));
+  }
+  return out;
+}
+
+BytesMap(capacity Int) => init {
+  slots=emptySlots(shiftLeft(Int(1), tableBits(capacity)));
+  entries=Int(0);
+  shift=Int(64)-tableBits(capacity);
+}
+
+// The slot that holds the key with the same bytes as `count` of `from`
+// from `start`, the keys being ranges of `bytes`, or the empty slot where
+// it belongs; 0 if the table is full. An empty slot's start is 0.
+Int slotIn(this BytesMap, bytes List<U8>, from List<U8>, start Int, count Int) {
+  capacity Int=this.slots:size();
+  index Int=shiftRightLogical(from:hashRange(start, count)*(Int(0)-Int(7046029254386353131)), this.shift)+1;
+  probe Int=Int(1);
+  probe!to(capacity) {
+    slot ByteSlot=this.slots[index];
+    if(Int(slot.start)==0) {
+      return index;
+    }
+    if(Int(slot.length)==count and bytes:sameRange(Int(slot.start), from, start, count)) {
+      return index;
+    }
+    index=index+1;
+    if(index>capacity) {
+      index=Int(1);
+    }
+  }
+  return Int(0);
+}
+
+// The value at the range's slot, or -1 when the range is not a key.
+Int find(this BytesMap, bytes List<U8>, start Int, count Int) => this:findIn(bytes, bytes, start, count);
+
+// As find, for a range of another list.
+Int findIn(this BytesMap, bytes List<U8>, from List<U8>, start Int, count Int) {
+  index Int=this:slotIn(bytes, from, start, count);
+  if(index==0) {
+    return Int(0)-Int(1);
+  }
+  slot ByteSlot=this.slots[index];
+  if(Int(slot.start)==0) {
+    return Int(0)-Int(1);
+  }
+  return Int(slot.value);
+}
+
+Unit put(this BytesMap, bytes List<U8>, start Int, count Int, value Int) mut {
+  index Int=this:slotIn(bytes, bytes, start, count);
+  if(index>0) {
+    if(Int(this.slots[index].start)==0) {
+      this.entries=this.entries+1;
+    }
+    this.slots[index]=ByteSlot(I32.wrap(start), I32.wrap(count), I32.wrap(value));
+  }
+  return Unit();
 }

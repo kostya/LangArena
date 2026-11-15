@@ -28,7 +28,7 @@ jobs:
           echo "d5f89774a8694c9cabe5a0782d46cc1e2f1a9e5f03c790a4b8480b66f8346232  $RUNNER_TEMP/zane" | sha256sum -c -
           chmod +x "$RUNNER_TEMP/zane"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
-          "$RUNNER_TEMP/zane" toolchain install v0.32
+          "$RUNNER_TEMP/zane" toolchain install v0.37
       - name: Install PCRE2, which the arena package links for regular expressions
         run: sudo apt-get update && sudo apt-get install -y libpcre2-dev
       - name: Fetch and build

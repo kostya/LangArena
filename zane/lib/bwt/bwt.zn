@@ -40,8 +40,7 @@ List<I32> byKey(order List<I32>, keys List<I32>, n Int) {
 }
 
 Encoded encode(input String) {
-  inputBytes Buffer=bytes(input);
-  n Int=length(input);
+  n Int=input:byteCount();
   if(n==0) {
     return Encoded(String(""), Int(0));
   }
@@ -57,18 +56,18 @@ Encoded encode(input String) {
   seen List<Int> = filled(Int(256), Int(0));
   j Int=Int(1);
   j!to(n) {
-    value Int=byte(inputBytes, j)+1;
+    value Int=Int(input:byteAt(j))+1;
     position Int=positions[value]+seen[value]+1;
     indices[position]=I32.wrap(j);
     seen[value]=seen[value]+1;
   }
   ranks List<I32> = filled(n, I32(0));
   current I32=I32(0);
-  previous Int=byte(inputBytes, Int(indices[Int(1)]));
+  previous Int=Int(input:byteAt(Int(indices[Int(1)])));
   p Int=Int(1);
   p!to(n) {
     index Int=Int(indices[p]);
-    value Int=byte(inputBytes, index);
+    value Int=Int(input:byteAt(index));
     if(value~=previous) {
       current=current+1;
       previous=value;
@@ -101,25 +100,24 @@ Encoded encode(input String) {
       offset=offset*2;
     }
   }
-  out Buffer=buffer(Int(0), Int(0));
+  out List<U8> = List(U8);
   original Int=Int(1);
   q Int=Int(1);
   q!to(n) {
     suffix Int=Int(indices[q]);
     first Bool=if(suffix==1) {
-      out!push(byte(inputBytes, n));
+      out!push(input:byteAt(n));
       original=q;
     }
     first:else() {
-      out!push(byte(inputBytes, suffix-1));
+      out!push(input:byteAt(suffix-1));
     }
   }
-  return Encoded(out:string(), original);
+  return Encoded(String(out), original);
 }
 
 String decode(encoded Encoded) {
-  inputBytes Buffer=bytes(encoded.data);
-  n Int=length(encoded.data);
+  n Int=encoded.data:byteCount();
   if(n==0) {
     return String("");
   }
@@ -135,19 +133,19 @@ String decode(encoded Encoded) {
   seen List<Int> = filled(Int(256), Int(0));
   j Int=Int(1);
   j!to(n) {
-    value Int=byte(inputBytes, j)+1;
+    value Int=Int(encoded.data:byteAt(j))+1;
     position Int=positions[value]+seen[value]+1;
     next[position]=I32.wrap(j);
     seen[value]=seen[value]+1;
   }
-  out Buffer=buffer(Int(0), Int(0));
+  out List<U8> = List(U8);
   index Int=encoded.original;
   k Int=Int(1);
   k!to(n) {
     index=Int(next[index]);
-    out!push(byte(inputBytes, index));
+    out!push(encoded.data:byteAt(index));
   }
-  return out:string();
+  return String(out);
 }
 
 type State = #struct {

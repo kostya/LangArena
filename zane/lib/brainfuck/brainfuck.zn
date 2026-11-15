@@ -3,36 +3,36 @@ import core$;
 import math$;
 import arena$;
 type Tape = #struct {
-  bytes Buffer;
+  bytes List<U8>;
   position Int;
   result Int;
 }
 
 Tape() => init {
-  bytes=buffer(Int(30000), Int(0));
+  bytes=filled(Int(30000), U8(0));
   position=Int(1);
   result=Int(0);
 }
 
 Unit command(this Tape, op Int) mut {
-  value Int=this.bytes:get(this.position);
+  // As C: only the commands that use the current cell read it.
   if(op==43) {
-    this.bytes!set(this.position, rem(value+1, Int(256)));
+    this.bytes[this.position]=U8.wrap(Int(this.bytes[this.position])+1);
   }
   if(op==45) {
-    this.bytes!set(this.position, rem(value+255, Int(256)));
+    this.bytes[this.position]=U8.wrap(Int(this.bytes[this.position])+255);
   }
   if(op==62) {
     this.position=this.position+1;
     if(this.position>this.bytes:size()) {
-      this.bytes!push(Int(0));
+      this.bytes!push(U8(0));
     }
   }
   if(op==60) {
     this.position=max(Int(1), this.position-1);
   }
   if(op==46) {
-    this.result=u32(this.result*4+value);
+    this.result=u32(this.result*4+Int(this.bytes[this.position]));
   }
   return Unit();
 }
@@ -41,24 +41,24 @@ Unit command(this Tape, op Int) mut {
 // tape functions, each copy then has one caller, which LLVM inlines; a
 // shared command has three call sites and stays a call per command.
 Unit arrayCommand(this Tape, op Int) mut {
-  value Int=this.bytes:get(this.position);
+  // As C: only the commands that use the current cell read it.
   if(op==43) {
-    this.bytes!set(this.position, rem(value+1, Int(256)));
+    this.bytes[this.position]=U8.wrap(Int(this.bytes[this.position])+1);
   }
   if(op==45) {
-    this.bytes!set(this.position, rem(value+255, Int(256)));
+    this.bytes[this.position]=U8.wrap(Int(this.bytes[this.position])+255);
   }
   if(op==62) {
     this.position=this.position+1;
     if(this.position>this.bytes:size()) {
-      this.bytes!push(Int(0));
+      this.bytes!push(U8(0));
     }
   }
   if(op==60) {
     this.position=max(Int(1), this.position-1);
   }
   if(op==46) {
-    this.result=u32(this.result*4+value);
+    this.result=u32(this.result*4+Int(this.bytes[this.position]));
   }
   return Unit();
 }
@@ -118,7 +118,7 @@ Unit runOps(this Tape, ops ListRef<Op>) mut {
 Unit runLoop(this Tape, ops ListRef<Op>) mut {
   i Int=Int(1);
   i!to(Int(9223372036854775807)) {
-    if(this.bytes:get(this.position)==0) {
+    if(this.bytes[this.position]==U8(0)) {
       return Unit();
     }
     this!runOps(ops);
@@ -165,12 +165,12 @@ Int runArray(source String) {
     // skips that one, as in C.
     c Int=commands[pc];
     bracket Bool=if(c==91) {
-      if(tape.bytes:get(tape.position)==0) {
+      if(tape.bytes[tape.position]==U8(0)) {
         pc=jumps[pc];
       }
     }
     bracket!elif(c==93) {
-      if(tape.bytes:get(tape.position)~=0) {
+      if(tape.bytes[tape.position]~=U8(0)) {
         pc=jumps[pc];
       }
     }

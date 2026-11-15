@@ -45,8 +45,8 @@ struct arena_json {
   yyjson_mut_doc *mutable;
   yyjson_doc *parsed;
   yyjson_mut_val *coords;
-  yyjson_val **values;
-  size_t count;
+  yyjson_val *array, *current;
+  size_t count, index;
 };
 arena_json *arena_json_new(void) {
   arena_json *j = calloc(1, sizeof(*j));
@@ -73,11 +73,8 @@ arena_json *arena_json_parse(zane_bytes text) {
       yyjson_obj_get(yyjson_doc_get_root(j->parsed), "coordinates");
   if (!yyjson_is_arr(coords))
     die("coordinates must be an array");
+  j->array = coords;
   j->count = yyjson_arr_size(coords);
-  j->values = alloc(j->count * sizeof(*j->values));
-  size_t index, count;
-  yyjson_val *value;
-  yyjson_arr_foreach(coords, index, count, value) { j->values[index] = value; }
   return j;
 }
 void arena_json_free(arena_json *j) {
@@ -85,7 +82,6 @@ void arena_json_free(arena_json *j) {
     yyjson_mut_doc_free(j->mutable);
   if (j->parsed)
     yyjson_doc_free(j->parsed);
-  free(j->values);
   free(j);
 }
 void arena_json_add(arena_json *j, double x, double y, double z,
@@ -113,11 +109,24 @@ zane_bytes arena_json_string(const arena_json *j) {
   return out;
 }
 int64_t arena_json_count(const arena_json *j) { return (int64_t)j->count; }
+/* Reads the array as C's yyjson_arr_foreach does, one element after the
+   other: the next index is one step on from the current element, and any
+   other is found from the start. Each key is a literal, as in C's
+   yyjson_obj_get(coord, "x"), so its length and comparison fold. */
 double arena_json_get(const arena_json *j, int64_t index, int64_t axis) {
-  const char *keys[] = {"x", "y", "z"};
   if (index < 1 || (uint64_t)index > j->count || axis < 0 || axis > 2)
     die("JSON index out of bounds");
-  return yyjson_get_num(yyjson_obj_get(j->values[index - 1], keys[axis]));
+  arena_json *at = (arena_json *)j;
+  if ((size_t)index != at->index) {
+    at->current = (size_t)index == at->index + 1 && at->current
+                      ? unsafe_yyjson_get_next(at->current)
+                      : yyjson_arr_get(at->array, (size_t)index - 1);
+    at->index = (size_t)index;
+  }
+  yyjson_val *v = axis == 0   ? yyjson_obj_get(at->current, "x")
+                  : axis == 1 ? yyjson_obj_get(at->current, "y")
+                              : yyjson_obj_get(at->current, "z");
+  return yyjson_get_num(v);
 }
 struct arena_csv {
   double *values;

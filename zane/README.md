@@ -1,7 +1,7 @@
 # Zane
 
 All 50 LangArena workloads, ported from the Crystal reference. The manifest
-pins compiler **v0.32** and core **v0.10**.
+pins compiler **v0.37** and core **v0.11**.
 
 ## Run
 
@@ -9,7 +9,7 @@ Install the [Zane CLI](https://github.com/zane-lang/zane), then:
 
 ```sh
 cd zane
-zane toolchain install v0.32
+zane toolchain install v0.37
 zane fetch
 ./test.sh                    # all test.js checksums
 ./run                     # full run.js workloads
@@ -42,11 +42,11 @@ runtime pool before measurement.
 
 ## C boundary and layouts
 
-C supplies APIs missing from core v0.10: JSON through yyjson, CSV parsing,
+C supplies APIs missing from core v0.11: JSON through yyjson,
 Base64 through aklomp/base64 (the library C links, with the codec it picks
 for the processor at run time), regular expressions through PCRE2 with its JIT (the system
 `libpcre2-8`, which C also links), mutable byte storage, string byte access,
-decimal formatting, file input, timing, and `qsort` for `Sort::Self`.
+decimal formatting, file input and timing. CSV::Parse reads its fields and Sort::Self sorts in Zane, with core's `parseFloat(start, count)` and `sort`.
 Foreign data handles own their allocations. Only the root's foreign `Host`
 capability reads files, observes clocks, prints, or exits; computation
 bindings have no mutable global state.
@@ -75,7 +75,7 @@ TEST=1 ruby benchmarks.rb Zane
 PROD=1 ruby benchmarks.rb Zane
 ```
 
-The image pins CLI v0.15 with its SHA-256 and installs compiler v0.32.
+The image pins CLI v0.15 with its SHA-256 and installs compiler v0.37.
 The suite records both versions. Source-size measurements include bindings
 and exclude everything under `lib/arena/vendor`.
 

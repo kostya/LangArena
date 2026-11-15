@@ -14,42 +14,54 @@ Binary(op Int, left Int, right Int) => init {
   right;
 }
 
+// A variable's name, as in Goose's port a slice of the program's text:
+// where its bytes start and how many there are.
+type Name = struct {
+  start Int;
+  length Int;
+}
+
+Name(start Int, length Int) => init {
+  start;
+  length;
+}
+
 type Assignment = struct {
-  name String;
+  name Name;
   expression Int;
 }
 
-Assignment(name String, expression Int) => init {
+Assignment(name Name, expression Int) => init {
   name;
   expression;
 }
 
 type Node = variant {
   number Int;
-  variable String;
+  variable Name;
   binary Binary;
   assignment Assignment;
 }
 
 type Parser = #struct {
-  text Buffer;
+  text String;
   position Int;
   nodes List<Node>;
   expressions List<Int>;
 }
 
 Parser(text String) => init {
-  text=bytes(text);
+  text;
   position=Int(1);
   nodes=List(Node);
   expressions=List(Int);
 }
 
 Int current(this Parser) {
-  if(this.position>length(this.text)) {
+  if(this.position>this.text:byteCount()) {
     return Int(0);
   }
-  return byte(this.text, this.position);
+  return Int(this.text:byteAt(this.position));
 }
 
 Bool digit(c Int) => c>=48 and c<=57;
@@ -60,7 +72,7 @@ Unit advance(this Parser) mut {
 }
 
 Unit whitespace(this Parser) mut {
-  bound Int=length(this.text);
+  bound Int=this.text:byteCount();
   i Int=Int(1);
   i!to(bound) {
     c Int=this:current();
@@ -80,7 +92,7 @@ Int add(this Parser, node Node) mut {
 
 Int number(this Parser) mut {
   value Int=Int(0);
-  bound Int=length(this.text);
+  bound Int=this.text:byteCount();
   i Int=Int(1);
   i!to(bound) {
     c Int=this:current();
@@ -94,7 +106,7 @@ Int number(this Parser) mut {
 }
 
 Unit identifier(this Parser) mut {
-  bound Int=length(this.text);
+  bound Int=this.text:byteCount();
   i Int=Int(1);
   i!to(bound) {
     c Int=this:current();
@@ -109,7 +121,7 @@ Unit identifier(this Parser) mut {
 Int variable(this Parser) mut {
   start Int=this.position;
   this!identifier();
-  name String=slice(this.text, start, this.position-start);
+  name Name=Name(start, this.position-start);
   this!whitespace();
   c Int=this:current();
   if(c==61) {
@@ -145,7 +157,7 @@ Int factor(this Parser) mut {
 
 Int term(this Parser) mut {
   left Int=this!factor();
-  bound Int=length(this.text);
+  bound Int=this.text:byteCount();
   i Int=Int(1);
   i!to(bound) {
     this!whitespace();
@@ -162,7 +174,7 @@ Int term(this Parser) mut {
 
 Int expression(this Parser) mut {
   left Int=this!term();
-  bound Int=length(this.text);
+  bound Int=this.text:byteCount();
   i Int=Int(1);
   i!to(bound) {
     this!whitespace();
@@ -178,7 +190,7 @@ Int expression(this Parser) mut {
 }
 
 Unit parseProgram(this Parser) mut {
-  bound Int=length(this.text);
+  bound Int=this.text:byteCount();
   i Int=Int(1);
   i!to(bound) {
     this!whitespace();
@@ -194,11 +206,11 @@ Unit parseProgram(this Parser) mut {
 }
 
 type Evaluator = #struct {
-  variables StringMap;
+  variables SliceMap;
 }
 
 Evaluator(capacity Int) => init {
-  variables=StringMap(capacity);
+  variables=SliceMap(capacity);
 }
 
 Int divide(a Int, b Int) {
@@ -210,7 +222,7 @@ Int divide(a Int, b Int) {
 
 Int evaluate(this Evaluator, parser Parser, index Int) mut => match(parser.nodes[index]) {
   value number => value;
-  name variable => this.variables:get(name);
+  name variable => this.variables:get(parser.text, name.start, name.length);
   binary binary => this!binary(parser, binary);
   assignment assignment => this!assignment(parser, assignment);
 }
@@ -238,7 +250,7 @@ Int binary(this Evaluator, parser Parser, op Binary) mut {
 
 Int assignment(this Evaluator, parser Parser, node Assignment) mut {
   value Int=this!evaluate(parser, node.expression);
-  this.variables!put(node.name, value);
+  this.variables!put(parser.text, node.name.start, node.name.length, value);
   return value;
 }
 
@@ -333,13 +345,13 @@ Unit step(this State, iteration Int) mut {
     parser Parser=Parser(this.text);
     parser!parseProgram();
     last Int=parser.expressions[parser.expressions:size()];
-    name String=match(parser.nodes[last]) {
+    name Name=match(parser.nodes[last]) {
       a assignment => a.name;
       v variable => v;
-      n number => String("");
-      b binary => String("");
+      n number => Name(Int(1), Int(0));
+      b binary => Name(Int(1), Int(0));
     }
-    this.result=u32(this.result+parser.expressions:size()+hash(name));
+    this.result=u32(this.result+parser.expressions:size()+hash(parser.text, name.start, name.length));
   }
   return Unit();
 }

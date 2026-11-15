@@ -186,6 +186,16 @@ List<Float> filled(n Int, value Float) {
   return out;
 }
 
+List<U8> filled(n Int, value U8) {
+  out List<U8> = List(U8);
+  i Int=Int(1);
+  i!to(n) {
+    copy U8=value;
+    out!push(copy);
+  }
+  return out;
+}
+
 List<Bool> filled(n Int, value Bool) {
   out List<Bool> = List(Bool);
   i Int=Int(1);

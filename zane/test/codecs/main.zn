@@ -5,6 +5,7 @@ import bwt;
 import huffman;
 import arithmetic;
 import lzw;
+import csvbench;
 
 Unit require(this Host, condition Bool, message String) mut {
   if(~condition) {this!fail(message);}
@@ -14,11 +15,11 @@ Unit roundTrip(this Host, text String) mut {
   b bwt$Encoded=bwt$encode(text);
   this!require(bwt$decode(b)==text, String("BWT round trip"));
   h huffman$Encoded=huffman$encode(text);
-  this!require(huffman$decode(h)==text, String("Huffman round trip"));
+  this!require(String(huffman$decode(h))==text, String("Huffman round trip"));
   a arithmetic$Encoded=arithmetic$encode(text);
   this!require(arithmetic$decode(a)==text, String("Arithmetic round trip"));
   l lzw$Encoded=lzw$encode(text);
-  this!require(lzw$decode(l)==text, String("LZW round trip"));
+  this!require(String(lzw$decode(l))==text, String("LZW round trip"));
   this!require(base64Decode(base64Encode(text))==text, String("Base64 round trip"));
   return Unit();
 }
@@ -49,6 +50,11 @@ Unit main() {
     largeInput!push(value);
   }
   largeEncoded lzw$Encoded=lzw$encode(largeInput:string());
-  host!require(lzw$decode(largeEncoded)==largeInput:string(),String("LZW dictionary saturation"));
+  host!require(String(lzw$decode(largeEncoded))==largeInput:string(),String("LZW dictionary saturation"));
+  lastRow List<Float> = csvbench$points(String("label,1,,2,meta,3"));
+  host!require(lastRow:size()==3, String("CSV row without a final line break"));
+  host!require(lastRow[1]==Float(1.0) and lastRow[2]==Float(3.0) and lastRow[3]==Float(2.0), String("CSV row without a final line break: x, y, z"));
+  host!require(csvbench$points(String("label,1,,2,meta,3\n")):size()==3, String("CSV row with a final line break"));
+  host!require(csvbench$points(String("label,1,,2,meta")):size()==0, String("CSV short last row"));
   return Unit();
 }

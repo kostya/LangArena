@@ -5,7 +5,7 @@ import arena$;
 type State = #struct {
   n Int;
   wordLength Int;
-  text Buffer;
+  text String;
   rng Rng;
   result Int;
 }
@@ -13,7 +13,7 @@ type State = #struct {
 State(cfg Config, name String) => init {
   n=cfg:integer(name, "words");
   wordLength=cfg:integer(name, "word_len");
-  text=buffer(Int(0), Int(0));
+  text=String("");
   rng=Rng();
   result=Int(0);
 }
@@ -32,24 +32,24 @@ Unit prepare(this State) mut {
       out!push(Int(32));
     }
   }
-  this.text=out;
+  this.text=out:string();
   return Unit();
 }
 
 Unit step(this State, iteration Int) mut {
-  frequencies StringMap=StringMap(this.n*2+16);
+  // As Goose's port, a word is a slice of the text: no copy is made.
+  frequencies SliceMap=SliceMap(this.n*2+16);
+  text String=this.text;
+  n Int=text:byteCount();
   start Int=Int(1);
   i Int=Int(1);
-  i!to(length(this.text)+1) {
-    separator Bool=Bool(true);
-    if(i<=length(this.text)) {
-      separator=byte(this.text, i)==32;
-    }
-    if(separator) {
-      frequencies!add(slice(this.text, start, i-start), Int(1));
+  i!to(n) {
+    if(text:byteAt(i)==32) {
+      frequencies!add(text, start, i-start, Int(1));
       start=i+1;
     }
   }
+  frequencies!add(text, start, n+1-start, Int(1));
   // Keys are in insertion order, the order C's uthash iterates in.
   highest Int=Int(0);
   best Int=Int(0);
@@ -63,7 +63,7 @@ Unit step(this State, iteration Int) mut {
   }
   bestHash Int=hash(String(""));
   if(best>0) {
-    bestHash=hash(frequencies.keys[best]);
+    bestHash=hash(text, frequencies.starts[best], frequencies.lengths[best]);
   }
   this.result=u32(this.result+highest+bestHash+frequencies.entries);
   return Unit();

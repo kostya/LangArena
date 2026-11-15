@@ -107,23 +107,23 @@ Float jaro(first String, second String) {
   return (count/Float(n)+count/Float(m)+(count-Float(transpositions/2))/count)/Float(3.0);
 }
 
-Int gram(text String, i Int) => shiftLeft(byte(text, i), Int(24))+shiftLeft(byte(text, i+1), Int(16))+shiftLeft(byte(text, i+2), Int(8))+byte(text, i+3);
+Int gram(text String, i Int) => shiftLeft(Int(text:byteAt(i)), Int(24))+shiftLeft(Int(text:byteAt(i+1)), Int(16))+shiftLeft(Int(text:byteAt(i+2)), Int(8))+Int(text:byteAt(i+3));
+// As Goose's port: one probe to count each gram of the first string, and
+// for the second one to count it and one to read the first's count.
 Float ngram(first String, second String) {
-  a IntMap=IntMap(length(first)*2+16);
-  b IntMap=IntMap(length(second)*2+16);
+  a IntMap=IntMap(first:byteCount()*2);
+  b IntMap=IntMap(second:byteCount()*2);
   i Int=Int(1);
-  i!to(length(first)-3) {
-    key Int=gram(first, i);
-    value Int=a:get(key)+1;
-    a!put(key, value);
+  i!to(first:byteCount()-3) {
+    a!add(gram(first, i), Int(1));
   }
   intersection Int=Int(0);
   j Int=Int(1);
-  j!to(length(second)-3) {
+  j!to(second:byteCount()-3) {
     key Int=gram(second, j);
-    value Int=b:get(key)+1;
-    b!put(key, value);
-    if(a:has(key) and value<=a:get(key)) {
+    value Int=b!add(key, Int(1));
+    count Int=a:get(key);
+    if(count>0 and value<=count) {
       intersection=intersection+1;
     }
   }

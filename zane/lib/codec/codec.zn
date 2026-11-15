@@ -13,11 +13,10 @@ String testData(n Int) {
 }
 
 List<Int> frequencies(data String) {
-  input Buffer=bytes(data);
   out List<Int> = filled(Int(256), Int(0));
   i Int=Int(1);
-  i!to(length(input)) {
-    index Int=byte(input, i)+1;
+  i!to(data:byteCount()) {
+    index Int=Int(data:byteAt(i))+1;
     out[index]=out[index]+1;
   }
   return out;
