@@ -2631,13 +2631,6 @@ if IS_RUN_PROD
   RUNS.select! { |run| run.group == :prod }
 end
 
-# Select exactly one run by its full name, unlike the substring regex above
-# ("Rust" also matches "Rust/WASM/Node"). Results are still written.
-if (only = ENV["RUN_NAME"]) && only != ""
-  RUNS.select! { |run| run.name == only }
-  raise "No run named #{only.inspect}" if RUNS.empty?
-end
-
 if IS_ONE_RUN_PER_LANG
   new_runs = []  
   RUNS.group_by(&:lang).each do |lang, runs| 

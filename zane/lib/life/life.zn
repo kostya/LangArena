@@ -2,29 +2,30 @@ package life;
 import core$;
 import math$;
 import arena$;
-type Cell = #struct {
+// As Goose's cell: inline, its eight neighbours named by 32-bit indices.
+type Cell = struct {
   alive Bool;
   next Bool;
-  neighbors List<Int>;
+  neighbors Array<I32, 8>;
 }
 
 Cell() => init {
   alive=Bool(false);
   next=Bool(false);
-  neighbors=List(Int);
+  neighbors=Array([I32(0), I32(0), I32(0), I32(0), I32(0), I32(0), I32(0), I32(0)]);
 }
 
 type State = #struct {
   w Int;
   h Int;
-  cells ListRef<Cell>;
+  cells List<Cell>;
   rng Rng;
 }
 
 State(cfg Config, name String) => init {
   w=cfg:integer(name, "w");
   h=cfg:integer(name, "h");
-  cells=ListRef(Cell);
+  cells=List(Cell);
   rng=Rng();
 }
 
@@ -38,6 +39,7 @@ Unit prepare(this State) mut {
     x Int=Int(0);
     x!to(this.w-1) {
       index Int=y*this.w+x+1;
+      k Int=Int(0);
       dy Int=~Int(1);
       dy!to(Int(1)) {
         dx Int=~Int(1);
@@ -45,7 +47,8 @@ Unit prepare(this State) mut {
           if(dx~=0 or dy~=0) {
             ny Int=rem(y+dy+this.h, this.h);
             nx Int=rem(x+dx+this.w, this.w);
-            this.cells[index].neighbors!push(ny*this.w+nx+1);
+            k=k+1;
+            this.cells[index].neighbors[k]=I32.wrap(ny*this.w+nx+1);
           }
         }
       }
@@ -60,8 +63,8 @@ Unit step(this State, iteration Int) mut {
   i!to(this.cells:size()) {
     alive Int=Int(0);
     j Int=Int(1);
-    j!to(this.cells[i].neighbors:size()) {
-      if(this.cells[this.cells[i].neighbors[j]].alive) {
+    j!to(Int(8)) {
+      if(this.cells[Int(this.cells[i].neighbors[j])].alive) {
         alive=alive+1;
       }
     }

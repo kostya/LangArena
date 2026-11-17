@@ -16,7 +16,11 @@ Unit prepare(this State) mut {
   return Unit();
 }
 
-Float element(i Int, j Int) => Float(1.0)/(Float(i+j)*Float(i+j+1)/Float(2.0)+Float(i)+Float(1.0));
+// As Goose's `eval_a`: i + j made a float once.
+Float element(i Int, j Int) {
+  ij Float=Float(i+j);
+  return Float(1.0)/(ij*(ij+Float(1.0))/Float(2.0)+Float(i)+Float(1.0));
+}
 List<Float> multiply(u List<Float>, transpose Bool) {
   out List<Float> = List(Float);
   i Int=Int(1);

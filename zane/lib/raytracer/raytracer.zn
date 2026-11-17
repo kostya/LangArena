@@ -44,9 +44,9 @@ Float intersect(ray Vector, sphere Sphere) {
   return tca-sqrt(r2-d2);
 }
 
-Int pixel(ray Vector, scene List<Sphere>) {
+Int pixel(ray Vector, scene Array<Sphere, 3>) {
   i Int=Int(1);
-  i!to(scene:size()) {
+  i!to(Int(3)) {
     sphere Sphere=scene[i];
     hit Float=intersect(ray, sphere);
     if(hit<=Float(10000.0)) {
@@ -57,7 +57,10 @@ Int pixel(ray Vector, scene List<Sphere>) {
       color Vector=scale(Vector(Float(1.0), Float(1.0), Float(1.0)), lam*Float(0.5))+scale(sphere.color, Float(0.3));
       level Int=Int.truncate((color.x+color.y+color.z)/Float(3.0)*Float(6.0));
       lut String=String(".-+*XM");
-      return byte(lut, level+1);
+      if(level>=0 and level<6) {
+        return Int(lut:byteAt(level+1));
+      }
+      return Int(32);
     }
   }
   return Int(32);
@@ -84,7 +87,14 @@ Unit prepare(this State) mut {
   return Unit();
 }
 
+// As Goose's SCENE: the spheres a constant array the loop can fold.
+Array<Sphere, 3> scene() => Array([
+  Sphere(Vector(~Float(1.0), Float(0.0), Float(3.0)), Float(0.3), Vector(Float(1.0), Float(0.0), Float(0.0))),
+  Sphere(Vector(Float(0.0), Float(0.0), Float(3.0)), Float(0.8), Vector(Float(0.0), Float(1.0), Float(0.0))),
+  Sphere(Vector(Float(1.0), Float(0.0), Float(3.0)), Float(0.4), Vector(Float(0.0), Float(0.0), Float(1.0)))]);
+
 Unit step(this State, iteration Int) mut {
+  spheres Array<Sphere, 3> = scene();
   sum Int=Int(0);
   y Int=Int(0);
   y!to(this.h-1) {
@@ -93,7 +103,7 @@ Unit step(this State, iteration Int) mut {
       fw Float=Float(this.w);
       fh Float=Float(this.h);
       ray Vector=normal(Vector((Float(x)-fw/Float(2.0))/fw, (Float(y)-fh/Float(2.0))/fh, Float(1.0)));
-      sum=sum+pixel(ray, this.scene);
+      sum=sum+pixel(ray, spheres);
     }
   }
   this.result=u32(this.result+sum);

@@ -33,76 +33,132 @@ Unit prepare(this State) mut {
   return Unit();
 }
 
+// The bytes `a`, `b` and `c` as a set `findAny` takes.
+ByteSet setOf(a Int, b Int, c Int) {
+  members List<Bool> = filled(Int(256), Bool(false));
+  members[a+1]=Bool(true);
+  members[b+1]=Bool(true);
+  members[c+1]=Bool(true);
+  return members:byteSet();
+}
+
+// Where the quoted field whose bytes start at `from` (counted from 0)
+// ends: at its closing quote, a doubled quote inside it passed over; -1
+// if it has none.
+Int closing(text String, from Int, quote ByteSet) {
+  n Int=text:byteCount();
+  at Int=from;
+  k Int=Int(1);
+  k!to(n+1) {
+    q Int=text:findAny(at+1, n-at, quote)-1;
+    if(q<0) {
+      return q;
+    }
+    if(q+1>=n) {
+      return q;
+    }
+    if(Int(text:byteAt(q+2))~=34) {
+      return q;
+    }
+    at=q+2;
+  }
+  return Int(0)-Int(1);
+}
+
 // As Goose's port reads with its std `csv::each_record` and `parse_flt`:
-// one pass over the bytes finds each field, a quote toggling whether a
-// separator ends it, and fields 1, 3 and 5 (from 0) are parsed where they
-// lie, each row's x, y and z pushed in turn. A row that is not six fields
-// or a field that spells no number gives no points.
-// As Goose's port reads with its std `csv::each_record` and `parse_flt`:
-// one pass over the bytes finds each field, a quote toggling whether a
-// separator ends it, and fields 1, 3 and 5 (from 0) are parsed where they
-// lie, each row's x, y and z pushed in turn. A row that is not six fields
-// or a field that spells no number gives no points.
+// each field found by where it ends, a quoted one at its closing quote and
+// any other at the first separator, line break or quote, each found by a
+// byte-set scan, and fields 1, 3 and 5 (from 0) parsed where they lie,
+// each row's x, y and z pushed in turn. A malformed record, a row that is
+// not six fields or a field that spells no number gives no points.
 List<Float> points(text String) {
   out List<Float> = List(Float);
+  quote ByteSet = setOf(Int(34), Int(34), Int(34));
+  plain ByteSet = setOf(Int(44), Int(10), Int(34));
   n Int=text:byteCount();
   column Int=Int(0);
-  start Int=Int(1);
-  quoted Int=Int(0);
   x Float=Float(0.0);
   y Float=Float(0.0);
   z Float=Float(0.0);
-  i Int=Int(1);
-  i!to(n) {
-    c U8=text:byteAt(i);
-    if(c==34) {
-      quoted=Int(1)-quoted;
+  pos Int=Int(0);
+  k Int=Int(1);
+  k!to(n+1) {
+    if(pos>=n) {
+      // The text ends right after a separator: cleanly after a line
+      // break, or after a comma whose field is missing.
+      if(column==0) {
+        return out;
+      }
+      return List(Float);
     }
-    if(quoted==0 and (c==44 or c==10)) {
-      if(column==1) {
-        v Float=text:parseFloat(start, i-start) ? e {
+    start Int=pos;
+    end Int=pos;
+    quoted Bool=Int(text:byteAt(pos+1))==34;
+    form Bool=if(quoted) {
+      start=pos+1;
+      end=closing(text, start, quote);
+      if(end<0) {
+        return List(Float);
+      }
+      pos=end+1;
+      if(pos<n) {
+        after Int=Int(text:byteAt(pos+1));
+        if(after~=44 and after~=10) {
           return List(Float);
         }
+      }
+    }
+    form:else() {
+      end=text:findAny(pos+1, n-pos, plain)-1;
+      if(end<0) {
+        end=n;
+      }
+      if(end<n) {
+        if(Int(text:byteAt(end+1))==34) {
+          return List(Float);
+        }
+      }
+      pos=end;
+    }
+    if(column==1 or column==3 or column==5) {
+      v Float=text:parseFloat(start+1, end-start) ? e {
+        return List(Float);
+      }
+      if(column==1) {
         x=v;
       }
       if(column==3) {
-        v Float=text:parseFloat(start, i-start) ? e {
-          return List(Float);
-        }
         z=v;
       }
       if(column==5) {
-        v Float=text:parseFloat(start, i-start) ? e {
-          return List(Float);
-        }
         y=v;
       }
-      column=column+1;
-      start=i+1;
-      if(c==10) {
-        if(column~=6) {
-          return List(Float);
-        }
-        out!push(x);
-        out!push(y);
-        out!push(z);
-        column=Int(0);
+    }
+    if(pos>=n) {
+      // A last row with no line break after it: whole only if this field
+      // is its sixth.
+      if(column~=5) {
+        return List(Float);
       }
+      out!push(x);
+      out!push(y);
+      out!push(z);
+      return out;
     }
-  }
-  // A last row with no line break after it.
-  if(column==5 and quoted==0) {
-    v Float=text:parseFloat(start, n+1-start) ? e {
-      return List(Float);
+    c Int=Int(text:byteAt(pos+1));
+    pos=pos+1;
+    row Bool=if(c==44) {
+      column=column+1;
     }
-    out!push(x);
-    out!push(v);
-    out!push(z);
-    column=Int(0);
-    start=n+1;
-  }
-  if(column~=0 or quoted~=0 or start<=n) {
-    return List(Float);
+    row:else() {
+      if(column~=5) {
+        return List(Float);
+      }
+      out!push(x);
+      out!push(y);
+      out!push(z);
+      column=Int(0);
+    }
   }
   return out;
 }

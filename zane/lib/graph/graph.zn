@@ -68,6 +68,10 @@ Visit(vertex Int, distance Int) => init {
 }
 
 Int bfs(this State) {
+  // The start is the target: a path of length 0, as C's search.
+  if(this.vertices==1) {
+    return Int(0);
+  }
   visited List<Bool> = filled(this.vertices, Bool(false));
   queue List<Visit> = List(Visit);
   queue!push(Visit(Int(1), Int(0)));
@@ -97,13 +101,30 @@ Int bfs(this State) {
   return ~Int(1);
 }
 
+// The graph's edges, each counted at each end it is listed from.
+Int edges(this State) {
+  total Int=Int(0);
+  v Int=Int(1);
+  v!to(this.vertices) {
+    total=total+this.adj[v]:size();
+  }
+  return total;
+}
+
+// The search stops when its stack is empty: a vertex is expanded once,
+// and pushes one entry per edge, so the stack takes at most the start and
+// one entry per edge, and one more pass finds it empty.
 Int dfs(this State) {
+  // The start is the target: a path of length 0, as C's search.
+  if(this.vertices==1) {
+    return Int(0);
+  }
   visited List<Bool> = filled(this.vertices, Bool(false));
   stack List<Visit> = List(Visit);
   stack!push(Visit(Int(1), Int(0)));
   best Int=Int(2147483647);
   iteration Int=Int(1);
-  iteration!to(Int(9223372036854775807)) {
+  iteration!to(this:edges()+2) {
     if(stack:size()==0) {
       if(best==2147483647) {
         return ~Int(1);
@@ -132,6 +153,9 @@ Int dfs(this State) {
   return best;
 }
 
+// The search stops when its heap is empty or it reaches the last vertex:
+// a vertex is pushed only when its score falls, and its scores are path
+// lengths below `vertices`, so each is pushed fewer than `vertices` times.
 Int astar(this State) {
   score List<I32> = filled(this.vertices, I32(2147483647));
   best List<I32> = filled(this.vertices, I32(2147483647));
@@ -140,7 +164,7 @@ Int astar(this State) {
   open Heap=Heap();
   open!push(Int(1), this.vertices-1);
   iteration Int=Int(1);
-  iteration!to(Int(9223372036854775807)) {
+  iteration!to(this.vertices*this.vertices+1) {
     if(open.heapSize==0) {
       return ~Int(1);
     }

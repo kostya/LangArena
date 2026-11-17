@@ -19,7 +19,9 @@ Encoded encode(input String) {
     return Encoded(String(""));
   }
   strings List<U8> = List(U8);
-  dict BytesMap=BytesMap(min(n*2+1024, Int(65536)*2));
+  // As Goose's `dict.reserve(4096)`: room for 4096 keys at two thirds
+  // full, growing past that.
+  dict BytesMap=BytesMap(Int(4096)*3/2);
   i Int=Int(0);
   i!to(Int(255)) {
     strings!push(U8.wrap(i));

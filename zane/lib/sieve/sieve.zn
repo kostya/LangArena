@@ -18,16 +18,17 @@ Unit prepare(this State) mut {
 
 Unit step(this State, iteration Int) mut {
   if(this.limit<2) {return Unit();}
-  primes Buffer=buffer(this.limit+1, Int(1));
-  primes!set(Int(1), Int(0));
-  primes!set(Int(2), Int(0));
+  // As Goose's `u8[>..]`, a byte list.
+  primes List<U8> = List(this.limit+1, U8.wrap(Int(1)));
+  primes[Int(1)]=U8.wrap(Int(0));
+  primes[Int(2)]=U8.wrap(Int(0));
   p Int=Int(2);
   p!to(Int.truncate(sqrt(Float(this.limit)))) {
-    if(primes:get(p+1)==1) {
+    if(Int(primes[p+1])==1) {
       multiple Int=p*p;
       k Int=Int(1);
       k!to((this.limit-multiple)/p+1) {
-        primes!set(multiple+1, Int(0));
+        primes[multiple+1]=U8.wrap(Int(0));
         multiple=multiple+p;
       }
     }
@@ -37,7 +38,7 @@ Unit step(this State, iteration Int) mut {
   n Int=Int(3);
   k Int=Int(1);
   k!to((this.limit-1)/2) {
-    if(primes:get(n+1)==1) {
+    if(Int(primes[n+1])==1) {
       last=n;
       count=count+1;
     }

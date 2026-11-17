@@ -201,13 +201,14 @@ String decode(encoded Encoded) {
   table Table=Table(encoded.frequencies);
   decoder Decoder=Decoder(encoded.data);
   decoder!start();
-  out Buffer=buffer(Int(0), Int(0));
+  // As Goose's `u8[>..]`, a byte list.
+  out List<U8> = List(U8);
   i Int=Int(1);
   i!to(table.total) {
     value Int=decoder!next(table);
-    out!push(value);
+    out!push(U8.wrap(value));
   }
-  return out:string();
+  return String(out);
 }
 
 type State = #struct {

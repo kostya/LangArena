@@ -1,8 +1,8 @@
 FROM langarena:base
 
-ARG cli_version=v0.15
-ARG compiler_version=v0.37
-ARG cli_sha256=d5f89774a8694c9cabe5a0782d46cc1e2f1a9e5f03c790a4b8480b66f8346232
+ARG cli_version=v0.16
+ARG compiler_version=v0.39
+ARG cli_sha256=074d43d3f4387073edec3fc576ebb4d61b84cc600fe8c7a01384b37781c6fc10
 ENV ZANE_HOME=/opt/zane-home
 RUN curl -fL "https://github.com/zane-lang/zane/releases/download/${cli_version}/zane-linux-x86_64" -o /usr/local/bin/zane \
     && echo "${cli_sha256}  /usr/local/bin/zane" | sha256sum -c - \

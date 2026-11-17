@@ -22,15 +22,16 @@ List<Int> frequencies(data String) {
   return out;
 }
 
+// As Goose's bit output stream: the bytes in a native list.
 type BitWriter = #struct {
-  data Buffer;
+  data List<U8>;
   pendingByte Int;
   bitPosition Int;
   written Int;
 }
 
 BitWriter() => init {
-  data=buffer(Int(0), Int(0));
+  data=List(U8);
   pendingByte=Int(0);
   bitPosition=Int(0);
   written=Int(0);
@@ -42,7 +43,7 @@ Unit bit(this BitWriter, value Int) mut {
   this.written=this.written+1;
   if(this.bitPosition==8) {
     complete Int=this.pendingByte;
-    this.data!push(complete);
+    this.data!push(U8.wrap(complete));
     this.pendingByte=Int(0);
     this.bitPosition=Int(0);
   }
@@ -52,10 +53,10 @@ Unit bit(this BitWriter, value Int) mut {
 String flush(this BitWriter) mut {
   if(this.bitPosition>0) {
     value Int=shiftLeft(this.pendingByte, Int(8)-this.bitPosition);
-    this.data!push(value);
+    this.data!push(U8.wrap(value));
     this.bitPosition=Int(0);
   }
-  return this.data:string();
+  return String(this.data);
 }
 
 type BitReader = #struct {

@@ -53,11 +53,14 @@ Int adjacentOpen(this State, index Int) {
   return count;
 }
 
+// Carves from `index` until its stack is empty: a cell is carved once and
+// then pushes at most its 4 neighbours, so the stack takes at most the
+// start and 4 entries per cell.
 Unit dig(this State, index Int) mut {
   stack List<I32> = List(I32);
   stack!push(I32.wrap(index));
   iteration Int=Int(1);
-  iteration!to(Int(9223372036854775807)) {
+  iteration!to(4*this.cells:size()+1) {
     if(stack:size()==0) {
       return Unit();
     }
@@ -231,6 +234,9 @@ List<I32> bfs(this State) {
 }
 
 Int heuristic(this State, index Int) => abs(rem(index-1, this.w)-(this.w-2))+abs((index-1)/this.w-(this.h-2));
+// Stops when its heap is empty or it reaches the finish: a cell is pushed
+// only when its score falls, and its scores are path lengths below the
+// number of cells, so each is pushed fewer than that many times.
 List<I32> astar(this State) {
   n Int=this.cells:size();
   previous List<I32> = filled(n, I32(0));
@@ -243,7 +249,7 @@ List<I32> astar(this State) {
   open Heap=Heap();
   open!push(start, Int(best[start]));
   iteration Int=Int(1);
-  iteration!to(Int(9223372036854775807)) {
+  iteration!to(n*n+1) {
     if(open.heapSize==0) {
       return List(I32);
     }

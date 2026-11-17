@@ -74,24 +74,27 @@ Encoded encode(input String) {
     }
     ranks[index]=current;
   }
-  // Prefix doubling with two counting-sort passes per round, as C does.
+  // Prefix doubling, as Goose's port: each round sorts the suffix array
+  // stably by the pair of ranks, the suffix's and the one `offset` on, as
+  // one 64-bit key; the array is in order of the first from the round
+  // before, so its runs are long.
   offset Int=Int(1);
   round Int=Int(1);
   round!to(Int(63)) {
     if(offset<n) {
-      second List<I32> = filled(n, I32(0));
+      keys List<Int> = filled(n, Int(0));
       s Int=Int(1);
       s!to(n) {
-        second[s]=ranks[rem(s-1+offset, n)+1];
+        keys[s]=Int(ranks[s])*4294967296+Int(ranks[rem(s-1+offset, n)+1]);
       }
-      indices=byKey(byKey(indices, second, n), ranks, n);
+      indices!sortBy(keys);
       nextRanks List<I32> = filled(n, I32(0));
       q Int=Int(2);
       q!to(n) {
         prior Int=Int(indices[q-1]);
         index Int=Int(indices[q]);
         delta I32=I32(0);
-        if(ranks[prior]~=ranks[index] or second[prior]~=second[index]) {
+        if(keys[prior]~=keys[index]) {
           delta=I32(1);
         }
         nextRanks[index]=nextRanks[prior]+delta;

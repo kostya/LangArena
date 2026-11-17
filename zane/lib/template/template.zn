@@ -2,6 +2,7 @@ package template;
 import core$;
 import math$;
 import arena$;
+import regex;
 String firstName(index Int) {
   if(index==0) {
     return String("John");
@@ -71,35 +72,56 @@ String city(index Int) {
   return String("San Francisco");
 }
 
+// As Goose's port: the text is bytes, every key is a range of one byte
+// list and every value a range of another, and the keys are looked up by
+// the bytes of the text itself, so rendering makes no string.
 type State = #struct {
   count Int;
-  text Buffer;
   source String;
-  rendered Buffer;
-  variables StringMap;
-  values List<String>;
-  pattern Regex;
+  bytes List<U8>;
+  rendered List<U8>;
+  keys List<U8>;
+  variables BytesMap;
+  values List<U8>;
+  valueStarts List<Int>;
+  valueLengths List<Int>;
+  pattern regex$Regex;
   result Int;
   parse Bool;
 }
 
 State(cfg Config, name String) => init {
   count=cfg:integer(name, "count");
-  text=buffer(Int(0), Int(0));
   source=String("");
-  rendered=buffer(Int(0), Int(0));
-  variables=StringMap(cfg:integer(name, "count")*6+20);
-  values=List(String);
-  pattern=regex("[{][{]([^}]*)[}][}]", Bool(false));
+  bytes=List(U8);
+  rendered=List(U8);
+  keys=List(U8);
+  variables=BytesMap(cfg:integer(name, "count")*6+20);
+  values=List(U8);
+  valueStarts=List(Int);
+  valueLengths=List(Int);
+  pattern=regex$compile("[{][{](.*?)[}][}]") ?? regex$Regex.never();
   result=Int(0);
   parse=name=="Template::Parse";
 }
 
+// The bytes of `text` appended to `out`.
+Unit appendText(this List<U8>, text String) mut {
+  i Int=Int(1);
+  i!to(text:byteCount()) {
+    this!push(text:byteAt(i));
+  }
+  return Unit();
+}
+
 Unit variable(this State, key String, value String) mut {
-  index Int=this.values:size()+1;
-  this.variables!put(key, index);
-  copy String=value;
-  this.values!push(copy);
+  start Int=this.keys:size()+1;
+  this.keys!appendText(key);
+  index Int=this.valueStarts:size()+1;
+  this.variables!put(this.keys, start, key:byteCount(), index);
+  this.valueStarts!push(this.values:size()+1);
+  this.valueLengths!push(value:byteCount());
+  this.values!appendText(value);
   return Unit();
 }
 
@@ -119,82 +141,92 @@ Unit prepare(this State) mut {
     this!variable(String("CITY")+String(i), city(rem(i, Int(6))));
   }
   out!append("</table></body></html>");
-  this.text=out;
-  this.source=this.text:string();
+  this.source=out:string();
+  this.bytes=List(U8);
+  this.bytes!appendText(this.source);
   return Unit();
 }
 
-// The first position from `start` on that holds no space; past the end if
-// none does.
-Int firstKept(text String) {
-  i Int=Int(1);
-  i!to(length(text)) {
-    if(byte(text, i)~=32) {
-      return i;
-    }
+// The value of the key that is the bytes from `start` to `end` of the
+// text, spaces at either end left out, appended to `out`; nothing for an
+// unknown key.
+Unit substitute(this List<U8>, state State, start Int, end Int) mut {
+  first Int=firstNonSpace(state.bytes, start, end);
+  last Int=lastNonSpace(state.bytes, first, end);
+  index Int=state.variables:findIn(state.keys, state.bytes, first, last-first+1);
+  if(index>0) {
+    this!appendRange(state.values, state.valueStarts[index], state.valueLengths[index]);
   }
-  return length(text)+1;
+  return Unit();
 }
 
-// The last position down to `start` that holds no space; start-1 if none.
-Int lastKept(text String, start Int) {
-  i Int=length(text);
-  steps Int=Int(1);
-  steps!to(length(text)-start+1) {
-    if(byte(text, i)~=32) {
-      return i;
-    }
-    i=i-1;
-  }
-  return start-1;
-}
-
-String trim(text String) {
-  start Int=firstKept(text);
-  finish Int=lastKept(text, start);
-  return slice(text, start, finish-start+1);
-}
-
-Int close(text Buffer, start Int) {
+// As Goose's trim: the first position from `start` to `end` that is not a
+// space, stopping there; past `end` if none.
+Int firstNonSpace(bytes List<U8>, start Int, end Int) {
   i Int=start;
-  i!to(length(text)-1) {
-    if(byte(text, i)==125 and byte(text, i+1)==125) {
+  i!to(end) {
+    if(Int(bytes[i])~=32) {
+      return i;
+    }
+  }
+  return end+1;
+}
+
+// The last position from `end` back to `first` that is not a space;
+// before `first` if none.
+Int lastNonSpace(bytes List<U8>, first Int, end Int) {
+  k Int=Int(0);
+  k!to(end-first) {
+    if(Int(bytes[end-k])~=32) {
+      return end-k;
+    }
+  }
+  return first-1;
+}
+
+// The first position from `start` on where "}}" begins; 0 if none.
+Int close(bytes List<U8>, start Int) {
+  i Int=start;
+  i!to(bytes:size()-1) {
+    if(Int(bytes[i])==125 and Int(bytes[i+1])==125) {
       return i;
     }
   }
   return Int(0);
 }
 
-// The value of the variable `key` in `state` appended; nothing for an
-// unknown name.
-Unit substitute(this Buffer, state State, key String) mut {
-  index Int=state.variables:get(key);
-  if(index>0) {
-    this!append(state.values[index]);
+// The first position from `start` on where "{{" begins; past the end if
+// none.
+Int open(bytes List<U8>, start Int) {
+  i Int=start;
+  i!to(bytes:size()-1) {
+    if(Int(bytes[i])==123 and Int(bytes[i+1])==123) {
+      return i;
+    }
   }
-  return Unit();
+  return bytes:size()+1;
 }
 
 Unit renderParse(this State) mut {
-  out ^Buffer=buffer(Int(0), Int(0));
+  out List<U8> = List(U8);
+  n Int=this.bytes:size();
   i Int=Int(1);
   k Int=Int(1);
-  k!to(length(this.text)) {
-    if(i<=length(this.text)) {
-      replaced Bool=Bool(false);
-      if(i<length(this.text)) {
-        if(byte(this.text, i)==123 and byte(this.text, i+1)==123) {
-          end Int=close(this.text, i+2);
-          if(end>0) {
-            out!substitute(this, trim(slice(this.text, i+2, end-i-2)));
-            i=end+2;
-            replaced=Bool(true);
-          }
+  k!to(n) {
+    if(i<=n) {
+      at Int=open(this.bytes, i);
+      out!appendRange(this.bytes, i, min(at, n+1)-i);
+      i=at;
+      if(at<=n) {
+        end Int=close(this.bytes, at+2);
+        found Bool=if(end>0) {
+          out!substitute(this, at+2, end-1);
+          i=end+2;
         }
-      }
-      if(~replaced) {
-        out!push(byte(this.text, i));
-        i=i+1;
+        found:else() {
+          out!appendRange(this.bytes, at, n-at+1);
+          i=n+1;
+        }
       }
     }
   }
@@ -203,18 +235,18 @@ Unit renderParse(this State) mut {
 }
 
 Unit renderRegex(this State) mut {
-  found Matches=regexMatches(this.pattern, this.source);
-  out ^Buffer=buffer(Int(0), Int(0));
+  found List<regex$Match> = this.pattern:findAll(this.source);
+  out List<U8> = List(U8);
   position Int=Int(1);
   i Int=Int(1);
-  i!to(found:count()) {
-    start Int=found:get(i, Bool(false));
-    end Int=found:get(i, Bool(true));
-    out!append(slice(this.text, position, start-position));
-    out!substitute(this, trim(slice(this.text, start+2, end-start-4)));
+  i!to(found:size()) {
+    start Int=found[i].start;
+    end Int=found[i]:end();
+    out!appendRange(this.bytes, position, start-position);
+    out!substitute(this, start+2, end-3);
     position=end;
   }
-  out!append(slice(this.text, position, length(this.text)-position+1));
+  out!appendRange(this.bytes, position, this.bytes:size()-position+1);
   this.rendered=out;
   return Unit();
 }
@@ -227,11 +259,11 @@ Unit step(this State, iteration Int) mut {
   mode:else() {
     this!renderRegex();
   }
-  this.result=u32(this.result+length(this.rendered));
+  this.result=u32(this.result+this.rendered:size());
   return Unit();
 }
 
-Int checksum(this State) => u32(this.result+hash(this.rendered:string()));
+Int checksum(this State) => u32(this.result+hash(String(this.rendered)));
 Unit resetRandom(this State) mut {
   return Unit();
 }

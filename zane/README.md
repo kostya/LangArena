@@ -1,15 +1,18 @@
 # Zane
 
 All 50 LangArena workloads, ported from the Crystal reference. The manifest
-pins compiler **v0.37** and core **v0.11**.
+pins compiler **v0.39** and core **v0.14**, built from source (the `core`
+package, from [`zane-lang/std`](https://github.com/zane-lang/std)).
 
 ## Run
 
-Install the [Zane CLI](https://github.com/zane-lang/zane), then:
+Install the [Zane CLI](https://github.com/zane-lang/zane) and the PCRE2
+development files (`libpcre2-dev` on Debian and Ubuntu), which the `arena`
+package links, then:
 
 ```sh
 cd zane
-zane toolchain install v0.37
+zane toolchain install v0.39
 zane fetch
 ./test.sh                    # all test.js checksums
 ./run                     # full run.js workloads
@@ -42,11 +45,10 @@ runtime pool before measurement.
 
 ## C boundary and layouts
 
-C supplies APIs missing from core v0.11: JSON through yyjson,
+C supplies APIs core does not have: JSON through yyjson,
 Base64 through aklomp/base64 (the library C links, with the codec it picks
-for the processor at run time), regular expressions through PCRE2 with its JIT (the system
-`libpcre2-8`, which C also links), mutable byte storage, string byte access,
-decimal formatting, file input and timing. CSV::Parse reads its fields and Sort::Self sorts in Zane, with core's `parseFloat(start, count)` and `sort`.
+for the processor at run time), mutable byte storage, string byte access,
+decimal formatting, file input and timing. CSV::Parse reads its fields and Sort::Self sorts in Zane, with core's `parseFloat(start, count)` and `sort`; LogParser and Template::Regex match with core's `regex` package. The `arena` package still links PCRE2 (the system `libpcre2-8`, as C does); only `test/codecs` uses it.
 Foreign data handles own their allocations. Only the root's foreign `Host`
 capability reads files, observes clocks, prints, or exits; computation
 bindings have no mutable global state.
@@ -75,7 +77,7 @@ TEST=1 ruby benchmarks.rb Zane
 PROD=1 ruby benchmarks.rb Zane
 ```
 
-The image pins CLI v0.15 with its SHA-256 and installs compiler v0.37.
+The image pins CLI v0.16 with its SHA-256 and installs compiler v0.39.
 The suite records both versions. Source-size measurements include bindings
 and exclude everything under `lib/arena/vendor`.
 

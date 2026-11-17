@@ -128,7 +128,7 @@ StringMap(capacity Int) => init {
 // long clusters for linear probing.
 Int slot(this StringMap, key String) {
   capacity Int=this.slots:size();
-  index Int=shiftRightLogical(hash(key)*(Int(0)-Int(7046029254386353131)), this.shift)+1;
+  index Int=shiftRightLogical(key:hashBytes()*(Int(0)-Int(7046029254386353131)), this.shift)+1;
   probe Int=Int(1);
   probe!to(capacity) {
     entry Int=this.slots[index];
@@ -366,8 +366,12 @@ Int slotIn(this BytesMap, bytes List<U8>, from List<U8>, start Int, count Int) {
     if(Int(slot.start)==0) {
       return index;
     }
-    if(Int(slot.length)==count and bytes:sameRange(Int(slot.start), from, start, count)) {
-      return index;
+    // `and` evaluates both sides: the bytes are compared only for a key
+    // of the same length.
+    if(Int(slot.length)==count) {
+      if(bytes:sameRange(Int(slot.start), from, start, count)) {
+        return index;
+      }
     }
     index=index+1;
     if(index>capacity) {
@@ -393,7 +397,26 @@ Int findIn(this BytesMap, bytes List<U8>, from List<U8>, start Int, count Int) {
   return Int(slot.value);
 }
 
+// The table doubled, each entry placed again: as Goose's dictionary, a
+// table grows once it is two thirds full.
+Unit grow(this BytesMap, bytes List<U8>) mut {
+  old List<ByteSlot> = this.slots;
+  this.slots=emptySlots(old:size()*2);
+  this.shift=this.shift-1;
+  i Int=Int(1);
+  i!to(old:size()) {
+    slot ByteSlot=old[i];
+    if(Int(slot.start)~=0) {
+      this.slots[this:slotIn(bytes, bytes, Int(slot.start), Int(slot.length))]=slot;
+    }
+  }
+  return Unit();
+}
+
 Unit put(this BytesMap, bytes List<U8>, start Int, count Int, value Int) mut {
+  if((this.entries+1)*3>this.slots:size()*2) {
+    this!grow(bytes);
+  }
   index Int=this:slotIn(bytes, bytes, start, count);
   if(index>0) {
     if(Int(this.slots[index].start)==0) {

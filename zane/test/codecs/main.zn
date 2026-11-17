@@ -56,5 +56,7 @@ Unit main() {
   host!require(lastRow[1]==Float(1.0) and lastRow[2]==Float(3.0) and lastRow[3]==Float(2.0), String("CSV row without a final line break: x, y, z"));
   host!require(csvbench$points(String("label,1,,2,meta,3\n")):size()==3, String("CSV row with a final line break"));
   host!require(csvbench$points(String("label,1,,2,meta")):size()==0, String("CSV short last row"));
+  host!require(csvbench$points(String("label,1,,2,meta,")):size()==0, String("CSV last row ending in a separator"));
+  host!require(csvbench$points(String("label,1,,2,meta,3\njunk")):size()==0, String("CSV incomplete last row"));
   return Unit();
 }

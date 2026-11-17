@@ -95,6 +95,37 @@ Unit quick(this State, low Int, high Int) mut {
   return Unit();
 }
 
+// The halves left..mid and mid+1..right of temp merged into work while
+// both have elements; then the left half's rest copied back, as the right
+// half's rest is already in place.
+Unit mergeHalves(this State, left Int, mid Int, right Int) mut {
+  i Int=left;
+  j Int=mid+1;
+  k Int=left;
+  m Int=left;
+  m!to(right) {
+    if(i>mid) {
+      return Unit();
+    }
+    if(j>right) {
+      this.work!copyRange(k, this.temp, i, mid-i+1);
+      return Unit();
+    }
+    a I32=this.temp[i];
+    b I32=this.temp[j];
+    fromLeft Bool=if(a<=b) {
+      this.work[k]=a;
+      i=i+1;
+    }
+    fromLeft:else() {
+      this.work[k]=b;
+      j=j+1;
+    }
+    k=k+1;
+  }
+  return Unit();
+}
+
 Unit merge(this State, left Int, right Int) mut {
   if(left>=right) {
     return Unit();
@@ -102,33 +133,9 @@ Unit merge(this State, left Int, right Int) mut {
   mid Int=(left+right)/2;
   this!merge(left, mid);
   this!merge(mid+1, right);
-  p Int=left;
-  p!to(right) {
-    this.temp[p]=this.work[p];
-  }
-  i Int=left;
-  j Int=mid+1;
-  k Int=left;
-  k!to(right) {
-    have Bool=if(i<=mid) {
-      fromLeft Bool=Bool(true);
-      if(j<=right) {
-        fromLeft=this.temp[i]<=this.temp[j];
-      }
-      chosen Bool=if(fromLeft) {
-        this.work[k]=this.temp[i];
-        i=i+1;
-      }
-      chosen:else() {
-        this.work[k]=this.temp[j];
-        j=j+1;
-      }
-    }
-    have:else() {
-      this.work[k]=this.temp[j];
-      j=j+1;
-    }
-  }
+  // As Goose's port: the range copied to temp in one copy, then merged.
+  this.temp!copyRange(left, this.work, left, right-left+1);
+  this!mergeHalves(left, mid, right);
   return Unit();
 }
 
