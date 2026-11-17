@@ -156,55 +156,15 @@ Result(nanos Int, failed Int) => init {
 }
 
 // RECOMPILE_MARKER_0
-List<Int> filled(n Int, value Int) {
-  out List<Int> = List(Int);
-  i Int=Int(1);
-  i!to(n) {
-    copy Int=value;
-    out!push(copy);
-  }
-  return out;
-}
+List<Int> filled(n Int, value Int) => List(n, value);
 
-List<I32> filled(n Int, value I32) {
-  out List<I32> = List(I32);
-  i Int=Int(1);
-  i!to(n) {
-    copy I32=value;
-    out!push(copy);
-  }
-  return out;
-}
+List<I32> filled(n Int, value I32) => List(n, value);
 
-List<Float> filled(n Int, value Float) {
-  out List<Float> = List(Float);
-  i Int=Int(1);
-  i!to(n) {
-    copy Float=value;
-    out!push(copy);
-  }
-  return out;
-}
+List<Float> filled(n Int, value Float) => List(n, value);
 
-List<U8> filled(n Int, value U8) {
-  out List<U8> = List(U8);
-  i Int=Int(1);
-  i!to(n) {
-    copy U8=value;
-    out!push(copy);
-  }
-  return out;
-}
+List<U8> filled(n Int, value U8) => List(n, value);
 
-List<Bool> filled(n Int, value Bool) {
-  out List<Bool> = List(Bool);
-  i Int=Int(1);
-  i!to(n) {
-    copy Bool=value;
-    out!push(copy);
-  }
-  return out;
-}
+List<Bool> filled(n Int, value Bool) => List(n, value);
 
 @primitives$I64 _stop(this Host,started @primitives$I64) mut foreign "arena_stop";
 Int stop(this Host,started Int) mut => Int(this!_stop(started));
