@@ -23,19 +23,6 @@ services:
     build:
       dockerfile: docker/base
 
-  zane:
-    <<: *shared
-    image: langarena:zane
-    working_dir: /src/zane
-    build:
-      dockerfile: docker/zane
-    volumes:
-      - .:/src
-      - ./cache/deps/zane/packages:/opt/zane-home/packages
-      - ./cache/build/zane/out:/src/zane/out
-    depends_on:
-      - base
-
   crystal:
     <<: *shared
     image: langarena:crystal
@@ -1066,5 +1053,18 @@ services:
       - ./cache/build/mojo/.pixi:/src/mojo/.pixi
       - ./cache/deps/mojo/rattler:/root/.cache/rattler
       - ./cache/deps/mojo/cache-pixi:/root/.cache/pixi
+    depends_on:
+      - base
+
+  zane:
+    <<: *shared
+    image: langarena:zane
+    working_dir: /src/zane
+    build:
+      dockerfile: docker/zane
+    volumes:
+      - .:/src
+      - ./cache/deps/zane/packages:/opt/zane-home/packages
+      - ./cache/build/zane/out:/src/zane/out
     depends_on:
       - base

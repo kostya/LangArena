@@ -1,7 +1,7 @@
 # Zane
 
 All 50 LangArena workloads, ported from the Crystal reference. The manifest
-pins compiler **v0.39** and core **v0.14**, built from source (the `core`
+pins compiler **v0.40** and core **v0.14**, built from source (the `core`
 package, from [`zane-lang/std`](https://github.com/zane-lang/std)).
 
 ## Run
@@ -12,7 +12,7 @@ package links, then:
 
 ```sh
 cd zane
-zane toolchain install v0.39
+zane toolchain install v0.40
 zane fetch
 ./test.sh                    # all test.js checksums
 ./run                     # full run.js workloads
@@ -77,7 +77,7 @@ TEST=1 ruby benchmarks.rb Zane
 PROD=1 ruby benchmarks.rb Zane
 ```
 
-The image pins CLI v0.16 with its SHA-256 and installs compiler v0.39.
+The image pins CLI v0.16 with its SHA-256 and installs compiler v0.40.
 The suite records both versions. Source-size measurements include bindings
 and exclude everything under `lib/arena/vendor`.
 

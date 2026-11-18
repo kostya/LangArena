@@ -51,7 +51,6 @@ RECOMPILE_MARKER_FILES = {}
 
 LANG_MASKS = {
   'c' => ['./c', ['.c', '.h'], ['target', 'deps']],
-  'zane' => ['./zane', ['.zn', '.c', '.h', '.coda'], ['out', 'vendor']],
   'c3' => ['./c3', ['.c3'], ['build']],
   'cpp' => ['./cpp', ['.cpp', '.hpp', '.h', '.cc', '.cxx'], ['target', 'deps']],
   'golang' => ['./golang', ['.go'], ['target', 'warmup']],
@@ -78,6 +77,7 @@ LANG_MASKS = {
   'gossamer' => ['./gossamer', ['.gos'], ['target', '.gos-cache']],
   'goose' => ['./goose', ['.goose'], ['target']],
   'javascript' => ['./javascript', ['.js'], []],
+  'zane' => ['./zane', ['.zn', '.c', '.h', '.coda'], ['out', 'vendor']],
 }
 
 def check_source_files(verbose = false)
@@ -256,18 +256,6 @@ class Run
 end
 
 RUNS = [
-  Run.new(
-    name: "Zane",
-    build_cmd: "zane build",
-    binary_name: "./out/host/zane",
-    run_cmd: "./out/host/zane",
-    version_cmd: "zane version; head -n 1 zane.coda",
-    dir: "/src/zane",
-    container: "zane",
-    group: :prod,
-    deps_cmd: "zane fetch",
-  ),
-
 
   # ======================================= C ======================================================  
   Run.new(
@@ -2608,6 +2596,20 @@ RUNS = [
     container: "typescript-deno",
     group: :hack,
     deps_cmd: "true",
+  ),
+
+  # ======================================= Zane ======================================================
+
+  Run.new(
+    name: "Zane",
+    build_cmd: "zane build",
+    binary_name: "./out/host/zane",
+    run_cmd: "./out/host/zane",
+    version_cmd: "zane version; head -n 1 zane.coda",
+    dir: "/src/zane",
+    container: "zane",
+    group: :prod,
+    deps_cmd: "zane fetch",
   ),
   
 ]

@@ -1,7 +1,7 @@
 FROM langarena:base
 
 ARG cli_version=v0.16
-ARG compiler_version=v0.39
+ARG compiler_version=v0.40
 ARG cli_sha256=074d43d3f4387073edec3fc576ebb4d61b84cc600fe8c7a01384b37781c6fc10
 ENV ZANE_HOME=/opt/zane-home
 RUN curl -fL "https://github.com/zane-lang/zane/releases/download/${cli_version}/zane-linux-x86_64" -o /usr/local/bin/zane \
