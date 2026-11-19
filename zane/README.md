@@ -1,7 +1,7 @@
 # Zane
 
 All 50 LangArena workloads, ported from the Crystal reference. The manifest
-pins compiler **v0.40** and core **v0.14**, built from source (the `core`
+pins compiler **v0.40** and core **v0.15**, built from source (the `core`
 package, from [`zane-lang/std`](https://github.com/zane-lang/std)).
 
 ## Run
