@@ -77,7 +77,7 @@ TEST=1 ruby benchmarks.rb Zane
 PROD=1 ruby benchmarks.rb Zane
 ```
 
-The image pins CLI v0.17 with its SHA-256 and installs compiler v0.40.
+The image pins CLI v0.18 with its SHA-256 and installs compiler v0.40.
 The suite records both versions. Source-size measurements include bindings
 and exclude everything under `lib/arena/vendor`.
 

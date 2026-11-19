@@ -1,5 +1,6 @@
+zane-commit c3208354223e1f0e1096a8698514bbb624f08efd
+
 resolutions [
     key url commit
-    zane https://github.com/zane-lang/compiler c3208354223e1f0e1096a8698514bbb624f08efd
     core https://github.com/zane-lang/std 810332ed820b00c872c708f935d83ba5fc51b609
 ]
