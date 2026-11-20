@@ -1,6 +1,4 @@
-use bench::Bench
-use config::Config
-use helper
+use {bench::Bench, config::Config, helper}
 
 const CHAR_EOF: u8 = 0
 
@@ -11,21 +9,19 @@ pub enum Node {
     Assignment(String, Node)
 }
 
-pub struct CalculatorAst {
+pub struct CalculatorAst: Bench {
     n: i64
-    result: u32
-    text: String
-    expressions: Vec<Node>
-    rng: helper::Rng
-}
+    result: u32 = 0
+    text: String = ""
+    expressions: Vec<Node> = #[]
+    rng: helper::Rng = helper::Rng::new()
 
-impl CalculatorAst {
     pub fn new(cfg: Config) -> CalculatorAst {
         CalculatorAst::with_operations(cfg.int("Calculator::Ast", "operations"))
     }
 
     fn with_operations(n: i64) -> CalculatorAst {
-        CalculatorAst { n: n, result: 0, text: "", expressions: #[], rng: helper::Rng::new() }
+        CalculatorAst { n: n }
     }
 
     pub fn expressions(&self) -> Vec<Node> { self.expressions }
@@ -62,14 +58,12 @@ impl CalculatorAst {
 
         result
     }
-}
 
-impl Bench for CalculatorAst {
     fn prepare(&mut self) { self.text = self.generate_random_program(self.n) }
 
     fn run(&mut self, iteration_id: i64) {
         self.expressions = Parser::new(self.text).parse()
-        self.result +%= self.expressions.len() as u32
+        self.result +%= self.expressions.len() as% u32
 
         if let Some(Node::Assignment(var, _)) = self.expressions.last() {
             self.result +%= helper::checksum_str(var)
@@ -81,17 +75,15 @@ impl Bench for CalculatorAst {
 
 struct Parser {
     input: String
-    pos: i64
+    pos: i64 = 0
     len: i64
     current_byte: u8
-    expressions: Vec<Node>
-}
+    expressions: Vec<Node> = #[]
 
-impl Parser {
     fn new(input: String) -> Parser {
         let len = input.byte_len()
-        let current_byte = if len > 0 { input.byte_at(0) as u8 } else { CHAR_EOF }
-        Parser { input: input, pos: 0, len: len, current_byte: current_byte, expressions: #[] }
+        let current_byte = if len > 0 { input.byte_at(0) as% u8 } else { CHAR_EOF }
+        Parser { input: input, len: len, current_byte: current_byte }
     }
 
     fn parse(&mut self) -> Vec<Node> {
@@ -212,7 +204,7 @@ impl Parser {
         if self.pos >= self.len {
             self.current_byte = CHAR_EOF
         } else {
-            self.current_byte = self.input.byte_at(self.pos) as u8
+            self.current_byte = self.input.byte_at(self.pos) as% u8
         }
     }
 
@@ -233,18 +225,14 @@ impl Parser {
 
 fn magnitude(x: i64) -> i64 { if x < 0 { x *% -1 } else { x } }
 
-pub struct CalculatorInterpreter {
+pub struct CalculatorInterpreter: Bench {
     n: i64
-    ast: Vec<Node>
-    result: u32
-}
+    ast: Vec<Node> = #[]
+    result: u32 = 0
 
-impl CalculatorInterpreter {
     pub fn new(cfg: Config) -> CalculatorInterpreter {
         CalculatorInterpreter {
             n: cfg.int("Calculator::Interpreter", "operations")
-            ast: #[]
-            result: 0
         }
     }
 
@@ -262,14 +250,27 @@ impl CalculatorInterpreter {
         if b == 0 { return 0 }
         a -% CalculatorInterpreter::simple_div(a, b) *% b
     }
+
+    fn prepare(&mut self) {
+        let mut ast_bench = CalculatorAst::with_operations(self.n)
+        ast_bench.prepare()
+        ast_bench.run(0)
+        self.ast = ast_bench.expressions()
+    }
+
+    fn run(&mut self, iteration_id: i64) {
+        let mut interpreter = Interpreter::new()
+        let result = interpreter.run(self.ast)
+        self.result +%= result as% u32
+    }
+
+    fn checksum(&self) -> u32 { self.result }
 }
 
 struct Interpreter {
-    variables: Map<String, i64>
-}
+    variables: Map<String, i64> = Map::new()
 
-impl Interpreter {
-    fn new() -> Interpreter { Interpreter { variables: Map::new() } }
+    fn new() -> Interpreter { Interpreter { } }
 
     fn evaluate(&mut self, node: Node) -> i64 {
         match node {
@@ -301,21 +302,4 @@ impl Interpreter {
         for expr in expressions { result = self.evaluate(expr) }
         result
     }
-}
-
-impl Bench for CalculatorInterpreter {
-    fn prepare(&mut self) {
-        let mut ast_bench = CalculatorAst::with_operations(self.n)
-        ast_bench.prepare()
-        ast_bench.run(0)
-        self.ast = ast_bench.expressions()
-    }
-
-    fn run(&mut self, iteration_id: i64) {
-        let mut interpreter = Interpreter::new()
-        let result = interpreter.run(self.ast)
-        self.result +%= result as u32
-    }
-
-    fn checksum(&self) -> u32 { self.result }
 }

@@ -1,6 +1,4 @@
-use bench::Bench
-use config::Config
-use helper
+use {bench::Bench, config::Config, helper}
 
 const I32_MAX: i64 = 2_147_483_647
 
@@ -9,9 +7,7 @@ pub struct Graph {
     pub jumps: i64
     pub jump_len: i64
     pub adj: Vec<Vec<i64>>
-}
 
-impl Graph {
     pub fn new(vertices: i64, jumps: i64, jump_len: i64) -> Graph {
         let mut adj: Vec<Vec<i64>> = Vec::with_capacity(vertices)
         for _ in 0..vertices { adj.push(#[]) }
@@ -42,25 +38,19 @@ impl Graph {
 }
 
 struct GraphPathBenchmark {
-    graph: Graph
-    result: u32
-    prepared: bool
+    graph: Graph = Graph::new(0, 0, 0)
+    result: u32 = 0
+    prepared: bool = false
     vertices: i64
     jumps: i64
     jump_len: i64
-    rng: helper::Rng
-}
+    rng: helper::Rng = helper::Rng::new()
 
-impl GraphPathBenchmark {
     fn new_base(cfg: Config, class_name: String) -> GraphPathBenchmark {
         GraphPathBenchmark {
-            graph: Graph::new(0, 0, 0)
-            result: 0
-            prepared: false
             vertices: cfg.int(class_name, "vertices")
             jumps: cfg.int(class_name, "jumps")
             jump_len: cfg.int(class_name, "jump_len")
-            rng: helper::Rng::new()
         }
     }
 
@@ -75,11 +65,9 @@ impl GraphPathBenchmark {
     }
 }
 
-pub struct GraphBfs {
+pub struct GraphBfs: Bench {
     base: GraphPathBenchmark
-}
 
-impl GraphBfs {
     pub fn new(cfg: Config) -> GraphBfs { GraphBfs { base: GraphPathBenchmark::new_base(cfg, "Graph::BFS") } }
 
     fn bfs_shortest_path(&self, start: i64, target: i64) -> i64 {
@@ -105,24 +93,20 @@ impl GraphBfs {
 
         -1
     }
-}
 
-impl Bench for GraphBfs {
     fn prepare(&mut self) { self.base.prepare() }
 
     fn run(&mut self, iteration_id: i64) {
         let total_length = self.bfs_shortest_path(0, self.base.graph.vertices - 1)
-        self.base.result +%= total_length as u32
+        self.base.result +%= total_length as% u32
     }
 
     fn checksum(&self) -> u32 { self.base.result }
 }
 
-pub struct GraphDfs {
+pub struct GraphDfs: Bench {
     base: GraphPathBenchmark
-}
 
-impl GraphDfs {
     pub fn new(cfg: Config) -> GraphDfs { GraphDfs { base: GraphPathBenchmark::new_base(cfg, "Graph::DFS") } }
 
     fn dfs_find_path(&self, start: i64, target: i64) -> i64 {
@@ -148,14 +132,12 @@ impl GraphDfs {
 
         if best_path == I32_MAX { -1 } else { best_path }
     }
-}
 
-impl Bench for GraphDfs {
     fn prepare(&mut self) { self.base.prepare() }
 
     fn run(&mut self, iteration_id: i64) {
         let total_length = self.dfs_find_path(0, self.base.graph.vertices - 1)
-        self.base.result +%= total_length as u32
+        self.base.result +%= total_length as% u32
     }
 
     fn checksum(&self) -> u32 { self.base.result }
@@ -166,11 +148,9 @@ struct Node {
     vertex: i64
 }
 
-pub struct GraphAStar {
+pub struct GraphAStar: Bench {
     base: GraphPathBenchmark
-}
 
-impl GraphAStar {
     pub fn new(cfg: Config) -> GraphAStar {
         GraphAStar { base: GraphPathBenchmark::new_base(cfg, "Graph::AStar") }
     }
@@ -212,14 +192,12 @@ impl GraphAStar {
 
         -1
     }
-}
 
-impl Bench for GraphAStar {
     fn prepare(&mut self) { self.base.prepare() }
 
     fn run(&mut self, iteration_id: i64) {
         let total_length = self.a_star_shortest_path(0, self.base.graph.vertices - 1)
-        self.base.result +%= total_length as u32
+        self.base.result +%= total_length as% u32
     }
 
     fn checksum(&self) -> u32 { self.base.result }

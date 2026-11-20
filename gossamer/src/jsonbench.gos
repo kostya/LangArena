@@ -1,8 +1,4 @@
-use std::math
-use std::encoding::json
-use bench::Bench
-use config::Config
-use helper
+use {std::math, std::encoding::json, bench::Bench, config::Config, helper}
 
 type OptsMap = Map<String, (i64, bool)>
 
@@ -16,36 +12,29 @@ struct Coordinate {
 
 struct JsonData {
     coordinates: Vec<Coordinate>
-    info: String
+    info: String = "some info"
 }
 
-pub struct JsonGenerate {
+pub struct JsonGenerate: Bench {
     n: i64
-    text: String
+    text: String = ""
     data: JsonData
-    result: u32
-    rng: helper::Rng
-}
+    result: u32 = 0
+    rng: helper::Rng = helper::Rng::new()
 
-impl JsonGenerate {
     pub fn new(cfg: Config) -> JsonGenerate { JsonGenerate::with_n(cfg.int("Json::Generate", "coords")) }
 
     fn with_n(n: i64) -> JsonGenerate {
         JsonGenerate {
             n: n
-            text: ""
-            data: JsonData { coordinates: #[], info: "some info" }
-            result: 0
-            rng: helper::Rng::new()
+            data: JsonData { coordinates: #[] }
         }
     }
 
     fn round_to_8(value: f64) -> f64 { math::round(value * 100_000_000.0) / 100_000_000.0 }
 
     pub fn get_result(&self) -> String { self.text }
-}
 
-impl Bench for JsonGenerate {
     fn prepare(&mut self) {
         let mut data: Vec<Coordinate> = #[]
         for _ in 0..self.n {
@@ -60,27 +49,25 @@ impl Bench for JsonGenerate {
 
             data.push(Coordinate { x: x, y: y, z: z, name: name, opts: opts })
         }
-        let json_data = JsonData { coordinates: data, info: "some info" }
+        let json_data = JsonData { coordinates: data }
         self.data = json_data
     }
 
     fn run(&mut self, iteration_id: i64) {
-        self.text = json::encode(self.data)
+        self.text = json::encode(self.data).unwrap()
         if self.text.starts_with("{\"coordinates\":") { self.result += 1 }
     }
 
     fn checksum(&self) -> u32 { self.result }
 }
 
-pub struct JsonParseDom {
+pub struct JsonParseDom: Bench {
     n: i64
-    text: String
-    result: u32
-}
+    text: String = ""
+    result: u32 = 0
 
-impl JsonParseDom {
     pub fn new(cfg: Config) -> JsonParseDom {
-        JsonParseDom { n: cfg.int("Json::ParseDom", "coords"), text: "", result: 0 }
+        JsonParseDom { n: cfg.int("Json::ParseDom", "coords") }
     }
 
     fn calc(&self, text: String) -> (f64, f64, f64) {
@@ -100,9 +87,7 @@ impl JsonParseDom {
 
         (x / len, y / len, z / len)
     }
-}
 
-impl Bench for JsonParseDom {
     fn prepare(&mut self) {
         let mut generator = JsonGenerate::with_n(self.n)
         generator.prepare()
@@ -128,15 +113,13 @@ struct Coordinates {
     coordinates: Vec<CoordinateData>
 }
 
-pub struct JsonParseMapping {
+pub struct JsonParseMapping: Bench {
     n: i64
-    text: String
-    result: u32
-}
+    text: String = ""
+    result: u32 = 0
 
-impl JsonParseMapping {
     pub fn new(cfg: Config) -> JsonParseMapping {
-        JsonParseMapping { n: cfg.int("Json::ParseMapping", "coords"), text: "", result: 0 }
+        JsonParseMapping { n: cfg.int("Json::ParseMapping", "coords") }
     }
 
     fn calc(&self, text: String) -> CoordinateData {
@@ -155,9 +138,7 @@ impl JsonParseMapping {
 
         CoordinateData { x: x / len, y: y / len, z: z / len }
     }
-}
 
-impl Bench for JsonParseMapping {
     fn prepare(&mut self) {
         let mut generator = JsonGenerate::with_n(self.n)
         generator.prepare()

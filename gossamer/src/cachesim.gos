@@ -1,38 +1,28 @@
-use bench::Bench
-use config::Config
-use helper
+use {bench::Bench, config::Config, helper}
 
 struct Node {
     key: String
     value: String
-    prev: Option<i64>
-    next: Option<i64>
-}
+    prev: Option<i64> = None
+    next: Option<i64> = None
 
-impl Node {
-    fn new(key: String, value: String) -> Node { Node { key: key, value: value, prev: None, next: None } }
+    fn new(key: String, value: String) -> Node { Node { key: key, value: value } }
 }
 
 struct LruCache {
     capacity: i64
     cache: Map<String, i64>
     nodes: Vec<Node>
-    free: Stack<i64>
-    head: Option<i64>
-    tail: Option<i64>
-    size: i64
-}
+    free: Stack<i64> = Stack::new()
+    head: Option<i64> = None
+    tail: Option<i64> = None
+    size: i64 = 0
 
-impl LruCache {
     fn new(capacity: i64) -> LruCache {
         LruCache {
             capacity: capacity
             cache: Map::with_capacity(capacity)
             nodes: Vec::with_capacity(capacity)
-            free: Stack::new()
-            head: None
-            tail: None
-            size: 0
         }
     }
 
@@ -117,30 +107,23 @@ impl LruCache {
     }
 }
 
-pub struct CacheSimulation {
+pub struct CacheSimulation: Bench {
     values_size: i64
     cache_size: i64
     cache: LruCache
-    hits: i64
-    misses: i64
-    rng: helper::Rng
-}
+    hits: i64 = 0
+    misses: i64 = 0
+    rng: helper::Rng = helper::Rng::new()
 
-impl CacheSimulation {
     pub fn new(cfg: Config) -> CacheSimulation {
         let cache_size = cfg.int("Etc::CacheSimulation", "size")
         CacheSimulation {
             values_size: cfg.int("Etc::CacheSimulation", "values")
             cache_size: cache_size
             cache: LruCache::new(cache_size)
-            hits: 0
-            misses: 0
-            rng: helper::Rng::new()
         }
     }
-}
 
-impl Bench for CacheSimulation {
     fn prepare(&mut self) {
         self.cache = LruCache::new(self.cache_size)
         self.hits = 0
@@ -168,9 +151,9 @@ impl Bench for CacheSimulation {
 
     fn checksum(&self) -> u32 {
         let mut result: u32 = 5432
-        result = (result << 5) +% self.hits as u32
-        result = (result << 5) +% self.misses as u32
-        result = (result << 5) +% self.cache.len() as u32
+        result = (result << 5) +% self.hits as% u32
+        result = (result << 5) +% self.misses as% u32
+        result = (result << 5) +% self.cache.len() as% u32
         result
     }
 }

@@ -611,7 +611,7 @@ services:
       dockerfile: docker/gossamer
       args:
         # https://github.com/gossamer-lang/gossamer/releases
-        version: "0.75.14"
+        version: "0.82.2"
     volumes:
       - .:/src
       - ./cache/build/gossamer/target:/src/gossamer/target

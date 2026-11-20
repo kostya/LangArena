@@ -1,16 +1,13 @@
-use bench::Bench
-use config::Config
+use {bench::Bench, config::Config}
 
 struct TreeNode {
     item: i32
     left: Option<TreeNode>
     right: Option<TreeNode>
-}
 
-impl TreeNode {
     fn build(item: i32, depth: i32) -> TreeNode {
         if depth > 0 {
-            let half = (1 << (depth - 1)) as i32
+            let half = (1 << (depth - 1)) as% i32
             TreeNode {
                 item: item
                 left: Some(TreeNode::build(item - half, depth - 1))
@@ -22,28 +19,24 @@ impl TreeNode {
     }
 
     fn sum(&self) -> u32 {
-        let mut total = self.item as u32 +% 1
+        let mut total = self.item as% u32 +% 1
         if let Some(left) = self.left { total +%= left.sum() }
         if let Some(right) = self.right { total +%= right.sum() }
         total
     }
 }
 
-pub struct BinarytreesObj {
+pub struct BinarytreesObj: Bench {
     depth: i64
-    result: u32
-}
+    result: u32 = 0
 
-impl BinarytreesObj {
     pub fn new(cfg: Config) -> BinarytreesObj {
-        BinarytreesObj { depth: cfg.int("Binarytrees::Obj", "depth"), result: 0 }
+        BinarytreesObj { depth: cfg.int("Binarytrees::Obj", "depth") }
     }
-}
 
-impl Bench for BinarytreesObj {
     fn run(&mut self, iteration_id: i64) {
         arena {
-            let root = TreeNode::build(0, self.depth as i32)
+            let root = TreeNode::build(0, self.depth as% i32)
             self.result +%= root.sum()
         }
     }
@@ -53,31 +46,27 @@ impl Bench for BinarytreesObj {
 
 struct ArenaNode {
     item: i32
-    left: i32
-    right: i32
+    left: i32 = -1
+    right: i32 = -1
+
+    fn new(item: i32) -> ArenaNode { ArenaNode { item: item } }
 }
 
-impl ArenaNode {
-    fn new(item: i32) -> ArenaNode { ArenaNode { item: item, left: -1, right: -1 } }
-}
-
-pub struct BinarytreesArena {
+pub struct BinarytreesArena: Bench {
     depth: i64
-    arena: Vec<ArenaNode>
-    result: u32
-}
+    arena: Vec<ArenaNode> = #[]
+    result: u32 = 0
 
-impl BinarytreesArena {
     pub fn new(cfg: Config) -> BinarytreesArena {
-        BinarytreesArena { depth: cfg.int("Binarytrees::Arena", "depth"), arena: #[], result: 0 }
+        BinarytreesArena { depth: cfg.int("Binarytrees::Arena", "depth") }
     }
 
     fn build(&mut self, item: i32, depth: i32) -> i32 {
-        let idx = self.arena.len() as i32
+        let idx = self.arena.len() as% i32
         self.arena.push(ArenaNode::new(item))
 
         if depth > 0 {
-            let half = (1 << (depth - 1)) as i32
+            let half = (1 << (depth - 1)) as% i32
             let left = self.build(item - half, depth - 1)
             let right = self.build(item + half, depth - 1)
             self.arena[idx].left = left
@@ -88,17 +77,15 @@ impl BinarytreesArena {
 
     fn sum(&self, idx: i32) -> u32 {
         let node = self.arena[idx]
-        let mut total = node.item as u32 +% 1
+        let mut total = node.item as% u32 +% 1
         if node.left >= 0 { total +%= self.sum(node.left) }
         if node.right >= 0 { total +%= self.sum(node.right) }
         total
     }
-}
 
-impl Bench for BinarytreesArena {
     fn run(&mut self, iteration_id: i64) {
         self.arena = #[]
-        self.build(0, self.depth as i32)
+        self.build(0, self.depth as% i32)
         self.result +%= self.sum(0)
     }
 

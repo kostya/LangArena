@@ -1,25 +1,20 @@
-use bench::Bench
-use config::Config
+use {bench::Bench, config::Config}
 
-pub struct Sieve {
+pub struct Sieve: Bench {
     limit: i64
-    result: u32
-}
+    result: u32 = 0
 
-impl Sieve {
     pub fn new(cfg: Config) -> Sieve {
-        Sieve { limit: cfg.int("Etc::Sieve", "limit"), result: 0 }
+        Sieve { limit: cfg.int("Etc::Sieve", "limit") }
     }
-}
 
-impl Bench for Sieve {
     fn run(&mut self, iteration_id: i64) {
         let limit = self.limit
         let mut primes: Vec<u8> = #[1; limit + 1]
         primes[0] = 0
         primes[1] = 0
 
-        let sqrt_limit = (limit as f64).sqrt() as i64
+        let sqrt_limit = (limit as f64).sqrt() as% i64
         for p in 2..=sqrt_limit {
             if primes[p] == 1 {
                 let mut multiple = p * p
@@ -41,7 +36,7 @@ impl Bench for Sieve {
             n += 2
         }
 
-        self.result +%= (last_prime + count) as u32
+        self.result +%= (last_prime + count) as% u32
     }
 
     fn checksum(&self) -> u32 { self.result }

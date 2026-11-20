@@ -1,7 +1,4 @@
-use std::math
-use bench::Bench
-use config::Config
-use helper
+use {std::math, bench::Bench, config::Config, helper}
 
 const INPUT_00: [f64; 2] = [0.0, 0.0]
 const INPUT_01: [f64; 2] = [0.0, 1.0]
@@ -15,9 +12,7 @@ struct Synapse {
     prev_weight: f64
     source_neuron: i64
     dest_neuron: i64
-}
 
-impl Synapse {
     fn new(source_neuron: i64, dest_neuron: i64, rng: &mut helper::Rng) -> Synapse {
         let w = rng.next_float(1.0) * 2.0 - 1.0
         Synapse { weight: w, prev_weight: w, source_neuron: source_neuron, dest_neuron: dest_neuron }
@@ -27,13 +22,11 @@ impl Synapse {
 struct Neuron {
     threshold: f64
     prev_threshold: f64
-    output: f64
-    error: f64
-    synapses_in: Vec<i64>
-    synapses_out: Vec<i64>
-}
+    output: f64 = 0.0
+    error: f64 = 0.0
+    synapses_in: Vec<i64> = #[]
+    synapses_out: Vec<i64> = #[]
 
-impl Neuron {
     const LEARNING_RATE: f64 = 1.0
     const MOMENTUM: f64 = 0.3
 
@@ -42,10 +35,6 @@ impl Neuron {
         Neuron {
             threshold: t
             prev_threshold: t
-            output: 0.0
-            error: 0.0
-            synapses_in: #[]
-            synapses_out: #[]
         }
     }
 
@@ -82,9 +71,7 @@ struct NeuralNetwork {
     hidden_layer: Vec<Neuron>
     output_layer: Vec<Neuron>
     synapses: Vec<Synapse>
-}
 
-impl NeuralNetwork {
     fn new(inputs: i64, hidden: i64, outputs: i64, rng: &mut helper::Rng) -> NeuralNetwork {
         let mut input_layer: Vec<Neuron> = #[]
         for _ in 0..inputs { input_layer.push(Neuron::new(rng)) }
@@ -158,19 +145,15 @@ impl NeuralNetwork {
     fn current_outputs(&self) -> Vec<f64> { self.output_layer.map(|neuron| neuron.output) }
 }
 
-pub struct NeuralNet {
+pub struct NeuralNet: Bench {
     xor_net: NeuralNetwork
     rng: helper::Rng
-}
 
-impl NeuralNet {
     pub fn new(cfg: Config) -> NeuralNet {
         let mut rng = helper::Rng::new()
         NeuralNet { xor_net: NeuralNetwork::new(0, 0, 0, &mut rng), rng: rng }
     }
-}
 
-impl Bench for NeuralNet {
     fn prepare(&mut self) { self.xor_net = NeuralNetwork::new(2, 10, 1, &mut self.rng) }
 
     fn run(&mut self, iteration_id: i64) {

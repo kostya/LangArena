@@ -3,16 +3,16 @@ const IA: i64 = 3877
 const IC: i64 = 29573
 const SEED: i64 = 42
 
-pub struct Rng { last: i64 }
+pub struct Rng {
+    last: i64 = SEED
 
-impl Rng {
-    pub fn new() -> Rng { Rng { last: SEED } }
+    pub fn new() -> Rng { Rng { } }
 
     pub fn reset(&mut self) { self.last = SEED }
 
     pub fn next_int(&mut self, max: i64) -> i64 {
         self.last = (self.last * IA + IC) % IM
-        (self.last as f64 / IM as f64 * max as f64) as i64
+        (self.last as f64 / IM as f64 * max as f64) as% i64
     }
 
     pub fn next_float(&mut self, max: f64) -> f64 {

@@ -1,35 +1,23 @@
-use std::encoding::base64
-use bench::Bench
-use config::Config
-use helper
+use {std::encoding::base64, bench::Bench, config::Config, helper}
 
-pub struct Base64Encode {
+pub struct Base64Encode: Bench {
     source: Vec<u8>
     plain: String
     encoded: String
-    result: u32
-}
+    result: u32 = 0
 
-impl Base64Encode {
     pub fn new(cfg: Config) -> Base64Encode {
         let plain = "a".repeat(cfg.int("Base64::Encode", "size"))
         Base64Encode {
             source: plain.as_bytes()
             plain: plain
             encoded: base64::encode(plain.as_bytes())
-            result: 0
         }
     }
-}
 
-fn head(text: String) -> String {
-    if text.byte_len() > 4 { f"{text.substring(0, 4)}..." } else { text }
-}
-
-impl Bench for Base64Encode {
     fn run(&mut self, iteration_id: i64) {
         self.encoded = base64::encode(self.source)
-        self.result +%= self.encoded.byte_len() as u32
+        self.result +%= self.encoded.byte_len() as% u32
     }
 
     fn checksum(&self) -> u32 {
@@ -37,27 +25,26 @@ impl Bench for Base64Encode {
     }
 }
 
-pub struct Base64Decode {
-    encoded: String
-    decoded: Vec<u8>
-    result: u32
+fn head(text: String) -> String {
+    if text.byte_len() > 4 { f"{text.substring(0, 4)}..." } else { text }
 }
 
-impl Base64Decode {
+pub struct Base64Decode: Bench {
+    encoded: String
+    decoded: Vec<u8>
+    result: u32 = 0
+
     pub fn new(cfg: Config) -> Base64Decode {
         let encoded = base64::encode("a".repeat(cfg.int("Base64::Decode", "size")).as_bytes())
         Base64Decode {
             encoded: encoded
             decoded: base64::decode(encoded).unwrap_or(#[])
-            result: 0
         }
     }
-}
 
-impl Bench for Base64Decode {
     fn run(&mut self, iteration_id: i64) {
         self.decoded = base64::decode(self.encoded).unwrap_or(#[])
-        self.result +%= self.decoded.len() as u32
+        self.result +%= self.decoded.len() as% u32
     }
 
     fn checksum(&self) -> u32 {

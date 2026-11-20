@@ -1,28 +1,19 @@
-use bench::Bench
-use config::Config
-use helper
+use {bench::Bench, config::Config, helper}
 
-pub struct Words {
+pub struct Words: Bench {
     words: i64
     word_len: i64
-    text: String
-    result: u32
-    rng: helper::Rng
-}
+    text: String = ""
+    result: u32 = 0
+    rng: helper::Rng = helper::Rng::new()
 
-impl Words {
     pub fn new(cfg: Config) -> Words {
         Words {
             words: cfg.int("Etc::Words", "words")
             word_len: cfg.int("Etc::Words", "word_len")
-            text: ""
-            result: 0
-            rng: helper::Rng::new()
         }
     }
-}
 
-impl Bench for Words {
     fn prepare(&mut self) {
         let alphabet = "abcdefghijklmnopqrstuvwxyz"
         let mut text = String::with_capacity(self.words * (self.word_len + 1))
@@ -49,7 +40,7 @@ impl Bench for Words {
             max_count = top.1
         }
 
-        self.result +%= max_count as u32 +% helper::checksum_str(max_word) +% frequencies.len() as u32
+        self.result +%= max_count as% u32 +% helper::checksum_str(max_word) +% frequencies.len() as% u32
     }
 
     fn checksum(&self) -> u32 { self.result }

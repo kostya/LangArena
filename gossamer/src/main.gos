@@ -1,28 +1,17 @@
-use std::{env, fs, io, process, time}
-use bench::Bench
-use config::Config
-use base64bench::{Base64Decode, Base64Encode}
-use binarytrees::{BinarytreesArena, BinarytreesObj}
-use brainfuck::{BrainfuckArray, BrainfuckRecursion}
-use bufferhash::{BufferHashCrc32, BufferHashSha256}
-use cachesim::CacheSimulation
-use calculator::{CalculatorAst, CalculatorInterpreter}
-use clbg::{Fannkuchredux, Mandelbrot, Nbody, Spectralnorm}
-use compress::{ArithDecode, ArithEncode, BwtDecode, BwtEncode, HuffDecode, HuffEncode, LzwDecode, LzwEncode}
-use csvbench::CsvParse
-use distance::{Jaro, NGram}
-use gameoflife::GameOfLife
-use graph::{GraphAStar, GraphBfs, GraphDfs}
-use jsonbench::{JsonGenerate, JsonParseDom, JsonParseMapping}
-use logparser::LogParser
-use matmul::{MatmulSingle, MatmulT16, MatmulT4, MatmulT8}
-use maze::{MazeAStar, MazeBfs, MazeGenerator}
-use neuralnet::NeuralNet
-use raytracer::TextRaytracer
-use sieve::Sieve
-use sorts::{SortMerge, SortQuick, SortSelf}
-use template::{TemplateParse, TemplateRegex}
-use words::Words
+use {std::{env, fs, io, process, time}, bench::Bench, config::Config
+    base64bench::{Base64Decode, Base64Encode}, binarytrees::{BinarytreesArena, BinarytreesObj}
+    brainfuck::{BrainfuckArray, BrainfuckRecursion}
+    bufferhash::{BufferHashCrc32, BufferHashSha256}, cachesim::CacheSimulation
+    calculator::{CalculatorAst, CalculatorInterpreter}
+    clbg::{Fannkuchredux, Mandelbrot, Nbody, Spectralnorm}
+    compress::{ArithDecode, ArithEncode, BwtDecode, BwtEncode, HuffDecode, HuffEncode, LzwDecode, LzwEncode}
+    csvbench::CsvParse, distance::{Jaro, NGram}, gameoflife::GameOfLife
+    graph::{GraphAStar, GraphBfs, GraphDfs}
+    jsonbench::{JsonGenerate, JsonParseDom, JsonParseMapping}, logparser::LogParser
+    matmul::{MatmulSingle, MatmulT16, MatmulT4, MatmulT8}
+    maze::{MazeAStar, MazeBfs, MazeGenerator}, neuralnet::NeuralNet, raytracer::TextRaytracer
+    sieve::Sieve, sorts::{SortMerge, SortQuick, SortSelf}, template::{TemplateParse, TemplateRegex}
+    words::Words}
 
 fn execute<B: Bench>(mut b: B, cfg: Config, name: String) -> (f64, bool) {
     b.prepare()
@@ -36,7 +25,7 @@ fn execute<B: Bench>(mut b: B, cfg: Config, name: String) -> (f64, bool) {
     let elapsed = (time::monotonic_nanos() - start) as f64 / 1_000_000_000.0
 
     let actual = b.checksum()
-    let expected = cfg.int(name, "checksum") as u32
+    let expected = cfg.int(name, "checksum") as% u32
     if actual == expected {
         print("OK ")
     } else {

@@ -1,26 +1,22 @@
-use bench::Bench
-use config::Config
-use helper
+use {bench::Bench, config::Config, helper}
 
 struct SortData {
     size: i64
     data: Vec<i64>
-    result: u32
+    result: u32 = 0
     rng: helper::Rng
-}
 
-impl SortData {
     fn new(cfg: Config, name: String) -> SortData {
         let size = cfg.int(name, "size")
         let mut rng = helper::Rng::new()
         let mut data: Vec<i64> = #[]
         for _ in 0..size { data.push(rng.next_int(1_000_000)) }
-        SortData { size: size, data: data, result: 0, rng: rng }
+        SortData { size: size, data: data, rng: rng }
     }
 
     fn sample(&mut self, from: Vec<i64>) {
         let index = self.rng.next_int(self.size)
-        self.result +%= from[index] as u32
+        self.result +%= from[index] as% u32
     }
 }
 
@@ -45,13 +41,11 @@ fn quick_sort(arr: &mut Vec<i64>, left: i64, right: i64) {
     quick_sort(arr, i, right)
 }
 
-pub struct SortQuick { inner: SortData }
+pub struct SortQuick: Bench {
+    inner: SortData
 
-impl SortQuick {
     pub fn new(cfg: Config) -> SortQuick { SortQuick { inner: SortData::new(cfg, "Sort::Quick") } }
-}
 
-impl Bench for SortQuick {
     fn warmup(&mut self, iterations: i64) {
         for i in 0..iterations { self.run(i) }
         self.inner.rng.reset()
@@ -100,13 +94,11 @@ fn merge_sort(arr: &mut Vec<i64>, temp: &mut Vec<i64>, left: i64, right: i64) {
     merge(arr, temp, left, mid, right)
 }
 
-pub struct SortMerge { inner: SortData }
+pub struct SortMerge: Bench {
+    inner: SortData
 
-impl SortMerge {
     pub fn new(cfg: Config) -> SortMerge { SortMerge { inner: SortData::new(cfg, "Sort::Merge") } }
-}
 
-impl Bench for SortMerge {
     fn warmup(&mut self, iterations: i64) {
         for i in 0..iterations { self.run(i) }
         self.inner.rng.reset()
@@ -123,13 +115,11 @@ impl Bench for SortMerge {
     fn checksum(&self) -> u32 { self.inner.result }
 }
 
-pub struct SortSelf { inner: SortData }
+pub struct SortSelf: Bench {
+    inner: SortData
 
-impl SortSelf {
     pub fn new(cfg: Config) -> SortSelf { SortSelf { inner: SortData::new(cfg, "Sort::Self") } }
-}
 
-impl Bench for SortSelf {
     fn warmup(&mut self, iterations: i64) {
         for i in 0..iterations { self.run(i) }
         self.inner.rng.reset()

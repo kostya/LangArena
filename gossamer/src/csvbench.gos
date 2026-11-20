@@ -1,7 +1,4 @@
-use std::encoding::csv
-use bench::Bench
-use config::Config
-use helper
+use {std::encoding::csv, bench::Bench, config::Config, helper}
 
 const ALPHABET: String = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -11,20 +8,15 @@ struct Point {
     z: f64
 }
 
-pub struct CsvParse {
+pub struct CsvParse: Bench {
     rows: i64
-    data: String
-    result: u32
-    rng: helper::Rng
-}
+    data: String = ""
+    result: u32 = 0
+    rng: helper::Rng = helper::Rng::new()
 
-impl CsvParse {
     pub fn new(cfg: Config) -> CsvParse {
         CsvParse {
             rows: cfg.int("CSV::Parse", "rows")
-            data: ""
-            result: 0
-            rng: helper::Rng::new()
         }
     }
 
@@ -42,9 +34,7 @@ impl CsvParse {
 
         points
     }
-}
 
-impl Bench for CsvParse {
     fn prepare(&mut self) {
         let mut data = String::new()
 

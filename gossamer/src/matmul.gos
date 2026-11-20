@@ -1,6 +1,4 @@
-use bench::Bench
-use config::Config
-use helper
+use {bench::Bench, config::Config, helper}
 
 fn matgen(n: i64) -> Vec<Vec<f64>> {
     let tmp = 1.0 / (n * n) as f64
@@ -74,13 +72,11 @@ struct Matmul {
     n: i64
     a: Vec<Vec<f64>>
     b: Vec<Vec<f64>>
-    result: u32
-}
+    result: u32 = 0
 
-impl Matmul {
     fn new(cfg: Config, name: String) -> Matmul {
         let n = cfg.int(name, "n")
-        Matmul { n: n, a: matgen(n), b: matgen(n), result: 0 }
+        Matmul { n: n, a: matgen(n), b: matgen(n) }
     }
 
     fn accumulate(&mut self, c: Vec<Vec<f64>>) {
@@ -89,15 +85,13 @@ impl Matmul {
     }
 }
 
-pub struct MatmulSingle { inner: Matmul }
+pub struct MatmulSingle: Bench {
+    inner: Matmul
 
-impl MatmulSingle {
     pub fn new(cfg: Config) -> MatmulSingle {
         MatmulSingle { inner: Matmul::new(cfg, "Matmul::Single") }
     }
-}
 
-impl Bench for MatmulSingle {
     fn run(&mut self, iteration_id: i64) {
         let c = matmul_sequential(self.inner.a, self.inner.b)
         self.inner.accumulate(c)
@@ -106,15 +100,13 @@ impl Bench for MatmulSingle {
     fn checksum(&self) -> u32 { self.inner.result }
 }
 
-pub struct MatmulT4 { inner: Matmul }
+pub struct MatmulT4: Bench {
+    inner: Matmul
 
-impl MatmulT4 {
     pub fn new(cfg: Config) -> MatmulT4 {
         MatmulT4 { inner: Matmul::new(cfg, "Matmul::T4") }
     }
-}
 
-impl Bench for MatmulT4 {
     fn run(&mut self, iteration_id: i64) {
         let c = matmul_parallel(self.inner.a, self.inner.b, 4)
         self.inner.accumulate(c)
@@ -123,15 +115,13 @@ impl Bench for MatmulT4 {
     fn checksum(&self) -> u32 { self.inner.result }
 }
 
-pub struct MatmulT8 { inner: Matmul }
+pub struct MatmulT8: Bench {
+    inner: Matmul
 
-impl MatmulT8 {
     pub fn new(cfg: Config) -> MatmulT8 {
         MatmulT8 { inner: Matmul::new(cfg, "Matmul::T8") }
     }
-}
 
-impl Bench for MatmulT8 {
     fn run(&mut self, iteration_id: i64) {
         let c = matmul_parallel(self.inner.a, self.inner.b, 8)
         self.inner.accumulate(c)
@@ -140,15 +130,13 @@ impl Bench for MatmulT8 {
     fn checksum(&self) -> u32 { self.inner.result }
 }
 
-pub struct MatmulT16 { inner: Matmul }
+pub struct MatmulT16: Bench {
+    inner: Matmul
 
-impl MatmulT16 {
     pub fn new(cfg: Config) -> MatmulT16 {
         MatmulT16 { inner: Matmul::new(cfg, "Matmul::T16") }
     }
-}
 
-impl Bench for MatmulT16 {
     fn run(&mut self, iteration_id: i64) {
         let c = matmul_parallel(self.inner.a, self.inner.b, 16)
         self.inner.accumulate(c)

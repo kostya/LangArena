@@ -1,23 +1,15 @@
-use bench::Bench
-use config::Config
-use helper
+use {bench::Bench, config::Config, helper}
 
 struct BufferHashBenchmark {
-    data: Vec<u8>
+    data: Vec<u8> = #[]
     size: i64
-    result: u32
-    prepared: bool
-    rng: helper::Rng
-}
+    result: u32 = 0
+    prepared: bool = false
+    rng: helper::Rng = helper::Rng::new()
 
-impl BufferHashBenchmark {
     fn new_base(cfg: Config, class_name: String) -> BufferHashBenchmark {
         BufferHashBenchmark {
-            data: #[]
             size: cfg.int(class_name, "size")
-            result: 0
-            prepared: false
-            rng: helper::Rng::new()
         }
     }
 
@@ -26,7 +18,7 @@ impl BufferHashBenchmark {
             self.data = #[0; self.size]
 
             for i in 0..self.data.len() {
-                self.data[i] = self.rng.next_int(256) as u8
+                self.data[i] = self.rng.next_int(256) as% u8
             }
 
             self.prepared = true
@@ -51,17 +43,13 @@ fn crc32(data: [u8]) -> u32 {
     crc ^ 0xFFFFFFFF
 }
 
-pub struct BufferHashCrc32 {
+pub struct BufferHashCrc32: Bench {
     base: BufferHashBenchmark
-}
 
-impl BufferHashCrc32 {
     pub fn new(cfg: Config) -> BufferHashCrc32 {
         BufferHashCrc32 { base: BufferHashBenchmark::new_base(cfg, "Hash::CRC32") }
     }
-}
 
-impl Bench for BufferHashCrc32 {
     fn warmup(&mut self, iterations: i64) {
         for i in 0..iterations { self.run(i) }
         self.base.rng.reset()
@@ -70,8 +58,8 @@ impl Bench for BufferHashCrc32 {
     fn prepare(&mut self) { self.base.prepare() }
 
     fn run(&mut self, iteration_id: i64) {
-        let ch = self.base.rng.next_int(256) as u8
-        self.base.data[self.base.rng.next_int(self.base.size) as usize] = ch
+        let ch = self.base.rng.next_int(256) as% u8
+        self.base.data[self.base.rng.next_int(self.base.size) as% usize] = ch
         let hash = crc32(self.base.data)
         self.base.result +%= hash
     }
@@ -79,9 +67,7 @@ impl Bench for BufferHashCrc32 {
     fn checksum(&self) -> u32 { self.base.result }
 }
 
-struct SimpleSha256 {}
-
-impl SimpleSha256 {
+struct SimpleSha256 {
     fn digest(data: [u8]) -> [u8; 32] {
         let mut result: [u8; 32] = [0; 32]
 
@@ -101,26 +87,22 @@ impl SimpleSha256 {
         for i in 0..8 {
             let hash = hashes[i]
             result[i * 4] = (hash >> 24) as u8
-            result[i * 4 + 1] = (hash >> 16) as u8
-            result[i * 4 + 2] = (hash >> 8) as u8
-            result[i * 4 + 3] = hash as u8
+            result[i * 4 + 1] = (hash >> 16) as% u8
+            result[i * 4 + 2] = (hash >> 8) as% u8
+            result[i * 4 + 3] = hash as% u8
         }
 
         result
     }
 }
 
-pub struct BufferHashSha256 {
+pub struct BufferHashSha256: Bench {
     base: BufferHashBenchmark
-}
 
-impl BufferHashSha256 {
     pub fn new(cfg: Config) -> BufferHashSha256 {
         BufferHashSha256 { base: BufferHashBenchmark::new_base(cfg, "Hash::SHA256") }
     }
-}
 
-impl Bench for BufferHashSha256 {
     fn warmup(&mut self, iterations: i64) {
         for i in 0..iterations { self.run(i) }
         self.base.rng.reset()
@@ -129,11 +111,11 @@ impl Bench for BufferHashSha256 {
     fn prepare(&mut self) { self.base.prepare() }
 
     fn run(&mut self, iteration_id: i64) {
-        let ch = self.base.rng.next_int(256) as u8
-        self.base.data[self.base.rng.next_int(self.base.size) as usize] = ch
+        let ch = self.base.rng.next_int(256) as% u8
+        self.base.data[self.base.rng.next_int(self.base.size) as% usize] = ch
         let digest = SimpleSha256::digest(self.base.data)
         let hash = digest[0] as u32 | (digest[1] as u32 << 8) | (digest[2] as u32 << 16) |
-        (digest[3] as u32 << 24)
+            (digest[3] as u32 << 24)
         self.base.result +%= hash
     }
 
