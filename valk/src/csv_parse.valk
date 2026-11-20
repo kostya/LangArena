@@ -1,0 +1,93 @@
+use csv
+
+struct CsvPoint {
+    x: float
+    y: float
+    z: float
+}
+
+class CsvParse is Benchmark {
+    rows: uint
+    checksum_val: u32 (0)
+    data: String ("")
+
+    static fn new() SELF {
+        return SELF { rows: config_int("CSV::Parse", "rows").to(uint) }
+    }
+
+    fn name() String {
+        return "CSV::Parse"
+    }
+
+    fn generate_data() {
+        let buf = ByteBuffer.new(this.rows * 80)
+
+        each 0 .. this.rows as i {
+            let c = 'A' + (i % 26).to(u8)
+            let x = next_float(1.0)
+            let z = next_float(1.0)
+            let y = next_float(1.0)
+            buf.write("\"point ")
+            buf.write_byte(c)
+            buf.write("\\n, \"\"")
+            buf.write_int_ascii((i % 100).to(int))
+            buf.write("\"\"\",")
+            buf.write_f64_ascii(x, 10)
+            buf.write(",,")
+            buf.write_f64_ascii(z, 10)
+            buf.write(",\"[")
+            buf.write(i % 2 == 0 ? "true" : "false")
+            buf.write("\\n, ")
+            buf.write_int_ascii((i % 100).to(int))
+            buf.write("]\",")
+            buf.write_f64_ascii(y, 10)
+            buf.write_byte('\n')
+        }
+        this.data = buf.into_string()
+    }
+
+    fn parse_points() Array[CsvPoint] {
+        let points = Array[CsvPoint]{}
+        let reader = csv.Reader.from_string(this.data)
+
+        while true {
+            let read = reader.next_row() ! break
+            if !read : break
+            let x = (reader.field(1) ?? "").to_float() ! panic("Invalid float")
+            let z = (reader.field(3) ?? "").to_float() ! panic("Invalid float")
+            let y = (reader.field(5) ?? "").to_float() ! panic("Invalid float")
+            points.append(CsvPoint { x: x, y: y, z: z })
+        }
+
+        return points
+    }
+
+    fn prepare() {
+        this.generate_data()
+    }
+
+    fn run(iteration: int) {
+        let points = this.parse_points()
+        if points.length == 0 : return
+
+        let x_sum = 0.0
+        let y_sum = 0.0
+        let z_sum = 0.0
+        each points as point {
+            x_sum += point.x
+            y_sum += point.y
+            z_sum += point.z
+        }
+
+        let count = points.length.to(float)
+        let x_avg = x_sum / count
+        let y_avg = y_sum / count
+        let z_avg = z_sum / count
+
+        this.checksum_val += checksum_f64(x_avg) + checksum_f64(y_avg) + checksum_f64(z_avg)
+    }
+
+    fn checksum() u32 {
+        return this.checksum_val + checksum_str(this.data)
+    }
+}

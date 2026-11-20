@@ -1,0 +1,365 @@
+enum MazeCellKind {
+    wall
+    space
+    start
+    finish
+    border
+    path
+}
+
+extend MazeCellKind {
+    fn is_walkable() bool {
+        return this == .space || this == .start || this == .finish
+    }
+
+    fn value() u32 {
+        return this.to(u32)
+    }
+}
+
+struct MazeCell {
+    kind: MazeCellKind (.wall)
+    neighbors: [Link[MazeCell] x 4]
+    x: u32
+    y: u32
+
+    fn reset() {
+        if this.kind == .space : this.kind = .wall
+    }
+}
+
+// The cells row after row in one arena; a cell names its neighbors with links
+class Maze {
+    width: uint
+    height: uint
+    cells: Arena[MazeCell]
+    start: Link[MazeCell]
+    finish: Link[MazeCell]
+
+    static fn new(width: uint, height: uint) Maze {
+        let w = width > 5 ? width : 5
+        let h = height > 5 ? height : 5
+
+        let cells = Arena[MazeCell].new(w * h)
+        // A border cell has no neighbors: its links name the first cell, a border itself
+        let none = cells.next_link()
+        each 0 .. h as y {
+            each 0 .. w as x : cells.add(MazeCell { x: x.to(u32), y: y.to(u32), neighbors: { none, none, none, none } })
+        }
+
+        let maze = Maze { width: w, height: h, cells: cells, start: cells.link(w + 1), finish: cells.link((h - 2) * w + w - 2) }
+        maze.link_neighbors()
+        return maze
+    }
+
+    fn link(y: uint, x: uint) Link[MazeCell] {
+        return this.cells.link(y * this.width + x)
+    }
+
+    fn link_neighbors() {
+        let cells = this.cells.view()
+        each 0 .. this.height as y {
+            each 0 .. this.width as x {
+                let cell = cells.ref(this.link(y, x))
+                if x == 0 || y == 0 || x == this.width - 1 || y == this.height - 1 {
+                    cell.kind = .border
+                } else {
+                    let neighbors: [Link[MazeCell] x 4] = { this.link(y - 1, x), this.link(y + 1, x), this.link(y, x + 1), this.link(y, x - 1) }
+
+                    each 0 .. 4 {
+                        let i = next_int(4).to(uint)
+                        let j = next_int(4).to(uint)
+                        if i != j {
+                            let tmp = neighbors[i]
+                            neighbors[i] = neighbors[j]
+                            neighbors[j] = tmp
+                        }
+                    }
+
+                    cell.neighbors = neighbors
+                }
+            }
+        }
+        this.mark_ends()
+    }
+
+    fn mark_ends() {
+        this.cells.ref(this.start).kind = .start
+        this.cells.ref(this.finish).kind = .finish
+    }
+
+    fn reset() {
+        let cells = this.cells.view().slice()
+        each 0 .. cells.length as i {
+            let cell = &cells[i]
+            cell.reset()
+        }
+        this.mark_ends()
+    }
+
+    fn dig(start: Link[MazeCell]) {
+        let cells = this.cells.view()
+        let stack = Array[Link[MazeCell]].new(this.width * this.height)
+        stack.append(start)
+
+        while true {
+            let cell = cells.ref(stack.pop_last() ! break)
+
+            let walkable_neighbors = 0
+            each cell.neighbors as n {
+                if cells.ref(n).kind.is_walkable() : walkable_neighbors++
+            }
+
+            if walkable_neighbors == 1 {
+                cell.kind = .space
+
+                each cell.neighbors as n {
+                    if cells.ref(n).kind == .wall : stack.append(n)
+                }
+            }
+        }
+    }
+
+    fn ensure_open_finish(at: Link[MazeCell]) {
+        let cells = this.cells.view()
+        let cell = cells.ref(at)
+        cell.kind = .space
+
+        let walkable_neighbors = 0
+        each cell.neighbors as n {
+            if cells.ref(n).kind.is_walkable() : walkable_neighbors++
+        }
+        if walkable_neighbors > 1 : return
+
+        each cell.neighbors as n {
+            if cells.ref(n).kind == .wall : this.ensure_open_finish(n)
+        }
+    }
+
+    fn generate() {
+        let cells = this.cells.view()
+        each cells.ref(this.start).neighbors as n {
+            if cells.ref(n).kind == .wall : this.dig(n)
+        }
+        each cells.ref(this.finish).neighbors as n {
+            if cells.ref(n).kind == .wall : this.ensure_open_finish(n)
+        }
+    }
+
+    fn middle_cell() &MazeCell {
+        return this.cells.ref(this.link(this.height / 2, this.width / 2))
+    }
+
+    fn checksum() u32 {
+        let hasher: u32 = 2166136261
+        let prime: u32 = 16777619
+
+        each this.cells.view().slice() as cell {
+            if cell.kind == .space {
+                hasher = (hasher ^ (cell.x * cell.y)) * prime
+            }
+        }
+        return hasher
+    }
+}
+
+class MazeGenerator is Benchmark {
+    maze: Maze
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        let width = config_int("Maze::Generator", "w").to(uint)
+        let height = config_int("Maze::Generator", "h").to(uint)
+        return SELF { maze: Maze.new(width, height) }
+    }
+
+    fn name() String {
+        return "Maze::Generator"
+    }
+
+    fn run(iteration: int) {
+        this.maze.reset()
+        this.maze.generate()
+        this.result_val += this.maze.middle_cell().kind.value()
+    }
+
+    fn checksum() u32 {
+        return this.result_val + this.maze.checksum()
+    }
+}
+
+fn maze_path_checksum(maze: Maze, path: Array[Link[MazeCell]], result_val: u32) u32 {
+    let mid_cell_value: u32 = 0
+    if path.length > 0 {
+        let cell = maze.cells.ref(path[path.length / 2])
+        mid_cell_value = cell.x * cell.y
+    }
+    return result_val + mid_cell_value
+}
+
+class MazeBFS is Benchmark {
+    maze: Maze
+    path: Array[Link[MazeCell]] (Array[Link[MazeCell]]{})
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        let width = config_int("Maze::BFS", "w").to(uint)
+        let height = config_int("Maze::BFS", "h").to(uint)
+        return SELF { maze: Maze.new(width, height) }
+    }
+
+    fn name() String {
+        return "Maze::BFS"
+    }
+
+    fn bfs(start: Link[MazeCell], target: Link[MazeCell]) Array[Link[MazeCell]] {
+        if start == target : return Array[Link[MazeCell]]{ start }
+
+        let cells = this.maze.cells.view()
+        let width = this.maze.width
+        let height = this.maze.height
+
+        let queue = Deque[uint]{}
+        let visited = Array[mut &[bool]].new(height)
+        each 0 .. height : visited.append([bool]{ false x width })
+        let path = Array[(Link[MazeCell], i32)]{}
+
+        let first = cells.ref(start)
+        visited[first.y][first.x] = true
+        path.append((start, -1))
+        queue.push_back(0)
+
+        while true {
+            let path_id = queue.pop_front() ! break
+            let at, _ = path[path_id]
+
+            each cells.ref(at).neighbors as n {
+                if n == target {
+                    let result = Array[Link[MazeCell]]{ target }
+                    let current = path_id.to(i32)
+                    while current >= 0 {
+                        let cell, parent = path[current.to(uint)]
+                        result.append(cell)
+                        current = parent
+                    }
+                    result.reverse()
+                    return result
+                }
+
+                let neighbor = cells.ref(n)
+                if neighbor.kind.is_walkable() && !visited[neighbor.y][neighbor.x] {
+                    visited[neighbor.y][neighbor.x] = true
+                    path.append((n, path_id.to(i32)))
+                    queue.push_back(path.length - 1)
+                }
+            }
+        }
+
+        return Array[Link[MazeCell]]{}
+    }
+
+    fn prepare() {
+        this.maze.generate()
+    }
+
+    fn run(iteration: int) {
+        this.path = this.bfs(this.maze.start, this.maze.finish)
+        this.result_val += this.path.length.to(u32)
+    }
+
+    fn checksum() u32 {
+        return maze_path_checksum(this.maze, this.path, this.result_val)
+    }
+}
+
+class MazeAStar is Benchmark {
+    maze: Maze
+    path: Array[Link[MazeCell]] (Array[Link[MazeCell]]{})
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        let width = config_int("Maze::AStar", "w").to(uint)
+        let height = config_int("Maze::AStar", "h").to(uint)
+        return SELF { maze: Maze.new(width, height) }
+    }
+
+    fn name() String {
+        return "Maze::AStar"
+    }
+
+    fn heuristic(a: local &MazeCell, b: local &MazeCell) i32 {
+        return (a.x.to(i32) - b.x.to(i32)).abs() + (a.y.to(i32) - b.y.to(i32)).abs()
+    }
+
+    fn astar(start: Link[MazeCell], target: Link[MazeCell]) Array[Link[MazeCell]] {
+        if start == target : return Array[Link[MazeCell]]{ start }
+
+        let cells = this.maze.cells.view()
+        let size = cells.length
+        let goal = cells.ref(target)
+
+        // A cell's index in the arena is its place in these tables
+        let came_from = [i32]{ -1 x size }
+        let g_score = [i32]{ i32.$max x size }
+        let best_f = [i32]{ i32.$max x size }
+
+        // Smallest (f, index) first, like Rust's BinaryHeap<Reverse<(i32, usize)>>
+        let open_set = Heap[(i32, uint)].new()
+
+        g_score[start.index] = 0
+        let f_start = this.heuristic(cells.ref(start), goal)
+        open_set.push((f_start, start.index))
+        best_f[start.index] = f_start
+
+        while true {
+            let _, current_idx = open_set.pop() ! break
+
+            if current_idx == target.index {
+                let path = Array[Link[MazeCell]]{}
+                let cur = current_idx.to(i32)
+                while cur != -1 {
+                    path.append(this.maze.cells.link(cur.to(uint)))
+                    cur = came_from[cur.to(uint)]
+                }
+                path.reverse()
+                return path
+            }
+
+            let current_g = g_score[current_idx]
+
+            each cells.slice()[current_idx].neighbors as n {
+                let neighbor = cells.ref(n)
+                if !neighbor.kind.is_walkable() : continue
+
+                let neighbor_idx = n.index
+                let tentative_g = current_g + 1
+
+                if tentative_g < g_score[neighbor_idx] {
+                    came_from[neighbor_idx] = current_idx.to(i32)
+                    g_score[neighbor_idx] = tentative_g
+                    let f_new = tentative_g + this.heuristic(neighbor, goal)
+
+                    if f_new < best_f[neighbor_idx] {
+                        best_f[neighbor_idx] = f_new
+                        open_set.push((f_new, neighbor_idx))
+                    }
+                }
+            }
+        }
+
+        return Array[Link[MazeCell]]{}
+    }
+
+    fn prepare() {
+        this.maze.generate()
+    }
+
+    fn run(iteration: int) {
+        this.path = this.astar(this.maze.start, this.maze.finish)
+        this.result_val += this.path.length.to(u32)
+    }
+
+    fn checksum() u32 {
+        return maze_path_checksum(this.maze, this.path, this.result_val)
+    }
+}

@@ -1,0 +1,15 @@
+FROM langarena:base
+
+ARG version
+
+# The release archive holds the compiler, its standard library and its linker.
+# vman is Valk's version and package manager: it fetches the one package the
+# benchmarks use (valk-csv) into vendor/.
+RUN mkdir -p /opt/valk /opt/vman \
+    && wget --progress=dot:giga -O - \
+    https://files.valk-cdn.dev/releases/valk/$version/valk-$version-linux-x64.tar.gz \
+    | tar -xz -C /opt/valk \
+    && wget --progress=dot:giga -O - \
+    https://files.valk-cdn.dev/releases/vman/vman-linux-x64.tar.gz \
+    | tar -xz -C /opt/vman
+ENV PATH="/opt/valk:/opt/vman/bin:${PATH}"

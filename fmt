@@ -27,6 +27,7 @@ LANG_MASKS = {
   'php' => ['./php', ['.php'], [], 'pretty-php $@'],
   'gossamer' => ['./gossamer', ['.gos'], ['target', '.gos-cache'], 'gos fmt $@'],
   'goose' => ['./goose', ['.goose'], ['target'], 'goose format $@'],
+  'valk' => ['./valk', ['.valk'], ['target', 'vendor'], 'valk fmt $@'],
   'javascript' => ['./javascript', ['.js'], [], 'npx oxfmt $@ < /dev/null'],
 }
 
@@ -36,7 +37,7 @@ def remove_comments(filepath, lang)
   case lang
 
   when 'c', 'cpp', 'golang', 'rust', 'csharp', 'swift', 'java', 'kotlin', 'd', 'v', 
-    'fsharp', 'dart', 'zig', 'odin', 'scala', 'c3', 'php', 'gossamer', 'goose', 'javascript', 'typescript'
+    'fsharp', 'dart', 'zig', 'odin', 'scala', 'c3', 'php', 'gossamer', 'goose', 'valk', 'javascript', 'typescript'
 
     lines = content.lines.map do |line|
       if (line =~ %r{//\s*@ts-ignore}) || (line =~ %r{/[^/\n]*\\/[^/\n]*/})

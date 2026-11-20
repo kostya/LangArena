@@ -1,0 +1,121 @@
+struct BfTape {
+    tape: Array[u8] (Array[u8]{ 0 x 30000 })
+    pos: uint (0)
+
+    fn get() u8 {
+        return this.tape[this.pos]
+    }
+
+    fn inc() {
+        this.tape[this.pos] = this.tape[this.pos] + 1
+    }
+
+    fn dec() {
+        this.tape[this.pos] = this.tape[this.pos] - 1
+    }
+
+    fn advance() {
+        this.pos++
+        if this.pos >= this.tape.length : this.tape.append(0)
+    }
+
+    fn devance() {
+        if this.pos > 0 : this.pos--
+    }
+}
+
+class BfProgram {
+    commands: Array[u8]
+    jumps: Array[uint]
+
+    static fn new(text: String) ?BfProgram {
+        let commands = Array[u8]{}
+        each text as c {
+            match c {
+                '+', '-', '>', '<', '[', ']', '.', ',' => commands.append(c)
+                default => {}
+            }
+        }
+        if commands.length == 0 : return null
+
+        let jumps = Array[uint]{ 0 x commands.length }
+        let stack = Array[uint]{}
+        each commands as cmd, i {
+            if cmd == '[' {
+                stack.append(i)
+            } else if cmd == ']' {
+                let start = stack.pop_last() ! return null
+                jumps[start] = i
+                jumps[i] = start
+            }
+        }
+
+        if stack.length > 0 : return null
+        return BfProgram { commands: commands, jumps: jumps }
+    }
+
+    fn run() ?u32 {
+        let tape = BfTape {}
+        let pc: uint = 0
+        let result: u32 = 0
+        let commands = this.commands.view()
+        let jumps = this.jumps.view()
+
+        while pc < commands.length {
+            match commands[pc] {
+                '+' => tape.inc()
+                '-' => tape.dec()
+                '>' => tape.advance()
+                '<' => tape.devance()
+                '[' => {
+                    if tape.get() == 0 : pc = jumps[pc]
+                }
+                ']' => {
+                    if tape.get() != 0 : pc = jumps[pc]
+                }
+                '.' => result = (result << 2) + tape.get().to(u32)
+                default => return null
+            }
+            pc++
+        }
+
+        return result
+    }
+}
+
+class BrainfuckArray is Benchmark {
+    program_text: String
+    warmup_text: String
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        return SELF {
+            program_text: config_str("Brainfuck::Array", "program")
+            warmup_text: config_str("Brainfuck::Array", "warmup_program")
+        }
+    }
+
+    fn name() String {
+        return "Brainfuck::Array"
+    }
+
+    fn run_program(source: String) ?u32 {
+        let program = BfProgram.new(source)
+        if !isset(program) : return null
+        return program.run()
+    }
+
+    fn warmup() {
+        let n = this.warmup_iterations()
+        each 0 .. n as i : this.run_program(this.warmup_text)
+    }
+
+    fn run(iteration: int) {
+        let result = this.run_program(this.program_text)
+        if isset(result) : this.result_val += result
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}

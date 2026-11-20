@@ -1,0 +1,239 @@
+class CalcNumber {
+    value: i64
+}
+
+class CalcVariable {
+    name: String
+}
+
+class CalcBinaryOp {
+    op: u8
+    left: CalcNode
+    right: CalcNode
+}
+
+class CalcAssignment {
+    name: String
+    expr: CalcNode
+}
+
+union CalcNode: CalcNumber | CalcVariable | CalcBinaryOp | CalcAssignment {}
+
+class CalculatorAst is Benchmark {
+    n: int
+    result_val: u32 (0)
+    text: String ("")
+    expressions: Array[CalcNode] (Array[CalcNode]{})
+
+    static fn new() SELF {
+        return SELF { n: config_int("Calculator::Ast", "operations") }
+    }
+
+    fn name() String {
+        return "Calculator::Ast"
+    }
+
+    fn generate_random_program(n: int) String {
+        let result = ByteBuffer.new()
+        result.write("v0 = 1\n")
+
+        each 1 .. 10 as v : result.write("v%v = v%{v - 1} + %v\n")
+
+        each 0 .. n as i {
+            let v = i + 10
+            result.write("v%v = v%{v - 1} + ")
+
+            match next_int(10) {
+                0 => result.write("(v%{v - 1} / 3) * 4 - %i / (3 + (18 - v%{v - 2})) \% v%{v - 3} + 2 * ((9 - v%{v - 6}) * (v%{v - 5} + 7))")
+                1 => result.write("v%{v - 1} + (v%{v - 2} + v%{v - 3}) * v%{v - 4} - (v%{v - 5} / v%{v - 6})")
+                2 => result.write("(3789 - (((v%{v - 7})))) + 1")
+                3 => result.write("4/2 * (1-3) + v%{v - 9}/v%{v - 5}")
+                4 => result.write("1+2+3+4+5+6+v%{v - 1}")
+                5 => result.write("(99999 / v%{v - 3})")
+                6 => result.write("0 + 0 - v%{v - 8}")
+                7 => result.write("((((((((((v%{v - 6})))))))))) * 2")
+                8 => result.write("%i * (v%{v - 1}\%6)\%7")
+                9 => result.write("(1)/(0-v%{v - 5}) + (v%{v - 7})")
+                default => panic("unreachable")
+            }
+
+            result.write_byte('\n')
+        }
+
+        return result.into_string()
+    }
+
+    fn prepare() {
+        this.text = this.generate_random_program(this.n)
+    }
+
+    fn run(iteration: int) {
+        // Let go of the previous tree first, so collections during the parse skip it
+        this.expressions = Array[CalcNode]{}
+        this.expressions = CalcParser.new(this.text).parse()
+        this.result_val += this.expressions.length.to(u32)
+
+        let last = this.expressions.last() ! return
+        match last {
+            CalcAssignment as a => this.result_val += checksum_str(a.name)
+            default => {}
+        }
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}
+
+value CALC_EOF (0)
+
+class CalcParser {
+    input: String
+    pos: uint (0)
+    len: uint
+    current_byte: u8
+    expressions: Array[CalcNode] (Array[CalcNode]{})
+
+    static fn new(input: String) CalcParser {
+        return CalcParser {
+            input: input
+            len: input.length
+            current_byte: input.length > 0 ? input[0] : CALC_EOF
+        }
+    }
+
+    fn parse() Array[CalcNode] {
+        while this.current_byte != CALC_EOF {
+            this.skip_whitespace()
+            if this.current_byte == CALC_EOF : break
+
+            let expr = this.parse_expression()
+            this.expressions.append(expr)
+
+            this.skip_whitespace()
+            while this.current_byte == '\n' {
+                this.advance()
+                this.skip_whitespace()
+            }
+        }
+
+        return this.expressions
+    }
+
+    fn parse_expression() CalcNode {
+        let node = this.parse_term()
+        return this.parse_expression_rest(node)
+    }
+
+    fn parse_expression_rest(left_node: CalcNode) CalcNode {
+        let current_node = left_node
+
+        while true {
+            this.skip_whitespace()
+
+            if this.current_byte == '+' || this.current_byte == '-' {
+                let op = this.current_byte
+                this.advance()
+                let right = this.parse_term()
+                current_node = CalcBinaryOp { op: op, left: current_node, right: right }
+            } else {
+                break
+            }
+        }
+
+        return current_node
+    }
+
+    fn parse_term() CalcNode {
+        let node = this.parse_factor()
+        return this.parse_term_rest(node)
+    }
+
+    fn parse_term_rest(left_node: CalcNode) CalcNode {
+        let current_node = left_node
+
+        while true {
+            this.skip_whitespace()
+
+            if this.current_byte == '*' || this.current_byte == '/' || this.current_byte == '%' {
+                let op = this.current_byte
+                this.advance()
+                let right = this.parse_factor()
+                current_node = CalcBinaryOp { op: op, left: current_node, right: right }
+            } else {
+                break
+            }
+        }
+
+        return current_node
+    }
+
+    fn parse_factor() CalcNode {
+        this.skip_whitespace()
+
+        if this.is_digit(this.current_byte) {
+            return this.parse_number()
+        } else if this.is_letter(this.current_byte) {
+            return this.parse_variable()
+        } else if this.current_byte == '(' {
+            this.advance()
+            let node = this.parse_expression()
+            this.skip_whitespace()
+            if this.current_byte == ')' : this.advance()
+            return node
+        }
+
+        this.advance()
+        return CalcNumber { value: 0 }
+    }
+
+    fn parse_number() CalcNode {
+        let value: i64 = 0
+        while this.is_digit(this.current_byte) {
+            value = value * 10 + (this.current_byte - '0').to(i64)
+            this.advance()
+        }
+        return CalcNumber { value: value }
+    }
+
+    fn parse_variable() CalcNode {
+        let start = this.pos
+        while this.is_letter(this.current_byte) || this.is_digit(this.current_byte) : this.advance()
+
+        let var_name = this.input.range(start, this.pos - start)
+
+        this.skip_whitespace()
+        if this.current_byte == '=' {
+            this.advance()
+            let expr = this.parse_expression()
+            return CalcAssignment { name: var_name, expr: expr }
+        }
+
+        return CalcVariable { name: var_name }
+    }
+
+    fn advance() {
+        this.pos++
+        if this.pos >= this.len {
+            this.current_byte = CALC_EOF
+        } else {
+            this.current_byte = this.input[this.pos]
+        }
+    }
+
+    fn skip_whitespace() {
+        while this.is_whitespace(this.current_byte) : this.advance()
+    }
+
+    fn is_digit(byte: u8) bool {
+        return byte >= '0' && byte <= '9'
+    }
+
+    fn is_letter(byte: u8) bool {
+        return (byte >= 'a' && byte <= 'z') || (byte >= 'A' && byte <= 'Z')
+    }
+
+    fn is_whitespace(byte: u8) bool {
+        return byte == ' ' || byte == '\t' || byte == '\n' || byte == '\r'
+    }
+}

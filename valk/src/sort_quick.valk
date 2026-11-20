@@ -1,0 +1,64 @@
+// Shared by Sort::Quick, Sort::Merge and Sort::Self
+class SortBase {
+    size_val: int (0)
+    data: Array[i32] (Array[i32]{})
+    result_val: u32 (0)
+
+    fn prepare(class_name: String) {
+        if this.size_val == 0 {
+            this.size_val = config_int(class_name, "size")
+            this.data = Array[i32].new(this.size_val.to(uint))
+            each 0 .. this.size_val as i : this.data.append(next_int(1_000_000))
+        }
+    }
+}
+
+fn quick_sort(arr: local mut &[i32]) {
+    if arr.length <= 1 : return
+
+    let pivot = arr[arr.length / 2]
+    let i: uint = 0
+    let j = arr.length - 1
+
+    while i <= j {
+        while arr[i] < pivot : i++
+        while arr[j] > pivot : j--
+        if i <= j {
+            let tmp = arr[i]
+            arr[i] = arr[j]
+            arr[j] = tmp
+            i++
+            if j > 0 : j--
+        }
+    }
+
+    if j > 0 : quick_sort(arr.view(0, j + 1))
+    if i < arr.length : quick_sort(arr.view(i, arr.length - i))
+}
+
+class SortQuick is Benchmark {
+    base: SortBase (SortBase {})
+
+    static fn new() SELF {
+        return SELF {}
+    }
+
+    fn name() String {
+        return "Sort::Quick"
+    }
+
+    fn prepare() {
+        this.base.prepare("Sort::Quick")
+    }
+
+    fn run(iteration: int) {
+        this.base.result_val += this.base.data[next_int(this.base.size_val.to(i32)).to(uint)].to(u32)
+        let t = this.base.data.copy()
+        quick_sort(t)
+        this.base.result_val += t[next_int(this.base.size_val.to(i32)).to(uint)].to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.base.result_val
+    }
+}

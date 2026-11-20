@@ -1,0 +1,69 @@
+fn merge_sort_inplace(arr: local mut &[i32]) {
+    let temp = [i32]{ 0 x arr.length }
+    merge_sort_helper(arr, temp, 0, arr.length - 1)
+}
+
+fn merge_sort_helper(arr: local mut &[i32], temp: local mut &[i32], left: uint, right: uint) {
+    if left >= right : return
+
+    let mid = (left + right) / 2
+    merge_sort_helper(arr, temp, left, mid)
+    merge_sort_helper(arr, temp, mid + 1, right)
+    merge_sorted(arr, temp, left, mid, right)
+}
+
+fn merge_sorted(arr: local mut &[i32], temp: local mut &[i32], left: uint, mid: uint, right: uint) {
+    let c = left
+    while c <= right {
+        temp[c] = arr[c]
+        c++
+    }
+
+    let i = left
+    let j = mid + 1
+    let k = left
+
+    while i <= mid && j <= right {
+        if temp[i] <= temp[j] {
+            arr[k] = temp[i]
+            i++
+        } else {
+            arr[k] = temp[j]
+            j++
+        }
+        k++
+    }
+
+    while i <= mid {
+        arr[k] = temp[i]
+        i++
+        k++
+    }
+}
+
+class SortMerge is Benchmark {
+    base: SortBase (SortBase {})
+
+    static fn new() SELF {
+        return SELF {}
+    }
+
+    fn name() String {
+        return "Sort::Merge"
+    }
+
+    fn prepare() {
+        this.base.prepare("Sort::Merge")
+    }
+
+    fn run(iteration: int) {
+        this.base.result_val += this.base.data[next_int(this.base.size_val.to(i32)).to(uint)].to(u32)
+        let t = this.base.data.copy()
+        merge_sort_inplace(t)
+        this.base.result_val += t[next_int(this.base.size_val.to(i32)).to(uint)].to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.base.result_val
+    }
+}

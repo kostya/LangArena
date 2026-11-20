@@ -1,0 +1,215 @@
+use valk.math
+
+value NN_LEARNING_RATE (1.0)
+value NN_MOMENTUM (0.3)
+value NN_RATE (0.3)
+
+struct NnSynapse {
+    weight: float
+    prev_weight: float
+    source_neuron: uint
+    dest_neuron: uint
+
+    static fn new(source_neuron: uint, dest_neuron: uint) NnSynapse {
+        let w = next_float(1.0) * 2.0 - 1.0
+        return NnSynapse { weight: w, prev_weight: w, source_neuron: source_neuron, dest_neuron: dest_neuron }
+    }
+}
+
+struct NnNeuron {
+    threshold: float
+    prev_threshold: float
+    output: float (0.0)
+    error: float (0.0)
+    synapses_in: Array[uint] (Array[uint]{})
+    synapses_out: Array[uint] (Array[uint]{})
+
+    static fn new() NnNeuron {
+        let t = next_float(1.0) * 2.0 - 1.0
+        return NnNeuron { threshold: t, prev_threshold: t }
+    }
+
+    fn derivative() float {
+        return this.output * (1.0 - this.output)
+    }
+
+    fn calculate_output(sources: local &[NnNeuron], synapses: local &[NnSynapse]) $inline {
+        let activation = 0.0
+        let synapses_in = this.synapses_in.view()
+        each synapses_in as synapse_idx {
+            let synapse = &synapses[synapse_idx]
+            let source = &sources[synapse.source_neuron]
+            activation += synapse.weight * source.output
+        }
+        activation -= this.threshold
+        this.output = 1.0 / (1.0 + math.exp(-activation))
+    }
+
+    fn update_weights(rate: float, sources: local &[NnNeuron], synapses: local mut &[NnSynapse]) $inline {
+        let synapses_in = this.synapses_in.view()
+        let error = this.error
+        each synapses_in as synapse_idx {
+            let synapse = &synapses[synapse_idx]
+            let source = &sources[synapse.source_neuron]
+            let source_output = source.output
+            let temp_weight = synapse.weight
+            synapse.weight += (rate * NN_LEARNING_RATE * error * source_output)
+                + (NN_MOMENTUM * (synapse.weight - synapse.prev_weight))
+            synapse.prev_weight = temp_weight
+        }
+
+        let temp_threshold = this.threshold
+        this.threshold += (rate * NN_LEARNING_RATE * this.error * -1.0)
+            + (NN_MOMENTUM * (this.threshold - this.prev_threshold))
+        this.prev_threshold = temp_threshold
+    }
+}
+
+class NnNetwork {
+    input_layer: Array[NnNeuron]
+    hidden_layer: Array[NnNeuron]
+    output_layer: Array[NnNeuron]
+    synapses: Array[NnSynapse] (Array[NnSynapse]{})
+
+    static fn new(inputs: uint, hidden: uint, outputs: uint) NnNetwork {
+        let net = NnNetwork {
+            input_layer: NnNetwork.layer(inputs)
+            hidden_layer: NnNetwork.layer(hidden)
+            output_layer: NnNetwork.layer(outputs)
+        }
+        net.connect(net.input_layer, net.hidden_layer)
+        net.connect(net.hidden_layer, net.output_layer)
+        return net
+    }
+
+    static fn layer(count: uint) Array[NnNeuron] {
+        let layer = Array[NnNeuron].new(count)
+        each 0 .. count : layer.append(NnNeuron.new())
+        return layer
+    }
+
+    fn connect(sources: local mut &[NnNeuron], destinations: local mut &[NnNeuron]) {
+        each 0 .. sources.length as source_idx {
+            let source = &sources[source_idx]
+            each 0 .. destinations.length as dest_idx {
+                let dest = &destinations[dest_idx]
+                let synapse_idx = this.synapses.length
+                this.synapses.append(NnSynapse.new(source_idx, dest_idx))
+                source.synapses_out.append(synapse_idx)
+                dest.synapses_in.append(synapse_idx)
+            }
+        }
+    }
+
+    fn train(inputs: local &[float], targets: local &[float]) {
+        this.feed_forward(inputs)
+
+        let input_layer = this.input_layer.view()
+        let hidden_layer = this.hidden_layer.view()
+        let output_layer = this.output_layer.view()
+        let synapses = this.synapses.view()
+
+        each 0 .. output_layer.length.min(targets.length) as i {
+            let neuron = &output_layer[i]
+            neuron.error = (targets[i] - neuron.output) * neuron.derivative()
+            neuron.update_weights(NN_RATE, hidden_layer, synapses)
+        }
+
+        each 0 .. hidden_layer.length as i {
+            let neuron = &hidden_layer[i]
+            let sum = 0.0
+            let synapses_out = neuron.synapses_out.view()
+            each synapses_out as synapse_idx {
+                let synapse = &synapses[synapse_idx]
+                let dest = &output_layer[synapse.dest_neuron]
+                sum += synapse.prev_weight * dest.error
+            }
+            neuron.error = sum * neuron.derivative()
+            neuron.update_weights(NN_RATE, input_layer, synapses)
+        }
+    }
+
+    fn feed_forward(inputs: local &[float]) {
+        let input_layer = this.input_layer.view()
+        let hidden_layer = this.hidden_layer.view()
+        let output_layer = this.output_layer.view()
+        let synapses = this.synapses.view()
+
+        each 0 .. input_layer.length.min(inputs.length) as i {
+            let neuron = &input_layer[i]
+            neuron.output = inputs[i]
+        }
+        each 0 .. hidden_layer.length as i {
+            let neuron = &hidden_layer[i]
+            neuron.calculate_output(input_layer, synapses)
+        }
+        each 0 .. output_layer.length as i {
+            let neuron = &output_layer[i]
+            neuron.calculate_output(hidden_layer, synapses)
+        }
+    }
+
+    fn current_outputs() Array[float] {
+        let outputs = Array[float].new(this.output_layer.length)
+        each this.output_layer as neuron : outputs.append(neuron.output)
+        return outputs
+    }
+}
+
+class NeuralNet is Benchmark {
+    xor_net: NnNetwork (NnNetwork.new(0, 0, 0))
+
+    static fn new() SELF {
+        return SELF {}
+    }
+
+    fn name() String {
+        return "Etc::NeuralNet"
+    }
+
+    fn prepare() {
+        this.xor_net = NnNetwork.new(2, 10, 1)
+    }
+
+    fn run(iteration: int) {
+        let input_00: [float x 2] = { 0.0, 0.0 }
+        let input_01: [float x 2] = { 0.0, 1.0 }
+        let input_10: [float x 2] = { 1.0, 0.0 }
+        let input_11: [float x 2] = { 1.0, 1.0 }
+        let target_0: [float x 1] = { 0.0 }
+        let target_1: [float x 1] = { 1.0 }
+
+        each 0 .. 1000 {
+            this.xor_net.train(input_00, target_0)
+            this.xor_net.train(input_10, target_1)
+            this.xor_net.train(input_01, target_1)
+            this.xor_net.train(input_11, target_0)
+        }
+    }
+
+    fn checksum() u32 {
+        let net_copy = clone this.xor_net
+
+        net_copy.feed_forward(.{ 0.0, 0.0 })
+        let outputs1 = net_copy.current_outputs()
+
+        net_copy.feed_forward(.{ 0.0, 1.0 })
+        let outputs2 = net_copy.current_outputs()
+
+        net_copy.feed_forward(.{ 1.0, 0.0 })
+        let outputs3 = net_copy.current_outputs()
+
+        net_copy.feed_forward(.{ 1.0, 1.0 })
+        let outputs4 = net_copy.current_outputs()
+
+        let all_outputs = Array[float]{}
+        all_outputs.append_many(outputs1)
+        all_outputs.append_many(outputs2)
+        all_outputs.append_many(outputs3)
+        all_outputs.append_many(outputs4)
+
+        let sum = 0.0
+        each all_outputs as v : sum += v
+        return checksum_f64(sum)
+    }
+}
