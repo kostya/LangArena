@@ -152,9 +152,12 @@
 
 <p>I recently completed a large experiment: I took a benchmark suite written in Crystal (51 tests covering sorting, parsing, algorithms, compression) and ported it to 19 other programming languages with the help of an LLM. The process took about two months. My original goal was to compare performance and memory usage across languages — and the results are available at <a href="https://kostya.github.io/LangArena/">LangArena</a>.</p>
 
+<p class="note"><strong>Update (November 2026):</strong> the suite has since grown to 27 languages and 50 tests. All numbers in this article are refreshed from the 2026-11-04 results; the porting experience described is from the original 20 languages.</p>
+
 <p>Along the way, I collected a lot of data — code size, compilation times, and so on. One of the tables I put together was an <strong>Expressiveness</strong> metric. After a while, I realized this metric was unexpectedly revealing about the experience of working with different languages.</p>
 
 <img src="expressiveness.png" alt="Expressiveness comparison table" style="max-width:100%; height:auto; border:1px solid #ddd; border-radius:4px;">
+<p><small>Screenshot from March 2026 (20 languages). Current table: <a href="https://kostya.github.io/LangArena/">LangArena → Expressiveness</a>.</small></p>
 
 <div class="table-legend">
     <p><strong>Table legend</strong></p>
@@ -173,7 +176,7 @@
 
 <h3>What this table shows</h3>
 
-<p>At first glance, Expressiveness looks like a simple measure of code size. The higher the percentage, the fewer lines you need to write. Crystal requires 44.8% less code than the average, while Zig requires 176.2% more.</p>
+<p>At first glance, Expressiveness looks like a simple measure of code size. The higher the percentage, the fewer lines you need to write. Crystal requires 44.0% less code than the average, while Zig requires 169.0% more.</p>
 
 <p>But if you look closer, a question emerges: are we measuring brevity or expressiveness? Brevity is about the number of characters. Expressiveness is about how clearly an idea is conveyed. They are not the same thing.</p>
 
@@ -184,7 +187,7 @@
 <p>Here are the numbers:</p>
 <ul>
     <li><strong>Crystal:</strong> 95KB source, 22KB gzipped → boilerplate 4.3. For every kilobyte of real information, you type 4.3KB.</li>
-    <li><strong>Zig:</strong> 288KB source, 44KB gzipped → boilerplate 6.6. For every kilobyte of information, you type 6.6KB.</li>
+    <li><strong>Zig:</strong> 279KB source, 43KB gzipped → boilerplate 6.5. For every kilobyte of information, you type 6.5KB.</li>
 </ul>
 <p>That's a 50% difference. This isn't abstract — it's real extra code that you (and the LLM) have to process.</p>
 
@@ -198,8 +201,8 @@
 
 <p>Compare Rust and Zig:</p>
 <ul>
-    <li><strong>Rust (-29%):</strong> 164KB source, 31KB gzipped → boilerplate 5.3</li>
-    <li><strong>Zig (-176%):</strong> 288KB source, 44KB gzipped → boilerplate 6.6</li>
+    <li><strong>Rust (-25%):</strong> 158KB source, 30KB gzipped → boilerplate 5.3</li>
+    <li><strong>Zig (-169%):</strong> 279KB source, 43KB gzipped → boilerplate 6.5</li>
 </ul>
 <p>Rust's gzipped size is noticeably smaller than Zig's, and its source is smaller too. That's because Rust has fewer repetitive formalities and more unique, meaningful information.</p>
 
@@ -209,9 +212,9 @@
 
 <p>Look at the JVM family:</p>
 <ul>
-    <li><strong>Java:</strong> 0% (baseline)</li>
-    <li><strong>Kotlin:</strong> +22% (more concise)</li>
-    <li><strong>Scala:</strong> +41.9% (even more concise)</li>
+    <li><strong>Java:</strong> -1.3% (baseline)</li>
+    <li><strong>Kotlin:</strong> +28% (more concise)</li>
+    <li><strong>Scala:</strong> +41.7% (even more concise)</li>
 </ul>
 <p>This matches every developer's intuition. The metric captures differences between languages on the same platform cleanly.</p>
 
@@ -250,7 +253,7 @@
 
 <div class="code-block">
     <div class="code-header collapsed" onclick="toggleCode(this)">
-        <span>Go (+30.6% expressiveness) — 27 lines</span>
+        <span>Go (+26.8% expressiveness) — 27 lines</span>
         <span class="arrow">▼</span>
     </div>
     <div class="code-content collapsed">
@@ -285,7 +288,7 @@ func (s *SortSelf) Checksum() uint32 {
 
 <div class="code-block">
     <div class="code-header collapsed" onclick="toggleCode(this)">
-        <span>Zig (-176.2% expressiveness) — 91 lines</span>
+        <span>Zig (-169.0% expressiveness) — 91 lines</span>
         <span class="arrow">▼</span>
     </div>
     <div class="code-content collapsed">
@@ -314,7 +317,7 @@ pub const SortSelf = struct {
         self.* = SortSelf{
             .allocator = allocator,
             .helper = helper,
-            .data = .{},
+            .data = .empty,
             .result_val = 0,
         };
 
@@ -425,7 +428,7 @@ pub const SortSelf = struct {
 
     Zig, by contrast, provides clear stack traces, shows the exact file and line, and often explains the cause. Its compile-time checks catch many issues before they become runtime crashes. For porting with an LLM, this is a huge advantage. The AI will make mistakes — but when it does, Zig helps you find them quickly.<br><br>
 
-    In a strange way, if anyone deserves the last place in a "porting experience" ranking, it's C. It has nearly the same code volume as Zig (9107 vs 9405 lines) but offers none of the guardrails. No bounds checks, no defer, no compile-time safety. Just you, a segfault, and a long night ahead.<br><br>
+    In a strange way, if anyone deserves the last place in a "porting experience" ranking, it's C. It has nearly the same code volume as Zig (9167 vs 9116 lines) but offers none of the guardrails. No bounds checks, no defer, no compile-time safety. Just you, a segfault, and a long night ahead.<br><br>
 
     <strong>But there's a deeper context.</strong> Zig isn't designed to compete with Go or Python in the "write code quickly and forget" domain. It's designed for systems programming — the kind of software where garbage collection is impossible, where memory is measured in kilobytes, where every CPU cycle matters. The very features that make Zig verbose (explicit allocators, manual memory management, no hidden control flow) are what make it possible to write operating system kernels, embedded software, or high-performance libraries. Go's 27 lines simply cannot solve these problems — they don't run where Zig runs.<br><br>
 
@@ -443,10 +446,12 @@ pub const SortSelf = struct {
     <li><strong>C, Odin, Zig</strong> — expect to spend more time debugging and refining.</li>
 </ul>
 
+<p>Of the languages added after this article was written, Ruby (+39.9%) and Goose (+37.0%) landed in the top group, Gossamer (+27.0%) next to Go and Python, and C3 (-115.5%) at the bottom next to C and Zig.</p>
+
 <p>In 2026, with AI writing a growing share of our code, <strong>LLM-friendliness is a useful consideration</strong> when choosing a language. The Expressiveness metric offers one way to measure it.</p>
 
 <div class="footer">
-    <small>13.03.2026. Translated to English with the help of an LLM</small>
+    <small>13.03.2026, numbers updated 04.11.2026. Translated to English with the help of an LLM</small>
 </div>
 
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "120edbba80084bc797ced71d68b64c5d"}'></script><!-- End Cloudflare Web Analytics -->    
