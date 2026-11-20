@@ -1,0 +1,104 @@
+package mandelbrot;
+import core$;
+import math$;
+import arena$;
+type State = #struct {
+  w Int;
+  h Int;
+  output Buffer;
+}
+
+State(cfg Config, name String) => init {
+  w=cfg:integer(name, "w");
+  h=cfg:integer(name, "h");
+  output=buffer(Int(0), Int(0));
+}
+
+Unit prepare(this State) mut {
+  return Unit();
+}
+
+Bool inside(cr Float, ci Float) {
+  zr Float=Float(0.0);
+  zi Float=Float(0.0);
+  tr Float=Float(0.0);
+  ti Float=Float(0.0);
+  k Int=Int(1);
+  k!to(Int(50)) {
+    if(tr+ti>Float(4.0)) {
+      return Bool(false);
+    }
+    zi=Float(2.0)*zr*zi+ci;
+    zr=tr-ti+cr;
+    tr=zr*zr;
+    ti=zi*zi;
+  }
+  return tr+ti<=Float(4.0);
+}
+
+Unit step(this State, iteration Int) mut {
+  this.output!append("P4\n"+String(this.w)+" "+String(this.h)+"\n");
+  bits Int=Int(0);
+  acc Int=Int(0);
+  y Int=Int(0);
+  y!to(this.h-1) {
+    ci Float=Float(2.0)*Float(y)/Float(this.h)-Float(1.0);
+    x Int=Int(0);
+    x!to(this.w-1) {
+      cr Float=Float(2.0)*Float(x)/Float(this.w)-Float(1.5);
+      acc=acc*2;
+      if(inside(cr, ci)) {
+        acc=acc+1;
+      }
+      bits=bits+1;
+      full Bool=if(bits==8) {
+        this.output!push(acc);
+        acc=Int(0);
+        bits=Int(0);
+      }
+      full:else() {
+        if(x==this.w-1) {
+          acc=shiftLeft(acc, Int(8)-rem(this.w, Int(8)));
+          this.output!push(acc);
+          acc=Int(0);
+          bits=Int(0);
+        }
+      }
+    }
+  }
+  return Unit();
+}
+
+Int checksum(this State) => hash(this.output:string());
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

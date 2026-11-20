@@ -1,0 +1,210 @@
+package sort;
+import core$;
+import math$;
+import arena$;
+// Values are drawn below 1,000,000, so every list holds 32-bit integers.
+type State = #struct {
+  data List<I32>;
+  work List<I32>;
+  temp List<I32>;
+  rng Rng;
+  result Int;
+  mode Int;
+}
+
+State(cfg Config, name String) => init {
+  data=filled(cfg:integer(name, "size"), I32(0));
+  work=List(I32);
+  temp=List(I32);
+  rng=Rng();
+  result=Int(0);
+  mode=Int(0);
+}
+
+Unit prepare(this State) mut {
+  i Int=Int(1);
+  i!to(this.data:size()) {
+    this.data[i]=I32.wrap(this.rng!next(Int(1000000)));
+  }
+  return Unit();
+}
+
+Int scanUp(this State, start Int, pivot I32, high Int) {
+  i Int=start;
+  k Int=Int(1);
+  k!to(high-start+1) {
+    if(this.work[i]>=pivot) {
+      return i;
+    }
+    i=i+1;
+  }
+  return i;
+}
+
+Int scanDown(this State, start Int, pivot I32, low Int) {
+  i Int=start;
+  k Int=Int(1);
+  k!to(start-low+1) {
+    if(this.work[i]<=pivot) {
+      return i;
+    }
+    i=i-1;
+  }
+  return i;
+}
+
+type Partition = struct {
+  left Int;
+  right Int;
+}
+
+Partition(left Int, right Int) => init {
+  left;
+  right;
+}
+
+Partition partition(this State, low Int, high Int) mut {
+  pivot I32=this.work[(low+high)/2];
+  i Int=low;
+  j Int=high;
+  k Int=Int(1);
+  k!to(high-low+1) {
+    if(i>j) {
+      return Partition(i, j);
+    }
+    i=this:scanUp(i, pivot, high);
+    j=this:scanDown(j, pivot, low);
+    if(i<=j) {
+      v I32=this.work[i];
+      this.work[i]=this.work[j];
+      this.work[j]=v;
+      i=i+1;
+      j=j-1;
+    }
+  }
+  return Partition(i, j);
+}
+
+Unit quick(this State, low Int, high Int) mut {
+  if(low>=high) {
+    return Unit();
+  }
+  p Partition=this!partition(low, high);
+  this!quick(low, p.right);
+  this!quick(p.left, high);
+  return Unit();
+}
+
+// The halves left..mid and mid+1..right of temp merged into work while
+// both have elements; then the left half's rest copied back, as the right
+// half's rest is already in place.
+Unit mergeHalves(this State, left Int, mid Int, right Int) mut {
+  i Int=left;
+  j Int=mid+1;
+  k Int=left;
+  m Int=left;
+  m!to(right) {
+    if(i>mid) {
+      return Unit();
+    }
+    if(j>right) {
+      this.work!copyRange(k, this.temp, i, mid-i+1);
+      return Unit();
+    }
+    a I32=this.temp[i];
+    b I32=this.temp[j];
+    fromLeft Bool=if(a<=b) {
+      this.work[k]=a;
+      i=i+1;
+    }
+    fromLeft:else() {
+      this.work[k]=b;
+      j=j+1;
+    }
+    k=k+1;
+  }
+  return Unit();
+}
+
+Unit merge(this State, left Int, right Int) mut {
+  if(left>=right) {
+    return Unit();
+  }
+  mid Int=(left+right)/2;
+  this!merge(left, mid);
+  this!merge(mid+1, right);
+  // As Goose's port: the range copied to temp in one copy, then merged.
+  this.temp!copyRange(left, this.work, left, right-left+1);
+  this!mergeHalves(left, mid, right);
+  return Unit();
+}
+
+Unit step(this State, iteration Int) mut {
+  mode Int=this.mode;
+  if(mode==2) {
+    n Int=this.data:size();
+    index Int=this.rng!next(n)+1;
+    this.result=u32(this.result+Int(this.data[index]));
+    // As Goose's port: a copy of the data, sorted by the standard sort.
+    sorted List<I32> = this.data;
+    sorted!sort();
+    index=this.rng!next(n)+1;
+    this.result=u32(this.result+Int(sorted[index]));
+    return Unit();
+  }
+  index Int=this.rng!next(this.data:size())+1;
+  this.result=u32(this.result+Int(this.data[index]));
+  this.work=this.data;
+  n Int=this.work:size();
+  merge Bool=if(mode==1) {
+    this.temp=filled(n, I32(0));
+    this!merge(Int(1), n);
+  }
+  merge:else() {
+    this!quick(Int(1), n);
+  }
+  index=this.rng!next(n)+1;
+  this.result=u32(this.result+Int(this.work[index]));
+  return Unit();
+}
+
+Int checksum(this State) => this.result;
+Unit resetRandom(this State) mut {
+  this.rng!reset();
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  if(name=="Sort::Merge") {
+    state.mode=Int(1);
+  }
+  if(name=="Sort::Self") {
+    state.mode=Int(2);
+  }
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

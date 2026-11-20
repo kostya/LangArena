@@ -1,0 +1,91 @@
+package spectralnorm;
+import core$;
+import math$;
+import arena$;
+type State = #struct {
+  u List<Float>;
+  v List<Float>;
+}
+
+State(cfg Config, name String) => init {
+  u=filled(cfg:integer(name, "size"), Float(1.0));
+  v=filled(cfg:integer(name, "size"), Float(1.0));
+}
+
+Unit prepare(this State) mut {
+  return Unit();
+}
+
+// As Goose's `eval_a`: i + j made a float once.
+Float element(i Int, j Int) {
+  ij Float=Float(i+j);
+  return Float(1.0)/(ij*(ij+Float(1.0))/Float(2.0)+Float(i)+Float(1.0));
+}
+List<Float> multiply(u List<Float>, transpose Bool) {
+  out List<Float> = List(Float);
+  i Int=Int(1);
+  i!to(u:size()) {
+    sum Float=Float(0.0);
+    j Int=Int(1);
+    j!to(u:size()) {
+      a Float=element(i-1, j-1);
+      if(transpose) {
+        a=element(j-1, i-1);
+      }
+      sum=sum+a*u[j];
+    }
+    out!push(sum);
+  }
+  return out;
+}
+
+List<Float> ata(u List<Float>) => multiply(multiply(u, Bool(false)), Bool(true));
+Unit step(this State, iteration Int) mut {
+  this.v=ata(this.u);
+  this.u=ata(this.v);
+  return Unit();
+}
+
+Int checksum(this State) {
+  vbv Float=Float(0.0);
+  vv Float=Float(0.0);
+  i Int=Int(1);
+  i!to(this.u:size()) {
+    vbv=vbv+this.u[i]*this.v[i];
+    vv=vv+this.v[i]*this.v[i];
+  }
+  return hashFloat(sqrt(vbv/vv));
+}
+
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

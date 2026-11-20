@@ -1,0 +1,290 @@
+package arithmetic;
+import core$;
+import math$;
+import arena$;
+import codec$;
+type Table = struct {
+  low List<Int>;
+  high List<Int>;
+  total Int;
+}
+
+Table(freq List<Int>) {
+  low List<Int> = filled(Int(256), Int(0));
+  high List<Int> = filled(Int(256), Int(0));
+  total Int=Int(0);
+  i Int=Int(1);
+  i!to(Int(256)) {
+    low[i]=total;
+    total=total+freq[i];
+    high[i]=total;
+  }
+  return init {
+    low;
+    high;
+    total;
+  }
+}
+
+type Encoder = #struct {
+  low Int;
+  high Int;
+  pending Int;
+  output BitWriter;
+}
+
+Encoder() => init {
+  low=Int(0);
+  high=Int(4294967295);
+  pending=Int(0);
+  output=BitWriter();
+}
+
+Unit emit(this Encoder, bit Int) mut {
+  this.output!bit(bit);
+  n Int=this.pending;
+  i Int=Int(1);
+  i!to(n) {
+    this.output!bit(Int(1)-bit);
+  }
+  this.pending=Int(0);
+  return Unit();
+}
+
+Unit normalize(this Encoder) mut {
+  i Int=Int(1);
+  i!to(Int(64)) {
+    low Int=this.low;
+    high Int=this.high;
+    branch Bool=if(high<2147483648) {
+      this!emit(Int(0));
+    }
+    branch!elif(low>=2147483648) {
+      this!emit(Int(1));
+      this.low=this.low-2147483648;
+      this.high=this.high-2147483648;
+    }
+    branch!elif(low>=1073741824 and high<3221225472) {
+      this.pending=this.pending+1;
+      this.low=this.low-1073741824;
+      this.high=this.high-1073741824;
+    }
+    branch:else() {
+      return Unit();
+    }
+    this.low=this.low*2;
+    this.high=u32(this.high*2+1);
+  }
+  return Unit();
+}
+
+Unit symbol(this Encoder, table Table, value Int) mut {
+  range Int=this.high-this.low+1;
+  this.high=this.low+range*table.high[value+1]/table.total-1;
+  this.low=this.low+range*table.low[value+1]/table.total;
+  this!normalize();
+  return Unit();
+}
+
+type Encoded = struct {
+  data String;
+  bits Int;
+  frequencies List<Int>;
+}
+
+Encoded(data String, bits Int, frequencies List<Int>) => init {
+  data;
+  bits;
+  frequencies;
+}
+
+Encoded encode(input String) {
+  inputBytes Buffer=bytes(input);
+  freq List<Int> = frequencies(input);
+  table Table=Table(freq);
+  encoder Encoder=Encoder();
+  i Int=Int(1);
+  i!to(length(input)) {
+    encoder!symbol(table, byte(inputBytes, i));
+  }
+  encoder.pending=encoder.pending+1;
+  low Int=encoder.low;
+  branch Bool=if(low<1073741824) {
+    encoder!emit(Int(0));
+  }
+  branch:else() {
+    encoder!emit(Int(1));
+  }
+  data String=encoder.output!flush();
+  return Encoded(data, encoder.output.written, freq);
+}
+
+type Decoder = #struct {
+  low Int;
+  high Int;
+  value Int;
+  input BitReader;
+}
+
+Decoder(data String) => init {
+  low=Int(0);
+  high=Int(4294967295);
+  value=Int(0);
+  input=BitReader(data);
+}
+
+Unit start(this Decoder) mut {
+  i Int=Int(1);
+  i!to(Int(32)) {
+    this.value=this.value*2+this.input!bit();
+  }
+  return Unit();
+}
+
+Unit normalize(this Decoder) mut {
+  i Int=Int(1);
+  i!to(Int(64)) {
+    low Int=this.low;
+    high Int=this.high;
+    branch Bool=if(high<2147483648) {
+    }
+    branch!elif(low>=2147483648) {
+      this.value=this.value-2147483648;
+      this.low=this.low-2147483648;
+      this.high=this.high-2147483648;
+    }
+    branch!elif(low>=1073741824 and high<3221225472) {
+      this.value=this.value-1073741824;
+      this.low=this.low-1073741824;
+      this.high=this.high-1073741824;
+    }
+    branch:else() {
+      return Unit();
+    }
+    this.low=this.low*2;
+    this.high=this.high*2+1;
+    this.value=this.value*2+this.input!bit();
+  }
+  return Unit();
+}
+
+Int symbol(table Table, scaled Int) {
+  low Int=Int(1);
+  high Int=Int(256);
+  i Int=Int(1);
+  i!to(Int(9)) {
+    if(low>=high) {
+      return low-1;
+    }
+    mid Int=(low+high)/2;
+    branch Bool=if(table.high[mid]>scaled) {
+      high=mid;
+    }
+    branch:else() {
+      low=mid+1;
+    }
+  }
+  return low-1;
+}
+
+Int next(this Decoder, table Table) mut {
+  range Int=this.high-this.low+1;
+  scaled Int=((this.value-this.low+1)*table.total-1)/range;
+  value Int=symbol(table, scaled);
+  this.high=this.low+range*table.high[value+1]/table.total-1;
+  this.low=this.low+range*table.low[value+1]/table.total;
+  this!normalize();
+  return value;
+}
+
+String decode(encoded Encoded) {
+  table Table=Table(encoded.frequencies);
+  decoder Decoder=Decoder(encoded.data);
+  decoder!start();
+  // As Goose's `u8[>..]`, a byte list.
+  out List<U8> = List(U8);
+  i Int=Int(1);
+  i!to(table.total) {
+    value Int=decoder!next(table);
+    out!push(U8.wrap(value));
+  }
+  return String(out);
+}
+
+type State = #struct {
+  n Int;
+  data String;
+  encoded Encoded;
+  decoded String;
+  result Int;
+  decode Bool;
+}
+
+State(cfg Config, name String) => init {
+  n=cfg:integer(name, "size");
+  data=String("");
+  encoded=Encoded(String(""), Int(0), List(Int));
+  decoded=String("");
+  result=Int(0);
+  decode=name=="Compress::ArithDecode";
+}
+
+Unit prepare(this State) mut {
+  this.data=testData(this.n);
+  if(this.decode) {
+    this.encoded=encode(this.data);
+  }
+  return Unit();
+}
+
+Unit step(this State, iteration Int) mut {
+  mode Bool=if(this.decode) {
+    this.decoded=decode(this.encoded);
+    this.result=u32(this.result+length(this.decoded));
+  }
+  mode:else() {
+    this.encoded=encode(this.data);
+    this.result=u32(this.result+length(this.encoded.data));
+  }
+  return Unit();
+}
+
+Int checksum(this State) {
+  if(this.decode and this.decoded==this.data) {
+    return u32(this.result+100000);
+  }
+  return this.result;
+}
+
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

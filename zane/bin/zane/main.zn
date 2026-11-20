@@ -1,0 +1,223 @@
+package zane;
+import core$;
+import arithmetic;
+import huffman;
+import bwt;
+import lzw;
+import calculator;
+import template;
+import logparser;
+import maze;
+import graph;
+import neural;
+import cachesim;
+import words;
+import distance;
+import sort;
+import csvbench;
+import jsonbench;
+import base64bench;
+import life;
+import raytracer;
+import bufferhash;
+import brainfuck;
+import mandelbrot;
+import nbody;
+import fannkuch;
+import matmul;
+import spectralnorm;
+import sieve;
+import binarytrees;
+import arena$;
+Bool known(name String) {
+  if(name=="Binarytrees::Obj") {return Bool(true);}
+  if(name=="Binarytrees::Arena") {return Bool(true);}
+  if(name=="Brainfuck::Array") {return Bool(true);}
+  if(name=="Brainfuck::Recursion") {return Bool(true);}
+  if(name=="Matmul::Single") {return Bool(true);}
+  if(name=="Matmul::T4") {return Bool(true);}
+  if(name=="Matmul::T8") {return Bool(true);}
+  if(name=="Matmul::T16") {return Bool(true);}
+  if(name=="Base64::Encode") {return Bool(true);}
+  if(name=="Base64::Decode") {return Bool(true);}
+  if(name=="Json::Generate") {return Bool(true);}
+  if(name=="Json::ParseDom") {return Bool(true);}
+  if(name=="Json::ParseMapping") {return Bool(true);}
+  if(name=="CSV::Parse") {return Bool(true);}
+  if(name=="Etc::Sieve") {return Bool(true);}
+  if(name=="Etc::TextRaytracer") {return Bool(true);}
+  if(name=="Etc::NeuralNet") {return Bool(true);}
+  if(name=="Etc::CacheSimulation") {return Bool(true);}
+  if(name=="Etc::GameOfLife") {return Bool(true);}
+  if(name=="Etc::Words") {return Bool(true);}
+  if(name=="Etc::LogParser") {return Bool(true);}
+  if(name=="Template::Regex") {return Bool(true);}
+  if(name=="Template::Parse") {return Bool(true);}
+  if(name=="Sort::Quick") {return Bool(true);}
+  if(name=="Sort::Merge") {return Bool(true);}
+  if(name=="Sort::Self") {return Bool(true);}
+  if(name=="Graph::BFS") {return Bool(true);}
+  if(name=="Graph::DFS") {return Bool(true);}
+  if(name=="Graph::AStar") {return Bool(true);}
+  if(name=="Hash::SHA256") {return Bool(true);}
+  if(name=="Hash::CRC32") {return Bool(true);}
+  if(name=="Calculator::Ast") {return Bool(true);}
+  if(name=="Calculator::Interpreter") {return Bool(true);}
+  if(name=="Maze::Generator") {return Bool(true);}
+  if(name=="Maze::BFS") {return Bool(true);}
+  if(name=="Maze::AStar") {return Bool(true);}
+  if(name=="CLBG::Fannkuchredux") {return Bool(true);}
+  if(name=="CLBG::Mandelbrot") {return Bool(true);}
+  if(name=="CLBG::Nbody") {return Bool(true);}
+  if(name=="CLBG::Spectralnorm") {return Bool(true);}
+  if(name=="Compress::BWTEncode") {return Bool(true);}
+  if(name=="Compress::BWTDecode") {return Bool(true);}
+  if(name=="Compress::HuffEncode") {return Bool(true);}
+  if(name=="Compress::HuffDecode") {return Bool(true);}
+  if(name=="Compress::ArithEncode") {return Bool(true);}
+  if(name=="Compress::ArithDecode") {return Bool(true);}
+  if(name=="Compress::LZWEncode") {return Bool(true);}
+  if(name=="Compress::LZWDecode") {return Bool(true);}
+  if(name=="Distance::Jaro") {return Bool(true);}
+  if(name=="Distance::NGram") {return Bool(true);}
+  return Bool(false);
+}
+
+Unit main() {
+  host Host foreign "arena_system";
+  host!announce();
+  runtime Runtime(@program$runtime);
+  args List<String> = runtime:arguments();
+  path String=String("../run.js");
+  filter String=String("");
+  if(args:size()>0) {
+    path=args[Int(1)];
+  }
+  if(args:size()>1) {
+    filter=args[Int(2)];
+  }
+  text String=host!read(path);
+  cfg Config=parse(text);
+  nanos Int=Int(0);
+  failures Int=Int(0);
+  count Int=Int(0);
+  i Int=Int(1);
+  i!to(cfg:count()) {
+    name String=cfg:name(i);
+    if(contains(name, filter)) {
+      if(~known(name)) {host!fail("Unknown benchmark: "+name);}
+      result Result=Result(Int(0), Int(1));
+      found Bool=Bool(false);
+      found!elif(contains(name, "Binarytrees::")) {
+        result=host!binarytrees$execute(cfg, name);
+      }
+      found!elif(contains(name, "Etc::Sieve")) {
+        result=host!sieve$execute(cfg, name);
+      }
+      found!elif(contains(name, "CLBG::Spectralnorm")) {
+        result=host!spectralnorm$execute(cfg, name);
+      }
+      found!elif(contains(name, "Matmul::")) {
+        threads Int=Int(1);
+        if(name=="Matmul::T4") {
+          threads=Int(4);
+        }
+        if(name=="Matmul::T8") {
+          threads=Int(8);
+        }
+        if(name=="Matmul::T16") {
+          threads=Int(16);
+        }
+        runtime!setThreads(threads) ?? Unit();
+        result=host!matmul$execute(cfg, name);
+        runtime!setThreadsAuto();
+      }
+      found!elif(contains(name, "CLBG::Fannkuchredux")) {
+        result=host!fannkuch$execute(cfg, name);
+      }
+      found!elif(contains(name, "CLBG::Nbody")) {
+        result=host!nbody$execute(cfg, name);
+      }
+      found!elif(contains(name, "CLBG::Mandelbrot")) {
+        result=host!mandelbrot$execute(cfg, name);
+      }
+      found!elif(contains(name, "Brainfuck::")) {
+        result=host!brainfuck$execute(cfg, name);
+      }
+      found!elif(contains(name, "Hash::")) {
+        result=host!bufferhash$execute(cfg, name);
+      }
+      found!elif(contains(name, "Etc::TextRaytracer")) {
+        result=host!raytracer$execute(cfg, name);
+      }
+      found!elif(contains(name, "Etc::GameOfLife")) {
+        result=host!life$execute(cfg, name);
+      }
+      found!elif(contains(name, "Base64::")) {
+        result=host!base64bench$execute(cfg, name);
+      }
+      found!elif(contains(name, "Json::")) {
+        result=host!jsonbench$execute(cfg, name);
+      }
+      found!elif(contains(name, "CSV::")) {
+        result=host!csvbench$execute(cfg, name);
+      }
+      found!elif(contains(name, "Sort::")) {
+        result=host!sort$execute(cfg, name);
+      }
+      found!elif(contains(name, "Distance::")) {
+        result=host!distance$execute(cfg, name);
+      }
+      found!elif(contains(name, "Etc::Words")) {
+        result=host!words$execute(cfg, name);
+      }
+      found!elif(contains(name, "Etc::CacheSimulation")) {
+        result=host!cachesim$execute(cfg, name);
+      }
+      found!elif(contains(name, "Etc::NeuralNet")) {
+        result=host!neural$execute(cfg, name);
+      }
+      found!elif(contains(name, "Graph::")) {
+        result=host!graph$execute(cfg, name);
+      }
+      found!elif(contains(name, "Maze::")) {
+        result=host!maze$execute(cfg, name);
+      }
+      found!elif(contains(name, "Etc::LogParser")) {
+        result=host!logparser$execute(cfg, name);
+      }
+      found!elif(contains(name, "Template::")) {
+        result=host!template$execute(cfg, name);
+      }
+      found!elif(contains(name, "Calculator::")) {
+        result=host!calculator$execute(cfg, name);
+      }
+      found!elif(contains(name, "Compress::LZW")) {
+        result=host!lzw$execute(cfg, name);
+      }
+      found!elif(contains(name, "Compress::BWT")) {
+        result=host!bwt$execute(cfg, name);
+      }
+      found!elif(contains(name, "Compress::Huff")) {
+        result=host!huffman$execute(cfg, name);
+      }
+      found!elif(contains(name, "Compress::Arith")) {
+        result=host!arithmetic$execute(cfg, name);
+      }
+      found:else() {
+        host!fail("Unknown benchmark: "+name);
+      }
+      nanos=nanos+result.nanos;
+      failures=failures+result.failed;
+      count=count+1;
+    }
+  }
+  host!summary(Float(nanos)/Float(1000000000), count, failures);
+  if(count==0) {
+    host!fail("No benchmarks matched the filter");
+  }
+  if(failures>0) {
+    host!exit(Int(1));
+  }
+  return Unit();
+}

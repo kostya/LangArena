@@ -1,0 +1,318 @@
+package huffman;
+import core$;
+import math$;
+import arena$;
+import codec$;
+// As Goose's node: narrow fields and a leaf flag, so that a node is 16
+// bytes and a step down the tree reads one node.
+type Node = struct {
+  frequency I32;
+  value U8;
+  leaf Bool;
+  padA U8;
+  padB U8;
+  left I32;
+  right I32;
+}
+
+Node(frequency Int, value Int, left Int, right Int) => init {
+  frequency=I32.wrap(frequency);
+  value=U8.wrap(value);
+  leaf=left==0 and right==0;
+  padA=U8(0);
+  padB=U8(0);
+  left=I32.wrap(left);
+  right=I32.wrap(right);
+}
+
+type Tree = #struct {
+  nodes List<Node>;
+  queue List<Int>;
+  root Int;
+  lengths List<Int>;
+  codes List<Int>;
+}
+
+Tree() => init {
+  nodes=List(Node);
+  queue=List(Int);
+  root=Int(0);
+  lengths=filled(Int(256), Int(0));
+  codes=filled(Int(256), Int(0));
+}
+
+Int position(this Tree, frequency Int, strict Bool) {
+  low Int=Int(1);
+  high Int=this.queue:size()+1;
+  k Int=Int(1);
+  k!to(this.queue:size()+1) {
+    if(low>=high) {
+      return low;
+    }
+    mid Int=(low+high)/2;
+    value Int=Int(this.nodes[this.queue[mid]].frequency);
+    less Bool=value<frequency;
+    if(strict) {
+      less=value<=frequency;
+    }
+    branch Bool=if(less) {
+      low=mid+1;
+    }
+    branch:else() {
+      high=mid;
+    }
+  }
+  return low;
+}
+
+Unit insert(this Tree, node Int, strict Bool) mut {
+  frequency Int=Int(this.nodes[node].frequency);
+  position Int=this:position(frequency, strict);
+  copy Int=node;
+  this.queue!push(copy);
+  i Int=this.queue:size();
+  k Int=Int(1);
+  k!to(this.queue:size()-position) {
+    this.queue[i]=this.queue[i-1];
+    i=i-1;
+  }
+  this.queue[position]=node;
+  return Unit();
+}
+
+Unit build(this Tree, frequencies List<Int>) mut {
+  i Int=Int(1);
+  i!to(Int(256)) {
+    if(frequencies[i]>0) {
+      this.nodes!push(Node(frequencies[i], i-1, Int(0), Int(0)));
+      index Int=this.nodes:size();
+      this!insert(index, Bool(true));
+    }
+  }
+  if(this.queue:size()==1) {
+    left Int=this.queue[Int(1)];
+    this.nodes!push(Node(Int(0), Int(0), Int(0), Int(0)));
+    right Int=this.nodes:size();
+    this.nodes!push(Node(Int(this.nodes[left].frequency), Int(0), left, right));
+    this.root=this.nodes:size();
+    return Unit();
+  }
+  bound Int=this.queue:size();
+  j Int=Int(1);
+  j!to(bound-1) {
+    left Int=this.queue!remove(Int(1));
+    right Int=this.queue!remove(Int(1));
+    frequency Int=Int(this.nodes[left].frequency)+Int(this.nodes[right].frequency);
+    this.nodes!push(Node(frequency, Int(0), left, right));
+    parent Int=this.nodes:size();
+    this!insert(parent, Bool(false));
+  }
+  if(this.queue:size()>0) {
+    this.root=this.queue[Int(1)];
+  }
+  return Unit();
+}
+
+Unit codes(this Tree, index Int, code Int, length Int) mut {
+  node Node=this.nodes[index];
+  value Int=Int(node.value);
+  leaf Bool=if(node.leaf) {
+    if(length>0 or value~=0) {
+      this.lengths[value+1]=length;
+      this.codes[value+1]=code;
+    }
+  }
+  leaf:else() {
+    if(node.left>0) {
+      this!codes(Int(node.left), code*2, length+1);
+    }
+    if(node.right>0) {
+      this!codes(Int(node.right), code*2+1, length+1);
+    }
+  }
+  return Unit();
+}
+
+type Encoded = struct {
+  data String;
+  bits Int;
+  frequencies List<Int>;
+}
+
+Encoded(data String, bits Int, frequencies List<Int>) => init {
+  data;
+  bits;
+  frequencies;
+}
+
+Encoded encode(input String) {
+  freq List<Int> = frequencies(input);
+  if(length(input)==0) {
+    return Encoded(String(""), Int(0), freq);
+  }
+  tree Tree=Tree();
+  tree!build(freq);
+  root Int=tree.root;
+  tree!codes(root, Int(0), Int(0));
+  // The pending byte and its bit count stay in locals, as in C's encoder.
+  out List<U8> = List(U8);
+  pending Int=Int(0);
+  position Int=Int(0);
+  written Int=Int(0);
+  i Int=Int(1);
+  i!to(input:byteCount()) {
+    value Int=Int(input:byteAt(i))+1;
+    code Int=tree.codes[value];
+    codeLength Int=tree.lengths[value];
+    j Int=Int(1);
+    j!to(codeLength) {
+      pending=pending*2+bitAnd(shiftRightLogical(code, codeLength-j), Int(1));
+      position=position+1;
+      if(position==8) {
+        out!push(U8.wrap(pending));
+        pending=Int(0);
+        position=Int(0);
+      }
+    }
+    written=written+codeLength;
+  }
+  if(position>0) {
+    out!push(U8.wrap(shiftLeft(pending, Int(8)-position)));
+  }
+  return Encoded(String(out), written, freq);
+}
+
+// The decoded bytes, as Goose's port gives them back: a byte list, which
+// is a String only where one is compared.
+List<U8> decode(encoded Encoded) {
+  out List<U8> = List(U8);
+  if(encoded.bits==0) {
+    return out;
+  }
+  tree Tree=Tree();
+  tree!build(encoded.frequencies);
+  current Int=tree.root;
+  data String=encoded.data;
+  // As in C, each byte is read once and its bits taken from the top.
+  remaining Int=encoded.bits;
+  // Every whole byte's 8 bits in a loop of a constant count, as Goose's
+  // `for j in 8`; the last byte's bits after.
+  whole Int=min(data:byteCount(), remaining/8);
+  i Int=Int(1);
+  i!to(whole) {
+    value Int=Int(data:byteAt(i));
+    b Int=Int(1);
+    b!to(Int(8)) {
+      bit Int=bitAnd(shiftRightLogical(value, Int(8)-b), Int(1));
+      branch Bool=if(bit==0) {
+        current=Int(tree.nodes[current].left);
+      }
+      branch:else() {
+        current=Int(tree.nodes[current].right);
+      }
+      reached Node=tree.nodes[current];
+      if(reached.leaf) {
+        out!push(reached.value);
+        current=tree.root;
+      }
+    }
+  }
+  remaining=remaining-whole*8;
+  if(remaining>0 and whole<data:byteCount()) {
+    value Int=Int(data:byteAt(whole+1));
+    b Int=Int(1);
+    b!to(min(Int(8), remaining)) {
+      bit Int=bitAnd(shiftRightLogical(value, Int(8)-b), Int(1));
+      branch Bool=if(bit==0) {
+        current=Int(tree.nodes[current].left);
+      }
+      branch:else() {
+        current=Int(tree.nodes[current].right);
+      }
+      reached Node=tree.nodes[current];
+      if(reached.leaf) {
+        out!push(reached.value);
+        current=tree.root;
+      }
+    }
+  }
+  return out;
+}
+
+type State = #struct {
+  n Int;
+  data String;
+  encoded Encoded;
+  decoded List<U8>;
+  result Int;
+  decode Bool;
+}
+
+State(cfg Config, name String) => init {
+  n=cfg:integer(name, "size");
+  data=String("");
+  encoded=Encoded(String(""), Int(0), List(Int));
+  decoded=List(U8);
+  result=Int(0);
+  decode=name=="Compress::HuffDecode";
+}
+
+Unit prepare(this State) mut {
+  this.data=testData(this.n);
+  if(this.decode) {
+    this.encoded=encode(this.data);
+  }
+  return Unit();
+}
+
+Unit step(this State, iteration Int) mut {
+  mode Bool=if(this.decode) {
+    this.decoded=decode(this.encoded);
+    this.result=u32(this.result+this.decoded:size());
+  }
+  mode:else() {
+    this.encoded=encode(this.data);
+    this.result=u32(this.result+length(this.encoded.data));
+  }
+  return Unit();
+}
+
+Int checksum(this State) {
+  if(this.decode and String(this.decoded)==this.data) {
+    return u32(this.result+100000);
+  }
+  return this.result;
+}
+
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

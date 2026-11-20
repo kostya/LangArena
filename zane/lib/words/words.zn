@@ -1,0 +1,104 @@
+package words;
+import core$;
+import math$;
+import arena$;
+type State = #struct {
+  n Int;
+  wordLength Int;
+  text String;
+  rng Rng;
+  result Int;
+}
+
+State(cfg Config, name String) => init {
+  n=cfg:integer(name, "words");
+  wordLength=cfg:integer(name, "word_len");
+  text=String("");
+  rng=Rng();
+  result=Int(0);
+}
+
+Unit prepare(this State) mut {
+  out ^Buffer=buffer(Int(0), Int(0));
+  i Int=Int(1);
+  i!to(this.n) {
+    n Int=this.rng!next(this.wordLength)+this.rng!next(Int(3))+3;
+    j Int=Int(1);
+    j!to(n) {
+      c Int=this.rng!next(Int(26))+97;
+      out!push(c);
+    }
+    if(i<this.n) {
+      out!push(Int(32));
+    }
+  }
+  this.text=out:string();
+  return Unit();
+}
+
+Unit step(this State, iteration Int) mut {
+  // As Goose's port, a word is a slice of the text: no copy is made.
+  frequencies SliceMap=SliceMap(this.n*2+16);
+  text String=this.text;
+  n Int=text:byteCount();
+  start Int=Int(1);
+  i Int=Int(1);
+  i!to(n) {
+    if(text:byteAt(i)==32) {
+      frequencies!add(text, start, i-start, Int(1));
+      start=i+1;
+    }
+  }
+  frequencies!add(text, start, n+1-start, Int(1));
+  // Keys are in insertion order, the order C's uthash iterates in.
+  highest Int=Int(0);
+  best Int=Int(0);
+  j Int=Int(1);
+  j!to(frequencies.entries) {
+    value Int=frequencies.values[j];
+    if(value>highest) {
+      highest=value;
+      best=j;
+    }
+  }
+  bestHash Int=hash(String(""));
+  if(best>0) {
+    bestHash=hash(text, frequencies.starts[best], frequencies.lengths[best]);
+  }
+  this.result=u32(this.result+highest+bestHash+frequencies.entries);
+  return Unit();
+}
+
+Int checksum(this State) => this.result;
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

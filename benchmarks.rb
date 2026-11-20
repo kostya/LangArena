@@ -77,6 +77,7 @@ LANG_MASKS = {
   'gossamer' => ['./gossamer', ['.gos'], ['target', '.gos-cache']],
   'goose' => ['./goose', ['.goose'], ['target']],
   'javascript' => ['./javascript', ['.js'], []],
+  'zane' => ['./zane', ['.zn', '.c', '.h', '.coda'], ['out', 'vendor']],
 }
 
 def check_source_files(verbose = false)
@@ -2595,6 +2596,20 @@ RUNS = [
     container: "typescript-deno",
     group: :hack,
     deps_cmd: "true",
+  ),
+
+  # ======================================= Zane ======================================================
+
+  Run.new(
+    name: "Zane",
+    build_cmd: "zane build",
+    binary_name: "./out/host/zane",
+    run_cmd: "./out/host/zane",
+    version_cmd: "zane version; head -n 1 zane.coda",
+    dir: "/src/zane",
+    container: "zane",
+    group: :prod,
+    deps_cmd: "zane fetch",
   ),
   
 ]

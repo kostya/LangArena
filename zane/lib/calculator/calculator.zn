@@ -1,0 +1,391 @@
+package calculator;
+import core$;
+import math$;
+import arena$;
+type Binary = struct {
+  op Int;
+  left Int;
+  right Int;
+}
+
+Binary(op Int, left Int, right Int) => init {
+  op;
+  left;
+  right;
+}
+
+// A variable's name, as in Goose's port a slice of the program's text:
+// where its bytes start and how many there are.
+type Name = struct {
+  start Int;
+  length Int;
+}
+
+Name(start Int, length Int) => init {
+  start;
+  length;
+}
+
+type Assignment = struct {
+  name Name;
+  expression Int;
+}
+
+Assignment(name Name, expression Int) => init {
+  name;
+  expression;
+}
+
+type Node = variant {
+  number Int;
+  variable Name;
+  binary Binary;
+  assignment Assignment;
+}
+
+type Parser = #struct {
+  text String;
+  position Int;
+  nodes List<Node>;
+  expressions List<Int>;
+}
+
+Parser(text String) => init {
+  text;
+  position=Int(1);
+  nodes=List(Node);
+  expressions=List(Int);
+}
+
+Int current(this Parser) {
+  if(this.position>this.text:byteCount()) {
+    return Int(0);
+  }
+  return Int(this.text:byteAt(this.position));
+}
+
+Bool digit(c Int) => c>=48 and c<=57;
+Bool letter(c Int) => (c>=97 and c<=122) or (c>=65 and c<=90);
+Unit advance(this Parser) mut {
+  this.position=this.position+1;
+  return Unit();
+}
+
+Unit whitespace(this Parser) mut {
+  bound Int=this.text:byteCount();
+  i Int=Int(1);
+  i!to(bound) {
+    c Int=this:current();
+    if(c~=32 and c~=9 and c~=10 and c~=13) {
+      return Unit();
+    }
+    this!advance();
+  }
+  return Unit();
+}
+
+Int add(this Parser, node Node) mut {
+  copy Node=node;
+  this.nodes!push(copy);
+  return this.nodes:size();
+}
+
+Int number(this Parser) mut {
+  value Int=Int(0);
+  bound Int=this.text:byteCount();
+  i Int=Int(1);
+  i!to(bound) {
+    c Int=this:current();
+    if(~digit(c)) {
+      return this!add(Node.number(value));
+    }
+    value=value*10+c-48;
+    this!advance();
+  }
+  return this!add(Node.number(value));
+}
+
+Unit identifier(this Parser) mut {
+  bound Int=this.text:byteCount();
+  i Int=Int(1);
+  i!to(bound) {
+    c Int=this:current();
+    if(~letter(c) and ~digit(c)) {
+      return Unit();
+    }
+    this!advance();
+  }
+  return Unit();
+}
+
+Int variable(this Parser) mut {
+  start Int=this.position;
+  this!identifier();
+  name Name=Name(start, this.position-start);
+  this!whitespace();
+  c Int=this:current();
+  if(c==61) {
+    this!advance();
+    value Int=this!expression();
+    return this!add(Node.assignment(Assignment(name, value)));
+  }
+  return this!add(Node.variable(name));
+}
+
+Int factor(this Parser) mut {
+  this!whitespace();
+  c Int=this:current();
+  if(digit(c)) {
+    return this!number();
+  }
+  if(letter(c)) {
+    return this!variable();
+  }
+  if(c==40) {
+    this!advance();
+    node Int=this!expression();
+    this!whitespace();
+    closing Int=this:current();
+    if(closing==41) {
+      this!advance();
+    }
+    return node;
+  }
+  this!advance();
+  return this!add(Node.number(Int(0)));
+}
+
+Int term(this Parser) mut {
+  left Int=this!factor();
+  bound Int=this.text:byteCount();
+  i Int=Int(1);
+  i!to(bound) {
+    this!whitespace();
+    op Int=this:current();
+    if(op~=42 and op~=47 and op~=37) {
+      return left;
+    }
+    this!advance();
+    right Int=this!factor();
+    left=this!add(Node.binary(Binary(op, left, right)));
+  }
+  return left;
+}
+
+Int expression(this Parser) mut {
+  left Int=this!term();
+  bound Int=this.text:byteCount();
+  i Int=Int(1);
+  i!to(bound) {
+    this!whitespace();
+    op Int=this:current();
+    if(op~=43 and op~=45) {
+      return left;
+    }
+    this!advance();
+    right Int=this!term();
+    left=this!add(Node.binary(Binary(op, left, right)));
+  }
+  return left;
+}
+
+Unit parseProgram(this Parser) mut {
+  bound Int=this.text:byteCount();
+  i Int=Int(1);
+  i!to(bound) {
+    this!whitespace();
+    c Int=this:current();
+    if(c==0) {
+      return Unit();
+    }
+    node Int=this!expression();
+    this.expressions!push(node);
+    this!whitespace();
+  }
+  return Unit();
+}
+
+type Evaluator = #struct {
+  variables SliceMap;
+}
+
+Evaluator(capacity Int) => init {
+  variables=SliceMap(capacity);
+}
+
+Int divide(a Int, b Int) {
+  if(b==0) {
+    return Int(0);
+  }
+  return a/b;
+}
+
+Int evaluate(this Evaluator, parser Parser, index Int) mut => match(parser.nodes[index]) {
+  value number => value;
+  name variable => this.variables:get(parser.text, name.start, name.length);
+  binary binary => this!binary(parser, binary);
+  assignment assignment => this!assignment(parser, assignment);
+}
+
+Int binary(this Evaluator, parser Parser, op Binary) mut {
+  left Int=this!evaluate(parser, op.left);
+  right Int=this!evaluate(parser, op.right);
+  if(op.op==43) {
+    return left+right;
+  }
+  if(op.op==45) {
+    return left-right;
+  }
+  if(op.op==42) {
+    return left*right;
+  }
+  if(op.op==47) {
+    return divide(left, right);
+  }
+  if(op.op==37) {
+    return left-divide(left, right)*right;
+  }
+  return Int(0);
+}
+
+Int assignment(this Evaluator, parser Parser, node Assignment) mut {
+  value Int=this!evaluate(parser, node.expression);
+  this.variables!put(parser.text, node.name.start, node.name.length, value);
+  return value;
+}
+
+String program(this State) mut {
+  out Buffer=buffer(Int(0), Int(0));
+  out!append("v0 = 1\n");
+  j Int=Int(1);
+  j!to(Int(10)) {
+    out!append("v"+String(j)+" = v"+String(j-1)+" + "+String(j)+"\n");
+  }
+  n Int=this.operations;
+  i Int=Int(0);
+  i!to(n-1) {
+    v Int=i+10;
+    out!append("v"+String(v)+" = v"+String(v-1)+" + ");
+    choice Int=this.rng!next(Int(10));
+    if(choice==0) {
+      out!append(String("(v")+String(v - 1)+String(" / 3) * 4 - ")+String(i)+String(" / (3 + (18 - v")+String(v - 2)+String(")) % v")+String(v - 3)+String(" + 2 * ((9 - v")+String(v - 6)+String(") * (v")+String(v - 5)+String(" + 7))"));
+    }
+    if(choice==1) {
+      out!append(String("v")+String(v - 1)+String(" + (v")+String(v - 2)+String(" + v")+String(v - 3)+String(") * v")+String(v - 4)+String(" - (v")+String(v - 5)+String(" /  v")+String(v - 6)+String(")"));
+    }
+    if(choice==2) {
+      out!append(String("(3789 - (((v")+String(v - 7)+String(")))) + 1"));
+    }
+    if(choice==3) {
+      out!append(String("4/2 * (1-3) + v")+String(v - 9)+String("/v")+String(v - 5));
+    }
+    if(choice==4) {
+      out!append(String("1+2+3+4+5+6+v")+String(v - 1));
+    }
+    if(choice==5) {
+      out!append(String("(99999 / v")+String(v - 3)+String(")"));
+    }
+    if(choice==6) {
+      out!append(String("0 + 0 - v")+String(v - 8));
+    }
+    if(choice==7) {
+      out!append(String("((((((((((v")+String(v - 6)+String(")))))))))) * 2"));
+    }
+    if(choice==8) {
+      out!append(String(i)+String(" * (v")+String(v - 1)+String("%6)%7"));
+    }
+    if(choice==9) {
+      out!append(String("(1)/(0-v")+String(v - 5)+String(") + (v")+String(v - 7)+String(")"));
+    }
+    out!append("\n");
+  }
+  return out:string();
+}
+
+type State = #struct {
+  operations Int;
+  rng Rng;
+  text String;
+  ast Parser;
+  result Int;
+  interpret Bool;
+}
+
+State(cfg Config, name String) => init {
+  operations=cfg:integer(name, "operations");
+  rng=Rng();
+  text=String("");
+  ast=Parser(String(""));
+  result=Int(0);
+  interpret=name=="Calculator::Interpreter";
+}
+
+Unit prepare(this State) mut {
+  this.text=this!program();
+  this.ast=Parser(this.text);
+  interpret Bool=this.interpret;
+  if(interpret) {
+    this.ast!parseProgram();
+  }
+  return Unit();
+}
+
+Unit step(this State, iteration Int) mut {
+  interpret Bool=this.interpret;
+  mode Bool=if(interpret) {
+    evaluator Evaluator=Evaluator(this.operations*2+128);
+    value Int=Int(0);
+    i Int=Int(1);
+    i!to(this.ast.expressions:size()) {
+      value=evaluator!evaluate(this.ast, this.ast.expressions[i]);
+    }
+    this.result=u32(this.result+value);
+  }
+  mode:else() {
+    parser Parser=Parser(this.text);
+    parser!parseProgram();
+    last Int=parser.expressions[parser.expressions:size()];
+    name Name=match(parser.nodes[last]) {
+      a assignment => a.name;
+      v variable => v;
+      n number => Name(Int(1), Int(0));
+      b binary => Name(Int(1), Int(0));
+    }
+    this.result=u32(this.result+parser.expressions:size()+hash(parser.text, name.start, name.length));
+  }
+  return Unit();
+}
+
+Int checksum(this State) => this.result;
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

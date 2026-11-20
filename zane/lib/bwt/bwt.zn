@@ -1,0 +1,230 @@
+package bwt;
+import core$;
+import math$;
+import arena$;
+import codec$;
+type Encoded = struct {
+  data String;
+  original Int;
+}
+
+Encoded(data String, original Int) => init {
+  data;
+  original;
+}
+
+// Suffix positions and ranks are at most the input length, so the suffix
+// array and rank lists hold 32-bit values.
+
+// Stable counting sort of the suffix array by keys[suffix], each key in 0..n-1.
+List<I32> byKey(order List<I32>, keys List<I32>, n Int) {
+  count List<Int> = filled(n+1, Int(0));
+  i Int=Int(1);
+  i!to(n) {
+    key Int=Int(keys[Int(order[i])])+1;
+    count[key]=count[key]+1;
+  }
+  j Int=Int(2);
+  j!to(n+1) {
+    count[j]=count[j]+count[j-1];
+  }
+  out List<I32> = filled(n, I32(0));
+  k Int=Int(1);
+  k!to(n) {
+    suffix I32=order[n+1-k];
+    key Int=Int(keys[Int(suffix)])+1;
+    out[count[key]]=suffix;
+    count[key]=count[key]-1;
+  }
+  return out;
+}
+
+Encoded encode(input String) {
+  n Int=input:byteCount();
+  if(n==0) {
+    return Encoded(String(""), Int(0));
+  }
+  counts List<Int> = frequencies(input);
+  positions List<Int> = filled(Int(256), Int(0));
+  total Int=Int(0);
+  i Int=Int(1);
+  i!to(Int(256)) {
+    positions[i]=total;
+    total=total+counts[i];
+  }
+  indices List<I32> = filled(n, I32(0));
+  seen List<Int> = filled(Int(256), Int(0));
+  j Int=Int(1);
+  j!to(n) {
+    value Int=Int(input:byteAt(j))+1;
+    position Int=positions[value]+seen[value]+1;
+    indices[position]=I32.wrap(j);
+    seen[value]=seen[value]+1;
+  }
+  ranks List<I32> = filled(n, I32(0));
+  current I32=I32(0);
+  previous Int=Int(input:byteAt(Int(indices[Int(1)])));
+  p Int=Int(1);
+  p!to(n) {
+    index Int=Int(indices[p]);
+    value Int=Int(input:byteAt(index));
+    if(value~=previous) {
+      current=current+1;
+      previous=value;
+    }
+    ranks[index]=current;
+  }
+  // Prefix doubling, as Goose's port: each round sorts the suffix array
+  // stably by the pair of ranks, the suffix's and the one `offset` on, as
+  // one 64-bit key; the array is in order of the first from the round
+  // before, so its runs are long.
+  offset Int=Int(1);
+  round Int=Int(1);
+  round!to(Int(63)) {
+    if(offset<n) {
+      keys List<Int> = filled(n, Int(0));
+      s Int=Int(1);
+      s!to(n) {
+        keys[s]=Int(ranks[s])*4294967296+Int(ranks[rem(s-1+offset, n)+1]);
+      }
+      indices!sortBy(keys);
+      nextRanks List<I32> = filled(n, I32(0));
+      q Int=Int(2);
+      q!to(n) {
+        prior Int=Int(indices[q-1]);
+        index Int=Int(indices[q]);
+        delta I32=I32(0);
+        if(keys[prior]~=keys[index]) {
+          delta=I32(1);
+        }
+        nextRanks[index]=nextRanks[prior]+delta;
+      }
+      ranks=nextRanks;
+      offset=offset*2;
+    }
+  }
+  out List<U8> = List(U8);
+  original Int=Int(1);
+  q Int=Int(1);
+  q!to(n) {
+    suffix Int=Int(indices[q]);
+    first Bool=if(suffix==1) {
+      out!push(input:byteAt(n));
+      original=q;
+    }
+    first:else() {
+      out!push(input:byteAt(suffix-1));
+    }
+  }
+  return Encoded(String(out), original);
+}
+
+String decode(encoded Encoded) {
+  n Int=encoded.data:byteCount();
+  if(n==0) {
+    return String("");
+  }
+  counts List<Int> = frequencies(encoded.data);
+  positions List<Int> = filled(Int(256), Int(0));
+  total Int=Int(0);
+  i Int=Int(1);
+  i!to(Int(256)) {
+    positions[i]=total;
+    total=total+counts[i];
+  }
+  next List<I32> = filled(n, I32(0));
+  seen List<Int> = filled(Int(256), Int(0));
+  j Int=Int(1);
+  j!to(n) {
+    value Int=Int(encoded.data:byteAt(j))+1;
+    position Int=positions[value]+seen[value]+1;
+    next[position]=I32.wrap(j);
+    seen[value]=seen[value]+1;
+  }
+  out List<U8> = List(U8);
+  index Int=encoded.original;
+  k Int=Int(1);
+  k!to(n) {
+    index=Int(next[index]);
+    out!push(encoded.data:byteAt(index));
+  }
+  return String(out);
+}
+
+type State = #struct {
+  n Int;
+  data String;
+  encoded Encoded;
+  decoded String;
+  result Int;
+  decode Bool;
+}
+
+State(cfg Config, name String) => init {
+  n=cfg:integer(name, "size");
+  data=String("");
+  encoded=Encoded(String(""), Int(0));
+  decoded=String("");
+  result=Int(0);
+  decode=name=="Compress::BWTDecode";
+}
+
+Unit prepare(this State) mut {
+  this.data=testData(this.n);
+  if(this.decode) {
+    this.encoded=encode(this.data);
+  }
+  return Unit();
+}
+
+Unit step(this State, iteration Int) mut {
+  mode Bool=if(this.decode) {
+    this.decoded=decode(this.encoded);
+    this.result=u32(this.result+length(this.decoded));
+  }
+  mode:else() {
+    this.encoded=encode(this.data);
+    this.result=u32(this.result+length(this.encoded.data));
+  }
+  return Unit();
+}
+
+Int checksum(this State) {
+  if(this.decode and this.decoded==this.data) {
+    return u32(this.result+100000);
+  }
+  return this.result;
+}
+
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

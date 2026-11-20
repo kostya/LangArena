@@ -1,0 +1,62 @@
+package test;
+import core$;
+import arena$;
+import bwt;
+import huffman;
+import arithmetic;
+import lzw;
+import csvbench;
+
+Unit require(this Host, condition Bool, message String) mut {
+  if(~condition) {this!fail(message);}
+  return Unit();
+}
+Unit roundTrip(this Host, text String) mut {
+  b bwt$Encoded=bwt$encode(text);
+  this!require(bwt$decode(b)==text, String("BWT round trip"));
+  h huffman$Encoded=huffman$encode(text);
+  this!require(String(huffman$decode(h))==text, String("Huffman round trip"));
+  a arithmetic$Encoded=arithmetic$encode(text);
+  this!require(arithmetic$decode(a)==text, String("Arithmetic round trip"));
+  l lzw$Encoded=lzw$encode(text);
+  this!require(String(lzw$decode(l))==text, String("LZW round trip"));
+  this!require(base64Decode(base64Encode(text))==text, String("Base64 round trip"));
+  return Unit();
+}
+Unit main() {
+  host Host foreign "arena_system";
+  host!roundTrip(String(""));
+  host!roundTrip(String("A"));
+  host!roundTrip(String("AAAAAAAAAAAAAAAAAAAAAAAA"));
+  host!roundTrip(String("ABRACADABRA"));
+  data Buffer=buffer(Int(0), Int(0));
+  i Int=Int(0);i!to(Int(255)) {data!push(i);}
+  host!roundTrip(data:string());
+  j Int=Int(1);j!to(Int(3)) {snapshot String=data:string();data!append(snapshot);}
+  host!roundTrip(data:string());
+  rng Rng=Rng();random Buffer=buffer(Int(0),Int(0));
+  k Int=Int(1);k!to(Int(1001)) {value Int=rng!next(Int(256));random!push(value);}
+  host!roundTrip(random:string());
+  anchored Regex=regex(String("^a"),Bool(false));
+  host!require(anchored:count(String("aaa"))==1, String("Regex start anchor"));
+  suffix Matches=regexMatches(anchored,String("aaa"));
+  host!require(suffix:count()==1, String("Regex match spans preserve anchors"));
+  host!require(base64Decode(String("TQ=="))==String("M"),String("Base64 double padding"));
+  host!require(base64Decode(String("TWE="))==String("Ma"),String("Base64 single padding"));
+  largeInput Buffer=buffer(Int(0),Int(0));
+  sample Int=Int(1);
+  sample!to(Int(500000)) {
+    value Int=rng!next(Int(256));
+    largeInput!push(value);
+  }
+  largeEncoded lzw$Encoded=lzw$encode(largeInput:string());
+  host!require(String(lzw$decode(largeEncoded))==largeInput:string(),String("LZW dictionary saturation"));
+  lastRow List<Float> = csvbench$points(String("label,1,,2,meta,3"));
+  host!require(lastRow:size()==3, String("CSV row without a final line break"));
+  host!require(lastRow[1]==Float(1.0) and lastRow[2]==Float(3.0) and lastRow[3]==Float(2.0), String("CSV row without a final line break: x, y, z"));
+  host!require(csvbench$points(String("label,1,,2,meta,3\n")):size()==3, String("CSV row with a final line break"));
+  host!require(csvbench$points(String("label,1,,2,meta")):size()==0, String("CSV short last row"));
+  host!require(csvbench$points(String("label,1,,2,meta,")):size()==0, String("CSV last row ending in a separator"));
+  host!require(csvbench$points(String("label,1,,2,meta,3\njunk")):size()==0, String("CSV incomplete last row"));
+  return Unit();
+}

@@ -1,0 +1,151 @@
+package fannkuch;
+import core$;
+import math$;
+import arena$;
+type Fannkuch = #struct {
+  n Int;
+  perm1 List<Int>;
+  perm List<Int>;
+  count List<Int>;
+}
+
+Fannkuch(n Int) => init {
+  n;
+  perm1 = List(Int);
+  perm = List(Int);
+  count = List(Int);
+}
+
+/// Fills the lists for the first permutation, 0 to n - 1 in order.
+Unit start(this Fannkuch) mut {
+  i Int = Int(1);
+  i!to(this.n) {
+    this.perm1!push(i - Int(1));
+    this.perm!push(Int(0));
+    this.count!push(Int(0));
+  }
+  return Unit();
+}
+
+/// Flips the copy until its first item is 0, and says how many flips that took.
+Int flip(this Fannkuch) mut {
+  k Int = this.perm[Int(1)];
+  if(k == 0) {
+    return Int(0);
+  }
+  i Int = Int(1);
+  i!to((k + 1) / 2) {
+    j Int = k + Int(2) - i;
+    t Int = this.perm[i];
+    this.perm[i] = this.perm[j];
+    this.perm[j] = t;
+  }
+  return Int(1) + this!flip();
+}
+
+/// Steps to the next permutation from rank `r`, and returns the new rank.
+Int advance(this Fannkuch, from Int) mut {
+  r Int = from;
+  step Int = Int(1);
+  step!to(this.n) {
+    if(r == this.n) {
+      return r;
+    }
+    first Int = this.perm1[Int(1)];
+    i Int = Int(1);
+    i!to(r) {
+      this.perm1[i] = this.perm1[i + 1];
+    }
+    this.perm1[r + 1] = first;
+    this.count[r + 1] = this.count[r + 1] - Int(1);
+    if(Int(0) < this.count[r + 1]) {
+      return r;
+    }
+    r = r + 1;
+  }
+  return r;
+}
+
+type State = #struct {
+  n Int;
+  result Int;
+}
+
+State(cfg Config, name String) => init {
+  n=cfg:integer(name, "n");
+  result=Int(0);
+}
+
+Unit prepare(this State) mut {
+  return Unit();
+}
+
+Unit step(this State, iteration Int) mut {
+  state Fannkuch=Fannkuch(this.n);
+  n Int=this.n;
+  state!start();
+  permutations Int = Int(1);
+  f Int = Int(1);
+  f!to(n) {
+    permutations = permutations * f;
+  }
+  checksum Int = Int(0);
+  maxFlips Int = Int(0);
+  sign Int = Int(1);
+  r Int = n;
+  p Int = Int(1);
+  p!to(permutations) {
+    v Int = Int(2);
+    v!to(r) {
+      state.count[v] = v;
+    }
+    r = Int(1);
+    i Int = Int(1);
+    i!to(n) {
+      state.perm[i] = state.perm1[i];
+    }
+    flips Int = state!flip();
+    if(maxFlips < flips) {
+      maxFlips = flips;
+    }
+    checksum = checksum + sign * flips;
+    sign = ~sign;
+    r = state!advance(r);
+  }
+  this.result=u32(this.result+checksum*100+maxFlips);
+  return Unit();
+}
+
+Int checksum(this State) => this.result;
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

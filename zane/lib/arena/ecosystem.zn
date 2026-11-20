@@ -1,0 +1,56 @@
+package arena;
+import core$;
+@primitives$String _base64Encode(text @primitives$String) foreign "arena_base64_encode";
+@primitives$String _base64Decode(text @primitives$String) foreign "arena_base64_decode";
+String base64Encode(text String) => String(_base64Encode(text));
+String base64Decode(text String) => String(_base64Decode(text));
+type Json = #handle {
+  cType="arena_json";
+  free="arena_json_free";
+}
+
+^Json json() foreign "arena_json_new";
+^Json jsonParse(text @primitives$String) foreign "arena_json_parse";
+@primitives$Unit _add(this Json, x @primitives$F64, y @primitives$F64, z @primitives$F64, name @primitives$String) mut foreign "arena_json_add";
+@primitives$String _serialize(this Json) foreign "arena_json_string";
+@primitives$I64 _count(this Json) foreign "arena_json_count";
+@primitives$F64 _get(this Json, index @primitives$I64, axis @primitives$I64) foreign "arena_json_get";
+Unit add(this Json, x Float, y Float, z Float, name String) mut {
+  this!_add(x, y, z, name);
+  return Unit();
+}
+
+String serialize(this Json) => String(this:_serialize());
+Int count(this Json) => Int(this:_count());
+Float get(this Json, index Int, axis Int) => Float(this:_get(index, axis));
+type Csv = #handle {
+  cType="arena_csv";
+  free="arena_csv_free";
+}
+
+^Csv csvParse(text @primitives$String) foreign "arena_csv_parse";
+@primitives$I64 _count(this Csv) foreign "arena_csv_count";
+@primitives$F64 _get(this Csv, index @primitives$I64, axis @primitives$I64) foreign "arena_csv_get";
+Int count(this Csv) => Int(this:_count());
+Float get(this Csv, index Int, axis Int) => Float(this:_get(index, axis));
+type Regex = #handle {
+  cType="arena_regex";
+  free="arena_regex_free";
+}
+
+^Regex _regex(pattern @primitives$String, insensitive @primitives$Bool) foreign "arena_regex_new";
+^Regex regex(pattern String, insensitive Bool) => _regex(pattern, insensitive);
+@primitives$I64 _count(this Regex, text @primitives$String) foreign "arena_regex_count";
+Int count(this Regex, text String) => Int(this:_count(text));
+
+type Matches = #handle {
+  cType="arena_matches";
+  free="arena_matches_free";
+}
+
+^Matches _matches(regex Regex, text @primitives$String) foreign "arena_regex_matches";
+@primitives$I64 _count(this Matches) foreign "arena_matches_count";
+@primitives$I64 _get(this Matches, index @primitives$I64, end @primitives$Bool) foreign "arena_matches_get";
+^Matches regexMatches(regex Regex, text String) => _matches(regex, text);
+Int count(this Matches) => Int(this:_count());
+Int get(this Matches, index Int, end Bool) => Int(this:_get(index, end));

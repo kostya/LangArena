@@ -1,0 +1,163 @@
+package nbody;
+import core$;
+import math$;
+import arena$;
+type Body = struct {
+  x Float;
+  y Float;
+  z Float;
+  vx Float;
+  vy Float;
+  vz Float;
+  mass Float;
+}
+
+Body(x Float, y Float, z Float, vx Float, vy Float, vz Float, mass Float) => init {
+  x;
+  y;
+  z;
+  vx;
+  vy;
+  vz;
+  mass;
+}
+
+type System = #struct {
+  bodies List<Body>;
+}
+
+System() => init {
+  bodies = List(Body);
+}
+
+/// Adds the five bodies, then gives the Sun the momentum that cancels the
+/// planets'.
+Unit start(this System) mut {
+  pi Float = Float(3.141592653589793);
+  solarMass Float = Float(4.0) * pi * pi;
+  year Float = Float(365.24);
+  this.bodies!push(Body(Float(0.0), Float(0.0), Float(0.0), Float(0.0), Float(0.0), Float(0.0), solarMass));
+  this.bodies!push(Body( Float(4.84143144246472090), ~Float(1.16032004402742839), ~Float(0.103622044471123109), Float(0.00166007664274403694) * year, Float(0.00769901118419740425) * year, ~Float(0.0000690460016972063023) * year, Float(0.000954791938424326609) * solarMass));
+  this.bodies!push(Body( Float(8.34336671824457987), Float(4.12479856412430479), ~Float(0.403523417114321381), ~Float(0.00276742510726862411) * year, Float(0.00499852801234917238) * year, Float(0.0000230417297573763929) * year, Float(0.000285885980666130812) * solarMass));
+  this.bodies!push(Body( Float(12.8943695621391310), ~Float(15.1111514016986312), ~Float(0.223307578892655734), Float(0.00296460137564761618) * year, Float(0.00237847173959480950) * year, ~Float(0.0000296589568540237556) * year, Float(0.0000436624404335156298) * solarMass));
+  this.bodies!push(Body( Float(15.3796971148509165), ~Float(25.9193146099879641), Float(0.179258772950371181), Float(0.00268067772490389322) * year, Float(0.00162824170038242295) * year, ~Float(0.0000951592254519715870) * year, Float(0.0000515138902046611451) * solarMass));
+  px Float = Float(0.0);
+  py Float = Float(0.0);
+  pz Float = Float(0.0);
+  i Int = Int(1);
+  i!to(this.bodies:size()) {
+    px = px + this.bodies[i].vx * this.bodies[i].mass;
+    py = py + this.bodies[i].vy * this.bodies[i].mass;
+    pz = pz + this.bodies[i].vz * this.bodies[i].mass;
+  }
+  this.bodies[Int(1)].vx = ~px / solarMass;
+  this.bodies[Int(1)].vy = ~py / solarMass;
+  this.bodies[Int(1)].vz = ~pz / solarMass;
+  return Unit();
+}
+
+/// Moves every body one step of `dt` days.
+Unit advance(this System, dt Float) mut {
+  n Int = this.bodies:size();
+  i Int = Int(1);
+  i!to(n) {
+    j Int = i + 1;
+    j!to(n) {
+      dx Float = this.bodies[i].x - this.bodies[j].x;
+      dy Float = this.bodies[i].y - this.bodies[j].y;
+      dz Float = this.bodies[i].z - this.bodies[j].z;
+      d2 Float = dx * dx + dy * dy + dz * dz;
+      distance Float=sqrt(d2);
+      mag Float=dt/(distance*distance*distance);
+      mi Float = this.bodies[i].mass;
+      mj Float = this.bodies[j].mass;
+      this.bodies[i].vx = this.bodies[i].vx - dx * mj * mag;
+      this.bodies[i].vy = this.bodies[i].vy - dy * mj * mag;
+      this.bodies[i].vz = this.bodies[i].vz - dz * mj * mag;
+      this.bodies[j].vx = this.bodies[j].vx + dx * mi * mag;
+      this.bodies[j].vy = this.bodies[j].vy + dy * mi * mag;
+      this.bodies[j].vz = this.bodies[j].vz + dz * mi * mag;
+    }
+    this.bodies[i].x=this.bodies[i].x+dt*this.bodies[i].vx;
+    this.bodies[i].y=this.bodies[i].y+dt*this.bodies[i].vy;
+    this.bodies[i].z=this.bodies[i].z+dt*this.bodies[i].vz;
+  }
+  return Unit();
+}
+
+/// The system's kinetic energy less its potential energy.
+Float energy(this System) {
+  e Float = Float(0.0);
+  n Int = this.bodies:size();
+  i Int = Int(1);
+  i!to(n) {
+    b Body = this.bodies[i];
+    e = e + Float(0.5) * b.mass * (b.vx * b.vx + b.vy * b.vy + b.vz * b.vz);
+    j Int = i + 1;
+    j!to(n) {
+      dx Float = b.x - this.bodies[j].x;
+      dy Float = b.y - this.bodies[j].y;
+      dz Float = b.z - this.bodies[j].z;
+      e = e - b.mass * this.bodies[j].mass / sqrt(dx * dx + dy * dy + dz * dz);
+    }
+  }
+  return e;
+}
+
+type State = #struct {
+  system System;
+  before Float;
+}
+
+State(cfg Config, name String) => init {
+  system=System();
+  before=Float(0.0);
+}
+
+Unit prepare(this State) mut {
+  this.system!start();
+  this.before=this.system:energy();
+  return Unit();
+}
+
+Unit step(this State, iteration Int) mut {
+  i Int=Int(1);
+  i!to(Int(1000)) {
+    this.system!advance(Float(0.01));
+  }
+  return Unit();
+}
+
+Int checksum(this State) => bitAnd(shiftLeft(hashFloat(this.before), Int(5)), hashFloat(this.system:energy()));
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

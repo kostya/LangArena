@@ -1,0 +1,218 @@
+package csvbench;
+import core$;
+import math$;
+import arena$;
+type State = #struct {
+  rows Int;
+  text String;
+  result Int;
+  rng Rng;
+}
+
+State(cfg Config, name String) => init {
+  rows=cfg:integer(name, "rows");
+  text=String("");
+  result=Int(0);
+  rng=Rng();
+}
+
+Unit prepare(this State) mut {
+  out Buffer=buffer(Int(0), Int(0));
+  i Int=Int(0);
+  i!to(this.rows-1) {
+    x Float=this.rng!nextFloat();
+    z Float=this.rng!nextFloat();
+    y Float=this.rng!nextFloat();
+    truth String=String("true");
+    if(rem(i, Int(2))~=0) {
+      truth=String("false");
+    }
+    out!append("\"point "+character(Int(65)+rem(i, Int(26)))+character(Int(92))+"n, \"\""+String(rem(i, Int(100)))+"\"\"\","+fixed(x, Int(10))+",,"+fixed(z, Int(10))+",\"["+truth+character(Int(92))+"n, "+String(rem(i, Int(100)))+"]\","+fixed(y, Int(10))+"\n");
+  }
+  this.text=out:string();
+  return Unit();
+}
+
+// The bytes `a`, `b` and `c` as a set `findAny` takes.
+ByteSet setOf(a Int, b Int, c Int) {
+  members List<Bool> = filled(Int(256), Bool(false));
+  members[a+1]=Bool(true);
+  members[b+1]=Bool(true);
+  members[c+1]=Bool(true);
+  return members:byteSet();
+}
+
+// Where the quoted field whose bytes start at `from` (counted from 0)
+// ends: at its closing quote, a doubled quote inside it passed over; -1
+// if it has none.
+Int closing(text String, from Int, quote ByteSet) {
+  n Int=text:byteCount();
+  at Int=from;
+  k Int=Int(1);
+  k!to(n+1) {
+    q Int=text:findAny(at+1, n-at, quote)-1;
+    if(q<0) {
+      return q;
+    }
+    if(q+1>=n) {
+      return q;
+    }
+    if(Int(text:byteAt(q+2))~=34) {
+      return q;
+    }
+    at=q+2;
+  }
+  return Int(0)-Int(1);
+}
+
+// As Goose's port reads with its std `csv::each_record` and `parse_flt`:
+// each field found by where it ends, a quoted one at its closing quote and
+// any other at the first separator, line break or quote, each found by a
+// byte-set scan, and fields 1, 3 and 5 (from 0) parsed where they lie,
+// each row's x, y and z pushed in turn. A malformed record, a row that is
+// not six fields or a field that spells no number gives no points.
+List<Float> points(text String) {
+  out List<Float> = List(Float);
+  quote ByteSet = setOf(Int(34), Int(34), Int(34));
+  plain ByteSet = setOf(Int(44), Int(10), Int(34));
+  n Int=text:byteCount();
+  column Int=Int(0);
+  x Float=Float(0.0);
+  y Float=Float(0.0);
+  z Float=Float(0.0);
+  pos Int=Int(0);
+  k Int=Int(1);
+  k!to(n+1) {
+    if(pos>=n) {
+      // The text ends right after a separator: cleanly after a line
+      // break, or after a comma whose field is missing.
+      if(column==0) {
+        return out;
+      }
+      return List(Float);
+    }
+    start Int=pos;
+    end Int=pos;
+    quoted Bool=Int(text:byteAt(pos+1))==34;
+    form Bool=if(quoted) {
+      start=pos+1;
+      end=closing(text, start, quote);
+      if(end<0) {
+        return List(Float);
+      }
+      pos=end+1;
+      if(pos<n) {
+        after Int=Int(text:byteAt(pos+1));
+        if(after~=44 and after~=10) {
+          return List(Float);
+        }
+      }
+    }
+    form:else() {
+      end=text:findAny(pos+1, n-pos, plain)-1;
+      if(end<0) {
+        end=n;
+      }
+      if(end<n) {
+        if(Int(text:byteAt(end+1))==34) {
+          return List(Float);
+        }
+      }
+      pos=end;
+    }
+    if(column==1 or column==3 or column==5) {
+      v Float=text:parseFloat(start+1, end-start) ? e {
+        return List(Float);
+      }
+      if(column==1) {
+        x=v;
+      }
+      if(column==3) {
+        z=v;
+      }
+      if(column==5) {
+        y=v;
+      }
+    }
+    if(pos>=n) {
+      // A last row with no line break after it: whole only if this field
+      // is its sixth.
+      if(column~=5) {
+        return List(Float);
+      }
+      out!push(x);
+      out!push(y);
+      out!push(z);
+      return out;
+    }
+    c Int=Int(text:byteAt(pos+1));
+    pos=pos+1;
+    row Bool=if(c==44) {
+      column=column+1;
+    }
+    row:else() {
+      if(column~=5) {
+        return List(Float);
+      }
+      out!push(x);
+      out!push(y);
+      out!push(z);
+      column=Int(0);
+    }
+  }
+  return out;
+}
+
+Unit step(this State, iteration Int) mut {
+  values List<Float> = points(this.text);
+  count Int=values:size()/3;
+  if(count==0) {
+    return Unit();
+  }
+  x Float=Float(0.0);
+  y Float=Float(0.0);
+  z Float=Float(0.0);
+  i Int=Int(0);
+  i!to(count-1) {
+    x=x+values[i*3+1];
+    y=y+values[i*3+2];
+    z=z+values[i*3+3];
+  }
+  n Float=Float(count);
+  this.result=u32(this.result+hashFloat(x/n)+hashFloat(y/n)+hashFloat(z/n));
+  return Unit();
+}
+
+Int checksum(this State) => u32(this.result+hash(this.text));
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

@@ -1,0 +1,145 @@
+package raytracer;
+import core$;
+import math$;
+import arena$;
+type Vector = struct {
+  x Float;
+  y Float;
+  z Float;
+}
+
+Vector(x Float, y Float, z Float) => init {
+  x;
+  y;
+  z;
+}
+
+Vector +(a Vector, b Vector) => Vector(a.x+b.x, a.y+b.y, a.z+b.z);
+Vector ~(v Vector) => Vector(~v.x, ~v.y, ~v.z);
+Vector scale(v Vector, k Float) => Vector(v.x*k, v.y*k, v.z*k);
+Float dot(a Vector, b Vector) => a.x*b.x+a.y*b.y+a.z*b.z;
+Vector normal(v Vector) => scale(v, Float(1.0)/sqrt(dot(v, v)));
+type Sphere = struct {
+  center Vector;
+  radius Float;
+  color Vector;
+}
+
+Sphere(center Vector, radius Float, color Vector) => init {
+  center;
+  radius;
+  color;
+}
+
+Float intersect(ray Vector, sphere Sphere) {
+  tca Float=dot(sphere.center, ray);
+  if(tca<Float(0.0)) {
+    return Float(10001.0);
+  }
+  d2 Float=dot(sphere.center, sphere.center)-tca*tca;
+  r2 Float=sphere.radius*sphere.radius;
+  if(d2>r2) {
+    return Float(10001.0);
+  }
+  return tca-sqrt(r2-d2);
+}
+
+Int pixel(ray Vector, scene Array<Sphere, 3>) {
+  i Int=Int(1);
+  i!to(Int(3)) {
+    sphere Sphere=scene[i];
+    hit Float=intersect(ray, sphere);
+    if(hit<=Float(10000.0)) {
+      point Vector=scale(ray, hit);
+      n Vector=normal(point-sphere.center);
+      light Vector=Vector(Float(0.7), ~Float(1.0), Float(1.7));
+      lam Float=max(Float(0.0), min(Float(1.0), dot(normal(light-point), n)));
+      color Vector=scale(Vector(Float(1.0), Float(1.0), Float(1.0)), lam*Float(0.5))+scale(sphere.color, Float(0.3));
+      level Int=Int.truncate((color.x+color.y+color.z)/Float(3.0)*Float(6.0));
+      lut String=String(".-+*XM");
+      if(level>=0 and level<6) {
+        return Int(lut:byteAt(level+1));
+      }
+      return Int(32);
+    }
+  }
+  return Int(32);
+}
+
+type State = #struct {
+  w Int;
+  h Int;
+  result Int;
+  scene List<Sphere>;
+}
+
+State(cfg Config, name String) => init {
+  w=cfg:integer(name, "w");
+  h=cfg:integer(name, "h");
+  result=Int(0);
+  scene=List(Sphere);
+}
+
+Unit prepare(this State) mut {
+  this.scene!push(Sphere(Vector(~Float(1.0), Float(0.0), Float(3.0)), Float(0.3), Vector(Float(1.0), Float(0.0), Float(0.0))));
+  this.scene!push(Sphere(Vector(Float(0.0), Float(0.0), Float(3.0)), Float(0.8), Vector(Float(0.0), Float(1.0), Float(0.0))));
+  this.scene!push(Sphere(Vector(Float(1.0), Float(0.0), Float(3.0)), Float(0.4), Vector(Float(0.0), Float(0.0), Float(1.0))));
+  return Unit();
+}
+
+// As Goose's SCENE: the spheres a constant array the loop can fold.
+Array<Sphere, 3> scene() => Array([
+  Sphere(Vector(~Float(1.0), Float(0.0), Float(3.0)), Float(0.3), Vector(Float(1.0), Float(0.0), Float(0.0))),
+  Sphere(Vector(Float(0.0), Float(0.0), Float(3.0)), Float(0.8), Vector(Float(0.0), Float(1.0), Float(0.0))),
+  Sphere(Vector(Float(1.0), Float(0.0), Float(3.0)), Float(0.4), Vector(Float(0.0), Float(0.0), Float(1.0)))]);
+
+Unit step(this State, iteration Int) mut {
+  spheres Array<Sphere, 3> = scene();
+  sum Int=Int(0);
+  y Int=Int(0);
+  y!to(this.h-1) {
+    x Int=Int(0);
+    x!to(this.w-1) {
+      fw Float=Float(this.w);
+      fh Float=Float(this.h);
+      ray Vector=normal(Vector((Float(x)-fw/Float(2.0))/fw, (Float(y)-fh/Float(2.0))/fh, Float(1.0)));
+      sum=sum+pixel(ray, spheres);
+    }
+  }
+  this.result=u32(this.result+sum);
+  return Unit();
+}
+
+Int checksum(this State) => this.result;
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

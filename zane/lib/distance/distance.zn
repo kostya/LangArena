@@ -1,0 +1,184 @@
+package distance;
+import core$;
+import math$;
+import arena$;
+type Pair = struct {
+  first String;
+  second String;
+}
+
+Pair(first String, second String) => init {
+  first;
+  second;
+}
+
+type State = #struct {
+  count Int;
+  size Int;
+  pairs List<Pair>;
+  rng Rng;
+  result Int;
+  ngram Bool;
+}
+
+State(cfg Config, name String) => init {
+  count=cfg:integer(name, "count");
+  size=cfg:integer(name, "size");
+  pairs=List(Pair);
+  rng=Rng();
+  result=Int(0);
+  ngram=name=="Distance::NGram";
+}
+
+String word(this State, n Int) mut {
+  out Buffer=buffer(Int(0), Int(0));
+  i Int=Int(1);
+  i!to(n) {
+    c Int=this.rng!next(Int(10))+97;
+    out!push(c);
+  }
+  return out:string();
+}
+
+Unit prepare(this State) mut {
+  i Int=Int(1);
+  total Int=this.count;
+  i!to(total) {
+    n Int=this.rng!next(this.size)+4;
+    m Int=this.rng!next(this.size)+4;
+    first String=this!word(n);
+    second String=this!word(m);
+    this.pairs!push(Pair(first, second));
+  }
+  return Unit();
+}
+
+Int findMatch(s String, letter Int, flags List<Bool>, start Int, end Int) {
+  j Int=start;
+  j!to(end) {
+    if(~flags[j] and byte(s, j)==letter) {
+      return j;
+    }
+  }
+  return Int(0);
+}
+
+Float jaro(first String, second String) {
+  n Int=length(first);
+  m Int=length(second);
+  if(n==0 or m==0) {
+    return Float(0.0);
+  }
+  distance Int=max(Int(0), max(n, m)/2-1);
+  a List<Bool> = filled(n, Bool(false));
+  b List<Bool> = filled(m, Bool(false));
+  matches Int=Int(0);
+  i Int=Int(1);
+  i!to(n) {
+    j Int=findMatch(second, byte(first, i), b, max(Int(1), i-distance), min(m, i+distance));
+    if(j>0) {
+      a[i]=Bool(true);
+      b[j]=Bool(true);
+      matches=matches+1;
+    }
+  }
+  if(matches==0) {
+    return Float(0.0);
+  }
+  transpositions Int=Int(0);
+  right List<Int> = List(Int);
+  j Int=Int(1);
+  j!to(m) {
+    if(b[j]) {
+      right!push(byte(second, j));
+    }
+  }
+  k Int=Int(1);
+  p Int=Int(1);
+  p!to(n) {
+    if(a[p]) {
+      if(byte(first, p)~=right[k]) {
+        transpositions=transpositions+1;
+      }
+      k=k+1;
+    }
+  }
+  count Float=Float(matches);
+  return (count/Float(n)+count/Float(m)+(count-Float(transpositions/2))/count)/Float(3.0);
+}
+
+Int gram(text String, i Int) => shiftLeft(Int(text:byteAt(i)), Int(24))+shiftLeft(Int(text:byteAt(i+1)), Int(16))+shiftLeft(Int(text:byteAt(i+2)), Int(8))+Int(text:byteAt(i+3));
+// As Goose's port: one probe to count each gram of the first string, and
+// for the second one to count it and one to read the first's count.
+Float ngram(first String, second String) {
+  a IntMap=IntMap(first:byteCount()*2);
+  b IntMap=IntMap(second:byteCount()*2);
+  i Int=Int(1);
+  i!to(first:byteCount()-3) {
+    a!add(gram(first, i), Int(1));
+  }
+  intersection Int=Int(0);
+  j Int=Int(1);
+  j!to(second:byteCount()-3) {
+    key Int=gram(second, j);
+    value Int=b!add(key, Int(1));
+    count Int=a:get(key);
+    if(count>0 and value<=count) {
+      intersection=intersection+1;
+    }
+  }
+  total Int=a.entries+b.entries;
+  if(total==0) {
+    return Float(0.0);
+  }
+  return Float(intersection)/Float(total);
+}
+
+Unit step(this State, iteration Int) mut {
+  i Int=Int(1);
+  i!to(this.pairs:size()) {
+    value Float=Float(0.0);
+    mode Bool=if(this.ngram) {
+      value=ngram(this.pairs[i].first, this.pairs[i].second);
+    }
+    mode:else() {
+      value=jaro(this.pairs[i].first, this.pairs[i].second);
+    }
+    this.result=u32(this.result+Int.truncate(value*Float(1000.0)));
+  }
+  return Unit();
+}
+
+Int checksum(this State) => this.result;
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

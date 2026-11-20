@@ -1,0 +1,144 @@
+package binarytrees;
+import core$;
+import math$;
+import arena$;
+type Tree = #variant {
+  leaf Int;
+  branch Branch;
+}
+
+type Branch = #struct {
+  item Int;
+  left Tree;
+  right Tree;
+}
+
+Branch(item Int, left ^Tree, right ^Tree) => init {
+  item;
+  left;
+  right;
+}
+
+^Tree build(item Int, depth Int) {
+  if(depth==0) {
+    return Tree.leaf(item);
+  }
+  delta Int=shiftLeft(Int(1), depth-1);
+  return Tree.branch(Branch(item, build(item-delta, depth-1), build(item+delta, depth-1)));
+}
+
+Int sum(tree Tree) => match(tree) {
+  v leaf => v+1;
+  b branch => b.item+1+sum(b.left)+sum(b.right);
+}
+
+// |item| stays below 2^depth and links are node indices below 2^(depth+1),
+// so an arena node is three 32-bit values.
+type Node = struct {
+  item I32;
+  left I32;
+  right I32;
+}
+
+Node(item Int, left Int, right Int) => init {
+  item=I32.wrap(item);
+  left=I32.wrap(left);
+  right=I32.wrap(right);
+}
+
+// One iteration's nodes, made and dropped by the iteration, as C makes and
+// frees its arena in each run.
+type Arena = #struct {
+  nodes List<Node>;
+}
+
+Arena() => init {
+  nodes=List(Node);
+}
+
+Int build(this Arena, item Int, depth Int) mut {
+  index Int=this.nodes:size()+1;
+  this.nodes!push(Node(item, Int(0), Int(0)));
+  if(depth>0) {
+    delta Int=shiftLeft(Int(1), depth-1);
+    left Int=this!build(item-delta, depth-1);
+    right Int=this!build(item+delta, depth-1);
+    this.nodes[index]=Node(item, left, right);
+  }
+  return index;
+}
+
+Int sum(this Arena, index Int) {
+  node Node=this.nodes[index];
+  total Int=Int(node.item)+1;
+  if(node.left>0) {
+    total=total+this:sum(Int(node.left));
+  }
+  if(node.right>0) {
+    total=total+this:sum(Int(node.right));
+  }
+  return total;
+}
+
+type State = #struct {
+  result Int;
+  depth Int;
+  object Bool;
+}
+
+State(cfg Config, name String) => init {
+  result=Int(0);
+  depth=cfg:integer(name, "depth");
+  object=name=="Binarytrees::Obj";
+}
+
+Unit prepare(this State) mut {
+  return Unit();
+}
+
+Unit step(this State, iteration Int) mut {
+  mode Bool=if(this.object) {
+    tree Tree=build(Int(0), this.depth);
+    this.result=u32(this.result+sum(tree));
+  }
+  mode:else() {
+    nodes Arena=Arena();
+    index Int=nodes!build(Int(0), this.depth);
+    this.result=u32(this.result+nodes:sum(index));
+  }
+  return Unit();
+}
+
+Int checksum(this State) => this.result;
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

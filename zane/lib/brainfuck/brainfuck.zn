@@ -1,0 +1,331 @@
+package brainfuck;
+import core$;
+import math$;
+import arena$;
+type Tape = #struct {
+  bytes List<U8>;
+  position Int;
+  result Int;
+}
+
+Tape() => init {
+  bytes=filled(Int(30000), U8(0));
+  position=Int(1);
+  result=Int(0);
+}
+
+Unit command(this Tape, op Int) mut {
+  // As C: only the commands that use the current cell read it.
+  if(op==43) {
+    this.bytes[this.position]=U8.wrap(Int(this.bytes[this.position])+1);
+  }
+  if(op==45) {
+    this.bytes[this.position]=U8.wrap(Int(this.bytes[this.position])+255);
+  }
+  if(op==62) {
+    this.position=this.position+1;
+    if(this.position>this.bytes:size()) {
+      this.bytes!push(U8(0));
+    }
+  }
+  if(op==60) {
+    this.position=max(Int(1), this.position-1);
+  }
+  if(op==46) {
+    this.result=u32(this.result*4+Int(this.bytes[this.position]));
+  }
+  return Unit();
+}
+
+// runArray's own copy of command. As in C, where each runner has its own
+// tape functions, each copy then has one caller, which LLVM inlines; a
+// shared command has three call sites and stays a call per command.
+Unit arrayCommand(this Tape, op Int) mut {
+  // As C: only the commands that use the current cell read it.
+  if(op==43) {
+    this.bytes[this.position]=U8.wrap(Int(this.bytes[this.position])+1);
+  }
+  if(op==45) {
+    this.bytes[this.position]=U8.wrap(Int(this.bytes[this.position])+255);
+  }
+  if(op==62) {
+    this.position=this.position+1;
+    if(this.position>this.bytes:size()) {
+      this.bytes!push(U8(0));
+    }
+  }
+  if(op==60) {
+    this.position=max(Int(1), this.position-1);
+  }
+  if(op==46) {
+    this.result=u32(this.result*4+Int(this.bytes[this.position]));
+  }
+  return Unit();
+}
+
+// runRecursive's program, as C's tree of op arrays with indices for its
+// pointers: block 1 is the program, and each loop's body is a block of its
+// own. In a block, a command is its byte and a loop is its body's block,
+// negated.
+List<List<Int>> blocks(text String) {
+  program List<List<Int>> = List(List<Int>);
+  program!push(List(Int));
+  // The blocks the loops being read were opened in, innermost last.
+  open List<Int> = List(Int);
+  current Int=Int(1);
+  active Bool=Bool(true);
+  i Int=Int(1);
+  i!to(length(text)) {
+    // A copy: `if` borrows its condition, and its block writes `active`.
+    reading Bool=active;
+    if(reading) {
+      c Int=byte(text, i);
+      if(c==43 or c==45 or c==62 or c==60 or c==46) {
+        program[current]!push(c);
+      }
+      if(c==91) {
+        body Int=program:size()+1;
+        program!push(List(Int));
+        program[current]!push(~body);
+        open!push(current);
+        current=body;
+      }
+      if(c==93) {
+        // As C: a `]` with no loop open ends the program.
+        closed Bool=if(open:size()==0) {
+          active=Bool(false);
+        }
+        closed:else() {
+          current=open!remove(open:size());
+        }
+      }
+    }
+  }
+  return program;
+}
+
+// runRecursive's machine: the tape, the program, the op it is at, and the
+// ops to go back to when each loop it is in ends, as an explicit stack in
+// place of C's recursion.
+type TreeMachine = #struct {
+  tape Tape;
+  program List<List<Int>>;
+  block Int;
+  index Int;
+  returnBlocks List<Int>;
+  returnIndices List<Int>;
+}
+
+TreeMachine(program List<List<Int>>) => init {
+  tape=Tape();
+  program;
+  block=Int(1);
+  index=Int(1);
+  returnBlocks=List(Int);
+  returnIndices=List(Int);
+}
+
+// runArray's machine: the tape, the commands, their jumps and the counter.
+type ArrayMachine = #struct {
+  tape Tape;
+  commands List<Int>;
+  jumps List<Int>;
+  pc Int;
+}
+
+ArrayMachine(commands List<Int>, jumps List<Int>) => init {
+  tape=Tape();
+  commands;
+  jumps;
+  pc=Int(1);
+}
+
+Int runArray(source String) {
+  commands List<Int> = List(Int);
+  i Int=Int(1);
+  i!to(length(source)) {
+    c Int=byte(source, i);
+    if(c==43 or c==45 or c==62 or c==60 or c==46 or c==91 or c==93 or c==44) {
+      commands!push(c);
+    }
+  }
+  jumps List<Int> = filled(commands:size(), Int(0));
+  stack List<Int> = List(Int);
+  j Int=Int(1);
+  j!to(commands:size()) {
+    if(commands[j]==91) {
+      stack!push(j);
+    }
+    if(commands[j]==93) {
+      if(stack:size()==0) {
+        return Int(0);
+      }
+      start Int=stack!remove(stack:size());
+      jumps[start]=j;
+      jumps[j]=start;
+    }
+  }
+  if(stack:size()>0) {
+    return Int(0);
+  }
+  if(commands:size()==0) {
+    return Int(0);
+  }
+  // The fetch loop is a worker: its state is the machine, and each step
+  // runs one command, until the counter passes the last.
+  machine ArrayMachine=ArrayMachine(commands, jumps);
+  machine!work(Bool(this ArrayMachine) mut {
+    // A bracket that jumps lands on its partner, and the step past it
+    // skips that one, as in C.
+    c Int=this.commands[this.pc];
+    bracket Bool=if(c==91) {
+      if(this.tape.bytes[this.tape.position]==U8(0)) {
+        this.pc=this.jumps[this.pc];
+      }
+    }
+    bracket!elif(c==93) {
+      if(this.tape.bytes[this.tape.position]~=U8(0)) {
+        this.pc=this.jumps[this.pc];
+      }
+    }
+    bracket:else() {
+      this.tape!arrayCommand(c);
+    }
+    this.pc=this.pc+1;
+    return this.pc<=this.commands:size();
+  });
+  return machine.tape.result;
+}
+
+Int runRecursive(source String) {
+  machine TreeMachine=TreeMachine(blocks(source));
+  // Each step runs one op, or ends a pass through a loop's body: the body
+  // runs again while the current cell is not zero, as C's loop does, and
+  // the machine goes back to the op after the loop when it is.
+  machine!work(Bool(this TreeMachine) mut {
+    going Bool=Bool(true);
+    ended Bool=if(this.index>this.program[this.block]:size()) {
+      outermost Bool=if(this.block==1) {
+        going=Bool(false);
+      }
+      outermost:else() {
+        again Bool=if(this.tape.bytes[this.tape.position]~=U8(0)) {
+          this.index=Int(1);
+        }
+        again:else() {
+          this.block=this.returnBlocks!remove(this.returnBlocks:size());
+          this.index=this.returnIndices!remove(this.returnIndices:size());
+        }
+      }
+    }
+    ended:else() {
+      op Int=this.program[this.block][this.index];
+      this.index=this.index+1;
+      loop Bool=if(op<0) {
+        // A loop whose cell is zero is not entered.
+        if(this.tape.bytes[this.tape.position]~=U8(0)) {
+          this.returnBlocks!push(this.block);
+          this.returnIndices!push(this.index);
+          this.block=~op;
+          this.index=Int(1);
+        }
+      }
+      loop:else() {
+        this.tape!command(op);
+      }
+    }
+    return going;
+  });
+  return machine.tape.result;
+}
+
+type State = #struct {
+  source String;
+  warmSource String;
+  result Int;
+  recursive Bool;
+}
+
+State(cfg Config, name String) => init {
+  source=cfg:text(name, "program");
+  warmSource=cfg:text(name, "warmup_program");
+  result=Int(0);
+  recursive=name=="Brainfuck::Recursion";
+}
+
+Unit prepare(this State) mut {
+  return Unit();
+}
+
+Unit warm(this State, iteration Int) mut {
+  branch Bool=if(this.recursive) {
+    runRecursive(this.warmSource);
+  }
+  branch:else() {
+    runArray(this.warmSource);
+  }
+  return Unit();
+}
+
+Unit step(this State, iteration Int) mut {
+  value Int=Int(0);
+  branch Bool=if(this.recursive) {
+    value=runRecursive(this.source);
+  }
+  branch:else() {
+    value=runArray(this.source);
+  }
+  this.result=u32(this.result+value);
+  return Unit();
+}
+
+Int checksum(this State) => this.result;
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Bool balanced(source String) {
+  depth Int=Int(0);
+  i Int=Int(1);
+  i!to(length(source)) {
+    value Int=byte(source,i);
+    if(value==91) {depth=depth+1;}
+    if(value==93) {
+      if(depth==0) {return Bool(false);}
+      depth=depth-1;
+    }
+  }
+  return depth==0;
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  if(~balanced(state.source) or ~balanced(state.warmSource)) {
+    this!fail(String("Unbalanced Brainfuck brackets"));
+  }
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!warm(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

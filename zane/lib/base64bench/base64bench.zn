@@ -1,0 +1,81 @@
+package base64bench;
+import core$;
+import math$;
+import arena$;
+type State = #struct {
+  source String;
+  encoded String;
+  decoded String;
+  n Int;
+  result Int;
+  decode Bool;
+}
+
+State(cfg Config, name String) => init {
+  source=String("");
+  encoded=String("");
+  decoded=String("");
+  n=cfg:integer(name, "size");
+  result=Int(0);
+  decode=name=="Base64::Decode";
+}
+
+Unit prepare(this State) mut {
+  data Buffer=buffer(this.n, Int(97));
+  this.source=data:string();
+  this.encoded=base64Encode(this.source);
+  this.decoded=base64Decode(this.encoded);
+  return Unit();
+}
+
+Unit step(this State, iteration Int) mut {
+  mode Bool=if(this.decode) {
+    this.decoded=base64Decode(this.encoded);
+    this.result=u32(this.result+length(this.decoded));
+  }
+  mode:else() {
+    this.encoded=base64Encode(this.source);
+    this.result=u32(this.result+length(this.encoded));
+  }
+  return Unit();
+}
+
+Int checksum(this State) {
+  if(this.decode) {
+    return hash("decode "+slice(this.encoded, Int(1), min(Int(4), length(this.encoded)))+"... to "+slice(this.decoded, Int(1), min(Int(4), length(this.decoded)))+"...: "+String(this.result));
+  }
+  return hash("encode "+slice(this.source, Int(1), min(Int(4), length(this.source)))+"... to "+slice(this.encoded, Int(1), min(Int(4), length(this.encoded)))+"...: "+String(this.result));
+}
+
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

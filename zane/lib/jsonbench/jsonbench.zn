@@ -1,0 +1,121 @@
+package jsonbench;
+import core$;
+import math$;
+import arena$;
+type Point = struct {
+  x Float;
+  y Float;
+  z Float;
+}
+
+Point(x Float, y Float, z Float) => init {
+  x;
+  y;
+  z;
+}
+
+type State = #struct {
+  doc Json;
+  text String;
+  coords Int;
+  result Int;
+  generate Bool;
+  mapping Bool;
+  rng Rng;
+}
+
+State(cfg Config, name String) => init {
+  doc=json();
+  text=String("");
+  coords=cfg:integer(name, "coords");
+  result=Int(0);
+  generate=name=="Json::Generate";
+  mapping=name=="Json::ParseMapping";
+  rng=Rng();
+}
+
+Unit prepare(this State) mut {
+  i Int=Int(1);
+  i!to(this.coords) {
+    x Float=roundEven(this.rng!nextFloat()*Float(100000000.0))/Float(100000000.0);
+    y Float=roundEven(this.rng!nextFloat()*Float(100000000.0))/Float(100000000.0);
+    z Float=roundEven(this.rng!nextFloat()*Float(100000000.0))/Float(100000000.0);
+    label String=fixed(this.rng!nextFloat(), Int(7))+" "+String(this.rng!next(Int(10000)));
+    this.doc!add(x, y, z, label);
+  }
+  this.text=this.doc:serialize();
+  return Unit();
+}
+
+Unit step(this State, iteration Int) mut {
+  mode Bool=if(this.generate) {
+    this.text=this.doc:serialize();
+    if(slice(this.text, Int(1), Int(15))=="{\"coordinates\":") {
+      this.result=u32(this.result+1);
+    }
+  }
+  mode:else() {
+    doc Json=jsonParse(this.text);
+    x Float=Float(0.0);
+    y Float=Float(0.0);
+    z Float=Float(0.0);
+    native Bool=if(this.mapping) {
+      points List<Point> = List(Point);
+      i Int=Int(1);
+      i!to(doc:count()) {
+        points!push(Point(doc:get(i, Int(0)), doc:get(i, Int(1)), doc:get(i, Int(2))));
+      }
+      j Int=Int(1);
+      j!to(points:size()) {
+        x=x+points[j].x;
+        y=y+points[j].y;
+        z=z+points[j].z;
+      }
+    }
+    native:else() {
+      i Int=Int(1);
+      i!to(doc:count()) {
+        x=x+doc:get(i, Int(0));
+        y=y+doc:get(i, Int(1));
+        z=z+doc:get(i, Int(2));
+      }
+    }
+    n Float=Float(doc:count());
+    this.result=u32(this.result+hashFloat(x/n)+hashFloat(y/n)+hashFloat(z/n));
+  }
+  return Unit();
+}
+
+Int checksum(this State) => this.result;
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

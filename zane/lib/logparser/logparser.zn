@@ -1,0 +1,231 @@
+package logparser;
+import core$;
+import math$;
+import arena$;
+import regex;
+String methods(index Int) {
+  if(index==0) {
+    return String("GET");
+  }
+  if(index==1) {
+    return String("POST");
+  }
+  if(index==2) {
+    return String("PUT");
+  }
+  return String("DELETE");
+}
+
+String paths(index Int) {
+  if(index==0) {
+    return String("/index.html");
+  }
+  if(index==1) {
+    return String("/api/users");
+  }
+  if(index==2) {
+    return String("/admin");
+  }
+  if(index==3) {
+    return String("/images/logo.png");
+  }
+  if(index==4) {
+    return String("/etc/passwd");
+  }
+  return String("/wp-admin/setup.php");
+}
+
+String agents(index Int) {
+  if(index==0) {
+    return String("Mozilla/5.0");
+  }
+  if(index==1) {
+    return String("Googlebot/2.1");
+  }
+  if(index==2) {
+    return String("curl/7.68.0");
+  }
+  return String("scanner/2.0");
+}
+
+String users(index Int) {
+  if(index==0) {
+    return String("john");
+  }
+  if(index==1) {
+    return String("jane");
+  }
+  if(index==2) {
+    return String("alex");
+  }
+  if(index==3) {
+    return String("sarah");
+  }
+  if(index==4) {
+    return String("mike");
+  }
+  if(index==5) {
+    return String("anna");
+  }
+  if(index==6) {
+    return String("david");
+  }
+  return String("elena");
+}
+
+String domains(index Int) {
+  if(index==0) {
+    return String("example.com");
+  }
+  if(index==1) {
+    return String("gmail.com");
+  }
+  if(index==2) {
+    return String("yahoo.com");
+  }
+  if(index==3) {
+    return String("hotmail.com");
+  }
+  if(index==4) {
+    return String("company.org");
+  }
+  return String("mail.ru");
+}
+
+Int status(index Int) {
+  if(index==0) {
+    return Int(200);
+  }
+  if(index==1) {
+    return Int(201);
+  }
+  if(index==2) {
+    return Int(301);
+  }
+  if(index==3) {
+    return Int(302);
+  }
+  if(index==4) {
+    return Int(400);
+  }
+  if(index==5) {
+    return Int(401);
+  }
+  if(index==6) {
+    return Int(403);
+  }
+  if(index==7) {
+    return Int(404);
+  }
+  if(index==8) {
+    return Int(500);
+  }
+  if(index==9) {
+    return Int(502);
+  }
+  return Int(503);
+}
+
+type State = #struct {
+  lines Int;
+  log String;
+  patterns List<regex$Regex>;
+  result Int;
+}
+
+State(cfg Config, name String) => init {
+  lines=cfg:integer(name, "lines_count");
+  log=String("");
+  patterns=List(regex$Regex);
+  result=Int(0);
+}
+
+// A pattern of the workload compiled; one that does not compile matches
+// nothing, which the checksum shows.
+Unit pattern(this State, text String) mut {
+  r regex$Regex=regex$compile(text) ?? regex$Regex.never();
+  this.patterns!push(r);
+  return Unit();
+}
+
+Unit prepare(this State) mut {
+  this!pattern(" [5][0-9]{2} | [4][0-9]{2} ");
+  this!pattern("(?i)bot|crawler|scanner|spider|indexing|crawl|robot|spider");
+  this!pattern("(?i)etc/passwd|wp-admin|[.][.]/");
+  this!pattern("[0-9]+[.][0-9]+[.][0-9]+[.]35");
+  this!pattern("/api/[^ \"]+");
+  this!pattern("POST [^ ]* HTTP");
+  this!pattern("(?i)/login|/signin");
+  this!pattern("(?i)get|post|put");
+  this!pattern("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+[.][a-zA-Z]{2,}");
+  this!pattern("password=[^&[:space:]\"]+");
+  this!pattern("token=[^&[:space:]\"]+|api[_-]?key=[^&[:space:]\"]+");
+  this!pattern("session[_-]?id=[^&[:space:]\"]+");
+  this!pattern("[[][0-9]+/[[:alnum:]_]+/[0-9]+:1[3-7]:[0-9]+:[0-9]+ [+-][0-9]+[]]");
+  out Buffer=buffer(Int(0), Int(0));
+  i Int=Int(0);
+  i!to(this.lines-1) {
+    out!append("192.168.1."+String(rem(i, Int(255))+1)+" - - ["+String(rem(i, Int(31)))+"/Oct/2023:"+String(rem(i, Int(60)))+":55:36 +0000] \""+methods(rem(i, Int(4)))+" ");
+    branch Bool=if(rem(i, Int(3))==0) {
+      out!append("/login?email="+users(rem(i, Int(8)))+String(rem(i, Int(100)))+"@"+domains(rem(i, Int(6)))+"&password=secret"+String(rem(i, Int(10000))));
+    }
+    branch!elif(rem(i, Int(5))==0) {
+      out!append("/api/data?token=");
+      j Int=Int(1);
+      j!to(rem(i, Int(3))+1) {
+        out!append("abcdef123456");
+      }
+    }
+    branch!elif(rem(i, Int(7))==0) {
+      out!append("/user/profile?session_id=sess_"+hex(i*12345));
+    }
+    branch:else() {
+      out!append(paths(rem(i, Int(6))));
+    }
+    out!append(" HTTP/1.1\" "+String(status(rem(i, Int(11))))+" 2326 \"http://"+domains(rem(i, Int(6)))+"\" \""+agents(rem(i, Int(4)))+"\"\n");
+  }
+  this.log=out:string();
+  return Unit();
+}
+
+Unit step(this State, iteration Int) mut {
+  i Int=Int(1);
+  i!to(this.patterns:size()) {
+    this.result=u32(this.result+this.patterns[i]:count(this.log));
+  }
+  return Unit();
+}
+
+Int checksum(this State) => this.result;
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

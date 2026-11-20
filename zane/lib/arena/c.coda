@@ -1,0 +1,18 @@
+c [
+ setting value target
+ source vendor/yyjson.c *
+ include vendor/base64/lib *
+ source vendor/base64/lib/lib.c *
+ source vendor/base64/lib/codec_choose.c *
+ source vendor/base64/lib/tables/tables.c *
+ source vendor/base64/lib/arch/generic/codec.c *
+ source vendor/base64/lib/arch/avx512/codec.c *
+ source vendor/base64/lib/arch/neon32/codec.c *
+ source vendor/base64/lib/arch/neon64/codec.c *
+ source vendor/base64_avx2.c *
+ source vendor/base64_avx.c *
+ source vendor/base64_ssse3.c *
+ source vendor/base64_sse41.c *
+ source vendor/base64_sse42.c *
+ system pcre2-8 *
+]

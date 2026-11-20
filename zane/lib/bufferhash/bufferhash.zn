@@ -1,0 +1,122 @@
+package bufferhash;
+import core$;
+import math$;
+import arena$;
+type State = #struct {
+  data List<U8>;
+  rng Rng;
+  result Int;
+  crc Bool;
+}
+
+// As Goose's port, the data is a byte list.
+List<U8> filledBytes(n Int) {
+  out List<U8> = List(U8);
+  i Int=Int(1);
+  i!to(n) {
+    out!push(U8.wrap(Int(0)));
+  }
+  return out;
+}
+
+State(cfg Config, name String) => init {
+  data=filledBytes(cfg:integer(name, "size"));
+  rng=Rng();
+  result=Int(0);
+  crc=name=="Hash::CRC32";
+}
+
+Unit prepare(this State) mut {
+  i Int=Int(1);
+  i!to(this.data:size()) {
+    value Int=this.rng!next(Int(256));
+    this.data[i]=U8.wrap(value);
+  }
+  return Unit();
+}
+
+Int crc32(data List<U8>) {
+  crc Int=Int(4294967295);
+  i Int=Int(1);
+  i!to(data:size()) {
+    crc=bitXor(crc, Int(data[i]));
+    b Int=Int(1);
+    b!to(Int(8)) {
+      odd Bool=if(bitAnd(crc, Int(1))~=0) {
+        crc=bitXor(shiftRightLogical(crc, Int(1)), Int(3988292384));
+      }
+      odd:else() {
+        crc=shiftRightLogical(crc, Int(1));
+      }
+    }
+  }
+  return bitXor(crc, Int(4294967295));
+}
+
+// This preserves the reference's custom hash, despite its SHA256 name. As
+// Goose's port, each of the eight hashes is a 32-bit integer whose
+// arithmetic wraps.
+I32 word(v Int) => I32.wrap(v);
+Int simpleSha(data List<U8>) {
+  hashes Array<I32, 8> = Array([word(Int(1779033703)), word(Int(3144134277)), word(Int(1013904242)), word(Int(2773480762)), word(Int(1359893119)), word(Int(2600822924)), word(Int(528734635)), word(Int(1541459225))]);
+  i Int=Int(1);
+  i!to(data:size()) {
+    index Int=bitAnd(i-1, Int(7))+1;
+    h I32=hashes[index];
+    h=shiftLeft(h, I32(5))+h+word(Int(data[i]));
+    h=bitXor(h+shiftLeft(h, I32(10)), shiftRightLogical(h, I32(6)));
+    hashes[index]=h;
+  }
+  value Int=bitAnd(Int(hashes[Int(1)]), Int(4294967295));
+  return bitAnd(shiftRightLogical(value, Int(24)), Int(255))+shiftLeft(bitAnd(shiftRightLogical(value, Int(16)), Int(255)), Int(8))+shiftLeft(bitAnd(shiftRightLogical(value, Int(8)), Int(255)), Int(16))+shiftLeft(bitAnd(value, Int(255)), Int(24));
+}
+
+Unit step(this State, iteration Int) mut {
+  value Int=this.rng!next(Int(256));
+  index Int=this.rng!next(this.data:size())+1;
+  this.data[index]=U8.wrap(value);
+  sum Int=Int(0);
+  mode Bool=if(this.crc) {
+    sum=crc32(this.data);
+  }
+  mode:else() {
+    sum=simpleSha(this.data);
+  }
+  this.result=u32(this.result+sum);
+  return Unit();
+}
+
+Int checksum(this State) => this.result;
+Unit resetRandom(this State) mut {
+  this.rng!reset();
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

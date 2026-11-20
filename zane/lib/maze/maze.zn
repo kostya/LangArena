@@ -1,0 +1,363 @@
+package maze;
+import core$;
+import math$;
+import arena$;
+// A cell's kind is 0..4 and its neighbors are cell indices (at most w*h), so
+// both are stored at 32 bits. An interior cell has 4 neighbors, a border cell
+// none; they sit in the cell itself, as in C's neighbors[4].
+type Cell = struct {
+  kind I32;
+  degree I32;
+  neighbors Array<I32, 4>;
+}
+
+Cell(kind I32) => init {
+  kind;
+  degree=I32(0);
+  neighbors=Array([I32(0), I32(0), I32(0), I32(0)]);
+}
+
+type State = #struct {
+  w Int;
+  h Int;
+  cells List<Cell>;
+  rng Rng;
+  result Int;
+  path List<I32>;
+  mode Int;
+}
+
+State(cfg Config, name String) => init {
+  w=cfg:integer(name, "w");
+  h=cfg:integer(name, "h");
+  cells=List(Cell);
+  rng=Rng();
+  result=Int(0);
+  path=List(I32);
+  mode=Int(0);
+}
+
+Int start(this State) => this.w+2;
+Int finish(this State) => (this.h-1)*this.w-1;
+Bool walkable(kind I32) => kind==1 or kind==2 or kind==3;
+Int degree(this State, index Int) => Int(this.cells[index].degree);
+Int neighbor(this State, index Int, i Int) => Int(this.cells[index].neighbors[i]);
+Int adjacentOpen(this State, index Int) {
+  count Int=Int(0);
+  i Int=Int(1);
+  i!to(this:degree(index)) {
+    if(walkable(this.cells[this:neighbor(index, i)].kind)) {
+      count=count+1;
+    }
+  }
+  return count;
+}
+
+// Carves from `index` until its stack is empty: a cell is carved once and
+// then pushes at most its 4 neighbours, so the stack takes at most the
+// start and 4 entries per cell.
+Unit dig(this State, index Int) mut {
+  stack List<I32> = List(I32);
+  stack!push(I32.wrap(index));
+  iteration Int=Int(1);
+  iteration!to(4*this.cells:size()+1) {
+    if(stack:size()==0) {
+      return Unit();
+    }
+    current Int=Int(stack!remove(stack:size()));
+    if(this:adjacentOpen(current)==1) {
+      this.cells[current].kind=I32(1);
+      i Int=Int(1);
+      i!to(Int(4)) {
+        neighbor Int=this:neighbor(current, i);
+        if(this.cells[neighbor].kind==0) {
+          stack!push(I32.wrap(neighbor));
+        }
+      }
+    }
+  }
+  return Unit();
+}
+
+Unit ensureFinish(this State, index Int) mut {
+  this.cells[index].kind=I32(1);
+  if(this:adjacentOpen(index)>1) {
+    return Unit();
+  }
+  i Int=Int(1);
+  i!to(Int(4)) {
+    neighbor Int=this:neighbor(index, i);
+    if(this.cells[neighbor].kind==0) {
+      this!ensureFinish(neighbor);
+    }
+  }
+  return Unit();
+}
+
+Unit generate(this State) mut {
+  start Int=this:start();
+  finish Int=this:finish();
+  i Int=Int(1);
+  i!to(Int(4)) {
+    neighbor Int=this:neighbor(start, i);
+    if(this.cells[neighbor].kind==0) {
+      this!dig(neighbor);
+    }
+  }
+  j Int=Int(1);
+  j!to(Int(4)) {
+    neighbor Int=this:neighbor(finish, j);
+    if(this.cells[neighbor].kind==0) {
+      this!ensureFinish(neighbor);
+    }
+  }
+  return Unit();
+}
+
+Unit prepare(this State) mut {
+  i Int=Int(1);
+  i!to(this.w*this.h) {
+    this.cells!push(Cell(I32(0)));
+  }
+  this.cells[this:start()].kind=I32(2);
+  this.cells[this:finish()].kind=I32(3);
+  y Int=Int(0);
+  y!to(this.h-1) {
+    x Int=Int(0);
+    x!to(this.w-1) {
+      index Int=y*this.w+x+1;
+      interior Bool=if(x>0 and y>0 and x<this.w-1 and y<this.h-1) {
+        this.cells[index].degree=I32(4);
+        this.cells[index].neighbors[Int(1)]=I32.wrap(index-this.w);
+        this.cells[index].neighbors[Int(2)]=I32.wrap(index+this.w);
+        this.cells[index].neighbors[Int(3)]=I32.wrap(index+1);
+        this.cells[index].neighbors[Int(4)]=I32.wrap(index-1);
+        j Int=Int(1);
+        j!to(Int(4)) {
+          a Int=this.rng!next(Int(4))+1;
+          b Int=this.rng!next(Int(4))+1;
+          old I32=this.cells[index].neighbors[a];
+          this.cells[index].neighbors[a]=this.cells[index].neighbors[b];
+          this.cells[index].neighbors[b]=old;
+        }
+      }
+      interior:else() {
+        this.cells[index].kind=I32(4);
+      }
+    }
+  }
+  if(this.mode~=0) {
+    this!generate();
+  }
+  return Unit();
+}
+
+List<I32> reversed(items List<I32>) {
+  out List<I32> = List(I32);
+  j Int=Int(1);
+  j!to(items:size()) {
+    out!push(items[items:size()-j+1]);
+  }
+  return out;
+}
+
+// The path to `current` along `previous`, from the start, whose entry is 0.
+List<I32> reconstruct(previous List<I32>, current Int) {
+  reverse List<I32> = List(I32);
+  at Int=current;
+  i Int=Int(1);
+  i!to(previous:size()) {
+    reverse!push(I32.wrap(at));
+    at=Int(previous[at]);
+    if(at==0) {
+      return reversed(reverse);
+    }
+  }
+  return reversed(reverse);
+}
+
+// The path to `target` through the BFS node `node`: each node's parent is
+// the node it was reached from, and the start's is 0.
+List<I32> trace(cells List<I32>, parents List<I32>, node Int, target Int) {
+  reverse List<I32> = List(I32);
+  reverse!push(I32.wrap(target));
+  at Int=node;
+  i Int=Int(1);
+  i!to(cells:size()) {
+    reverse!push(cells[at]);
+    at=Int(parents[at]);
+    if(at==0) {
+      return reversed(reverse);
+    }
+  }
+  return reversed(reverse);
+}
+
+List<I32> bfs(this State) {
+  start Int=this:start();
+  target Int=this:finish();
+  if(start==target) {
+    path List<I32> = List(I32);
+    path!push(I32.wrap(start));
+    return path;
+  }
+  n Int=this.cells:size();
+  visited List<Bool> = filled(n, Bool(false));
+  // The cells found so far in BFS order, each with the node it was found
+  // from; reading them in order is the queue.
+  cells List<I32> = List(I32);
+  parents List<I32> = List(I32);
+  cells!push(I32.wrap(start));
+  parents!push(I32(0));
+  visited[start]=Bool(true);
+  read Int=Int(1);
+  iteration Int=Int(1);
+  iteration!to(n) {
+    if(read<=cells:size()) {
+      current Int=Int(cells[read]);
+      j Int=Int(1);
+      j!to(this:degree(current)) {
+        at Int=this:neighbor(current, j);
+        if(at==target) {
+          return trace(cells, parents, read, at);
+        }
+        if(walkable(this.cells[at].kind) and ~visited[at]) {
+          visited[at]=Bool(true);
+          cells!push(I32.wrap(at));
+          parents!push(I32.wrap(read));
+        }
+      }
+      read=read+1;
+    }
+  }
+  return List(I32);
+}
+
+Int heuristic(this State, index Int) => abs(rem(index-1, this.w)-(this.w-2))+abs((index-1)/this.w-(this.h-2));
+// Stops when its heap is empty or it reaches the finish: a cell is pushed
+// only when its score falls, and its scores are path lengths below the
+// number of cells, so each is pushed fewer than that many times.
+List<I32> astar(this State) {
+  n Int=this.cells:size();
+  previous List<I32> = filled(n, I32(0));
+  score List<I32> = filled(n, I32(2147483647));
+  best List<I32> = filled(n, I32(2147483647));
+  start Int=this:start();
+  target Int=this:finish();
+  score[start]=I32(0);
+  best[start]=I32.wrap(this:heuristic(start));
+  open Heap=Heap();
+  open!push(start, Int(best[start]));
+  iteration Int=Int(1);
+  iteration!to(n*n+1) {
+    if(open.heapSize==0) {
+      return List(I32);
+    }
+    entry Entry=open!pop();
+    current Int=Int(entry.vertex);
+    if(current==target) {
+      return reconstruct(previous, current);
+    }
+    j Int=Int(1);
+    j!to(this:degree(current)) {
+      neighbor Int=this:neighbor(current, j);
+      if(walkable(this.cells[neighbor].kind)) {
+        tentative Int=Int(score[current])+1;
+        if(tentative<Int(score[neighbor])) {
+          previous[neighbor]=I32.wrap(current);
+          score[neighbor]=I32.wrap(tentative);
+          priority Int=tentative+this:heuristic(neighbor);
+          if(priority<Int(best[neighbor])) {
+            best[neighbor]=I32.wrap(priority);
+            open!push(neighbor, priority);
+          }
+        }
+      }
+    }
+  }
+  return List(I32);
+}
+
+Unit step(this State, iteration Int) mut {
+  mode Int=this.mode;
+  generator Bool=if(mode==0) {
+    i Int=Int(1);
+    i!to(this.cells:size()) {
+      if(this.cells[i].kind==1) {
+        this.cells[i].kind=I32(0);
+      }
+    }
+    this.cells[this:start()].kind=I32(2);
+    this.cells[this:finish()].kind=I32(3);
+    this!generate();
+    this.result=u32(this.result+Int(this.cells[this.h/2*this.w+this.w/2+1].kind));
+  }
+  generator:else() {
+    bfs Bool=if(mode==1) {
+      this.path=this:bfs();
+    }
+    bfs:else() {
+      this.path=this:astar();
+    }
+    this.result=u32(this.result+this.path:size());
+  }
+  return Unit();
+}
+
+Int checksum(this State) {
+  if(this.mode==0) {
+    fnv Int=Int(2166136261);
+    i Int=Int(1);
+    i!to(this.cells:size()) {
+      if(this.cells[i].kind==1) {
+        x Int=rem(i-1, this.w);
+        y Int=(i-1)/this.w;
+        fnv=u32(bitXor(fnv, x*y)*16777619);
+      }
+    }
+    return u32(this.result+fnv);
+  }
+  index Int=Int(this.path[this.path:size()/2+1]);
+  x Int=rem(index-1, this.w);
+  y Int=(index-1)/this.w;
+  return u32(this.result+x*y);
+}
+
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  if(name=="Maze::BFS") {
+    state.mode=Int(1);
+  }
+  if(name=="Maze::AStar") {
+    state.mode=Int(2);
+  }
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

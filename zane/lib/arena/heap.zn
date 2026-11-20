@@ -1,0 +1,96 @@
+package arena;
+import core$;
+// A vertex is a graph or maze index, and a priority is a path cost plus a
+// distance estimate, both well below 2^31 for any workload that fits in
+// memory, so entries are stored at 32 bits.
+type Entry = struct {
+  vertex I32;
+  priority I32;
+}
+
+Entry(vertex I32, priority I32) => init {
+  vertex;
+  priority;
+}
+
+type Heap = #struct {
+  items List<Entry>;
+  heapSize Int;
+}
+
+Heap() => init {
+  items=List(Entry);
+  heapSize=Int(0);
+}
+
+Int bubble(this Heap, index Int, priority I32) mut {
+  i Int=index;
+  k Int=Int(1);
+  k!to(this.heapSize) {
+    if(i<=1) {
+      return i;
+    }
+    parent Int=i/2;
+    if(this.items[parent].priority<=priority) {
+      return i;
+    }
+    this.items[i]=this.items[parent];
+    i=parent;
+  }
+  return i;
+}
+
+Unit push(this Heap, vertexValue Int, priorityValue Int) mut {
+  vertex I32=I32.wrap(vertexValue);
+  priority I32=I32.wrap(priorityValue);
+  this.heapSize=this.heapSize+1;
+  full Bool=if(this.heapSize>this.items:size()) {
+    this.items!push(Entry(vertex, priority));
+  }
+  full:else() {
+    this.items[this.heapSize]=Entry(vertex, priority);
+  }
+  start Int=this.heapSize;
+  i Int=this!bubble(start, priority);
+  this.items[i]=Entry(vertex, priority);
+  return Unit();
+}
+
+Int sink(this Heap) mut {
+  i Int=Int(1);
+  bound Int=this.heapSize;
+  k Int=Int(1);
+  k!to(bound) {
+    left Int=i*2;
+    right Int=i*2+1;
+    smallest Int=i;
+    if(left<=this.heapSize) {
+      if(this.items[left].priority<this.items[smallest].priority) {
+        smallest=left;
+      }
+    }
+    if(right<=this.heapSize) {
+      if(this.items[right].priority<this.items[smallest].priority) {
+        smallest=right;
+      }
+    }
+    if(smallest==i) {
+      return i;
+    }
+    this.items[i]=this.items[smallest];
+    i=smallest;
+  }
+  return i;
+}
+
+// Match the reference's precise sift and tie ordering.
+Entry pop(this Heap) mut {
+  first Entry=this.items[Int(1)];
+  this.heapSize=this.heapSize-1;
+  if(this.heapSize>0) {
+    last Entry=this.items[this.heapSize+1];
+    i Int=this!sink();
+    this.items[i]=last;
+  }
+  return first;
+}

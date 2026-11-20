@@ -1,0 +1,191 @@
+package arena;
+import core$;
+import math$;
+type Host = #handle {
+  cType = "arena_host";
+}
+
+type Config = #handle {
+  cType = "arena_config";
+  free = "arena_config_free";
+}
+
+type Buffer = #handle {
+  cType = "arena_buffer";
+  set = "arena_buffer_replace";
+  free = "arena_buffer_free";
+}
+
+type Sorted = #handle {
+  cType = "arena_sorted";
+  free = "arena_sorted_free";
+}
+
+@primitives$String _ffiRead(this Host, path @primitives$String) mut foreign "arena_read";
+String read(this Host, path String) mut => String(this!_ffiRead(path));
+@primitives$I64 _ffiStart(this Host, name @primitives$String) mut foreign "arena_start";
+Int start(this Host, name String) mut => Int(this!_ffiStart(name));
+@primitives$I64 _ffiFinish(this Host, started @primitives$I64, actual @primitives$I64, expected @primitives$I64) mut foreign "arena_finish";
+Int finish(this Host, started Int, actual Int, expected Int) mut => Int(this!_ffiFinish(started, actual, expected));
+@primitives$Unit _ffiSummary(this Host, seconds @primitives$F64, count @primitives$I64, failures @primitives$I64) mut foreign "arena_summary";
+Unit summary(this Host, seconds Float, count Int, failures Int) mut {
+  this!_ffiSummary(seconds, count, failures);
+  return Unit();
+}
+
+@primitives$Unit _ffiFail(this Host, message @primitives$String) mut foreign "arena_fail";
+Unit fail(this Host, message String) mut {
+  this!_ffiFail(message);
+  return Unit();
+}
+
+@primitives$Unit _ffiExit(this Host, status @primitives$I64) mut foreign "arena_exit";
+Unit exit(this Host, status Int) mut {
+  this!_ffiExit(status);
+  return Unit();
+}
+
+@primitives$Unit _ffiAnnounce(this Host) mut foreign "arena_announce";
+Unit announce(this Host) mut {
+  this!_ffiAnnounce();
+  return Unit();
+}
+
+@primitives$I64 _ffiCount(this Config) foreign "arena_count";
+Int count(this Config) => Int(this:_ffiCount());
+@primitives$String _ffiName(this Config, index @primitives$I64) foreign "arena_name";
+String name(this Config, index Int) => String(this:_ffiName(index));
+@primitives$I64 _ffiInteger(this Config, name @primitives$String, key @primitives$String) foreign "arena_integer";
+Int integer(this Config, name String, key String) => Int(this:_ffiInteger(name, key));
+@primitives$String _ffiText(this Config, name @primitives$String, key @primitives$String) foreign "arena_text";
+String text(this Config, name String, key String) => String(this:_ffiText(name, key));
+@primitives$Bool _ffiHas(this Config, name @primitives$String, key @primitives$String) foreign "arena_has";
+Bool has(this Config, name String, key String) => Bool(this:_ffiHas(name, key));
+@primitives$Bool _ffiContains(text @primitives$String, pattern @primitives$String) foreign "arena_contains";
+Bool contains(text String, pattern String) => Bool(_ffiContains(text, pattern));
+@primitives$I64 _ffiLength(text @primitives$String) foreign "arena_length";
+Int length(text String) => Int(_ffiLength(text));
+@primitives$I64 _ffiByte(text @primitives$String, index @primitives$I64) foreign "arena_byte";
+Int byte(text String, index Int) => Int(_ffiByte(text, index));
+@primitives$String _ffiSlice(text @primitives$String, start @primitives$I64, length @primitives$I64) foreign "arena_slice";
+String slice(text String, start Int, length Int) => String(_ffiSlice(text, start, length));
+@primitives$String _ffiCharacter(value @primitives$I64) foreign "arena_character";
+String character(value Int) => String(_ffiCharacter(value));
+@primitives$String _ffiFixed(value @primitives$F64, digits @primitives$I64) foreign "arena_fixed";
+String fixed(value Float, digits Int) => String(_ffiFixed(value, digits));
+@primitives$String _ffiHex(value @primitives$I64) foreign "arena_hex";
+String hex(value Int) => String(_ffiHex(value));
+@primitives$I64 _ffiBufferSize(this Buffer) foreign "arena_buffer_size";
+Int size(this Buffer) => Int(this:_ffiBufferSize());
+@primitives$I64 _ffiBufferGet(this Buffer, index @primitives$I64) foreign "arena_buffer_get";
+Int get(this Buffer, index Int) => Int(this:_ffiBufferGet(index));
+@primitives$Unit _ffiBufferSet(this Buffer, index @primitives$I64, value @primitives$I64) mut foreign "arena_buffer_set";
+Unit set(this Buffer, index Int, value Int) mut {
+  this!_ffiBufferSet(index, value);
+  return Unit();
+}
+
+@primitives$Unit _ffiBufferPush(this Buffer, value @primitives$I64) mut foreign "arena_buffer_push";
+Unit push(this Buffer, value Int) mut {
+  this!_ffiBufferPush(value);
+  return Unit();
+}
+
+@primitives$Unit _ffiBufferAppend(this Buffer, text @primitives$String) mut foreign "arena_buffer_append";
+Unit append(this Buffer, text String) mut {
+  this!_ffiBufferAppend(text);
+  return Unit();
+}
+
+@primitives$String _ffiBufferText(this Buffer) foreign "arena_buffer_text";
+String string(this Buffer) => String(this:_ffiBufferText());
+@primitives$Unit _ffiBufferClear(this Buffer) mut foreign "arena_buffer_clear";
+Unit clear(this Buffer) mut {
+  this!_ffiBufferClear();
+  return Unit();
+}
+
+@primitives$I64 _ffiSortedGet(this Sorted, index @primitives$I64) foreign "arena_sorted_get";
+Int get(this Sorted, index Int) => Int(this:_ffiSortedGet(index));
+^Config parse(text @primitives$String) foreign "arena_parse";
+^Buffer buffer(n @primitives$I64, value @primitives$I64) foreign "arena_buffer_new";
+^Sorted standardSort(input @primitives$List<@primitives$I32>) foreign "arena_sort";
+Int u32(value Int) => bitAnd(value, Int(4294967295));
+Int rem(value Int, divisor Int) => value-value/divisor*divisor;
+Int hash(text String) {
+  value Int=Int(5381);
+  i Int=Int(1);
+  i!to(length(text)) {
+    value=u32(value*33+byte(text, i));
+  }
+  return value;
+}
+
+Int hashFloat(value Float) => hash(fixed(value, Int(7)));
+type Rng = struct {
+  state Int;
+}
+
+Rng() => init {
+  state=Int(42);
+}
+
+Unit reset(this Rng) mut {
+  this.state=Int(42);
+  return Unit();
+}
+
+Int next(this Rng, bound Int) mut {
+  this.state=rem(this.state*3877+29573, Int(139968));
+  return Int.truncate(Float(this.state)/Float(139968)*Float(bound));
+}
+
+Float nextFloat(this Rng) mut {
+  this.state=rem(this.state*3877+29573, Int(139968));
+  return Float(this.state)/Float(139968);
+}
+
+type Result = struct {
+  nanos Int;
+  failed Int;
+}
+
+Result(nanos Int, failed Int) => init {
+  nanos;
+  failed;
+}
+
+// RECOMPILE_MARKER_0
+List<Int> filled(n Int, value Int) => List(n, value);
+
+List<I32> filled(n Int, value I32) => List(n, value);
+
+List<Float> filled(n Int, value Float) => List(n, value);
+
+List<U8> filled(n Int, value U8) => List(n, value);
+
+List<Bool> filled(n Int, value Bool) => List(n, value);
+
+@primitives$I64 _stop(this Host,started @primitives$I64) mut foreign "arena_stop";
+Int stop(this Host,started Int) mut => Int(this!_stop(started));
+
+// Byte-oriented scans use a single handle instead of repeatedly converting
+// a value-type String into its primitive payload at each character.
+^Buffer bytes(text String) {
+  out ^Buffer=buffer(Int(0), Int(0));
+  out!append(text);
+  return out;
+}
+
+Int length(text Buffer) => text:size();
+Int byte(text Buffer, index Int) => text:get(index);
+@primitives$String _bufferSlice(this Buffer, start @primitives$I64, size @primitives$I64) foreign "arena_buffer_slice";
+String slice(text Buffer, start Int, size Int) => String(text:_bufferSlice(start, size));
+Int hash(text Buffer) {
+  value Int=Int(5381);
+  i Int=Int(1);
+  i!to(text:size()) {
+    value=u32(value*33+text:get(i));
+  }
+  return value;
+}

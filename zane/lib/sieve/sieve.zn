@@ -1,0 +1,83 @@
+package sieve;
+import core$;
+import math$;
+import arena$;
+type State = #struct {
+  limit Int;
+  result Int;
+}
+
+State(cfg Config, name String) => init {
+  limit=cfg:integer(name, "limit");
+  result=Int(0);
+}
+
+Unit prepare(this State) mut {
+  return Unit();
+}
+
+Unit step(this State, iteration Int) mut {
+  if(this.limit<2) {return Unit();}
+  // As Goose's `u8[>..]`, a byte list.
+  primes List<U8> = List(this.limit+1, U8.wrap(Int(1)));
+  primes[Int(1)]=U8.wrap(Int(0));
+  primes[Int(2)]=U8.wrap(Int(0));
+  p Int=Int(2);
+  p!to(Int.truncate(sqrt(Float(this.limit)))) {
+    if(Int(primes[p+1])==1) {
+      multiple Int=p*p;
+      k Int=Int(1);
+      k!to((this.limit-multiple)/p+1) {
+        primes[multiple+1]=U8.wrap(Int(0));
+        multiple=multiple+p;
+      }
+    }
+  }
+  last Int=Int(2);
+  count Int=Int(1);
+  n Int=Int(3);
+  k Int=Int(1);
+  k!to((this.limit-1)/2) {
+    if(Int(primes[n+1])==1) {
+      last=n;
+      count=count+1;
+    }
+    n=n+2;
+  }
+  this.result=u32(this.result+last+count);
+  return Unit();
+}
+
+Int checksum(this State) => this.result;
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

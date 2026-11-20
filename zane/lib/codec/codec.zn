@@ -1,0 +1,80 @@
+package codec;
+import core$;
+import math$;
+import arena$;
+String testData(n Int) {
+  out Buffer=buffer(Int(0), Int(0));
+  pattern String=String("ABRACADABRA");
+  i Int=Int(0);
+  i!to(n-1) {
+    out!push(byte(pattern, rem(i, Int(11))+1));
+  }
+  return out:string();
+}
+
+List<Int> frequencies(data String) {
+  out List<Int> = filled(Int(256), Int(0));
+  i Int=Int(1);
+  i!to(data:byteCount()) {
+    index Int=Int(data:byteAt(i))+1;
+    out[index]=out[index]+1;
+  }
+  return out;
+}
+
+// As Goose's bit output stream: the bytes in a native list.
+type BitWriter = #struct {
+  data List<U8>;
+  pendingByte Int;
+  bitPosition Int;
+  written Int;
+}
+
+BitWriter() => init {
+  data=List(U8);
+  pendingByte=Int(0);
+  bitPosition=Int(0);
+  written=Int(0);
+}
+
+Unit bit(this BitWriter, value Int) mut {
+  this.pendingByte=this.pendingByte*2+value;
+  this.bitPosition=this.bitPosition+1;
+  this.written=this.written+1;
+  if(this.bitPosition==8) {
+    complete Int=this.pendingByte;
+    this.data!push(U8.wrap(complete));
+    this.pendingByte=Int(0);
+    this.bitPosition=Int(0);
+  }
+  return Unit();
+}
+
+String flush(this BitWriter) mut {
+  if(this.bitPosition>0) {
+    value Int=shiftLeft(this.pendingByte, Int(8)-this.bitPosition);
+    this.data!push(U8.wrap(value));
+    this.bitPosition=Int(0);
+  }
+  return String(this.data);
+}
+
+type BitReader = #struct {
+  data Buffer;
+  position Int;
+}
+
+BitReader(data String) => init {
+  data=bytes(data);
+  position=Int(0);
+}
+
+Int bit(this BitReader) mut {
+  index Int=this.position/8+1;
+  value Int=Int(0);
+  if(index<=length(this.data)) {
+    value=bitAnd(shiftRightLogical(byte(this.data, index), Int(7)-rem(this.position, Int(8))), Int(1));
+  }
+  this.position=this.position+1;
+  return value;
+}

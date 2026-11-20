@@ -1,0 +1,197 @@
+package neural;
+import core$;
+import math$;
+import arena$;
+// As Goose's neuron: its synapses, at most 10 each way, named inline by
+// 32-bit indices, the first `ins` and `outs` of each array in use.
+type Neuron = struct {
+  threshold Float;
+  previous Float;
+  error Float;
+  output Float;
+  ins Int;
+  outs Int;
+  incoming Array<I32, 10>;
+  outgoing Array<I32, 10>;
+}
+
+Neuron(threshold Float) => init {
+  threshold;
+  previous=threshold;
+  error=Float(0.0);
+  output=Float(0.0);
+  ins=Int(0);
+  outs=Int(0);
+  incoming=Array([I32(0), I32(0), I32(0), I32(0), I32(0), I32(0), I32(0), I32(0), I32(0), I32(0)]);
+  outgoing=Array([I32(0), I32(0), I32(0), I32(0), I32(0), I32(0), I32(0), I32(0), I32(0), I32(0)]);
+}
+
+type Synapse = struct {
+  weight Float;
+  previous Float;
+  source Int;
+  destination Int;
+}
+
+Synapse(weight Float, source Int, destination Int) => init {
+  weight;
+  previous=weight;
+  source;
+  destination;
+}
+
+type State = #struct {
+  neurons List<Neuron>;
+  synapses List<Synapse>;
+  rng Rng;
+}
+
+State(cfg Config, name String) => init {
+  neurons=List(Neuron);
+  synapses=List(Synapse);
+  rng=Rng();
+}
+
+Unit connect(this State, source Int, destination Int) mut {
+  weight Float=this.rng!nextFloat()*Float(2.0)-Float(1.0);
+  index Int=this.synapses:size()+1;
+  this.synapses!push(Synapse(weight, source, destination));
+  outs Int=this.neurons[source].outs+1;
+  this.neurons[source].outgoing[outs]=I32.wrap(index);
+  this.neurons[source].outs=outs;
+  ins Int=this.neurons[destination].ins+1;
+  this.neurons[destination].incoming[ins]=I32.wrap(index);
+  this.neurons[destination].ins=ins;
+  return Unit();
+}
+
+Unit prepare(this State) mut {
+  i Int=Int(1);
+  i!to(Int(13)) {
+    weight Float=this.rng!nextFloat()*Float(2.0)-Float(1.0);
+    this.neurons!push(Neuron(weight));
+  }
+  source Int=Int(1);
+  source!to(Int(2)) {
+    destination Int=Int(3);
+    destination!to(Int(12)) {
+      this!connect(source, destination);
+    }
+  }
+  hidden Int=Int(3);
+  hidden!to(Int(12)) {
+    this!connect(hidden, Int(13));
+  }
+  return Unit();
+}
+
+Unit feed(this State, a Float, b Float) mut {
+  this.neurons[Int(1)].output=a;
+  this.neurons[Int(2)].output=b;
+  i Int=Int(3);
+  i!to(Int(13)) {
+    activation Float=Float(0.0);
+    j Int=Int(1);
+    j!to(this.neurons[i].ins) {
+      index Int=Int(this.neurons[i].incoming[j]);
+      synapse Synapse=this.synapses[index];
+      activation=activation+synapse.weight*this.neurons[synapse.source].output;
+    }
+    activation=activation-this.neurons[i].threshold;
+    this.neurons[i].output=Float(1.0)/(Float(1.0)+exp(~activation));
+  }
+  return Unit();
+}
+
+Unit update(this State, i Int) mut {
+  error Float=this.neurons[i].error;
+  j Int=Int(1);
+  j!to(this.neurons[i].ins) {
+    index Int=Int(this.neurons[i].incoming[j]);
+    synapse Synapse=this.synapses[index];
+    this.synapses[index].weight=synapse.weight+(Float(0.3)*Float(1.0)*error*this.neurons[synapse.source].output)+(Float(0.3)*(synapse.weight-synapse.previous));
+    this.synapses[index].previous=synapse.weight;
+  }
+  old Float=this.neurons[i].threshold;
+  this.neurons[i].threshold=old+(Float(0.3)*Float(1.0)*error*~Float(1.0))+(Float(0.3)*(old-this.neurons[i].previous));
+  this.neurons[i].previous=old;
+  return Unit();
+}
+
+Unit train(this State, a Float, b Float, target Float) mut {
+  this!feed(a, b);
+  output Float=this.neurons[Int(13)].output;
+  this.neurons[Int(13)].error=(target-output)*(output*(Float(1.0)-output));
+  this!update(Int(13));
+  i Int=Int(3);
+  i!to(Int(12)) {
+    sum Float=Float(0.0);
+    j Int=Int(1);
+    j!to(this.neurons[i].outs) {
+      index Int=Int(this.neurons[i].outgoing[j]);
+      synapse Synapse=this.synapses[index];
+      sum=sum+synapse.previous*this.neurons[synapse.destination].error;
+    }
+    value Float=this.neurons[i].output;
+    this.neurons[i].error=sum*(value*(Float(1.0)-value));
+    this!update(i);
+  }
+  return Unit();
+}
+
+Unit step(this State, iteration Int) mut {
+  i Int=Int(1);
+  i!to(Int(1000)) {
+    this!train(Float(0.0), Float(0.0), Float(0.0));
+    this!train(Float(1.0), Float(0.0), Float(1.0));
+    this!train(Float(0.0), Float(1.0), Float(1.0));
+    this!train(Float(1.0), Float(1.0), Float(0.0));
+  }
+  return Unit();
+}
+
+Int checksum(this State) mut {
+  sum Float=Float(0.0);
+  this!feed(Float(0.0), Float(0.0));
+  sum=sum+this.neurons[Int(13)].output;
+  this!feed(Float(0.0), Float(1.0));
+  sum=sum+this.neurons[Int(13)].output;
+  this!feed(Float(1.0), Float(0.0));
+  sum=sum+this.neurons[Int(13)].output;
+  this!feed(Float(1.0), Float(1.0));
+  sum=sum+this.neurons[Int(13)].output;
+  return hashFloat(sum);
+}
+
+Unit resetRandom(this State) mut {
+  return Unit();
+}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state!checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}

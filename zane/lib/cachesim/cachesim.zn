@@ -1,0 +1,89 @@
+package cachesim;
+import core$;
+import math$;
+import arena$;
+
+type Node = struct {key String;value String;previous Int;next Int;}
+Node(key String,value String,previous Int,next Int) => init{key;value;previous;next;}
+type State = #struct {
+  capacity Int; values Int; nodes List<Node>; lookup StringMap;
+  head Int; tail Int; hits Int; misses Int; rng Rng;
+}
+State(cfg Config,name String) => init{
+  capacity=cfg:integer(name,"size"); values=cfg:integer(name,"values");
+  nodes=List(Node); lookup=StringMap(cfg:integer(name,"values")*2+16);
+  head=Int(0); tail=Int(0); hits=Int(0); misses=Int(0); rng=Rng();
+}
+Unit prepare(this State) mut {return Unit();}
+Unit front(this State,index Int) mut {
+  if(index==this.head) {return Unit();}
+  previous Int=this.nodes[index].previous; next Int=this.nodes[index].next;
+  if(previous>0) {this.nodes[previous].next=next;}
+  if(next>0) {this.nodes[next].previous=previous;}
+  if(index==this.tail) {this.tail=previous;}
+  this.nodes[index].previous=Int(0); this.nodes[index].next=this.head;
+  if(this.head>0) {this.nodes[this.head].previous=index;}
+  this.head=index;
+  if(this.tail==0) {this.tail=index;}
+  return Unit();
+}
+Unit access(this State,iteration Int) mut {
+  key String=String("item_")+String(this.rng!next(this.values));
+  index Int=this.lookup:get(key);
+  hit Bool=if(index>0) {
+    this.hits=this.hits+1;
+    this.nodes[index].value=String("updated_")+String(iteration);
+    this!front(index);
+  }
+  hit:else() {
+    this.misses=this.misses+1;
+    full Bool=if(this.nodes:size()>=this.capacity) {
+      index=this.tail; old String=this.nodes[index].key;
+      this.lookup!put(old,Int(0)); previous Int=this.nodes[index].previous;
+      if(previous>0) {this.nodes[previous].next=Int(0);}
+      this.tail=previous;
+      if(this.head==index) {this.head=Int(0);}
+      this.nodes[index]=Node(key,String("new_")+String(iteration),Int(0),Int(0));
+    }
+    full:else() {
+      index=this.nodes:size()+1;
+      this.nodes!push(Node(key,String("new_")+String(iteration),Int(0),Int(0)));
+    }
+    this.lookup!put(key,index); this!front(index);
+  }
+  return Unit();
+}
+Unit step(this State,iteration Int) mut {
+  i Int=Int(1);i!to(Int(1000)) {this!access(iteration);}return Unit();
+}
+Int checksum(this State) => u32(((Int(5432)*32+this.hits)*32+this.misses)*32+this.nodes:size());
+Unit resetRandom(this State) mut {this.rng!reset();return Unit();}
+
+Result execute(this Host, cfg Config, name String) mut {
+  state State=State(cfg, name);
+  state!prepare();
+  iterations Int=cfg:integer(name, "iterations");
+  warm Int=max(Int(1), iterations/5);
+  if(cfg:has(name, "warmup_iterations")) {
+    warm=cfg:integer(name, "warmup_iterations");
+  }
+  i Int=Int(0);
+  i!to(warm-1) {
+    state!step(i);
+  }
+  state!resetRandom();
+  started Int=this!start(name);
+  j Int=Int(0);
+  j!to(iterations-1) {
+    state!step(j);
+  }
+  elapsed Int=this!stop(started);
+  actual Int=u32(state:checksum());
+  expected Int=u32(cfg:integer(name, "checksum"));
+  nanos Int=this!finish(elapsed, actual, expected);
+  failed Int=Int(0);
+  if(actual~=expected) {
+    failed=Int(1);
+  }
+  return Result(nanos, failed);
+}
