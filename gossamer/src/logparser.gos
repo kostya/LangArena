@@ -1,6 +1,4 @@
-use std::regex
-use bench::Bench
-use config::Config
+use {std::regex, bench::Bench, config::Config}
 
 fn patterns() -> Vec<(String, String)> {
     #[
@@ -37,15 +35,13 @@ const DOMAINS: [String; 6] = [
     "example.com", "gmail.com", "yahoo.com", "hotmail.com", "company.org", "mail.ru"
 ]
 
-pub struct LogParser {
+pub struct LogParser: Bench {
     lines_count: i64
     patterns: Vec<(String, regex::Pattern)>
     ips: Vec<String>
-    log: String
-    result: u32
-}
+    log: String = ""
+    result: u32 = 0
 
-impl LogParser {
     pub fn new(cfg: Config) -> LogParser {
         let mut compiled: Vec<(String, regex::Pattern)> = #[]
         for (name, pattern) in patterns() { compiled.push((name, regex::new(pattern).unwrap())) }
@@ -53,8 +49,6 @@ impl LogParser {
             lines_count: cfg.int("Etc::LogParser", "lines_count")
             patterns: compiled
             ips: (1..=255).map(|i| f"192.168.1.{i}").collect()
-            log: ""
-            result: 0
         }
     }
 
@@ -76,9 +70,7 @@ impl LogParser {
 
         line
     }
-}
 
-impl Bench for LogParser {
     fn prepare(&mut self) {
         let mut log = String::with_capacity(self.lines_count * 200)
         for i in 0..self.lines_count { log.push_str(self.generate_log_line(i)) }
@@ -90,7 +82,7 @@ impl Bench for LogParser {
         for (name, pattern) in self.patterns { counts.insert(name, pattern.count(self.log)) }
 
         let total = counts.values().sum()
-        self.result +%= total as u32
+        self.result +%= total as% u32
     }
 
     fn checksum(&self) -> u32 { self.result }

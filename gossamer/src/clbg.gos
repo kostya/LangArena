@@ -1,16 +1,11 @@
-use std::math
-use bench::Bench
-use config::Config
-use helper
+use {std::math, bench::Bench, config::Config, helper}
 
-pub struct Fannkuchredux {
+pub struct Fannkuchredux: Bench {
     n: i64
-    result: u32
-}
+    result: u32 = 0
 
-impl Fannkuchredux {
     pub fn new(cfg: Config) -> Fannkuchredux {
-        Fannkuchredux { n: cfg.int("CLBG::Fannkuchredux", "n"), result: 0 }
+        Fannkuchredux { n: cfg.int("CLBG::Fannkuchredux", "n") }
     }
 
     fn fannkuch(&self, n: i64) -> (i64, i64) {
@@ -59,12 +54,10 @@ impl Fannkuchredux {
             perm_count += 1
         }
     }
-}
 
-impl Bench for Fannkuchredux {
     fn run(&mut self, iteration_id: i64) {
         let checksum, max_flips = self.fannkuch(self.n)
-        self.result +%= checksum as u32 *% 100 +% max_flips as u32
+        self.result +%= checksum as% u32 *% 100 +% max_flips as% u32
     }
 
     fn checksum(&self) -> u32 { self.result }
@@ -73,23 +66,18 @@ impl Bench for Fannkuchredux {
 const MANDELBROT_ITER: i64 = 50
 const MANDELBROT_LIMIT: f64 = 2.0
 
-pub struct Mandelbrot {
+pub struct Mandelbrot: Bench {
     w: i64
     h: i64
-    bitmap: Vec<u8>
-}
+    bitmap: Vec<u8> = #[]
 
-impl Mandelbrot {
     pub fn new(cfg: Config) -> Mandelbrot {
         Mandelbrot {
             w: cfg.int("CLBG::Mandelbrot", "w")
             h: cfg.int("CLBG::Mandelbrot", "h")
-            bitmap: #[]
         }
     }
-}
 
-impl Bench for Mandelbrot {
     fn run(&mut self, iteration_id: i64) {
         let w = self.w
         let h = self.h
@@ -127,7 +115,7 @@ impl Bench for Mandelbrot {
                     byte_acc = 0
                     bit_num = 0
                 } else if x == w - 1 {
-                    byte_acc <<= (8 - (w % 8)) as u8
+                    byte_acc <<= (8 - (w % 8)) as% u8
                     self.bitmap.push(byte_acc)
                     byte_acc = 0
                     bit_num = 0
@@ -150,9 +138,7 @@ struct Planet {
     vy: f64
     vz: f64
     mass: f64
-}
 
-impl Planet {
     fn new(x: f64, y: f64, z: f64, vx: f64, vy: f64, vz: f64, mass: f64) -> Planet {
         Planet {
             x: x
@@ -271,16 +257,12 @@ fn create_bodies() -> Vec<Planet> {
     ]
 }
 
-pub struct Nbody {
+pub struct Nbody: Bench {
     bodies: Vec<Planet>
-    v1: f64
-}
+    v1: f64 = 0.0
 
-impl Nbody {
-    pub fn new(cfg: Config) -> Nbody { Nbody { bodies: create_bodies(), v1: 0.0 } }
-}
+    pub fn new(cfg: Config) -> Nbody { Nbody { bodies: create_bodies() } }
 
-impl Bench for Nbody {
     fn prepare(&mut self) {
         offset_momentum(&mut self.bodies)
         self.v1 = energy(self.bodies)
@@ -305,13 +287,11 @@ impl Bench for Nbody {
     }
 }
 
-pub struct Spectralnorm {
+pub struct Spectralnorm: Bench {
     size: i64
     u: Vec<f64>
     v: Vec<f64>
-}
 
-impl Spectralnorm {
     pub fn new(cfg: Config) -> Spectralnorm {
         let size = cfg.int("CLBG::Spectralnorm", "size")
         Spectralnorm { size: size, u: #[1.0; size], v: #[1.0; size] }
@@ -347,9 +327,7 @@ impl Spectralnorm {
     fn eval_ata_times_u(&self, u: Vec<f64>) -> Vec<f64> {
         self.eval_at_times_u(self.eval_a_times_u(u))
     }
-}
 
-impl Bench for Spectralnorm {
     fn run(&mut self, iteration_id: i64) {
         self.v = self.eval_ata_times_u(self.u)
         self.u = self.eval_ata_times_u(self.v)

@@ -1,15 +1,12 @@
-use std::{errors, fs}
-use std::encoding::json
+use {std::{errors, fs}, std::encoding::json}
 
 pub struct Config {
-    ints: Map<String, i64>
-    strs: Map<String, String>
-    order: Vec<String>
-}
+    ints: Map<String, i64> = Map::new()
+    strs: Map<String, String> = Map::new()
+    order: Vec<String> = #[]
 
-impl Config {
     pub fn load(path: String) -> Result<Config, errors::Error> {
-        let mut cfg = Config { ints: Map::new(), strs: Map::new(), order: #[] }
+        let mut cfg = Config { }
         let text = fs::read_to_string(path)?
         let root = json::parse(text)?
         let items = json::as_array(root).ok_or(errors::new("config root is not a JSON array"))?
@@ -51,7 +48,7 @@ impl Config {
     pub fn warmup_iterations(&self, name: String) -> i64 {
         let n = self.int(name, "warmup_iterations")
         if n > 0 { return n }
-        let d = (self.iterations(name) as f64 * 0.2) as i64
+        let d = (self.iterations(name) as f64 * 0.2) as% i64
         if d < 1 { 1 } else { d }
     }
 }

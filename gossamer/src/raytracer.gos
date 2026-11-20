@@ -1,10 +1,10 @@
-use std::math
-use bench::Bench
-use config::Config
+use {std::math, bench::Bench, config::Config}
 
-struct Vector { x: f64, y: f64, z: f64 }
+struct Vector {
+    x: f64
+    y: f64
+    z: f64
 
-impl Vector {
     fn scale(&self, s: f64) -> Vector { Vector { x: self.x * s, y: self.y * s, z: self.z * s } }
 
     fn add(&self, other: Vector) -> Vector {
@@ -22,9 +22,11 @@ impl Vector {
     fn normalize(&self) -> Vector { self.scale(1.0 / math::sqrt(self.dot(self))) }
 }
 
-struct Color { r: f64, g: f64, b: f64 }
+struct Color {
+    r: f64
+    g: f64
+    b: f64
 
-impl Color {
     fn scale(&self, s: f64) -> Color { Color { r: self.r * s, g: self.g * s, b: self.b * s } }
 
     fn add(&self, other: Color) -> Color {
@@ -56,22 +58,19 @@ fn key_light() -> Light {
 
 const LUT: [char; 6] = ['.', '-', '+', '*', 'X', 'M']
 
-pub struct TextRaytracer {
+pub struct TextRaytracer: Bench {
     w: i64
     h: i64
     spheres: Vec<Sphere>
     light: Light
-    result: u32
-}
+    result: u32 = 0
 
-impl TextRaytracer {
     pub fn new(cfg: Config) -> TextRaytracer {
         TextRaytracer {
             w: cfg.int("Etc::TextRaytracer", "w")
             h: cfg.int("Etc::TextRaytracer", "h")
             spheres: scene()
             light: key_light()
-            result: 0
         }
     }
 
@@ -100,11 +99,9 @@ impl TextRaytracer {
     fn shade_pixel(&self, origin: Vector, dir: Vector, sphere: Sphere, tval: f64) -> i64 {
         let point = origin.add(dir.scale(tval))
         let color = self.diffuse_shading(point, sphere)
-        (math::floor((color.r + color.g + color.b) / 3.0 * 6.0)) as i64
+        (math::floor((color.r + color.g + color.b) / 3.0 * 6.0)) as% i64
     }
-}
 
-impl Bench for TextRaytracer {
     fn run(&mut self, iteration_id: i64) {
         let fw = self.w as f64
         let fh = self.h as f64

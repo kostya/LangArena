@@ -1,13 +1,10 @@
-use bench::Bench
-use config::Config
+use {bench::Bench, config::Config}
 
 struct Tape {
-    tape: Vec<u8>
-    pos: i64
-}
+    tape: Vec<u8> = #[0; 30_000]
+    pos: i64 = 0
 
-impl Tape {
-    fn new() -> Tape { Tape { tape: #[0; 30_000], pos: 0 } }
+    fn new() -> Tape { Tape { } }
 
     fn get(&self) -> u8 { self.tape[self.pos] }
 
@@ -28,9 +25,7 @@ impl Tape {
 struct Program {
     commands: Vec<u8>
     jumps: Vec<i64>
-}
 
-impl Program {
     fn new(text: String) -> Option<Program> {
         let mut commands: Vec<u8> = #[]
         for b in text.bytes() {
@@ -82,18 +77,15 @@ impl Program {
     }
 }
 
-pub struct BrainfuckArray {
+pub struct BrainfuckArray: Bench {
     program_text: String
     warmup_text: String
-    result: u32
-}
+    result: u32 = 0
 
-impl BrainfuckArray {
     pub fn new(cfg: Config) -> BrainfuckArray {
         BrainfuckArray {
             program_text: cfg.str("Brainfuck::Array", "program")
             warmup_text: cfg.str("Brainfuck::Array", "warmup_program")
-            result: 0
         }
     }
 
@@ -101,9 +93,7 @@ impl BrainfuckArray {
         let program = Program::new(source)?
         program.run()
     }
-}
 
-impl Bench for BrainfuckArray {
     fn warmup(&mut self, iterations: i64) {
         for _ in 0..iterations { let _ = self.run_program(self.warmup_text) }
     }
@@ -127,12 +117,10 @@ enum Op {
 }
 
 struct OpTape {
-    pos: i64
-    tape: Vec<u8>
-}
+    pos: i64 = 0
+    tape: Vec<u8> = #[0]
 
-impl OpTape {
-    fn new() -> OpTape { OpTape { pos: 0, tape: #[0] } }
+    fn new() -> OpTape { OpTape { } }
 
     fn current_cell(&self) -> u8 { self.tape[self.pos] }
 
@@ -152,9 +140,7 @@ impl OpTape {
 
 struct OpProgram {
     ops: Vec<Op>
-}
 
-impl OpProgram {
     fn new(code: String) -> OpProgram {
         let mut pos = 0
         OpProgram { ops: OpProgram::parse(code.as_bytes(), &mut pos) }
@@ -202,32 +188,27 @@ impl OpProgram {
     }
 }
 
-pub struct BrainfuckRecursion {
+pub struct BrainfuckRecursion: Bench {
     text: String
     warmup_text: String
-    result: u32
-}
+    result: u32 = 0
 
-impl BrainfuckRecursion {
     pub fn new(cfg: Config) -> BrainfuckRecursion {
         BrainfuckRecursion {
             text: cfg.str("Brainfuck::Recursion", "program")
             warmup_text: cfg.str("Brainfuck::Recursion", "warmup_program")
-            result: 0
         }
     }
 
     fn run_text(&self, text: String) -> i64 { OpProgram::new(text).run() }
-}
 
-impl Bench for BrainfuckRecursion {
     fn warmup(&mut self, iterations: i64) {
         for _ in 0..iterations { self.run_text(self.warmup_text) }
     }
 
     fn run(&mut self, iteration_id: i64) {
         let value = self.run_text(self.text)
-        self.result +%= value as u32
+        self.result +%= value as% u32
     }
 
     fn checksum(&self) -> u32 { self.result }

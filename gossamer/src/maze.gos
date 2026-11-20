@@ -1,6 +1,4 @@
-use bench::Bench
-use config::Config
-use helper
+use {bench::Bench, config::Config, helper}
 
 const I32_MAX: i64 = 2_147_483_647
 
@@ -11,9 +9,7 @@ pub enum CellKind {
     Finish
     Border
     Path
-}
 
-impl CellKind {
     fn is_walkable(&self) -> bool { matches(self, CellKind::Space | CellKind::Start | CellKind::Finish) }
 
     fn value(&self) -> u32 {
@@ -29,14 +25,12 @@ impl CellKind {
 }
 
 pub struct Cell {
-    kind: CellKind
-    neighbors: [(i64, i64); 4]
+    kind: CellKind = CellKind::Wall
+    neighbors: [(i64, i64); 4] = [(0, 0); 4]
     pub x: i64
     pub y: i64
-}
 
-impl Cell {
-    fn new(x: i64, y: i64) -> Cell { Cell { kind: CellKind::Wall, neighbors: [(0, 0); 4], x: x, y: y } }
+    fn new(x: i64, y: i64) -> Cell { Cell { x: x, y: y } }
 
     fn reset(&mut self) {
         if self.kind == CellKind::Space { self.kind = CellKind::Wall }
@@ -47,9 +41,7 @@ pub struct Maze {
     width: i64
     height: i64
     cells: Vec<Vec<Cell>>
-}
 
-impl Maze {
     pub fn new(width: i64, height: i64) -> Maze {
         let width = if width > 5 { width } else { 5 }
         let height = if height > 5 { height } else { 5 }
@@ -161,7 +153,7 @@ impl Maze {
         for row in self.cells {
             for cell in row {
                 if cell.kind == CellKind::Space {
-                    let val = (cell.x * cell.y) as u32
+                    let val = (cell.x * cell.y) as% u32
                     hasher = (hasher ^ val) *% prime
                 }
             }
@@ -180,22 +172,18 @@ impl Maze {
     pub fn height(&self) -> i64 { self.height }
 }
 
-pub struct MazeGenerator {
+pub struct MazeGenerator: Bench {
     maze: Maze
-    result: u32
-}
+    result: u32 = 0
 
-impl MazeGenerator {
     pub fn new(cfg: Config) -> MazeGenerator {
         let width = cfg.int("Maze::Generator", "w")
         let height = cfg.int("Maze::Generator", "h")
         let maze = Maze::new(width, height)
 
-        MazeGenerator { maze: maze, result: 0 }
+        MazeGenerator { maze: maze }
     }
-}
 
-impl Bench for MazeGenerator {
     fn prepare(&mut self) {}
 
     fn run(&mut self, iteration_id: i64) {
@@ -207,19 +195,17 @@ impl Bench for MazeGenerator {
     fn checksum(&self) -> u32 { self.result +% self.maze.checksum() }
 }
 
-pub struct MazeBfs {
+pub struct MazeBfs: Bench {
     maze: Maze
-    path: Vec<(i64, i64)>
-    result: u32
-}
+    path: Vec<(i64, i64)> = #[]
+    result: u32 = 0
 
-impl MazeBfs {
     pub fn new(cfg: Config) -> MazeBfs {
         let width = cfg.int("Maze::BFS", "w")
         let height = cfg.int("Maze::BFS", "h")
         let maze = Maze::new(width, height)
 
-        MazeBfs { maze: maze, path: #[], result: 0 }
+        MazeBfs { maze: maze }
     }
 
     fn bfs(&self, start: (i64, i64), target: (i64, i64)) -> Vec<(i64, i64)> {
@@ -262,21 +248,19 @@ impl MazeBfs {
 
         #[]
     }
-}
 
-impl Bench for MazeBfs {
     fn prepare(&mut self) { self.maze.generate() }
 
     fn run(&mut self, iteration_id: i64) {
         self.path = self.bfs(self.maze.get_start(), self.maze.get_finish())
-        self.result +%= self.path.len() as u32
+        self.result +%= self.path.len() as% u32
     }
 
     fn checksum(&self) -> u32 {
         let mid_cell_value = if !self.path.is_empty() {
             let mid_index = self.path.len() / 2
             let y, x = self.path[mid_index]
-            (x * y) as u32
+            (x * y) as% u32
         } else {
             0
         }
@@ -285,19 +269,17 @@ impl Bench for MazeBfs {
     }
 }
 
-pub struct MazeAStar {
+pub struct MazeAStar: Bench {
     maze: Maze
-    path: Vec<(i64, i64)>
-    result: u32
-}
+    path: Vec<(i64, i64)> = #[]
+    result: u32 = 0
 
-impl MazeAStar {
     pub fn new(cfg: Config) -> MazeAStar {
         let width = cfg.int("Maze::AStar", "w")
         let height = cfg.int("Maze::AStar", "h")
         let maze = Maze::new(width, height)
 
-        MazeAStar { maze: maze, path: #[], result: 0 }
+        MazeAStar { maze: maze }
     }
 
     fn heuristic(&self, a: (i64, i64), b: (i64, i64)) -> i64 { (a.0 - b.0).abs() + (a.1 - b.1).abs() }
@@ -364,21 +346,19 @@ impl MazeAStar {
 
         #[]
     }
-}
 
-impl Bench for MazeAStar {
     fn prepare(&mut self) { self.maze.generate() }
 
     fn run(&mut self, iteration_id: i64) {
         self.path = self.astar(self.maze.get_start(), self.maze.get_finish())
-        self.result +%= self.path.len() as u32
+        self.result +%= self.path.len() as% u32
     }
 
     fn checksum(&self) -> u32 {
         let mid_cell_value = if !self.path.is_empty() {
             let mid_index = self.path.len() / 2
             let y, x = self.path[mid_index]
-            (x * y) as u32
+            (x * y) as% u32
         } else {
             0
         }

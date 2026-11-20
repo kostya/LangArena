@@ -1,7 +1,4 @@
-use std::regex
-use bench::Bench
-use config::Config
-use helper
+use {std::regex, bench::Bench, config::Config, helper}
 
 const LOREM: String = "Lorem {ipsum} dolor {sit} amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore {et} dolore magna aliqua. "
 
@@ -16,11 +13,11 @@ const CITIES: [String; 6] = [
 ]
 
 struct Document {
-    text: String
-    vars: Map<String, String>
+    text: String = ""
+    vars: Map<String, String> = Map::new()
 }
 
-fn empty_document() -> Document { Document { text: "", vars: Map::new() } }
+fn empty_document() -> Document { Document { } }
 
 fn build_document(count: i64, vars: &mut Map<String, String>) -> String {
     let mut text = String::new()
@@ -54,27 +51,20 @@ fn build_document(count: i64, vars: &mut Map<String, String>) -> String {
     text
 }
 
-pub struct TemplateRegex {
+pub struct TemplateRegex: Bench {
     count: i64
-    placeholder: regex::Pattern
+    placeholder: regex::Pattern = regex::compile("\\{\\{(.*?)\\}\\}")
     doc: Document
-    rendered: String
-    result: u32
-}
+    rendered: String = ""
+    result: u32 = 0
 
-impl TemplateRegex {
     pub fn new(cfg: Config) -> TemplateRegex {
         TemplateRegex {
             count: cfg.int("Template::Regex", "count")
-            placeholder: regex::compile("\\{\\{(.*?)\\}\\}")
             doc: empty_document()
-            rendered: ""
-            result: 0
         }
     }
-}
 
-impl Bench for TemplateRegex {
     fn prepare(&mut self) {
         self.doc.text = build_document(self.count, &mut self.doc.vars)
     }
@@ -92,7 +82,7 @@ impl Bench for TemplateRegex {
         rendered.push_str(self.doc.text.substring(cursor, self.doc.text.byte_len()))
 
         self.rendered = rendered
-        self.result +%= self.rendered.byte_len() as u32
+        self.result +%= self.rendered.byte_len() as% u32
     }
 
     fn checksum(&self) -> u32 {
@@ -100,25 +90,19 @@ impl Bench for TemplateRegex {
     }
 }
 
-pub struct TemplateParse {
+pub struct TemplateParse: Bench {
     count: i64
     doc: Document
-    rendered: String
-    result: u32
-}
+    rendered: String = ""
+    result: u32 = 0
 
-impl TemplateParse {
     pub fn new(cfg: Config) -> TemplateParse {
         TemplateParse {
             count: cfg.int("Template::Parse", "count")
             doc: empty_document()
-            rendered: ""
-            result: 0
         }
     }
-}
 
-impl Bench for TemplateParse {
     fn prepare(&mut self) {
         self.doc.text = build_document(self.count, &mut self.doc.vars)
     }
@@ -147,7 +131,7 @@ impl Bench for TemplateParse {
         }
 
         self.rendered = rendered
-        self.result +%= self.rendered.byte_len() as u32
+        self.result +%= self.rendered.byte_len() as% u32
     }
 
     fn checksum(&self) -> u32 {

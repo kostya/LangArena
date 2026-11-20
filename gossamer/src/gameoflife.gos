@@ -1,19 +1,15 @@
-use bench::Bench
-use config::Config
-use helper
+use {bench::Bench, config::Config, helper}
 
 const FNV_OFFSET: u32 = 2166136261
 const FNV_PRIME: u32 = 16777619
 
 struct Cell {
     alive: bool
-    next_state: bool
-    neighbors: Vec<(i64, i64)>
-}
+    next_state: bool = false
+    neighbors: Vec<(i64, i64)> = Vec::with_capacity(8)
 
-impl Cell {
     fn new(alive: bool) -> Cell {
-        Cell { alive: alive, next_state: false, neighbors: Vec::with_capacity(8) }
+        Cell { alive: alive }
     }
 
     fn add_neighbor(&mut self, x: i64, y: i64) { self.neighbors.push((x, y)) }
@@ -38,9 +34,7 @@ struct Grid {
     width: i64
     height: i64
     cells: Vec<Vec<Cell>>
-}
 
-impl Grid {
     fn new(width: i64, height: i64) -> Grid {
         let mut cells: Vec<Vec<Cell>> = #[]
         for _ in 0..height {
@@ -87,21 +81,16 @@ impl Grid {
     }
 }
 
-pub struct GameOfLife {
+pub struct GameOfLife: Bench {
     grid: Grid
-    rng: helper::Rng
-}
+    rng: helper::Rng = helper::Rng::new()
 
-impl GameOfLife {
     pub fn new(cfg: Config) -> GameOfLife {
         GameOfLife {
             grid: Grid::new(cfg.int("Etc::GameOfLife", "w"), cfg.int("Etc::GameOfLife", "h"))
-            rng: helper::Rng::new()
         }
     }
-}
 
-impl Bench for GameOfLife {
     fn prepare(&mut self) {
         for y in 0..self.grid.height {
             for x in 0..self.grid.width {

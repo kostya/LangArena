@@ -1,6 +1,4 @@
-use bench::Bench
-use config::Config
-use helper
+use {bench::Bench, config::Config, helper}
 
 const CHARS: String = "abcdefghij"
 
@@ -22,22 +20,17 @@ fn generate_pair_strings(rng: &mut helper::Rng, n: i64, m: i64) -> Vec<(String, 
     pairs
 }
 
-pub struct Jaro {
+pub struct Jaro: Bench {
     count: i64
     size: i64
-    pairs: Vec<(String, String)>
-    result: u32
-    rng: helper::Rng
-}
+    pairs: Vec<(String, String)> = #[]
+    result: u32 = 0
+    rng: helper::Rng = helper::Rng::new()
 
-impl Jaro {
     pub fn new(cfg: Config) -> Jaro {
         Jaro {
             count: cfg.int("Distance::Jaro", "count")
             size: cfg.int("Distance::Jaro", "size")
-            pairs: #[]
-            result: 0
-            rng: helper::Rng::new()
         }
     }
 
@@ -89,9 +82,7 @@ impl Jaro {
         let m = match_count as f64
         (m / len1 as f64 + m / len2 as f64 + (m - transpositions as f64) / m) / 3.0
     }
-}
 
-impl Bench for Jaro {
     fn prepare(&mut self) {
         self.pairs = generate_pair_strings(&mut self.rng, self.count, self.size)
         self.result = 0
@@ -99,31 +90,25 @@ impl Bench for Jaro {
 
     fn run(&mut self, iteration_id: i64) {
         for (s1, s2) in self.pairs {
-            self.result +%= (Jaro::jaro(s1, s2) * 1000.0) as u32
+            self.result +%= (Jaro::jaro(s1, s2) * 1000.0) as% u32
         }
     }
 
     fn checksum(&self) -> u32 { self.result }
 }
 
-pub struct NGram {
+pub struct NGram: Bench {
     count: i64
     size: i64
-    pairs: Vec<(String, String)>
-    result: u32
-    n: i64
-    rng: helper::Rng
-}
+    pairs: Vec<(String, String)> = #[]
+    result: u32 = 0
+    n: i64 = 4
+    rng: helper::Rng = helper::Rng::new()
 
-impl NGram {
     pub fn new(cfg: Config) -> NGram {
         NGram {
             count: cfg.int("Distance::NGram", "count")
             size: cfg.int("Distance::NGram", "size")
-            pairs: #[]
-            result: 0
-            n: 4
-            rng: helper::Rng::new()
         }
     }
 
@@ -140,7 +125,7 @@ impl NGram {
 
         for i in 0..=len1 - self.n {
             let gram = ((s1_bytes[i] as u32) << 24) | ((s1_bytes[i + 1] as u32) << 16) |
-            ((s1_bytes[i + 2] as u32) << 8) | (s1_bytes[i + 3] as u32)
+                ((s1_bytes[i + 2] as u32) << 8) | (s1_bytes[i + 3] as u32)
 
             grams1.insert(gram, grams1.get(gram).unwrap_or(0) + 1)
         }
@@ -150,7 +135,7 @@ impl NGram {
 
         for i in 0..=len2 - self.n {
             let gram = ((s2_bytes[i] as u32) << 24) | ((s2_bytes[i + 1] as u32) << 16) |
-            ((s2_bytes[i + 2] as u32) << 8) | (s2_bytes[i + 3] as u32)
+                ((s2_bytes[i + 2] as u32) << 8) | (s2_bytes[i + 3] as u32)
 
             let count2 = grams2.get(gram).unwrap_or(0) + 1
             grams2.insert(gram, count2)
@@ -163,9 +148,7 @@ impl NGram {
         let total = grams1.len() + grams2.len()
         if total > 0 { intersection as f64 / total as f64 } else { 0.0 }
     }
-}
 
-impl Bench for NGram {
     fn prepare(&mut self) {
         self.pairs = generate_pair_strings(&mut self.rng, self.count, self.size)
         self.result = 0
@@ -173,7 +156,7 @@ impl Bench for NGram {
 
     fn run(&mut self, iteration_id: i64) {
         for (s1, s2) in self.pairs {
-            self.result +%= (self.ngram(s1, s2) * 1000.0) as u32
+            self.result +%= (self.ngram(s1, s2) * 1000.0) as% u32
         }
     }
 
