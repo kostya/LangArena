@@ -480,6 +480,7 @@ function lang_color(lang) {
         'php': '#8892BF',
         'gossamer': '#38BDF8',
         'goose': '#D6CFC7',
+        'valk': '#D99B50',
         'js': '#F7DF1E'
     };
 

@@ -1,0 +1,136 @@
+use valk.math
+
+value NBODY_SOLAR_MASS (4.0 * math.PI * math.PI)
+value NBODY_DAYS_PER_YEAR (365.24)
+
+struct Planet {
+    x: float
+    y: float
+    z: float
+    vx: float
+    vy: float
+    vz: float
+    mass: float
+}
+
+fn planet(x: float, y: float, z: float, vx: float, vy: float, vz: float, mass: float) Planet {
+    return Planet {
+        x: x
+        y: y
+        z: z
+        vx: vx * NBODY_DAYS_PER_YEAR
+        vy: vy * NBODY_DAYS_PER_YEAR
+        vz: vz * NBODY_DAYS_PER_YEAR
+        mass: mass * NBODY_SOLAR_MASS
+    }
+}
+
+// Advances body i against every body after it
+fn nbody_advance(bodies: local mut &[Planet], i: uint, dt: float) {
+    let b = &bodies[i]
+    each (i + 1) .. (bodies.length - i - 1) as j {
+        let b2 = &bodies[j]
+        let dx = b.x - b2.x
+        let dy = b.y - b2.y
+        let dz = b.z - b2.z
+
+        let distance = math.sqrt(dx * dx + dy * dy + dz * dz)
+        let mag = dt / (distance * distance * distance)
+        let b_mass_mag = b.mass * mag
+        let b2_mass_mag = b2.mass * mag
+
+        b.vx -= dx * b2_mass_mag
+        b.vy -= dy * b2_mass_mag
+        b.vz -= dz * b2_mass_mag
+        b2.vx += dx * b_mass_mag
+        b2.vy += dy * b_mass_mag
+        b2.vz += dz * b_mass_mag
+    }
+
+    b.x += dt * b.vx
+    b.y += dt * b.vy
+    b.z += dt * b.vz
+}
+
+fn nbody_energy(bodies: local &[Planet]) float {
+    let e = 0.0
+    let nbodies = bodies.length
+
+    each 0 .. nbodies as i {
+        let b = &bodies[i]
+        e += 0.5 * b.mass * (b.vx * b.vx + b.vy * b.vy + b.vz * b.vz)
+
+        each (i + 1) .. (nbodies - i - 1) as j {
+            let b2 = &bodies[j]
+            let dx = b.x - b2.x
+            let dy = b.y - b2.y
+            let dz = b.z - b2.z
+            let distance = math.sqrt(dx * dx + dy * dy + dz * dz)
+            e -= (b.mass * b2.mass) / distance
+        }
+    }
+    return e
+}
+
+fn nbody_offset_momentum(bodies: local mut &[Planet]) {
+    let px = 0.0
+    let py = 0.0
+    let pz = 0.0
+
+    each bodies as b {
+        let m = b.mass
+        px += b.vx * m
+        py += b.vy * m
+        pz += b.vz * m
+    }
+
+    if bodies.length > 0 {
+        let b = &bodies[0]
+        b.vx = -px / NBODY_SOLAR_MASS
+        b.vy = -py / NBODY_SOLAR_MASS
+        b.vz = -pz / NBODY_SOLAR_MASS
+    }
+}
+
+fn nbody_create_bodies() mut &[Planet] {
+    return [Planet]{
+        planet(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0),
+        planet(4.84143144246472090e+00, -1.16032004402742839e+00, -1.03622044471123109e-01, 1.66007664274403694e-03, 7.69901118419740425e-03, -6.90460016972063023e-05, 9.54791938424326609e-04),
+        planet(8.34336671824457987e+00, 4.12479856412430479e+00, -4.03523417114321381e-01, -2.76742510726862411e-03, 4.99852801234917238e-03, 2.30417297573763929e-05, 2.85885980666130812e-04),
+        planet(1.28943695621391310e+01, -1.51111514016986312e+01, -2.23307578892655734e-01, 2.96460137564761618e-03, 2.37847173959480950e-03, -2.96589568540237556e-05, 4.36624404335156298e-05),
+        planet(1.53796971148509165e+01, -2.59193146099879641e+01, 1.79258772950371181e-01, 2.68067772490389322e-03, 1.62824170038242295e-03, -9.51592254519715870e-05, 5.15138902046611451e-05)
+    }
+}
+
+class Nbody is Benchmark {
+    bodies: mut &[Planet] (nbody_create_bodies())
+    v1: float (0.0)
+
+    static fn new() SELF {
+        return SELF {}
+    }
+
+    fn name() String {
+        return "CLBG::Nbody"
+    }
+
+    fn prepare() {
+        nbody_offset_momentum(this.bodies)
+        this.v1 = nbody_energy(this.bodies)
+    }
+
+    fn run(iteration: int) {
+        let bodies = this.bodies
+        let nbodies = bodies.length
+        let dt = 0.01
+
+        each 0 .. 1000 as step {
+            each 0 .. nbodies as i : nbody_advance(bodies, i, dt)
+        }
+    }
+
+    fn checksum() u32 {
+        let v2 = nbody_energy(this.bodies)
+        return (checksum_f64(this.v1) << 5) & checksum_f64(v2)
+    }
+}

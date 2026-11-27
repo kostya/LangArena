@@ -1,0 +1,152 @@
+use valk.regex
+
+global tpl_first_names: Array[String] (Array[String]{ "John", "Jane", "Bob", "Alice", "Charlie", "Diana", "Sarah", "Mike" })
+global tpl_last_names: Array[String] (Array[String]{ "Smith", "Johnson", "Brown", "Taylor", "Wilson", "Davis", "Miller", "Jones" })
+global tpl_cities: Array[String] (Array[String]{ "New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "San Francisco" })
+
+value TPL_LOREM ("Lorem {ipsum} dolor {sit} amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore {et} dolore magna aliqua. ")
+
+class TemplateBase {
+    count: uint
+    checksum: u32 (0)
+    text: String ("")
+    rendered: String ("")
+    vars: Map[String] (Map[String]{})
+
+    static fn new(count: uint) TemplateBase {
+        return TemplateBase { count: count }
+    }
+
+    fn prepare() {
+        let text = ByteBuffer.new(this.count * 120 + 256)
+        this.vars.clear()
+
+        text.write("<html><body>")
+        text.write("<h1>{{TITLE}}</h1>")
+        this.vars.set("TITLE", "Template title")
+        text.write("<p>")
+        text.write(TPL_LOREM)
+        text.write("</p>")
+        text.write("<table>")
+
+        each 0 .. this.count as i {
+            if i % 3 == 0 {
+                text.write("<!-- {comment} -->")
+            }
+            text.write("<tr>")
+            text.write("<td>{{ FIRST_NAME%i }}</td>")
+            text.write("<td>{{LAST_NAME%{i}}}</td>")
+            text.write("<td>{{  CITY%i  }}</td>")
+
+            this.vars.set("FIRST_NAME%i", tpl_first_names[i % tpl_first_names.length])
+            this.vars.set("LAST_NAME%i", tpl_last_names[i % tpl_last_names.length])
+            this.vars.set("CITY%i", tpl_cities[i % tpl_cities.length])
+
+            text.write("<td>{balance: %{i % 100}}</td>")
+            text.write("</tr>\n")
+        }
+
+        text.write("</table>")
+        text.write("</body></html>")
+
+        this.text = text.into_string()
+    }
+
+    fn base_checksum() u32 {
+        return this.checksum + checksum_str(this.rendered)
+    }
+}
+
+class TemplateRegex is Benchmark {
+    base: TemplateBase
+    re: regex.Regex
+
+    static fn new() SELF {
+        let count = config_int("Template::Regex", "count").to(uint)
+        return SELF {
+            base: TemplateBase.new(count),
+            re: regex.Regex.new("\\{\\{(.*?)\\}\\}") ! panic("bad pattern"),
+        }
+    }
+
+    fn name() String {
+        return "Template::Regex"
+    }
+
+    fn prepare() {
+        this.base.prepare()
+    }
+
+    fn run(iteration: int) {
+        let vars = this.base.vars
+        let rendered = this.re.replace_with(this.base.text, fn(m: regex.Match) String {
+            let key = (m.get(1) ?? "").trim()
+            return vars.get(key) !? ""
+        })
+
+        this.base.rendered = rendered
+        this.base.checksum += rendered.bytes.to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.base.base_checksum()
+    }
+}
+
+class TemplateParse is Benchmark {
+    base: TemplateBase
+
+    static fn new() SELF {
+        let count = config_int("Template::Parse", "count").to(uint)
+        return SELF { base: TemplateBase.new(count) }
+    }
+
+    fn name() String {
+        return "Template::Parse"
+    }
+
+    fn prepare() {
+        this.base.prepare()
+    }
+
+    fn run(iteration: int) {
+        let text = this.base.text
+        let len = text.bytes
+        let vars = this.base.vars
+
+        let rendered = ByteBuffer.new((len.to(float) * 1.5).to(uint))
+        let i: uint = 0
+
+        while i < len {
+            if i + 1 < len && text[i] == '{' && text[i + 1] == '{' {
+                let j = i + 2
+                while j + 1 < len {
+                    if text[j] == '}' && text[j + 1] == '}' {
+                        break
+                    }
+                    j++
+                }
+
+                if j + 1 < len {
+                    let key = text.range(i + 2, j - i - 2).trim()
+                    let value = vars.get(key) !? null
+                    if isset(value) {
+                        rendered.write(value)
+                    }
+                    i = j + 2
+                    continue
+                }
+            }
+
+            rendered.write_byte(text[i])
+            i++
+        }
+
+        this.base.rendered = rendered.into_string()
+        this.base.checksum += this.base.rendered.bytes.to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.base.base_checksum()
+    }
+}

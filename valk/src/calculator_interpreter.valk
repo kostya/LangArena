@@ -1,0 +1,79 @@
+class CalcInterpreter {
+    variables: Map[i64] (Map[i64]{})
+
+    fn evaluate(node: CalcNode) i64 {
+        return match node : i64 {
+            CalcNumber as n => n.value
+            CalcVariable as v => this.variables.get(v.name) !? 0
+            CalcBinaryOp as b => <{
+                let left_val = this.evaluate(b.left)
+                let right_val = this.evaluate(b.right)
+                return match b.op : i64 {
+                    '+' => left_val + right_val
+                    '-' => left_val - right_val
+                    '*' => left_val * right_val
+                    '/' => CalculatorInterpreter.simple_div(left_val, right_val)
+                    '%' => CalculatorInterpreter.simple_mod(left_val, right_val)
+                    default => 0
+                }
+            }
+            CalcAssignment as a => <{
+                let value = this.evaluate(a.expr)
+                this.variables.set(a.name, value)
+                return value
+            }
+        }
+    }
+
+    fn run(expressions: Array[CalcNode]) i64 {
+        let result: i64 = 0
+        each expressions as expr : result = this.evaluate(expr)
+        return result
+    }
+}
+
+class CalculatorInterpreter is Benchmark {
+    n: int
+    ast: Array[CalcNode] (Array[CalcNode]{})
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        return SELF { n: config_int("Calculator::Interpreter", "operations") }
+    }
+
+    static fn simple_div(a: i64, b: i64) i64 {
+        if b == 0 : return 0
+
+        if (a >= 0 && b > 0) || (a < 0 && b < 0) {
+            return a / b
+        }
+        return -(a.abs() / b.abs())
+    }
+
+    static fn simple_mod(a: i64, b: i64) i64 {
+        if b == 0 : return 0
+        return a - CalculatorInterpreter.simple_div(a, b) * b
+    }
+
+    fn name() String {
+        return "Calculator::Interpreter"
+    }
+
+    fn prepare() {
+        let ast_bench = CalculatorAst.new()
+        ast_bench.n = this.n
+        ast_bench.prepare()
+        ast_bench.run(0)
+        this.ast = ast_bench.expressions.copy()
+    }
+
+    fn run(iteration: int) {
+        let interpreter = CalcInterpreter {}
+        let result = interpreter.run(this.ast)
+        this.result_val += result.to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}

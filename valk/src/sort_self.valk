@@ -1,0 +1,26 @@
+class SortSelf is Benchmark {
+    base: SortBase (SortBase {})
+
+    static fn new() SELF {
+        return SELF {}
+    }
+
+    fn name() String {
+        return "Sort::Self"
+    }
+
+    fn prepare() {
+        this.base.prepare("Sort::Self")
+    }
+
+    fn run(iteration: int) {
+        this.base.result_val += this.base.data[next_int(this.base.size_val.to(i32)).to(uint)].to(u32)
+        let t = this.base.data.copy()
+        t.sort()
+        this.base.result_val += t[next_int(this.base.size_val.to(i32)).to(uint)].to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.base.result_val
+    }
+}

@@ -1,0 +1,98 @@
+class TreeNode {
+    left: ?TreeNode
+    right: ?TreeNode
+    item: i32
+
+    static fn new(item: i32, depth: i32) TreeNode {
+        if depth == 0 : return TreeNode { item: item }
+        return TreeNode {
+            item: item
+            left: TreeNode.new(item - (1 << (depth - 1)), depth - 1)
+            right: TreeNode.new(item + (1 << (depth - 1)), depth - 1)
+        }
+    }
+
+    fn sum() u32 {
+        let total = this.item.to(u32) + 1
+        let left = this.left
+        if isset(left) : total += left.sum()
+        let right = this.right
+        if isset(right) : total += right.sum()
+        return total
+    }
+}
+
+class BinarytreesObj is Benchmark {
+    n: i32
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        return SELF { n: config_int("Binarytrees::Obj", "depth").to(i32) }
+    }
+
+    fn name() String {
+        return "Binarytrees::Obj"
+    }
+
+    fn run(iteration: int) {
+        let root = TreeNode.new(0, this.n)
+        this.result_val += root.sum()
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}
+
+struct TreeNodeArena {
+    item: i32
+    left: i32 (-1)
+    right: i32 (-1)
+}
+
+class BinarytreesArena is Benchmark {
+    arena: Array[TreeNodeArena] (Array[TreeNodeArena]{})
+    n: i32
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        return SELF { n: config_int("Binarytrees::Arena", "depth").to(i32) }
+    }
+
+    fn name() String {
+        return "Binarytrees::Arena"
+    }
+
+    fn build_tree(item: i32, depth: i32) i32 {
+        let idx = this.arena.length.to(i32)
+        this.arena.append(TreeNodeArena { item: item })
+
+        if depth > 0 {
+            let left_idx = this.build_tree(item - (1 << (depth - 1)), depth - 1)
+            let right_idx = this.build_tree(item + (1 << (depth - 1)), depth - 1)
+            let node = &this.arena[idx.to(uint)]
+            node.left = left_idx
+            node.right = right_idx
+        }
+
+        return idx
+    }
+
+    fn sum(idx: i32) u32 {
+        let node = this.arena.get(idx.to(uint)) !!
+        let total = node.item.to(u32) + 1
+        if node.left >= 0 : total += this.sum(node.left)
+        if node.right >= 0 : total += this.sum(node.right)
+        return total
+    }
+
+    fn run(iteration: int) {
+        this.arena = Array[TreeNodeArena]{}
+        this.build_tree(0, this.n)
+        this.result_val += this.sum(0)
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}

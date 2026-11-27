@@ -1,0 +1,29 @@
+use valk.crypto
+
+class Base64Decode is Benchmark {
+    str2_encoded: String
+    str3_decoded: String
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        let n = config_int("Base64::Decode", "size")
+        let str2_encoded = crypto.base64_encode("a".repeat(n.to(uint)))
+        let str3_decoded = crypto.base64_decode(str2_encoded) ! panic("Invalid base64")
+        return SELF { str2_encoded: str2_encoded, str3_decoded: str3_decoded }
+    }
+
+    fn name() String {
+        return "Base64::Decode"
+    }
+
+    fn run(iteration: int) {
+        this.str3_decoded = crypto.base64_decode(this.str2_encoded) ! panic("Invalid base64")
+        this.result_val += this.str3_decoded.length.to(u32)
+    }
+
+    fn checksum() u32 {
+        let encoded = this.str2_encoded.length > 4 ? this.str2_encoded[0 .. 4] + "..." : this.str2_encoded
+        let decoded = this.str3_decoded[0 .. 4] + "..."
+        return checksum_str("decode %encoded to %decoded: %{ this.result_val }")
+    }
+}

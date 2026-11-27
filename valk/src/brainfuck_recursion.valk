@@ -1,0 +1,121 @@
+// An op is one of - + < > . or a loop ('[') holding its inner ops
+struct BfRecOp {
+    op: u8
+    inner: ?Array[BfRecOp] (null)
+}
+
+// Byte cursor shared by the recursive parse calls
+class BfRecReader {
+    code: String
+    pos: uint (0)
+}
+
+class BfRecTape {
+    pos: uint (0)
+    tape: Array[u8] (Array[u8]{ 0 })
+    result: i64 (0)
+
+    fn current_cell() u8 {
+        return this.tape[this.pos]
+    }
+
+    fn inc() {
+        this.tape[this.pos] = this.tape[this.pos] + 1
+    }
+
+    fn dec() {
+        this.tape[this.pos] = this.tape[this.pos] - 1
+    }
+
+    fn prev() {
+        if this.pos > 0 : this.pos--
+    }
+
+    fn next() {
+        this.pos++
+        if this.pos >= this.tape.length : this.tape.append(0)
+    }
+}
+
+class BfRecProgram {
+    ops: Array[BfRecOp]
+
+    static fn new(code: String) BfRecProgram {
+        return BfRecProgram { ops: BfRecProgram.parse(BfRecReader { code: code }) }
+    }
+
+    static fn parse(iter: BfRecReader) Array[BfRecOp] {
+        let buf = Array[BfRecOp]{}
+        while iter.pos < iter.code.length {
+            let byte = iter.code[iter.pos]
+            iter.pos++
+            match byte {
+                '-', '+', '<', '>', '.' => buf.append(BfRecOp { op: byte })
+                '[' => buf.append(BfRecOp { op: '[', inner: BfRecProgram.parse(iter) })
+                ']' => break
+                default => continue
+            }
+        }
+        return buf
+    }
+
+    fn run() i64 {
+        let tape = BfRecTape {}
+        this.execute(this.ops, tape)
+        return tape.result
+    }
+
+    fn execute(program: Array[BfRecOp], tape: BfRecTape) {
+        each program as op {
+            match op.op {
+                '-' => tape.dec()
+                '+' => tape.inc()
+                '<' => tape.prev()
+                '>' => tape.next()
+                '.' => tape.result = (tape.result << 2) + tape.current_cell().to(i64)
+                default => {
+                    let inner = op.inner
+                    if !isset(inner) : continue
+                    while tape.current_cell() != 0 {
+                        this.execute(inner, tape)
+                    }
+                }
+            }
+        }
+    }
+}
+
+class BrainfuckRecursion is Benchmark {
+    text: String
+    warmup_text: String
+    result_val: u32 (0)
+
+    static fn new() SELF {
+        return SELF {
+            text: config_str("Brainfuck::Recursion", "program")
+            warmup_text: config_str("Brainfuck::Recursion", "warmup_program")
+        }
+    }
+
+    fn name() String {
+        return "Brainfuck::Recursion"
+    }
+
+    fn run_text(text: String) i64 {
+        return BfRecProgram.new(text).run()
+    }
+
+    fn warmup() {
+        let n = this.warmup_iterations()
+        each 0 .. n as i : this.run_text(this.warmup_text)
+    }
+
+    fn run(iteration: int) {
+        let result = this.run_text(this.text)
+        this.result_val += result.to(u32)
+    }
+
+    fn checksum() u32 {
+        return this.result_val
+    }
+}

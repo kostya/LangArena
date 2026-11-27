@@ -1,0 +1,36 @@
+// Deterministic pseudo random numbers and checksums shared by every benchmark
+
+value IM (139968)
+value IA (3877)
+value IC (29573)
+value INIT (42)
+
+global last: i32 (INIT)
+
+fn reset() {
+    last = INIT
+}
+
+fn next_int(max: i32) i32 {
+    last = (last * IA + IC) % IM
+    return (last.to(float) / IM.to(float) * max.to(float)).to(i32)
+}
+
+fn next_float(max: float) float {
+    last = (last * IA + IC) % IM
+    return max * last.to(float) / IM.to(float)
+}
+
+fn checksum_str(v: String) u32 {
+    return checksum_bytes(v)
+}
+
+fn checksum_bytes(v: local &[u8]) u32 {
+    let hash: u32 = 5381
+    each v as byte : hash = (hash << 5) + hash + byte.to(u32)
+    return hash
+}
+
+fn checksum_f64(v: float) u32 {
+    return checksum_str(v.to_string(7))
+}

@@ -1,0 +1,16 @@
+{
+    "src": "src",
+    "require": {
+        "valk": {
+            "min": "0.10.0"
+        }
+    },
+    "dependencies": {
+        "csv": {
+            "src": "github.com/zikue/valk-csv",
+            "current": "0.3.0",
+            "current_hash": "0b095f1a81246cf39fc516d1ec094a5cb75104e7",
+            "version": "0.3.x"
+        }
+    }
+}

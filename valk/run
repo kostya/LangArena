@@ -1,0 +1,6 @@
+#!/bin/sh
+cd "$(dirname "$0")"
+rm -f ./target/benchmark
+mkdir -p target
+valk build src -o ./target/benchmark --release || exit 1
+../xtime.rb ./target/benchmark ../run.js "$@"
