@@ -715,9 +715,9 @@ class LZWResult {
 }
 
 fn lzw_byte_key(byte: u8) String {
-    let buf = ByteBuffer.new(32)
+    let buf = ByteBuffer.new(1)
     buf.write_byte(byte)
-    return buf.to_string()
+    return buf.into_string()
 }
 
 class LZWEncode is Benchmark {
@@ -738,24 +738,25 @@ class LZWEncode is Benchmark {
         each 0 .. 256 as i : dict.set(lzw_byte_key(i.to(u8)), i)
         let next_code = 256
         let result = Array[u8].new(input.length * 2)
-        // `current` is always a run of the input, so the keys are views of one string
-        let text = input.view().to_string()
-        let start: uint = 0
+        let current = lzw_byte_key(input[0])
 
         each 1 .. input.length - 1 as i {
-            let key = text.range(start, i + 1 - start)
-            if !dict.has(key) {
-                let code = dict.get(text.range(start, i - start)) !!
+            let next_char = lzw_byte_key(input[i])
+            let new_str = current + next_char
+            if dict.has(new_str) {
+                current = new_str
+            } else {
+                let code = dict.get(current) !!
                 result.append(((code >> 8) & 0xFF).to(u8))
                 result.append((code & 0xFF).to(u8))
 
-                dict.set(key, next_code)
+                dict.set(new_str, next_code)
                 next_code++
-                start = i
+                current = next_char
             }
         }
 
-        let code = dict.get(text.range(start, input.length - start)) !!
+        let code = dict.get(current) !!
         result.append(((code >> 8) & 0xFF).to(u8))
         result.append((code & 0xFF).to(u8))
         return LZWResult { data: result }
